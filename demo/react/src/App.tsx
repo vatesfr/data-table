@@ -131,6 +131,7 @@ export default function App() {
         rowKey="id"
         labels={LOCALES[localeKey]}
         defaultVisibleColumns={DEFAULT_VISIBLE}
+        defaultPageSize={5}
       />
       <h2 style={{ fontSize: 16, fontWeight: 600, marginTop: 40, marginBottom: 4 }}>
         Custom layout via useTableState

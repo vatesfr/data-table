@@ -12,6 +12,7 @@ const props = withDefaults(defineProps<{
   rowKey?: string
   defaultVisibleColumns?: string[]
   labels?: Partial<DataTableLabels>
+  defaultPageSize?: number
 }>(), { rowKey: 'id' })
 
 const slots = useSlots()
@@ -19,14 +20,17 @@ const slots = useSlots()
 const state = useTableState(
   () => props.data,
   () => props.columns,
-  () => ({ defaultVisibleColumns: props.defaultVisibleColumns, labels: props.labels }),
+  () => ({ defaultVisibleColumns: props.defaultVisibleColumns, labels: props.labels, defaultPageSize: props.defaultPageSize }),
 )
 
 const {
   visibleCols, sorts, filters, rangeFilters, groupBy, collapsedGroups,
-  processedData, groupedData, activeColumns, stringValueMap, activeFilterCount, L,
+  processedData, groupedData, activeColumns, stringValueMap, activeFilterCount,
+  page, pageSize, numPages,
+  L,
   toggleColVisibility, toggleSort, toggleFilter, setRangeFilter, clearColumnFilter,
   toggleGroup, toggleGroupCollapse, clearSorts, clearFilters, clearGroups, clearAll,
+  setPage, setPageSize,
   getSortIcon, getSortIndex,
 } = state
 
@@ -190,6 +194,19 @@ function hasSlot(name: string): boolean {
       </span>
     </div>
 
+    <!-- ── Pagination ── -->
+    <div v-if="pageSize > 0" class="ft__pagination">
+      <button class="ft__page-btn" :disabled="page === 1" @click="setPage(1)">«</button>
+      <button class="ft__page-btn" :disabled="page === 1" @click="setPage(page - 1)">‹</button>
+      <span class="ft__page-info">{{ L.pageOf(page, numPages) }}</span>
+      <button class="ft__page-btn" :disabled="page >= numPages" @click="setPage(page + 1)">›</button>
+      <button class="ft__page-btn" :disabled="page >= numPages" @click="setPage(numPages)">»</button>
+      <span class="ft__rows-per-page-label">{{ L.rowsPerPage }}:</span>
+      <select class="ft__page-select" :value="pageSize" @change="setPageSize(Number(($event.target as HTMLSelectElement).value))">
+        <option v-for="n in [10, 20, 50, 100]" :key="n" :value="n">{{ n }}</option>
+      </select>
+    </div>
+
     <!-- ── Table ── -->
     <div class="ft__table-wrap">
       <table class="ft__table">
@@ -324,6 +341,24 @@ function hasSlot(name: string): boolean {
   border-color: var(--color-border-warning);
 }
 .ft__chip-remove { cursor: pointer; margin-left: 2px; }
+
+/* Pagination */
+.ft__pagination {
+  display: flex; align-items: center; gap: 6px; padding: 10px 2px;
+  justify-content: flex-end; flex-wrap: wrap;
+}
+.ft__page-btn {
+  padding: 4px 9px; background: none; border: 0.5px solid var(--color-border-secondary);
+  border-radius: 4px; cursor: pointer; font-size: 13px; color: var(--color-text-primary);
+  font-family: inherit; line-height: 1;
+}
+.ft__page-btn:disabled { opacity: 0.35; cursor: default; }
+.ft__page-info { font-size: 12px; color: var(--color-text-secondary); padding: 0 6px; }
+.ft__rows-per-page-label { font-size: 12px; color: var(--color-text-secondary); margin-left: 10px; }
+.ft__page-select {
+  padding: 4px 6px; font-size: 12px; border: 0.5px solid var(--color-border-secondary);
+  border-radius: 4px; background: transparent; color: inherit; font-family: inherit; cursor: pointer;
+}
 
 /* Table */
 .ft__table-wrap {

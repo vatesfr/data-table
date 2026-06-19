@@ -104,6 +104,17 @@ export function getSortIndex(sorts: SortEntry[], key: string): number | null {
   return i >= 0 ? i + 1 : null
 }
 
+export function paginateData<TRow extends object>(data: TRow[], page: number, pageSize: number): TRow[] {
+  if (pageSize <= 0) return data
+  const start = (page - 1) * pageSize
+  return data.slice(start, start + pageSize)
+}
+
+export function calcTotalPages(count: number, pageSize: number): number {
+  if (pageSize <= 0) return 1
+  return Math.max(1, Math.ceil(count / pageSize))
+}
+
 export function countActiveFilters(
   filters: Record<string, Set<string>>,
   rangeFilters: Record<string, RangeFilter>,

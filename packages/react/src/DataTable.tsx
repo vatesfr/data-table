@@ -19,6 +19,12 @@ const S = {
   groupTd: { padding: '6px 12px', borderBottom: '0.5px solid var(--color-border-tertiary)' } as CSSProperties,
   clearBtn: { fontSize: 12, background: 'none', border: 'none', color: 'var(--color-text-secondary)', cursor: 'pointer', padding: 0 } as CSSProperties,
   rangeInput: { width: 80, padding: '3px 6px', fontSize: 12, border: '0.5px solid var(--color-border-secondary)', borderRadius: 4, fontFamily: 'inherit', background: 'transparent', color: 'inherit' } as CSSProperties,
+  pagination: { display: 'flex', alignItems: 'center', gap: 6, padding: '10px 2px', justifyContent: 'flex-end', flexWrap: 'wrap' } as CSSProperties,
+  pageBtn: { padding: '4px 9px', background: 'none', border: '0.5px solid var(--color-border-secondary)', borderRadius: 4, cursor: 'pointer', fontSize: 13, color: 'var(--color-text-primary)', fontFamily: 'inherit', lineHeight: 1 } as CSSProperties,
+  pageBtnDisabled: { opacity: 0.35, cursor: 'default' } as CSSProperties,
+  pageInfo: { fontSize: 12, color: 'var(--color-text-secondary)', padding: '0 6px' } as CSSProperties,
+  rowsPerPageLabel: { fontSize: 12, color: 'var(--color-text-secondary)', marginLeft: 10 } as CSSProperties,
+  pageSelect: { padding: '4px 6px', fontSize: 12, border: '0.5px solid var(--color-border-secondary)', borderRadius: 4, background: 'transparent', color: 'inherit', fontFamily: 'inherit', cursor: 'pointer' } as CSSProperties,
 }
 
 function asRecord(row: object): Record<string, unknown> {
@@ -31,6 +37,7 @@ export function DataTable<TRow extends object>({
   rowKey,
   defaultVisibleColumns,
   labels,
+  defaultPageSize,
 }: DataTableProps<TRow>) {
   const [openColsDD, setOpenColsDD] = useState(false)
   const [openSortDD, setOpenSortDD] = useState(false)
@@ -39,12 +46,15 @@ export function DataTable<TRow extends object>({
 
   const {
     visibleCols, sorts, filters, rangeFilters, groupBy, collapsedGroups,
-    processedData, groupedData, activeColumns, stringValueMap, activeFilterCount, L,
+    processedData, groupedData, activeColumns, stringValueMap, activeFilterCount,
+    page, pageSize, numPages,
+    L,
     toggleColVisibility, toggleSort, toggleFilter, setRangeFilter,
     toggleGroup, toggleGroupCollapse, clearColumnFilter,
     clearSorts, clearFilters, clearGroups, clearAll,
+    setPage, setPageSize,
     getSortIcon, getSortIndex,
-  } = useTableState(data, columns, defaultVisibleColumns, labels)
+  } = useTableState(data, columns, defaultVisibleColumns, labels, defaultPageSize)
 
   const numericFilterCols = columns.filter(c => c.type === 'number' && c.filterable !== false)
   const stringFilterCols = columns.filter(c => c.type !== 'number' && c.type !== 'date' && c.filterable !== false)
@@ -282,6 +292,31 @@ export function DataTable<TRow extends object>({
           </tbody>
         </table>
       </div>
+
+      {/* Pagination */}
+      {pageSize > 0 && (
+        <div style={S.pagination}>
+          <button
+            onClick={() => setPage(1)} disabled={page === 1}
+            style={{ ...S.pageBtn, ...(page === 1 ? S.pageBtnDisabled : {}) }}>«</button>
+          <button
+            onClick={() => setPage(page - 1)} disabled={page === 1}
+            style={{ ...S.pageBtn, ...(page === 1 ? S.pageBtnDisabled : {}) }}>‹</button>
+          <span style={S.pageInfo}>{L.pageOf(page, numPages)}</span>
+          <button
+            onClick={() => setPage(page + 1)} disabled={page >= numPages}
+            style={{ ...S.pageBtn, ...(page >= numPages ? S.pageBtnDisabled : {}) }}>›</button>
+          <button
+            onClick={() => setPage(numPages)} disabled={page >= numPages}
+            style={{ ...S.pageBtn, ...(page >= numPages ? S.pageBtnDisabled : {}) }}>»</button>
+          <span style={S.rowsPerPageLabel}>{L.rowsPerPage}:</span>
+          <select value={pageSize} onChange={e => setPageSize(Number(e.target.value))} style={S.pageSelect}>
+            {[10, 20, 50, 100].map(n => (
+              <option key={n} value={n}>{n}</option>
+            ))}
+          </select>
+        </div>
+      )}
     </div>
   )
 }

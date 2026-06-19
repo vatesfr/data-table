@@ -19,6 +19,8 @@ export const LABELS_EN: DataTableLabels = {
   groupCount: n => ` · ${n} group${n !== 1 ? 's' : ''}`,
   groupLabel: i => `Group ${i}`,
   rowsInGroup: n => `${n} row${n !== 1 ? 's' : ''}`,
+  rowsPerPage: 'Rows per page',
+  pageOf: (p, t) => `Page ${p} of ${t}`,
 }
 
 export const LABELS_FR: DataTableLabels = {
@@ -40,6 +42,8 @@ export const LABELS_FR: DataTableLabels = {
   groupCount: n => ` · ${n} groupe${n > 1 ? 's' : ''}`,
   groupLabel: i => `Groupe ${i}`,
   rowsInGroup: n => `${n} ligne${n > 1 ? 's' : ''}`,
+  rowsPerPage: 'Lignes par page',
+  pageOf: (p, t) => `Page ${p} sur ${t}`,
 }
 
 export const LABELS_ES: DataTableLabels = {
@@ -61,6 +65,8 @@ export const LABELS_ES: DataTableLabels = {
   groupCount: n => ` · ${n} grupo${n !== 1 ? 's' : ''}`,
   groupLabel: i => `Grupo ${i}`,
   rowsInGroup: n => `${n} fila${n !== 1 ? 's' : ''}`,
+  rowsPerPage: 'Filas por página',
+  pageOf: (p, t) => `Página ${p} de ${t}`,
 }
 
 export const LABELS_DE: DataTableLabels = {
@@ -82,6 +88,8 @@ export const LABELS_DE: DataTableLabels = {
   groupCount: n => ` · ${n} Gruppe${n !== 1 ? 'n' : ''}`,
   groupLabel: i => `Gruppe ${i}`,
   rowsInGroup: n => `${n} Zeile${n !== 1 ? 'n' : ''}`,
+  rowsPerPage: 'Zeilen pro Seite',
+  pageOf: (p, t) => `Seite ${p} von ${t}`,
 }
 
 export const LABELS_PT: DataTableLabels = {
@@ -103,4 +111,6 @@ export const LABELS_PT: DataTableLabels = {
   groupCount: n => ` · ${n} grupo${n !== 1 ? 's' : ''}`,
   groupLabel: i => `Grupo ${i}`,
   rowsInGroup: n => `${n} linha${n !== 1 ? 's' : ''}`,
+  rowsPerPage: 'Linhas por página',
+  pageOf: (p, t) => `Página ${p} de ${t}`,
 }

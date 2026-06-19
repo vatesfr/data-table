@@ -107,6 +107,7 @@ function fmtSalary(n: number) {
       row-key="id"
       :labels="currentLocale"
       :default-visible-columns="DEFAULT_VISIBLE"
+      :default-page-size="5"
     >
       <!-- Custom cell rendering via named slots -->
       <template #cell-department="{ value }">

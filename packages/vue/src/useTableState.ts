@@ -3,6 +3,8 @@ import {
   processData,
   groupData,
   computeStringValues,
+  paginateData,
+  calcTotalPages,
   toggleSort as _toggleSort,
   toggleFilter as _toggleFilter,
   toggleGroupBy,
@@ -20,6 +22,7 @@ import type { ColumnDef } from './types'
 export interface UseTableStateOptions {
   defaultVisibleColumns?: string[]
   labels?: Partial<DataTableLabels>
+  defaultPageSize?: number
 }
 
 export function useTableState<TRow extends object>(
@@ -41,6 +44,8 @@ export function useTableState<TRow extends object>(
   const rangeFilters = ref<Record<string, RangeFilter>>({})
   const groupBy = ref<string[]>([])
   const collapsedGroups = ref<Set<string>>(new Set())
+  const page = ref(1)
+  const pageSize = ref(options.value.defaultPageSize ?? 0)
 
   const stringValueMap = computed(() => computeStringValues(data.value, columns.value))
 
@@ -48,7 +53,13 @@ export function useTableState<TRow extends object>(
     processData(data.value, filters.value, rangeFilters.value, sorts.value),
   )
 
-  const groupedData = computed(() => groupData(processedData.value, groupBy.value))
+  const numPages = computed(() => calcTotalPages(processedData.value.length, pageSize.value))
+
+  const pagedData = computed(() =>
+    paginateData(processedData.value, Math.min(page.value, numPages.value), pageSize.value),
+  )
+
+  const groupedData = computed(() => groupData(pagedData.value, groupBy.value))
 
   const activeColumns = computed(() =>
     columns.value.filter(c => visibleCols.value.has(c.key) && !groupBy.value.includes(c.key)),
@@ -66,12 +77,16 @@ export function useTableState<TRow extends object>(
     rangeFilters,
     groupBy,
     collapsedGroups,
+    page,
+    pageSize,
     // Computed
     processedData,
+    pagedData,
     groupedData,
     activeColumns,
     stringValueMap,
     activeFilterCount,
+    numPages,
     L,
     // Actions
     toggleColVisibility: (key: string) => {
@@ -83,22 +98,27 @@ export function useTableState<TRow extends object>(
     toggleSort: (key: string) => { sorts.value = _toggleSort(sorts.value, key) },
     toggleFilter: (key: string, value: string) => {
       filters.value = _toggleFilter(filters.value, key, value)
+      page.value = 1
     },
     setRangeFilter: (key: string, field: 'min' | 'max', value: string) => {
       rangeFilters.value = {
         ...rangeFilters.value,
         [key]: { min: rangeFilters.value[key]?.min ?? '', max: rangeFilters.value[key]?.max ?? '', [field]: value },
       }
+      page.value = 1
     },
     clearColumnFilter: (key: string) => {
       filters.value = { ...filters.value, [key]: new Set() }
+      page.value = 1
     },
+    setPage: (p: number) => { page.value = Math.max(1, Math.min(p, numPages.value)) },
+    setPageSize: (s: number) => { pageSize.value = s; page.value = 1 },
     toggleGroup: (key: string) => { groupBy.value = toggleGroupBy(groupBy.value, key) },
     toggleGroupCollapse: (key: string) => {
       collapsedGroups.value = toggleCollapse(collapsedGroups.value, key)
     },
     clearSorts: () => { sorts.value = [] },
-    clearFilters: () => { filters.value = {}; rangeFilters.value = {} },
+    clearFilters: () => { filters.value = {}; rangeFilters.value = {}; page.value = 1 },
     clearGroups: () => { groupBy.value = []; collapsedGroups.value = new Set() },
     clearAll: () => {
       sorts.value = []
@@ -106,6 +126,7 @@ export function useTableState<TRow extends object>(
       rangeFilters.value = {}
       groupBy.value = []
       collapsedGroups.value = new Set()
+      page.value = 1
     },
     getSortIcon: (key: string) => _getSortIcon(sorts.value, key),
     getSortIndex: (key: string) => _getSortIndex(sorts.value, key),

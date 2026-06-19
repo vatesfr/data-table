@@ -14,4 +14,5 @@ export interface DataTableProps<TRow extends object = Record<string, unknown>> {
   rowKey?: keyof TRow & string
   defaultVisibleColumns?: string[]
   labels?: Partial<DataTableLabels>
+  defaultPageSize?: number
 }

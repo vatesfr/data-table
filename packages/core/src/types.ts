@@ -42,6 +42,8 @@ export interface DataTableLabels {
   groupCount: (count: number) => string
   groupLabel: (index: number) => string
   rowsInGroup: (count: number) => string
+  rowsPerPage: string
+  pageOf: (page: number, total: number) => string
 }
 
 export { LABELS_EN as DEFAULT_LABELS } from './locales'
