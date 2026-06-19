@@ -72,6 +72,15 @@ Vue customization uses **scoped slots** instead of render props:
 - `#filter-{key}` — custom filter dropdown label; slot scope: `{ value: string }`
 - `#group-{key}` — custom group header value; slot scope: `{ value: unknown, row: TRow }`
 
+### Row selection
+
+Selection lives in `useTableState` in both adapters. Key design notes:
+- Selection is tracked as `Set<TRow>` by **object identity** — no `rowKey` dependency. Row references must be stable (the same object in memory) across re-renders for selection to persist through sort/filter changes.
+- React uses `useState<Set<TRow>>` (always assigns a new Set on mutation). Vue uses `shallowRef<Set<TRow>>` — `ref` would cause `UnwrapRefSimple<TRow>` type errors because Vue's deep-unwrap conflicts with generic constraints.
+- `selectedRows` is `processedData.filter(r => selection.has(r))` — rows removed by filtering disappear from `selectedRows` but stay in `selection` and reappear if the filter is cleared.
+- `toggleSelectAll` operates on the entire filtered dataset (`processedData`), not just the current page.
+- Vue uses a local `vIndeterminate` directive (mounted + updated hooks) to set `el.indeterminate` reactively; React uses inline callback refs (re-run on every render because they are arrow functions).
+
 ### Grouped columns
 
 When a column is added to `groupBy`, `useTableState` removes it from `activeColumns`, so it disappears from the table header and cells automatically. When grouping is cleared, the column reappears. Group header values are rendered with the same `cellValue()` / slot logic as table cells.

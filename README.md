@@ -20,6 +20,8 @@ A flexible, fully-typed data table for React and Vue 3 — with sorting, filteri
 - Value checklist filters and numeric range filters
 - Column visibility toggle
 - Row grouping (grouped column hides from the table automatically)
+- Row selection with checkboxes — select all (across pages), group selection, indeterminate state
+- Client-side pagination
 - i18n via a `labels` prop — defaults to English, with built-in locales for FR, ES, DE, PT
 - Custom cell rendering via render props (React) or scoped slots (Vue)
 - Fully typed with TypeScript generics (`TRow extends object`)

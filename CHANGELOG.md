@@ -7,6 +7,13 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Added
+- Client-side pagination (`defaultPageSize` prop; `page`, `pageSize`, `numPages`, `setPage`, `setPageSize` in `useTableState`)
+- Row selection: opt-in `selectable` prop adds a checkbox column; header checkbox selects/deselects the entire filtered dataset (across all pages) with indeterminate state; group header checkboxes select/deselect all rows in a group; selected rows are highlighted
+- React: `onSelectionChange(rows)` prop fires on every selection change
+- Vue: `selectionChange` emit fires on every selection change
+- `useTableState` exposes `selection` (`Set<TRow>`), `selectedRows` (filtered array), `toggleRowSelection`, `toggleSelectAll`, and `clearSelection` for headless usage
+
 ## [0.1.0] - 2026-06-19
 
 ### Added

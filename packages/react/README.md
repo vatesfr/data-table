@@ -48,6 +48,26 @@ const COLUMNS: ColumnDef<Employee>[] = [
 
 `render` also applies to group header values, so grouped columns display with the same badge/visual as table cells.
 
+## Row selection
+
+Pass `selectable` to show a checkbox column. The header checkbox selects/deselects the full filtered dataset (all pages at once). Group header checkboxes select/deselect all rows in that group. Both support indeterminate state.
+
+```tsx
+const [selected, setSelected] = useState<Employee[]>([])
+
+<DataTable
+  data={employees}
+  columns={COLUMNS}
+  rowKey="id"
+  selectable
+  onSelectionChange={setSelected}
+/>
+
+{selected.length > 0 && <p>{selected.length} rows selected</p>}
+```
+
+`onSelectionChange` receives the array of currently selected rows that are present in the filtered dataset. Selection uses object identity (`Set<TRow>`), so it persists across sort/filter changes as long as row references are stable.
+
 ## `DataTable` props
 
 | Prop | Type | Default | Description |
@@ -57,6 +77,9 @@ const COLUMNS: ColumnDef<Employee>[] = [
 | `rowKey` | `keyof TRow & string` | — | Unique row identifier |
 | `defaultVisibleColumns` | `string[]` | all | Initially visible column keys |
 | `labels` | `Partial<DataTableLabels>` | English | UI string overrides |
+| `defaultPageSize` | `number` | 0 (off) | Initial rows per page; 0 disables pagination |
+| `selectable` | `boolean` | `false` | Show checkbox column for row selection |
+| `onSelectionChange` | `(rows: TRow[]) => void` | — | Called when selection changes |
 
 ## Column definition
 
@@ -87,13 +110,20 @@ import { useTableState, type ColumnDef } from '@vates/flexi-table-react'
 const {
   // State
   visibleCols, sorts, filters, rangeFilters, groupBy, collapsedGroups,
+  page, pageSize,
+  selection,      // Set<TRow> — use .has(row) to check membership
   // Derived
-  processedData, groupedData, activeColumns, stringValueMap, activeFilterCount, L,
+  processedData, pagedData, groupedData, activeColumns, stringValueMap, activeFilterCount,
+  numPages, selectedRows, L,
   // Actions
   toggleColVisibility, toggleSort, toggleFilter, setRangeFilter,
   toggleGroup, toggleGroupCollapse, clearColumnFilter,
   clearSorts, clearFilters, clearGroups, clearAll,
+  setPage, setPageSize,
   getSortIcon, getSortIndex,
+  toggleRowSelection,       // (row: TRow) => void
+  toggleSelectAll,          // (rows: TRow[]) => void — selects all if any unselected, else deselects all
+  clearSelection,           // () => void
 } = useTableState(data, columns, defaultVisibleColumns, labelOverrides)
 ```
 

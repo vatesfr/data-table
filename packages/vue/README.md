@@ -58,6 +58,29 @@ Slot naming: `#cell-{key}`, `#filter-{key}`, `#group-{key}` where `{key}` matche
 
 `#group-{key}` applies to group header rows when that column is used for grouping, so values display with the same visual as table cells.
 
+## Row selection
+
+Pass `:selectable="true"` to show a checkbox column. The header checkbox selects/deselects the full filtered dataset (all pages at once). Group header checkboxes select/deselect all rows in that group. Both support indeterminate state.
+
+```vue
+<script setup lang="ts">
+const selected = ref<Employee[]>([])
+</script>
+
+<template>
+  <DataTable
+    :data="employees"
+    :columns="COLUMNS"
+    row-key="id"
+    :selectable="true"
+    @selection-change="selected = $event"
+  />
+  <p v-if="selected.length > 0">{{ selected.length }} rows selected</p>
+</template>
+```
+
+`selectionChange` receives the array of currently selected rows that are present in the filtered dataset. Selection uses object identity (`Set<TRow>`), so it persists across sort/filter changes as long as row references are stable.
+
 ## `DataTable` props
 
 | Prop | Type | Default | Description |
@@ -67,8 +90,16 @@ Slot naming: `#cell-{key}`, `#filter-{key}`, `#group-{key}` where `{key}` matche
 | `rowKey` | `keyof TRow & string` | — | Unique row identifier |
 | `defaultVisibleColumns` | `string[]` | all | Initially visible column keys |
 | `labels` | `Partial<DataTableLabels>` | English | UI string overrides |
+| `defaultPageSize` | `number` | 0 (off) | Initial rows per page; 0 disables pagination |
+| `selectable` | `boolean` | `false` | Show checkbox column for row selection |
 
 All props accept `MaybeRefOrGetter` — you can pass refs, computed values, or plain values.
+
+## Events
+
+| Event | Payload | Description |
+|---|---|---|
+| `selectionChange` | `TRow[]` | Emitted when selection changes; payload is the selected rows present in the filtered dataset |
 
 ## Column definition
 
@@ -97,17 +128,24 @@ import { useTableState } from '@vates/flexi-table-vue'
 const {
   // Reactive state (refs)
   visibleCols, sorts, filters, rangeFilters, groupBy, collapsedGroups,
+  page, pageSize,
+  selection,      // ShallowRef<Set<TRow>> — use selection.value.has(row) to check membership
   // Computed
-  processedData, groupedData, activeColumns, stringValueMap, activeFilterCount, L,
+  processedData, pagedData, groupedData, activeColumns, stringValueMap, activeFilterCount,
+  numPages, selectedRows, L,
   // Actions
   toggleColVisibility, toggleSort, toggleFilter, setRangeFilter,
   toggleGroup, toggleGroupCollapse, clearColumnFilter,
   clearSorts, clearFilters, clearGroups, clearAll,
+  setPage, setPageSize,
   getSortIcon, getSortIndex,
+  toggleRowSelection,       // (row: TRow) => void
+  toggleSelectAll,          // (rows: TRow[]) => void — selects all if any unselected, else deselects all
+  clearSelection,           // () => void
 } = useTableState(data, columns, options)
 ```
 
-`data` and `columns` can be refs, computed values, or plain arrays.
+`data`, `columns`, and `options` can be refs, computed values, or plain values.
 
 ## i18n
 
