@@ -1,0 +1,19 @@
+{
+  "name": "@vates/flexi-table-workspace",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "demo/*"
+  ],
+  "scripts": {
+    "build": "npm run build -w packages/core && npm run build -w packages/react && npm run build -w packages/vue",
+    "dev:react": "npm run dev -w demo/react",
+    "dev:vue": "npm run dev -w demo/vue",
+    "type-check": "npm run type-check -w packages/core && npm run type-check -w packages/react",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "prettier": "^3.8.4"
+  }
+}
