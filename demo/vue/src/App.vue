@@ -1,5 +1,10 @@
 <script setup lang="ts">
-import { DataTable, Badge, ScoreBar, LABELS_EN, type ColumnDef } from '@vates/flexi-table-vue'
+import { ref, computed } from 'vue'
+import {
+  DataTable, Badge, ScoreBar, useTableState,
+  LABELS_EN, LABELS_FR, LABELS_DE, LABELS_ES,
+  type ColumnDef, type DataTableLabels,
+} from '@vates/flexi-table-vue'
 
 interface Employee {
   id: number; name: string; department: string; role: string
@@ -39,28 +44,70 @@ const STATUS_COLORS = {
 }
 
 const COLUMNS: ColumnDef<Employee>[] = [
-  { key: 'id', label: 'ID', type: 'number', width: 60, filterable: false },
+  // sortable: false + filterable: false — no sort/filter UI; hidden by default via defaultVisibleColumns
+  { key: 'id', label: 'ID', type: 'number', width: 60, sortable: false, filterable: false },
   { key: 'name', label: 'Name', type: 'string', width: 160 },
+  // groupable: true — slot #cell-department / #filter-department / #group-department override rendering
   { key: 'department', label: 'Department', type: 'string', width: 130, groupable: true,
     format: v => String(v) },
   { key: 'role', label: 'Role', type: 'string', width: 140, groupable: true },
+  // format: plain string — numeric range filter is automatic for type: 'number'
   { key: 'salary', label: 'Salary', type: 'number', width: 110,
     format: v => Number(v).toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }) },
+  // filterable: false — no filter UI for this column
   { key: 'joined', label: 'Joined', type: 'date', width: 100, filterable: false },
+  // slot #cell-status / #filter-status / #group-status override rendering
   { key: 'status', label: 'Status', type: 'string', width: 90, groupable: true },
+  // slot #cell-score overrides rendering
   { key: 'score', label: 'Score', type: 'number', width: 80 },
 ]
+
+// 'id' is hidden by default; users can toggle it back from the Columns menu
+const DEFAULT_VISIBLE = ['name', 'department', 'role', 'salary', 'joined', 'status', 'score']
+
+const LOCALES: Record<string, DataTableLabels> = {
+  EN: LABELS_EN, FR: LABELS_FR, DE: LABELS_DE, ES: LABELS_ES,
+}
+
+const localeKey = ref('EN')
+const currentLocale = computed(() => LOCALES[localeKey.value])
+
+// Headless section: useTableState owns the sort/filter logic; you own the render.
+const { processedData, getSortIcon, toggleSort } = useTableState(SAMPLE_DATA, COLUMNS)
+
+const SORT_COLS = ['name', 'salary', 'score'] as const
+
+function fmtSalary(n: number) {
+  return n.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })
+}
 </script>
 
 <template>
   <div style="max-width: 1100px; margin: 0 auto; padding: 32px 24px">
-    <h1 style="font-size: 20px; font-weight: 600; margin-bottom: 4px">FlexiTable — Vue</h1>
+
+    <!-- Header with locale switcher -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px">
+      <h1 style="font-size: 20px; font-weight: 600; margin: 0">FlexiTable — Vue</h1>
+      <div style="display: flex; gap: 4px">
+        <button v-for="key in Object.keys(LOCALES)" :key="key" @click="localeKey = key"
+          :style="{ padding: '2px 8px', borderRadius: '4px', border: '1px solid #ddd', cursor: 'pointer', fontSize: '13px',
+            fontWeight: localeKey === key ? '600' : '400',
+            background: localeKey === key ? '#f0f0f0' : 'white' }">
+          {{ key }}
+        </button>
+      </div>
+    </div>
     <p style="font-size: 14px; color: var(--color-text-secondary); margin-top: 0; margin-bottom: 24px">
       @vates/flexi-table-vue
     </p>
 
-    <DataTable :data="SAMPLE_DATA" :columns="COLUMNS" row-key="id" :labels="LABELS_EN">
-
+    <DataTable
+      :data="SAMPLE_DATA"
+      :columns="COLUMNS"
+      row-key="id"
+      :labels="currentLocale"
+      :default-visible-columns="DEFAULT_VISIBLE"
+    >
       <!-- Custom cell rendering via named slots -->
       <template #cell-department="{ value }">
         <Badge :value="String(value)" :color-map="DEPT_COLORS" />
@@ -87,7 +134,36 @@ const COLUMNS: ColumnDef<Employee>[] = [
       <template #group-status="{ value }">
         <Badge :value="String(value)" :color-map="STATUS_COLORS" />
       </template>
-
     </DataTable>
+
+    <!-- Headless section -->
+    <h2 style="font-size: 16px; font-weight: 600; margin-top: 40px; margin-bottom: 4px">
+      Custom layout via useTableState
+    </h2>
+    <p style="font-size: 14px; color: var(--color-text-secondary); margin-top: 0; margin-bottom: 16px">
+      Same data and sort logic — your own render.
+    </p>
+
+    <!-- Sort controls -->
+    <div style="display: flex; gap: 8px; margin-bottom: 12px">
+      <button v-for="col in SORT_COLS" :key="col" @click="toggleSort(col)"
+        style="padding: 4px 10px; border-radius: 6px; border: 1px solid #ddd; cursor: pointer; background: white; font-size: 13px">
+        {{ col.charAt(0).toUpperCase() + col.slice(1) }} {{ getSortIcon(col) }}
+      </button>
+    </div>
+
+    <!-- Card grid -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px">
+      <div v-for="row in processedData" :key="row.id"
+        style="border: 1px solid #e8e8e8; border-radius: 8px; padding: 12px 14px">
+        <div style="font-weight: 600; margin-bottom: 2px">{{ row.name }}</div>
+        <div style="font-size: 13px; color: #666; margin-bottom: 8px">{{ row.department }} · {{ row.role }}</div>
+        <div style="display: flex; justify-content: space-between; align-items: center">
+          <span style="font-size: 13px">{{ fmtSalary(row.salary) }}</span>
+          <ScoreBar :value="row.score" />
+        </div>
+      </div>
+    </div>
+
   </div>
 </template>

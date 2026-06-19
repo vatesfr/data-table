@@ -1,4 +1,9 @@
-import { DataTable, Badge, ScoreBar, LABELS_EN, type ColumnDef } from '@vates/flexi-table-react'
+import { useState } from 'react'
+import {
+  DataTable, Badge, ScoreBar, useTableState,
+  LABELS_EN, LABELS_FR, LABELS_DE, LABELS_ES,
+  type ColumnDef, type DataTableLabels,
+} from '@vates/flexi-table-react'
 
 interface Employee {
   id: number; name: string; department: string; role: string
@@ -38,30 +43,102 @@ const STATUS_COLORS = {
 }
 
 const COLUMNS: ColumnDef<Employee>[] = [
-  { key: 'id', label: 'ID', type: 'number', width: 60, filterable: false },
+  // sortable: false + filterable: false — no sort/filter UI; hidden by default via defaultVisibleColumns
+  { key: 'id', label: 'ID', type: 'number', width: 60, sortable: false, filterable: false },
   { key: 'name', label: 'Name', type: 'string', width: 160 },
+  // groupable + render: JSX cell; renderFilterLabel: custom chip in filter dropdown
   { key: 'department', label: 'Department', type: 'string', width: 130, groupable: true,
     render: v => <Badge value={String(v)} colorMap={DEPT_COLORS} />,
     renderFilterLabel: v => <Badge value={v} colorMap={DEPT_COLORS} /> },
   { key: 'role', label: 'Role', type: 'string', width: 140, groupable: true },
+  // format: plain string — use this when no JSX is needed; numeric range filter is automatic
   { key: 'salary', label: 'Salary', type: 'number', width: 110,
     format: v => Number(v).toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }) },
+  // filterable: false — no filter UI for this column
   { key: 'joined', label: 'Joined', type: 'date', width: 100, filterable: false },
+  // render + renderFilterLabel — badge consistent in cells and filter dropdown
   { key: 'status', label: 'Status', type: 'string', width: 90, groupable: true,
     render: v => <Badge value={String(v)} colorMap={STATUS_COLORS} />,
     renderFilterLabel: v => <Badge value={v} colorMap={STATUS_COLORS} /> },
+  // render returns JSX — use render (not format) when the cell isn't plain text
   { key: 'score', label: 'Score', type: 'number', width: 80,
     render: v => <ScoreBar value={Number(v)} /> },
 ]
 
+// 'id' is hidden by default; users can toggle it back from the Columns menu
+const DEFAULT_VISIBLE = ['name', 'department', 'role', 'salary', 'joined', 'status', 'score']
+
+const LOCALES: Record<string, DataTableLabels> = {
+  EN: LABELS_EN, FR: LABELS_FR, DE: LABELS_DE, ES: LABELS_ES,
+}
+
+function fmtSalary(n: number) {
+  return n.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })
+}
+
+// Headless section: useTableState owns the sort/filter logic; you own the render.
+function EmployeeCards() {
+  const { processedData, getSortIcon, toggleSort } = useTableState(SAMPLE_DATA, COLUMNS)
+  return (
+    <>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+        {(['name', 'salary', 'score'] as const).map(col => (
+          <button key={col} onClick={() => toggleSort(col)}
+            style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #ddd', cursor: 'pointer', background: 'white', fontSize: 13 }}>
+            {col.charAt(0).toUpperCase() + col.slice(1)} {getSortIcon(col)}
+          </button>
+        ))}
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 10 }}>
+        {processedData.map(row => (
+          <div key={row.id} style={{ border: '1px solid #e8e8e8', borderRadius: 8, padding: '12px 14px' }}>
+            <div style={{ fontWeight: 600, marginBottom: 2 }}>{row.name}</div>
+            <div style={{ fontSize: 13, color: '#666', marginBottom: 8 }}>{row.department} · {row.role}</div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: 13 }}>{fmtSalary(row.salary)}</span>
+              <ScoreBar value={row.score} />
+            </div>
+          </div>
+        ))}
+      </div>
+    </>
+  )
+}
+
 export default function App() {
+  const [localeKey, setLocaleKey] = useState('EN')
   return (
     <div style={{ maxWidth: 1100, margin: '0 auto', padding: '32px 24px' }}>
-      <h1 style={{ fontSize: 20, fontWeight: 600, marginBottom: 4 }}>FlexiTable — React</h1>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+        <h1 style={{ fontSize: 20, fontWeight: 600, margin: 0 }}>FlexiTable — React</h1>
+        <div style={{ display: 'flex', gap: 4 }}>
+          {Object.keys(LOCALES).map(key => (
+            <button key={key} onClick={() => setLocaleKey(key)}
+              style={{ padding: '2px 8px', borderRadius: 4, border: '1px solid #ddd', cursor: 'pointer', fontSize: 13,
+                fontWeight: localeKey === key ? 600 : 400,
+                background: localeKey === key ? '#f0f0f0' : 'white' }}>
+              {key}
+            </button>
+          ))}
+        </div>
+      </div>
       <p style={{ fontSize: 14, color: 'var(--color-text-secondary)', marginTop: 0, marginBottom: 24 }}>
         @vates/flexi-table-react
       </p>
-      <DataTable data={SAMPLE_DATA} columns={COLUMNS} rowKey="id" labels={LABELS_EN} />
+      <DataTable
+        data={SAMPLE_DATA}
+        columns={COLUMNS}
+        rowKey="id"
+        labels={LOCALES[localeKey]}
+        defaultVisibleColumns={DEFAULT_VISIBLE}
+      />
+      <h2 style={{ fontSize: 16, fontWeight: 600, marginTop: 40, marginBottom: 4 }}>
+        Custom layout via useTableState
+      </h2>
+      <p style={{ fontSize: 14, color: 'var(--color-text-secondary)', marginTop: 0, marginBottom: 16 }}>
+        Same data and sort logic — your own render.
+      </p>
+      <EmployeeCards />
     </div>
   )
 }
