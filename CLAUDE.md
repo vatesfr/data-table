@@ -26,6 +26,10 @@ npm run build -w packages/react
 npm run build -w packages/vue
 ```
 
+## Development workflow
+
+After implementing any new feature: review existing tests to see if they need updating, add new tests if the feature isn't covered, update the demos (`demo/react` and `demo/vue`) to showcase the new feature if applicable, and update any affected Markdown files (CLAUDE.md, READMEs).
+
 ## Architecture
 
 This is an **npm workspaces monorepo** with three publishable packages and two demo apps:
