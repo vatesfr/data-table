@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import {
   DataTable, Badge, ScoreBar, useTableState,
-  LABELS_EN, LABELS_FR, LABELS_DE, LABELS_ES,
+  LABELS_EN, LABELS_FR, LABELS_DE, LABELS_ES, LABELS_PT,
   type ColumnDef, type DataTableLabels,
 } from '@vates/flexi-table-react'
 
@@ -69,7 +69,7 @@ const COLUMNS: ColumnDef<Employee>[] = [
 const DEFAULT_VISIBLE = ['name', 'department', 'role', 'salary', 'joined', 'status', 'score']
 
 const LOCALES: Record<string, DataTableLabels> = {
-  EN: LABELS_EN, FR: LABELS_FR, DE: LABELS_DE, ES: LABELS_ES,
+  EN: LABELS_EN, FR: LABELS_FR, DE: LABELS_DE, ES: LABELS_ES, PT: LABELS_PT,
 }
 
 function fmtSalary(n: number) {
