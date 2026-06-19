@@ -3,6 +3,8 @@ import {
   processData,
   groupData,
   computeStringValues,
+  paginateData,
+  calcTotalPages,
   toggleSort,
   toggleFilter,
   toggleGroupBy,
@@ -140,6 +142,58 @@ describe('computeStringValues', () => {
     const cols = [{ key: 'id' as const, label: 'ID', type: 'number' as const, filterable: false }]
     const result = computeStringValues(ROWS, cols)
     expect(result['id']).toBeUndefined()
+  })
+})
+
+// ─── paginateData ─────────────────────────────────────────────────────────────
+
+describe('paginateData', () => {
+  it('returns all rows when pageSize is 0 (pagination disabled)', () => {
+    expect(paginateData(ROWS, 1, 0)).toEqual(ROWS)
+  })
+
+  it('returns the first page', () => {
+    const result = paginateData(ROWS, 1, 2)
+    expect(result.map(r => r.id)).toEqual([1, 2])
+  })
+
+  it('returns the second page', () => {
+    const result = paginateData(ROWS, 2, 2)
+    expect(result.map(r => r.id)).toEqual([3, 4])
+  })
+
+  it('returns a partial last page', () => {
+    const result = paginateData(ROWS, 2, 3)
+    expect(result.map(r => r.id)).toEqual([4])
+  })
+
+  it('returns empty array when page is beyond the data', () => {
+    const result = paginateData(ROWS, 10, 2)
+    expect(result).toEqual([])
+  })
+})
+
+// ─── calcTotalPages ───────────────────────────────────────────────────────────
+
+describe('calcTotalPages', () => {
+  it('returns 1 when pageSize is 0 (pagination disabled)', () => {
+    expect(calcTotalPages(100, 0)).toBe(1)
+  })
+
+  it('returns correct count for evenly divisible dataset', () => {
+    expect(calcTotalPages(4, 2)).toBe(2)
+  })
+
+  it('rounds up for a partial last page', () => {
+    expect(calcTotalPages(5, 2)).toBe(3)
+  })
+
+  it('returns 1 for an empty dataset', () => {
+    expect(calcTotalPages(0, 10)).toBe(1)
+  })
+
+  it('returns 1 when dataset is smaller than pageSize', () => {
+    expect(calcTotalPages(3, 10)).toBe(1)
   })
 })
 
