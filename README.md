@@ -2,6 +2,10 @@
 
 A flexible, fully-typed data table for React and Vue 3 — with sorting, filtering, column visibility, and row grouping built in.
 
+## Live demo
+
+[React demo](https://vatesfr.github.io/flexi-table/react/) · [Vue demo](https://vatesfr.github.io/flexi-table/vue/)
+
 ## Packages
 
 | Package | Description |

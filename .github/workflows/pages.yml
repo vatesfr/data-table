@@ -1,0 +1,85 @@
+name: Deploy demo to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run build -w packages/core
+
+      - name: Build React demo
+        run: npm run build -w demo/react
+        env:
+          VITE_BASE_URL: /flexi-table/react/
+
+      - name: Build Vue demo
+        run: npm run build -w demo/vue
+        env:
+          VITE_BASE_URL: /flexi-table/vue/
+
+      - name: Assemble site
+        run: |
+          mkdir -p site
+          cp -r demo/react/dist site/react
+          cp -r demo/vue/dist site/vue
+          cat > site/index.html <<'EOF'
+          <!doctype html>
+          <html lang="en">
+          <head>
+            <meta charset="UTF-8" />
+            <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+            <title>FlexiTable demos</title>
+            <style>
+              body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; gap: 16px; }
+              h1 { font-size: 1.4rem; font-weight: 600; margin: 0 0 8px; }
+              a { display: inline-block; padding: 10px 24px; border-radius: 6px; background: #1a1916; color: #fff; text-decoration: none; font-size: 0.95rem; }
+              a:hover { background: #333; }
+              .links { display: flex; gap: 12px; }
+            </style>
+          </head>
+          <body>
+            <h1>FlexiTable — live demos</h1>
+            <div class="links">
+              <a href="react/">React</a>
+              <a href="vue/">Vue</a>
+            </div>
+          </body>
+          </html>
+          EOF
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v4
