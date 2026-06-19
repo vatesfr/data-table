@@ -1,5 +1,5 @@
 <script setup lang="ts" generic="TRow extends object">
-import { computed, useSlots } from 'vue'
+import { computed, watch, useSlots } from 'vue'
 import { useTableState } from './useTableState'
 import type { ColumnDef } from './types'
 import type { DataTableLabels } from '@vates/flexi-table-core'
@@ -13,7 +13,12 @@ const props = withDefaults(defineProps<{
   defaultVisibleColumns?: string[]
   labels?: Partial<DataTableLabels>
   defaultPageSize?: number
+  selectable?: boolean
 }>(), { rowKey: 'id' })
+
+const emit = defineEmits<{
+  selectionChange: [rows: TRow[]]
+}>()
 
 const slots = useSlots()
 
@@ -25,14 +30,33 @@ const state = useTableState(
 
 const {
   visibleCols, sorts, filters, rangeFilters, groupBy, collapsedGroups,
-  processedData, groupedData, activeColumns, stringValueMap, activeFilterCount,
+  selection, selectedRows,
+  processedData, pagedData, groupedData, activeColumns, stringValueMap, activeFilterCount,
   page, pageSize, numPages,
   L,
   toggleColVisibility, toggleSort, toggleFilter, setRangeFilter, clearColumnFilter,
   toggleGroup, toggleGroupCollapse, clearSorts, clearFilters, clearGroups, clearAll,
   setPage, setPageSize,
   getSortIcon, getSortIndex,
+  toggleRowSelection, toggleSelectAll,
 } = state
+
+watch(selectedRows, rows => { emit('selectionChange', rows) })
+
+const allSelected = computed(() => processedData.value.length > 0 && selectedRows.value.length === processedData.value.length)
+const someSelected = computed(() => selectedRows.value.length > 0 && !allSelected.value)
+
+const vIndeterminate = {
+  mounted: (el: HTMLInputElement, b: { value: boolean }) => { el.indeterminate = b.value },
+  updated: (el: HTMLInputElement, b: { value: boolean }) => { el.indeterminate = b.value },
+}
+
+function isGroupAllSelected(rows: TRow[]) {
+  return rows.length > 0 && rows.every(r => selection.value.has(r))
+}
+function isGroupSomeSelected(rows: TRow[]) {
+  return rows.some(r => selection.value.has(r)) && !isGroupAllSelected(rows)
+}
 
 const numericFilterCols = computed(() =>
   props.columns.filter(c => c.type === 'number' && c.filterable !== false),
@@ -212,6 +236,10 @@ function hasSlot(name: string): boolean {
       <table class="ft__table">
         <thead>
           <tr>
+            <th v-if="selectable" class="ft__th ft__th--cb" @click.stop>
+              <input v-indeterminate="someSelected" type="checkbox" :checked="allSelected"
+                @change="toggleSelectAll(processedData)" />
+            </th>
             <th v-if="groupBy.length > 0" class="ft__th" style="width: 28px" />
             <th v-for="col in activeColumns" :key="col.key" class="ft__th"
               :style="{ width: col.width ? `${col.width}px` : undefined }"
@@ -229,6 +257,14 @@ function hasSlot(name: string): boolean {
             <!-- Group header -->
             <tr v-if="group.key !== null" class="ft__group-row"
               @click="toggleGroupCollapse(group.key!)">
+              <td v-if="selectable" class="ft__group-td" style="width: 36px" @click.stop>
+                <input
+                  v-indeterminate="isGroupSomeSelected(group.rows)"
+                  type="checkbox"
+                  :checked="isGroupAllSelected(group.rows)"
+                  @change="toggleSelectAll(group.rows)"
+                />
+              </td>
               <td class="ft__group-td">
                 {{ collapsedGroups.has(group.key!) ? '▶' : '▼' }}
               </td>
@@ -255,7 +291,11 @@ function hasSlot(name: string): boolean {
             <template v-if="group.key === null || !collapsedGroups.has(group.key!)">
               <tr v-for="(row, ri) in group.rows"
                 :key="(asRecord(row)[rowKey] as string | number) ?? ri"
-                :class="{ 'ft__tr--stripe': ri % 2 !== 0 }">
+                :class="{ 'ft__tr--stripe': ri % 2 !== 0, 'ft__tr--selected': selectable && selection.has(row) }">
+                <td v-if="selectable" class="ft__td" style="width: 36px" @click.stop>
+                  <input type="checkbox" :checked="selection.has(row)"
+                    @change="toggleRowSelection(row)" />
+                </td>
                 <td v-if="group.key !== null" class="ft__td" style="width: 28px" />
                 <td v-for="col in activeColumns" :key="col.key" class="ft__td"
                   :style="{ width: col.width ? `${col.width}px` : undefined }">
@@ -377,6 +417,8 @@ function hasSlot(name: string): boolean {
   color: var(--color-text-primary); vertical-align: middle;
 }
 .ft__tr--stripe { background: var(--color-background-secondary); }
+.ft__tr--selected { background: var(--color-background-info) !important; }
+.ft__th--cb { width: 36px; cursor: default; }
 
 /* Group rows */
 .ft__group-row {

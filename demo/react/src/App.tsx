@@ -107,6 +107,7 @@ function EmployeeCards() {
 
 export default function App() {
   const [localeKey, setLocaleKey] = useState('EN')
+  const [selected, setSelected] = useState<Employee[]>([])
   return (
     <div style={{ maxWidth: 1100, margin: '0 auto', padding: '32px 24px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
@@ -133,6 +134,37 @@ export default function App() {
         defaultVisibleColumns={DEFAULT_VISIBLE}
         defaultPageSize={5}
       />
+
+      <h2 style={{ fontSize: 16, fontWeight: 600, marginTop: 40, marginBottom: 4 }}>Row selection</h2>
+      <p style={{ fontSize: 14, color: 'var(--color-text-secondary)', marginTop: 0, marginBottom: selected.length > 0 ? 8 : 16 }}>
+        Pass <code>selectable</code> to show checkboxes; <code>onSelectionChange</code> receives the updated array of selected rows.
+      </p>
+      {selected.length > 0 && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px', marginBottom: 12,
+          background: 'var(--color-background-info)', border: '0.5px solid var(--color-border-info)',
+          borderRadius: 6, fontSize: 13 }}>
+          <span style={{ color: 'var(--color-text-info)', fontWeight: 500, whiteSpace: 'nowrap' }}>
+            {selected.length} selected
+          </span>
+          <span style={{ color: 'var(--color-text-secondary)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {selected.map(r => r.name).join(', ')}
+          </span>
+          <button style={{ padding: '3px 10px', borderRadius: 4, border: '0.5px solid var(--color-border-info)',
+            background: 'transparent', color: 'var(--color-text-info)', cursor: 'pointer', fontSize: 13, fontFamily: 'inherit' }}>
+            Export
+          </button>
+        </div>
+      )}
+      <DataTable
+        data={SAMPLE_DATA}
+        columns={COLUMNS}
+        rowKey="id"
+        defaultVisibleColumns={DEFAULT_VISIBLE}
+        defaultPageSize={5}
+        selectable
+        onSelectionChange={setSelected}
+      />
+
       <h2 style={{ fontSize: 16, fontWeight: 600, marginTop: 40, marginBottom: 4 }}>
         Custom layout via useTableState
       </h2>

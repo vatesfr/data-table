@@ -1,4 +1,4 @@
-import { ref, computed, toValue, type MaybeRefOrGetter } from 'vue'
+import { ref, shallowRef, computed, toValue, type MaybeRefOrGetter } from 'vue'
 import {
   processData,
   groupData,
@@ -46,6 +46,7 @@ export function useTableState<TRow extends object>(
   const collapsedGroups = ref<Set<string>>(new Set())
   const page = ref(1)
   const pageSize = ref(options.value.defaultPageSize ?? 0)
+  const selection = shallowRef<Set<TRow>>(new Set())
 
   const stringValueMap = computed(() => computeStringValues(data.value, columns.value))
 
@@ -69,8 +70,11 @@ export function useTableState<TRow extends object>(
     countActiveFilters(filters.value, rangeFilters.value),
   )
 
+  const selectedRows = computed(() => processedData.value.filter(r => selection.value.has(r)))
+
   return {
     // Reactive state
+    selection,
     visibleCols,
     sorts,
     filters,
@@ -80,6 +84,7 @@ export function useTableState<TRow extends object>(
     page,
     pageSize,
     // Computed
+    selectedRows,
     processedData,
     pagedData,
     groupedData,
@@ -130,5 +135,19 @@ export function useTableState<TRow extends object>(
     },
     getSortIcon: (key: string) => _getSortIcon(sorts.value, key),
     getSortIndex: (key: string) => _getSortIndex(sorts.value, key),
+    toggleRowSelection: (row: TRow) => {
+      const next = new Set(selection.value)
+      if (next.has(row)) next.delete(row)
+      else next.add(row)
+      selection.value = next
+    },
+    toggleSelectAll: (rows: TRow[]) => {
+      const next = new Set(selection.value)
+      const allSelected = rows.length > 0 && rows.every(r => next.has(r))
+      if (allSelected) rows.forEach(r => next.delete(r))
+      else rows.forEach(r => next.add(r))
+      selection.value = next
+    },
+    clearSelection: () => { selection.value = new Set() },
   }
 }

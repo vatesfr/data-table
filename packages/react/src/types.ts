@@ -15,4 +15,6 @@ export interface DataTableProps<TRow extends object = Record<string, unknown>> {
   defaultVisibleColumns?: string[]
   labels?: Partial<DataTableLabels>
   defaultPageSize?: number
+  selectable?: boolean
+  onSelectionChange?: (rows: TRow[]) => void
 }

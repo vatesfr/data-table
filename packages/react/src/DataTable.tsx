@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from 'react'
+import { useState, useRef, useEffect, type CSSProperties } from 'react'
 import { useTableState } from './useTableState'
 import { Dropdown } from './components/Dropdown'
 import { ToolbarBtn } from './components/ToolbarBtn'
@@ -38,6 +38,8 @@ export function DataTable<TRow extends object>({
   defaultVisibleColumns,
   labels,
   defaultPageSize,
+  selectable,
+  onSelectionChange,
 }: DataTableProps<TRow>) {
   const [openColsDD, setOpenColsDD] = useState(false)
   const [openSortDD, setOpenSortDD] = useState(false)
@@ -47,6 +49,7 @@ export function DataTable<TRow extends object>({
   const {
     visibleCols, sorts, filters, rangeFilters, groupBy, collapsedGroups,
     processedData, groupedData, activeColumns, stringValueMap, activeFilterCount,
+    selection, selectedRows,
     page, pageSize, numPages,
     L,
     toggleColVisibility, toggleSort, toggleFilter, setRangeFilter,
@@ -54,7 +57,26 @@ export function DataTable<TRow extends object>({
     clearSorts, clearFilters, clearGroups, clearAll,
     setPage, setPageSize,
     getSortIcon, getSortIndex,
+    toggleRowSelection, toggleSelectAll,
   } = useTableState(data, columns, defaultVisibleColumns, labels, defaultPageSize)
+
+  const selectAllRef = useRef<HTMLInputElement>(null)
+  const allSelected = processedData.length > 0 && selectedRows.length === processedData.length
+  const someSelected = selectedRows.length > 0 && !allSelected
+
+  useEffect(() => {
+    if (selectAllRef.current) selectAllRef.current.indeterminate = someSelected
+  }, [someSelected])
+
+  const groupAllSelected = (rows: TRow[]) => rows.length > 0 && rows.every(r => selection.has(r))
+  const groupSomeSelected = (rows: TRow[]) => rows.some(r => selection.has(r)) && !groupAllSelected(rows)
+
+  const mountedRef = useRef(false)
+  useEffect(() => {
+    if (!mountedRef.current) { mountedRef.current = true; return }
+    onSelectionChange?.(selectedRows)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedRows])
 
   const numericFilterCols = columns.filter(c => c.type === 'number' && c.filterable !== false)
   const stringFilterCols = columns.filter(c => c.type !== 'number' && c.type !== 'date' && c.filterable !== false)
@@ -236,6 +258,12 @@ export function DataTable<TRow extends object>({
         <table style={S.table}>
           <thead>
             <tr>
+              {selectable && (
+                <th style={{ ...S.th, width: 36, cursor: 'default' }} onClick={e => e.stopPropagation()}>
+                  <input ref={selectAllRef} type="checkbox" checked={allSelected}
+                    onChange={() => toggleSelectAll(processedData)} style={{ margin: 0 }} />
+                </th>
+              )}
               {groupBy.length > 0 && <th style={{ ...S.th, width: 28, cursor: 'default' }} />}
               {activeColumns.map(col => {
                 const sortIdx = getSortIndex(col.key)
@@ -258,6 +286,17 @@ export function DataTable<TRow extends object>({
               return [
                 gkey !== null && (
                   <tr key={`g-${gkey}`} style={S.groupRow} onClick={() => toggleGroupCollapse(gkey)}>
+                    {selectable && (
+                      <td style={{ ...S.groupTd, width: 36 }} onClick={e => e.stopPropagation()}>
+                        <input
+                          ref={el => { if (el) el.indeterminate = groupSomeSelected(rows) }}
+                          type="checkbox"
+                          checked={groupAllSelected(rows)}
+                          onChange={() => toggleSelectAll(rows)}
+                          style={{ margin: 0 }}
+                        />
+                      </td>
+                    )}
                     <td style={{ ...S.groupTd, width: 28 }}>{isCollapsed ? '▶' : '▼'}</td>
                     <td colSpan={activeColumns.length} style={S.groupTd}>
                       {groupBy.map((g, i) => {
@@ -278,7 +317,13 @@ export function DataTable<TRow extends object>({
                 ),
                 !isCollapsed && rows.map((row, ri) => (
                   <tr key={rowKey ? String(asRecord(row)[rowKey] ?? ri) : ri}
-                    style={{ background: ri % 2 === 0 ? 'transparent' : 'var(--color-background-secondary)' }}>
+                    style={{ background: selectable && selection.has(row) ? 'var(--color-background-info)' : (ri % 2 === 0 ? 'transparent' : 'var(--color-background-secondary)') }}>
+                    {selectable && (
+                      <td style={{ ...S.td, width: 36 }} onClick={e => e.stopPropagation()}>
+                        <input type="checkbox" checked={selection.has(row)}
+                          onChange={() => toggleRowSelection(row)} style={{ margin: 0 }} />
+                      </td>
+                    )}
                     {gkey !== null && <td style={{ ...S.td, width: 28 }} />}
                     {activeColumns.map(col => (
                       <td key={col.key} style={{ ...S.td, width: col.width }}>

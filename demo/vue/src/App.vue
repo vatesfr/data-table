@@ -72,6 +72,8 @@ const LOCALES: Record<string, DataTableLabels> = {
 const localeKey = ref('EN')
 const currentLocale = computed(() => LOCALES[localeKey.value])
 
+const selected = ref<Employee[]>([])
+
 // Headless section: useTableState owns the sort/filter logic; you own the render.
 const { processedData, getSortIcon, toggleSort } = useTableState(SAMPLE_DATA, COLUMNS)
 
@@ -134,6 +136,52 @@ function fmtSalary(n: number) {
       </template>
       <template #group-status="{ value }">
         <Badge :value="String(value)" :color-map="STATUS_COLORS" />
+      </template>
+    </DataTable>
+
+    <!-- Row selection section -->
+    <h2 style="font-size: 16px; font-weight: 600; margin-top: 40px; margin-bottom: 4px">Row selection</h2>
+    <p :style="{ fontSize: '14px', color: 'var(--color-text-secondary)', marginTop: 0, marginBottom: selected.length > 0 ? '8px' : '16px' }">
+      Pass <code>selectable</code> to show checkboxes; listen to <code>@selection-change</code> for the updated rows array.
+    </p>
+    <div v-if="selected.length > 0"
+      style="display: flex; align-items: center; gap: 12px; padding: 8px 12px; margin-bottom: 12px;
+             background: var(--color-background-info); border: 0.5px solid var(--color-border-info);
+             border-radius: 6px; font-size: 13px">
+      <span style="color: var(--color-text-info); font-weight: 500; white-space: nowrap">
+        {{ selected.length }} selected
+      </span>
+      <span style="color: var(--color-text-secondary); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">
+        {{ selected.map(r => r.name).join(', ') }}
+      </span>
+      <button style="padding: 3px 10px; border-radius: 4px; border: 0.5px solid var(--color-border-info);
+                     background: transparent; color: var(--color-text-info); cursor: pointer; font-size: 13px">
+        Export
+      </button>
+    </div>
+    <DataTable
+      :data="SAMPLE_DATA"
+      :columns="COLUMNS"
+      row-key="id"
+      :default-visible-columns="DEFAULT_VISIBLE"
+      :default-page-size="5"
+      :selectable="true"
+      @selection-change="selected = $event"
+    >
+      <template #cell-department="{ value }">
+        <Badge :value="String(value)" :color-map="DEPT_COLORS" />
+      </template>
+      <template #cell-status="{ value }">
+        <Badge :value="String(value)" :color-map="STATUS_COLORS" />
+      </template>
+      <template #cell-score="{ value }">
+        <ScoreBar :value="Number(value)" />
+      </template>
+      <template #filter-department="{ value }">
+        <Badge :value="value" :color-map="DEPT_COLORS" />
+      </template>
+      <template #filter-status="{ value }">
+        <Badge :value="value" :color-map="STATUS_COLORS" />
       </template>
     </DataTable>
 

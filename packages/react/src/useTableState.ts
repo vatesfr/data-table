@@ -38,6 +38,7 @@ export function useTableState<TRow extends object>(
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set())
   const [page, setPageState] = useState(1)
   const [pageSize, setPageSizeState] = useState(defaultPageSize ?? 0)
+  const [selection, setSelection] = useState<Set<TRow>>(new Set())
 
   const stringValueMap = useMemo(() => computeStringValues(data, columns), [data, columns])
 
@@ -71,8 +72,14 @@ export function useTableState<TRow extends object>(
     [filters, rangeFilters],
   )
 
+  const selectedRows = useMemo(
+    () => processedData.filter(r => selection.has(r)),
+    [processedData, selection],
+  )
+
   return {
     // Raw state (for direct manipulation in the UI)
+    selection,
     visibleCols,
     sorts,
     filters,
@@ -82,6 +89,7 @@ export function useTableState<TRow extends object>(
     page,
     pageSize,
     // Derived
+    selectedRows,
     processedData,
     pagedData,
     groupedData,
@@ -131,5 +139,19 @@ export function useTableState<TRow extends object>(
     },
     getSortIcon: (key: string) => _getSortIcon(sorts, key),
     getSortIndex: (key: string) => _getSortIndex(sorts, key),
+    toggleRowSelection: (row: TRow) => setSelection(prev => {
+      const next = new Set(prev)
+      if (next.has(row)) next.delete(row)
+      else next.add(row)
+      return next
+    }),
+    toggleSelectAll: (rows: TRow[]) => setSelection(prev => {
+      const next = new Set(prev)
+      const allSelected = rows.length > 0 && rows.every(r => next.has(r))
+      if (allSelected) rows.forEach(r => next.delete(r))
+      else rows.forEach(r => next.add(r))
+      return next
+    }),
+    clearSelection: () => setSelection(new Set()),
   }
 }

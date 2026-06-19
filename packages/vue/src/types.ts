@@ -9,4 +9,5 @@ export interface DataTableProps<TRow extends object = Record<string, unknown>> {
   rowKey?: string
   defaultVisibleColumns?: string[]
   labels?: Partial<DataTableLabels>
+  selectable?: boolean
 }
