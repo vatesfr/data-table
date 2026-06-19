@@ -5,7 +5,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/vates/flexi-table.git",
+    "url": "https://github.com/vatesfr/flexi-table.git",
     "directory": "packages/react"
   },
   "keywords": ["table", "datatable", "sort", "filter", "group", "react", "typescript"],
