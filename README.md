@@ -1,5 +1,11 @@
 # flexi-table
 
+[![CI](https://github.com/vatesfr/flexi-table/actions/workflows/ci.yml/badge.svg)](https://github.com/vatesfr/flexi-table/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/@vates/flexi-table-react?label=react)](https://www.npmjs.com/package/@vates/flexi-table-react)
+[![npm](https://img.shields.io/npm/v/@vates/flexi-table-vue?label=vue)](https://www.npmjs.com/package/@vates/flexi-table-vue)
+[![npm](https://img.shields.io/npm/v/@vates/flexi-table-vanilla?label=vanilla)](https://www.npmjs.com/package/@vates/flexi-table-vanilla)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 A flexible, fully-typed data table for React, Vue 3, and vanilla JS — with sorting, filtering, column visibility, and row grouping built in.
 
 ## Live demo
