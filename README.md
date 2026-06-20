@@ -1,18 +1,19 @@
 # flexi-table
 
-A flexible, fully-typed data table for React and Vue 3 — with sorting, filtering, column visibility, and row grouping built in.
+A flexible, fully-typed data table for React, Vue 3, and vanilla JS — with sorting, filtering, column visibility, and row grouping built in.
 
 ## Live demo
 
-[React demo](https://vatesfr.github.io/flexi-table/react/) · [Vue demo](https://vatesfr.github.io/flexi-table/vue/)
+[React demo](https://vatesfr.github.io/flexi-table/react/) · [Vue demo](https://vatesfr.github.io/flexi-table/vue/) · [Vanilla demo](https://vatesfr.github.io/flexi-table/vanilla/)
 
 ## Packages
 
-| Package                                        | Description                        |
-| ---------------------------------------------- | ---------------------------------- |
-| [`@vates/flexi-table-react`](./packages/react) | React component and hook           |
-| [`@vates/flexi-table-vue`](./packages/vue)     | Vue 3 component and composable     |
-| [`@vates/flexi-table-core`](./packages/core)   | Framework-agnostic logic (pure TS) |
+| Package                                            | Description                        |
+| -------------------------------------------------- | ---------------------------------- |
+| [`@vates/flexi-table-react`](./packages/react)     | React component and hook           |
+| [`@vates/flexi-table-vue`](./packages/vue)         | Vue 3 component and composable     |
+| [`@vates/flexi-table-vanilla`](./packages/vanilla) | Vanilla JS, no framework required  |
+| [`@vates/flexi-table-core`](./packages/core)       | Framework-agnostic logic (pure TS) |
 
 ## Features
 
@@ -23,7 +24,7 @@ A flexible, fully-typed data table for React and Vue 3 — with sorting, filteri
 - Row selection with checkboxes — select all (across pages), group selection, indeterminate state
 - Client-side pagination
 - i18n via a `labels` prop — defaults to English, with built-in locales for FR, ES, DE, PT
-- Custom cell rendering via render props (React) or scoped slots (Vue)
+- Custom cell rendering via render props (React), scoped slots (Vue), or `format` string functions (vanilla)
 - Fully typed with TypeScript generics (`TRow extends object`)
 
 ## Quick start
@@ -112,12 +113,45 @@ const COLUMNS: ColumnDef<User>[] = [
 </template>
 ```
 
+### Vanilla JS
+
+```bash
+npm install @vates/flexi-table-vanilla
+```
+
+```ts
+import { createFlexiTable, type ColumnDef } from '@vates/flexi-table-vanilla'
+
+const COLUMNS: ColumnDef<User>[] = [
+  { key: 'name', label: 'Name', type: 'string' },
+  { key: 'role', label: 'Role', type: 'string', groupable: true },
+  {
+    key: 'salary',
+    label: 'Salary',
+    type: 'number',
+    format: (v) => Number(v).toLocaleString() + ' €',
+  },
+]
+
+const table = createFlexiTable(document.getElementById('table')!, {
+  data: users,
+  columns: COLUMNS,
+  rowKey: 'id',
+})
+
+// Update later
+table.setData(newUsers)
+table.destroy()
+```
+
+CSS is injected automatically into `<head>`. Cell output is string-only — use `format` to control rendering.
+
 ## i18n
 
 All UI strings are in English by default. Use a built-in locale or supply any overrides via the `labels` prop:
 
 ```tsx
-import { LABELS_FR } from '@vates/flexi-table-core'
+import { LABELS_FR } from '@vates/flexi-table-react' // or -vue or -vanilla
 
 <DataTable labels={LABELS_FR} ... />
 ```

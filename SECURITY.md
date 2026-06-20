@@ -14,4 +14,4 @@ You can expect an acknowledgement within 48 hours and a resolution timeline with
 
 ## Scope
 
-This library processes data entirely client-side and makes no network requests. The main security surface is the `render` prop (React) and `#cell-*` slots (Vue), which allow arbitrary rendering of row data — callers are responsible for sanitising any HTML they render inside those.
+This library processes data entirely client-side and makes no network requests. The main security surface is the `render` prop (React) and `#cell-*` slots (Vue), which allow arbitrary rendering of row data — callers are responsible for sanitising any HTML they render inside those. The vanilla adapter HTML-escapes all cell output, so `format` functions are safe by default; callers who post-process the container DOM after `setData` are responsible for any HTML they inject.

@@ -156,7 +156,7 @@ const {
   toggleRowSelection, // (row: TRow) => void
   toggleSelectAll, // (rows: TRow[]) => void — selects all if any unselected, else deselects all
   clearSelection, // () => void
-} = useTableState(data, columns, defaultVisibleColumns, labelOverrides)
+} = useTableState(data, columns, defaultVisibleColumns, labelOverrides, defaultPageSize)
 ```
 
 ## i18n

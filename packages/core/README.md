@@ -27,6 +27,8 @@ LABELS_PT                           // Portuguese
 processData(data, filters, rangeFilters, sorts) // filter + sort rows
 groupData(rows, groupBy) // group sorted rows
 computeStringValues(data, columns) // build filter value lists
+paginateData(data, page, pageSize) // slice rows for the current page (pageSize 0 → all)
+calcTotalPages(count, pageSize) // total page count (pageSize 0 → 1)
 toggleSort(sorts, key) // cycle asc → desc → off
 toggleFilter(filters, key, value) // toggle a checklist value
 toggleGroupBy(groupBy, key) // add/remove a group key
