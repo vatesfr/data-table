@@ -32,9 +32,7 @@ export function ScoreBar({ value, max = 100, thresholds = DEFAULT_THRESHOLDS }: 
           overflow: 'hidden',
         }}
       >
-        <div
-          style={{ width: `${pct}%`, height: '100%', background: color, borderRadius: 3 }}
-        />
+        <div style={{ width: `${pct}%`, height: '100%', background: color, borderRadius: 3 }} />
       </div>
       <span style={{ fontSize: 12, minWidth: 26, color }}>{value}</span>
     </div>

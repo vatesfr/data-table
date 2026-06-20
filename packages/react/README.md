@@ -15,13 +15,22 @@ Requires React ≥ 17.
 ```tsx
 import { DataTable, type ColumnDef } from '@vates/flexi-table-react'
 
-interface Employee { id: number; name: string; department: string; salary: number }
+interface Employee {
+  id: number
+  name: string
+  department: string
+  salary: number
+}
 
 const COLUMNS: ColumnDef<Employee>[] = [
-  { key: 'name',       label: 'Name',       type: 'string' },
+  { key: 'name', label: 'Name', type: 'string' },
   { key: 'department', label: 'Department', type: 'string', groupable: true },
-  { key: 'salary',     label: 'Salary',     type: 'number',
-    format: v => Number(v).toLocaleString() + ' €' },
+  {
+    key: 'salary',
+    label: 'Salary',
+    type: 'number',
+    format: (v) => Number(v).toLocaleString() + ' €',
+  },
 ]
 
 export default function App() {
@@ -41,7 +50,7 @@ const COLUMNS: ColumnDef<Employee>[] = [
     type: 'string',
     groupable: true,
     render: (value, row) => <Badge label={String(value)} />,
-    renderFilterLabel: value => <Badge label={value} />,
+    renderFilterLabel: (value) => <Badge label={value} />,
   },
 ]
 ```
@@ -70,16 +79,16 @@ const [selected, setSelected] = useState<Employee[]>([])
 
 ## `DataTable` props
 
-| Prop | Type | Default | Description |
-|---|---|---|---|
-| `data` | `TRow[]` | — | Row data |
-| `columns` | `ColumnDef<TRow>[]` | — | Column definitions |
-| `rowKey` | `keyof TRow & string` | — | Unique row identifier |
-| `defaultVisibleColumns` | `string[]` | all | Initially visible column keys |
-| `labels` | `Partial<DataTableLabels>` | English | UI string overrides |
-| `defaultPageSize` | `number` | 0 (off) | Initial rows per page; 0 disables pagination |
-| `selectable` | `boolean` | `false` | Show checkbox column for row selection |
-| `onSelectionChange` | `(rows: TRow[]) => void` | — | Called when selection changes |
+| Prop                    | Type                       | Default | Description                                  |
+| ----------------------- | -------------------------- | ------- | -------------------------------------------- |
+| `data`                  | `TRow[]`                   | —       | Row data                                     |
+| `columns`               | `ColumnDef<TRow>[]`        | —       | Column definitions                           |
+| `rowKey`                | `keyof TRow & string`      | —       | Unique row identifier                        |
+| `defaultVisibleColumns` | `string[]`                 | all     | Initially visible column keys                |
+| `labels`                | `Partial<DataTableLabels>` | English | UI string overrides                          |
+| `defaultPageSize`       | `number`                   | 0 (off) | Initial rows per page; 0 disables pagination |
+| `selectable`            | `boolean`                  | `false` | Show checkbox column for row selection       |
+| `onSelectionChange`     | `(rows: TRow[]) => void`   | —       | Called when selection changes                |
 
 ## Column definition
 
@@ -87,12 +96,12 @@ const [selected, setSelected] = useState<Employee[]>([])
 interface ColumnDef<TRow extends object> {
   key: keyof TRow & string
   label: string
-  type?: 'string' | 'number' | 'date'  // controls filter UI; default: 'string'
+  type?: 'string' | 'number' | 'date' // controls filter UI; default: 'string'
   width?: number
   format?: (value: unknown) => string
-  sortable?: boolean     // default: true
-  filterable?: boolean   // default: true
-  groupable?: boolean    // default: false
+  sortable?: boolean // default: true
+  filterable?: boolean // default: true
+  groupable?: boolean // default: false
   render?: (value: unknown, row: TRow) => ReactNode
   renderFilterLabel?: (value: string) => ReactNode
 }
@@ -109,21 +118,44 @@ import { useTableState, type ColumnDef } from '@vates/flexi-table-react'
 
 const {
   // State
-  visibleCols, sorts, filters, rangeFilters, groupBy, collapsedGroups,
-  page, pageSize,
-  selection,      // Set<TRow> — use .has(row) to check membership
+  visibleCols,
+  sorts,
+  filters,
+  rangeFilters,
+  groupBy,
+  collapsedGroups,
+  page,
+  pageSize,
+  selection, // Set<TRow> — use .has(row) to check membership
   // Derived
-  processedData, pagedData, groupedData, activeColumns, stringValueMap, activeFilterCount,
-  numPages, selectedRows, L,
+  processedData,
+  pagedData,
+  groupedData,
+  activeColumns,
+  stringValueMap,
+  activeFilterCount,
+  numPages,
+  selectedRows,
+  L,
   // Actions
-  toggleColVisibility, toggleSort, toggleFilter, setRangeFilter,
-  toggleGroup, toggleGroupCollapse, clearColumnFilter,
-  clearSorts, clearFilters, clearGroups, clearAll,
-  setPage, setPageSize,
-  getSortIcon, getSortIndex,
-  toggleRowSelection,       // (row: TRow) => void
-  toggleSelectAll,          // (rows: TRow[]) => void — selects all if any unselected, else deselects all
-  clearSelection,           // () => void
+  toggleColVisibility,
+  toggleSort,
+  toggleFilter,
+  setRangeFilter,
+  toggleGroup,
+  toggleGroupCollapse,
+  clearColumnFilter,
+  clearSorts,
+  clearFilters,
+  clearGroups,
+  clearAll,
+  setPage,
+  setPageSize,
+  getSortIcon,
+  getSortIndex,
+  toggleRowSelection, // (row: TRow) => void
+  toggleSelectAll, // (rows: TRow[]) => void — selects all if any unselected, else deselects all
+  clearSelection, // () => void
 } = useTableState(data, columns, defaultVisibleColumns, labelOverrides)
 ```
 

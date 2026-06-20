@@ -8,8 +8,17 @@
     "url": "https://github.com/vatesfr/flexi-table.git",
     "directory": "packages/core"
   },
-  "keywords": ["table", "datatable", "sort", "filter", "group", "typescript"],
-  "engines": { "node": ">=18" },
+  "keywords": [
+    "table",
+    "datatable",
+    "sort",
+    "filter",
+    "group",
+    "typescript"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -26,7 +35,9 @@
       "types": "./dist/locales.d.ts"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "sideEffects": false,
   "scripts": {
     "build": "vite build",

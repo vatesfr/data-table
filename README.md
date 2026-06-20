@@ -8,11 +8,11 @@ A flexible, fully-typed data table for React and Vue 3 — with sorting, filteri
 
 ## Packages
 
-| Package | Description |
-|---|---|
-| [`@vates/flexi-table-react`](./packages/react) | React component and hook |
-| [`@vates/flexi-table-vue`](./packages/vue) | Vue 3 component and composable |
-| [`@vates/flexi-table-core`](./packages/core) | Framework-agnostic logic (pure TS) |
+| Package                                        | Description                        |
+| ---------------------------------------------- | ---------------------------------- |
+| [`@vates/flexi-table-react`](./packages/react) | React component and hook           |
+| [`@vates/flexi-table-vue`](./packages/vue)     | Vue 3 component and composable     |
+| [`@vates/flexi-table-core`](./packages/core)   | Framework-agnostic logic (pure TS) |
 
 ## Features
 
@@ -37,13 +37,22 @@ npm install @vates/flexi-table-react
 ```tsx
 import { DataTable, type ColumnDef } from '@vates/flexi-table-react'
 
-interface User { id: number; name: string; role: string; salary: number }
+interface User {
+  id: number
+  name: string
+  role: string
+  salary: number
+}
 
 const COLUMNS: ColumnDef<User>[] = [
-  { key: 'name',   label: 'Name',   type: 'string' },
-  { key: 'role',   label: 'Role',   type: 'string', groupable: true },
-  { key: 'salary', label: 'Salary', type: 'number',
-    format: v => Number(v).toLocaleString() + ' €' },
+  { key: 'name', label: 'Name', type: 'string' },
+  { key: 'role', label: 'Role', type: 'string', groupable: true },
+  {
+    key: 'salary',
+    label: 'Salary',
+    type: 'number',
+    format: (v) => Number(v).toLocaleString() + ' €',
+  },
 ]
 
 export default function App() {
@@ -69,13 +78,22 @@ npm install @vates/flexi-table-vue
 <script setup lang="ts">
 import { DataTable, type ColumnDef } from '@vates/flexi-table-vue'
 
-interface User { id: number; name: string; role: string; salary: number }
+interface User {
+  id: number
+  name: string
+  role: string
+  salary: number
+}
 
 const COLUMNS: ColumnDef<User>[] = [
-  { key: 'name',   label: 'Name',   type: 'string' },
-  { key: 'role',   label: 'Role',   type: 'string', groupable: true },
-  { key: 'salary', label: 'Salary', type: 'number',
-    format: v => Number(v).toLocaleString() + ' €' },
+  { key: 'name', label: 'Name', type: 'string' },
+  { key: 'role', label: 'Role', type: 'string', groupable: true },
+  {
+    key: 'salary',
+    label: 'Salary',
+    type: 'number',
+    format: (v) => Number(v).toLocaleString() + ' €',
+  },
 ]
 </script>
 
@@ -112,14 +130,14 @@ You can also pass a `Partial<DataTableLabels>` to override individual strings �
 
 ```ts
 interface ColumnDefBase<TRow extends object> {
-  key: keyof TRow & string   // must be a key of TRow
+  key: keyof TRow & string // must be a key of TRow
   label: string
-  type?: 'string' | 'number' | 'date'  // controls filter UI; default: 'string'
+  type?: 'string' | 'number' | 'date' // controls filter UI; default: 'string'
   width?: number
-  format?: (value: unknown) => string  // plain-string formatter (both adapters)
-  sortable?: boolean     // default: true
-  filterable?: boolean   // default: true
-  groupable?: boolean    // default: false
+  format?: (value: unknown) => string // plain-string formatter (both adapters)
+  sortable?: boolean // default: true
+  filterable?: boolean // default: true
+  groupable?: boolean // default: false
 }
 ```
 

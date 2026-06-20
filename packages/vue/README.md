@@ -16,13 +16,22 @@ Requires Vue ≥ 3.3.
 <script setup lang="ts">
 import { DataTable, type ColumnDef } from '@vates/flexi-table-vue'
 
-interface Employee { id: number; name: string; department: string; salary: number }
+interface Employee {
+  id: number
+  name: string
+  department: string
+  salary: number
+}
 
 const COLUMNS: ColumnDef<Employee>[] = [
-  { key: 'name',       label: 'Name',       type: 'string' },
+  { key: 'name', label: 'Name', type: 'string' },
   { key: 'department', label: 'Department', type: 'string', groupable: true },
-  { key: 'salary',     label: 'Salary',     type: 'number',
-    format: v => Number(v).toLocaleString() + ' €' },
+  {
+    key: 'salary',
+    label: 'Salary',
+    type: 'number',
+    format: (v) => Number(v).toLocaleString() + ' €',
+  },
 ]
 </script>
 
@@ -83,22 +92,22 @@ const selected = ref<Employee[]>([])
 
 ## `DataTable` props
 
-| Prop | Type | Default | Description |
-|---|---|---|---|
-| `data` | `TRow[]` | — | Row data |
-| `columns` | `ColumnDef<TRow>[]` | — | Column definitions |
-| `rowKey` | `keyof TRow & string` | — | Unique row identifier |
-| `defaultVisibleColumns` | `string[]` | all | Initially visible column keys |
-| `labels` | `Partial<DataTableLabels>` | English | UI string overrides |
-| `defaultPageSize` | `number` | 0 (off) | Initial rows per page; 0 disables pagination |
-| `selectable` | `boolean` | `false` | Show checkbox column for row selection |
+| Prop                    | Type                       | Default | Description                                  |
+| ----------------------- | -------------------------- | ------- | -------------------------------------------- |
+| `data`                  | `TRow[]`                   | —       | Row data                                     |
+| `columns`               | `ColumnDef<TRow>[]`        | —       | Column definitions                           |
+| `rowKey`                | `keyof TRow & string`      | —       | Unique row identifier                        |
+| `defaultVisibleColumns` | `string[]`                 | all     | Initially visible column keys                |
+| `labels`                | `Partial<DataTableLabels>` | English | UI string overrides                          |
+| `defaultPageSize`       | `number`                   | 0 (off) | Initial rows per page; 0 disables pagination |
+| `selectable`            | `boolean`                  | `false` | Show checkbox column for row selection       |
 
 All props accept `MaybeRefOrGetter` — you can pass refs, computed values, or plain values.
 
 ## Events
 
-| Event | Payload | Description |
-|---|---|---|
+| Event             | Payload  | Description                                                                                  |
+| ----------------- | -------- | -------------------------------------------------------------------------------------------- |
 | `selectionChange` | `TRow[]` | Emitted when selection changes; payload is the selected rows present in the filtered dataset |
 
 ## Column definition
@@ -107,12 +116,12 @@ All props accept `MaybeRefOrGetter` — you can pass refs, computed values, or p
 interface ColumnDef<TRow extends object> {
   key: keyof TRow & string
   label: string
-  type?: 'string' | 'number' | 'date'  // controls filter UI; default: 'string'
+  type?: 'string' | 'number' | 'date' // controls filter UI; default: 'string'
   width?: number
   format?: (value: unknown) => string
-  sortable?: boolean     // default: true
-  filterable?: boolean   // default: true
-  groupable?: boolean    // default: false
+  sortable?: boolean // default: true
+  filterable?: boolean // default: true
+  groupable?: boolean // default: false
 }
 ```
 
@@ -127,21 +136,44 @@ import { useTableState } from '@vates/flexi-table-vue'
 
 const {
   // Reactive state (refs)
-  visibleCols, sorts, filters, rangeFilters, groupBy, collapsedGroups,
-  page, pageSize,
-  selection,      // ShallowRef<Set<TRow>> — use selection.value.has(row) to check membership
+  visibleCols,
+  sorts,
+  filters,
+  rangeFilters,
+  groupBy,
+  collapsedGroups,
+  page,
+  pageSize,
+  selection, // ShallowRef<Set<TRow>> — use selection.value.has(row) to check membership
   // Computed
-  processedData, pagedData, groupedData, activeColumns, stringValueMap, activeFilterCount,
-  numPages, selectedRows, L,
+  processedData,
+  pagedData,
+  groupedData,
+  activeColumns,
+  stringValueMap,
+  activeFilterCount,
+  numPages,
+  selectedRows,
+  L,
   // Actions
-  toggleColVisibility, toggleSort, toggleFilter, setRangeFilter,
-  toggleGroup, toggleGroupCollapse, clearColumnFilter,
-  clearSorts, clearFilters, clearGroups, clearAll,
-  setPage, setPageSize,
-  getSortIcon, getSortIndex,
-  toggleRowSelection,       // (row: TRow) => void
-  toggleSelectAll,          // (rows: TRow[]) => void — selects all if any unselected, else deselects all
-  clearSelection,           // () => void
+  toggleColVisibility,
+  toggleSort,
+  toggleFilter,
+  setRangeFilter,
+  toggleGroup,
+  toggleGroupCollapse,
+  clearColumnFilter,
+  clearSorts,
+  clearFilters,
+  clearGroups,
+  clearAll,
+  setPage,
+  setPageSize,
+  getSortIcon,
+  getSortIndex,
+  toggleRowSelection, // (row: TRow) => void
+  toggleSelectAll, // (rows: TRow[]) => void — selects all if any unselected, else deselects all
+  clearSelection, // () => void
 } = useTableState(data, columns, options)
 ```
 

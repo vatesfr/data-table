@@ -39,11 +39,17 @@ jobs:
         env:
           VITE_BASE_URL: /flexi-table/vue/
 
+      - name: Build Vanilla demo
+        run: npm run build -w demo/vanilla
+        env:
+          VITE_BASE_URL: /flexi-table/vanilla/
+
       - name: Assemble site
         run: |
           mkdir -p site
           cp -r demo/react/dist site/react
           cp -r demo/vue/dist site/vue
+          cp -r demo/vanilla/dist site/vanilla
           cat > site/index.html <<'EOF'
           <!doctype html>
           <html lang="en">
@@ -64,6 +70,7 @@ jobs:
             <div class="links">
               <a href="react/">React</a>
               <a href="vue/">Vue</a>
+              <a href="vanilla/">Vanilla</a>
             </div>
           </body>
           </html>

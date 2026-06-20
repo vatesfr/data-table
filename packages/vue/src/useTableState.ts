@@ -37,7 +37,7 @@ export function useTableState<TRow extends object>(
   const L = computed(() => ({ ...DEFAULT_LABELS, ...options.value.labels }))
 
   const visibleCols = ref<Set<string>>(
-    new Set(options.value.defaultVisibleColumns ?? columns.value.map(c => c.key)),
+    new Set(options.value.defaultVisibleColumns ?? columns.value.map((c) => c.key)),
   )
   const sorts = ref<SortEntry[]>([])
   const filters = ref<Record<string, Set<string>>>({})
@@ -63,14 +63,12 @@ export function useTableState<TRow extends object>(
   const groupedData = computed(() => groupData(pagedData.value, groupBy.value))
 
   const activeColumns = computed(() =>
-    columns.value.filter(c => visibleCols.value.has(c.key) && !groupBy.value.includes(c.key)),
+    columns.value.filter((c) => visibleCols.value.has(c.key) && !groupBy.value.includes(c.key)),
   )
 
-  const activeFilterCount = computed(() =>
-    countActiveFilters(filters.value, rangeFilters.value),
-  )
+  const activeFilterCount = computed(() => countActiveFilters(filters.value, rangeFilters.value))
 
-  const selectedRows = computed(() => processedData.value.filter(r => selection.value.has(r)))
+  const selectedRows = computed(() => processedData.value.filter((r) => selection.value.has(r)))
 
   return {
     // Reactive state
@@ -96,11 +94,14 @@ export function useTableState<TRow extends object>(
     // Actions
     toggleColVisibility: (key: string) => {
       const next = new Set(visibleCols.value)
-      if (next.has(key)) { if (next.size > 1) next.delete(key) }
-      else next.add(key)
+      if (next.has(key)) {
+        if (next.size > 1) next.delete(key)
+      } else next.add(key)
       visibleCols.value = next
     },
-    toggleSort: (key: string) => { sorts.value = _toggleSort(sorts.value, key) },
+    toggleSort: (key: string) => {
+      sorts.value = _toggleSort(sorts.value, key)
+    },
     toggleFilter: (key: string, value: string) => {
       filters.value = _toggleFilter(filters.value, key, value)
       page.value = 1
@@ -108,7 +109,11 @@ export function useTableState<TRow extends object>(
     setRangeFilter: (key: string, field: 'min' | 'max', value: string) => {
       rangeFilters.value = {
         ...rangeFilters.value,
-        [key]: { min: rangeFilters.value[key]?.min ?? '', max: rangeFilters.value[key]?.max ?? '', [field]: value },
+        [key]: {
+          min: rangeFilters.value[key]?.min ?? '',
+          max: rangeFilters.value[key]?.max ?? '',
+          [field]: value,
+        },
       }
       page.value = 1
     },
@@ -116,15 +121,31 @@ export function useTableState<TRow extends object>(
       filters.value = { ...filters.value, [key]: new Set() }
       page.value = 1
     },
-    setPage: (p: number) => { page.value = Math.max(1, Math.min(p, numPages.value)) },
-    setPageSize: (s: number) => { pageSize.value = s; page.value = 1 },
-    toggleGroup: (key: string) => { groupBy.value = toggleGroupBy(groupBy.value, key) },
+    setPage: (p: number) => {
+      page.value = Math.max(1, Math.min(p, numPages.value))
+    },
+    setPageSize: (s: number) => {
+      pageSize.value = s
+      page.value = 1
+    },
+    toggleGroup: (key: string) => {
+      groupBy.value = toggleGroupBy(groupBy.value, key)
+    },
     toggleGroupCollapse: (key: string) => {
       collapsedGroups.value = toggleCollapse(collapsedGroups.value, key)
     },
-    clearSorts: () => { sorts.value = [] },
-    clearFilters: () => { filters.value = {}; rangeFilters.value = {}; page.value = 1 },
-    clearGroups: () => { groupBy.value = []; collapsedGroups.value = new Set() },
+    clearSorts: () => {
+      sorts.value = []
+    },
+    clearFilters: () => {
+      filters.value = {}
+      rangeFilters.value = {}
+      page.value = 1
+    },
+    clearGroups: () => {
+      groupBy.value = []
+      collapsedGroups.value = new Set()
+    },
     clearAll: () => {
       sorts.value = []
       filters.value = {}
@@ -143,11 +164,13 @@ export function useTableState<TRow extends object>(
     },
     toggleSelectAll: (rows: TRow[]) => {
       const next = new Set(selection.value)
-      const allSelected = rows.length > 0 && rows.every(r => next.has(r))
-      if (allSelected) rows.forEach(r => next.delete(r))
-      else rows.forEach(r => next.add(r))
+      const allSelected = rows.length > 0 && rows.every((r) => next.has(r))
+      if (allSelected) rows.forEach((r) => next.delete(r))
+      else rows.forEach((r) => next.add(r))
       selection.value = next
     },
-    clearSelection: () => { selection.value = new Set() },
+    clearSelection: () => {
+      selection.value = new Set()
+    },
   }
 }

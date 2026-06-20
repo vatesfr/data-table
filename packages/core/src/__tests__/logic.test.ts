@@ -37,7 +37,7 @@ describe('processData', () => {
 
   it('filters by a string checklist', () => {
     const result = processData(ROWS, { dept: new Set(['Eng']) }, {}, [])
-    expect(result.map(r => r.name)).toEqual(['Alice', 'Clara'])
+    expect(result.map((r) => r.name)).toEqual(['Alice', 'Clara'])
   })
 
   it('ignores an empty filter set (shows all)', () => {
@@ -46,53 +46,45 @@ describe('processData', () => {
   })
 
   it('filters by multiple columns (AND logic)', () => {
-    const result = processData(
-      ROWS,
-      { dept: new Set(['Eng']), name: new Set(['Clara']) },
-      {},
-      [],
-    )
-    expect(result.map(r => r.name)).toEqual(['Clara'])
+    const result = processData(ROWS, { dept: new Set(['Eng']), name: new Set(['Clara']) }, {}, [])
+    expect(result.map((r) => r.name)).toEqual(['Clara'])
   })
 
   it('applies a numeric range min filter', () => {
     const result = processData(ROWS, {}, { salary: { min: '80000', max: '' } }, [])
-    expect(result.map(r => r.name)).toEqual(['Alice', 'Clara'])
+    expect(result.map((r) => r.name)).toEqual(['Alice', 'Clara'])
   })
 
   it('applies a numeric range max filter', () => {
     const result = processData(ROWS, {}, { salary: { min: '', max: '65000' } }, [])
-    expect(result.map(r => r.name)).toEqual(['Bob'])
+    expect(result.map((r) => r.name)).toEqual(['Bob'])
   })
 
   it('applies min and max together', () => {
     const result = processData(ROWS, {}, { salary: { min: '65000', max: '95000' } }, [])
-    expect(result.map(r => r.name)).toEqual(['Alice', 'David'])
+    expect(result.map((r) => r.name)).toEqual(['Alice', 'David'])
   })
 
   it('sorts ascending by string column', () => {
     const result = processData(ROWS, {}, {}, [{ key: 'name', dir: 'asc' }])
-    expect(result.map(r => r.name)).toEqual(['Alice', 'Bob', 'Clara', 'David'])
+    expect(result.map((r) => r.name)).toEqual(['Alice', 'Bob', 'Clara', 'David'])
   })
 
   it('sorts descending by string column', () => {
     const result = processData(ROWS, {}, {}, [{ key: 'name', dir: 'desc' }])
-    expect(result.map(r => r.name)).toEqual(['David', 'Clara', 'Bob', 'Alice'])
+    expect(result.map((r) => r.name)).toEqual(['David', 'Clara', 'Bob', 'Alice'])
   })
 
   it('sorts ascending by numeric column', () => {
     const result = processData(ROWS, {}, {}, [{ key: 'salary', dir: 'asc' }])
-    expect(result.map(r => r.salary)).toEqual([60000, 70000, 90000, 110000])
+    expect(result.map((r) => r.salary)).toEqual([60000, 70000, 90000, 110000])
   })
 
   it('applies sort after filter', () => {
-    const result = processData(
-      ROWS,
-      { dept: new Set(['Eng']) },
-      {},
-      [{ key: 'salary', dir: 'desc' }],
-    )
-    expect(result.map(r => r.name)).toEqual(['Clara', 'Alice'])
+    const result = processData(ROWS, { dept: new Set(['Eng']) }, {}, [
+      { key: 'salary', dir: 'desc' },
+    ])
+    expect(result.map((r) => r.name)).toEqual(['Clara', 'Alice'])
   })
 })
 
@@ -107,14 +99,14 @@ describe('groupData', () => {
   it('groups rows by a single column', () => {
     const result = groupData(ROWS, ['dept'])
     expect(result).toHaveLength(2)
-    expect(result.find(g => g.key === 'Eng')?.rows).toHaveLength(2)
-    expect(result.find(g => g.key === 'HR')?.rows).toHaveLength(2)
+    expect(result.find((g) => g.key === 'Eng')?.rows).toHaveLength(2)
+    expect(result.find((g) => g.key === 'HR')?.rows).toHaveLength(2)
   })
 
   it('builds composite keys for multi-column grouping', () => {
     const result = groupData(ROWS, ['dept', 'name'])
-    expect(result.map(g => g.key)).toContain('Eng › Alice')
-    expect(result.map(g => g.key)).toContain('HR › Bob')
+    expect(result.map((g) => g.key)).toContain('Eng › Alice')
+    expect(result.map((g) => g.key)).toContain('HR › Bob')
   })
 })
 
@@ -154,17 +146,17 @@ describe('paginateData', () => {
 
   it('returns the first page', () => {
     const result = paginateData(ROWS, 1, 2)
-    expect(result.map(r => r.id)).toEqual([1, 2])
+    expect(result.map((r) => r.id)).toEqual([1, 2])
   })
 
   it('returns the second page', () => {
     const result = paginateData(ROWS, 2, 2)
-    expect(result.map(r => r.id)).toEqual([3, 4])
+    expect(result.map((r) => r.id)).toEqual([3, 4])
   })
 
   it('returns a partial last page', () => {
     const result = paginateData(ROWS, 2, 3)
-    expect(result.map(r => r.id)).toEqual([4])
+    expect(result.map((r) => r.id)).toEqual([4])
   })
 
   it('returns empty array when page is beyond the data', () => {

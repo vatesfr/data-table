@@ -35,7 +35,7 @@ describe('useTableState — initial state', () => {
 
   it('respects defaultVisibleColumns option', () => {
     const { activeColumns } = useTableState(ROWS, COLS, { defaultVisibleColumns: ['id', 'name'] })
-    expect(activeColumns.value.map(c => c.key)).toEqual(['id', 'name'])
+    expect(activeColumns.value.map((c) => c.key)).toEqual(['id', 'name'])
   })
 
   it('defaults pageSize to 0 (no pagination, all rows on one page)', () => {
@@ -60,7 +60,10 @@ describe('useTableState — row selection', () => {
   })
 
   it('selectedRows only reflects rows present in processedData', () => {
-    const { selectedRows, toggleRowSelection, toggleFilter, clearFilters } = useTableState(ROWS, COLS)
+    const { selectedRows, toggleRowSelection, toggleFilter, clearFilters } = useTableState(
+      ROWS,
+      COLS,
+    )
     toggleRowSelection(ROWS[0]) // Alice
     toggleRowSelection(ROWS[1]) // Bob
     // Filter down to Alice only — Bob disappears from selectedRows but stays in selection
@@ -110,7 +113,7 @@ describe('useTableState — column visibility', () => {
   it('toggleColVisibility hides a column', () => {
     const { activeColumns, toggleColVisibility } = useTableState(ROWS, COLS)
     toggleColVisibility('name')
-    expect(activeColumns.value.map(c => c.key)).not.toContain('name')
+    expect(activeColumns.value.map((c) => c.key)).not.toContain('name')
   })
 
   it('toggleColVisibility shows a hidden column', () => {
@@ -118,7 +121,7 @@ describe('useTableState — column visibility', () => {
       defaultVisibleColumns: ['id'],
     })
     toggleColVisibility('name')
-    expect(activeColumns.value.map(c => c.key)).toContain('name')
+    expect(activeColumns.value.map((c) => c.key)).toContain('name')
   })
 
   it('cannot hide the last visible column', () => {
@@ -126,7 +129,7 @@ describe('useTableState — column visibility', () => {
       defaultVisibleColumns: ['id'],
     })
     toggleColVisibility('id')
-    expect(activeColumns.value.map(c => c.key)).toContain('id')
+    expect(activeColumns.value.map((c) => c.key)).toContain('id')
   })
 })
 

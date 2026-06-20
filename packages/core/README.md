@@ -24,16 +24,16 @@ LABELS_PT                           // Portuguese
 ### Pure functions
 
 ```ts
-processData(data, filters, rangeFilters, sorts)  // filter + sort rows
-groupData(rows, groupBy)                          // group sorted rows
-computeStringValues(data, columns)               // build filter value lists
-toggleSort(sorts, key)                           // cycle asc → desc → off
-toggleFilter(filters, key, value)                // toggle a checklist value
-toggleGroupBy(groupBy, key)                      // add/remove a group key
-toggleCollapse(collapsed, key)                   // toggle a collapsed group
-getSortIcon(sorts, key)                          // '↑' | '↓' | '↕'
-getSortIndex(sorts, key)                         // 1-based position or null
-countActiveFilters(filters, rangeFilters)        // total active filter count
+processData(data, filters, rangeFilters, sorts) // filter + sort rows
+groupData(rows, groupBy) // group sorted rows
+computeStringValues(data, columns) // build filter value lists
+toggleSort(sorts, key) // cycle asc → desc → off
+toggleFilter(filters, key, value) // toggle a checklist value
+toggleGroupBy(groupBy, key) // add/remove a group key
+toggleCollapse(collapsed, key) // toggle a collapsed group
+getSortIcon(sorts, key) // '↑' | '↓' | '↕'
+getSortIndex(sorts, key) // 1-based position or null
+countActiveFilters(filters, rangeFilters) // total active filter count
 ```
 
 ## License

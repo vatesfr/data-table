@@ -8,6 +8,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ## [Unreleased]
 
 ### Added
+
 - Client-side pagination (`defaultPageSize` prop; `page`, `pageSize`, `numPages`, `setPage`, `setPageSize` in `useTableState`)
 - Row selection: opt-in `selectable` prop adds a checkbox column; header checkbox selects/deselects the entire filtered dataset (across all pages) with indeterminate state; group header checkboxes select/deselect all rows in a group; selected rows are highlighted
 - React: `onSelectionChange(rows)` prop fires on every selection change
@@ -17,6 +18,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ## [0.1.0] - 2026-06-19
 
 ### Added
+
 - `@vates/flexi-table-core` — framework-agnostic pure-TypeScript logic: sorting, filtering, grouping, column visibility
 - `@vates/flexi-table-react` — React adapter with `<DataTable>` component and `useTableState` hook; render props for custom cells and filter labels
 - `@vates/flexi-table-vue` — Vue 3 adapter with `<DataTable>` component and `useTableState` composable; scoped slots for custom cells, filter labels, and group headers

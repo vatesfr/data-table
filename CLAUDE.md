@@ -13,7 +13,7 @@ When there are multiple valid approaches to a request, present the options and t
 ## Git workflow
 
 - Make commits atomic: each commit should represent one logical change and pass tests on its own.
-- Write descriptive commit messages that explain the *why*, not just the *what*. Use a short subject line and a body when context is needed.
+- Write descriptive commit messages that explain the _why_, not just the _what_. Use a short subject line and a body when context is needed.
 - For complex features (multiple concerns, significant refactoring, new subsystems), use a dedicated branch and close it with a merge commit rather than committing directly to `main`.
 
 ## Commands
@@ -58,6 +58,7 @@ demo/
 ### Core package (`packages/core`)
 
 All stateless logic lives here:
+
 - **`types.ts`** — shared interfaces: `ColumnDefBase<TRow>`, `SortEntry`, `RangeFilter`, `DataTableLabels`, `DEFAULT_LABELS` (English default strings)
 - **`logic.ts`** — pure functions: `processData`, `groupData`, `computeStringValues`, `paginateData`, `calcTotalPages`, `toggleSort`, `toggleFilter`, `toggleGroupBy`, `toggleCollapse`, `getSortIcon`, `getSortIndex`, `countActiveFilters`
 - **`locales.ts`** — built-in locale objects: `LABELS_EN`, `LABELS_FR`, `LABELS_ES`, `LABELS_DE`, `LABELS_PT`
@@ -80,6 +81,7 @@ Cell rendering priority: `col.render(value, row)` → `col.format(value)` → `S
 - **`components/Dropdown.vue`** — self-manages open/close state and exposes it to `#trigger` slot
 
 Vue customization uses **scoped slots** instead of render props:
+
 - `#cell-{key}` — custom table cell; slot scope: `{ value: unknown, row: TRow }`
 - `#filter-{key}` — custom filter dropdown label; slot scope: `{ value: string }`
 - `#group-{key}` — custom group header value; slot scope: `{ value: unknown, row: TRow }`
@@ -99,6 +101,7 @@ Cell customization uses `col.format(value) → string` only — no JSX/DOM nodes
 ### Row selection
 
 Selection lives in `useTableState` in both adapters. Key design notes:
+
 - Selection is tracked as `Set<TRow>` by **object identity** — no `rowKey` dependency. Row references must be stable (the same object in memory) across re-renders for selection to persist through sort/filter changes.
 - React uses `useState<Set<TRow>>` (always assigns a new Set on mutation). Vue uses `shallowRef<Set<TRow>>` — `ref` would cause `UnwrapRefSimple<TRow>` type errors because Vue's deep-unwrap conflicts with generic constraints.
 - `selectedRows` is `processedData.filter(r => selection.has(r))` — rows removed by filtering disappear from `selectedRows` but stay in `selection` and reappear if the filter is cleared.
@@ -130,6 +133,7 @@ Each package has its own Vitest setup under `src/__tests__/`:
 ### Cross-package resolution in development
 
 Packages and demo apps resolve each other without a build step via:
+
 - **`tsconfig.json` `paths`** — maps `@vates/flexi-table-core` → `../core/src/index.ts` and `@vates/flexi-table-core/locales` → `../core/src/locales.ts` for type checking
 - **`vite.config.ts` `resolve.alias`** — maps `@vates/flexi-table-core` to the `packages/core/src` **directory** (not `index.ts`) so Vite's prefix substitution resolves both the bare import and the `/locales` sub-path correctly
 

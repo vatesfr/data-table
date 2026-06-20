@@ -5,6 +5,7 @@
 Please **do not** open a public GitHub issue for security vulnerabilities.
 
 Report them privately by emailing **julien.fontanet@vates.tech**. Include as much detail as possible:
+
 - A description of the vulnerability and its potential impact
 - Steps to reproduce or a proof-of-concept
 - The affected package(s) and version(s)

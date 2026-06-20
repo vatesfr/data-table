@@ -13,12 +13,14 @@ export function processData<TRow extends object>(
   let result = [...data]
 
   for (const [key, vals] of Object.entries(filters)) {
-    if (vals.size > 0) result = result.filter(row => vals.has(String(asRecord(row)[key] ?? '')))
+    if (vals.size > 0) result = result.filter((row) => vals.has(String(asRecord(row)[key] ?? '')))
   }
 
   for (const [key, range] of Object.entries(rangeFilters)) {
-    if (range.min !== '') result = result.filter(r => Number(asRecord(r)[key]) >= Number(range.min))
-    if (range.max !== '') result = result.filter(r => Number(asRecord(r)[key]) <= Number(range.max))
+    if (range.min !== '')
+      result = result.filter((r) => Number(asRecord(r)[key]) >= Number(range.min))
+    if (range.max !== '')
+      result = result.filter((r) => Number(asRecord(r)[key]) <= Number(range.max))
   }
 
   if (sorts.length > 0) {
@@ -45,7 +47,7 @@ export function groupData<TRow extends object>(
   if (groupBy.length === 0) return [{ key: null, rows: data }]
   const groups: Record<string, TRow[]> = {}
   for (const row of data) {
-    const gkey = groupBy.map(g => String(asRecord(row)[g] ?? '')).join(' › ')
+    const gkey = groupBy.map((g) => String(asRecord(row)[g] ?? '')).join(' › ')
     if (!groups[gkey]) groups[gkey] = []
     groups[gkey].push(row)
   }
@@ -57,19 +59,22 @@ export function computeStringValues<TRow extends object>(
   columns: ColumnDefBase<TRow>[],
 ): Record<string, string[]> {
   const map: Record<string, string[]> = {}
-  const cols = columns.filter(c => c.type !== 'number' && c.type !== 'date' && c.filterable !== false)
+  const cols = columns.filter(
+    (c) => c.type !== 'number' && c.type !== 'date' && c.filterable !== false,
+  )
   for (const col of cols) {
-    const values = [...new Set(data.map(r => String(asRecord(r)[col.key] ?? '')))]
+    const values = [...new Set(data.map((r) => String(asRecord(r)[col.key] ?? '')))]
     map[col.key] = values.sort()
   }
   return map
 }
 
 export function toggleSort(sorts: SortEntry[], key: string): SortEntry[] {
-  const existing = sorts.find(s => s.key === key)
+  const existing = sorts.find((s) => s.key === key)
   if (!existing) return [...sorts, { key, dir: 'asc' }]
-  if (existing.dir === 'asc') return sorts.map(s => s.key === key ? { ...s, dir: 'desc' as const } : s)
-  return sorts.filter(s => s.key !== key)
+  if (existing.dir === 'asc')
+    return sorts.map((s) => (s.key === key ? { ...s, dir: 'desc' as const } : s))
+  return sorts.filter((s) => s.key !== key)
 }
 
 export function toggleFilter(
@@ -84,7 +89,7 @@ export function toggleFilter(
 }
 
 export function toggleGroupBy(groupBy: string[], key: string): string[] {
-  return groupBy.includes(key) ? groupBy.filter(k => k !== key) : [...groupBy, key]
+  return groupBy.includes(key) ? groupBy.filter((k) => k !== key) : [...groupBy, key]
 }
 
 export function toggleCollapse(collapsedGroups: Set<string>, key: string): Set<string> {
@@ -95,16 +100,20 @@ export function toggleCollapse(collapsedGroups: Set<string>, key: string): Set<s
 }
 
 export function getSortIcon(sorts: SortEntry[], key: string): string {
-  const s = sorts.find(s => s.key === key)
+  const s = sorts.find((s) => s.key === key)
   return s ? (s.dir === 'asc' ? '↑' : '↓') : '↕'
 }
 
 export function getSortIndex(sorts: SortEntry[], key: string): number | null {
-  const i = sorts.findIndex(s => s.key === key)
+  const i = sorts.findIndex((s) => s.key === key)
   return i >= 0 ? i + 1 : null
 }
 
-export function paginateData<TRow extends object>(data: TRow[], page: number, pageSize: number): TRow[] {
+export function paginateData<TRow extends object>(
+  data: TRow[],
+  page: number,
+  pageSize: number,
+): TRow[] {
   if (pageSize <= 0) return data
   const start = (page - 1) * pageSize
   return data.slice(start, start + pageSize)
@@ -120,7 +129,7 @@ export function countActiveFilters(
   rangeFilters: Record<string, RangeFilter>,
 ): number {
   return (
-    Object.values(filters).filter(v => v.size > 0).length +
-    Object.values(rangeFilters).filter(v => v.min !== '' || v.max !== '').length
+    Object.values(filters).filter((v) => v.size > 0).length +
+    Object.values(rangeFilters).filter((v) => v.min !== '' || v.max !== '').length
   )
 }

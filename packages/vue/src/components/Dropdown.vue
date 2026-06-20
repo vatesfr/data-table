@@ -4,7 +4,9 @@ import { ref, onMounted, onUnmounted } from 'vue'
 const containerRef = ref<HTMLElement | null>(null)
 const isOpen = ref(false)
 
-function toggle() { isOpen.value = !isOpen.value }
+function toggle() {
+  isOpen.value = !isOpen.value
+}
 
 function onMousedown(e: MouseEvent) {
   if (containerRef.value && !containerRef.value.contains(e.target as Node)) {
@@ -29,7 +31,10 @@ onUnmounted(() => document.removeEventListener('mousedown', onMousedown))
 </template>
 
 <style scoped>
-.dropdown { position: relative; display: inline-block; }
+.dropdown {
+  position: relative;
+  display: inline-block;
+}
 .dropdown__menu {
   position: absolute;
   top: 100%;
@@ -39,7 +44,7 @@ onUnmounted(() => document.removeEventListener('mousedown', onMousedown))
   background: var(--color-background-primary);
   border: 0.5px solid var(--color-border-secondary);
   border-radius: 8px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.10);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
   min-width: 220px;
   padding: 4px 0;
 }

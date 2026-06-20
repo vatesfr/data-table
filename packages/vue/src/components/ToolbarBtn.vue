@@ -23,5 +23,7 @@ defineProps<{ active?: boolean }>()
   font-family: inherit;
   white-space: nowrap;
 }
-.toolbar-btn--active { background: var(--color-background-secondary); }
+.toolbar-btn--active {
+  background: var(--color-background-secondary);
+}
 </style>

@@ -1,7 +1,9 @@
 import type { ReactNode } from 'react'
 import type { ColumnDefBase, DataTableLabels } from '@vates/flexi-table-core'
 
-export interface ColumnDef<TRow extends object = Record<string, unknown>> extends ColumnDefBase<TRow> {
+export interface ColumnDef<
+  TRow extends object = Record<string, unknown>,
+> extends ColumnDefBase<TRow> {
   /** Render a custom React node in table cells and group headers */
   render?: (value: unknown, row: TRow) => ReactNode
   /** Render a custom label in filter dropdown options */

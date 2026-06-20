@@ -1,5 +1,8 @@
 <script setup lang="ts">
-export interface BadgeColorEntry { bg: string; color: string }
+export interface BadgeColorEntry {
+  bg: string
+  color: string
+}
 
 const props = defineProps<{
   value: string
