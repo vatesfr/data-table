@@ -4,7 +4,7 @@ import { resolve } from 'path'
 import dts from 'vite-plugin-dts'
 
 export default defineConfig({
-  plugins: [react(), dts({ include: ['src'], insertTypesEntry: true, rollupTypes: true })],
+  plugins: [react(), dts({ include: ['src'], insertTypesEntry: true, rollupTypes: true, pathsToAliases: false })],
   build: {
     lib: {
       entry: resolve(__dirname, 'src/index.ts'),
