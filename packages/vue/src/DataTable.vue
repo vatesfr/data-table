@@ -124,7 +124,7 @@ function findCol(key: string): ColumnDef<TRow> | undefined {
 }
 
 function hasSlot(name: string): boolean {
-  return !!slots[name]
+  return name in slots
 }
 </script>
 
