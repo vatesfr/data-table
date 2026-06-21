@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, type CSSProperties } from 'react'
+import { computeAggregate } from '@vates/flexi-table-core'
 import { useTableState } from './useTableState'
 import { Dropdown } from './components/Dropdown'
 import { ToolbarBtn } from './components/ToolbarBtn'
@@ -145,6 +146,26 @@ const S = {
     fontFamily: 'inherit',
     cursor: 'pointer',
   } as CSSProperties,
+  searchInput: {
+    padding: '4px 8px',
+    fontSize: 13,
+    border: '0.5px solid var(--color-border-secondary)',
+    borderRadius: 6,
+    background: 'transparent',
+    color: 'inherit',
+    fontFamily: 'inherit',
+    minWidth: 160,
+  } as CSSProperties,
+  aggRow: {
+    fontSize: 12,
+    fontWeight: 500,
+    color: 'var(--color-text-secondary)',
+    background: 'var(--color-background-secondary)',
+  } as CSSProperties,
+  aggTd: {
+    padding: '4px 12px',
+    borderBottom: '0.5px solid var(--color-border-tertiary)',
+  } as CSSProperties,
 }
 
 function asRecord(row: object): Record<string, unknown> {
@@ -183,6 +204,7 @@ export function DataTable<TRow extends object>({
     page,
     pageSize,
     numPages,
+    searchQuery,
     L,
     toggleColVisibility,
     toggleSort,
@@ -197,6 +219,7 @@ export function DataTable<TRow extends object>({
     clearAll,
     setPage,
     setPageSize,
+    setSearchQuery,
     getSortIcon,
     getSortIndex,
     toggleRowSelection,
@@ -230,7 +253,9 @@ export function DataTable<TRow extends object>({
     (c) => c.type !== 'number' && c.type !== 'date' && c.filterable !== false,
   )
   const groupableCols = columns.filter((c) => c.groupable === true)
-  const hasActiveState = sorts.length > 0 || activeFilterCount > 0 || groupBy.length > 0
+  const hasActiveState =
+    sorts.length > 0 || activeFilterCount > 0 || groupBy.length > 0 || searchQuery !== ''
+  const hasAggregates = activeColumns.some((c) => c.aggregate !== undefined)
 
   const cellValue = (row: TRow, col: ColumnDef<TRow>) => {
     const v = asRecord(row)[col.key]
@@ -439,6 +464,14 @@ export function DataTable<TRow extends object>({
           </Dropdown>
         )}
 
+        <input
+          type="text"
+          placeholder={L.search}
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          style={S.searchInput}
+        />
+
         {hasActiveState && (
           <button
             onClick={clearAll}
@@ -600,6 +633,24 @@ export function DataTable<TRow extends object>({
                         {L.rowsInGroup(rows.length)}
                       </span>
                     </td>
+                  </tr>
+                ),
+                gkey !== null && hasAggregates && (
+                  <tr key={`agg-${gkey}`} style={S.aggRow}>
+                    {selectable && <td style={{ ...S.aggTd, width: 36 }} />}
+                    <td style={{ ...S.aggTd, width: 28 }} />
+                    {activeColumns.map((col) => {
+                      const v = computeAggregate(col, rows)
+                      return (
+                        <td key={col.key} style={S.aggTd}>
+                          {v !== undefined && v !== null
+                            ? col.format
+                              ? col.format(v)
+                              : String(v)
+                            : null}
+                        </td>
+                      )
+                    })}
                   </tr>
                 ),
                 !isCollapsed &&

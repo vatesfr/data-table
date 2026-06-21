@@ -1,6 +1,7 @@
 import { ref, shallowRef, computed, toValue, type MaybeRefOrGetter } from 'vue'
 import {
   processData,
+  searchData,
   groupData,
   computeStringValues,
   paginateData,
@@ -47,11 +48,17 @@ export function useTableState<TRow extends object>(
   const page = ref(1)
   const pageSize = ref(options.value.defaultPageSize ?? 0)
   const selection = shallowRef<Set<TRow>>(new Set())
+  const searchQuery = ref('')
 
   const stringValueMap = computed(() => computeStringValues(data.value, columns.value))
 
   const processedData = computed(() =>
-    processData(data.value, filters.value, rangeFilters.value, sorts.value),
+    processData(
+      searchData(data.value, searchQuery.value, columns.value),
+      filters.value,
+      rangeFilters.value,
+      sorts.value,
+    ),
   )
 
   const numPages = computed(() => calcTotalPages(processedData.value.length, pageSize.value))
@@ -81,6 +88,7 @@ export function useTableState<TRow extends object>(
     collapsedGroups,
     page,
     pageSize,
+    searchQuery,
     // Computed
     selectedRows,
     processedData,
@@ -146,6 +154,10 @@ export function useTableState<TRow extends object>(
       groupBy.value = []
       collapsedGroups.value = new Set()
     },
+    setSearchQuery: (q: string) => {
+      searchQuery.value = q
+      page.value = 1
+    },
     clearAll: () => {
       sorts.value = []
       filters.value = {}
@@ -153,6 +165,7 @@ export function useTableState<TRow extends object>(
       groupBy.value = []
       collapsedGroups.value = new Set()
       page.value = 1
+      searchQuery.value = ''
     },
     getSortIcon: (key: string) => _getSortIcon(sorts.value, key),
     getSortIndex: (key: string) => _getSortIndex(sorts.value, key),

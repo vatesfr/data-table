@@ -1,8 +1,10 @@
 import { describe, it, expect } from 'vitest'
 import {
   processData,
+  searchData,
   groupData,
   computeStringValues,
+  computeAggregate,
   paginateData,
   calcTotalPages,
   toggleSort,
@@ -27,6 +29,87 @@ const ROWS: Row[] = [
   { id: 3, name: 'Clara', dept: 'Eng', salary: 110000 },
   { id: 4, name: 'David', dept: 'HR', salary: 70000 },
 ]
+
+const COLS_FOR_SEARCH = [
+  { key: 'name' as const, label: 'Name' },
+  { key: 'dept' as const, label: 'Dept' },
+]
+
+// ─── searchData ───────────────────────────────────────────────────────────────
+
+describe('searchData', () => {
+  it('returns all rows when query is empty', () => {
+    expect(searchData(ROWS, '', COLS_FOR_SEARCH)).toEqual(ROWS)
+  })
+
+  it('matches substring case-insensitively', () => {
+    const result = searchData(ROWS, 'ali', COLS_FOR_SEARCH)
+    expect(result.map((r) => r.name)).toEqual(['Alice'])
+  })
+
+  it('matches across any column', () => {
+    const result = searchData(ROWS, 'eng', COLS_FOR_SEARCH)
+    expect(result.map((r) => r.name)).toEqual(['Alice', 'Clara'])
+  })
+
+  it('returns empty when no match', () => {
+    expect(searchData(ROWS, 'zzz', COLS_FOR_SEARCH)).toHaveLength(0)
+  })
+
+  it('uses col.format when available', () => {
+    const cols = [{ key: 'salary' as const, label: 'Salary', format: (v: unknown) => `$${v}` }]
+    const result = searchData(ROWS, '$90000', cols)
+    expect(result.map((r) => r.name)).toEqual(['Alice'])
+  })
+})
+
+// ─── computeAggregate ─────────────────────────────────────────────────────────
+
+describe('computeAggregate', () => {
+  const salaryCol = { key: 'salary' as const, label: 'Salary', aggregate: 'sum' as const }
+
+  it('returns undefined when aggregate is not set', () => {
+    expect(computeAggregate({ key: 'name' as const, label: 'Name' }, ROWS)).toBeUndefined()
+  })
+
+  it('computes sum', () => {
+    expect(computeAggregate(salaryCol, ROWS)).toBe(330000)
+  })
+
+  it('computes count', () => {
+    const col = { key: 'salary' as const, label: 'Salary', aggregate: 'count' as const }
+    expect(computeAggregate(col, ROWS)).toBe(4)
+  })
+
+  it('computes avg', () => {
+    const col = { key: 'salary' as const, label: 'Salary', aggregate: 'avg' as const }
+    expect(computeAggregate(col, ROWS)).toBe(82500)
+  })
+
+  it('computes min', () => {
+    const col = { key: 'salary' as const, label: 'Salary', aggregate: 'min' as const }
+    expect(computeAggregate(col, ROWS)).toBe(60000)
+  })
+
+  it('computes max', () => {
+    const col = { key: 'salary' as const, label: 'Salary', aggregate: 'max' as const }
+    expect(computeAggregate(col, ROWS)).toBe(110000)
+  })
+
+  it('returns undefined for empty rows (numeric aggregates)', () => {
+    const col = { key: 'salary' as const, label: 'Salary', aggregate: 'sum' as const }
+    expect(computeAggregate(col, [])).toBeUndefined()
+  })
+
+  it('calls a custom aggregate function', () => {
+    const col = {
+      key: 'salary' as const,
+      label: 'Salary',
+      aggregate: (rows: Row[]) => rows.length * 2,
+    }
+    expect(computeAggregate(col, ROWS)).toBe(8)
+  })
+})
 
 // ─── processData ─────────────────────────────────────────────────────────────
 

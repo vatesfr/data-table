@@ -1,5 +1,6 @@
 <script setup lang="ts" generic="TRow extends object">
 import { computed, watch, useSlots } from 'vue'
+import { computeAggregate } from '@vates/flexi-table-core'
 import { useTableState } from './useTableState'
 import type { ColumnDef } from './types'
 import type { DataTableLabels } from '@vates/flexi-table-core'
@@ -53,6 +54,7 @@ const {
   page,
   pageSize,
   numPages,
+  searchQuery,
   L,
   toggleColVisibility,
   toggleSort,
@@ -67,6 +69,7 @@ const {
   clearAll,
   setPage,
   setPageSize,
+  setSearchQuery,
   getSortIcon,
   getSortIndex,
   toggleRowSelection,
@@ -106,8 +109,13 @@ const stringFilterCols = computed(() =>
 )
 const groupableCols = computed(() => props.columns.filter((c) => c.groupable === true))
 const hasActiveState = computed(
-  () => sorts.value.length > 0 || activeFilterCount.value > 0 || groupBy.value.length > 0,
+  () =>
+    sorts.value.length > 0 ||
+    activeFilterCount.value > 0 ||
+    groupBy.value.length > 0 ||
+    searchQuery.value !== '',
 )
+const hasAggregates = computed(() => activeColumns.value.some((c) => c.aggregate !== undefined))
 
 function asRecord(row: object): Record<string, unknown> {
   return row as Record<string, unknown>
@@ -259,6 +267,14 @@ function hasSlot(name: string): boolean {
         </div>
       </Dropdown>
 
+      <input
+        type="text"
+        class="ft__search-input"
+        :placeholder="L.search"
+        :value="searchQuery"
+        @input="setSearchQuery(($event.target as HTMLInputElement).value)"
+      />
+
       <button v-if="hasActiveState" class="ft__clear-all" @click="clearAll">
         {{ L.clearAll }}
       </button>
@@ -390,6 +406,21 @@ function hasSlot(name: string): boolean {
               </td>
             </tr>
 
+            <!-- Aggregate row -->
+            <tr v-if="hasAggregates" class="ft__agg-row">
+              <td v-if="selectable" class="ft__agg-td" style="width: 36px" />
+              <td class="ft__agg-td" style="width: 28px" />
+              <td v-for="col in activeColumns" :key="col.key" class="ft__agg-td">
+                {{
+                  (() => {
+                    const v = computeAggregate(col, group.rows)
+                    if (v === undefined || v === null) return ''
+                    return col.format ? col.format(v) : String(v)
+                  })()
+                }}
+              </td>
+            </tr>
+
             <!-- Data rows -->
             <template v-if="group.key === null || !collapsedGroups.has(group.key!)">
               <tr
@@ -456,6 +487,16 @@ function hasSlot(name: string): boolean {
   margin-left: auto;
   font-size: 12px;
   color: var(--color-text-secondary);
+}
+.ft__search-input {
+  padding: 4px 8px;
+  font-size: 13px;
+  border: 0.5px solid var(--color-border-secondary);
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  min-width: 160px;
 }
 .ft__clear-all {
   margin-left: 4px;
@@ -687,5 +728,15 @@ function hasSlot(name: string): boolean {
   margin-left: 10px;
   font-weight: 400;
   opacity: 0.6;
+}
+.ft__agg-row {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  background: var(--color-background-secondary);
+}
+.ft__agg-td {
+  padding: 4px 12px;
+  border-bottom: 0.5px solid var(--color-border-tertiary);
 }
 </style>

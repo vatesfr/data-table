@@ -233,3 +233,41 @@ describe('useTableState — filters reset page', () => {
     expect(result.current.page).toBe(1)
   })
 })
+
+describe('useTableState — search', () => {
+  it('defaults searchQuery to empty string', () => {
+    const { result } = renderHook(() => useTableState(ROWS, COLS))
+    expect(result.current.searchQuery).toBe('')
+  })
+
+  it('setSearchQuery filters processedData', () => {
+    const { result } = renderHook(() => useTableState(ROWS, COLS))
+    act(() => {
+      result.current.setSearchQuery('ali')
+    })
+    expect(result.current.processedData.map((r) => r.name)).toEqual(['Alice'])
+  })
+
+  it('setSearchQuery resets page to 1', () => {
+    const { result } = renderHook(() => useTableState(ROWS, COLS, undefined, undefined, 2))
+    act(() => {
+      result.current.setPage(2)
+    })
+    act(() => {
+      result.current.setSearchQuery('a')
+    })
+    expect(result.current.page).toBe(1)
+  })
+
+  it('clearAll resets searchQuery', () => {
+    const { result } = renderHook(() => useTableState(ROWS, COLS))
+    act(() => {
+      result.current.setSearchQuery('alice')
+    })
+    act(() => {
+      result.current.clearAll()
+    })
+    expect(result.current.searchQuery).toBe('')
+    expect(result.current.processedData).toHaveLength(4)
+  })
+})

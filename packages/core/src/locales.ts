@@ -21,6 +21,7 @@ export const LABELS_EN: DataTableLabels = {
   rowsInGroup: (n) => `${n} row${n !== 1 ? 's' : ''}`,
   rowsPerPage: 'Rows per page',
   pageOf: (p, t) => `Page ${p} of ${t}`,
+  search: 'Search…',
 }
 
 export const LABELS_FR: DataTableLabels = {
@@ -44,6 +45,7 @@ export const LABELS_FR: DataTableLabels = {
   rowsInGroup: (n) => `${n} ligne${n > 1 ? 's' : ''}`,
   rowsPerPage: 'Lignes par page',
   pageOf: (p, t) => `Page ${p} sur ${t}`,
+  search: 'Rechercher…',
 }
 
 export const LABELS_ES: DataTableLabels = {
@@ -67,6 +69,7 @@ export const LABELS_ES: DataTableLabels = {
   rowsInGroup: (n) => `${n} fila${n !== 1 ? 's' : ''}`,
   rowsPerPage: 'Filas por página',
   pageOf: (p, t) => `Página ${p} de ${t}`,
+  search: 'Buscar…',
 }
 
 export const LABELS_DE: DataTableLabels = {
@@ -90,6 +93,7 @@ export const LABELS_DE: DataTableLabels = {
   rowsInGroup: (n) => `${n} Zeile${n !== 1 ? 'n' : ''}`,
   rowsPerPage: 'Zeilen pro Seite',
   pageOf: (p, t) => `Seite ${p} von ${t}`,
+  search: 'Suchen…',
 }
 
 export const LABELS_PT: DataTableLabels = {
@@ -113,4 +117,5 @@ export const LABELS_PT: DataTableLabels = {
   rowsInGroup: (n) => `${n} linha${n !== 1 ? 's' : ''}`,
   rowsPerPage: 'Linhas por página',
   pageOf: (p, t) => `Página ${p} de ${t}`,
+  search: 'Pesquisar…',
 }

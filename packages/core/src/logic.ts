@@ -124,6 +124,43 @@ export function calcTotalPages(count: number, pageSize: number): number {
   return Math.max(1, Math.ceil(count / pageSize))
 }
 
+export function searchData<TRow extends object>(
+  data: TRow[],
+  query: string,
+  columns: ColumnDefBase<TRow>[],
+): TRow[] {
+  if (!query) return data
+  const q = query.toLowerCase()
+  return data.filter((row) =>
+    columns.some((col) => {
+      const v = asRecord(row)[col.key]
+      const s = col.format ? col.format(v) : v != null ? String(v) : ''
+      return s.toLowerCase().includes(q)
+    }),
+  )
+}
+
+export function computeAggregate<TRow extends object>(
+  col: ColumnDefBase<TRow>,
+  rows: TRow[],
+): unknown {
+  if (!col.aggregate) return undefined
+  if (typeof col.aggregate === 'function') return col.aggregate(rows)
+  if (col.aggregate === 'count') return rows.length
+  const nums = rows.map((r) => Number(asRecord(r)[col.key])).filter((n) => !isNaN(n))
+  if (nums.length === 0) return undefined
+  switch (col.aggregate) {
+    case 'sum':
+      return nums.reduce((a, b) => a + b, 0)
+    case 'avg':
+      return nums.reduce((a, b) => a + b, 0) / nums.length
+    case 'min':
+      return Math.min(...nums)
+    case 'max':
+      return Math.max(...nums)
+  }
+}
+
 export function countActiveFilters(
   filters: Record<string, Set<string>>,
   rangeFilters: Record<string, RangeFilter>,

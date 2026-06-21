@@ -10,6 +10,8 @@ export interface RangeFilter {
   max: string
 }
 
+export type AggregateType = 'sum' | 'count' | 'avg' | 'min' | 'max'
+
 export interface ColumnDefBase<TRow extends object = Record<string, unknown>> {
   key: keyof TRow & string
   label: string
@@ -21,6 +23,8 @@ export interface ColumnDefBase<TRow extends object = Record<string, unknown>> {
   sortable?: boolean
   filterable?: boolean
   groupable?: boolean
+  /** Aggregate function or built-in type shown in group header rows */
+  aggregate?: AggregateType | ((rows: TRow[]) => unknown)
 }
 
 export interface DataTableLabels {
@@ -44,6 +48,7 @@ export interface DataTableLabels {
   rowsInGroup: (count: number) => string
   rowsPerPage: string
   pageOf: (page: number, total: number) => string
+  search: string
 }
 
 export { LABELS_EN as DEFAULT_LABELS } from './locales'

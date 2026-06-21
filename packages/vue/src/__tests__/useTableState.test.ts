@@ -183,3 +183,31 @@ describe('useTableState — filters reset page', () => {
     expect(page.value).toBe(1)
   })
 })
+
+describe('useTableState — search', () => {
+  it('defaults searchQuery to empty string', () => {
+    const { searchQuery } = useTableState(ROWS, COLS)
+    expect(searchQuery.value).toBe('')
+  })
+
+  it('setSearchQuery filters processedData', () => {
+    const { processedData, setSearchQuery } = useTableState(ROWS, COLS)
+    setSearchQuery('ali')
+    expect(processedData.value.map((r) => r.name)).toEqual(['Alice'])
+  })
+
+  it('setSearchQuery resets page to 1', () => {
+    const { page, setPage, setSearchQuery } = useTableState(ROWS, COLS, { defaultPageSize: 2 })
+    setPage(2)
+    setSearchQuery('a')
+    expect(page.value).toBe(1)
+  })
+
+  it('clearAll resets searchQuery', () => {
+    const { searchQuery, processedData, setSearchQuery, clearAll } = useTableState(ROWS, COLS)
+    setSearchQuery('alice')
+    clearAll()
+    expect(searchQuery.value).toBe('')
+    expect(processedData.value).toHaveLength(4)
+  })
+})

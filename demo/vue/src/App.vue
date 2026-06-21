@@ -266,6 +266,7 @@ const COLUMNS: ColumnDef<Employee>[] = [
         currency: 'USD',
         maximumFractionDigits: 0,
       }),
+    aggregate: 'sum',
   },
   // filterable: false — no filter UI for this column
   { key: 'joined', label: 'Joined', type: 'date', width: 100, filterable: false },

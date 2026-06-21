@@ -309,6 +309,68 @@ describe('createFlexiTable', () => {
     expect(container.querySelectorAll('.ft-tr').length).toBeLessThan(before)
   })
 
+  // --- search ---
+
+  it('renders a search input in the toolbar', () => {
+    createFlexiTable(container, { data: ROWS, columns: COLS })
+    expect(container.querySelector<HTMLInputElement>('[data-action="search"]')).not.toBeNull()
+  })
+
+  it('typing in the search input filters rows', () => {
+    createFlexiTable(container, { data: ROWS, columns: COLS })
+    setInput(container.querySelector<HTMLInputElement>('[data-action="search"]')!, 'ali')
+    expect(container.querySelectorAll('tbody tr')).toHaveLength(1)
+    expect(container.innerHTML).toContain('Alice')
+  })
+
+  it('search is case-insensitive', () => {
+    createFlexiTable(container, { data: ROWS, columns: COLS })
+    setInput(container.querySelector<HTMLInputElement>('[data-action="search"]')!, 'ENG')
+    expect(container.querySelectorAll('tbody tr')).toHaveLength(2)
+  })
+
+  it('clear-all resets search query', () => {
+    createFlexiTable(container, { data: ROWS, columns: COLS })
+    setInput(container.querySelector<HTMLInputElement>('[data-action="search"]')!, 'ali')
+    click(container.querySelector<HTMLElement>('[data-action="clear-all"]')!)
+    expect(container.querySelectorAll('tbody tr')).toHaveLength(4)
+  })
+
+  // --- aggregate rows ---
+
+  it('renders an aggregate row per group when aggregate is defined', () => {
+    const cols: ColumnDef<Row>[] = [
+      { key: 'name', label: 'Name' },
+      { key: 'score', label: 'Score', aggregate: 'sum' },
+      { key: 'dept', label: 'Dept', groupable: true },
+    ]
+    createFlexiTable(container, { data: ROWS, columns: cols })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="group"]')!)
+    click(container.querySelector<HTMLElement>('[data-action="toggle-group"][data-key="dept"]')!)
+    expect(container.querySelector('.ft-agg-row')).not.toBeNull()
+  })
+
+  it('aggregate row shows the correct sum', () => {
+    const cols: ColumnDef<Row>[] = [
+      { key: 'name', label: 'Name' },
+      { key: 'score', label: 'Score', aggregate: 'sum' },
+      { key: 'dept', label: 'Dept', groupable: true },
+    ]
+    createFlexiTable(container, { data: ROWS, columns: cols })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="group"]')!)
+    click(container.querySelector<HTMLElement>('[data-action="toggle-group"][data-key="dept"]')!)
+    // Eng group: Alice (90) + Clara (80) = 170
+    const aggRows = container.querySelectorAll('.ft-agg-row')
+    expect(aggRows[0].textContent).toContain('170')
+  })
+
+  it('does not render aggregate rows when no aggregate is defined', () => {
+    createFlexiTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="group"]')!)
+    click(container.querySelector<HTMLElement>('[data-action="toggle-group"][data-key="dept"]')!)
+    expect(container.querySelector('.ft-agg-row')).toBeNull()
+  })
+
   // --- i18n ---
 
   it('uses custom labels', () => {

@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import {
   processData,
+  searchData,
   groupData,
   computeStringValues,
   paginateData,
@@ -39,12 +40,13 @@ export function useTableState<TRow extends object>(
   const [page, setPageState] = useState(1)
   const [pageSize, setPageSizeState] = useState(defaultPageSize ?? 0)
   const [selection, setSelection] = useState<Set<TRow>>(new Set())
+  const [searchQuery, setSearchQueryState] = useState('')
 
   const stringValueMap = useMemo(() => computeStringValues(data, columns), [data, columns])
 
   const processedData = useMemo(
-    () => processData(data, filters, rangeFilters, sorts),
-    [data, filters, rangeFilters, sorts],
+    () => processData(searchData(data, searchQuery, columns), filters, rangeFilters, sorts),
+    [data, searchQuery, columns, filters, rangeFilters, sorts],
   )
 
   const numPages = useMemo(
@@ -85,6 +87,7 @@ export function useTableState<TRow extends object>(
     collapsedGroups,
     page,
     pageSize,
+    searchQuery,
     // Derived
     selectedRows,
     processedData,
@@ -137,6 +140,10 @@ export function useTableState<TRow extends object>(
       setGroupBy([])
       setCollapsedGroups(new Set())
     },
+    setSearchQuery: (q: string) => {
+      setSearchQueryState(q)
+      setPageState(1)
+    },
     clearAll: () => {
       setSorts([])
       setFilters({})
@@ -144,6 +151,7 @@ export function useTableState<TRow extends object>(
       setGroupBy([])
       setCollapsedGroups(new Set())
       setPageState(1)
+      setSearchQueryState('')
     },
     getSortIcon: (key: string) => _getSortIcon(sorts, key),
     getSortIndex: (key: string) => _getSortIndex(sorts, key),

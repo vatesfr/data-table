@@ -42,4 +42,7 @@ export const STYLES = `
 .ft-page-info{font-size:12px;color:var(--color-text-secondary,#6b6a66);padding:0 6px}
 .ft-page-select{padding:4px 6px;font-size:12px;border:0.5px solid var(--color-border-secondary,#dddcd8);border-radius:4px;background:transparent;color:inherit;font-family:inherit;cursor:pointer}
 .ft-rows-per-page{font-size:12px;color:var(--color-text-secondary,#6b6a66);margin-left:10px}
+.ft-search-input{padding:4px 8px;font-size:13px;border:0.5px solid var(--color-border-secondary,#dddcd8);border-radius:6px;background:transparent;color:inherit;font-family:inherit;min-width:160px}
+.ft-agg-row{font-size:12px;font-weight:500;color:var(--color-text-secondary,#6b6a66);background:var(--color-background-secondary,#f7f6f3)}
+.ft-agg-td{padding:4px 12px;border-bottom:0.5px solid var(--color-border-tertiary,#eeedea)}
 `

@@ -239,6 +239,7 @@ const COLUMNS: ColumnDef<Employee>[] = [
         currency: 'USD',
         maximumFractionDigits: 0,
       }),
+    aggregate: 'sum',
   },
   { key: 'joined', label: 'Joined', type: 'date', width: 100, filterable: false },
   { key: 'status', label: 'Status', type: 'string', width: 90, groupable: true },

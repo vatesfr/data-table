@@ -1,7 +1,9 @@
 import {
   processData,
+  searchData,
   groupData,
   computeStringValues,
+  computeAggregate,
   paginateData,
   calcTotalPages,
   toggleSort as coreToggleSort,
@@ -71,6 +73,7 @@ export function createFlexiTable<TRow extends object>(
   let visibleCols = new Set<string>(options.defaultVisibleColumns ?? columns.map((c) => c.key))
   let selection = new Set<TRow>()
   let openDropdown: string | null = null
+  let searchQuery = ''
 
   // Updated by derive(), read by event handlers
   let _processedData: TRow[] = []
@@ -80,7 +83,12 @@ export function createFlexiTable<TRow extends object>(
 
   function derive() {
     const stringValueMap = computeStringValues(data, columns)
-    _processedData = processData(data, filters, rangeFilters, sorts)
+    _processedData = processData(
+      searchData(data, searchQuery, columns),
+      filters,
+      rangeFilters,
+      sorts,
+    )
     _numPages = calcTotalPages(_processedData.length, pageSize)
     _clampedPage = Math.min(page, Math.max(1, _numPages))
     const pagedData = paginateData(_processedData, _clampedPage, pageSize)
@@ -89,6 +97,13 @@ export function createFlexiTable<TRow extends object>(
     const activeFilterCount = countActiveFilters(filters, rangeFilters)
     const selectedRows = _processedData.filter((r) => selection.has(r))
     return { stringValueMap, activeColumns, activeFilterCount, selectedRows }
+  }
+
+  function aggStr(col: ColumnDef<TRow>, rows: TRow[]): string {
+    const v = computeAggregate(col, rows)
+    if (v === undefined || v === null) return ''
+    if (col.format) return esc(col.format(v))
+    return esc(String(v))
   }
 
   function cellStr(row: TRow, col: ColumnDef<TRow>): string {
@@ -109,7 +124,9 @@ export function createFlexiTable<TRow extends object>(
 
     const allSelected = _processedData.length > 0 && selectedRows.length === _processedData.length
     const someSelected = selectedRows.length > 0 && !allSelected
-    const hasActiveState = sorts.length > 0 || activeFilterCount > 0 || groupBy.length > 0
+    const hasActiveState =
+      sorts.length > 0 || activeFilterCount > 0 || groupBy.length > 0 || searchQuery !== ''
+    const hasAgg = activeColumns.some((c) => c.aggregate !== undefined)
     const numericFilterCols = columns.filter((c) => c.type === 'number' && c.filterable !== false)
     const stringFilterCols = columns.filter(
       (c) => c.type !== 'number' && c.type !== 'date' && c.filterable !== false,
@@ -204,6 +221,8 @@ export function createFlexiTable<TRow extends object>(
       )
     }
 
+    html += `<input type="text" class="ft-search-input" placeholder="${esc(L.search)}" value="${esc(searchQuery)}" data-action="search" data-focus-key="search">`
+
     if (hasActiveState) {
       html += `<button class="ft-btn" data-action="clear-all" style="margin-left:4px">${esc(L.clearAll)}</button>`
     }
@@ -265,6 +284,16 @@ export function createFlexiTable<TRow extends object>(
             : esc(String((rows[0] as Record<string, unknown>)[gColKey] ?? ''))
         }
         html += ` <span class="ft-group-count">${esc(L.rowsInGroup(rows.length))}</span></td></tr>`
+
+        if (hasAgg) {
+          html += `<tr class="ft-agg-row">`
+          if (selectable) html += `<td class="ft-agg-td" style="width:36px"></td>`
+          html += `<td class="ft-agg-td" style="width:28px"></td>`
+          for (const col of activeColumns) {
+            html += `<td class="ft-agg-td">${aggStr(col, rows)}</td>`
+          }
+          html += `</tr>`
+        }
 
         if (!isCollapsed) {
           for (let ri = 0; ri < rows.length; ri++) {
@@ -444,6 +473,7 @@ export function createFlexiTable<TRow extends object>(
         groupBy = []
         collapsedGroups = new Set()
         page = 1
+        searchQuery = ''
         openDropdown = null
         break
       case 'select-all': {
@@ -505,6 +535,12 @@ export function createFlexiTable<TRow extends object>(
   function handleInput(e: Event): void {
     const target = e.target as HTMLInputElement
     const action = target.dataset.action
+    if (action === 'search') {
+      searchQuery = target.value
+      page = 1
+      render()
+      return
+    }
     if (action !== 'range-min' && action !== 'range-max') return
     const key = target.dataset.key ?? ''
     const field = action === 'range-min' ? 'min' : 'max'

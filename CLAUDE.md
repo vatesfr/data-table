@@ -59,8 +59,8 @@ demo/
 
 All stateless logic lives here:
 
-- **`types.ts`** — shared interfaces: `ColumnDefBase<TRow>`, `SortEntry`, `RangeFilter`, `DataTableLabels`, `DEFAULT_LABELS` (English default strings)
-- **`logic.ts`** — pure functions: `processData`, `groupData`, `computeStringValues`, `paginateData`, `calcTotalPages`, `toggleSort`, `toggleFilter`, `toggleGroupBy`, `toggleCollapse`, `getSortIcon`, `getSortIndex`, `countActiveFilters`
+- **`types.ts`** — shared interfaces: `ColumnDefBase<TRow>`, `AggregateType`, `SortEntry`, `RangeFilter`, `DataTableLabels`, `DEFAULT_LABELS` (English default strings)
+- **`logic.ts`** — pure functions: `processData`, `searchData`, `groupData`, `computeStringValues`, `computeAggregate`, `paginateData`, `calcTotalPages`, `toggleSort`, `toggleFilter`, `toggleGroupBy`, `toggleCollapse`, `getSortIcon`, `getSortIndex`, `countActiveFilters`
 - **`locales.ts`** — built-in locale objects: `LABELS_EN`, `LABELS_FR`, `LABELS_ES`, `LABELS_DE`, `LABELS_PT`
 
 The internal `asRecord(row: object): Record<string, unknown>` helper exists because the generic constraint is `TRow extends object` (not `Record<string, unknown>`) — TypeScript interfaces lack index signatures so the wider constraint is needed, and `asRecord` lets internal logic access arbitrary keys.
@@ -94,7 +94,7 @@ Vue customization uses **scoped slots** instead of render props:
 
 `createFlexiTable` manages all state in a closure, re-renders via `innerHTML` on every state change, and uses **event delegation** (single `click`/`input`/`change` listener on the container). All interactive elements carry `data-action` attributes; the handler dispatches on those. Dropdowns open/close state is tracked in the closure (`openDropdown: string | null`) and re-rendered into the HTML on each update.
 
-Focus is saved/restored across re-renders (via `data-focus-key` attributes on range filter inputs) so typing in numeric range filters doesn't lose cursor position.
+Focus is saved/restored across re-renders (via `data-focus-key` attributes on range filter inputs and the search input) so typing doesn't lose cursor position.
 
 Cell customization uses `col.format(value) → string` only — no JSX/DOM nodes. For richer cells, consumers can post-process the container DOM after `setData`.
 
@@ -112,9 +112,17 @@ Selection lives in `useTableState` in both adapters. Key design notes:
 
 `pageSize: 0` disables pagination — all rows are returned on a single page. Both adapters default to `0`. When pagination is active, `pagedData` holds the current page's rows while `processedData` holds all filtered/sorted rows (used for `toggleSelectAll`, total count, etc.).
 
+### Global search
+
+`searchData(data, query, columns)` filters rows before `processData` runs — it matches any column's string value (using `col.format` when defined) case-insensitively against the query. Both adapters expose `searchQuery` state and a `setSearchQuery` action; `clearAll` resets it. The vanilla adapter restores focus on the search input across re-renders via `data-focus-key="search"`.
+
 ### Grouped columns
 
 When a column is added to `groupBy`, `useTableState` removes it from `activeColumns`, so it disappears from the table header and cells automatically. When grouping is cleared, the column reappears. Group header values are rendered with the same `cellValue()` / slot logic as table cells.
+
+### Aggregation in group headers
+
+`ColumnDefBase.aggregate` accepts `'sum' | 'count' | 'avg' | 'min' | 'max'` or a custom `(rows: TRow[]) => unknown` function. When any active column defines an aggregate, a secondary `ft__agg-row` / `ft-agg-row` row is rendered below each group header with per-column values. `computeAggregate(col, rows)` in core handles all built-in types; `col.format` is used for display when available. The aggregate row is always visible regardless of collapse state.
 
 ### i18n
 
