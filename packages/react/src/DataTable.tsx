@@ -2,7 +2,6 @@ import { useState, useRef, useEffect, type CSSProperties } from 'react'
 import { computeAggregate } from '@vates/flexi-table-core'
 import { useTableState } from './useTableState'
 import { Dropdown } from './components/Dropdown'
-import { ToolbarBtn } from './components/ToolbarBtn'
 import type { ColumnDef, DataTableProps } from './types'
 
 const S = {
@@ -11,28 +10,55 @@ const S = {
     fontSize: 14,
     color: 'var(--color-text-primary)',
   } as CSSProperties,
-  toolbar: {
+  metaBar: {
     display: 'flex',
     alignItems: 'center',
-    gap: 8,
-    padding: '12px 0',
-    borderBottom: '0.5px solid var(--color-border-tertiary)',
-    flexWrap: 'wrap',
+    padding: '8px 0',
   } as CSSProperties,
   stats: {
-    marginLeft: 'auto',
+    flex: 1,
     fontSize: 12,
     color: 'var(--color-text-secondary)',
+  } as CSSProperties,
+  settingsBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 6,
+    padding: '5px 10px',
+    background: 'none',
+    border: '0.5px solid var(--color-border-secondary)',
+    borderRadius: 6,
+    fontSize: 13,
+    cursor: 'pointer',
+    color: 'var(--color-text-secondary)',
+    fontFamily: 'inherit',
+  } as CSSProperties,
+  settingsBtnActive: {
+    borderColor: 'var(--color-border-info, #3b82f6)',
+    color: 'var(--color-text-primary)',
+  } as CSSProperties,
+  badge: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 18,
+    height: 18,
+    padding: '0 4px',
+    background: 'var(--color-text-accent, #3b82f6)',
+    color: '#fff',
+    borderRadius: 9,
+    fontSize: 11,
+    fontWeight: 600,
+    lineHeight: 1,
   } as CSSProperties,
   tableWrap: {
     overflowX: 'auto',
     border: '0.5px solid var(--color-border-tertiary)',
     borderRadius: 8,
-    marginTop: 12,
   } as CSSProperties,
   table: { width: '100%', borderCollapse: 'collapse', fontSize: 13 } as CSSProperties,
   th: {
-    padding: '8px 12px',
+    padding: 0,
     textAlign: 'left',
     fontWeight: 500,
     fontSize: 12,
@@ -42,6 +68,42 @@ const S = {
     whiteSpace: 'nowrap',
     userSelect: 'none',
     cursor: 'pointer',
+  } as CSSProperties,
+  thNoSort: {
+    padding: '8px 12px',
+    textAlign: 'left',
+    fontWeight: 500,
+    fontSize: 12,
+    background: 'var(--color-background-secondary)',
+    color: 'var(--color-text-secondary)',
+    borderBottom: '0.5px solid var(--color-border-tertiary)',
+    whiteSpace: 'nowrap',
+    userSelect: 'none',
+    cursor: 'default',
+  } as CSSProperties,
+  thInner: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 4,
+    padding: '8px 12px',
+    cursor: 'pointer',
+  } as CSSProperties,
+  thLabel: {
+    flex: 1,
+  } as CSSProperties,
+  thIndicators: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 3,
+    flexShrink: 0,
+  } as CSSProperties,
+  filterDot: {
+    width: 6,
+    height: 6,
+    borderRadius: '50%',
+    background: 'var(--color-text-warning, #f59e0b)',
+    display: 'inline-block',
+    flexShrink: 0,
   } as CSSProperties,
   td: {
     padding: '8px 12px',
@@ -64,18 +126,42 @@ const S = {
     color: 'var(--color-text-tertiary)',
     fontWeight: 500,
     letterSpacing: '0.05em',
-    textTransform: 'uppercase',
+    textTransform: 'uppercase' as const,
   } as CSSProperties,
-  chip: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: 4,
-    padding: '2px 8px',
-    background: 'var(--color-background-secondary)',
-    border: '0.5px solid var(--color-border-secondary)',
-    borderRadius: 12,
+  ddSep: {
+    height: '0.5px',
+    background: 'var(--color-border-tertiary)',
+    margin: '4px 0',
+  } as CSSProperties,
+  clearBtn: {
     fontSize: 12,
+    background: 'none',
+    border: 'none',
     color: 'var(--color-text-secondary)',
+    cursor: 'pointer',
+    padding: 0,
+    fontFamily: 'inherit',
+  } as CSSProperties,
+  rangeInput: {
+    width: 80,
+    padding: '3px 6px',
+    fontSize: 12,
+    border: '0.5px solid var(--color-border-secondary)',
+    borderRadius: 4,
+    fontFamily: 'inherit',
+    background: 'transparent',
+    color: 'inherit',
+  } as CSSProperties,
+  searchInput: {
+    padding: '4px 8px',
+    fontSize: 13,
+    border: '0.5px solid var(--color-border-secondary)',
+    borderRadius: 6,
+    background: 'transparent',
+    color: 'inherit',
+    fontFamily: 'inherit',
+    width: '100%',
+    boxSizing: 'border-box' as const,
   } as CSSProperties,
   groupRow: {
     background: 'var(--color-background-secondary)',
@@ -88,31 +174,13 @@ const S = {
     padding: '6px 12px',
     borderBottom: '0.5px solid var(--color-border-tertiary)',
   } as CSSProperties,
-  clearBtn: {
-    fontSize: 12,
-    background: 'none',
-    border: 'none',
-    color: 'var(--color-text-secondary)',
-    cursor: 'pointer',
-    padding: 0,
-  } as CSSProperties,
-  rangeInput: {
-    width: 80,
-    padding: '3px 6px',
-    fontSize: 12,
-    border: '0.5px solid var(--color-border-secondary)',
-    borderRadius: 4,
-    fontFamily: 'inherit',
-    background: 'transparent',
-    color: 'inherit',
-  } as CSSProperties,
   pagination: {
     display: 'flex',
     alignItems: 'center',
     gap: 6,
     padding: '10px 2px',
     justifyContent: 'flex-end',
-    flexWrap: 'wrap',
+    flexWrap: 'wrap' as const,
   } as CSSProperties,
   pageBtn: {
     padding: '4px 9px',
@@ -146,16 +214,6 @@ const S = {
     fontFamily: 'inherit',
     cursor: 'pointer',
   } as CSSProperties,
-  searchInput: {
-    padding: '4px 8px',
-    fontSize: 13,
-    border: '0.5px solid var(--color-border-secondary)',
-    borderRadius: 6,
-    background: 'transparent',
-    color: 'inherit',
-    fontFamily: 'inherit',
-    minWidth: 160,
-  } as CSSProperties,
   aggRow: {
     fontSize: 12,
     fontWeight: 500,
@@ -182,10 +240,8 @@ export function DataTable<TRow extends object>({
   selectable,
   onSelectionChange,
 }: DataTableProps<TRow>) {
-  const [openColsDD, setOpenColsDD] = useState(false)
-  const [openSortDD, setOpenSortDD] = useState(false)
-  const [openFilterDD, setOpenFilterDD] = useState(false)
-  const [openGroupDD, setOpenGroupDD] = useState(false)
+  const [openColDD, setOpenColDD] = useState<string | null>(null)
+  const [openTableDD, setOpenTableDD] = useState(false)
 
   const {
     visibleCols,
@@ -207,15 +263,13 @@ export function DataTable<TRow extends object>({
     searchQuery,
     L,
     toggleColVisibility,
-    toggleSort,
+    setSortDir,
+    clearColumnSort,
     toggleFilter,
     setRangeFilter,
     toggleGroup,
     toggleGroupCollapse,
     clearColumnFilter,
-    clearSorts,
-    clearFilters,
-    clearGroups,
     clearAll,
     setPage,
     setPageSize,
@@ -248,13 +302,10 @@ export function DataTable<TRow extends object>({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedRows])
 
-  const numericFilterCols = columns.filter((c) => c.type === 'number' && c.filterable !== false)
-  const stringFilterCols = columns.filter(
-    (c) => c.type !== 'number' && c.type !== 'date' && c.filterable !== false,
-  )
-  const groupableCols = columns.filter((c) => c.groupable === true)
   const hasActiveState =
     sorts.length > 0 || activeFilterCount > 0 || groupBy.length > 0 || searchQuery !== ''
+  const activeCount =
+    sorts.length + activeFilterCount + groupBy.length + (searchQuery !== '' ? 1 : 0)
   const hasAggregates = activeColumns.some((c) => c.aggregate !== undefined)
 
   const cellValue = (row: TRow, col: ColumnDef<TRow>) => {
@@ -264,15 +315,50 @@ export function DataTable<TRow extends object>({
     return v != null ? String(v) : ''
   }
 
+  function colHasFilter(key: string): boolean {
+    return (
+      (filters[key]?.size ?? 0) > 0 ||
+      (rangeFilters[key]?.min ?? '') !== '' ||
+      (rangeFilters[key]?.max ?? '') !== ''
+    )
+  }
+
   return (
     <div style={S.wrap}>
-      <div style={S.toolbar}>
-        {/* Columns */}
+      {/* Meta bar: stats + table settings dropdown */}
+      <div style={S.metaBar}>
+        <span style={S.stats}>
+          {L.rowCount(processedData.length, data.length)}
+          {groupBy.length > 0 && ` · ${L.groupCount(groupedData.length)}`}
+        </span>
         <Dropdown
-          open={openColsDD}
-          setOpen={setOpenColsDD}
-          trigger={<ToolbarBtn active={openColsDD}>{L.columns}</ToolbarBtn>}
+          open={openTableDD}
+          setOpen={setOpenTableDD}
+          align="right"
+          trigger={
+            <button
+              style={{
+                ...S.settingsBtn,
+                ...(hasActiveState ? S.settingsBtnActive : {}),
+              }}
+            >
+              ⚙{activeCount > 0 && <span style={S.badge}>{activeCount}</span>}
+            </button>
+          }
         >
+          {/* Search */}
+          <div style={{ padding: '6px 10px' }}>
+            <input
+              type="text"
+              placeholder={L.search}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={S.searchInput}
+              autoFocus
+            />
+          </div>
+          <div style={S.ddSep} />
+          {/* Column visibility */}
           <div style={S.ddSection}>{L.columnsSection}</div>
           {columns.map((col) => (
             <label key={col.key} style={{ ...S.ddItem, cursor: 'pointer' }}>
@@ -285,268 +371,24 @@ export function DataTable<TRow extends object>({
               {col.label}
             </label>
           ))}
-        </Dropdown>
-
-        {/* Sort */}
-        <Dropdown
-          open={openSortDD}
-          setOpen={setOpenSortDD}
-          trigger={
-            <ToolbarBtn active={sorts.length > 0}>
-              {L.sort}
-              {sorts.length > 0 && <span style={{ ...S.chip, marginLeft: 2 }}>{sorts.length}</span>}
-            </ToolbarBtn>
-          }
-        >
-          <div style={S.ddSection}>{L.sortSection}</div>
-          {columns.map((col) => {
-            const s = sorts.find((s) => s.key === col.key)
-            return (
-              <div key={col.key} style={S.ddItem} onClick={() => toggleSort(col.key)}>
-                <span
-                  style={{
-                    width: 18,
-                    fontSize: 11,
-                    color: 'var(--color-text-tertiary)',
-                    fontWeight: 500,
-                  }}
-                >
-                  {s ? sorts.indexOf(s) + 1 : ''}
-                </span>
-                <span style={{ flex: 1 }}>{col.label}</span>
-                <span
-                  style={{
-                    fontSize: 15,
-                    color: s ? 'var(--color-text-primary)' : 'var(--color-border-secondary)',
-                  }}
-                >
-                  {getSortIcon(col.key)}
-                </span>
-              </div>
-            )
-          })}
-          {sorts.length > 0 && (
-            <div style={{ padding: '4px 14px 6px' }}>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  clearSorts()
-                }}
-                style={S.clearBtn}
-              >
-                {L.clearSorts}
-              </button>
-            </div>
-          )}
-        </Dropdown>
-
-        {/* Filter */}
-        {(stringFilterCols.length > 0 || numericFilterCols.length > 0) && (
-          <Dropdown
-            open={openFilterDD}
-            setOpen={setOpenFilterDD}
-            trigger={
-              <ToolbarBtn active={activeFilterCount > 0}>
-                {L.filter}
-                {activeFilterCount > 0 && (
-                  <span style={{ ...S.chip, marginLeft: 2 }}>{activeFilterCount}</span>
-                )}
-              </ToolbarBtn>
-            }
-          >
-            <div style={{ maxHeight: 380, overflowY: 'auto', minWidth: 240 }}>
-              {stringFilterCols.map((col) => (
-                <div key={col.key}>
-                  <div style={S.ddSection}>{col.label}</div>
-                  {(stringValueMap[col.key] ?? []).map((v) => (
-                    <label key={v} style={{ ...S.ddItem, cursor: 'pointer' }}>
-                      <input
-                        type="checkbox"
-                        checked={filters[col.key]?.has(v) ?? false}
-                        onChange={() => toggleFilter(col.key, v)}
-                        style={{ margin: 0 }}
-                      />
-                      {col.renderFilterLabel ? col.renderFilterLabel(v) : v}
-                    </label>
-                  ))}
-                </div>
-              ))}
-              {numericFilterCols.length > 0 && (
-                <>
-                  <div style={S.ddSection}>{L.numericRanges}</div>
-                  {numericFilterCols.map((col) => (
-                    <div key={col.key} style={{ padding: '4px 14px 8px' }}>
-                      <div
-                        style={{
-                          fontSize: 12,
-                          marginBottom: 4,
-                          color: 'var(--color-text-secondary)',
-                        }}
-                      >
-                        {col.label}
-                      </div>
-                      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                        <input
-                          type="number"
-                          placeholder={L.min}
-                          value={rangeFilters[col.key]?.min ?? ''}
-                          onChange={(e) => setRangeFilter(col.key, 'min', e.target.value)}
-                          style={S.rangeInput}
-                        />
-                        <span style={{ color: 'var(--color-text-tertiary)', fontSize: 12 }}>–</span>
-                        <input
-                          type="number"
-                          placeholder={L.max}
-                          value={rangeFilters[col.key]?.max ?? ''}
-                          onChange={(e) => setRangeFilter(col.key, 'max', e.target.value)}
-                          style={S.rangeInput}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </>
-              )}
-              {activeFilterCount > 0 && (
-                <div style={{ padding: '4px 14px 8px' }}>
-                  <button onClick={clearFilters} style={S.clearBtn}>
-                    {L.clearFilters}
-                  </button>
-                </div>
-              )}
-            </div>
-          </Dropdown>
-        )}
-
-        {/* Group */}
-        {groupableCols.length > 0 && (
-          <Dropdown
-            open={openGroupDD}
-            setOpen={setOpenGroupDD}
-            trigger={
-              <ToolbarBtn active={groupBy.length > 0}>
-                {L.group}
-                {groupBy.length > 0 && (
-                  <span style={{ ...S.chip, marginLeft: 2 }}>{groupBy.length}</span>
-                )}
-              </ToolbarBtn>
-            }
-          >
-            <div style={S.ddSection}>{L.groupSection}</div>
-            {groupableCols.map((col) => (
-              <div key={col.key} style={S.ddItem} onClick={() => toggleGroup(col.key)}>
-                <span
-                  style={{
-                    width: 18,
-                    fontSize: 11,
-                    color: 'var(--color-text-tertiary)',
-                    fontWeight: 500,
-                  }}
-                >
-                  {groupBy.includes(col.key) ? groupBy.indexOf(col.key) + 1 : ''}
-                </span>
-                <span style={{ flex: 1 }}>{col.label}</span>
-                {groupBy.includes(col.key) && <span>✓</span>}
-              </div>
-            ))}
-            {groupBy.length > 0 && (
+          {hasActiveState && (
+            <>
+              <div style={S.ddSep} />
               <div style={{ padding: '4px 14px 6px' }}>
                 <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    clearGroups()
+                  onClick={() => {
+                    clearAll()
+                    setOpenTableDD(false)
                   }}
                   style={S.clearBtn}
                 >
-                  {L.clearGroups}
+                  {L.clearAll}
                 </button>
               </div>
-            )}
-          </Dropdown>
-        )}
-
-        <input
-          type="text"
-          placeholder={L.search}
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          style={S.searchInput}
-        />
-
-        {hasActiveState && (
-          <button
-            onClick={clearAll}
-            style={{
-              marginLeft: 4,
-              padding: '5px 10px',
-              background: 'none',
-              border: '0.5px solid var(--color-border-secondary)',
-              borderRadius: 6,
-              fontSize: 12,
-              cursor: 'pointer',
-              color: 'var(--color-text-secondary)',
-              fontFamily: 'inherit',
-            }}
-          >
-            {L.clearAll}
-          </button>
-        )}
-
-        <div style={S.stats}>
-          {L.rowCount(processedData.length, data.length)}
-          {groupBy.length > 0 && L.groupCount(groupedData.length)}
-        </div>
+            </>
+          )}
+        </Dropdown>
       </div>
-
-      {/* Active chips */}
-      {hasActiveState && (
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', padding: '8px 0 0' }}>
-          {sorts.map((s, i) => (
-            <span key={s.key} style={S.chip}>
-              {i + 1}. {columns.find((c) => c.key === s.key)?.label} {s.dir === 'asc' ? '↑' : '↓'}
-              <span onClick={() => toggleSort(s.key)} style={{ cursor: 'pointer', marginLeft: 2 }}>
-                ×
-              </span>
-            </span>
-          ))}
-          {Object.entries(filters)
-            .filter(([, v]) => v.size > 0)
-            .map(([key, vals]) => (
-              <span
-                key={key}
-                style={{
-                  ...S.chip,
-                  background: 'var(--color-background-info)',
-                  color: 'var(--color-text-info)',
-                  border: '0.5px solid var(--color-border-info)',
-                }}
-              >
-                {columns.find((c) => c.key === key)?.label}: {[...vals].join(', ')}
-                <span
-                  onClick={() => clearColumnFilter(key)}
-                  style={{ cursor: 'pointer', marginLeft: 2 }}
-                >
-                  ×
-                </span>
-              </span>
-            ))}
-          {groupBy.map((key, i) => (
-            <span
-              key={key}
-              style={{
-                ...S.chip,
-                background: 'var(--color-background-warning)',
-                color: 'var(--color-text-warning)',
-                border: '0.5px solid var(--color-border-warning)',
-              }}
-            >
-              {L.groupLabel(i + 1)}: {columns.find((c) => c.key === key)?.label}
-              <span onClick={() => toggleGroup(key)} style={{ cursor: 'pointer', marginLeft: 2 }}>
-                ×
-              </span>
-            </span>
-          ))}
-        </div>
-      )}
 
       {/* Table */}
       <div style={S.tableWrap}>
@@ -554,10 +396,7 @@ export function DataTable<TRow extends object>({
           <thead>
             <tr>
               {selectable && (
-                <th
-                  style={{ ...S.th, width: 36, cursor: 'default' }}
-                  onClick={(e) => e.stopPropagation()}
-                >
+                <th style={{ ...S.thNoSort, width: 36 }} onClick={(e) => e.stopPropagation()}>
                   <input
                     ref={selectAllRef}
                     type="checkbox"
@@ -567,28 +406,191 @@ export function DataTable<TRow extends object>({
                   />
                 </th>
               )}
-              {groupBy.length > 0 && <th style={{ ...S.th, width: 28, cursor: 'default' }} />}
+              {groupBy.length > 0 && <th style={{ ...S.thNoSort, width: 28 }} />}
               {activeColumns.map((col) => {
                 const sortIdx = getSortIndex(col.key)
+                const currentSort = sorts.find((s) => s.key === col.key)
+                const filtered = colHasFilter(col.key)
+                const isFilterable = col.filterable !== false && col.type !== 'date'
+                const isNumeric = col.type === 'number'
+
                 return (
-                  <th
-                    key={col.key}
-                    style={{ ...S.th, width: col.width }}
-                    onClick={() => toggleSort(col.key)}
-                  >
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                      {col.label}
-                      <span
+                  <th key={col.key} style={{ ...S.th, width: col.width }}>
+                    <Dropdown
+                      open={openColDD === col.key}
+                      setOpen={(v) => setOpenColDD(v ? col.key : null)}
+                      wrapStyle={{ display: 'block' }}
+                      trigger={
+                        <div style={S.thInner}>
+                          <span style={S.thLabel}>{col.label}</span>
+                          <span style={S.thIndicators}>
+                            {filtered && <span style={S.filterDot} title="Filtered" />}
+                            <span
+                              style={{
+                                fontSize: 10,
+                                flexShrink: 0,
+                                color: sortIdx
+                                  ? 'var(--color-text-primary)'
+                                  : 'var(--color-border-secondary)',
+                              }}
+                            >
+                              {sortIdx ? `${sortIdx}${getSortIcon(col.key)}` : '▾'}
+                            </span>
+                          </span>
+                        </div>
+                      }
+                    >
+                      {/* Sort */}
+                      <div style={S.ddSection}>Sort</div>
+                      <div
                         style={{
-                          fontSize: 10,
-                          color: sortIdx
-                            ? 'var(--color-text-primary)'
-                            : 'var(--color-border-secondary)',
+                          ...S.ddItem,
+                          background:
+                            currentSort?.dir === 'asc'
+                              ? 'var(--color-background-secondary)'
+                              : undefined,
+                        }}
+                        onClick={() => setSortDir(col.key, 'asc')}
+                      >
+                        <span
+                          style={{
+                            width: 18,
+                            fontSize: 11,
+                            color: 'var(--color-text-tertiary)',
+                            fontWeight: 500,
+                          }}
+                        >
+                          {currentSort?.dir === 'asc' ? sortIdx : ''}
+                        </span>
+                        <span style={{ flex: 1 }}>↑ Ascending</span>
+                        {currentSort?.dir === 'asc' && <span>✓</span>}
+                      </div>
+                      <div
+                        style={{
+                          ...S.ddItem,
+                          background:
+                            currentSort?.dir === 'desc'
+                              ? 'var(--color-background-secondary)'
+                              : undefined,
+                        }}
+                        onClick={() => setSortDir(col.key, 'desc')}
+                      >
+                        <span
+                          style={{
+                            width: 18,
+                            fontSize: 11,
+                            color: 'var(--color-text-tertiary)',
+                            fontWeight: 500,
+                          }}
+                        >
+                          {currentSort?.dir === 'desc' ? sortIdx : ''}
+                        </span>
+                        <span style={{ flex: 1 }}>↓ Descending</span>
+                        {currentSort?.dir === 'desc' && <span>✓</span>}
+                      </div>
+                      {currentSort && (
+                        <div style={{ padding: '2px 14px 6px' }}>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              clearColumnSort(col.key)
+                            }}
+                            style={S.clearBtn}
+                          >
+                            Clear sort
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Filter */}
+                      {isFilterable && (
+                        <>
+                          <div style={S.ddSep} />
+                          {isNumeric ? (
+                            <div style={{ padding: '4px 14px 8px' }}>
+                              <div style={S.ddSection}>Filter</div>
+                              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                                <input
+                                  type="number"
+                                  placeholder={L.min}
+                                  value={rangeFilters[col.key]?.min ?? ''}
+                                  onChange={(e) => setRangeFilter(col.key, 'min', e.target.value)}
+                                  style={S.rangeInput}
+                                  onClick={(e) => e.stopPropagation()}
+                                />
+                                <span style={{ color: 'var(--color-text-tertiary)', fontSize: 12 }}>
+                                  –
+                                </span>
+                                <input
+                                  type="number"
+                                  placeholder={L.max}
+                                  value={rangeFilters[col.key]?.max ?? ''}
+                                  onChange={(e) => setRangeFilter(col.key, 'max', e.target.value)}
+                                  style={S.rangeInput}
+                                  onClick={(e) => e.stopPropagation()}
+                                />
+                              </div>
+                            </div>
+                          ) : (
+                            <div style={{ maxHeight: 200, overflowY: 'auto' }}>
+                              <div style={S.ddSection}>Filter</div>
+                              {(stringValueMap[col.key] ?? []).map((v) => (
+                                <label key={v} style={{ ...S.ddItem, cursor: 'pointer' }}>
+                                  <input
+                                    type="checkbox"
+                                    checked={filters[col.key]?.has(v) ?? false}
+                                    onChange={() => toggleFilter(col.key, v)}
+                                    style={{ margin: 0 }}
+                                  />
+                                  {col.renderFilterLabel ? col.renderFilterLabel(v) : v}
+                                </label>
+                              ))}
+                            </div>
+                          )}
+                          {filtered && (
+                            <div style={{ padding: '2px 14px 6px' }}>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  clearColumnFilter(col.key)
+                                }}
+                                style={S.clearBtn}
+                              >
+                                Clear filter
+                              </button>
+                            </div>
+                          )}
+                        </>
+                      )}
+
+                      {/* Group by */}
+                      {col.groupable && (
+                        <>
+                          <div style={S.ddSep} />
+                          <label style={{ ...S.ddItem, cursor: 'pointer' }}>
+                            <input
+                              type="checkbox"
+                              checked={groupBy.includes(col.key)}
+                              onChange={() => toggleGroup(col.key)}
+                              style={{ margin: 0 }}
+                            />
+                            {L.group}
+                          </label>
+                        </>
+                      )}
+
+                      {/* Hide column */}
+                      <div style={S.ddSep} />
+                      <div
+                        style={{ ...S.ddItem, color: 'var(--color-text-secondary)' }}
+                        onClick={() => {
+                          toggleColVisibility(col.key)
+                          setOpenColDD(null)
                         }}
                       >
-                        {sortIdx ? `${sortIdx}${getSortIcon(col.key)}` : '↕'}
-                      </span>
-                    </span>
+                        Hide column
+                      </div>
+                    </Dropdown>
                   </th>
                 )
               })}

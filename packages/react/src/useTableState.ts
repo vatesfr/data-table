@@ -123,6 +123,11 @@ export function useTableState<TRow extends object>(
     toggleGroupCollapse: (key: string) => setCollapsedGroups((prev) => toggleCollapse(prev, key)),
     clearColumnFilter: (key: string) => {
       setFilters((prev) => ({ ...prev, [key]: new Set() }))
+      setRangeFilters((prev) => {
+        const next = { ...prev }
+        delete next[key]
+        return next
+      })
       setPageState(1)
     },
     setPage: (p: number) => setPageState(Math.max(1, Math.min(p, numPages))),
@@ -130,6 +135,13 @@ export function useTableState<TRow extends object>(
       setPageSizeState(s)
       setPageState(1)
     },
+    setSortDir: (key: string, dir: 'asc' | 'desc') =>
+      setSorts((prev) => {
+        const existing = prev.find((s) => s.key === key)
+        if (existing) return prev.map((s) => (s.key === key ? { ...s, dir } : s))
+        return [...prev, { key, dir }]
+      }),
+    clearColumnSort: (key: string) => setSorts((prev) => prev.filter((s) => s.key !== key)),
     clearSorts: () => setSorts([]),
     clearFilters: () => {
       setFilters({})
