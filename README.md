@@ -166,6 +166,21 @@ Built-in locales: `LABELS_EN` (default), `LABELS_FR`, `LABELS_ES`, `LABELS_DE`, 
 
 You can also pass a `Partial<DataTableLabels>` to override individual strings — it is shallow-merged over the default English labels.
 
+## Theming
+
+All colors are CSS custom properties (`--color-background-primary`, `--color-text-primary`, etc.). Dark mode activates automatically via `prefers-color-scheme: dark` and can be forced with `data-theme="dark"` or `data-theme="light"` on any ancestor element.
+
+**Vanilla** — tokens and dark-mode rules are injected automatically. No setup required.
+
+**React / Vue** — define the tokens in your own global stylesheet. See the [vanilla README](./packages/vanilla/README.md#theming) for the full token list and default values.
+
+```js
+// Force dark / light / follow OS preference
+document.documentElement.dataset.theme = 'dark'
+document.documentElement.dataset.theme = 'light'
+delete document.documentElement.dataset.theme
+```
+
 ## Column definition
 
 ```ts

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   DataTable,
   Badge,
@@ -318,10 +318,12 @@ function EmployeeCards() {
             style={{
               padding: '4px 10px',
               borderRadius: 6,
-              border: '1px solid #ddd',
+              border: '1px solid var(--color-border-secondary)',
               cursor: 'pointer',
-              background: 'white',
+              background: 'var(--color-background-primary)',
+              color: 'var(--color-text-primary)',
               fontSize: 13,
+              fontFamily: 'inherit',
             }}
           >
             {col.charAt(0).toUpperCase() + col.slice(1)} {getSortIcon(col)}
@@ -338,10 +340,14 @@ function EmployeeCards() {
         {processedData.map((row) => (
           <div
             key={row.id}
-            style={{ border: '1px solid #e8e8e8', borderRadius: 8, padding: '12px 14px' }}
+            style={{
+              border: '1px solid var(--color-border-tertiary)',
+              borderRadius: 8,
+              padding: '12px 14px',
+            }}
           >
             <div style={{ fontWeight: 600, marginBottom: 2 }}>{row.name}</div>
-            <div style={{ fontSize: 13, color: '#666', marginBottom: 8 }}>
+            <div style={{ fontSize: 13, color: 'var(--color-text-secondary)', marginBottom: 8 }}>
               {row.department} · {row.role}
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -355,9 +361,22 @@ function EmployeeCards() {
   )
 }
 
+const THEME_CYCLE = { '': 'dark', dark: 'light', light: '' } as const
+const THEME_LABELS = { '': 'Auto', dark: 'Dark', light: 'Light' }
+
 export default function App() {
   const [localeKey, setLocaleKey] = useState('EN')
   const [selected, setSelected] = useState<Employee[]>([])
+  const [theme, setTheme] = useState<'' | 'dark' | 'light'>('')
+
+  useEffect(() => {
+    if (theme) {
+      document.documentElement.dataset.theme = theme
+    } else {
+      delete document.documentElement.dataset.theme
+    }
+  }, [theme])
+
   return (
     <div style={{ maxWidth: 1100, margin: '0 auto', padding: '32px 24px' }}>
       <div
@@ -369,7 +388,7 @@ export default function App() {
         }}
       >
         <h1 style={{ fontSize: 20, fontWeight: 600, margin: 0 }}>FlexiTable — React</h1>
-        <div style={{ display: 'flex', gap: 4 }}>
+        <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
           {Object.keys(LOCALES).map((key) => (
             <button
               key={key}
@@ -377,16 +396,44 @@ export default function App() {
               style={{
                 padding: '2px 8px',
                 borderRadius: 4,
-                border: '1px solid #ddd',
+                border: '1px solid var(--color-border-secondary)',
                 cursor: 'pointer',
                 fontSize: 13,
                 fontWeight: localeKey === key ? 600 : 400,
-                background: localeKey === key ? '#f0f0f0' : 'white',
+                background:
+                  localeKey === key
+                    ? 'var(--color-background-secondary)'
+                    : 'var(--color-background-primary)',
+                color: 'var(--color-text-primary)',
+                fontFamily: 'inherit',
               }}
             >
               {key}
             </button>
           ))}
+          <div
+            style={{
+              width: 1,
+              height: 16,
+              background: 'var(--color-border-secondary)',
+              margin: '0 2px',
+            }}
+          />
+          <button
+            onClick={() => setTheme((t) => THEME_CYCLE[t])}
+            style={{
+              padding: '2px 8px',
+              borderRadius: 4,
+              border: '1px solid var(--color-border-secondary)',
+              cursor: 'pointer',
+              fontSize: 13,
+              background: 'var(--color-background-primary)',
+              color: 'var(--color-text-secondary)',
+              fontFamily: 'inherit',
+            }}
+          >
+            {THEME_LABELS[theme]}
+          </button>
         </div>
       </div>
       <p

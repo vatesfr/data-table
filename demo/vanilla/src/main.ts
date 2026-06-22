@@ -263,7 +263,11 @@ app.innerHTML = `
   <div style="max-width:1100px;margin:0 auto;padding:32px 24px">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
       <h1 style="font-size:20px;font-weight:600;margin:0">FlexiTable — Vanilla</h1>
-      <div id="locale-btns" style="display:flex;gap:4px"></div>
+      <div style="display:flex;gap:4px;align-items:center">
+        <div id="locale-btns" style="display:flex;gap:4px"></div>
+        <div style="width:1px;height:16px;background:var(--color-border-secondary);margin:0 2px"></div>
+        <button id="theme-btn" style="padding:2px 8px;border-radius:4px;border:1px solid var(--color-border-secondary);cursor:pointer;font-size:13px;background:var(--color-background-primary);color:var(--color-text-secondary);font-family:inherit">Auto</button>
+      </div>
     </div>
     <p style="font-size:14px;color:var(--color-text-secondary);margin-top:0;margin-bottom:24px">
       @vates/flexi-table-vanilla
@@ -298,8 +302,8 @@ function renderLocaleBtns() {
   localeBtns.innerHTML = Object.keys(LOCALES)
     .map(
       (key) => `
-    <button data-locale="${key}" style="padding:2px 8px;border-radius:4px;border:1px solid #ddd;cursor:pointer;font-size:13px;
-      font-weight:${currentLocale === key ? 600 : 400};background:${currentLocale === key ? '#f0f0f0' : 'white'}">
+    <button data-locale="${key}" style="padding:2px 8px;border-radius:4px;border:1px solid var(--color-border-secondary);cursor:pointer;font-size:13px;font-family:inherit;
+      font-weight:${currentLocale === key ? 600 : 400};background:${currentLocale === key ? 'var(--color-background-secondary)' : 'var(--color-background-primary)'};color:var(--color-text-primary)">
       ${key}
     </button>
   `,
@@ -308,6 +312,24 @@ function renderLocaleBtns() {
 }
 
 renderLocaleBtns()
+
+// ---- Theme toggle ----
+
+type Theme = '' | 'dark' | 'light'
+const THEME_CYCLE: Record<Theme, Theme> = { '': 'dark', dark: 'light', light: '' }
+const THEME_LABELS: Record<Theme, string> = { '': 'Auto', dark: 'Dark', light: 'Light' }
+let currentTheme: Theme = ''
+const themeBtn = document.getElementById('theme-btn')!
+
+themeBtn.addEventListener('click', () => {
+  currentTheme = THEME_CYCLE[currentTheme]
+  if (currentTheme) {
+    document.documentElement.dataset.theme = currentTheme
+  } else {
+    delete document.documentElement.dataset.theme
+  }
+  themeBtn.textContent = THEME_LABELS[currentTheme]
+})
 
 localeBtns.addEventListener('click', (e) => {
   const btn = (e.target as HTMLElement).closest('[data-locale]') as HTMLElement | null

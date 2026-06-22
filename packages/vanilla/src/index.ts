@@ -22,6 +22,7 @@ import type { ColumnDef, FlexiTableOptions, FlexiTableInstance } from './types'
 import { STYLES } from './styles'
 
 export type { ColumnDef, FlexiTableOptions, FlexiTableInstance }
+export type { DataTableLabels } from '@vates/flexi-table-core'
 export * from '@vates/flexi-table-core/locales'
 
 // --- Styles ---

@@ -193,6 +193,43 @@ import { LABELS_FR } from '@vates/flexi-table-vue'
 
 Built-in locales: `LABELS_EN` (default), `LABELS_FR`, `LABELS_ES`, `LABELS_DE`, `LABELS_PT`.
 
+## Theming
+
+All colors are CSS custom properties. Define them in your own stylesheet (typically on `:root`). Dark mode activates automatically when the OS preference is dark via `prefers-color-scheme: dark`, and can be forced with a `data-theme` attribute:
+
+```css
+/* in your global stylesheet */
+:root {
+  --color-background-primary: #ffffff;
+  --color-background-secondary: #f7f6f3;
+  --color-text-primary: #1a1916;
+  --color-text-secondary: #6b6a66;
+  /* ... other tokens ... */
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-background-primary: #141413;
+    --color-text-primary: #e8e7e4;
+    /* ... */
+  }
+}
+[data-theme='dark'] {
+  /* same dark values */
+}
+[data-theme='light'] {
+  /* same light values */
+}
+```
+
+```ts
+// Force dark / light / follow OS
+document.documentElement.dataset.theme = 'dark'
+document.documentElement.dataset.theme = 'light'
+delete document.documentElement.dataset.theme
+```
+
+See the [vanilla README](../vanilla/README.md#theming) for the full token reference table.
+
 ## License
 
 MIT

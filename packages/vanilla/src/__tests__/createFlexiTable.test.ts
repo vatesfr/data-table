@@ -53,6 +53,17 @@ describe('createFlexiTable', () => {
     container.remove()
   })
 
+  // --- style injection ---
+
+  it('injects a <style> tag with light and dark mode CSS variables', () => {
+    createFlexiTable(container, { data: ROWS, columns: COLS })
+    const style = document.querySelector('style[data-ft-styles]')
+    expect(style).not.toBeNull()
+    expect(style!.textContent).toContain('prefers-color-scheme:dark')
+    expect(style!.textContent).toContain('[data-theme=dark]')
+    expect(style!.textContent).toContain('[data-theme=light]')
+  })
+
   // --- initial render ---
 
   it('renders all rows', () => {

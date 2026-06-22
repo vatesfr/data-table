@@ -45,7 +45,42 @@ table.setColumns(newColumns)
 table.destroy()
 ```
 
-CSS is injected automatically into `<head>` on the first `createFlexiTable` call.
+CSS is injected automatically into `<head>` on the first `createFlexiTable` call. This includes all color tokens and dark-mode overrides that activate automatically via `prefers-color-scheme: dark`.
+
+## Theming
+
+All colors are CSS custom properties. Dark mode activates automatically when the OS preference is dark. You can force a theme by setting `data-theme` on any ancestor element (typically `<html>`):
+
+```js
+document.documentElement.dataset.theme = 'dark' // force dark
+document.documentElement.dataset.theme = 'light' // force light
+delete document.documentElement.dataset.theme // follow OS (default)
+```
+
+To override individual tokens, define the custom property in your own stylesheet:
+
+```css
+:root {
+  --color-background-primary: #0f0f0f;
+  --color-text-primary: #f5f5f5;
+}
+```
+
+| Token                          | Light     | Dark      |
+| ------------------------------ | --------- | --------- |
+| `--color-background-primary`   | `#ffffff` | `#141413` |
+| `--color-background-secondary` | `#f7f6f3` | `#1e1d1b` |
+| `--color-background-info`      | `#e6f1fb` | `#0d2640` |
+| `--color-background-warning`   | `#faeeda` | `#2a1900` |
+| `--color-text-primary`         | `#1a1916` | `#e8e7e4` |
+| `--color-text-secondary`       | `#6b6a66` | `#9b9a96` |
+| `--color-text-tertiary`        | `#9b9a96` | `#6b6a66` |
+| `--color-text-info`            | `#185fa5` | `#5b9fe0` |
+| `--color-text-warning`         | `#854f0b` | `#e8a040` |
+| `--color-border-secondary`     | `#dddcd8` | `#333230` |
+| `--color-border-tertiary`      | `#eeedea` | `#252422` |
+| `--color-border-info`          | `#b8d6f5` | `#1a4070` |
+| `--color-border-warning`       | `#f0d4a8` | `#4a2c00` |
 
 ## Cell customization
 

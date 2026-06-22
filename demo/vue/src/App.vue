@@ -292,6 +292,19 @@ const currentLocale = computed(() => LOCALES[localeKey.value])
 
 const selected = ref<Employee[]>([])
 
+type Theme = '' | 'dark' | 'light'
+const THEME_CYCLE: Record<Theme, Theme> = { '': 'dark', dark: 'light', light: '' }
+const THEME_LABELS: Record<Theme, string> = { '': 'Auto', dark: 'Dark', light: 'Light' }
+const theme = ref<Theme>('')
+function cycleTheme() {
+  theme.value = THEME_CYCLE[theme.value]
+  if (theme.value) {
+    document.documentElement.dataset.theme = theme.value
+  } else {
+    delete document.documentElement.dataset.theme
+  }
+}
+
 // Headless section: useTableState owns the sort/filter logic; you own the render.
 const { processedData, getSortIcon, toggleSort } = useTableState(SAMPLE_DATA, COLUMNS)
 
@@ -304,12 +317,12 @@ function fmtSalary(n: number) {
 
 <template>
   <div style="max-width: 1100px; margin: 0 auto; padding: 32px 24px">
-    <!-- Header with locale switcher -->
+    <!-- Header with locale + theme switcher -->
     <div
       style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px"
     >
       <h1 style="font-size: 20px; font-weight: 600; margin: 0">FlexiTable — Vue</h1>
-      <div style="display: flex; gap: 4px">
+      <div style="display: flex; gap: 4px; align-items: center">
         <button
           v-for="key in Object.keys(LOCALES)"
           :key="key"
@@ -317,14 +330,37 @@ function fmtSalary(n: number) {
           :style="{
             padding: '2px 8px',
             borderRadius: '4px',
-            border: '1px solid #ddd',
+            border: '1px solid var(--color-border-secondary)',
             cursor: 'pointer',
             fontSize: '13px',
             fontWeight: localeKey === key ? '600' : '400',
-            background: localeKey === key ? '#f0f0f0' : 'white',
+            background:
+              localeKey === key
+                ? 'var(--color-background-secondary)'
+                : 'var(--color-background-primary)',
+            color: 'var(--color-text-primary)',
+            fontFamily: 'inherit',
           }"
         >
           {{ key }}
+        </button>
+        <div
+          style="width: 1px; height: 16px; background: var(--color-border-secondary); margin: 0 2px"
+        />
+        <button
+          @click="cycleTheme"
+          :style="{
+            padding: '2px 8px',
+            borderRadius: '4px',
+            border: '1px solid var(--color-border-secondary)',
+            cursor: 'pointer',
+            fontSize: '13px',
+            background: 'var(--color-background-primary)',
+            color: 'var(--color-text-secondary)',
+            fontFamily: 'inherit',
+          }"
+        >
+          {{ THEME_LABELS[theme] }}
         </button>
       </div>
     </div>
@@ -482,10 +518,12 @@ function fmtSalary(n: number) {
         style="
           padding: 4px 10px;
           border-radius: 6px;
-          border: 1px solid #ddd;
+          border: 1px solid var(--color-border-secondary);
           cursor: pointer;
-          background: white;
+          background: var(--color-background-primary);
+          color: var(--color-text-primary);
           font-size: 13px;
+          font-family: inherit;
         "
       >
         {{ col.charAt(0).toUpperCase() + col.slice(1) }} {{ getSortIcon(col) }}
@@ -499,10 +537,14 @@ function fmtSalary(n: number) {
       <div
         v-for="row in processedData"
         :key="row.id"
-        style="border: 1px solid #e8e8e8; border-radius: 8px; padding: 12px 14px"
+        style="
+          border: 1px solid var(--color-border-tertiary);
+          border-radius: 8px;
+          padding: 12px 14px;
+        "
       >
         <div style="font-weight: 600; margin-bottom: 2px">{{ row.name }}</div>
-        <div style="font-size: 13px; color: #666; margin-bottom: 8px">
+        <div style="font-size: 13px; color: var(--color-text-secondary); margin-bottom: 8px">
           {{ row.department }} · {{ row.role }}
         </div>
         <div style="display: flex; justify-content: space-between; align-items: center">
