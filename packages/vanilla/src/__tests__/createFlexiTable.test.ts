@@ -117,6 +117,14 @@ describe('createFlexiTable', () => {
     expect(container.innerHTML).toContain('90 pts')
   })
 
+  it('passes the full row as the second argument to format', () => {
+    const cols: ColumnDef<Row>[] = [
+      { key: 'score', label: 'Score', format: (v, row) => `${row.name}:${v}` },
+    ]
+    createFlexiTable(container, { data: ROWS, columns: cols })
+    expect(container.innerHTML).toContain('Alice:90')
+  })
+
   // --- instance methods ---
 
   it('setData replaces rows', () => {
@@ -394,6 +402,19 @@ describe('createFlexiTable', () => {
     // Eng group: Alice (90) + Clara (80) = 170
     const aggRows = container.querySelectorAll('.ft-agg-row')
     expect(aggRows[0].textContent).toContain('170')
+  })
+
+  it('passes a representative group row as the second argument to format in aggregate cells', () => {
+    const cols: ColumnDef<Row>[] = [
+      { key: 'name', label: 'Name' },
+      { key: 'score', label: 'Score', aggregate: 'sum', format: (v, row) => `${row.dept}=${v}` },
+      { key: 'dept', label: 'Dept', groupable: true },
+    ]
+    createFlexiTable(container, { data: ROWS, columns: cols })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="group"]')!)
+    click(container.querySelector<HTMLElement>('[data-action="toggle-group"][data-key="dept"]')!)
+    const aggRows = container.querySelectorAll('.ft-agg-row')
+    expect(aggRows[0].textContent).toContain('Eng=170')
   })
 
   it('does not render aggregate rows when no aggregate is defined', () => {

@@ -84,10 +84,11 @@ To override individual tokens, define the custom property in your own stylesheet
 
 ## Cell customization
 
-Cell output is string-only. Use `col.format(value)` to control what is rendered:
+Cell output is string-only. Use `col.format(value, row)` to control what is rendered — the second argument gives access to the rest of the row for cross-field conditional formatting:
 
 ```ts
 { key: 'status', label: 'Status', format: (v) => v === 1 ? 'Active' : 'Inactive' }
+{ key: 'playtime', label: 'Played (h)', format: (v, row) => row.score > 90 ? `⭐ ${v}` : String(v) }
 ```
 
 For richer DOM output (icons, interactive elements), post-process the container after `setData`.
@@ -129,7 +130,7 @@ interface ColumnDef<TRow extends object> {
   label: string
   type?: 'string' | 'number' | 'date' // controls filter UI; default: 'string'
   width?: number
-  format?: (value: unknown) => string
+  format?: (value: unknown, row: TRow) => string
   sortable?: boolean // default: true
   filterable?: boolean // default: true
   groupable?: boolean // default: false

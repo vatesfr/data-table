@@ -260,7 +260,7 @@ export function DataTable<TRow extends object>({
   const cellValue = (row: TRow, col: ColumnDef<TRow>) => {
     const v = asRecord(row)[col.key]
     if (col.render) return col.render(v, row)
-    if (col.format) return col.format(v)
+    if (col.format) return col.format(v, row)
     return v != null ? String(v) : ''
   }
 
@@ -645,7 +645,7 @@ export function DataTable<TRow extends object>({
                         <td key={col.key} style={S.aggTd}>
                           {v !== undefined && v !== null
                             ? col.format
-                              ? col.format(v)
+                              ? col.format(v, rows[0])
                               : String(v)
                             : null}
                         </td>

@@ -61,6 +61,18 @@ describe('searchData', () => {
     const result = searchData(ROWS, '$90000', cols)
     expect(result.map((r) => r.name)).toEqual(['Alice'])
   })
+
+  it('passes the full row as the second argument to col.format', () => {
+    const cols = [
+      {
+        key: 'salary' as const,
+        label: 'Salary',
+        format: (v: unknown, row: Row) => `${row.name}:${v}`,
+      },
+    ]
+    const result = searchData(ROWS, 'clara:110000', cols)
+    expect(result.map((r) => r.name)).toEqual(['Clara'])
+  })
 })
 
 // ─── computeAggregate ─────────────────────────────────────────────────────────

@@ -123,7 +123,7 @@ function asRecord(row: object): Record<string, unknown> {
 
 function cellText(row: TRow, col: ColumnDef<TRow>): string {
   const v = asRecord(row)[col.key]
-  if (col.format) return col.format(v)
+  if (col.format) return col.format(v, row)
   return v != null ? String(v) : ''
 }
 
@@ -415,7 +415,7 @@ function hasSlot(name: string): boolean {
                   (() => {
                     const v = computeAggregate(col, group.rows)
                     if (v === undefined || v === null) return ''
-                    return col.format ? col.format(v) : String(v)
+                    return col.format ? col.format(v, group.rows[0]) : String(v)
                   })()
                 }}
               </td>

@@ -118,7 +118,7 @@ interface ColumnDef<TRow extends object> {
   label: string
   type?: 'string' | 'number' | 'date' // controls filter UI; default: 'string'
   width?: number
-  format?: (value: unknown) => string
+  format?: (value: unknown, row: TRow) => string
   sortable?: boolean // default: true
   filterable?: boolean // default: true
   groupable?: boolean // default: false

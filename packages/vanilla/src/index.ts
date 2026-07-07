@@ -103,13 +103,13 @@ export function createFlexiTable<TRow extends object>(
   function aggStr(col: ColumnDef<TRow>, rows: TRow[]): string {
     const v = computeAggregate(col, rows)
     if (v === undefined || v === null) return ''
-    if (col.format) return esc(col.format(v))
+    if (col.format) return esc(col.format(v, rows[0]))
     return esc(String(v))
   }
 
   function cellStr(row: TRow, col: ColumnDef<TRow>): string {
     const v = (row as Record<string, unknown>)[col.key]
-    if (col.format) return esc(col.format(v))
+    if (col.format) return esc(col.format(v, row))
     return esc(v != null ? String(v) : '')
   }
 

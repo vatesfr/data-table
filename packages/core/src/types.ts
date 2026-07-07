@@ -19,7 +19,7 @@ export interface ColumnDefBase<TRow extends object = Record<string, unknown>> {
   type?: 'string' | 'number' | 'date'
   width?: number
   /** Format a value to a plain string (framework-agnostic alternative to render) */
-  format?: (value: unknown) => string
+  format?: (value: unknown, row: TRow) => string
   sortable?: boolean
   filterable?: boolean
   groupable?: boolean

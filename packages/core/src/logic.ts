@@ -134,7 +134,7 @@ export function searchData<TRow extends object>(
   return data.filter((row) =>
     columns.some((col) => {
       const v = asRecord(row)[col.key]
-      const s = col.format ? col.format(v) : v != null ? String(v) : ''
+      const s = col.format ? col.format(v, row) : v != null ? String(v) : ''
       return s.toLowerCase().includes(q)
     }),
   )
