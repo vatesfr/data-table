@@ -64,6 +64,27 @@ describe('createFlexiTable', () => {
     expect(style!.textContent).toContain('[data-theme=light]')
   })
 
+  it('inserts the style tag before existing <head> children so static stylesheets win the cascade', async () => {
+    const userStyle = document.createElement('style')
+    userStyle.textContent = ':root { --color-background-primary: #1b2838; }'
+    document.head.appendChild(userStyle)
+
+    // `stylesInjected` is a module-level flag set by earlier tests, so re-import
+    // a fresh module instance to exercise injectStyles() for real.
+    vi.resetModules()
+    const { createFlexiTable: freshCreateFlexiTable } = await import('../index')
+    freshCreateFlexiTable(container, { data: ROWS, columns: COLS })
+    const ftStyle = document.querySelector('style[data-ft-styles]')
+
+    expect(ftStyle).not.toBeNull()
+    expect(
+      ftStyle!.compareDocumentPosition(userStyle) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+
+    userStyle.remove()
+    ftStyle!.remove()
+  })
+
   // --- initial render ---
 
   it('renders all rows', () => {

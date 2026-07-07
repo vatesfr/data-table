@@ -45,7 +45,7 @@ table.setColumns(newColumns)
 table.destroy()
 ```
 
-CSS is injected automatically into `<head>` on the first `createFlexiTable` call. This includes all color tokens and dark-mode overrides that activate automatically via `prefers-color-scheme: dark`.
+CSS is injected automatically into `<head>` on the first `createFlexiTable` call. This includes all color tokens and dark-mode overrides that activate automatically via `prefers-color-scheme: dark`. The injected `<style>` tag is placed before any existing `<head>` children, so a stylesheet you define yourself (see [Theming](#theming)) always wins the cascade regardless of import order.
 
 ## Theming
 

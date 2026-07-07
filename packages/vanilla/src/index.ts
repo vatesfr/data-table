@@ -34,7 +34,7 @@ function injectStyles(): void {
   const s = document.createElement('style')
   s.dataset.ftStyles = ''
   s.textContent = STYLES
-  document.head.appendChild(s)
+  document.head.insertBefore(s, document.head.firstChild)
 }
 
 // --- HTML helpers ---
