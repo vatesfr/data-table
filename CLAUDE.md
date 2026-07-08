@@ -15,7 +15,7 @@ When there are multiple valid approaches to a request, present the options and t
 - Make commits atomic: each commit should represent one logical change and pass tests on its own.
 - Write descriptive commit messages that explain the _why_, not just the _what_. Use a short subject line and a body when context is needed.
 - If a commit fixes a bug reported in a GitHub issue, include a closing keyword (e.g. `Fixes #N` / `Closes #N`) in the commit body. If the issue number isn't known, ask before committing rather than omitting it.
-- For complex features (multiple concerns, significant refactoring, new subsystems), use a dedicated branch and close it with a merge commit rather than committing directly to `main`.
+- Only create a dedicated branch and close it with a merge commit when a feature's development required multiple commits; otherwise commit directly to `main`.
 
 ## Commands
 
