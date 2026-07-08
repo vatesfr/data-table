@@ -324,6 +324,7 @@ const localeKey = ref('EN')
 const currentLocale = computed(() => LOCALES[localeKey.value])
 
 const selected = ref<Employee[]>([])
+const clicked = ref<Employee | null>(null)
 
 type Theme = '' | 'dark' | 'light'
 const THEME_CYCLE: Record<Theme, Theme> = { '': 'dark', dark: 'light', light: '' }
@@ -524,6 +525,49 @@ function fmtSalary(n: number) {
       </template>
       <template #filter-status="{ value }">
         <Badge :value="value" :color-map="STATUS_COLORS" />
+      </template>
+    </DataTable>
+
+    <!-- Row click section -->
+    <h2 style="font-size: 16px; font-weight: 600; margin-top: 40px; margin-bottom: 4px">
+      Row click
+    </h2>
+    <p
+      style="font-size: 14px; color: var(--color-text-secondary); margin-top: 0; margin-bottom: 8px"
+    >
+      Listen to <code>@row-click</code> to react to a row being clicked — it receives the full row
+      object, no key lookup needed.
+    </p>
+    <div
+      v-if="clicked"
+      style="
+        padding: 8px 12px;
+        margin-bottom: 12px;
+        background: var(--color-background-info);
+        border: 0.5px solid var(--color-border-info);
+        border-radius: 6px;
+        font-size: 13px;
+        color: var(--color-text-info);
+      "
+    >
+      Last clicked: {{ clicked.name }} ({{ clicked.role }})
+    </div>
+    <DataTable
+      :data="SAMPLE_DATA"
+      :columns="COLUMNS"
+      row-key="id"
+      :default-visible-columns="DEFAULT_VISIBLE"
+      :default-page-size="5"
+      @row-click="clicked = $event"
+    >
+      <template #cell-department="{ value }">
+        <Badge :value="String(value)" :color-map="DEPT_COLORS" />
+      </template>
+      <template #cell-status="{ value }">
+        <Badge :value="String(value)" :color-map="STATUS_COLORS" />
+      </template>
+      <template #cell-score="{ value }">
+        <ScoreBar :value="Number(value)" />
       </template>
     </DataTable>
 

@@ -11,6 +11,7 @@ export interface FlexiTableOptions<TRow extends object = Record<string, unknown>
   defaultPageSize?: number
   selectable?: boolean
   onSelectionChange?: (rows: TRow[]) => void
+  onRowClick?: (row: TRow, event: MouseEvent) => void
 }
 
 export interface FlexiTableInstance<TRow extends object = Record<string, unknown>> {

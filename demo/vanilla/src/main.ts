@@ -316,6 +316,15 @@ app.innerHTML = `
       border-radius:6px;font-size:13px"></div>
     <div id="table2"></div>
 
+    <h2 style="font-size:16px;font-weight:600;margin-top:40px;margin-bottom:4px">Row click</h2>
+    <p style="font-size:14px;color:var(--color-text-secondary);margin-top:0;margin-bottom:8px">
+      Pass <code>onRowClick</code> to react to a row being clicked — it receives the full row object, no key lookup needed.
+    </p>
+    <div id="click-banner" style="display:none;padding:8px 12px;margin-bottom:12px;
+      background:var(--color-background-info);border:0.5px solid var(--color-border-info);
+      border-radius:6px;font-size:13px;color:var(--color-text-info)"></div>
+    <div id="table-click"></div>
+
     <h2 style="font-size:16px;font-weight:600;margin-top:40px;margin-bottom:4px">Dynamic data</h2>
     <p style="font-size:14px;color:var(--color-text-secondary);margin-top:0;margin-bottom:12px">
       Call <code>table.setData()</code> to push new rows at any time.
@@ -416,6 +425,22 @@ createFlexiTable<Employee>(document.getElementById('table2')!, {
         </span>
       `
     }
+  },
+})
+
+// ---- Table: row click ----
+
+const clickBanner = document.getElementById('click-banner')!
+
+createFlexiTable<Employee>(document.getElementById('table-click')!, {
+  data: SAMPLE_DATA,
+  columns: COLUMNS,
+  rowKey: 'id',
+  defaultVisibleColumns: DEFAULT_VISIBLE,
+  defaultPageSize: 5,
+  onRowClick(row) {
+    clickBanner.style.display = 'block'
+    clickBanner.textContent = `Last clicked: ${row.name} (${row.role})`
   },
 })
 

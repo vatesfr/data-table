@@ -61,7 +61,7 @@ export function createFlexiTable<TRow extends object>(
 
   let data = options.data
   let columns = options.columns
-  const { rowKey, selectable = false, onSelectionChange } = options
+  const { rowKey, selectable = false, onSelectionChange, onRowClick } = options
   const L: DataTableLabels = { ...DEFAULT_LABELS, ...options.labels }
 
   let sorts: SortEntry[] = []
@@ -306,11 +306,11 @@ export function createFlexiTable<TRow extends object>(
             const row = rows[ri]
             const procIdx = procIdxMap.get(row) ?? -1
             const isSelected = selection.has(row)
-            const trClass = `ft-tr${isSelected ? ' ft-tr--selected' : ri % 2 !== 0 ? ' ft-tr--odd' : ''}`
+            const trClass = `ft-tr${isSelected ? ' ft-tr--selected' : ri % 2 !== 0 ? ' ft-tr--odd' : ''}${onRowClick ? ' ft-tr--clickable' : ''}`
             const rk = rowKey ? String((row as Record<string, unknown>)[rowKey] ?? ri) : ri
-            html += `<tr class="${trClass}" data-row-key="${esc(rk)}">`
+            html += `<tr class="${trClass}" data-row-key="${esc(rk)}" data-action="row-click" data-proc-idx="${procIdx}">`
             if (selectable) {
-              html += `<td class="ft-td" style="width:36px"><input type="checkbox" data-action="toggle-row-select" data-proc-idx="${procIdx}"${isSelected ? ' checked' : ''}></td>`
+              html += `<td class="ft-td" style="width:36px" data-no-row-click><input type="checkbox" data-action="toggle-row-select" data-proc-idx="${procIdx}"${isSelected ? ' checked' : ''}></td>`
             }
             html += `<td class="ft-td" style="width:28px"></td>`
             for (const col of activeColumns) {
@@ -324,11 +324,11 @@ export function createFlexiTable<TRow extends object>(
           const row = rows[ri]
           const procIdx = procIdxMap.get(row) ?? -1
           const isSelected = selection.has(row)
-          const trClass = `ft-tr${isSelected ? ' ft-tr--selected' : ri % 2 !== 0 ? ' ft-tr--odd' : ''}`
+          const trClass = `ft-tr${isSelected ? ' ft-tr--selected' : ri % 2 !== 0 ? ' ft-tr--odd' : ''}${onRowClick ? ' ft-tr--clickable' : ''}`
           const rk = rowKey ? String((row as Record<string, unknown>)[rowKey] ?? ri) : ri
-          html += `<tr class="${trClass}" data-row-key="${esc(rk)}">`
+          html += `<tr class="${trClass}" data-row-key="${esc(rk)}" data-action="row-click" data-proc-idx="${procIdx}">`
           if (selectable) {
-            html += `<td class="ft-td" style="width:36px"><input type="checkbox" data-action="toggle-row-select" data-proc-idx="${procIdx}"${isSelected ? ' checked' : ''}></td>`
+            html += `<td class="ft-td" style="width:36px" data-no-row-click><input type="checkbox" data-action="toggle-row-select" data-proc-idx="${procIdx}"${isSelected ? ' checked' : ''}></td>`
           }
           for (const col of activeColumns) {
             html += `<td class="ft-td">${cellStr(row, col)}</td>`
@@ -527,6 +527,15 @@ export function createFlexiTable<TRow extends object>(
       case 'page-last':
         page = _numPages
         break
+      case 'row-click':
+        if (
+          !target.closest('[data-no-row-click]') &&
+          procIdx >= 0 &&
+          procIdx < _processedData.length
+        ) {
+          onRowClick?.(_processedData[procIdx], e)
+        }
+        return
       default:
         return
     }

@@ -34,6 +34,8 @@ export const STYLES = `
 .ft-th-inner{display:inline-flex;align-items:center;gap:4px}
 .ft-td{padding:8px 12px;border-bottom:0.5px solid var(--color-border-tertiary,#eeedea);color:var(--color-text-primary,#1a1916);vertical-align:middle}
 .ft-tr--odd .ft-td{background:var(--color-background-secondary,#f7f6f3)}
+.ft-tr--clickable{cursor:pointer}
+.ft-tr--clickable:hover .ft-td{background:var(--color-background-secondary,#f7f6f3)}
 .ft-tr--selected .ft-td{background:var(--color-background-info,#e6f1fb)}
 .ft-group-row{background:var(--color-background-secondary,#f7f6f3);font-weight:500;font-size:12px;color:var(--color-text-secondary,#6b6a66);cursor:pointer}
 .ft-group-td{padding:6px 12px;border-bottom:0.5px solid var(--color-border-tertiary,#eeedea)}

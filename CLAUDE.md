@@ -108,6 +108,16 @@ Selection lives in `useTableState` in both adapters. Key design notes:
 - `toggleSelectAll(rows: TRow[])` takes an explicit row array — the caller decides what to pass (typically `processedData`, not just the current page). It selects all if any are unselected, deselects all if all are already selected.
 - Vue uses a local `vIndeterminate` directive (mounted + updated hooks) to set `el.indeterminate` reactively; React uses inline callback refs (re-run on every render because they are arrow functions).
 
+### Row click
+
+`onRowClick` (React/vanilla prop) / `rowClick` (Vue emit) fires when a data row is clicked, receiving the full row object and the native click event — no `rowKey` lookup needed. Group header rows, the aggregate row, and the selection checkbox cell never trigger it:
+
+- **React** — the checkbox `<td>` already calls `e.stopPropagation()`, which is what keeps checkbox clicks from bubbling to the row's `onClick`. A `cursor: 'pointer'` inline style is applied to the row only when `onRowClick` is set. Since rows are styled with inline `style` objects (no stylesheet to hold a `:hover` rule), the hover highlight is JS-driven: `onMouseEnter`/`onMouseLeave` track a single `hoveredRow` state value, which the row's background ternary checks ahead of the stripe/selected fallback.
+- **Vue** — the checkbox `<td>` uses `@click.stop` for the same reason. Since `rowClick` is a declared emit, Vue strips any `onRowClick` listener out of `$attrs` before it reaches the component, so presence can't be detected via `useAttrs()`; `getCurrentInstance()?.vnode.props?.onRowClick` reads the raw incoming listener instead, and drives the `ft__tr--clickable` class (which sets the pointer cursor and a `:hover` background rule — real CSS pseudo-classes work here because rows are styled via classes, not inline styles). `.ft__tr--selected` uses `!important` so a selected row's highlight always wins over the hover background.
+- **Vanilla** — the row `<tr>` carries `data-action="row-click"` and `data-proc-idx`; the checkbox `<td>` carries `data-no-row-click`, which the `row-click` case in `handleClick` checks via `target.closest('[data-no-row-click]')` before invoking the callback (same guard pattern as `data-no-collapse` for group-row checkboxes). The `ft-tr--clickable` class is added whenever `onRowClick` is set; its `:hover` rule is declared in `styles.ts` _before_ `.ft-tr--selected .ft-td` so a selected+hovered row keeps the selected color on the equal-specificity tie. Firing the callback returns early without calling `render()`, since no state changes.
+
+Custom cell renders (React `render`, Vue `#cell-*` slots) that put clickable elements (buttons, links) inside a cell are responsible for calling `stopPropagation()` themselves if they don't want the click to also reach `onRowClick`.
+
 ### Pagination
 
 `pageSize: 0` disables pagination — all rows are returned on a single page. Both adapters default to `0`. When pagination is active, `pagedData` holds the current page's rows while `processedData` holds all filtered/sorted rows (used for `toggleSelectAll`, total count, etc.).
@@ -135,8 +145,8 @@ Built-in locales live in `packages/core/src/locales.ts` and are re-exported from
 Each package has its own Vitest setup under `src/__tests__/`:
 
 - **`packages/core`** — tests for all pure logic functions (`logic.ts`) and locale pluralization (`locales.ts`).
-- **`packages/react`** — tests for `useTableState` via `@testing-library/react`'s `renderHook` + `act`. Runs in jsdom. Important: `vitest.config.ts` must include `resolve.dedupe: ['react', 'react-dom', 'react/jsx-runtime']` to prevent the duplicate-React-instance trap that arises when `react` is also a devDep of the package in a workspace.
-- **`packages/vue`** — tests for `useTableState` called directly (no component wrapper needed; `ref`/`computed` work outside a component context in Vue 3).
+- **`packages/react`** — tests for `useTableState` via `@testing-library/react`'s `renderHook` + `act`. Runs in jsdom. Important: `vitest.config.ts` must include `resolve.dedupe: ['react', 'react-dom', 'react/jsx-runtime']` to prevent the duplicate-React-instance trap that arises when `react` is also a devDep of the package in a workspace. Behavior that lives in `DataTable.tsx` itself rather than the hook (e.g. `onRowClick`) is tested with `@testing-library/react`'s `render` + `fireEvent` instead.
+- **`packages/vue`** — tests for `useTableState` called directly (no component wrapper needed; `ref`/`computed` work outside a component context in Vue 3). Behavior that lives in `DataTable.vue`'s template (e.g. `rowClick`) is tested by mounting the component with `@vue/test-utils`; this requires `vitest.config.ts` to load the `@vitejs/plugin-vue` plugin and set `environment: 'jsdom'`. Since `vue-tsc` can't carry the SFC's `generic="TRow extends object"` parameter through to an externally-imported component, `mount()` needs the component cast (see `DataTable.test.ts`) rather than typed per-test.
 
 ### Cross-package resolution in development
 

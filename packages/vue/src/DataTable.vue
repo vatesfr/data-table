@@ -1,5 +1,5 @@
 <script setup lang="ts" generic="TRow extends object">
-import { computed, watch, useSlots } from 'vue'
+import { computed, watch, useSlots, getCurrentInstance } from 'vue'
 import { computeAggregate, type GroupResult } from '@vates/flexi-table-core'
 import { useTableState } from './useTableState'
 import type { ColumnDef } from './types'
@@ -22,9 +22,19 @@ const props = withDefaults(
 
 const emit = defineEmits<{
   selectionChange: [rows: TRow[]]
+  rowClick: [row: TRow, event: MouseEvent]
 }>()
 
 const slots = useSlots()
+
+// vnode.props holds the raw incoming listeners regardless of the emits declaration
+// above (declared emits are stripped from $attrs), so this is the only reliable way
+// to detect whether the caller passed a @row-click listener.
+const isRowClickable = !!getCurrentInstance()?.vnode.props?.onRowClick
+
+function handleRowClick(row: TRow, event: MouseEvent) {
+  emit('rowClick', row, event)
+}
 
 const state = useTableState(
   () => props.data,
@@ -435,7 +445,9 @@ function hasSlot(name: string): boolean {
                 :class="{
                   'ft__tr--stripe': ri % 2 !== 0,
                   'ft__tr--selected': selectable && selection.has(row),
+                  'ft__tr--clickable': isRowClickable,
                 }"
+                @click="handleRowClick(row, $event)"
               >
                 <td v-if="selectable" class="ft__td" style="width: 36px" @click.stop>
                   <input
@@ -704,6 +716,12 @@ function hasSlot(name: string): boolean {
 }
 .ft__tr--selected {
   background: var(--color-background-info) !important;
+}
+.ft__tr--clickable {
+  cursor: pointer;
+}
+.ft__tr--clickable:hover {
+  background: var(--color-background-secondary);
 }
 .ft__th--cb {
   width: 36px;

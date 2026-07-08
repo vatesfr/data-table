@@ -342,6 +342,47 @@ describe('createFlexiTable', () => {
     expect(onChange).toHaveBeenLastCalledWith([])
   })
 
+  // --- row click ---
+
+  it('clicking a row calls onRowClick with that row', () => {
+    const onRowClick = vi.fn()
+    createFlexiTable(container, { data: ROWS, columns: COLS, onRowClick })
+    click(container.querySelector<HTMLElement>('[data-action="row-click"][data-proc-idx="0"]')!)
+    expect(onRowClick).toHaveBeenCalledWith(ROWS[0], expect.any(MouseEvent))
+  })
+
+  it('does not add clickable styling or fire callback when onRowClick is not set', () => {
+    createFlexiTable(container, { data: ROWS, columns: COLS })
+    expect(container.querySelector('.ft-tr--clickable')).toBeNull()
+  })
+
+  it('adds the clickable class to rows when onRowClick is set', () => {
+    createFlexiTable(container, { data: ROWS, columns: COLS, onRowClick: vi.fn() })
+    expect(container.querySelector('.ft-tr--clickable')).not.toBeNull()
+  })
+
+  it('injects a hover rule for clickable rows', () => {
+    createFlexiTable(container, { data: ROWS, columns: COLS, onRowClick: vi.fn() })
+    const style = document.querySelector('style[data-ft-styles]')!
+    expect(style.textContent).toContain('.ft-tr--clickable:hover')
+  })
+
+  it('clicking the selection checkbox does not trigger onRowClick', () => {
+    const onRowClick = vi.fn()
+    createFlexiTable(container, { data: ROWS, columns: COLS, selectable: true, onRowClick })
+    click(
+      container.querySelector<HTMLElement>('[data-action="toggle-row-select"][data-proc-idx="0"]')!,
+    )
+    expect(onRowClick).not.toHaveBeenCalled()
+  })
+
+  it('clicking inside the selection checkbox cell (outside the input) does not trigger onRowClick', () => {
+    const onRowClick = vi.fn()
+    createFlexiTable(container, { data: ROWS, columns: COLS, selectable: true, onRowClick })
+    click(container.querySelector<HTMLElement>('[data-no-row-click]')!)
+    expect(onRowClick).not.toHaveBeenCalled()
+  })
+
   // --- grouping ---
 
   it('renders group header rows when a column is grouped', () => {

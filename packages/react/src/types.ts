@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import type { MouseEvent, ReactNode } from 'react'
 import type { ColumnDefBase, DataTableLabels } from '@vates/flexi-table-core'
 
 export interface ColumnDef<
@@ -19,4 +19,5 @@ export interface DataTableProps<TRow extends object = Record<string, unknown>> {
   defaultPageSize?: number
   selectable?: boolean
   onSelectionChange?: (rows: TRow[]) => void
+  onRowClick?: (row: TRow, event: MouseEvent<HTMLTableRowElement>) => void
 }

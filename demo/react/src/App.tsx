@@ -400,6 +400,7 @@ const THEME_LABELS = { '': 'Auto', dark: 'Dark', light: 'Light' }
 export default function App() {
   const [localeKey, setLocaleKey] = useState('EN')
   const [selected, setSelected] = useState<Employee[]>([])
+  const [clicked, setClicked] = useState<Employee | null>(null)
   const [theme, setTheme] = useState<'' | 'dark' | 'light'>('')
 
   useEffect(() => {
@@ -554,6 +555,42 @@ export default function App() {
         defaultPageSize={5}
         selectable
         onSelectionChange={setSelected}
+      />
+
+      <h2 style={{ fontSize: 16, fontWeight: 600, marginTop: 40, marginBottom: 4 }}>Row click</h2>
+      <p
+        style={{
+          fontSize: 14,
+          color: 'var(--color-text-secondary)',
+          marginTop: 0,
+          marginBottom: 8,
+        }}
+      >
+        Pass <code>onRowClick</code> to react to a row being clicked — it receives the full row
+        object, no key lookup needed.
+      </p>
+      {clicked && (
+        <div
+          style={{
+            padding: '8px 12px',
+            marginBottom: 12,
+            background: 'var(--color-background-info)',
+            border: '0.5px solid var(--color-border-info)',
+            borderRadius: 6,
+            fontSize: 13,
+            color: 'var(--color-text-info)',
+          }}
+        >
+          Last clicked: {clicked.name} ({clicked.role})
+        </div>
+      )}
+      <DataTable
+        data={SAMPLE_DATA}
+        columns={COLUMNS}
+        rowKey="id"
+        defaultVisibleColumns={DEFAULT_VISIBLE}
+        defaultPageSize={5}
+        onRowClick={setClicked}
       />
 
       <h2 style={{ fontSize: 16, fontWeight: 600, marginTop: 40, marginBottom: 4 }}>

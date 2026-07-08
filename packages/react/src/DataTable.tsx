@@ -181,11 +181,13 @@ export function DataTable<TRow extends object>({
   defaultPageSize,
   selectable,
   onSelectionChange,
+  onRowClick,
 }: DataTableProps<TRow>) {
   const [openColsDD, setOpenColsDD] = useState(false)
   const [openSortDD, setOpenSortDD] = useState(false)
   const [openFilterDD, setOpenFilterDD] = useState(false)
   const [openGroupDD, setOpenGroupDD] = useState(false)
+  const [hoveredRow, setHoveredRow] = useState<TRow | null>(null)
 
   const {
     visibleCols,
@@ -662,13 +664,19 @@ export function DataTable<TRow extends object>({
                   rows.map((row, ri) => (
                     <tr
                       key={rowKey ? String(asRecord(row)[rowKey] ?? ri) : ri}
+                      onClick={onRowClick ? (e) => onRowClick(row, e) : undefined}
+                      onMouseEnter={onRowClick ? () => setHoveredRow(row) : undefined}
+                      onMouseLeave={onRowClick ? () => setHoveredRow(null) : undefined}
                       style={{
                         background:
                           selectable && selection.has(row)
                             ? 'var(--color-background-info)'
-                            : ri % 2 === 0
-                              ? 'transparent'
-                              : 'var(--color-background-secondary)',
+                            : onRowClick && hoveredRow === row
+                              ? 'var(--color-background-secondary)'
+                              : ri % 2 === 0
+                                ? 'transparent'
+                                : 'var(--color-background-secondary)',
+                        cursor: onRowClick ? 'pointer' : undefined,
                       }}
                     >
                       {selectable && (
