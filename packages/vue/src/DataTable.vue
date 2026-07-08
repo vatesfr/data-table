@@ -1,6 +1,6 @@
 <script setup lang="ts" generic="TRow extends object">
 import { computed, watch, useSlots } from 'vue'
-import { computeAggregate } from '@vates/flexi-table-core'
+import { computeAggregate, type GroupResult } from '@vates/flexi-table-core'
 import { useTableState } from './useTableState'
 import type { ColumnDef } from './types'
 import type { DataTableLabels } from '@vates/flexi-table-core'
@@ -121,14 +121,24 @@ function asRecord(row: object): Record<string, unknown> {
   return row as Record<string, unknown>
 }
 
-function cellText(row: TRow, col: ColumnDef<TRow>): string {
-  const v = asRecord(row)[col.key]
+function formatValue(v: unknown, row: TRow, col: ColumnDef<TRow>): string {
   if (col.format) return col.format(v, row)
+  if (Array.isArray(v)) return v.join(', ')
   return v != null ? String(v) : ''
+}
+
+function cellText(row: TRow, col: ColumnDef<TRow>): string {
+  return formatValue(asRecord(row)[col.key], row, col)
 }
 
 function findCol(key: string): ColumnDef<TRow> | undefined {
   return props.columns.find((c) => c.key === key)
+}
+
+/** The value that defines a group for column `key` at groupBy index `i` — a single array item when the underlying value is an array, the raw value otherwise. */
+function groupValue(group: GroupResult<TRow>, key: string, i: number): unknown {
+  const raw = asRecord(group.rows[0])[key]
+  return Array.isArray(raw) ? group.keyParts[i] : raw
 }
 
 function hasSlot(name: string): boolean {
@@ -390,15 +400,11 @@ function hasSlot(name: string): boolean {
                     Slot scope: { value: unknown, row: TRow }
                     Falls back to format() or string coercion.
                   -->
-                  <slot
-                    :name="`group-${g}`"
-                    :value="asRecord(group.rows[0])[g]"
-                    :row="group.rows[0]"
-                  >
+                  <slot :name="`group-${g}`" :value="groupValue(group, g, i)" :row="group.rows[0]">
                     {{
                       findCol(g)
-                        ? cellText(group.rows[0], findCol(g)!)
-                        : String(asRecord(group.rows[0])[g] ?? '')
+                        ? formatValue(groupValue(group, g, i), group.rows[0], findCol(g)!)
+                        : String(groupValue(group, g, i) ?? '')
                     }}
                   </slot>
                 </template>

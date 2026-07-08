@@ -4,16 +4,37 @@ function asRecord(row: object): Record<string, unknown> {
   return row as Record<string, unknown>
 }
 
+/**
+ * Normalizes a cell value to a string array: arrays are stringified item-by-item, scalars
+ * become a single-item array. An empty array normalizes to a single `emptyLabel` item instead
+ * of dropping the row, so rows with no items still get a (labeled) filter/group bucket rather
+ * than silently disappearing from checklists and grouped views.
+ */
+function multiValues(value: unknown, emptyLabel = '(none)'): string[] {
+  if (!Array.isArray(value)) return [String(value ?? '')]
+  return value.length > 0 ? value.map((v) => String(v)) : [emptyLabel]
+}
+
 export function processData<TRow extends object>(
   data: TRow[],
   filters: Record<string, Set<string>>,
   rangeFilters: Record<string, RangeFilter>,
   sorts: SortEntry[],
+  columns: ColumnDefBase<TRow>[] = [],
+  emptyLabel = '(none)',
 ): TRow[] {
   let result = [...data]
+  const colByKey = new Map<string, ColumnDefBase<TRow>>(columns.map((c) => [c.key, c]))
 
   for (const [key, vals] of Object.entries(filters)) {
-    if (vals.size > 0) result = result.filter((row) => vals.has(String(asRecord(row)[key] ?? '')))
+    if (vals.size === 0) continue
+    const mode = colByKey.get(key)?.multiMode ?? 'or'
+    result = result.filter((row) => {
+      const rowValues = multiValues(asRecord(row)[key], emptyLabel)
+      return mode === 'and'
+        ? [...vals].every((v) => rowValues.includes(v))
+        : [...vals].some((v) => rowValues.includes(v))
+    })
   }
 
   for (const [key, range] of Object.entries(rangeFilters)) {
@@ -40,30 +61,51 @@ export function processData<TRow extends object>(
   return result
 }
 
+export interface GroupResult<TRow extends object> {
+  key: string | null
+  /** Per-groupBy-column string value that defines this group, aligned with the groupBy array. */
+  keyParts: string[]
+  rows: TRow[]
+}
+
+/**
+ * Groups rows by one or more columns. When a groupBy column's value is an array (e.g. tags),
+ * a row is fanned out into one group per array item instead of one group per whole-array
+ * combination — so a row tagged ['Action', 'RPG'] appears in both the 'Action' and 'RPG' groups.
+ */
 export function groupData<TRow extends object>(
   data: TRow[],
   groupBy: string[],
-): Array<{ key: string | null; rows: TRow[] }> {
-  if (groupBy.length === 0) return [{ key: null, rows: data }]
-  const groups: Record<string, TRow[]> = {}
+  emptyLabel = '(none)',
+): GroupResult<TRow>[] {
+  if (groupBy.length === 0) return [{ key: null, keyParts: [], rows: data }]
+  const groups: Record<string, { keyParts: string[]; rows: TRow[] }> = {}
   for (const row of data) {
-    const gkey = groupBy.map((g) => String(asRecord(row)[g] ?? '')).join(' › ')
-    if (!groups[gkey]) groups[gkey] = []
-    groups[gkey].push(row)
+    let combos: string[][] = [[]]
+    for (const g of groupBy) {
+      const values = multiValues(asRecord(row)[g], emptyLabel)
+      combos = combos.flatMap((combo) => values.map((v) => [...combo, v]))
+    }
+    for (const keyParts of combos) {
+      const key = keyParts.join(' › ')
+      if (!groups[key]) groups[key] = { keyParts, rows: [] }
+      groups[key].rows.push(row)
+    }
   }
-  return Object.entries(groups).map(([key, rows]) => ({ key, rows }))
+  return Object.entries(groups).map(([key, { keyParts, rows }]) => ({ key, keyParts, rows }))
 }
 
 export function computeStringValues<TRow extends object>(
   data: TRow[],
   columns: ColumnDefBase<TRow>[],
+  emptyLabel = '(none)',
 ): Record<string, string[]> {
   const map: Record<string, string[]> = {}
   const cols = columns.filter(
     (c) => c.type !== 'number' && c.type !== 'date' && c.filterable !== false,
   )
   for (const col of cols) {
-    const values = [...new Set(data.map((r) => String(asRecord(r)[col.key] ?? '')))]
+    const values = [...new Set(data.flatMap((r) => multiValues(asRecord(r)[col.key], emptyLabel)))]
     map[col.key] = values.sort()
   }
   return map

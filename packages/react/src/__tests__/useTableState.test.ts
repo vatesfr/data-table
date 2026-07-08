@@ -271,3 +271,73 @@ describe('useTableState — search', () => {
     expect(result.current.processedData).toHaveLength(4)
   })
 })
+
+interface Game {
+  id: number
+  name: string
+  tags: string[]
+}
+
+const GAME_COLS: ColumnDef<Game>[] = [
+  { key: 'name', label: 'Name' },
+  { key: 'tags', label: 'Tags', filterable: true, groupable: true },
+]
+
+const GAMES: Game[] = [
+  { id: 1, name: 'Game A', tags: ['Action', 'RPG'] },
+  { id: 2, name: 'Game B', tags: ['Action', 'Adventure'] },
+]
+
+const GAMES_WITH_EMPTY: Game[] = [...GAMES, { id: 3, name: 'Game C', tags: [] }]
+
+describe('useTableState — multi-value (array) columns', () => {
+  it('stringValueMap flattens array values into individual filter options', () => {
+    const { result } = renderHook(() => useTableState(GAMES, GAME_COLS))
+    expect(result.current.stringValueMap['tags']).toEqual(['Action', 'Adventure', 'RPG'])
+  })
+
+  it('toggleFilter matches rows whose array contains the selected value', () => {
+    const { result } = renderHook(() => useTableState(GAMES, GAME_COLS))
+    act(() => {
+      result.current.toggleFilter('tags', 'RPG')
+    })
+    expect(result.current.processedData.map((g) => g.name)).toEqual(['Game A'])
+  })
+
+  it('groupedData fans a row into one group per array item', () => {
+    const { result } = renderHook(() => useTableState(GAMES, GAME_COLS))
+    act(() => {
+      result.current.toggleGroup('tags')
+    })
+    expect(result.current.groupedData.map((g) => g.key).sort()).toEqual([
+      'Action',
+      'Adventure',
+      'RPG',
+    ])
+  })
+
+  it('stringValueMap lists a "(none)" entry for rows with an empty array', () => {
+    const { result } = renderHook(() => useTableState(GAMES_WITH_EMPTY, GAME_COLS))
+    expect(result.current.stringValueMap['tags']).toEqual(['(none)', 'Action', 'Adventure', 'RPG'])
+  })
+
+  it('groupedData buckets rows with an empty array under "(none)"', () => {
+    const { result } = renderHook(() => useTableState(GAMES_WITH_EMPTY, GAME_COLS))
+    act(() => {
+      result.current.toggleGroup('tags')
+    })
+    const noneGroup = result.current.groupedData.find((g) => g.key === '(none)')
+    expect(noneGroup?.rows.map((r) => r.name)).toEqual(['Game C'])
+  })
+
+  it('uses a custom emptyValue label when provided', () => {
+    const { result } = renderHook(() =>
+      useTableState(GAMES_WITH_EMPTY, GAME_COLS, undefined, { emptyValue: 'N/A' }),
+    )
+    expect(result.current.stringValueMap['tags']).toContain('N/A')
+    act(() => {
+      result.current.toggleGroup('tags')
+    })
+    expect(result.current.groupedData.map((g) => g.key)).toContain('N/A')
+  })
+})

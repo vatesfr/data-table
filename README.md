@@ -193,10 +193,30 @@ interface ColumnDefBase<TRow extends object> {
   sortable?: boolean // default: true
   filterable?: boolean // default: true
   groupable?: boolean // default: false
+  multiMode?: 'and' | 'or' // match mode for array-valued columns in the filter checklist; default: 'or'
 }
 ```
 
 React extends this with `render?` and `renderFilterLabel?`. Vue uses scoped slots instead.
+
+### Array-valued (multi-value) columns
+
+A column whose cell value is an array — tags, genres, categories — is detected automatically, no
+flag required:
+
+- The filter checklist lists each individual item instead of the stringified whole array, and a
+  row matches if it contains any selected item (`multiMode: 'or'`, the default) or all of them
+  (`multiMode: 'and'`).
+- Grouping by an array column fans a row out into one group per item — a row tagged
+  `['Action', 'RPG']` appears under both the "Action" and "RPG" groups.
+- A row with an empty array (`tags: []`) is bucketed under a labeled placeholder — `(none)` by
+  default, customizable via the `emptyValue` label — instead of a blank checklist entry or an
+  unlabeled group.
+- Cells without a custom `format`/`render` display the array joined with `, `.
+
+```ts
+{ key: 'tags', label: 'Tags' } // tags: string[] — no extra config needed
+```
 
 ## Development
 

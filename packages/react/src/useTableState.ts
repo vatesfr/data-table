@@ -42,11 +42,22 @@ export function useTableState<TRow extends object>(
   const [selection, setSelection] = useState<Set<TRow>>(new Set())
   const [searchQuery, setSearchQueryState] = useState('')
 
-  const stringValueMap = useMemo(() => computeStringValues(data, columns), [data, columns])
+  const stringValueMap = useMemo(
+    () => computeStringValues(data, columns, L.emptyValue),
+    [data, columns, L.emptyValue],
+  )
 
   const processedData = useMemo(
-    () => processData(searchData(data, searchQuery, columns), filters, rangeFilters, sorts),
-    [data, searchQuery, columns, filters, rangeFilters, sorts],
+    () =>
+      processData(
+        searchData(data, searchQuery, columns),
+        filters,
+        rangeFilters,
+        sorts,
+        columns,
+        L.emptyValue,
+      ),
+    [data, searchQuery, columns, filters, rangeFilters, sorts, L.emptyValue],
   )
 
   const numPages = useMemo(
@@ -59,7 +70,10 @@ export function useTableState<TRow extends object>(
     [processedData, page, numPages, pageSize],
   )
 
-  const groupedData = useMemo(() => groupData(pagedData, groupBy), [pagedData, groupBy])
+  const groupedData = useMemo(
+    () => groupData(pagedData, groupBy, L.emptyValue),
+    [pagedData, groupBy, L.emptyValue],
+  )
 
   const activeColumns = useMemo(
     () => columns.filter((c) => visibleCols.has(c.key) && !groupBy.includes(c.key)),

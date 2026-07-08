@@ -211,3 +211,63 @@ describe('useTableState — search', () => {
     expect(processedData.value).toHaveLength(4)
   })
 })
+
+interface Game {
+  id: number
+  name: string
+  tags: string[]
+}
+
+const GAME_COLS: ColumnDef<Game>[] = [
+  { key: 'name', label: 'Name' },
+  { key: 'tags', label: 'Tags', filterable: true, groupable: true },
+]
+
+const GAMES: Game[] = [
+  { id: 1, name: 'Game A', tags: ['Action', 'RPG'] },
+  { id: 2, name: 'Game B', tags: ['Action', 'Adventure'] },
+]
+
+const GAMES_WITH_EMPTY: Game[] = [...GAMES, { id: 3, name: 'Game C', tags: [] }]
+
+describe('useTableState — multi-value (array) columns', () => {
+  it('stringValueMap flattens array values into individual filter options', () => {
+    const { stringValueMap } = useTableState(GAMES, GAME_COLS)
+    expect(stringValueMap.value['tags']).toEqual(['Action', 'Adventure', 'RPG'])
+  })
+
+  it('toggleFilter matches rows whose array contains the selected value', () => {
+    const { processedData, toggleFilter } = useTableState(GAMES, GAME_COLS)
+    toggleFilter('tags', 'RPG')
+    expect(processedData.value.map((g) => g.name)).toEqual(['Game A'])
+  })
+
+  it('groupedData fans a row into one group per array item', () => {
+    const { groupedData, toggleGroup } = useTableState(GAMES, GAME_COLS)
+    toggleGroup('tags')
+    expect(groupedData.value.map((g) => g.key).sort()).toEqual(['Action', 'Adventure', 'RPG'])
+  })
+
+  it('stringValueMap lists a "(none)" entry for rows with an empty array', () => {
+    const { stringValueMap } = useTableState(GAMES_WITH_EMPTY, GAME_COLS)
+    expect(stringValueMap.value['tags']).toEqual(['(none)', 'Action', 'Adventure', 'RPG'])
+  })
+
+  it('groupedData buckets rows with an empty array under "(none)"', () => {
+    const { groupedData, toggleGroup } = useTableState(GAMES_WITH_EMPTY, GAME_COLS)
+    toggleGroup('tags')
+    const noneGroup = groupedData.value.find((g) => g.key === '(none)')
+    expect(noneGroup?.rows.map((r) => r.name)).toEqual(['Game C'])
+  })
+
+  it('uses a custom emptyValue label when provided', () => {
+    const { stringValueMap, groupedData, toggleGroup } = useTableState(
+      GAMES_WITH_EMPTY,
+      GAME_COLS,
+      { labels: { emptyValue: 'N/A' } },
+    )
+    expect(stringValueMap.value['tags']).toContain('N/A')
+    toggleGroup('tags')
+    expect(groupedData.value.map((g) => g.key)).toContain('N/A')
+  })
+})

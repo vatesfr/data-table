@@ -78,39 +78,44 @@ export function createFlexiTable<TRow extends object>(
 
   // Updated by derive(), read by event handlers
   let _processedData: TRow[] = []
-  let _groupedData: Array<{ key: string | null; rows: TRow[] }> = []
+  let _groupedData: Array<{ key: string | null; keyParts: string[]; rows: TRow[] }> = []
   let _numPages = 1
   let _clampedPage = 1
 
   function derive() {
-    const stringValueMap = computeStringValues(data, columns)
+    const stringValueMap = computeStringValues(data, columns, L.emptyValue)
     _processedData = processData(
       searchData(data, searchQuery, columns),
       filters,
       rangeFilters,
       sorts,
+      columns,
+      L.emptyValue,
     )
     _numPages = calcTotalPages(_processedData.length, pageSize)
     _clampedPage = Math.min(page, Math.max(1, _numPages))
     const pagedData = paginateData(_processedData, _clampedPage, pageSize)
-    _groupedData = groupData(pagedData, groupBy)
+    _groupedData = groupData(pagedData, groupBy, L.emptyValue)
     const activeColumns = columns.filter((c) => visibleCols.has(c.key) && !groupBy.includes(c.key))
     const activeFilterCount = countActiveFilters(filters, rangeFilters)
     const selectedRows = _processedData.filter((r) => selection.has(r))
     return { stringValueMap, activeColumns, activeFilterCount, selectedRows }
   }
 
+  function formatStr(v: unknown, row: TRow, col: ColumnDef<TRow>): string {
+    if (col.format) return esc(col.format(v, row))
+    if (Array.isArray(v)) return esc(v.join(', '))
+    return esc(v != null ? String(v) : '')
+  }
+
   function aggStr(col: ColumnDef<TRow>, rows: TRow[]): string {
     const v = computeAggregate(col, rows)
     if (v === undefined || v === null) return ''
-    if (col.format) return esc(col.format(v, rows[0]))
-    return esc(String(v))
+    return formatStr(v, rows[0], col)
   }
 
   function cellStr(row: TRow, col: ColumnDef<TRow>): string {
-    const v = (row as Record<string, unknown>)[col.key]
-    if (col.format) return esc(col.format(v, row))
-    return esc(v != null ? String(v) : '')
+    return formatStr((row as Record<string, unknown>)[col.key], row, col)
   }
 
   function render(): void {
@@ -264,7 +269,7 @@ export function createFlexiTable<TRow extends object>(
 
     const procIdxMap = new Map(_processedData.map((r, i) => [r, i]))
 
-    for (const { key: gkey, rows } of _groupedData) {
+    for (const { key: gkey, keyParts, rows } of _groupedData) {
       if (gkey !== null) {
         const isCollapsed = collapsedGroups.has(gkey)
         const gAllSel = rows.length > 0 && rows.every((r) => selection.has(r))
@@ -278,11 +283,11 @@ export function createFlexiTable<TRow extends object>(
         for (let gi = 0; gi < groupBy.length; gi++) {
           const gColKey = groupBy[gi]
           const gCol = columns.find((c) => c.key === gColKey)
+          const raw = (rows[0] as Record<string, unknown>)[gColKey]
+          const value = Array.isArray(raw) ? keyParts[gi] : raw
           if (gi > 0) html += `<span class="ft-group-sep"> › </span>`
           html += `<span class="ft-group-colname">${esc(gCol?.label ?? gColKey)}:</span> `
-          html += gCol
-            ? cellStr(rows[0], gCol)
-            : esc(String((rows[0] as Record<string, unknown>)[gColKey] ?? ''))
+          html += gCol ? formatStr(value, rows[0], gCol) : esc(String(value ?? ''))
         }
         html += ` <span class="ft-group-count">${esc(L.rowsInGroup(rows.length))}</span></td></tr>`
 

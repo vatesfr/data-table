@@ -67,6 +67,28 @@ Slot naming: `#cell-{key}`, `#filter-{key}`, `#group-{key}` where `{key}` matche
 
 `#group-{key}` applies to group header rows when that column is used for grouping, so values display with the same visual as table cells.
 
+## Multi-value (array) columns
+
+A column whose cell value is an array — tags, genres, categories — is detected automatically, no flag required:
+
+- The filter checklist lists each individual item instead of the stringified whole array (`"Action,RPG"` becomes separate `"Action"` and `"RPG"` entries), and a row matches if it contains any selected item (`multiMode: 'or'`, the default) or all of them (`multiMode: 'and'`).
+- Grouping by an array column fans a row out into one group per item — a row tagged `['Action', 'RPG']` appears under both the "Action" and "RPG" groups. The `#group-{key}` slot and `format` receive the single item being grouped on, not the whole array.
+- A row with an empty array (`tags: []`) is bucketed under a labeled placeholder — `(none)` by default, customizable via the `emptyValue` label — instead of a blank checklist entry or an unlabeled group.
+- Cells without a custom `#cell-{key}` slot or `format` display the array joined with `, `.
+
+```ts
+interface Game {
+  id: number
+  name: string
+  tags: string[]
+}
+
+const COLUMNS: ColumnDef<Game>[] = [
+  { key: 'name', label: 'Name' },
+  { key: 'tags', label: 'Tags', groupable: true }, // no extra config needed
+]
+```
+
 ## Row selection
 
 Pass `:selectable="true"` to show a checkbox column. The header checkbox selects/deselects the full filtered dataset (all pages at once). Group header checkboxes select/deselect all rows in that group. Both support indeterminate state.
@@ -122,6 +144,7 @@ interface ColumnDef<TRow extends object> {
   sortable?: boolean // default: true
   filterable?: boolean // default: true
   groupable?: boolean // default: false
+  multiMode?: 'and' | 'or' // match mode for array-valued columns; default: 'or'
 }
 ```
 

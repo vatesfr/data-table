@@ -25,6 +25,13 @@ export interface ColumnDefBase<TRow extends object = Record<string, unknown>> {
   groupable?: boolean
   /** Aggregate function or built-in type shown in group header rows */
   aggregate?: AggregateType | ((rows: TRow[]) => unknown)
+  /**
+   * Match semantics when this column's cell values are arrays (e.g. tags) and are filtered
+   * via the checklist: 'or' matches rows containing any selected value (default), 'and'
+   * requires all selected values to be present. Array-valued columns are detected
+   * automatically — no flag needed to enable multi-value filtering/grouping/display.
+   */
+  multiMode?: 'and' | 'or'
 }
 
 export interface DataTableLabels {
@@ -49,6 +56,8 @@ export interface DataTableLabels {
   rowsPerPage: string
   pageOf: (page: number, total: number) => string
   search: string
+  /** Filter/group label for rows whose array-valued column is empty (e.g. `tags: []`) */
+  emptyValue: string
 }
 
 export { LABELS_EN as DEFAULT_LABELS } from './locales'

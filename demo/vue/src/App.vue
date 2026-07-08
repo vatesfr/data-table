@@ -23,6 +23,7 @@ interface Employee {
   joined: string
   status: string
   score: number
+  skills: string[]
 }
 
 const SAMPLE_DATA: Employee[] = [
@@ -35,6 +36,7 @@ const SAMPLE_DATA: Employee[] = [
     joined: '2019-03-15',
     status: 'Active',
     score: 94,
+    skills: ['TypeScript', 'React'],
   },
   {
     id: 2,
@@ -45,6 +47,7 @@ const SAMPLE_DATA: Employee[] = [
     joined: '2020-07-01',
     status: 'Active',
     score: 87,
+    skills: ['Roadmapping', 'Analytics'],
   },
   {
     id: 3,
@@ -55,6 +58,7 @@ const SAMPLE_DATA: Employee[] = [
     joined: '2017-11-20',
     status: 'Active',
     score: 98,
+    skills: ['TypeScript', 'Architecture'],
   },
   {
     id: 4,
@@ -65,6 +69,7 @@ const SAMPLE_DATA: Employee[] = [
     joined: '2021-01-10',
     status: 'Active',
     score: 82,
+    skills: ['Figma', 'Prototyping'],
   },
   {
     id: 5,
@@ -75,6 +80,7 @@ const SAMPLE_DATA: Employee[] = [
     joined: '2023-04-05',
     status: 'Active',
     score: 73,
+    skills: ['JavaScript', 'React'],
   },
   {
     id: 6,
@@ -85,6 +91,7 @@ const SAMPLE_DATA: Employee[] = [
     joined: '2020-09-12',
     status: 'Inactive',
     score: 65,
+    skills: ['Negotiation', 'CRM'],
   },
   {
     id: 7,
@@ -95,6 +102,7 @@ const SAMPLE_DATA: Employee[] = [
     joined: '2021-06-28',
     status: 'Active',
     score: 89,
+    skills: ['Figma', 'UX Research'],
   },
   {
     id: 8,
@@ -105,6 +113,7 @@ const SAMPLE_DATA: Employee[] = [
     joined: '2018-02-14',
     status: 'Active',
     score: 91,
+    skills: ['Kubernetes', 'CI/CD'],
   },
   {
     id: 9,
@@ -115,6 +124,7 @@ const SAMPLE_DATA: Employee[] = [
     joined: '2019-08-22',
     status: 'Active',
     score: 79,
+    skills: ['Recruiting', 'Onboarding'],
   },
   {
     id: 10,
@@ -125,6 +135,7 @@ const SAMPLE_DATA: Employee[] = [
     joined: '2018-05-03',
     status: 'Active',
     score: 84,
+    skills: ['Negotiation', 'Leadership'],
   },
   {
     id: 11,
@@ -135,6 +146,7 @@ const SAMPLE_DATA: Employee[] = [
     joined: '2019-12-01',
     status: 'Active',
     score: 92,
+    skills: ['Figma', 'Leadership'],
   },
   {
     id: 12,
@@ -145,6 +157,7 @@ const SAMPLE_DATA: Employee[] = [
     joined: '2016-06-17',
     status: 'Active',
     score: 97,
+    skills: ['Architecture', 'TypeScript'],
   },
   {
     id: 13,
@@ -155,6 +168,7 @@ const SAMPLE_DATA: Employee[] = [
     joined: '2022-03-08',
     status: 'Active',
     score: 76,
+    skills: ['Recruiting', 'Sourcing'],
   },
   {
     id: 14,
@@ -165,6 +179,7 @@ const SAMPLE_DATA: Employee[] = [
     joined: '2021-10-15',
     status: 'Inactive',
     score: 61,
+    skills: ['CRM', 'Negotiation'],
   },
   {
     id: 15,
@@ -175,6 +190,7 @@ const SAMPLE_DATA: Employee[] = [
     joined: '2015-01-20',
     status: 'Active',
     score: 99,
+    skills: ['Strategy', 'Leadership'],
   },
   {
     id: 16,
@@ -185,6 +201,7 @@ const SAMPLE_DATA: Employee[] = [
     joined: '2018-09-30',
     status: 'Active',
     score: 88,
+    skills: ['React', 'Node.js'],
   },
   {
     id: 17,
@@ -195,6 +212,7 @@ const SAMPLE_DATA: Employee[] = [
     joined: '2020-11-11',
     status: 'Active',
     score: 85,
+    skills: ['UX Research', 'Prototyping'],
   },
   {
     id: 18,
@@ -205,6 +223,7 @@ const SAMPLE_DATA: Employee[] = [
     joined: '2016-04-25',
     status: 'Active',
     score: 93,
+    skills: ['Leadership', 'Onboarding'],
   },
   {
     id: 19,
@@ -215,6 +234,7 @@ const SAMPLE_DATA: Employee[] = [
     joined: '2014-08-01',
     status: 'Active',
     score: 100,
+    skills: ['Architecture', 'Leadership'],
   },
   {
     id: 20,
@@ -225,6 +245,7 @@ const SAMPLE_DATA: Employee[] = [
     joined: '2015-07-14',
     status: 'Active',
     score: 96,
+    skills: ['Leadership', 'Negotiation'],
   },
 ]
 
@@ -274,10 +295,22 @@ const COLUMNS: ColumnDef<Employee>[] = [
   { key: 'status', label: 'Status', type: 'string', width: 90, groupable: true },
   // slot #cell-score overrides rendering
   { key: 'score', label: 'Score', type: 'number', width: 80 },
+  // array-valued column: filter checklist lists individual skills, grouping fans a row into
+  // one group per skill, and cells join the array with ', ' — all automatic, no flag needed
+  { key: 'skills', label: 'Skills', width: 180, groupable: true },
 ]
 
 // 'id' is hidden by default; users can toggle it back from the Columns menu
-const DEFAULT_VISIBLE = ['name', 'department', 'role', 'salary', 'joined', 'status', 'score']
+const DEFAULT_VISIBLE = [
+  'name',
+  'department',
+  'role',
+  'salary',
+  'joined',
+  'status',
+  'score',
+  'skills',
+]
 
 const LOCALES: Record<string, DataTableLabels> = {
   EN: LABELS_EN,

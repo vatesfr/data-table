@@ -22,6 +22,7 @@ export const LABELS_EN: DataTableLabels = {
   rowsPerPage: 'Rows per page',
   pageOf: (p, t) => `Page ${p} of ${t}`,
   search: 'Search…',
+  emptyValue: '(none)',
 }
 
 export const LABELS_FR: DataTableLabels = {
@@ -46,6 +47,7 @@ export const LABELS_FR: DataTableLabels = {
   rowsPerPage: 'Lignes par page',
   pageOf: (p, t) => `Page ${p} sur ${t}`,
   search: 'Rechercher…',
+  emptyValue: '(aucun)',
 }
 
 export const LABELS_ES: DataTableLabels = {
@@ -70,6 +72,7 @@ export const LABELS_ES: DataTableLabels = {
   rowsPerPage: 'Filas por página',
   pageOf: (p, t) => `Página ${p} de ${t}`,
   search: 'Buscar…',
+  emptyValue: '(ninguno)',
 }
 
 export const LABELS_DE: DataTableLabels = {
@@ -94,6 +97,7 @@ export const LABELS_DE: DataTableLabels = {
   rowsPerPage: 'Zeilen pro Seite',
   pageOf: (p, t) => `Seite ${p} von ${t}`,
   search: 'Suchen…',
+  emptyValue: '(keine)',
 }
 
 export const LABELS_PT: DataTableLabels = {
@@ -118,4 +122,5 @@ export const LABELS_PT: DataTableLabels = {
   rowsPerPage: 'Linhas por página',
   pageOf: (p, t) => `Página ${p} de ${t}`,
   search: 'Pesquisar…',
+  emptyValue: '(nenhum)',
 }

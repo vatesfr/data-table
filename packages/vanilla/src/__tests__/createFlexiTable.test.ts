@@ -22,6 +22,24 @@ const ROWS: Row[] = [
   { id: 4, name: 'David', score: 70, dept: 'HR' },
 ]
 
+interface Game {
+  id: number
+  name: string
+  tags: string[]
+}
+
+const GAME_COLS: ColumnDef<Game>[] = [
+  { key: 'name', label: 'Name', filterable: false },
+  { key: 'tags', label: 'Tags', filterable: true, groupable: true },
+]
+
+const GAMES: Game[] = [
+  { id: 1, name: 'Game A', tags: ['Action', 'RPG'] },
+  { id: 2, name: 'Game B', tags: ['Action', 'Adventure'] },
+]
+
+const GAMES_WITH_EMPTY: Game[] = [...GAMES, { id: 3, name: 'Game C', tags: [] }]
+
 function click(el: Element): void {
   el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
 }
@@ -438,5 +456,71 @@ describe('createFlexiTable', () => {
     createFlexiTable(container, { data: [xssRow], columns: COLS })
     expect(container.innerHTML).not.toContain('<script>')
     expect(container.innerHTML).toContain('&lt;script&gt;')
+  })
+
+  // --- multi-value (array) columns ---
+
+  it('checklist filter lists individual array items instead of the whole array', () => {
+    createFlexiTable(container, { data: GAMES, columns: GAME_COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="filter"]')!)
+    const values = [
+      ...container.querySelectorAll<HTMLInputElement>('[data-action="toggle-filter"]'),
+    ].map((el) => el.dataset.value)
+    expect(values).toEqual(['Action', 'Adventure', 'RPG'])
+  })
+
+  it('selecting an array item filters rows containing it', () => {
+    createFlexiTable(container, { data: GAMES, columns: GAME_COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="filter"]')!)
+    click(container.querySelector<HTMLElement>('[data-action="toggle-filter"][data-value="RPG"]')!)
+    expect(container.querySelectorAll('tbody tr')).toHaveLength(1)
+    expect(container.innerHTML).toContain('Game A')
+  })
+
+  it('renders array cell values joined with a comma by default', () => {
+    createFlexiTable(container, { data: GAMES, columns: GAME_COLS })
+    expect(container.innerHTML).toContain('Action, RPG')
+  })
+
+  it('grouping by an array column fans a row into one group per item', () => {
+    createFlexiTable(container, { data: GAMES, columns: GAME_COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="group"]')!)
+    click(container.querySelector<HTMLElement>('[data-action="toggle-group"][data-key="tags"]')!)
+    const groupTexts = [...container.querySelectorAll('.ft-group-td')].map((td) => td.textContent)
+    expect(container.querySelectorAll('.ft-group-row')).toHaveLength(3)
+    expect(groupTexts.some((t) => t?.includes('Tags: Action'))).toBe(true)
+    expect(groupTexts.some((t) => t?.includes('Tags: RPG'))).toBe(true)
+    expect(groupTexts.some((t) => t?.includes('Tags: Adventure'))).toBe(true)
+  })
+
+  it('checklist filter lists a "(none)" entry for rows with an empty array', () => {
+    createFlexiTable(container, { data: GAMES_WITH_EMPTY, columns: GAME_COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="filter"]')!)
+    const values = [
+      ...container.querySelectorAll<HTMLInputElement>('[data-action="toggle-filter"]'),
+    ].map((el) => el.dataset.value)
+    expect(values).toEqual(['(none)', 'Action', 'Adventure', 'RPG'])
+  })
+
+  it('grouping buckets rows with an empty array under "(none)"', () => {
+    createFlexiTable(container, { data: GAMES_WITH_EMPTY, columns: GAME_COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="group"]')!)
+    click(container.querySelector<HTMLElement>('[data-action="toggle-group"][data-key="tags"]')!)
+    const groupTexts = [...container.querySelectorAll('.ft-group-td')].map((td) => td.textContent)
+    expect(container.querySelectorAll('.ft-group-row')).toHaveLength(4)
+    expect(groupTexts.some((t) => t?.includes('Tags: (none)'))).toBe(true)
+  })
+
+  it('uses a custom emptyValue label when provided', () => {
+    createFlexiTable(container, {
+      data: GAMES_WITH_EMPTY,
+      columns: GAME_COLS,
+      labels: { emptyValue: 'N/A' },
+    })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="filter"]')!)
+    const values = [
+      ...container.querySelectorAll<HTMLInputElement>('[data-action="toggle-filter"]'),
+    ].map((el) => el.dataset.value)
+    expect(values).toContain('N/A')
   })
 })

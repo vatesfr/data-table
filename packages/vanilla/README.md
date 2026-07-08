@@ -93,6 +93,37 @@ Cell output is string-only. Use `col.format(value, row)` to control what is rend
 
 For richer DOM output (icons, interactive elements), post-process the container after `setData`.
 
+## Multi-value (array) columns
+
+A column whose cell value is an array — tags, genres, categories — is detected automatically, no flag required:
+
+```ts
+interface Game {
+  id: number
+  name: string
+  tags: string[]
+}
+
+const COLUMNS: ColumnDef<Game>[] = [
+  { key: 'name', label: 'Name' },
+  { key: 'tags', label: 'Tags', groupable: true }, // no extra config needed
+]
+
+const data = [
+  { id: 1, name: 'Game A', tags: ['Action', 'RPG'] },
+  { id: 2, name: 'Game B', tags: ['Action', 'Adventure'] },
+]
+
+createFlexiTable(container, { data, columns: COLUMNS, rowKey: 'id' })
+// Filter dropdown shows individual items: "Action" | "Adventure" | "RPG"
+// Selecting "Action" matches both games
+```
+
+- The filter checklist lists each individual item instead of the stringified whole array, and a row matches if it contains any selected item (`multiMode: 'or'`, the default) or all of them (`multiMode: 'and'`).
+- Grouping by an array column fans a row out into one group per item — a row tagged `['Action', 'RPG']` appears under both the "Action" and "RPG" groups.
+- A row with an empty array (`tags: []`) is bucketed under a labeled placeholder — `(none)` by default, customizable via the `emptyValue` label — instead of a blank checklist entry or an unlabeled group.
+- Cells without a custom `format` display the array joined with `, `.
+
 ## Row selection
 
 Pass `selectable` to show a checkbox column. The header checkbox selects/deselects the full filtered dataset (all pages at once). Group header checkboxes select/deselect all rows in that group. Both support indeterminate state.
@@ -134,6 +165,7 @@ interface ColumnDef<TRow extends object> {
   sortable?: boolean // default: true
   filterable?: boolean // default: true
   groupable?: boolean // default: false
+  multiMode?: 'and' | 'or' // match mode for array-valued columns; default: 'or'
 }
 ```
 

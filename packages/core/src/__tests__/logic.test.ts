@@ -30,6 +30,20 @@ const ROWS: Row[] = [
   { id: 4, name: 'David', dept: 'HR', salary: 70000 },
 ]
 
+interface Game {
+  id: number
+  name: string
+  tags: string[]
+}
+
+const GAMES: Game[] = [
+  { id: 1, name: 'Game A', tags: ['Action', 'RPG'] },
+  { id: 2, name: 'Game B', tags: ['Action', 'Adventure'] },
+  { id: 3, name: 'Game C', tags: ['RPG'] },
+]
+
+const GAMES_WITH_EMPTY: Game[] = [...GAMES, { id: 4, name: 'Game D', tags: [] }]
+
 const COLS_FOR_SEARCH = [
   { key: 'name' as const, label: 'Name' },
   { key: 'dept' as const, label: 'Dept' },
@@ -181,6 +195,32 @@ describe('processData', () => {
     ])
     expect(result.map((r) => r.name)).toEqual(['Clara', 'Alice'])
   })
+
+  it('matches array-valued columns by intersection (or semantics, default)', () => {
+    const result = processData(GAMES, { tags: new Set(['Action']) }, {}, [])
+    expect(result.map((r) => r.name)).toEqual(['Game A', 'Game B'])
+  })
+
+  it('matches array-valued columns with any selected value (or semantics)', () => {
+    const result = processData(GAMES, { tags: new Set(['Adventure', 'RPG']) }, {}, [])
+    expect(result.map((r) => r.name)).toEqual(['Game A', 'Game B', 'Game C'])
+  })
+
+  it('requires all selected values for and semantics', () => {
+    const cols = [{ key: 'tags' as const, label: 'Tags', multiMode: 'and' as const }]
+    const result = processData(GAMES, { tags: new Set(['Action', 'RPG']) }, {}, [], cols)
+    expect(result.map((r) => r.name)).toEqual(['Game A'])
+  })
+
+  it('matches rows with an empty array against the "(none)" bucket by default', () => {
+    const result = processData(GAMES_WITH_EMPTY, { tags: new Set(['(none)']) }, {}, [])
+    expect(result.map((r) => r.name)).toEqual(['Game D'])
+  })
+
+  it('matches rows with an empty array against a custom emptyLabel', () => {
+    const result = processData(GAMES_WITH_EMPTY, { tags: new Set(['N/A']) }, {}, [], [], 'N/A')
+    expect(result.map((r) => r.name)).toEqual(['Game D'])
+  })
 })
 
 // ─── groupData ───────────────────────────────────────────────────────────────
@@ -188,7 +228,7 @@ describe('processData', () => {
 describe('groupData', () => {
   it('returns a single null-key group when groupBy is empty', () => {
     const result = groupData(ROWS, [])
-    expect(result).toEqual([{ key: null, rows: ROWS }])
+    expect(result).toEqual([{ key: null, keyParts: [], rows: ROWS }])
   })
 
   it('groups rows by a single column', () => {
@@ -202,6 +242,45 @@ describe('groupData', () => {
     const result = groupData(ROWS, ['dept', 'name'])
     expect(result.map((g) => g.key)).toContain('Eng › Alice')
     expect(result.map((g) => g.key)).toContain('HR › Bob')
+  })
+
+  it('exposes keyParts aligned with groupBy for each group', () => {
+    const result = groupData(ROWS, ['dept', 'name'])
+    const eng = result.find((g) => g.key === 'Eng › Alice')
+    expect(eng?.keyParts).toEqual(['Eng', 'Alice'])
+  })
+
+  it('fans an array-valued column out into one group per item', () => {
+    const result = groupData(GAMES, ['tags'])
+    expect(result.map((g) => g.key).sort()).toEqual(['Action', 'Adventure', 'RPG'])
+    expect(result.find((g) => g.key === 'Action')?.rows.map((r) => r.name)).toEqual([
+      'Game A',
+      'Game B',
+    ])
+    expect(result.find((g) => g.key === 'RPG')?.rows.map((r) => r.name)).toEqual([
+      'Game A',
+      'Game C',
+    ])
+  })
+
+  it('cross-products an array-valued column with another groupBy column', () => {
+    const gamesWithDev = GAMES.map((g) => ({ ...g, dev: g.id === 2 ? 'Studio B' : 'Studio A' }))
+    const result = groupData(gamesWithDev, ['dev', 'tags'])
+    expect(result.map((g) => g.key).sort()).toEqual(
+      ['Studio A › Action', 'Studio A › RPG', 'Studio B › Action', 'Studio B › Adventure'].sort(),
+    )
+  })
+
+  it('buckets rows with an empty array under a "(none)" group by default', () => {
+    const result = groupData(GAMES_WITH_EMPTY, ['tags'])
+    expect(result.map((g) => g.key).sort()).toEqual(['(none)', 'Action', 'Adventure', 'RPG'])
+    expect(result.find((g) => g.key === '(none)')?.rows.map((r) => r.name)).toEqual(['Game D'])
+  })
+
+  it('uses a custom emptyLabel for rows with an empty array', () => {
+    const result = groupData(GAMES_WITH_EMPTY, ['tags'], 'N/A')
+    expect(result.map((g) => g.key)).toContain('N/A')
+    expect(result.find((g) => g.key === 'N/A')?.rows.map((r) => r.name)).toEqual(['Game D'])
   })
 })
 
@@ -229,6 +308,24 @@ describe('computeStringValues', () => {
     const cols = [{ key: 'id' as const, label: 'ID', type: 'number' as const, filterable: false }]
     const result = computeStringValues(ROWS, cols)
     expect(result['id']).toBeUndefined()
+  })
+
+  it('flattens and dedupes array-valued columns instead of stringifying the whole array', () => {
+    const cols = [{ key: 'tags' as const, label: 'Tags' }]
+    const result = computeStringValues(GAMES, cols)
+    expect(result['tags']).toEqual(['Action', 'Adventure', 'RPG'])
+  })
+
+  it('lists a "(none)" entry for rows with an empty array, by default', () => {
+    const cols = [{ key: 'tags' as const, label: 'Tags' }]
+    const result = computeStringValues(GAMES_WITH_EMPTY, cols)
+    expect(result['tags']).toEqual(['(none)', 'Action', 'Adventure', 'RPG'])
+  })
+
+  it('uses a custom emptyLabel for rows with an empty array', () => {
+    const cols = [{ key: 'tags' as const, label: 'Tags' }]
+    const result = computeStringValues(GAMES_WITH_EMPTY, cols, 'N/A')
+    expect(result['tags']).toContain('N/A')
   })
 })
 

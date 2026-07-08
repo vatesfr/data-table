@@ -257,12 +257,15 @@ export function DataTable<TRow extends object>({
     sorts.length > 0 || activeFilterCount > 0 || groupBy.length > 0 || searchQuery !== ''
   const hasAggregates = activeColumns.some((c) => c.aggregate !== undefined)
 
-  const cellValue = (row: TRow, col: ColumnDef<TRow>) => {
-    const v = asRecord(row)[col.key]
+  const formatValue = (v: unknown, row: TRow, col: ColumnDef<TRow>) => {
     if (col.render) return col.render(v, row)
     if (col.format) return col.format(v, row)
+    if (Array.isArray(v)) return v.join(', ')
     return v != null ? String(v) : ''
   }
+
+  const cellValue = (row: TRow, col: ColumnDef<TRow>) =>
+    formatValue(asRecord(row)[col.key], row, col)
 
   return (
     <div style={S.wrap}>
@@ -595,7 +598,7 @@ export function DataTable<TRow extends object>({
             </tr>
           </thead>
           <tbody>
-            {groupedData.map(({ key: gkey, rows }) => {
+            {groupedData.map(({ key: gkey, keyParts, rows }) => {
               const isCollapsed = gkey !== null && collapsedGroups.has(gkey)
               return [
                 gkey !== null && (
@@ -621,11 +624,13 @@ export function DataTable<TRow extends object>({
                     <td colSpan={activeColumns.length} style={S.groupTd}>
                       {groupBy.map((g, i) => {
                         const col = columns.find((c) => c.key === g)
+                        const raw = asRecord(rows[0])[g]
+                        const value = Array.isArray(raw) ? keyParts[i] : raw
                         return (
                           <span key={g}>
                             {i > 0 && <span style={{ margin: '0 4px', opacity: 0.4 }}>›</span>}
                             <span style={{ marginRight: 4, opacity: 0.6 }}>{col?.label}:</span>
-                            {col ? cellValue(rows[0], col) : String(asRecord(rows[0])[g] ?? '')}
+                            {col ? formatValue(value, rows[0], col) : String(value ?? '')}
                           </span>
                         )
                       })}

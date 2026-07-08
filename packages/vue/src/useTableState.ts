@@ -50,7 +50,9 @@ export function useTableState<TRow extends object>(
   const selection = shallowRef<Set<TRow>>(new Set())
   const searchQuery = ref('')
 
-  const stringValueMap = computed(() => computeStringValues(data.value, columns.value))
+  const stringValueMap = computed(() =>
+    computeStringValues(data.value, columns.value, L.value.emptyValue),
+  )
 
   const processedData = computed(() =>
     processData(
@@ -58,6 +60,8 @@ export function useTableState<TRow extends object>(
       filters.value,
       rangeFilters.value,
       sorts.value,
+      columns.value,
+      L.value.emptyValue,
     ),
   )
 
@@ -67,7 +71,7 @@ export function useTableState<TRow extends object>(
     paginateData(processedData.value, Math.min(page.value, numPages.value), pageSize.value),
   )
 
-  const groupedData = computed(() => groupData(pagedData.value, groupBy.value))
+  const groupedData = computed(() => groupData(pagedData.value, groupBy.value, L.value.emptyValue))
 
   const activeColumns = computed(() =>
     columns.value.filter((c) => visibleCols.value.has(c.key) && !groupBy.value.includes(c.key)),
