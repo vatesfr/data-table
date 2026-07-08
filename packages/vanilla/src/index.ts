@@ -4,6 +4,7 @@ import {
   groupData,
   computeStringValues,
   computeAggregate,
+  getColumnValue,
   paginateData,
   calcTotalPages,
   toggleSort as coreToggleSort,
@@ -95,7 +96,7 @@ export function createDataTable<TRow extends object>(
     _numPages = calcTotalPages(_processedData.length, pageSize)
     _clampedPage = Math.min(page, Math.max(1, _numPages))
     const pagedData = paginateData(_processedData, _clampedPage, pageSize)
-    _groupedData = groupData(pagedData, groupBy, L.emptyValue)
+    _groupedData = groupData(pagedData, groupBy, columns, L.emptyValue)
     const activeColumns = columns.filter((c) => visibleCols.has(c.key) && !groupBy.includes(c.key))
     const activeFilterCount = countActiveFilters(filters, rangeFilters)
     const selectedRows = _processedData.filter((r) => selection.has(r))
@@ -115,7 +116,7 @@ export function createDataTable<TRow extends object>(
   }
 
   function cellStr(row: TRow, col: ColumnDef<TRow>): string {
-    return formatStr((row as Record<string, unknown>)[col.key], row, col)
+    return formatStr(getColumnValue(col, row), row, col)
   }
 
   function render(): void {
@@ -283,7 +284,7 @@ export function createDataTable<TRow extends object>(
         for (let gi = 0; gi < groupBy.length; gi++) {
           const gColKey = groupBy[gi]
           const gCol = columns.find((c) => c.key === gColKey)
-          const raw = (rows[0] as Record<string, unknown>)[gColKey]
+          const raw = gCol ? getColumnValue(gCol, rows[0]) : undefined
           const value = Array.isArray(raw) ? keyParts[gi] : raw
           if (gi > 0) html += `<span class="dt-group-sep"> › </span>`
           html += `<span class="dt-group-colname">${esc(gCol?.label ?? gColKey)}:</span> `

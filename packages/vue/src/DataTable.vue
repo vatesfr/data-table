@@ -1,6 +1,6 @@
 <script setup lang="ts" generic="TRow extends object">
 import { computed, watch, useSlots, getCurrentInstance } from 'vue'
-import { computeAggregate, type GroupResult } from '@vates/data-table-core'
+import { computeAggregate, getColumnValue, type GroupResult } from '@vates/data-table-core'
 import { useTableState } from './useTableState'
 import type { ColumnDef } from './types'
 import type { DataTableLabels } from '@vates/data-table-core'
@@ -138,7 +138,7 @@ function formatValue(v: unknown, row: TRow, col: ColumnDef<TRow>): string {
 }
 
 function cellText(row: TRow, col: ColumnDef<TRow>): string {
-  return formatValue(asRecord(row)[col.key], row, col)
+  return formatValue(getColumnValue(col, row), row, col)
 }
 
 function findCol(key: string): ColumnDef<TRow> | undefined {
@@ -147,7 +147,8 @@ function findCol(key: string): ColumnDef<TRow> | undefined {
 
 /** The value that defines a group for column `key` at groupBy index `i` — a single array item when the underlying value is an array, the raw value otherwise. */
 function groupValue(group: GroupResult<TRow>, key: string, i: number): unknown {
-  const raw = asRecord(group.rows[0])[key]
+  const col = findCol(key)
+  const raw = col ? getColumnValue(col, group.rows[0]) : undefined
   return Array.isArray(raw) ? group.keyParts[i] : raw
 }
 
@@ -471,7 +472,7 @@ function hasSlot(name: string): boolean {
                   <slot
                     v-if="hasSlot(`cell-${col.key}`)"
                     :name="`cell-${col.key}`"
-                    :value="asRecord(row)[col.key]"
+                    :value="getColumnValue(col, row)"
                     :row="row"
                   />
                   <template v-else>{{ cellText(row, col) }}</template>

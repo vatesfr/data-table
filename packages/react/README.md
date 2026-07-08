@@ -79,6 +79,30 @@ const COLUMNS: ColumnDef<Game>[] = [
 ]
 ```
 
+## Computed columns
+
+A column doesn't need a matching property on `TRow` — set `value` to a function to compute the cell value from the whole row. Sorting, filtering, grouping, and aggregation all work off the computed value, same as a regular column.
+
+```tsx
+const COLUMNS: ColumnDef<Employee>[] = [
+  { key: 'salary', label: 'Salary', type: 'number' },
+  { key: 'bonus', label: 'Bonus', type: 'number' },
+  {
+    key: 'total',
+    label: 'Total Comp',
+    type: 'number',
+    value: (row) => row.salary + row.bonus,
+    aggregate: 'sum',
+  },
+]
+```
+
+`value` also covers simple aliasing, reading a different property than `key`:
+
+```tsx
+{ key: 'employeeName', label: 'Name', value: (row) => row.name }
+```
+
 ## Row selection
 
 Pass `selectable` to show a checkbox column. The header checkbox selects/deselects the full filtered dataset (all pages at once). Group header checkboxes select/deselect all rows in that group. Both support indeterminate state.
@@ -116,10 +140,11 @@ const [selected, setSelected] = useState<Employee[]>([])
 
 ```ts
 interface ColumnDef<TRow extends object> {
-  key: keyof TRow & string
+  key: string // unique column id; used for row[key] lookup unless `value` is set
   label: string
   type?: 'string' | 'number' | 'date' // controls filter UI; default: 'string'
   width?: number
+  value?: (row: TRow) => unknown // compute the cell value from the whole row (also covers aliasing)
   format?: (value: unknown, row: TRow) => string
   sortable?: boolean // default: true
   filterable?: boolean // default: true

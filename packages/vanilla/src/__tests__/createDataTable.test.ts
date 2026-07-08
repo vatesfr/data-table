@@ -564,4 +564,34 @@ describe('createDataTable', () => {
     ].map((el) => el.dataset.value)
     expect(values).toContain('N/A')
   })
+
+  // --- computed columns ---
+
+  it('renders a cell value produced by col.value instead of row[key]', () => {
+    const cols: ColumnDef<Row>[] = [
+      ...COLS,
+      { key: 'grade', label: 'Grade', value: (row: Row) => (row.score >= 70 ? 'Pass' : 'Fail') },
+    ]
+    createDataTable(container, { data: ROWS, columns: cols })
+    expect(container.textContent).toContain('Pass')
+    expect(container.textContent).toContain('Fail')
+  })
+
+  it('groups by a computed column value', () => {
+    const cols: ColumnDef<Row>[] = [
+      ...COLS,
+      {
+        key: 'grade',
+        label: 'Grade',
+        groupable: true,
+        value: (row: Row) => (row.score >= 80 ? 'A' : 'B'),
+      },
+    ]
+    createDataTable(container, { data: ROWS, columns: cols })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="group"]')!)
+    click(container.querySelector<HTMLElement>('[data-action="toggle-group"][data-key="grade"]')!)
+    const groupTexts = [...container.querySelectorAll('.dt-group-td')].map((td) => td.textContent)
+    expect(groupTexts.some((t) => t?.includes('Grade: A'))).toBe(true)
+    expect(groupTexts.some((t) => t?.includes('Grade: B'))).toBe(true)
+  })
 })

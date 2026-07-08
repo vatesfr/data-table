@@ -5,6 +5,7 @@ import {
   groupData,
   computeStringValues,
   computeAggregate,
+  getColumnValue,
   paginateData,
   calcTotalPages,
   toggleSort,
@@ -49,6 +50,25 @@ const COLS_FOR_SEARCH = [
   { key: 'dept' as const, label: 'Dept' },
 ]
 
+// ─── getColumnValue ─────────────────────────────────────────────────────────
+
+describe('getColumnValue', () => {
+  it('reads row[key] when value is unset', () => {
+    const col = { key: 'name' as const, label: 'Name' }
+    expect(getColumnValue(col, ROWS[0])).toBe('Alice')
+  })
+
+  it('reads the aliased property when value is a function', () => {
+    const col = { key: 'employee', label: 'Employee', value: (row: Row) => row.name }
+    expect(getColumnValue(col, ROWS[0])).toBe('Alice')
+  })
+
+  it('calls the function with the full row when value is a function', () => {
+    const col = { key: 'salaryK', label: 'Salary (K)', value: (row: Row) => row.salary / 1000 }
+    expect(getColumnValue(col, ROWS[0])).toBe(90)
+  })
+})
+
 // ─── searchData ───────────────────────────────────────────────────────────────
 
 describe('searchData', () => {
@@ -85,6 +105,12 @@ describe('searchData', () => {
       },
     ]
     const result = searchData(ROWS, 'clara:110000', cols)
+    expect(result.map((r) => r.name)).toEqual(['Clara'])
+  })
+
+  it('matches against a computed column value', () => {
+    const cols = [{ key: 'salaryK', label: 'Salary (K)', value: (row: Row) => row.salary / 1000 }]
+    const result = searchData(ROWS, '110', cols)
     expect(result.map((r) => r.name)).toEqual(['Clara'])
   })
 })
@@ -135,6 +161,16 @@ describe('computeAggregate', () => {
     }
     expect(computeAggregate(col, ROWS)).toBe(8)
   })
+
+  it('sums a computed column value', () => {
+    const col = {
+      key: 'salaryK',
+      label: 'Salary (K)',
+      value: (row: Row) => row.salary / 1000,
+      aggregate: 'sum' as const,
+    }
+    expect(computeAggregate(col, ROWS)).toBe(330)
+  })
 })
 
 // ─── processData ─────────────────────────────────────────────────────────────
@@ -174,6 +210,12 @@ describe('processData', () => {
     expect(result.map((r) => r.name)).toEqual(['Alice', 'David'])
   })
 
+  it('range-filters using a computed column value', () => {
+    const cols = [{ key: 'salaryK', label: 'Salary (K)', value: (row: Row) => row.salary / 1000 }]
+    const result = processData(ROWS, {}, { salaryK: { min: '65', max: '95' } }, [], cols)
+    expect(result.map((r) => r.name)).toEqual(['Alice', 'David'])
+  })
+
   it('sorts ascending by string column', () => {
     const result = processData(ROWS, {}, {}, [{ key: 'name', dir: 'asc' }])
     expect(result.map((r) => r.name)).toEqual(['Alice', 'Bob', 'Clara', 'David'])
@@ -187,6 +229,12 @@ describe('processData', () => {
   it('sorts ascending by numeric column', () => {
     const result = processData(ROWS, {}, {}, [{ key: 'salary', dir: 'asc' }])
     expect(result.map((r) => r.salary)).toEqual([60000, 70000, 90000, 110000])
+  })
+
+  it('sorts using a computed column value', () => {
+    const cols = [{ key: 'salaryK', label: 'Salary (K)', value: (row: Row) => row.salary / 1000 }]
+    const result = processData(ROWS, {}, {}, [{ key: 'salaryK', dir: 'asc' }], cols)
+    expect(result.map((r) => r.name)).toEqual(['Bob', 'David', 'Alice', 'Clara'])
   })
 
   it('applies sort after filter', () => {
@@ -238,6 +286,22 @@ describe('groupData', () => {
     expect(result.find((g) => g.key === 'HR')?.rows).toHaveLength(2)
   })
 
+  it('groups by a computed column value', () => {
+    const cols = [
+      {
+        key: 'band',
+        label: 'Band',
+        value: (row: Row) => (row.salary >= 90000 ? 'High' : 'Low'),
+      },
+    ]
+    const result = groupData(ROWS, ['band'], cols)
+    expect(result.find((g) => g.key === 'High')?.rows.map((r) => r.name)).toEqual([
+      'Alice',
+      'Clara',
+    ])
+    expect(result.find((g) => g.key === 'Low')?.rows.map((r) => r.name)).toEqual(['Bob', 'David'])
+  })
+
   it('builds composite keys for multi-column grouping', () => {
     const result = groupData(ROWS, ['dept', 'name'])
     expect(result.map((g) => g.key)).toContain('Eng › Alice')
@@ -278,7 +342,7 @@ describe('groupData', () => {
   })
 
   it('uses a custom emptyLabel for rows with an empty array', () => {
-    const result = groupData(GAMES_WITH_EMPTY, ['tags'], 'N/A')
+    const result = groupData(GAMES_WITH_EMPTY, ['tags'], [], 'N/A')
     expect(result.map((g) => g.key)).toContain('N/A')
     expect(result.find((g) => g.key === 'N/A')?.rows.map((r) => r.name)).toEqual(['Game D'])
   })
@@ -326,6 +390,14 @@ describe('computeStringValues', () => {
     const cols = [{ key: 'tags' as const, label: 'Tags' }]
     const result = computeStringValues(GAMES_WITH_EMPTY, cols, 'N/A')
     expect(result['tags']).toContain('N/A')
+  })
+
+  it('collects values from a computed column', () => {
+    const cols = [
+      { key: 'band', label: 'Band', value: (row: Row) => (row.salary >= 90000 ? 'High' : 'Low') },
+    ]
+    const result = computeStringValues(ROWS, cols)
+    expect(result['band']).toEqual(['High', 'Low'])
   })
 })
 

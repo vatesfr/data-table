@@ -341,3 +341,43 @@ describe('useTableState — multi-value (array) columns', () => {
     expect(result.current.groupedData.map((g) => g.key)).toContain('N/A')
   })
 })
+
+describe('useTableState — computed columns', () => {
+  const COMPUTED_COLS: ColumnDef<Row>[] = [
+    ...COLS,
+    {
+      key: 'grade',
+      label: 'Grade',
+      groupable: true,
+      value: (row) => (row.score >= 80 ? 'A' : 'B'),
+    },
+  ]
+
+  it('sorts by a computed column value', () => {
+    const { result } = renderHook(() => useTableState(ROWS, COMPUTED_COLS))
+    act(() => {
+      result.current.toggleSort('grade')
+    })
+    expect(result.current.processedData.map((r) => r.name)).toEqual([
+      'Alice',
+      'Clara',
+      'Bob',
+      'David',
+    ])
+  })
+
+  it('groups by a computed column value', () => {
+    const { result } = renderHook(() => useTableState(ROWS, COMPUTED_COLS))
+    act(() => {
+      result.current.toggleGroup('grade')
+    })
+    expect(result.current.groupedData.find((g) => g.key === 'A')?.rows.map((r) => r.name)).toEqual([
+      'Alice',
+      'Clara',
+    ])
+    expect(result.current.groupedData.find((g) => g.key === 'B')?.rows.map((r) => r.name)).toEqual([
+      'Bob',
+      'David',
+    ])
+  })
+})

@@ -291,6 +291,16 @@ const COLUMNS: ColumnDef<Employee>[] = [
   },
   // filterable: false — no filter UI for this column
   { key: 'joined', label: 'Joined', type: 'date', width: 100, filterable: false },
+  // computed column: value is a function, so there's no matching 'tenure' property on Employee —
+  // sort/filter/group/aggregate all work off the function's return value just like a real column
+  {
+    key: 'tenure',
+    label: 'Tenure (yrs)',
+    type: 'number',
+    width: 100,
+    value: (row) => new Date().getFullYear() - new Date(row.joined).getFullYear(),
+    aggregate: 'avg',
+  },
   // render + renderFilterLabel — badge consistent in cells and filter dropdown
   {
     key: 'status',
@@ -321,6 +331,7 @@ const DEFAULT_VISIBLE = [
   'role',
   'salary',
   'joined',
+  'tenure',
   'status',
   'score',
   'skills',

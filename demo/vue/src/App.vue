@@ -291,6 +291,16 @@ const COLUMNS: ColumnDef<Employee>[] = [
   },
   // filterable: false — no filter UI for this column
   { key: 'joined', label: 'Joined', type: 'date', width: 100, filterable: false },
+  // computed column: value is a function, so there's no matching 'tenure' property on Employee —
+  // sort/filter/group/aggregate all work off the function's return value just like a real column
+  {
+    key: 'tenure',
+    label: 'Tenure (yrs)',
+    type: 'number',
+    width: 100,
+    value: (row) => new Date().getFullYear() - new Date(row.joined).getFullYear(),
+    aggregate: 'avg',
+  },
   // slot #cell-status / #filter-status / #group-status override rendering
   { key: 'status', label: 'Status', type: 'string', width: 90, groupable: true },
   // slot #cell-score overrides rendering
@@ -307,6 +317,7 @@ const DEFAULT_VISIBLE = [
   'role',
   'salary',
   'joined',
+  'tenure',
   'status',
   'score',
   'skills',

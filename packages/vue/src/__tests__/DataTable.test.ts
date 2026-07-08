@@ -56,3 +56,17 @@ describe('DataTable — rowClick', () => {
     expect(wrapper.emitted('rowClick')).toBeFalsy()
   })
 })
+
+describe('DataTable — computed columns', () => {
+  it('renders a cell value produced by col.value instead of row[key]', () => {
+    const cols: ColumnDef<Row>[] = [
+      ...COLS,
+      { key: 'grade', label: 'Grade', value: (row: Row) => (row.score >= 70 ? 'Pass' : 'Fail') },
+    ]
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS, columns: cols, rowKey: 'id' },
+    })
+    expect(wrapper.text()).toContain('Pass')
+    expect(wrapper.text()).toContain('Fail')
+  })
+})

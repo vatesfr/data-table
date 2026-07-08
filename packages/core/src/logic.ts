@@ -4,6 +4,11 @@ function asRecord(row: object): Record<string, unknown> {
   return row as Record<string, unknown>
 }
 
+/** Reads a column's cell value from a row per its `value` accessor (or `row[key]` if unset). */
+export function getColumnValue<TRow extends object>(col: ColumnDefBase<TRow>, row: TRow): unknown {
+  return col.value ? col.value(row) : asRecord(row)[col.key]
+}
+
 /**
  * Normalizes a cell value to a string array: arrays are stringified item-by-item, scalars
  * become a single-item array. An empty array normalizes to a single `emptyLabel` item instead
@@ -28,9 +33,10 @@ export function processData<TRow extends object>(
 
   for (const [key, vals] of Object.entries(filters)) {
     if (vals.size === 0) continue
-    const mode = colByKey.get(key)?.multiMode ?? 'or'
+    const col = colByKey.get(key)
+    const mode = col?.multiMode ?? 'or'
     result = result.filter((row) => {
-      const rowValues = multiValues(asRecord(row)[key], emptyLabel)
+      const rowValues = multiValues(col ? getColumnValue(col, row) : asRecord(row)[key], emptyLabel)
       return mode === 'and'
         ? [...vals].every((v) => rowValues.includes(v))
         : [...vals].some((v) => rowValues.includes(v))
@@ -38,17 +44,18 @@ export function processData<TRow extends object>(
   }
 
   for (const [key, range] of Object.entries(rangeFilters)) {
-    if (range.min !== '')
-      result = result.filter((r) => Number(asRecord(r)[key]) >= Number(range.min))
-    if (range.max !== '')
-      result = result.filter((r) => Number(asRecord(r)[key]) <= Number(range.max))
+    const col = colByKey.get(key)
+    const rangeValue = (r: TRow) => (col ? getColumnValue(col, r) : asRecord(r)[key])
+    if (range.min !== '') result = result.filter((r) => Number(rangeValue(r)) >= Number(range.min))
+    if (range.max !== '') result = result.filter((r) => Number(rangeValue(r)) <= Number(range.max))
   }
 
   if (sorts.length > 0) {
     result.sort((a, b) => {
       for (const { key, dir } of sorts) {
-        const va = asRecord(a)[key]
-        const vb = asRecord(b)[key]
+        const col = colByKey.get(key)
+        const va = col ? getColumnValue(col, a) : asRecord(a)[key]
+        const vb = col ? getColumnValue(col, b) : asRecord(b)[key]
         let cmp = 0
         if (typeof va === 'number' && typeof vb === 'number') cmp = va - vb
         else cmp = String(va ?? '').localeCompare(String(vb ?? ''))
@@ -76,14 +83,17 @@ export interface GroupResult<TRow extends object> {
 export function groupData<TRow extends object>(
   data: TRow[],
   groupBy: string[],
+  columns: ColumnDefBase<TRow>[] = [],
   emptyLabel = '(none)',
 ): GroupResult<TRow>[] {
   if (groupBy.length === 0) return [{ key: null, keyParts: [], rows: data }]
+  const colByKey = new Map<string, ColumnDefBase<TRow>>(columns.map((c) => [c.key, c]))
   const groups: Record<string, { keyParts: string[]; rows: TRow[] }> = {}
   for (const row of data) {
     let combos: string[][] = [[]]
     for (const g of groupBy) {
-      const values = multiValues(asRecord(row)[g], emptyLabel)
+      const col = colByKey.get(g)
+      const values = multiValues(col ? getColumnValue(col, row) : asRecord(row)[g], emptyLabel)
       combos = combos.flatMap((combo) => values.map((v) => [...combo, v]))
     }
     for (const keyParts of combos) {
@@ -105,7 +115,9 @@ export function computeStringValues<TRow extends object>(
     (c) => c.type !== 'number' && c.type !== 'date' && c.filterable !== false,
   )
   for (const col of cols) {
-    const values = [...new Set(data.flatMap((r) => multiValues(asRecord(r)[col.key], emptyLabel)))]
+    const values = [
+      ...new Set(data.flatMap((r) => multiValues(getColumnValue(col, r), emptyLabel))),
+    ]
     map[col.key] = values.sort()
   }
   return map
@@ -175,7 +187,7 @@ export function searchData<TRow extends object>(
   const q = query.toLowerCase()
   return data.filter((row) =>
     columns.some((col) => {
-      const v = asRecord(row)[col.key]
+      const v = getColumnValue(col, row)
       const s = col.format ? col.format(v, row) : v != null ? String(v) : ''
       return s.toLowerCase().includes(q)
     }),
@@ -189,7 +201,7 @@ export function computeAggregate<TRow extends object>(
   if (!col.aggregate) return undefined
   if (typeof col.aggregate === 'function') return col.aggregate(rows)
   if (col.aggregate === 'count') return rows.length
-  const nums = rows.map((r) => Number(asRecord(r)[col.key])).filter((n) => !isNaN(n))
+  const nums = rows.map((r) => Number(getColumnValue(col, r))).filter((n) => !isNaN(n))
   if (nums.length === 0) return undefined
   switch (col.aggregate) {
     case 'sum':

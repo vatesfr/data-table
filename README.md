@@ -185,10 +185,11 @@ delete document.documentElement.dataset.theme
 
 ```ts
 interface ColumnDefBase<TRow extends object> {
-  key: keyof TRow & string // must be a key of TRow
+  key: string // unique column id; used for row[key] lookup unless `value` is set
   label: string
   type?: 'string' | 'number' | 'date' // controls filter UI; default: 'string'
   width?: number
+  value?: (row: TRow) => unknown // compute the cell value from the whole row (also covers aliasing)
   format?: (value: unknown, row: TRow) => string // plain-string formatter (both adapters)
   sortable?: boolean // default: true
   filterable?: boolean // default: true
@@ -198,6 +199,14 @@ interface ColumnDefBase<TRow extends object> {
 ```
 
 React extends this with `render?` and `renderFilterLabel?`. Vue uses scoped slots instead.
+
+### Computed columns
+
+A column doesn't need a matching property on `TRow` — set `value` to a function to compute the cell value from the whole row, or to a string to read a different property than `key`. Sorting, filtering, grouping, and aggregation all work off the resolved value, same as a regular column:
+
+```ts
+{ key: 'total', label: 'Total Comp', type: 'number', value: (row) => row.salary + row.bonus, aggregate: 'sum' }
+```
 
 ### Array-valued (multi-value) columns
 

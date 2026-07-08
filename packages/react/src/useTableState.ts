@@ -71,8 +71,8 @@ export function useTableState<TRow extends object>(
   )
 
   const groupedData = useMemo(
-    () => groupData(pagedData, groupBy, L.emptyValue),
-    [pagedData, groupBy, L.emptyValue],
+    () => groupData(pagedData, groupBy, columns, L.emptyValue),
+    [pagedData, groupBy, columns, L.emptyValue],
   )
 
   const activeColumns = useMemo(

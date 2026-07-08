@@ -71,7 +71,9 @@ export function useTableState<TRow extends object>(
     paginateData(processedData.value, Math.min(page.value, numPages.value), pageSize.value),
   )
 
-  const groupedData = computed(() => groupData(pagedData.value, groupBy.value, L.value.emptyValue))
+  const groupedData = computed(() =>
+    groupData(pagedData.value, groupBy.value, columns.value, L.value.emptyValue),
+  )
 
   const activeColumns = computed(() =>
     columns.value.filter((c) => visibleCols.value.has(c.key) && !groupBy.value.includes(c.key)),

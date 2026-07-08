@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, type CSSProperties } from 'react'
-import { computeAggregate } from '@vates/data-table-core'
+import { computeAggregate, getColumnValue } from '@vates/data-table-core'
 import { useTableState } from './useTableState'
 import { Dropdown } from './components/Dropdown'
 import { ToolbarBtn } from './components/ToolbarBtn'
@@ -267,7 +267,7 @@ export function DataTable<TRow extends object>({
   }
 
   const cellValue = (row: TRow, col: ColumnDef<TRow>) =>
-    formatValue(asRecord(row)[col.key], row, col)
+    formatValue(getColumnValue(col, row), row, col)
 
   return (
     <div style={S.wrap}>
@@ -626,7 +626,7 @@ export function DataTable<TRow extends object>({
                     <td colSpan={activeColumns.length} style={S.groupTd}>
                       {groupBy.map((g, i) => {
                         const col = columns.find((c) => c.key === g)
-                        const raw = asRecord(rows[0])[g]
+                        const raw = col ? getColumnValue(col, rows[0]) : undefined
                         const value = Array.isArray(raw) ? keyParts[i] : raw
                         return (
                           <span key={g}>

@@ -78,3 +78,15 @@ describe('DataTable — onRowClick', () => {
     expect(row.style.background).toBe('var(--color-background-info)')
   })
 })
+
+describe('DataTable — computed columns', () => {
+  it('renders a cell value produced by col.value instead of row[key]', () => {
+    const cols: ColumnDef<Row>[] = [
+      ...COLS,
+      { key: 'grade', label: 'Grade', value: (row) => (row.score >= 70 ? 'Pass' : 'Fail') },
+    ]
+    const { getByText } = render(<DataTable data={ROWS} columns={cols} rowKey="id" />)
+    expect(getByText('Pass')).toBeTruthy()
+    expect(getByText('Fail')).toBeTruthy()
+  })
+})

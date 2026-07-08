@@ -61,7 +61,7 @@ demo/
 All stateless logic lives here:
 
 - **`types.ts`** — shared interfaces: `ColumnDefBase<TRow>`, `AggregateType`, `SortEntry`, `RangeFilter`, `DataTableLabels`, `DEFAULT_LABELS` (English default strings)
-- **`logic.ts`** — pure functions: `processData`, `searchData`, `groupData`, `computeStringValues`, `computeAggregate`, `paginateData`, `calcTotalPages`, `toggleSort`, `toggleFilter`, `toggleGroupBy`, `toggleCollapse`, `getSortIcon`, `getSortIndex`, `countActiveFilters`
+- **`logic.ts`** — pure functions: `getColumnValue`, `processData`, `searchData`, `groupData`, `computeStringValues`, `computeAggregate`, `paginateData`, `calcTotalPages`, `toggleSort`, `toggleFilter`, `toggleGroupBy`, `toggleCollapse`, `getSortIcon`, `getSortIndex`, `countActiveFilters`
 - **`locales.ts`** — built-in locale objects: `LABELS_EN`, `LABELS_FR`, `LABELS_ES`, `LABELS_DE`, `LABELS_PT`
 
 The internal `asRecord(row: object): Record<string, unknown>` helper exists because the generic constraint is `TRow extends object` (not `Record<string, unknown>`) — TypeScript interfaces lack index signatures so the wider constraint is needed, and `asRecord` lets internal logic access arbitrary keys.
@@ -126,6 +126,12 @@ Custom cell renders (React `render`, Vue `#cell-*` slots) that put clickable ele
 ### Global search
 
 `searchData(data, query, columns)` filters rows before `processData` runs — it matches any column's string value (using `col.format` when defined) case-insensitively against the query. Both adapters expose `searchQuery` state and a `setSearchQuery` action; `clearAll` resets it. The vanilla adapter restores focus on the search input across re-renders via `data-focus-key="search"`.
+
+### Computed columns
+
+`ColumnDefBase.value?: (row: TRow) => unknown` decouples a column's cell value from its `key`. `key` stays a plain `string` (loosened from `keyof TRow & string`) and is only ever used as the column's identity — for sort/filter/group/visibility state and list keys. `value` governs how the cell value is actually read: omitted reads `row[key]` (unchanged default behavior), a function computes the value from the whole row — covering both simple aliasing (`value: (row) => row.name`) and true computed columns with no single backing property (`value: (row) => row.price * row.qty`). A string form (reading a named property instead of `key`) was considered and rejected: it's strictly redundant with the function form (which already covers aliasing, plus nested access like `value: (row) => row.address.city`, at no extra API cost), so it would just be a second way to do the same thing. `getColumnValue(col, row)` in `logic.ts` is the single accessor implementing this and is used everywhere a cell value is read: `processData`'s filter/range-filter/sort, `groupData`, `computeStringValues`, `searchData`, and `computeAggregate`. All of these already accepted a `columns` array except `groupData`, which gained one (`groupData(data, groupBy, columns, emptyLabel)`) so groupBy columns can be computed too.
+
+Each adapter's own cell/group-header rendering (React `cellValue()`, Vue `cellText()`/`groupValue()`, vanilla `cellStr()`) calls `getColumnValue` instead of reading `row[col.key]` directly. `rowKey` (React/vanilla prop, Vue prop) is a separate, unrelated concept — it identifies a row for list keys/DOM identity and still reads a real row property directly, untouched by this.
 
 ### Grouped columns
 
