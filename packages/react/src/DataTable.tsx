@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, type CSSProperties } from 'react'
-import { computeAggregate } from '@vates/flexi-table-core'
+import { computeAggregate } from '@vates/data-table-core'
 import { useTableState } from './useTableState'
 import { Dropdown } from './components/Dropdown'
 import { ToolbarBtn } from './components/ToolbarBtn'

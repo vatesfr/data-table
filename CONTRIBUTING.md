@@ -3,8 +3,8 @@
 ## Setup
 
 ```bash
-git clone https://github.com/vatesfr/flexi-table.git
-cd flexi-table
+git clone https://github.com/vatesfr/data-table.git
+cd data-table
 npm install
 ```
 

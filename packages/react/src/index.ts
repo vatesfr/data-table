@@ -12,6 +12,6 @@ export type {
   SortDir,
   RangeFilter,
   ColumnDefBase,
-} from '@vates/flexi-table-core'
-export { DEFAULT_LABELS } from '@vates/flexi-table-core'
-export * from '@vates/flexi-table-core/locales'
+} from '@vates/data-table-core'
+export { DEFAULT_LABELS } from '@vates/data-table-core'
+export * from '@vates/data-table-core/locales'

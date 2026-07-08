@@ -1,8 +1,8 @@
-# @vates/flexi-table-core
+# @vates/data-table-core
 
-Framework-agnostic core logic for [flexi-table](../../README.md). Zero runtime dependencies.
+Framework-agnostic core logic for [data-table](../../README.md). Zero runtime dependencies.
 
-You don't need this package directly if you're using `@vates/flexi-table-react` or `@vates/flexi-table-vue` — it is bundled into both adapters. Use it only if you're building your own adapter.
+You don't need this package directly if you're using `@vates/data-table-react` or `@vates/data-table-vue` — it is bundled into both adapters. Use it only if you're building your own adapter.
 
 ## What's inside
 

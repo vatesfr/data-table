@@ -4,7 +4,7 @@ import { defineConfig } from 'vitest/config'
 export default defineConfig({
   resolve: {
     alias: {
-      '@vates/flexi-table-core': resolve(__dirname, '../core/src'),
+      '@vates/data-table-core': resolve(__dirname, '../core/src'),
     },
   },
   test: {

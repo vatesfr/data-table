@@ -12,7 +12,7 @@ import {
   LABELS_PT,
   type ColumnDef,
   type DataTableLabels,
-} from '@vates/flexi-table-vue'
+} from '@vates/data-table-vue'
 
 interface Employee {
   id: number
@@ -355,7 +355,7 @@ function fmtSalary(n: number) {
     <div
       style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px"
     >
-      <h1 style="font-size: 20px; font-weight: 600; margin: 0">FlexiTable — Vue</h1>
+      <h1 style="font-size: 20px; font-weight: 600; margin: 0">DataTable — Vue</h1>
       <div style="display: flex; gap: 4px; align-items: center">
         <button
           v-for="key in Object.keys(LOCALES)"
@@ -406,7 +406,7 @@ function fmtSalary(n: number) {
         margin-bottom: 24px;
       "
     >
-      @vates/flexi-table-vue
+      @vates/data-table-vue
     </p>
 
     <DataTable

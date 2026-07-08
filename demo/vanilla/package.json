@@ -1,5 +1,5 @@
 {
-  "name": "@vates/flexi-table-demo-vanilla",
+  "name": "@vates/data-table-demo-vanilla",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -8,7 +8,7 @@
     "build": "vite build"
   },
   "dependencies": {
-    "@vates/flexi-table-vanilla": "*"
+    "@vates/data-table-vanilla": "*"
   },
   "devDependencies": {
     "typescript": "^5.5.0",

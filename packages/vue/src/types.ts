@@ -1,4 +1,4 @@
-import type { ColumnDefBase, DataTableLabels } from '@vates/flexi-table-core'
+import type { ColumnDefBase, DataTableLabels } from '@vates/data-table-core'
 
 // Vue uses scoped slots instead of render functions — no extra fields needed.
 export type ColumnDef<TRow extends object = Record<string, unknown>> = ColumnDefBase<TRow>

@@ -9,8 +9,8 @@
     "skipLibCheck": true,
     "noEmit": true,
     "paths": {
-      "@vates/flexi-table-core": ["../../packages/core/src/index.ts"],
-      "@vates/flexi-table-vue": ["../../packages/vue/src/index.ts"]
+      "@vates/data-table-core": ["../../packages/core/src/index.ts"],
+      "@vates/data-table-vue": ["../../packages/vue/src/index.ts"]
     }
   },
   "include": ["src"]

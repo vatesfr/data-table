@@ -17,7 +17,7 @@ import {
   type SortEntry,
   type RangeFilter,
   type DataTableLabels,
-} from '@vates/flexi-table-core'
+} from '@vates/data-table-core'
 import type { ColumnDef } from './types'
 
 export function useTableState<TRow extends object>(

@@ -1,11 +1,11 @@
 {
-  "name": "@vates/flexi-table-react",
+  "name": "@vates/data-table-react",
   "version": "0.1.0",
-  "description": "React adapter for flexi-table",
+  "description": "React adapter for data-table",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/vatesfr/flexi-table.git",
+    "url": "https://github.com/vatesfr/data-table.git",
     "directory": "packages/react"
   },
   "keywords": [
@@ -43,7 +43,7 @@
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
-    "@vates/flexi-table-core": "*"
+    "@vates/data-table-core": "*"
   },
   "devDependencies": {
     "@testing-library/react": "^16.3.2",

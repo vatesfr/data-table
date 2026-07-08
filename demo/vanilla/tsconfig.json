@@ -7,9 +7,9 @@
     "strict": true,
     "skipLibCheck": true,
     "paths": {
-      "@vates/flexi-table-core": ["../../packages/core/src/index.ts"],
-      "@vates/flexi-table-core/locales": ["../../packages/core/src/locales.ts"],
-      "@vates/flexi-table-vanilla": ["../../packages/vanilla/src/index.ts"]
+      "@vates/data-table-core": ["../../packages/core/src/index.ts"],
+      "@vates/data-table-core/locales": ["../../packages/core/src/locales.ts"],
+      "@vates/data-table-vanilla": ["../../packages/vanilla/src/index.ts"]
     }
   },
   "include": ["src"],

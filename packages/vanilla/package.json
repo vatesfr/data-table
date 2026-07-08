@@ -1,11 +1,11 @@
 {
-  "name": "@vates/flexi-table-vanilla",
+  "name": "@vates/data-table-vanilla",
   "version": "0.1.0",
-  "description": "Vanilla JS adapter for flexi-table",
+  "description": "Vanilla JS adapter for data-table",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/vatesfr/flexi-table.git",
+    "url": "https://github.com/vatesfr/data-table.git",
     "directory": "packages/vanilla"
   },
   "keywords": [
@@ -43,7 +43,7 @@
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
-    "@vates/flexi-table-core": "*"
+    "@vates/data-table-core": "*"
   },
   "devDependencies": {
     "jsdom": "^25.0.1",

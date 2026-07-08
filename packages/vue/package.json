@@ -1,11 +1,11 @@
 {
-  "name": "@vates/flexi-table-vue",
+  "name": "@vates/data-table-vue",
   "version": "0.1.0",
-  "description": "Vue 3 adapter for flexi-table",
+  "description": "Vue 3 adapter for data-table",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/vatesfr/flexi-table.git",
+    "url": "https://github.com/vatesfr/data-table.git",
     "directory": "packages/vue"
   },
   "keywords": [
@@ -44,7 +44,7 @@
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
-    "@vates/flexi-table-core": "*"
+    "@vates/data-table-core": "*"
   },
   "peerDependencies": {
     "vue": ">=3.3.0"

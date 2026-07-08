@@ -1,11 +1,11 @@
-# @vates/flexi-table-vue
+# @vates/data-table-vue
 
-Vue 3 adapter for [flexi-table](../../README.md) — a flexible, fully-typed data table with sorting, filtering, column visibility, and row grouping.
+Vue 3 adapter for [data-table](../../README.md) — a flexible, fully-typed data table with sorting, filtering, column visibility, and row grouping.
 
 ## Install
 
 ```bash
-npm install @vates/flexi-table-vue
+npm install @vates/data-table-vue
 ```
 
 Requires Vue ≥ 3.3.
@@ -14,7 +14,7 @@ Requires Vue ≥ 3.3.
 
 ```vue
 <script setup lang="ts">
-import { DataTable, type ColumnDef } from '@vates/flexi-table-vue'
+import { DataTable, type ColumnDef } from '@vates/data-table-vue'
 
 interface Employee {
   id: number
@@ -155,7 +155,7 @@ For custom rendering, provide a `#cell-{key}` slot instead of a `render` functio
 If you need to build a custom layout, use the composable directly:
 
 ```ts
-import { useTableState } from '@vates/flexi-table-vue'
+import { useTableState } from '@vates/data-table-vue'
 
 const {
   // Reactive state (refs)
@@ -207,7 +207,7 @@ const {
 Use a built-in locale or supply any `Partial<DataTableLabels>` overrides (shallow-merged over English defaults):
 
 ```ts
-import { LABELS_FR } from '@vates/flexi-table-vue'
+import { LABELS_FR } from '@vates/data-table-vue'
 ```
 
 ```vue

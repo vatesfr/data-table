@@ -1,5 +1,5 @@
 {
-  "name": "@vates/flexi-table-workspace",
+  "name": "@vates/data-table-workspace",
   "private": true,
   "workspaces": [
     "packages/*",

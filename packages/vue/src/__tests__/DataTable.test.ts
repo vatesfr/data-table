@@ -38,14 +38,14 @@ describe('DataTable — rowClick', () => {
     const wrapper = mount(DataTable, {
       props: { data: ROWS, columns: COLS, rowKey: 'id' },
     })
-    expect(wrapper.find('tbody tr').classes()).not.toContain('ft__tr--clickable')
+    expect(wrapper.find('tbody tr').classes()).not.toContain('dt__tr--clickable')
   })
 
   it('adds the clickable class when a rowClick listener is attached', () => {
     const wrapper = mount(DataTable, {
       props: { data: ROWS, columns: COLS, rowKey: 'id', onRowClick: vi.fn() },
     })
-    expect(wrapper.find('tbody tr').classes()).toContain('ft__tr--clickable')
+    expect(wrapper.find('tbody tr').classes()).toContain('dt__tr--clickable')
   })
 
   it('clicking the selection checkbox does not emit rowClick', async () => {

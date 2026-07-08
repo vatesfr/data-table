@@ -1,17 +1,17 @@
-# @vates/flexi-table-vanilla
+# @vates/data-table-vanilla
 
-Vanilla JS adapter for [flexi-table](../../README.md) — a flexible, fully-typed data table with sorting, filtering, column visibility, and row grouping. No framework required.
+Vanilla JS adapter for [data-table](../../README.md) — a flexible, fully-typed data table with sorting, filtering, column visibility, and row grouping. No framework required.
 
 ## Install
 
 ```bash
-npm install @vates/flexi-table-vanilla
+npm install @vates/data-table-vanilla
 ```
 
 ## Usage
 
 ```ts
-import { createFlexiTable, type ColumnDef } from '@vates/flexi-table-vanilla'
+import { createDataTable, type ColumnDef } from '@vates/data-table-vanilla'
 
 interface Employee {
   id: number
@@ -31,7 +31,7 @@ const COLUMNS: ColumnDef<Employee>[] = [
   },
 ]
 
-const table = createFlexiTable(document.getElementById('table')!, {
+const table = createDataTable(document.getElementById('table')!, {
   data: employees,
   columns: COLUMNS,
   rowKey: 'id',
@@ -45,7 +45,7 @@ table.setColumns(newColumns)
 table.destroy()
 ```
 
-CSS is injected automatically into `<head>` on the first `createFlexiTable` call. This includes all color tokens and dark-mode overrides that activate automatically via `prefers-color-scheme: dark`. The injected `<style>` tag is placed before any existing `<head>` children, so a stylesheet you define yourself (see [Theming](#theming)) always wins the cascade regardless of import order.
+CSS is injected automatically into `<head>` on the first `createDataTable` call. This includes all color tokens and dark-mode overrides that activate automatically via `prefers-color-scheme: dark`. The injected `<style>` tag is placed before any existing `<head>` children, so a stylesheet you define yourself (see [Theming](#theming)) always wins the cascade regardless of import order.
 
 ## Theming
 
@@ -114,7 +114,7 @@ const data = [
   { id: 2, name: 'Game B', tags: ['Action', 'Adventure'] },
 ]
 
-createFlexiTable(container, { data, columns: COLUMNS, rowKey: 'id' })
+createDataTable(container, { data, columns: COLUMNS, rowKey: 'id' })
 // Filter dropdown shows individual items: "Action" | "Adventure" | "RPG"
 // Selecting "Action" matches both games
 ```
@@ -129,7 +129,7 @@ createFlexiTable(container, { data, columns: COLUMNS, rowKey: 'id' })
 Pass `selectable` to show a checkbox column. The header checkbox selects/deselects the full filtered dataset (all pages at once). Group header checkboxes select/deselect all rows in that group. Both support indeterminate state.
 
 ```ts
-const table = createFlexiTable(container, {
+const table = createDataTable(container, {
   data: employees,
   columns: COLUMNS,
   rowKey: 'id',
@@ -182,9 +182,9 @@ interface ColumnDef<TRow extends object> {
 Use a built-in locale or supply any `Partial<DataTableLabels>` overrides (shallow-merged over English defaults):
 
 ```ts
-import { LABELS_FR } from '@vates/flexi-table-vanilla'
+import { LABELS_FR } from '@vates/data-table-vanilla'
 
-createFlexiTable(container, { data, columns, labels: LABELS_FR })
+createDataTable(container, { data, columns, labels: LABELS_FR })
 ```
 
 Built-in locales: `LABELS_EN` (default), `LABELS_FR`, `LABELS_ES`, `LABELS_DE`, `LABELS_PT`.

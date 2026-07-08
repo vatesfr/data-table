@@ -1,5 +1,5 @@
 {
-  "name": "@vates/flexi-table-demo-react",
+  "name": "@vates/data-table-demo-react",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -8,7 +8,7 @@
     "build": "vite build"
   },
   "dependencies": {
-    "@vates/flexi-table-react": "*",
+    "@vates/data-table-react": "*",
     "react": "^18.3.0",
     "react-dom": "^18.3.0"
   },

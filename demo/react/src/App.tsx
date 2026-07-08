@@ -11,7 +11,7 @@ import {
   LABELS_PT,
   type ColumnDef,
   type DataTableLabels,
-} from '@vates/flexi-table-react'
+} from '@vates/data-table-react'
 
 interface Employee {
   id: number
@@ -421,7 +421,7 @@ export default function App() {
           marginBottom: 4,
         }}
       >
-        <h1 style={{ fontSize: 20, fontWeight: 600, margin: 0 }}>FlexiTable — React</h1>
+        <h1 style={{ fontSize: 20, fontWeight: 600, margin: 0 }}>DataTable — React</h1>
         <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
           {Object.keys(LOCALES).map((key) => (
             <button
@@ -478,7 +478,7 @@ export default function App() {
           marginBottom: 24,
         }}
       >
-        @vates/flexi-table-react
+        @vates/data-table-react
       </p>
       <DataTable
         data={SAMPLE_DATA}

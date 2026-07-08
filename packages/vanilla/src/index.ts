@@ -17,13 +17,13 @@ import {
   type SortEntry,
   type RangeFilter,
   type DataTableLabels,
-} from '@vates/flexi-table-core'
-import type { ColumnDef, FlexiTableOptions, FlexiTableInstance } from './types'
+} from '@vates/data-table-core'
+import type { ColumnDef, DataTableOptions, DataTableInstance } from './types'
 import { STYLES } from './styles'
 
-export type { ColumnDef, FlexiTableOptions, FlexiTableInstance }
-export type { DataTableLabels } from '@vates/flexi-table-core'
-export * from '@vates/flexi-table-core/locales'
+export type { ColumnDef, DataTableOptions, DataTableInstance }
+export type { DataTableLabels } from '@vates/data-table-core'
+export * from '@vates/data-table-core/locales'
 
 // --- Styles ---
 
@@ -32,7 +32,7 @@ function injectStyles(): void {
   if (stylesInjected || typeof document === 'undefined') return
   stylesInjected = true
   const s = document.createElement('style')
-  s.dataset.ftStyles = ''
+  s.dataset.dtStyles = ''
   s.textContent = STYLES
   document.head.insertBefore(s, document.head.firstChild)
 }
@@ -48,15 +48,15 @@ function esc(v: unknown): string {
 }
 
 function buildDd(isOpen: boolean, trigger: string, contentFn: () => string): string {
-  return `<div class="ft-dd-wrap">${trigger}${isOpen ? `<div class="ft-dd">${contentFn()}</div>` : ''}</div>`
+  return `<div class="dt-dd-wrap">${trigger}${isOpen ? `<div class="dt-dd">${contentFn()}</div>` : ''}</div>`
 }
 
 // --- Factory ---
 
-export function createFlexiTable<TRow extends object>(
+export function createDataTable<TRow extends object>(
   container: HTMLElement,
-  options: FlexiTableOptions<TRow>,
-): FlexiTableInstance<TRow> {
+  options: DataTableOptions<TRow>,
+): DataTableInstance<TRow> {
   injectStyles()
 
   let data = options.data
@@ -139,19 +139,19 @@ export function createFlexiTable<TRow extends object>(
     )
     const groupableCols = columns.filter((c) => c.groupable === true)
 
-    let html = `<div class="ft">`
+    let html = `<div class="dt">`
 
     // --- Toolbar ---
-    html += `<div class="ft-toolbar">`
+    html += `<div class="dt-toolbar">`
 
     // Columns
     html += buildDd(
       openDropdown === 'cols',
-      `<button class="ft-btn${openDropdown === 'cols' ? ' ft-btn--active' : ''}" data-action="toggle-dd" data-dd="cols">${esc(L.columns)}</button>`,
+      `<button class="dt-btn${openDropdown === 'cols' ? ' dt-btn--active' : ''}" data-action="toggle-dd" data-dd="cols">${esc(L.columns)}</button>`,
       () => {
-        let s = `<div class="ft-dd-section">${esc(L.columnsSection)}</div>`
+        let s = `<div class="dt-dd-section">${esc(L.columnsSection)}</div>`
         for (const col of columns) {
-          s += `<label class="ft-dd-item"><input type="checkbox" data-action="toggle-col" data-key="${esc(col.key)}"${visibleCols.has(col.key) ? ' checked' : ''}> ${esc(col.label)}</label>`
+          s += `<label class="dt-dd-item"><input type="checkbox" data-action="toggle-col" data-key="${esc(col.key)}"${visibleCols.has(col.key) ? ' checked' : ''}> ${esc(col.label)}</label>`
         }
         return s
       },
@@ -160,15 +160,15 @@ export function createFlexiTable<TRow extends object>(
     // Sort
     html += buildDd(
       openDropdown === 'sort',
-      `<button class="ft-btn${sorts.length > 0 ? ' ft-btn--active' : ''}" data-action="toggle-dd" data-dd="sort">${esc(L.sort)}${sorts.length > 0 ? ` <span class="ft-chip">${sorts.length}</span>` : ''}</button>`,
+      `<button class="dt-btn${sorts.length > 0 ? ' dt-btn--active' : ''}" data-action="toggle-dd" data-dd="sort">${esc(L.sort)}${sorts.length > 0 ? ` <span class="dt-chip">${sorts.length}</span>` : ''}</button>`,
       () => {
-        let s = `<div class="ft-dd-section">${esc(L.sortSection)}</div>`
+        let s = `<div class="dt-dd-section">${esc(L.sortSection)}</div>`
         for (const col of columns) {
           const sortIdx = getSortIndex(sorts, col.key)
-          s += `<div class="ft-dd-item ft-dd-item--click" data-action="toggle-sort" data-key="${esc(col.key)}"><span class="ft-sort-idx">${sortIdx ?? ''}</span><span style="flex:1">${esc(col.label)}</span><span class="ft-sort-icon${sortIdx ? ' ft-sort-icon--active' : ''}">${getSortIcon(sorts, col.key)}</span></div>`
+          s += `<div class="dt-dd-item dt-dd-item--click" data-action="toggle-sort" data-key="${esc(col.key)}"><span class="dt-sort-idx">${sortIdx ?? ''}</span><span style="flex:1">${esc(col.label)}</span><span class="dt-sort-icon${sortIdx ? ' dt-sort-icon--active' : ''}">${getSortIcon(sorts, col.key)}</span></div>`
         }
         if (sorts.length > 0) {
-          s += `<div class="ft-dd-footer"><button class="ft-clear-btn" data-action="clear-sorts">${esc(L.clearSorts)}</button></div>`
+          s += `<div class="dt-dd-footer"><button class="dt-clear-btn" data-action="clear-sorts">${esc(L.clearSorts)}</button></div>`
         }
         return s
       },
@@ -178,29 +178,29 @@ export function createFlexiTable<TRow extends object>(
     if (stringFilterCols.length > 0 || numericFilterCols.length > 0) {
       html += buildDd(
         openDropdown === 'filter',
-        `<button class="ft-btn${activeFilterCount > 0 ? ' ft-btn--active' : ''}" data-action="toggle-dd" data-dd="filter">${esc(L.filter)}${activeFilterCount > 0 ? ` <span class="ft-chip">${activeFilterCount}</span>` : ''}</button>`,
+        `<button class="dt-btn${activeFilterCount > 0 ? ' dt-btn--active' : ''}" data-action="toggle-dd" data-dd="filter">${esc(L.filter)}${activeFilterCount > 0 ? ` <span class="dt-chip">${activeFilterCount}</span>` : ''}</button>`,
         () => {
           let s = `<div style="max-height:380px;overflow-y:auto;min-width:240px">`
           for (const col of stringFilterCols) {
-            s += `<div class="ft-dd-section">${esc(col.label)}</div>`
+            s += `<div class="dt-dd-section">${esc(col.label)}</div>`
             for (const v of stringValueMap[col.key] ?? []) {
-              s += `<label class="ft-dd-item"><input type="checkbox" data-action="toggle-filter" data-key="${esc(col.key)}" data-value="${esc(v)}"${filters[col.key]?.has(v) ? ' checked' : ''}> ${esc(v)}</label>`
+              s += `<label class="dt-dd-item"><input type="checkbox" data-action="toggle-filter" data-key="${esc(col.key)}" data-value="${esc(v)}"${filters[col.key]?.has(v) ? ' checked' : ''}> ${esc(v)}</label>`
             }
           }
           if (numericFilterCols.length > 0) {
-            s += `<div class="ft-dd-section">${esc(L.numericRanges)}</div>`
+            s += `<div class="dt-dd-section">${esc(L.numericRanges)}</div>`
             for (const col of numericFilterCols) {
               const rf = rangeFilters[col.key]
-              s += `<div style="padding:4px 14px 8px"><div class="ft-dd-sublabel">${esc(col.label)}</div>`
+              s += `<div style="padding:4px 14px 8px"><div class="dt-dd-sublabel">${esc(col.label)}</div>`
               s += `<div style="display:flex;gap:6px;align-items:center">`
-              s += `<input type="number" class="ft-range-input" placeholder="${esc(L.min)}" value="${esc(rf?.min ?? '')}" data-action="range-min" data-key="${esc(col.key)}" data-focus-key="rmin-${esc(col.key)}">`
-              s += `<span class="ft-range-sep">–</span>`
-              s += `<input type="number" class="ft-range-input" placeholder="${esc(L.max)}" value="${esc(rf?.max ?? '')}" data-action="range-max" data-key="${esc(col.key)}" data-focus-key="rmax-${esc(col.key)}">`
+              s += `<input type="number" class="dt-range-input" placeholder="${esc(L.min)}" value="${esc(rf?.min ?? '')}" data-action="range-min" data-key="${esc(col.key)}" data-focus-key="rmin-${esc(col.key)}">`
+              s += `<span class="dt-range-sep">–</span>`
+              s += `<input type="number" class="dt-range-input" placeholder="${esc(L.max)}" value="${esc(rf?.max ?? '')}" data-action="range-max" data-key="${esc(col.key)}" data-focus-key="rmax-${esc(col.key)}">`
               s += `</div></div>`
             }
           }
           if (activeFilterCount > 0) {
-            s += `<div class="ft-dd-footer"><button class="ft-clear-btn" data-action="clear-filters">${esc(L.clearFilters)}</button></div>`
+            s += `<div class="dt-dd-footer"><button class="dt-clear-btn" data-action="clear-filters">${esc(L.clearFilters)}</button></div>`
           }
           s += `</div>`
           return s
@@ -212,58 +212,58 @@ export function createFlexiTable<TRow extends object>(
     if (groupableCols.length > 0) {
       html += buildDd(
         openDropdown === 'group',
-        `<button class="ft-btn${groupBy.length > 0 ? ' ft-btn--active' : ''}" data-action="toggle-dd" data-dd="group">${esc(L.group)}${groupBy.length > 0 ? ` <span class="ft-chip">${groupBy.length}</span>` : ''}</button>`,
+        `<button class="dt-btn${groupBy.length > 0 ? ' dt-btn--active' : ''}" data-action="toggle-dd" data-dd="group">${esc(L.group)}${groupBy.length > 0 ? ` <span class="dt-chip">${groupBy.length}</span>` : ''}</button>`,
         () => {
-          let s = `<div class="ft-dd-section">${esc(L.groupSection)}</div>`
+          let s = `<div class="dt-dd-section">${esc(L.groupSection)}</div>`
           for (const col of groupableCols) {
             const gIdx = groupBy.indexOf(col.key)
-            s += `<div class="ft-dd-item ft-dd-item--click" data-action="toggle-group" data-key="${esc(col.key)}"><span class="ft-sort-idx">${gIdx >= 0 ? gIdx + 1 : ''}</span><span style="flex:1">${esc(col.label)}</span>${groupBy.includes(col.key) ? '<span>✓</span>' : ''}</div>`
+            s += `<div class="dt-dd-item dt-dd-item--click" data-action="toggle-group" data-key="${esc(col.key)}"><span class="dt-sort-idx">${gIdx >= 0 ? gIdx + 1 : ''}</span><span style="flex:1">${esc(col.label)}</span>${groupBy.includes(col.key) ? '<span>✓</span>' : ''}</div>`
           }
           if (groupBy.length > 0) {
-            s += `<div class="ft-dd-footer"><button class="ft-clear-btn" data-action="clear-groups">${esc(L.clearGroups)}</button></div>`
+            s += `<div class="dt-dd-footer"><button class="dt-clear-btn" data-action="clear-groups">${esc(L.clearGroups)}</button></div>`
           }
           return s
         },
       )
     }
 
-    html += `<input type="text" class="ft-search-input" placeholder="${esc(L.search)}" value="${esc(searchQuery)}" data-action="search" data-focus-key="search">`
+    html += `<input type="text" class="dt-search-input" placeholder="${esc(L.search)}" value="${esc(searchQuery)}" data-action="search" data-focus-key="search">`
 
     if (hasActiveState) {
-      html += `<button class="ft-btn" data-action="clear-all" style="margin-left:4px">${esc(L.clearAll)}</button>`
+      html += `<button class="dt-btn" data-action="clear-all" style="margin-left:4px">${esc(L.clearAll)}</button>`
     }
 
-    html += `<span class="ft-stats">${esc(L.rowCount(_processedData.length, data.length))}${groupBy.length > 0 ? esc(L.groupCount(_groupedData.length)) : ''}</span>`
+    html += `<span class="dt-stats">${esc(L.rowCount(_processedData.length, data.length))}${groupBy.length > 0 ? esc(L.groupCount(_groupedData.length)) : ''}</span>`
     html += `</div>` // toolbar
 
     // --- Active chips ---
     if (hasActiveState) {
-      html += `<div class="ft-chips">`
+      html += `<div class="dt-chips">`
       for (const s of sorts) {
-        html += `<span class="ft-chip">${sorts.indexOf(s) + 1}. ${esc(columns.find((c) => c.key === s.key)?.label ?? s.key)} ${s.dir === 'asc' ? '↑' : '↓'} <span class="ft-chip-x" data-action="remove-sort" data-key="${esc(s.key)}">×</span></span>`
+        html += `<span class="dt-chip">${sorts.indexOf(s) + 1}. ${esc(columns.find((c) => c.key === s.key)?.label ?? s.key)} ${s.dir === 'asc' ? '↑' : '↓'} <span class="dt-chip-x" data-action="remove-sort" data-key="${esc(s.key)}">×</span></span>`
       }
       for (const [key, vals] of Object.entries(filters)) {
         if (!vals.size) continue
-        html += `<span class="ft-chip ft-chip--filter">${esc(columns.find((c) => c.key === key)?.label ?? key)}: ${esc([...vals].join(', '))} <span class="ft-chip-x" data-action="clear-filter-key" data-key="${esc(key)}">×</span></span>`
+        html += `<span class="dt-chip dt-chip--filter">${esc(columns.find((c) => c.key === key)?.label ?? key)}: ${esc([...vals].join(', '))} <span class="dt-chip-x" data-action="clear-filter-key" data-key="${esc(key)}">×</span></span>`
       }
       for (let i = 0; i < groupBy.length; i++) {
         const key = groupBy[i]
-        html += `<span class="ft-chip ft-chip--group">${esc(L.groupLabel(i + 1))}: ${esc(columns.find((c) => c.key === key)?.label ?? key)} <span class="ft-chip-x" data-action="remove-group" data-key="${esc(key)}">×</span></span>`
+        html += `<span class="dt-chip dt-chip--group">${esc(L.groupLabel(i + 1))}: ${esc(columns.find((c) => c.key === key)?.label ?? key)} <span class="dt-chip-x" data-action="remove-group" data-key="${esc(key)}">×</span></span>`
       }
       html += `</div>`
     }
 
     // --- Table ---
-    html += `<div class="ft-table-wrap"><table class="ft-table"><thead><tr>`
+    html += `<div class="dt-table-wrap"><table class="dt-table"><thead><tr>`
     if (selectable) {
-      html += `<th class="ft-th ft-th--no-sort" style="width:36px"><input type="checkbox" data-action="select-all"${allSelected ? ' checked' : ''}></th>`
+      html += `<th class="dt-th dt-th--no-sort" style="width:36px"><input type="checkbox" data-action="select-all"${allSelected ? ' checked' : ''}></th>`
     }
     if (groupBy.length > 0) {
-      html += `<th class="ft-th ft-th--no-sort" style="width:28px"></th>`
+      html += `<th class="dt-th dt-th--no-sort" style="width:28px"></th>`
     }
     for (const col of activeColumns) {
       const sortIdx = getSortIndex(sorts, col.key)
-      html += `<th class="ft-th"${col.width ? ` style="width:${col.width}px"` : ''} data-action="toggle-sort" data-key="${esc(col.key)}"><span class="ft-th-inner">${esc(col.label)} <span class="ft-sort-icon${sortIdx ? ' ft-sort-icon--active' : ''}">${sortIdx ? `${sortIdx}${getSortIcon(sorts, col.key)}` : '↕'}</span></span></th>`
+      html += `<th class="dt-th"${col.width ? ` style="width:${col.width}px"` : ''} data-action="toggle-sort" data-key="${esc(col.key)}"><span class="dt-th-inner">${esc(col.label)} <span class="dt-sort-icon${sortIdx ? ' dt-sort-icon--active' : ''}">${sortIdx ? `${sortIdx}${getSortIcon(sorts, col.key)}` : '↕'}</span></span></th>`
     }
     html += `</tr></thead><tbody>`
 
@@ -273,30 +273,30 @@ export function createFlexiTable<TRow extends object>(
       if (gkey !== null) {
         const isCollapsed = collapsedGroups.has(gkey)
         const gAllSel = rows.length > 0 && rows.every((r) => selection.has(r))
-        html += `<tr class="ft-group-row" data-action="toggle-group-collapse" data-gkey="${esc(gkey)}">`
+        html += `<tr class="dt-group-row" data-action="toggle-group-collapse" data-gkey="${esc(gkey)}">`
         if (selectable) {
           // data-no-collapse prevents this td click from triggering the row collapse
-          html += `<td class="ft-group-td" style="width:36px" data-no-collapse><input type="checkbox" data-action="toggle-group-select" data-gkey="${esc(gkey)}"${gAllSel ? ' checked' : ''}></td>`
+          html += `<td class="dt-group-td" style="width:36px" data-no-collapse><input type="checkbox" data-action="toggle-group-select" data-gkey="${esc(gkey)}"${gAllSel ? ' checked' : ''}></td>`
         }
-        html += `<td class="ft-group-td" style="width:28px">${isCollapsed ? '▶' : '▼'}</td>`
-        html += `<td class="ft-group-td" colspan="${activeColumns.length}">`
+        html += `<td class="dt-group-td" style="width:28px">${isCollapsed ? '▶' : '▼'}</td>`
+        html += `<td class="dt-group-td" colspan="${activeColumns.length}">`
         for (let gi = 0; gi < groupBy.length; gi++) {
           const gColKey = groupBy[gi]
           const gCol = columns.find((c) => c.key === gColKey)
           const raw = (rows[0] as Record<string, unknown>)[gColKey]
           const value = Array.isArray(raw) ? keyParts[gi] : raw
-          if (gi > 0) html += `<span class="ft-group-sep"> › </span>`
-          html += `<span class="ft-group-colname">${esc(gCol?.label ?? gColKey)}:</span> `
+          if (gi > 0) html += `<span class="dt-group-sep"> › </span>`
+          html += `<span class="dt-group-colname">${esc(gCol?.label ?? gColKey)}:</span> `
           html += gCol ? formatStr(value, rows[0], gCol) : esc(String(value ?? ''))
         }
-        html += ` <span class="ft-group-count">${esc(L.rowsInGroup(rows.length))}</span></td></tr>`
+        html += ` <span class="dt-group-count">${esc(L.rowsInGroup(rows.length))}</span></td></tr>`
 
         if (hasAgg) {
-          html += `<tr class="ft-agg-row">`
-          if (selectable) html += `<td class="ft-agg-td" style="width:36px"></td>`
-          html += `<td class="ft-agg-td" style="width:28px"></td>`
+          html += `<tr class="dt-agg-row">`
+          if (selectable) html += `<td class="dt-agg-td" style="width:36px"></td>`
+          html += `<td class="dt-agg-td" style="width:28px"></td>`
           for (const col of activeColumns) {
-            html += `<td class="ft-agg-td">${aggStr(col, rows)}</td>`
+            html += `<td class="dt-agg-td">${aggStr(col, rows)}</td>`
           }
           html += `</tr>`
         }
@@ -306,15 +306,15 @@ export function createFlexiTable<TRow extends object>(
             const row = rows[ri]
             const procIdx = procIdxMap.get(row) ?? -1
             const isSelected = selection.has(row)
-            const trClass = `ft-tr${isSelected ? ' ft-tr--selected' : ri % 2 !== 0 ? ' ft-tr--odd' : ''}${onRowClick ? ' ft-tr--clickable' : ''}`
+            const trClass = `dt-tr${isSelected ? ' dt-tr--selected' : ri % 2 !== 0 ? ' dt-tr--odd' : ''}${onRowClick ? ' dt-tr--clickable' : ''}`
             const rk = rowKey ? String((row as Record<string, unknown>)[rowKey] ?? ri) : ri
             html += `<tr class="${trClass}" data-row-key="${esc(rk)}" data-action="row-click" data-proc-idx="${procIdx}">`
             if (selectable) {
-              html += `<td class="ft-td" style="width:36px" data-no-row-click><input type="checkbox" data-action="toggle-row-select" data-proc-idx="${procIdx}"${isSelected ? ' checked' : ''}></td>`
+              html += `<td class="dt-td" style="width:36px" data-no-row-click><input type="checkbox" data-action="toggle-row-select" data-proc-idx="${procIdx}"${isSelected ? ' checked' : ''}></td>`
             }
-            html += `<td class="ft-td" style="width:28px"></td>`
+            html += `<td class="dt-td" style="width:28px"></td>`
             for (const col of activeColumns) {
-              html += `<td class="ft-td">${cellStr(row, col)}</td>`
+              html += `<td class="dt-td">${cellStr(row, col)}</td>`
             }
             html += `</tr>`
           }
@@ -324,14 +324,14 @@ export function createFlexiTable<TRow extends object>(
           const row = rows[ri]
           const procIdx = procIdxMap.get(row) ?? -1
           const isSelected = selection.has(row)
-          const trClass = `ft-tr${isSelected ? ' ft-tr--selected' : ri % 2 !== 0 ? ' ft-tr--odd' : ''}${onRowClick ? ' ft-tr--clickable' : ''}`
+          const trClass = `dt-tr${isSelected ? ' dt-tr--selected' : ri % 2 !== 0 ? ' dt-tr--odd' : ''}${onRowClick ? ' dt-tr--clickable' : ''}`
           const rk = rowKey ? String((row as Record<string, unknown>)[rowKey] ?? ri) : ri
           html += `<tr class="${trClass}" data-row-key="${esc(rk)}" data-action="row-click" data-proc-idx="${procIdx}">`
           if (selectable) {
-            html += `<td class="ft-td" style="width:36px" data-no-row-click><input type="checkbox" data-action="toggle-row-select" data-proc-idx="${procIdx}"${isSelected ? ' checked' : ''}></td>`
+            html += `<td class="dt-td" style="width:36px" data-no-row-click><input type="checkbox" data-action="toggle-row-select" data-proc-idx="${procIdx}"${isSelected ? ' checked' : ''}></td>`
           }
           for (const col of activeColumns) {
-            html += `<td class="ft-td">${cellStr(row, col)}</td>`
+            html += `<td class="dt-td">${cellStr(row, col)}</td>`
           }
           html += `</tr>`
         }
@@ -342,21 +342,21 @@ export function createFlexiTable<TRow extends object>(
 
     // --- Pagination ---
     if (pageSize > 0) {
-      html += `<div class="ft-pagination">`
-      html += `<button class="ft-page-btn" data-action="page-first"${_clampedPage === 1 ? ' disabled' : ''}>«</button>`
-      html += `<button class="ft-page-btn" data-action="page-prev"${_clampedPage === 1 ? ' disabled' : ''}>‹</button>`
-      html += `<span class="ft-page-info">${esc(L.pageOf(_clampedPage, _numPages))}</span>`
-      html += `<button class="ft-page-btn" data-action="page-next"${_clampedPage >= _numPages ? ' disabled' : ''}>›</button>`
-      html += `<button class="ft-page-btn" data-action="page-last"${_clampedPage >= _numPages ? ' disabled' : ''}>»</button>`
-      html += `<span class="ft-rows-per-page">${esc(L.rowsPerPage)}:</span>`
-      html += `<select class="ft-page-select" data-action="set-page-size">`
+      html += `<div class="dt-pagination">`
+      html += `<button class="dt-page-btn" data-action="page-first"${_clampedPage === 1 ? ' disabled' : ''}>«</button>`
+      html += `<button class="dt-page-btn" data-action="page-prev"${_clampedPage === 1 ? ' disabled' : ''}>‹</button>`
+      html += `<span class="dt-page-info">${esc(L.pageOf(_clampedPage, _numPages))}</span>`
+      html += `<button class="dt-page-btn" data-action="page-next"${_clampedPage >= _numPages ? ' disabled' : ''}>›</button>`
+      html += `<button class="dt-page-btn" data-action="page-last"${_clampedPage >= _numPages ? ' disabled' : ''}>»</button>`
+      html += `<span class="dt-rows-per-page">${esc(L.rowsPerPage)}:</span>`
+      html += `<select class="dt-page-select" data-action="set-page-size">`
       for (const n of [10, 20, 50, 100]) {
         html += `<option value="${n}"${pageSize === n ? ' selected' : ''}>${n}</option>`
       }
       html += `</select></div>`
     }
 
-    html += `</div>` // .ft
+    html += `</div>` // .dt
 
     container.innerHTML = html
 
@@ -404,7 +404,7 @@ export function createFlexiTable<TRow extends object>(
     const actionEl = target.closest('[data-action]') as HTMLElement | null
 
     // Close dropdown when clicking outside a dd-wrap
-    if (openDropdown !== null && !target.closest('.ft-dd-wrap')) {
+    if (openDropdown !== null && !target.closest('.dt-dd-wrap')) {
       openDropdown = null
       if (!actionEl) {
         render()

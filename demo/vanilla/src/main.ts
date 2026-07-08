@@ -1,5 +1,5 @@
 import {
-  createFlexiTable,
+  createDataTable,
   LABELS_EN,
   LABELS_FR,
   LABELS_DE,
@@ -7,7 +7,7 @@ import {
   LABELS_PT,
   type ColumnDef,
   type DataTableLabels,
-} from '@vates/flexi-table-vanilla'
+} from '@vates/data-table-vanilla'
 
 interface Employee {
   id: number
@@ -295,7 +295,7 @@ const app = document.getElementById('app')!
 app.innerHTML = `
   <div style="max-width:1100px;margin:0 auto;padding:32px 24px">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-      <h1 style="font-size:20px;font-weight:600;margin:0">FlexiTable — Vanilla</h1>
+      <h1 style="font-size:20px;font-weight:600;margin:0">DataTable — Vanilla</h1>
       <div style="display:flex;gap:4px;align-items:center">
         <div id="locale-btns" style="display:flex;gap:4px"></div>
         <div style="width:1px;height:16px;background:var(--color-border-secondary);margin:0 2px"></div>
@@ -303,7 +303,7 @@ app.innerHTML = `
       </div>
     </div>
     <p style="font-size:14px;color:var(--color-text-secondary);margin-top:0;margin-bottom:24px">
-      @vates/flexi-table-vanilla
+      @vates/data-table-vanilla
     </p>
     <div id="table1"></div>
 
@@ -381,7 +381,7 @@ localeBtns.addEventListener('click', (e) => {
   table1.setColumns(COLUMNS) // triggers a re-render with updated locale... but locale is captured at creation
   // Labels are set at creation time; to change locale we recreate the table
   table1.destroy()
-  table1 = createFlexiTable(document.getElementById('table1')!, {
+  table1 = createDataTable(document.getElementById('table1')!, {
     data: SAMPLE_DATA,
     columns: COLUMNS,
     rowKey: 'id',
@@ -393,7 +393,7 @@ localeBtns.addEventListener('click', (e) => {
 
 // ---- Table 1: full-featured ----
 
-let table1 = createFlexiTable<Employee>(document.getElementById('table1')!, {
+let table1 = createDataTable<Employee>(document.getElementById('table1')!, {
   data: SAMPLE_DATA,
   columns: COLUMNS,
   rowKey: 'id',
@@ -406,7 +406,7 @@ let table1 = createFlexiTable<Employee>(document.getElementById('table1')!, {
 
 const banner = document.getElementById('selection-banner')!
 
-createFlexiTable<Employee>(document.getElementById('table2')!, {
+createDataTable<Employee>(document.getElementById('table2')!, {
   data: SAMPLE_DATA,
   columns: COLUMNS,
   rowKey: 'id',
@@ -432,7 +432,7 @@ createFlexiTable<Employee>(document.getElementById('table2')!, {
 
 const clickBanner = document.getElementById('click-banner')!
 
-createFlexiTable<Employee>(document.getElementById('table-click')!, {
+createDataTable<Employee>(document.getElementById('table-click')!, {
   data: SAMPLE_DATA,
   columns: COLUMNS,
   rowKey: 'id',
@@ -447,7 +447,7 @@ createFlexiTable<Employee>(document.getElementById('table-click')!, {
 // ---- Table 3: dynamic data ----
 
 let dynamicData = SAMPLE_DATA.slice(0, 5)
-const table3 = createFlexiTable<Employee>(document.getElementById('table3')!, {
+const table3 = createDataTable<Employee>(document.getElementById('table3')!, {
   data: dynamicData,
   columns: COLUMNS,
   rowKey: 'id',

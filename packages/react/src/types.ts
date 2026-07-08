@@ -1,5 +1,5 @@
 import type { MouseEvent, ReactNode } from 'react'
-import type { ColumnDefBase, DataTableLabels } from '@vates/flexi-table-core'
+import type { ColumnDefBase, DataTableLabels } from '@vates/data-table-core'
 
 export interface ColumnDef<
   TRow extends object = Record<string, unknown>,

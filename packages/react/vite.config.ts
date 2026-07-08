@@ -11,18 +11,18 @@ export default defineConfig({
   build: {
     lib: {
       entry: resolve(__dirname, 'src/index.ts'),
-      name: 'FlexiTableReact',
-      fileName: 'flexi-table-react',
+      name: 'DataTableReact',
+      fileName: 'data-table-react',
       formats: ['es', 'umd'],
     },
     rollupOptions: {
-      external: ['react', 'react/jsx-runtime', 'react-dom', '@vates/flexi-table-core'],
+      external: ['react', 'react/jsx-runtime', 'react-dom', '@vates/data-table-core'],
       output: {
         globals: {
           react: 'React',
           'react/jsx-runtime': 'ReactJSXRuntime',
           'react-dom': 'ReactDOM',
-          '@vates/flexi-table-core': 'FlexiTableCore',
+          '@vates/data-table-core': 'DataTableCore',
         },
       },
     },

@@ -10,7 +10,7 @@ export default defineConfig({
         index: resolve(__dirname, 'src/index.ts'),
         locales: resolve(__dirname, 'src/locales.ts'),
       },
-      name: 'FlexiTableCore',
+      name: 'DataTableCore',
       formats: ['es', 'cjs'],
     },
   },

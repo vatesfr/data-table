@@ -1,11 +1,11 @@
 {
-  "name": "@vates/flexi-table-core",
+  "name": "@vates/data-table-core",
   "version": "0.1.0",
-  "description": "Framework-agnostic core logic for flexi-table",
+  "description": "Framework-agnostic core logic for data-table",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/vatesfr/flexi-table.git",
+    "url": "https://github.com/vatesfr/data-table.git",
     "directory": "packages/core"
   },
   "keywords": [

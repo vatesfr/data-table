@@ -11,16 +11,16 @@ export default defineConfig({
   build: {
     lib: {
       entry: resolve(__dirname, 'src/index.ts'),
-      name: 'FlexiTableVue',
-      fileName: 'flexi-table-vue',
+      name: 'DataTableVue',
+      fileName: 'data-table-vue',
       formats: ['es', 'umd'],
     },
     rollupOptions: {
-      external: ['vue', '@vates/flexi-table-core'],
+      external: ['vue', '@vates/data-table-core'],
       output: {
         globals: {
           vue: 'Vue',
-          '@vates/flexi-table-core': 'FlexiTableCore',
+          '@vates/data-table-core': 'DataTableCore',
         },
       },
     },

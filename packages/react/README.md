@@ -1,11 +1,11 @@
-# @vates/flexi-table-react
+# @vates/data-table-react
 
-React adapter for [flexi-table](../../README.md) — a flexible, fully-typed data table with sorting, filtering, column visibility, and row grouping.
+React adapter for [data-table](../../README.md) — a flexible, fully-typed data table with sorting, filtering, column visibility, and row grouping.
 
 ## Install
 
 ```bash
-npm install @vates/flexi-table-react
+npm install @vates/data-table-react
 ```
 
 Requires React ≥ 17.
@@ -13,7 +13,7 @@ Requires React ≥ 17.
 ## Usage
 
 ```tsx
-import { DataTable, type ColumnDef } from '@vates/flexi-table-react'
+import { DataTable, type ColumnDef } from '@vates/data-table-react'
 
 interface Employee {
   id: number
@@ -137,7 +137,7 @@ Cell value resolution order: `render` → `format` → `String(value)`.
 If you need to build a custom layout, use the hook directly:
 
 ```tsx
-import { useTableState, type ColumnDef } from '@vates/flexi-table-react'
+import { useTableState, type ColumnDef } from '@vates/data-table-react'
 
 const {
   // State
@@ -187,7 +187,7 @@ const {
 Use a built-in locale or supply any `Partial<DataTableLabels>` overrides (shallow-merged over English defaults):
 
 ```tsx
-import { LABELS_FR } from '@vates/flexi-table-react'
+import { LABELS_FR } from '@vates/data-table-react'
 
 <DataTable labels={LABELS_FR} ... />
 ```

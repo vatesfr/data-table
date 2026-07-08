@@ -10,8 +10,8 @@
     "isolatedModules": true,
     "incremental": true,
     "paths": {
-      "@vates/flexi-table-core": ["../core/src/index.ts"],
-      "@vates/flexi-table-core/locales": ["../core/src/locales.ts"]
+      "@vates/data-table-core": ["../core/src/index.ts"],
+      "@vates/data-table-core/locales": ["../core/src/locales.ts"]
     }
   },
   "include": ["src"],

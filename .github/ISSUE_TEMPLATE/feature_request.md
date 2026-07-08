@@ -6,10 +6,10 @@ labels: enhancement
 
 **Which package(s) does this affect?**
 
-- [ ] `@vates/flexi-table-core`
-- [ ] `@vates/flexi-table-react`
-- [ ] `@vates/flexi-table-vue`
-- [ ] `@vates/flexi-table-vanilla`
+- [ ] `@vates/data-table-core`
+- [ ] `@vates/data-table-react`
+- [ ] `@vates/data-table-vue`
+- [ ] `@vates/data-table-vanilla`
 
 **Problem / motivation**
 

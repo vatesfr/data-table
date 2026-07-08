@@ -1,25 +1,25 @@
-# flexi-table
+# data-table
 
-[![CI](https://github.com/vatesfr/flexi-table/actions/workflows/ci.yml/badge.svg)](https://github.com/vatesfr/flexi-table/actions/workflows/ci.yml)
-[![npm](https://img.shields.io/npm/v/@vates/flexi-table-react?label=react)](https://www.npmjs.com/package/@vates/flexi-table-react)
-[![npm](https://img.shields.io/npm/v/@vates/flexi-table-vue?label=vue)](https://www.npmjs.com/package/@vates/flexi-table-vue)
-[![npm](https://img.shields.io/npm/v/@vates/flexi-table-vanilla?label=vanilla)](https://www.npmjs.com/package/@vates/flexi-table-vanilla)
+[![CI](https://github.com/vatesfr/data-table/actions/workflows/ci.yml/badge.svg)](https://github.com/vatesfr/data-table/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/@vates/data-table-react?label=react)](https://www.npmjs.com/package/@vates/data-table-react)
+[![npm](https://img.shields.io/npm/v/@vates/data-table-vue?label=vue)](https://www.npmjs.com/package/@vates/data-table-vue)
+[![npm](https://img.shields.io/npm/v/@vates/data-table-vanilla?label=vanilla)](https://www.npmjs.com/package/@vates/data-table-vanilla)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 A flexible, fully-typed data table for React, Vue 3, and vanilla JS — with sorting, filtering, column visibility, and row grouping built in.
 
 ## Live demo
 
-[React demo](https://vatesfr.github.io/flexi-table/react/) · [Vue demo](https://vatesfr.github.io/flexi-table/vue/) · [Vanilla demo](https://vatesfr.github.io/flexi-table/vanilla/)
+[React demo](https://vatesfr.github.io/data-table/react/) · [Vue demo](https://vatesfr.github.io/data-table/vue/) · [Vanilla demo](https://vatesfr.github.io/data-table/vanilla/)
 
 ## Packages
 
-| Package                                            | Description                        |
-| -------------------------------------------------- | ---------------------------------- |
-| [`@vates/flexi-table-react`](./packages/react)     | React component and hook           |
-| [`@vates/flexi-table-vue`](./packages/vue)         | Vue 3 component and composable     |
-| [`@vates/flexi-table-vanilla`](./packages/vanilla) | Vanilla JS, no framework required  |
-| [`@vates/flexi-table-core`](./packages/core)       | Framework-agnostic logic (pure TS) |
+| Package                                           | Description                        |
+| ------------------------------------------------- | ---------------------------------- |
+| [`@vates/data-table-react`](./packages/react)     | React component and hook           |
+| [`@vates/data-table-vue`](./packages/vue)         | Vue 3 component and composable     |
+| [`@vates/data-table-vanilla`](./packages/vanilla) | Vanilla JS, no framework required  |
+| [`@vates/data-table-core`](./packages/core)       | Framework-agnostic logic (pure TS) |
 
 ## Features
 
@@ -38,11 +38,11 @@ A flexible, fully-typed data table for React, Vue 3, and vanilla JS — with sor
 ### React
 
 ```bash
-npm install @vates/flexi-table-react
+npm install @vates/data-table-react
 ```
 
 ```tsx
-import { DataTable, type ColumnDef } from '@vates/flexi-table-react'
+import { DataTable, type ColumnDef } from '@vates/data-table-react'
 
 interface User {
   id: number
@@ -78,12 +78,12 @@ Custom cell rendering with render props:
 ### Vue
 
 ```bash
-npm install @vates/flexi-table-vue
+npm install @vates/data-table-vue
 ```
 
 ```vue
 <script setup lang="ts">
-import { DataTable, type ColumnDef } from '@vates/flexi-table-vue'
+import { DataTable, type ColumnDef } from '@vates/data-table-vue'
 
 interface User {
   id: number
@@ -122,11 +122,11 @@ const COLUMNS: ColumnDef<User>[] = [
 ### Vanilla JS
 
 ```bash
-npm install @vates/flexi-table-vanilla
+npm install @vates/data-table-vanilla
 ```
 
 ```ts
-import { createFlexiTable, type ColumnDef } from '@vates/flexi-table-vanilla'
+import { createDataTable, type ColumnDef } from '@vates/data-table-vanilla'
 
 const COLUMNS: ColumnDef<User>[] = [
   { key: 'name', label: 'Name', type: 'string' },
@@ -139,7 +139,7 @@ const COLUMNS: ColumnDef<User>[] = [
   },
 ]
 
-const table = createFlexiTable(document.getElementById('table')!, {
+const table = createDataTable(document.getElementById('table')!, {
   data: users,
   columns: COLUMNS,
   rowKey: 'id',
@@ -157,7 +157,7 @@ CSS is injected automatically into `<head>`. Cell output is string-only — use 
 All UI strings are in English by default. Use a built-in locale or supply any overrides via the `labels` prop:
 
 ```tsx
-import { LABELS_FR } from '@vates/flexi-table-react' // or -vue or -vanilla
+import { LABELS_FR } from '@vates/data-table-react' // or -vue or -vanilla
 
 <DataTable labels={LABELS_FR} ... />
 ```

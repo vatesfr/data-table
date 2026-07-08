@@ -7,8 +7,8 @@ export default defineConfig({
   plugins: [vue()],
   resolve: {
     alias: {
-      '@vates/flexi-table-core': resolve(__dirname, '../../packages/core/src'),
-      '@vates/flexi-table-vue': resolve(__dirname, '../../packages/vue/src/index.ts'),
+      '@vates/data-table-core': resolve(__dirname, '../../packages/core/src'),
+      '@vates/data-table-vue': resolve(__dirname, '../../packages/vue/src/index.ts'),
     },
   },
 })

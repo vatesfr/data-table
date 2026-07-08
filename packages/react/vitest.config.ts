@@ -6,7 +6,7 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      '@vates/flexi-table-core': resolve(__dirname, '../core/src'),
+      '@vates/data-table-core': resolve(__dirname, '../core/src'),
     },
     dedupe: ['react', 'react-dom', 'react/jsx-runtime'],
   },

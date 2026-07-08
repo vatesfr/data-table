@@ -1,9 +1,9 @@
 <script setup lang="ts" generic="TRow extends object">
 import { computed, watch, useSlots, getCurrentInstance } from 'vue'
-import { computeAggregate, type GroupResult } from '@vates/flexi-table-core'
+import { computeAggregate, type GroupResult } from '@vates/data-table-core'
 import { useTableState } from './useTableState'
 import type { ColumnDef } from './types'
-import type { DataTableLabels } from '@vates/flexi-table-core'
+import type { DataTableLabels } from '@vates/data-table-core'
 import Dropdown from './components/Dropdown.vue'
 import ToolbarBtn from './components/ToolbarBtn.vue'
 
@@ -157,16 +157,16 @@ function hasSlot(name: string): boolean {
 </script>
 
 <template>
-  <div class="ft">
+  <div class="dt">
     <!-- ── Toolbar ── -->
-    <div class="ft__toolbar">
+    <div class="dt__toolbar">
       <!-- Columns -->
       <Dropdown>
         <template #trigger="{ open }">
           <ToolbarBtn :active="open">{{ L.columns }}</ToolbarBtn>
         </template>
-        <div class="ft__dd-section">{{ L.columnsSection }}</div>
-        <label v-for="col in columns" :key="col.key" class="ft__dd-item ft__dd-item--clickable">
+        <div class="dt__dd-section">{{ L.columnsSection }}</div>
+        <label v-for="col in columns" :key="col.key" class="dt__dd-item dt__dd-item--clickable">
           <input
             type="checkbox"
             :checked="visibleCols.has(col.key)"
@@ -181,13 +181,13 @@ function hasSlot(name: string): boolean {
         <template #trigger="{ open }">
           <ToolbarBtn :active="open || sorts.length > 0">
             {{ L.sort }}
-            <span v-if="sorts.length > 0" class="ft__chip">{{ sorts.length }}</span>
+            <span v-if="sorts.length > 0" class="dt__chip">{{ sorts.length }}</span>
           </ToolbarBtn>
         </template>
-        <div class="ft__dd-section">{{ L.sortSection }}</div>
-        <div v-for="col in columns" :key="col.key" class="ft__dd-item" @click="toggleSort(col.key)">
-          <span class="ft__sort-idx">{{ getSortIndex(col.key) ?? '' }}</span>
-          <span class="ft__flex1">{{ col.label }}</span>
+        <div class="dt__dd-section">{{ L.sortSection }}</div>
+        <div v-for="col in columns" :key="col.key" class="dt__dd-item" @click="toggleSort(col.key)">
+          <span class="dt__sort-idx">{{ getSortIndex(col.key) ?? '' }}</span>
+          <span class="dt__flex1">{{ col.label }}</span>
           <span
             :style="{
               color: getSortIndex(col.key)
@@ -198,7 +198,7 @@ function hasSlot(name: string): boolean {
             {{ getSortIcon(col.key) }}
           </span>
         </div>
-        <div v-if="sorts.length > 0" class="ft__dd-footer">
+        <div v-if="sorts.length > 0" class="dt__dd-footer">
           <button @click.stop="clearSorts">{{ L.clearSorts }}</button>
         </div>
       </Dropdown>
@@ -208,16 +208,16 @@ function hasSlot(name: string): boolean {
         <template #trigger="{ open }">
           <ToolbarBtn :active="open || activeFilterCount > 0">
             {{ L.filter }}
-            <span v-if="activeFilterCount > 0" class="ft__chip">{{ activeFilterCount }}</span>
+            <span v-if="activeFilterCount > 0" class="dt__chip">{{ activeFilterCount }}</span>
           </ToolbarBtn>
         </template>
-        <div class="ft__dd-scroll">
+        <div class="dt__dd-scroll">
           <template v-for="col in stringFilterCols" :key="col.key">
-            <div class="ft__dd-section">{{ col.label }}</div>
+            <div class="dt__dd-section">{{ col.label }}</div>
             <label
               v-for="v in stringValueMap[col.key]"
               :key="v"
-              class="ft__dd-item ft__dd-item--clickable"
+              class="dt__dd-item dt__dd-item--clickable"
             >
               <input
                 type="checkbox"
@@ -233,29 +233,29 @@ function hasSlot(name: string): boolean {
             </label>
           </template>
           <template v-if="numericFilterCols.length > 0">
-            <div class="ft__dd-section">{{ L.numericRanges }}</div>
-            <div v-for="col in numericFilterCols" :key="col.key" class="ft__range">
-              <div class="ft__range-label">{{ col.label }}</div>
-              <div class="ft__range-inputs">
+            <div class="dt__dd-section">{{ L.numericRanges }}</div>
+            <div v-for="col in numericFilterCols" :key="col.key" class="dt__range">
+              <div class="dt__range-label">{{ col.label }}</div>
+              <div class="dt__range-inputs">
                 <input
                   type="number"
                   :placeholder="L.min"
                   :value="rangeFilters[col.key]?.min ?? ''"
                   @input="setRangeFilter(col.key, 'min', ($event.target as HTMLInputElement).value)"
-                  class="ft__range-input"
+                  class="dt__range-input"
                 />
-                <span class="ft__range-sep">–</span>
+                <span class="dt__range-sep">–</span>
                 <input
                   type="number"
                   :placeholder="L.max"
                   :value="rangeFilters[col.key]?.max ?? ''"
                   @input="setRangeFilter(col.key, 'max', ($event.target as HTMLInputElement).value)"
-                  class="ft__range-input"
+                  class="dt__range-input"
                 />
               </div>
             </div>
           </template>
-          <div v-if="activeFilterCount > 0" class="ft__dd-footer">
+          <div v-if="activeFilterCount > 0" class="dt__dd-footer">
             <button @click="clearFilters">{{ L.clearFilters }}</button>
           </div>
         </div>
@@ -266,78 +266,78 @@ function hasSlot(name: string): boolean {
         <template #trigger="{ open }">
           <ToolbarBtn :active="open || groupBy.length > 0">
             {{ L.group }}
-            <span v-if="groupBy.length > 0" class="ft__chip">{{ groupBy.length }}</span>
+            <span v-if="groupBy.length > 0" class="dt__chip">{{ groupBy.length }}</span>
           </ToolbarBtn>
         </template>
-        <div class="ft__dd-section">{{ L.groupSection }}</div>
+        <div class="dt__dd-section">{{ L.groupSection }}</div>
         <div
           v-for="col in groupableCols"
           :key="col.key"
-          class="ft__dd-item"
+          class="dt__dd-item"
           @click="toggleGroup(col.key)"
         >
-          <span class="ft__sort-idx">{{
+          <span class="dt__sort-idx">{{
             groupBy.includes(col.key) ? groupBy.indexOf(col.key) + 1 : ''
           }}</span>
-          <span class="ft__flex1">{{ col.label }}</span>
+          <span class="dt__flex1">{{ col.label }}</span>
           <span v-if="groupBy.includes(col.key)">✓</span>
         </div>
-        <div v-if="groupBy.length > 0" class="ft__dd-footer">
+        <div v-if="groupBy.length > 0" class="dt__dd-footer">
           <button @click.stop="clearGroups">{{ L.clearGroups }}</button>
         </div>
       </Dropdown>
 
       <input
         type="text"
-        class="ft__search-input"
+        class="dt__search-input"
         :placeholder="L.search"
         :value="searchQuery"
         @input="setSearchQuery(($event.target as HTMLInputElement).value)"
       />
 
-      <button v-if="hasActiveState" class="ft__clear-all" @click="clearAll">
+      <button v-if="hasActiveState" class="dt__clear-all" @click="clearAll">
         {{ L.clearAll }}
       </button>
 
-      <div class="ft__stats">
+      <div class="dt__stats">
         {{ L.rowCount(processedData.length, data.length) }}
         <template v-if="groupBy.length > 0">{{ L.groupCount(groupedData.length) }}</template>
       </div>
     </div>
 
     <!-- ── Active chips ── -->
-    <div v-if="hasActiveState" class="ft__chips">
-      <span v-for="(s, i) in sorts" :key="s.key" class="ft__chip">
+    <div v-if="hasActiveState" class="dt__chips">
+      <span v-for="(s, i) in sorts" :key="s.key" class="dt__chip">
         {{ i + 1 }}. {{ columns.find((c) => c.key === s.key)?.label }}
         {{ s.dir === 'asc' ? '↑' : '↓' }}
-        <span class="ft__chip-remove" @click="toggleSort(s.key)">×</span>
+        <span class="dt__chip-remove" @click="toggleSort(s.key)">×</span>
       </span>
       <template v-for="[key, vals] in Object.entries(filters)" :key="key">
-        <span v-if="vals.size > 0" class="ft__chip ft__chip--info">
+        <span v-if="vals.size > 0" class="dt__chip dt__chip--info">
           {{ columns.find((c) => c.key === key)?.label }}: {{ [...vals].join(', ') }}
-          <span class="ft__chip-remove" @click="clearColumnFilter(key)">×</span>
+          <span class="dt__chip-remove" @click="clearColumnFilter(key)">×</span>
         </span>
       </template>
-      <span v-for="(key, i) in groupBy" :key="key" class="ft__chip ft__chip--warning">
+      <span v-for="(key, i) in groupBy" :key="key" class="dt__chip dt__chip--warning">
         {{ L.groupLabel(i + 1) }}: {{ columns.find((c) => c.key === key)?.label }}
-        <span class="ft__chip-remove" @click="toggleGroup(key)">×</span>
+        <span class="dt__chip-remove" @click="toggleGroup(key)">×</span>
       </span>
     </div>
 
     <!-- ── Pagination ── -->
-    <div v-if="pageSize > 0" class="ft__pagination">
-      <button class="ft__page-btn" :disabled="page === 1" @click="setPage(1)">«</button>
-      <button class="ft__page-btn" :disabled="page === 1" @click="setPage(page - 1)">‹</button>
-      <span class="ft__page-info">{{ L.pageOf(page, numPages) }}</span>
-      <button class="ft__page-btn" :disabled="page >= numPages" @click="setPage(page + 1)">
+    <div v-if="pageSize > 0" class="dt__pagination">
+      <button class="dt__page-btn" :disabled="page === 1" @click="setPage(1)">«</button>
+      <button class="dt__page-btn" :disabled="page === 1" @click="setPage(page - 1)">‹</button>
+      <span class="dt__page-info">{{ L.pageOf(page, numPages) }}</span>
+      <button class="dt__page-btn" :disabled="page >= numPages" @click="setPage(page + 1)">
         ›
       </button>
-      <button class="ft__page-btn" :disabled="page >= numPages" @click="setPage(numPages)">
+      <button class="dt__page-btn" :disabled="page >= numPages" @click="setPage(numPages)">
         »
       </button>
-      <span class="ft__rows-per-page-label">{{ L.rowsPerPage }}:</span>
+      <span class="dt__rows-per-page-label">{{ L.rowsPerPage }}:</span>
       <select
-        class="ft__page-select"
+        class="dt__page-select"
         :value="pageSize"
         @change="setPageSize(Number(($event.target as HTMLSelectElement).value))"
       >
@@ -346,11 +346,11 @@ function hasSlot(name: string): boolean {
     </div>
 
     <!-- ── Table ── -->
-    <div class="ft__table-wrap">
-      <table class="ft__table">
+    <div class="dt__table-wrap">
+      <table class="dt__table">
         <thead>
           <tr>
-            <th v-if="selectable" class="ft__th ft__th--cb" @click.stop>
+            <th v-if="selectable" class="dt__th dt__th--cb" @click.stop>
               <input
                 v-indeterminate="someSelected"
                 type="checkbox"
@@ -358,11 +358,11 @@ function hasSlot(name: string): boolean {
                 @change="toggleSelectAll(processedData)"
               />
             </th>
-            <th v-if="groupBy.length > 0" class="ft__th" style="width: 28px" />
+            <th v-if="groupBy.length > 0" class="dt__th" style="width: 28px" />
             <th
               v-for="col in activeColumns"
               :key="col.key"
-              class="ft__th"
+              class="dt__th"
               :style="{ width: col.width ? `${col.width}px` : undefined }"
               @click="toggleSort(col.key)"
             >
@@ -387,10 +387,10 @@ function hasSlot(name: string): boolean {
             <!-- Group header -->
             <tr
               v-if="group.key !== null"
-              class="ft__group-row"
+              class="dt__group-row"
               @click="toggleGroupCollapse(group.key!)"
             >
-              <td v-if="selectable" class="ft__group-td" style="width: 36px" @click.stop>
+              <td v-if="selectable" class="dt__group-td" style="width: 36px" @click.stop>
                 <input
                   v-indeterminate="isGroupSomeSelected(group.rows)"
                   type="checkbox"
@@ -398,13 +398,13 @@ function hasSlot(name: string): boolean {
                   @change="toggleSelectAll(group.rows)"
                 />
               </td>
-              <td class="ft__group-td">
+              <td class="dt__group-td">
                 {{ collapsedGroups.has(group.key!) ? '▶' : '▼' }}
               </td>
-              <td :colspan="activeColumns.length" class="ft__group-td">
+              <td :colspan="activeColumns.length" class="dt__group-td">
                 <template v-for="(g, i) in groupBy" :key="g">
-                  <span v-if="i > 0" class="ft__group-sep">›</span>
-                  <span class="ft__group-key-label">{{ findCol(g)?.label }}:</span>
+                  <span v-if="i > 0" class="dt__group-sep">›</span>
+                  <span class="dt__group-key-label">{{ findCol(g)?.label }}:</span>
                   <!--
                     Slot #group-{key} — custom rendering in the group header.
                     Slot scope: { value: unknown, row: TRow }
@@ -418,15 +418,15 @@ function hasSlot(name: string): boolean {
                     }}
                   </slot>
                 </template>
-                <span class="ft__group-count">{{ L.rowsInGroup(group.rows.length) }}</span>
+                <span class="dt__group-count">{{ L.rowsInGroup(group.rows.length) }}</span>
               </td>
             </tr>
 
             <!-- Aggregate row -->
-            <tr v-if="hasAggregates" class="ft__agg-row">
-              <td v-if="selectable" class="ft__agg-td" style="width: 36px" />
-              <td class="ft__agg-td" style="width: 28px" />
-              <td v-for="col in activeColumns" :key="col.key" class="ft__agg-td">
+            <tr v-if="hasAggregates" class="dt__agg-row">
+              <td v-if="selectable" class="dt__agg-td" style="width: 36px" />
+              <td class="dt__agg-td" style="width: 28px" />
+              <td v-for="col in activeColumns" :key="col.key" class="dt__agg-td">
                 {{
                   (() => {
                     const v = computeAggregate(col, group.rows)
@@ -443,24 +443,24 @@ function hasSlot(name: string): boolean {
                 v-for="(row, ri) in group.rows"
                 :key="(asRecord(row)[rowKey] as string | number) ?? ri"
                 :class="{
-                  'ft__tr--stripe': ri % 2 !== 0,
-                  'ft__tr--selected': selectable && selection.has(row),
-                  'ft__tr--clickable': isRowClickable,
+                  'dt__tr--stripe': ri % 2 !== 0,
+                  'dt__tr--selected': selectable && selection.has(row),
+                  'dt__tr--clickable': isRowClickable,
                 }"
                 @click="handleRowClick(row, $event)"
               >
-                <td v-if="selectable" class="ft__td" style="width: 36px" @click.stop>
+                <td v-if="selectable" class="dt__td" style="width: 36px" @click.stop>
                   <input
                     type="checkbox"
                     :checked="selection.has(row)"
                     @change="toggleRowSelection(row)"
                   />
                 </td>
-                <td v-if="group.key !== null" class="ft__td" style="width: 28px" />
+                <td v-if="group.key !== null" class="dt__td" style="width: 28px" />
                 <td
                   v-for="col in activeColumns"
                   :key="col.key"
-                  class="ft__td"
+                  class="dt__td"
                   :style="{ width: col.width ? `${col.width}px` : undefined }"
                 >
                   <!--
@@ -486,14 +486,14 @@ function hasSlot(name: string): boolean {
 </template>
 
 <style scoped>
-.ft {
+.dt {
   font-family: inherit;
   font-size: 14px;
   color: var(--color-text-primary);
 }
 
 /* Toolbar */
-.ft__toolbar {
+.dt__toolbar {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -501,12 +501,12 @@ function hasSlot(name: string): boolean {
   border-bottom: 0.5px solid var(--color-border-tertiary);
   flex-wrap: wrap;
 }
-.ft__stats {
+.dt__stats {
   margin-left: auto;
   font-size: 12px;
   color: var(--color-text-secondary);
 }
-.ft__search-input {
+.dt__search-input {
   padding: 4px 8px;
   font-size: 13px;
   border: 0.5px solid var(--color-border-secondary);
@@ -516,7 +516,7 @@ function hasSlot(name: string): boolean {
   font-family: inherit;
   min-width: 160px;
 }
-.ft__clear-all {
+.dt__clear-all {
   margin-left: 4px;
   padding: 5px 10px;
   background: none;
@@ -529,7 +529,7 @@ function hasSlot(name: string): boolean {
 }
 
 /* Dropdown internals */
-.ft__dd-section {
+.dt__dd-section {
   padding: 6px 14px 2px;
   font-size: 11px;
   color: var(--color-text-tertiary);
@@ -537,7 +537,7 @@ function hasSlot(name: string): boolean {
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
-.ft__dd-item {
+.dt__dd-item {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -545,18 +545,18 @@ function hasSlot(name: string): boolean {
   font-size: 13px;
   color: var(--color-text-primary);
 }
-.ft__dd-item--clickable {
+.dt__dd-item--clickable {
   cursor: pointer;
 }
-.ft__dd-scroll {
+.dt__dd-scroll {
   max-height: 380px;
   overflow-y: auto;
   min-width: 240px;
 }
-.ft__dd-footer {
+.dt__dd-footer {
   padding: 4px 14px 6px;
 }
-.ft__dd-footer button {
+.dt__dd-footer button {
   font-size: 12px;
   background: none;
   border: none;
@@ -564,35 +564,35 @@ function hasSlot(name: string): boolean {
   cursor: pointer;
   padding: 0;
 }
-.ft__sort-idx {
+.dt__sort-idx {
   width: 18px;
   font-size: 11px;
   color: var(--color-text-tertiary);
   font-weight: 500;
 }
-.ft__flex1 {
+.dt__flex1 {
   flex: 1;
 }
 
 /* Range filter */
-.ft__range {
+.dt__range {
   padding: 4px 14px 8px;
 }
-.ft__range-label {
+.dt__range-label {
   font-size: 12px;
   margin-bottom: 4px;
   color: var(--color-text-secondary);
 }
-.ft__range-inputs {
+.dt__range-inputs {
   display: flex;
   gap: 6px;
   align-items: center;
 }
-.ft__range-sep {
+.dt__range-sep {
   font-size: 12px;
   color: var(--color-text-tertiary);
 }
-.ft__range-input {
+.dt__range-input {
   width: 80px;
   padding: 3px 6px;
   font-size: 12px;
@@ -604,13 +604,13 @@ function hasSlot(name: string): boolean {
 }
 
 /* Chips */
-.ft__chips {
+.dt__chips {
   display: flex;
   gap: 6px;
   flex-wrap: wrap;
   padding: 8px 0 0;
 }
-.ft__chip {
+.dt__chip {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -621,23 +621,23 @@ function hasSlot(name: string): boolean {
   font-size: 12px;
   color: var(--color-text-secondary);
 }
-.ft__chip--info {
+.dt__chip--info {
   background: var(--color-background-info);
   color: var(--color-text-info);
   border-color: var(--color-border-info);
 }
-.ft__chip--warning {
+.dt__chip--warning {
   background: var(--color-background-warning);
   color: var(--color-text-warning);
   border-color: var(--color-border-warning);
 }
-.ft__chip-remove {
+.dt__chip-remove {
   cursor: pointer;
   margin-left: 2px;
 }
 
 /* Pagination */
-.ft__pagination {
+.dt__pagination {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -645,7 +645,7 @@ function hasSlot(name: string): boolean {
   justify-content: flex-end;
   flex-wrap: wrap;
 }
-.ft__page-btn {
+.dt__page-btn {
   padding: 4px 9px;
   background: none;
   border: 0.5px solid var(--color-border-secondary);
@@ -656,21 +656,21 @@ function hasSlot(name: string): boolean {
   font-family: inherit;
   line-height: 1;
 }
-.ft__page-btn:disabled {
+.dt__page-btn:disabled {
   opacity: 0.35;
   cursor: default;
 }
-.ft__page-info {
+.dt__page-info {
   font-size: 12px;
   color: var(--color-text-secondary);
   padding: 0 6px;
 }
-.ft__rows-per-page-label {
+.dt__rows-per-page-label {
   font-size: 12px;
   color: var(--color-text-secondary);
   margin-left: 10px;
 }
-.ft__page-select {
+.dt__page-select {
   padding: 4px 6px;
   font-size: 12px;
   border: 0.5px solid var(--color-border-secondary);
@@ -682,18 +682,18 @@ function hasSlot(name: string): boolean {
 }
 
 /* Table */
-.ft__table-wrap {
+.dt__table-wrap {
   overflow-x: auto;
   border: 0.5px solid var(--color-border-tertiary);
   border-radius: 8px;
   margin-top: 12px;
 }
-.ft__table {
+.dt__table {
   width: 100%;
   border-collapse: collapse;
   font-size: 13px;
 }
-.ft__th {
+.dt__th {
   padding: 8px 12px;
   text-align: left;
   font-weight: 500;
@@ -705,61 +705,61 @@ function hasSlot(name: string): boolean {
   user-select: none;
   cursor: pointer;
 }
-.ft__td {
+.dt__td {
   padding: 8px 12px;
   border-bottom: 0.5px solid var(--color-border-tertiary);
   color: var(--color-text-primary);
   vertical-align: middle;
 }
-.ft__tr--stripe {
+.dt__tr--stripe {
   background: var(--color-background-secondary);
 }
-.ft__tr--selected {
+.dt__tr--selected {
   background: var(--color-background-info) !important;
 }
-.ft__tr--clickable {
+.dt__tr--clickable {
   cursor: pointer;
 }
-.ft__tr--clickable:hover {
+.dt__tr--clickable:hover {
   background: var(--color-background-secondary);
 }
-.ft__th--cb {
+.dt__th--cb {
   width: 36px;
   cursor: default;
 }
 
 /* Group rows */
-.ft__group-row {
+.dt__group-row {
   background: var(--color-background-secondary);
   font-weight: 500;
   font-size: 12px;
   color: var(--color-text-secondary);
   cursor: pointer;
 }
-.ft__group-td {
+.dt__group-td {
   padding: 6px 12px;
   border-bottom: 0.5px solid var(--color-border-tertiary);
 }
-.ft__group-sep {
+.dt__group-sep {
   margin: 0 4px;
   opacity: 0.4;
 }
-.ft__group-key-label {
+.dt__group-key-label {
   margin-right: 4px;
   opacity: 0.6;
 }
-.ft__group-count {
+.dt__group-count {
   margin-left: 10px;
   font-weight: 400;
   opacity: 0.6;
 }
-.ft__agg-row {
+.dt__agg-row {
   font-size: 12px;
   font-weight: 500;
   color: var(--color-text-secondary);
   background: var(--color-background-secondary);
 }
-.ft__agg-td {
+.dt__agg-td {
   padding: 4px 12px;
   border-bottom: 0.5px solid var(--color-border-tertiary);
 }
