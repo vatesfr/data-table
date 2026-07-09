@@ -81,6 +81,11 @@ Custom cell rendering with render props:
 npm install @vates/data-table-vue
 ```
 
+```ts
+// once, e.g. in your app's entry point
+import '@vates/data-table-vue/style.css'
+```
+
 ```vue
 <script setup lang="ts">
 import { DataTable, type ColumnDef } from '@vates/data-table-vue'

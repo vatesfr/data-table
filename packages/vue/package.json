@@ -30,7 +30,8 @@
       "import": "./dist/data-table-vue.js",
       "require": "./dist/data-table-vue.umd.cjs",
       "types": "./dist/index.d.ts"
-    }
+    },
+    "./style.css": "./dist/style.css"
   },
   "files": [
     "dist"
