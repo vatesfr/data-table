@@ -3,6 +3,11 @@
   "version": "0.1.0",
   "description": "React adapter for data-table",
   "license": "MIT",
+  "author": "Vates",
+  "homepage": "https://github.com/vatesfr/data-table/tree/main/packages/react#readme",
+  "bugs": {
+    "url": "https://github.com/vatesfr/data-table/issues"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/vatesfr/data-table.git",
@@ -32,7 +37,8 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "LICENSE"
   ],
   "sideEffects": false,
   "scripts": {
