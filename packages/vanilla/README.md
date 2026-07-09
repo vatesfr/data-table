@@ -196,11 +196,38 @@ interface ColumnDef<TRow extends object> {
 
 ## Instance methods
 
-| Method                                | Description                                        |
-| ------------------------------------- | -------------------------------------------------- |
-| `setData(rows: TRow[])`               | Replace the data and re-render                     |
-| `setColumns(cols: ColumnDef<TRow>[])` | Replace the column definitions and re-render       |
-| `destroy()`                           | Remove all event listeners and clear the container |
+| Method                                | Description                                                                      |
+| ------------------------------------- | -------------------------------------------------------------------------------- |
+| `setData(rows: TRow[])`               | Replace the data and re-render                                                   |
+| `setColumns(cols: ColumnDef<TRow>[])` | Replace the column definitions and re-render                                     |
+| `getViewState()`                      | Returns a serializable snapshot of sort/filter/group/page/etc. (not selection)   |
+| `setViewState(view: TableViewState)`  | Applies a view snapshot; fields absent from it reset to default                  |
+| `onViewChange(cb)`                    | Subscribes to view changes (not selection-only); returns an unsubscribe function |
+| `destroy()`                           | Remove all event listeners and clear the container                               |
+
+## View persistence & sharing
+
+`getViewState()`/`setViewState()` capture and apply a serializable snapshot of sort, filters, groups, page, etc. — everything except selection, which is identity-based and not meaningful to persist or share. Two opt-in helpers wire this up to `localStorage` and the URL:
+
+```ts
+import {
+  createDataTable,
+  persistViewToLocalStorage,
+  syncViewToUrl,
+} from '@vates/data-table-vanilla'
+
+const table = createDataTable(container, { data, columns })
+const unpersist = persistViewToLocalStorage(table, 'my-table-view') // survives reloads
+const unsync = syncViewToUrl(table) // reflected in ?view=... — reload the page or share the link
+
+// call these alongside table.destroy() if the table can be torn down before a full page unload
+unpersist()
+unsync()
+```
+
+`persistViewToLocalStorage(table, storageKey)` loads the view immediately and saves it on every change (via `onViewChange`). `syncViewToUrl(table, { paramName? })` loads from the URL immediately and on back/forward navigation, and writes back via `history.replaceState` (so sort/filter tweaks don't spam browser history). Both only act when their source actually has a view to apply — composed together, a plain reload with no `view` param keeps the localStorage-restored view instead of resetting it.
+
+To persist a view somewhere else (e.g. a backend), call `getViewState()`/`setViewState(view)`/`onViewChange(cb)` directly — the two helpers above work with any object shaped like that, so `table` (or anything else with that shape) can be passed in.
 
 ## i18n
 

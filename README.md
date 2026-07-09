@@ -29,6 +29,7 @@ A flexible, fully-typed data table for React, Vue 3, and vanilla JS — with sor
 - Row grouping (grouped column hides from the table automatically)
 - Row selection with checkboxes — select all (across pages), group selection, indeterminate state
 - Client-side pagination
+- View persistence & sharing — save sort/filter/group/page/search to `localStorage` or the URL via opt-in helpers
 - i18n via a `labels` prop — defaults to English, with built-in locales for FR, ES, DE, PT
 - Custom cell rendering via render props (React), scoped slots (Vue), or `format` string functions (vanilla)
 - Fully typed with TypeScript generics (`TRow extends object`)
@@ -231,6 +232,19 @@ flag required:
 ```ts
 { key: 'tags', label: 'Tags' } // tags: string[] — no extra config needed
 ```
+
+## View persistence & sharing
+
+Sort, filters, groups, page, and search can be saved across reloads and reflected in the URL for sharing — both opt-in, via small helper functions rather than baked into the table itself:
+
+```tsx
+// React
+const table = useTableState(data, columns)
+usePersistedView(table, 'my-table-view') // survives reloads
+useUrlView(table) // reflected in ?view=... — reload the page or share the link
+```
+
+See the exact API for each package: [React](./packages/react#view-persistence--sharing) · [Vue](./packages/vue#view-persistence--sharing) · [Vanilla](./packages/vanilla#view-persistence--sharing).
 
 ## Development
 

@@ -228,10 +228,28 @@ const {
   toggleRowSelection, // (row: TRow) => void
   toggleSelectAll, // (rows: TRow[]) => void — selects all if any unselected, else deselects all
   clearSelection, // () => void
+  getViewState, // () => TableViewState — snapshot of sort/filter/group/page/etc. (not selection)
+  setViewState, // (view: TableViewState) => void — apply a snapshot; fields absent from it reset to default
 } = useTableState(data, columns, options)
 ```
 
 `data`, `columns`, and `options` can be refs, computed values, or plain values.
+
+## View persistence & sharing
+
+`getViewState()`/`setViewState()` capture and apply a serializable snapshot of sort, filters, groups, page, etc. — everything except selection, which is identity-based and not meaningful to persist or share. Two opt-in composables wire this up to `localStorage` and the URL:
+
+```ts
+import { useTableState, usePersistedView, useUrlView } from '@vates/data-table-vue'
+
+const table = useTableState(data, columns)
+usePersistedView(table, 'my-table-view') // survives reloads
+useUrlView(table) // reflected in ?view=... — reload the page or share the link
+```
+
+`usePersistedView(table, storageKey)` loads the view on mount and saves it on every change. `useUrlView(table, { paramName? })` loads from the URL on mount and on back/forward navigation, and writes back via `history.replaceState` (so sort/filter tweaks don't spam browser history). Both only act when their source actually has a view to apply — composed together, a plain reload with no `view` param keeps the localStorage-restored view instead of resetting it.
+
+To persist a view somewhere else (e.g. a backend), call `getViewState()`/`setViewState(view)` directly — `usePersistedView`/`useUrlView` work with any object shaped like `{ getViewState(), setViewState(view) }`, so `table` (or anything else with that shape) can be passed in.
 
 ## i18n
 

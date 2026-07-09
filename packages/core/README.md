@@ -14,6 +14,7 @@ GroupResult<TRow extends object>    // { key, keyParts, rows } — one entry per
 SortEntry                           // { key: string; dir: 'asc' | 'desc' }
 RangeFilter                         // { min: string; max: string }
 DataTableLabels                     // all UI strings + 4 pluralization functions + emptyValue
+TableViewState                      // serializable snapshot of visibleCols/sorts/filters/rangeFilters/groupBy/collapsedGroups/page/pageSize/searchQuery (not selection)
 DEFAULT_LABELS                      // English defaults (alias for LABELS_EN)
 LABELS_EN                           // English
 LABELS_FR                           // French
@@ -38,6 +39,13 @@ toggleCollapse(collapsed, key) // toggle a collapsed group
 getSortIcon(sorts, key) // '↑' | '↓' | '↕'
 getSortIndex(sorts, key) // 1-based position or null
 countActiveFilters(filters, rangeFilters) // total active filter count
+```
+
+### View state
+
+```ts
+encodeViewState(view) // TableViewState -> compact, URL-safe string (base64url of a shortened JSON shape; fields at their default are omitted)
+decodeViewState(encoded) // string -> TableViewState, or undefined if the input is malformed
 ```
 
 ## License
