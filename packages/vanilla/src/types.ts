@@ -1,4 +1,4 @@
-import type { ColumnDefBase, DataTableLabels } from '@vates/data-table-core'
+import type { ColumnDefBase, DataTableLabels, TableViewState } from '@vates/data-table-core'
 
 export type ColumnDef<TRow extends object = Record<string, unknown>> = ColumnDefBase<TRow>
 
@@ -17,5 +17,9 @@ export interface DataTableOptions<TRow extends object = Record<string, unknown>>
 export interface DataTableInstance<TRow extends object = Record<string, unknown>> {
   setData(data: TRow[]): void
   setColumns(columns: ColumnDef<TRow>[]): void
+  getViewState(): TableViewState
+  setViewState(view: TableViewState): void
+  /** Fires after any user action that changes the view (not selection). Returns an unsubscribe function. */
+  onViewChange(cb: (view: TableViewState) => void): () => void
   destroy(): void
 }

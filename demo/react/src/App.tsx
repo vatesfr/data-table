@@ -4,6 +4,8 @@ import {
   Badge,
   ScoreBar,
   useTableState,
+  usePersistedView,
+  useUrlView,
   LABELS_EN,
   LABELS_FR,
   LABELS_DE,
@@ -350,11 +352,24 @@ function fmtSalary(n: number) {
 }
 
 // Headless section: useTableState owns the sort/filter logic; you own the render.
+// usePersistedView/useUrlView are opt-in helpers — the sort below survives a reload
+// (localStorage) and round-trips through "Copy share link" (URL query param).
 function EmployeeCards() {
-  const { processedData, getSortIcon, toggleSort } = useTableState(SAMPLE_DATA, COLUMNS)
+  const table = useTableState(SAMPLE_DATA, COLUMNS)
+  const { processedData, getSortIcon, toggleSort } = table
+  usePersistedView(table, 'data-table-demo-view')
+  useUrlView(table)
+  const [copied, setCopied] = useState(false)
+
+  function copyShareLink() {
+    navigator.clipboard.writeText(window.location.href)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1500)
+  }
+
   return (
     <>
-      <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 12, alignItems: 'center' }}>
         {(['name', 'salary', 'score'] as const).map((col) => (
           <button
             key={col}
@@ -373,6 +388,22 @@ function EmployeeCards() {
             {col.charAt(0).toUpperCase() + col.slice(1)} {getSortIcon(col)}
           </button>
         ))}
+        <button
+          onClick={copyShareLink}
+          style={{
+            padding: '4px 10px',
+            borderRadius: 6,
+            border: '1px solid var(--color-border-secondary)',
+            cursor: 'pointer',
+            background: 'var(--color-background-primary)',
+            color: 'var(--color-text-secondary)',
+            fontSize: 13,
+            fontFamily: 'inherit',
+            marginLeft: 'auto',
+          }}
+        >
+          {copied ? 'Copied!' : 'Copy share link'}
+        </button>
       </div>
       <div
         style={{
@@ -615,7 +646,9 @@ export default function App() {
           marginBottom: 16,
         }}
       >
-        Same data and sort logic — your own render.
+        Same data and sort logic — your own render. Sort here persists across reloads (
+        <code>usePersistedView</code>) and is reflected in the URL (<code>useUrlView</code>) —
+        reload the page or use "Copy share link" and open it in a new tab.
       </p>
       <EmployeeCards />
     </div>

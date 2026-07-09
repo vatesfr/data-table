@@ -1,5 +1,7 @@
 import {
   createDataTable,
+  persistViewToLocalStorage,
+  syncViewToUrl,
   LABELS_EN,
   LABELS_FR,
   LABELS_DE,
@@ -336,6 +338,16 @@ app.innerHTML = `
       border-radius:6px;font-size:13px;color:var(--color-text-info)"></div>
     <div id="table-click"></div>
 
+    <h2 style="font-size:16px;font-weight:600;margin-top:40px;margin-bottom:4px">View persistence &amp; sharing</h2>
+    <p style="font-size:14px;color:var(--color-text-secondary);margin-top:0;margin-bottom:12px">
+      <code>persistViewToLocalStorage</code> saves sort/filter/group/etc. across reloads;
+      <code>syncViewToUrl</code> reflects them in the URL — reload the page or use "Copy share link"
+      and open it in a new tab.
+    </p>
+    <button id="copy-link-btn" style="padding:5px 12px;border-radius:6px;border:0.5px solid var(--color-border-secondary);
+      background:none;cursor:pointer;font-size:13px;font-family:inherit;margin-bottom:12px">Copy share link</button>
+    <div id="table-persist"></div>
+
     <h2 style="font-size:16px;font-weight:600;margin-top:40px;margin-bottom:4px">Dynamic data</h2>
     <p style="font-size:14px;color:var(--color-text-secondary);margin-top:0;margin-bottom:12px">
       Call <code>table.setData()</code> to push new rows at any time.
@@ -453,6 +465,25 @@ createDataTable<Employee>(document.getElementById('table-click')!, {
     clickBanner.style.display = 'block'
     clickBanner.textContent = `Last clicked: ${row.name} (${row.role})`
   },
+})
+
+// ---- Table: view persistence & sharing ----
+
+const tablePersist = createDataTable<Employee>(document.getElementById('table-persist')!, {
+  data: SAMPLE_DATA,
+  columns: COLUMNS,
+  rowKey: 'id',
+  defaultVisibleColumns: DEFAULT_VISIBLE,
+  defaultPageSize: 5,
+})
+persistViewToLocalStorage(tablePersist, 'vanilla-demo-view')
+syncViewToUrl(tablePersist)
+
+const copyLinkBtn = document.getElementById('copy-link-btn')!
+copyLinkBtn.addEventListener('click', () => {
+  navigator.clipboard.writeText(window.location.href)
+  copyLinkBtn.textContent = 'Copied!'
+  setTimeout(() => (copyLinkBtn.textContent = 'Copy share link'), 1500)
 })
 
 // ---- Table 3: dynamic data ----

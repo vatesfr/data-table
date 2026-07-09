@@ -17,6 +17,7 @@ import {
   type SortEntry,
   type RangeFilter,
   type DataTableLabels,
+  type TableViewState,
 } from '@vates/data-table-core'
 import type { ColumnDef } from './types'
 
@@ -190,6 +191,43 @@ export function useTableState<TRow extends object>(
     },
     clearSelection: () => {
       selection.value = new Set()
+    },
+    getViewState: (): TableViewState => {
+      const view: TableViewState = {}
+      const allKeys = columns.value.map((c) => c.key)
+      const isDefaultVisible =
+        visibleCols.value.size === allKeys.length && allKeys.every((k) => visibleCols.value.has(k))
+      if (!isDefaultVisible) view.visibleCols = [...visibleCols.value]
+      if (sorts.value.length) view.sorts = sorts.value
+      const filterEntries = Object.entries(filters.value).filter(([, v]) => v.size > 0)
+      if (filterEntries.length)
+        view.filters = Object.fromEntries(filterEntries.map(([k, v]) => [k, [...v]]))
+      const rangeEntries = Object.entries(rangeFilters.value).filter(
+        ([, r]) => r.min !== '' || r.max !== '',
+      )
+      if (rangeEntries.length) view.rangeFilters = Object.fromEntries(rangeEntries)
+      if (groupBy.value.length) view.groupBy = groupBy.value
+      if (collapsedGroups.value.size) view.collapsedGroups = [...collapsedGroups.value]
+      if (page.value !== 1) view.page = page.value
+      if (pageSize.value !== (options.value.defaultPageSize ?? 0)) view.pageSize = pageSize.value
+      if (searchQuery.value) view.searchQuery = searchQuery.value
+      return view
+    },
+    setViewState: (view: TableViewState) => {
+      const validVisible = view.visibleCols?.filter((k) => columns.value.some((c) => c.key === k))
+      visibleCols.value = validVisible?.length
+        ? new Set(validVisible)
+        : new Set(options.value.defaultVisibleColumns ?? columns.value.map((c) => c.key))
+      sorts.value = view.sorts ?? []
+      filters.value = Object.fromEntries(
+        Object.entries(view.filters ?? {}).map(([k, v]) => [k, new Set(v)]),
+      )
+      rangeFilters.value = view.rangeFilters ?? {}
+      groupBy.value = view.groupBy ?? []
+      collapsedGroups.value = new Set(view.collapsedGroups ?? [])
+      page.value = view.page ?? 1
+      pageSize.value = view.pageSize ?? options.value.defaultPageSize ?? 0
+      searchQuery.value = view.searchQuery ?? ''
     },
   }
 }

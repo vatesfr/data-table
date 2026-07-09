@@ -302,3 +302,54 @@ describe('useTableState — computed columns', () => {
     ])
   })
 })
+
+describe('useTableState — view state', () => {
+  it('getViewState omits fields still at their default', () => {
+    const { getViewState } = useTableState(ROWS, COLS)
+    expect(getViewState()).toEqual({})
+  })
+
+  it('getViewState captures changes made through actions', () => {
+    const { getViewState, toggleSort, toggleFilter, setPage } = useTableState(ROWS, COLS)
+    toggleSort('score')
+    toggleFilter('name', 'Alice')
+    setPage(1)
+    expect(getViewState()).toEqual({
+      sorts: [{ key: 'score', dir: 'asc' }],
+      filters: { name: ['Alice'] },
+    })
+  })
+
+  it('setViewState applies a snapshot and getViewState round-trips it', () => {
+    const { getViewState, setViewState, sorts, groupBy, searchQuery } = useTableState(ROWS, COLS)
+    const view = {
+      sorts: [{ key: 'score', dir: 'desc' as const }],
+      groupBy: ['name'],
+      searchQuery: 'a',
+    }
+    setViewState(view)
+    expect(sorts.value).toEqual(view.sorts)
+    expect(groupBy.value).toEqual(view.groupBy)
+    expect(searchQuery.value).toBe('a')
+    expect(getViewState()).toEqual(view)
+  })
+
+  it('setViewState resets fields absent from the given view', () => {
+    const { setViewState, toggleSort, setSearchQuery, sorts, groupBy, searchQuery } = useTableState(
+      ROWS,
+      COLS,
+    )
+    toggleSort('score')
+    setSearchQuery('a')
+    setViewState({ groupBy: ['name'] })
+    expect(sorts.value).toEqual([])
+    expect(searchQuery.value).toBe('')
+    expect(groupBy.value).toEqual(['name'])
+  })
+
+  it('setViewState falls back to default visible columns when given stale keys', () => {
+    const { setViewState, activeColumns } = useTableState(ROWS, COLS)
+    setViewState({ visibleCols: ['nonexistent'] })
+    expect(activeColumns.value.map((c) => c.key)).toEqual(['id', 'name', 'score'])
+  })
+})

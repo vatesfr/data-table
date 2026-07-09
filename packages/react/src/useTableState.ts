@@ -17,6 +17,7 @@ import {
   type SortEntry,
   type RangeFilter,
   type DataTableLabels,
+  type TableViewState,
 } from '@vates/data-table-core'
 import type { ColumnDef } from './types'
 
@@ -185,5 +186,44 @@ export function useTableState<TRow extends object>(
         return next
       }),
     clearSelection: () => setSelection(new Set()),
+    getViewState: (): TableViewState => {
+      const view: TableViewState = {}
+      const allKeys = columns.map((c) => c.key)
+      const isDefaultVisible =
+        visibleCols.size === allKeys.length && allKeys.every((k) => visibleCols.has(k))
+      if (!isDefaultVisible) view.visibleCols = [...visibleCols]
+      if (sorts.length) view.sorts = sorts
+      const filterEntries = Object.entries(filters).filter(([, v]) => v.size > 0)
+      if (filterEntries.length)
+        view.filters = Object.fromEntries(filterEntries.map(([k, v]) => [k, [...v]]))
+      const rangeEntries = Object.entries(rangeFilters).filter(
+        ([, r]) => r.min !== '' || r.max !== '',
+      )
+      if (rangeEntries.length) view.rangeFilters = Object.fromEntries(rangeEntries)
+      if (groupBy.length) view.groupBy = groupBy
+      if (collapsedGroups.size) view.collapsedGroups = [...collapsedGroups]
+      if (page !== 1) view.page = page
+      if (pageSize !== (defaultPageSize ?? 0)) view.pageSize = pageSize
+      if (searchQuery) view.searchQuery = searchQuery
+      return view
+    },
+    setViewState: (view: TableViewState) => {
+      const validVisible = view.visibleCols?.filter((k) => columns.some((c) => c.key === k))
+      setVisibleCols(
+        validVisible?.length
+          ? new Set(validVisible)
+          : new Set(defaultVisibleColumns ?? columns.map((c) => c.key)),
+      )
+      setSorts(view.sorts ?? [])
+      setFilters(
+        Object.fromEntries(Object.entries(view.filters ?? {}).map(([k, v]) => [k, new Set(v)])),
+      )
+      setRangeFilters(view.rangeFilters ?? {})
+      setGroupBy(view.groupBy ?? [])
+      setCollapsedGroups(new Set(view.collapsedGroups ?? []))
+      setPageState(view.page ?? 1)
+      setPageSizeState(view.pageSize ?? defaultPageSize ?? 0)
+      setSearchQueryState(view.searchQuery ?? '')
+    },
   }
 }

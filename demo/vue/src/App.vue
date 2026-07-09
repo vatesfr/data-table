@@ -5,6 +5,8 @@ import {
   Badge,
   ScoreBar,
   useTableState,
+  usePersistedView,
+  useUrlView,
   LABELS_EN,
   LABELS_FR,
   LABELS_DE,
@@ -351,12 +353,24 @@ function cycleTheme() {
 }
 
 // Headless section: useTableState owns the sort/filter logic; you own the render.
-const { processedData, getSortIcon, toggleSort } = useTableState(SAMPLE_DATA, COLUMNS)
+// usePersistedView/useUrlView are opt-in helpers — the sort below survives a reload
+// (localStorage) and round-trips through "Copy share link" (URL query param).
+const table = useTableState(SAMPLE_DATA, COLUMNS)
+const { processedData, getSortIcon, toggleSort } = table
+usePersistedView(table, 'data-table-demo-view')
+useUrlView(table)
 
 const SORT_COLS = ['name', 'salary', 'score'] as const
 
 function fmtSalary(n: number) {
   return n.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })
+}
+
+const copied = ref(false)
+function copyShareLink() {
+  navigator.clipboard.writeText(window.location.href)
+  copied.value = true
+  setTimeout(() => (copied.value = false), 1500)
 }
 </script>
 
@@ -594,11 +608,13 @@ function fmtSalary(n: number) {
         margin-bottom: 16px;
       "
     >
-      Same data and sort logic — your own render.
+      Same data and sort logic — your own render. Sort here persists across reloads
+      (<code>usePersistedView</code>) and is reflected in the URL (<code>useUrlView</code>) — reload
+      the page or use "Copy share link" and open it in a new tab.
     </p>
 
     <!-- Sort controls -->
-    <div style="display: flex; gap: 8px; margin-bottom: 12px">
+    <div style="display: flex; gap: 8px; margin-bottom: 12px; align-items: center">
       <button
         v-for="col in SORT_COLS"
         :key="col"
@@ -615,6 +631,22 @@ function fmtSalary(n: number) {
         "
       >
         {{ col.charAt(0).toUpperCase() + col.slice(1) }} {{ getSortIcon(col) }}
+      </button>
+      <button
+        @click="copyShareLink"
+        style="
+          padding: 4px 10px;
+          border-radius: 6px;
+          border: 1px solid var(--color-border-secondary);
+          cursor: pointer;
+          background: var(--color-background-primary);
+          color: var(--color-text-secondary);
+          font-size: 13px;
+          font-family: inherit;
+          margin-left: auto;
+        "
+      >
+        {{ copied ? 'Copied!' : 'Copy share link' }}
       </button>
     </div>
 

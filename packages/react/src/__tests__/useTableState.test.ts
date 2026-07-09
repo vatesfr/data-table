@@ -381,3 +381,61 @@ describe('useTableState — computed columns', () => {
     ])
   })
 })
+
+describe('useTableState — view state', () => {
+  it('getViewState omits fields still at their default', () => {
+    const { result } = renderHook(() => useTableState(ROWS, COLS))
+    expect(result.current.getViewState()).toEqual({})
+  })
+
+  it('getViewState captures changes made through actions', () => {
+    const { result } = renderHook(() => useTableState(ROWS, COLS))
+    act(() => {
+      result.current.toggleSort('score')
+      result.current.toggleFilter('name', 'Alice')
+      result.current.setPage(1)
+    })
+    expect(result.current.getViewState()).toEqual({
+      sorts: [{ key: 'score', dir: 'asc' }],
+      filters: { name: ['Alice'] },
+    })
+  })
+
+  it('setViewState applies a snapshot and getViewState round-trips it', () => {
+    const { result } = renderHook(() => useTableState(ROWS, COLS))
+    const view = {
+      sorts: [{ key: 'score', dir: 'desc' as const }],
+      groupBy: ['name'],
+      searchQuery: 'a',
+    }
+    act(() => {
+      result.current.setViewState(view)
+    })
+    expect(result.current.sorts).toEqual(view.sorts)
+    expect(result.current.groupBy).toEqual(view.groupBy)
+    expect(result.current.searchQuery).toBe('a')
+    expect(result.current.getViewState()).toEqual(view)
+  })
+
+  it('setViewState resets fields absent from the given view', () => {
+    const { result } = renderHook(() => useTableState(ROWS, COLS))
+    act(() => {
+      result.current.toggleSort('score')
+      result.current.setSearchQuery('a')
+    })
+    act(() => {
+      result.current.setViewState({ groupBy: ['name'] })
+    })
+    expect(result.current.sorts).toEqual([])
+    expect(result.current.searchQuery).toBe('')
+    expect(result.current.groupBy).toEqual(['name'])
+  })
+
+  it('setViewState falls back to default visible columns when given stale keys', () => {
+    const { result } = renderHook(() => useTableState(ROWS, COLS))
+    act(() => {
+      result.current.setViewState({ visibleCols: ['nonexistent'] })
+    })
+    expect(result.current.activeColumns.map((c) => c.key)).toEqual(['id', 'name', 'score'])
+  })
+})

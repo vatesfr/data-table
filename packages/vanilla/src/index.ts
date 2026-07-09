@@ -18,12 +18,15 @@ import {
   type SortEntry,
   type RangeFilter,
   type DataTableLabels,
+  type TableViewState,
 } from '@vates/data-table-core'
 import type { ColumnDef, DataTableOptions, DataTableInstance } from './types'
 import { STYLES } from './styles'
 
 export type { ColumnDef, DataTableOptions, DataTableInstance }
-export type { DataTableLabels } from '@vates/data-table-core'
+export type { DataTableLabels, TableViewState } from '@vates/data-table-core'
+export { persistViewToLocalStorage, syncViewToUrl } from './persistence'
+export type { ViewStateApi, SyncViewToUrlOptions } from './persistence'
 export * from '@vates/data-table-core/locales'
 
 // --- Styles ---
@@ -76,6 +79,7 @@ export function createDataTable<TRow extends object>(
   let selection = new Set<TRow>()
   let openDropdown: string | null = null
   let searchQuery = ''
+  const viewListeners = new Set<(view: TableViewState) => void>()
 
   // Updated by derive(), read by event handlers
   let _processedData: TRow[] = []
@@ -101,6 +105,52 @@ export function createDataTable<TRow extends object>(
     const activeFilterCount = countActiveFilters(filters, rangeFilters)
     const selectedRows = _processedData.filter((r) => selection.has(r))
     return { stringValueMap, activeColumns, activeFilterCount, selectedRows }
+  }
+
+  function buildViewState(): TableViewState {
+    const view: TableViewState = {}
+    const allKeys = columns.map((c) => c.key)
+    const isDefaultVisible =
+      visibleCols.size === allKeys.length && allKeys.every((k) => visibleCols.has(k))
+    if (!isDefaultVisible) view.visibleCols = [...visibleCols]
+    if (sorts.length) view.sorts = sorts
+    const filterEntries = Object.entries(filters).filter(([, v]) => v.size > 0)
+    if (filterEntries.length)
+      view.filters = Object.fromEntries(filterEntries.map(([k, v]) => [k, [...v]]))
+    const rangeEntries = Object.entries(rangeFilters).filter(
+      ([, r]) => r.min !== '' || r.max !== '',
+    )
+    if (rangeEntries.length) view.rangeFilters = Object.fromEntries(rangeEntries)
+    if (groupBy.length) view.groupBy = groupBy
+    if (collapsedGroups.size) view.collapsedGroups = [...collapsedGroups]
+    if (page !== 1) view.page = page
+    if (pageSize !== (options.defaultPageSize ?? 0)) view.pageSize = pageSize
+    if (searchQuery) view.searchQuery = searchQuery
+    return view
+  }
+
+  function applyViewState(view: TableViewState): void {
+    const validVisible = view.visibleCols?.filter((k) => columns.some((c) => c.key === k))
+    visibleCols = validVisible?.length
+      ? new Set(validVisible)
+      : new Set(options.defaultVisibleColumns ?? columns.map((c) => c.key))
+    sorts = view.sorts ?? []
+    filters = Object.fromEntries(
+      Object.entries(view.filters ?? {}).map(([k, v]) => [k, new Set(v)]),
+    )
+    rangeFilters = view.rangeFilters ?? {}
+    groupBy = view.groupBy ?? []
+    collapsedGroups = new Set(view.collapsedGroups ?? [])
+    page = view.page ?? 1
+    pageSize = view.pageSize ?? options.defaultPageSize ?? 0
+    searchQuery = view.searchQuery ?? ''
+    render()
+    notifyViewChange()
+  }
+
+  function notifyViewChange(): void {
+    const view = buildViewState()
+    for (const cb of viewListeners) cb(view)
   }
 
   function formatStr(v: unknown, row: TRow, col: ColumnDef<TRow>): string {
@@ -423,6 +473,7 @@ export function createDataTable<TRow extends object>(
     const procIdx = parseInt(actionEl.dataset.procIdx ?? '-1', 10)
 
     let selectionChanged = false
+    let viewChanged = false
 
     switch (action) {
       case 'toggle-dd':
@@ -430,9 +481,11 @@ export function createDataTable<TRow extends object>(
         break
       case 'toggle-sort':
         sorts = coreToggleSort(sorts, key)
+        viewChanged = true
         break
       case 'remove-sort':
         sorts = sorts.filter((s) => s.key !== key)
+        viewChanged = true
         break
       case 'toggle-col': {
         const next = new Set(visibleCols)
@@ -440,38 +493,47 @@ export function createDataTable<TRow extends object>(
           if (next.size > 1) next.delete(key)
         } else next.add(key)
         visibleCols = next
+        viewChanged = true
         break
       }
       case 'toggle-filter':
         filters = coreToggleFilter(filters, key, value)
         page = 1
+        viewChanged = true
         break
       case 'toggle-group':
         groupBy = toggleGroupBy(groupBy, key)
+        viewChanged = true
         break
       case 'remove-group':
         groupBy = groupBy.filter((k) => k !== key)
+        viewChanged = true
         break
       case 'toggle-group-collapse':
         if (!target.closest('[data-no-collapse]')) {
           collapsedGroups = toggleCollapse(collapsedGroups, gkey)
+          viewChanged = true
         }
         break
       case 'clear-sorts':
         sorts = []
+        viewChanged = true
         break
       case 'clear-filters':
         filters = {}
         rangeFilters = {}
         page = 1
+        viewChanged = true
         break
       case 'clear-groups':
         groupBy = []
         collapsedGroups = new Set()
+        viewChanged = true
         break
       case 'clear-filter-key':
         filters = { ...filters, [key]: new Set() }
         page = 1
+        viewChanged = true
         break
       case 'clear-all':
         sorts = []
@@ -482,6 +544,7 @@ export function createDataTable<TRow extends object>(
         page = 1
         searchQuery = ''
         openDropdown = null
+        viewChanged = true
         break
       case 'select-all': {
         const next = new Set(selection)
@@ -518,15 +581,19 @@ export function createDataTable<TRow extends object>(
       }
       case 'page-first':
         page = 1
+        viewChanged = true
         break
       case 'page-prev':
         page = Math.max(1, _clampedPage - 1)
+        viewChanged = true
         break
       case 'page-next':
         page = Math.min(_numPages, _clampedPage + 1)
+        viewChanged = true
         break
       case 'page-last':
         page = _numPages
+        viewChanged = true
         break
       case 'row-click':
         if (
@@ -546,6 +613,9 @@ export function createDataTable<TRow extends object>(
     if (selectionChanged) {
       onSelectionChange?.(_processedData.filter((r) => selection.has(r)))
     }
+    if (viewChanged) {
+      notifyViewChange()
+    }
   }
 
   function handleInput(e: Event): void {
@@ -555,6 +625,7 @@ export function createDataTable<TRow extends object>(
       searchQuery = target.value
       page = 1
       render()
+      notifyViewChange()
       return
     }
     if (action !== 'range-min' && action !== 'range-max') return
@@ -570,6 +641,7 @@ export function createDataTable<TRow extends object>(
     }
     page = 1
     render()
+    notifyViewChange()
   }
 
   function handleChange(e: Event): void {
@@ -578,6 +650,7 @@ export function createDataTable<TRow extends object>(
     pageSize = Number(target.value)
     page = 1
     render()
+    notifyViewChange()
   }
 
   function handleDocClick(e: MouseEvent): void {
@@ -604,6 +677,16 @@ export function createDataTable<TRow extends object>(
     setColumns(newCols: ColumnDef<TRow>[]): void {
       columns = newCols
       render()
+    },
+    getViewState(): TableViewState {
+      return buildViewState()
+    },
+    setViewState(view: TableViewState): void {
+      applyViewState(view)
+    },
+    onViewChange(cb: (view: TableViewState) => void): () => void {
+      viewListeners.add(cb)
+      return () => viewListeners.delete(cb)
     },
     destroy(): void {
       container.removeEventListener('click', handleClick)

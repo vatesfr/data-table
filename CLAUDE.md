@@ -147,6 +147,21 @@ When a column is added to `groupBy`, `useTableState` removes it from `activeColu
 
 Built-in locales live in `packages/core/src/locales.ts` and are re-exported from both adapter packages via a `@vates/data-table-core/locales` sub-path export — consumers import from `@vates/data-table-react` or `@vates/data-table-vue` directly. Adding a new locale to `locales.ts` makes it available from both adapters with no further changes.
 
+### View persistence
+
+`TableViewState` in `packages/core/src/view.ts` is a serializable snapshot of everything a user can change through the UI — `visibleCols`, `sorts`, `filters`, `rangeFilters`, `groupBy`, `collapsedGroups`, `page`, `pageSize`, `searchQuery` — except `selection`, which is tracked by object identity and isn't meaningful to persist or share. All fields are optional: a partial view (e.g. just a sort) applies on top of whatever defaults are already in place.
+
+`encodeViewState`/`decodeViewState` serialize a view to/from a compact, URL-safe string, kept small by three rules: 1-letter wire keys, tuples instead of objects (`sorts` as `[key, dirFlag]`, `filters` as `[key, values[]]` pairs, `rangeFilters` as `[key, min, max]`), and omitting any field at its natural default (empty array/object/string, `page: 1`, `pageSize: 0`) — most shared/persisted views differ from the defaults in only one or two fields. The string itself is base64url of that compact JSON — hand-rolled (not `btoa`/`TextEncoder`) since core targets ES2020 with no DOM/Node lib and must run identically in browsers, Node (SSR), and the vanilla adapter; base64url is cheaper here than `encodeURIComponent(JSON.stringify(...))` because JSON's punctuation would otherwise be percent-escaped at 3 chars apiece.
+
+Each adapter's `useTableState`/`createDataTable` exposes `getViewState()` (builds a `TableViewState` from current state, omitting `visibleCols` when it equals the full column set) and `setViewState(view)` (applies a partial view, resetting every field absent from it back to its default — so it's idempotent with `getViewState`). `setViewState` falls back to the default visible columns if `view.visibleCols` contains no keys present in the current `columns` (e.g. a stale shared link against a changed column set). The vanilla adapter also exposes `onViewChange(cb)` since it has no reactivity system for external code to hook into; it fires after any UI action that changes the view, but not on selection-only changes.
+
+Actually writing a view to `localStorage` or the URL is opt-in, via separate helpers rather than baked into the main hook (`persistence.ts` in each adapter package):
+
+- `usePersistedView(table, storageKey)` (React/Vue) / `persistViewToLocalStorage(table, storageKey)` (vanilla) — loads on mount/init, saves on every change.
+- `useUrlView(table, options?)` (React/Vue) / `syncViewToUrl(table, options?)` (vanilla) — loads from the `view` query param (configurable via `paramName`) on mount/init and on `popstate`, writes back via `history.replaceState` (not `pushState`, so per-change sort/filter/etc. tweaks don't spam browser history).
+
+Both URL helpers only apply state when the param is actually present and decodes successfully — an absent or malformed param leaves whatever state is already there alone rather than forcing a reset to defaults. This matters when composing both helpers (as the demos do): on a plain reload with no `view` param, the URL helper's hydration step must not clobber the localStorage-restored view with an empty one.
+
 ### Testing
 
 Each package has its own Vitest setup under `src/__tests__/`:

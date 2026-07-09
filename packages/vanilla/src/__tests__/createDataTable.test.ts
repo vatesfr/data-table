@@ -594,4 +594,69 @@ describe('createDataTable', () => {
     expect(groupTexts.some((t) => t?.includes('Grade: A'))).toBe(true)
     expect(groupTexts.some((t) => t?.includes('Grade: B'))).toBe(true)
   })
+
+  // --- view state ---
+
+  it('getViewState omits fields still at their default', () => {
+    const table = createDataTable(container, { data: ROWS, columns: COLS })
+    expect(table.getViewState()).toEqual({})
+  })
+
+  it('getViewState captures changes made through the UI', () => {
+    const table = createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('th[data-action="toggle-sort"][data-key="score"]')!)
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="filter"]')!)
+    click(
+      container.querySelector<HTMLElement>('[data-action="toggle-filter"][data-value="Alice"]')!,
+    )
+    expect(table.getViewState()).toEqual({
+      sorts: [{ key: 'score', dir: 'asc' }],
+      filters: { name: ['Alice'] },
+    })
+  })
+
+  it('onViewChange fires with the new view when the UI changes it, but not on selection', () => {
+    const table = createDataTable(container, { data: ROWS, columns: COLS, selectable: true })
+    const cb = vi.fn()
+    table.onViewChange(cb)
+    click(container.querySelector<HTMLElement>('th[data-action="toggle-sort"][data-key="score"]')!)
+    expect(cb).toHaveBeenCalledTimes(1)
+    expect(cb).toHaveBeenLastCalledWith({ sorts: [{ key: 'score', dir: 'asc' }] })
+    click(
+      container.querySelector<HTMLElement>('[data-action="toggle-row-select"][data-proc-idx="0"]')!,
+    )
+    expect(cb).toHaveBeenCalledTimes(1)
+  })
+
+  it('onViewChange returns an unsubscribe function', () => {
+    const table = createDataTable(container, { data: ROWS, columns: COLS })
+    const cb = vi.fn()
+    const unsubscribe = table.onViewChange(cb)
+    unsubscribe()
+    click(container.querySelector<HTMLElement>('th[data-action="toggle-sort"][data-key="score"]')!)
+    expect(cb).not.toHaveBeenCalled()
+  })
+
+  it('setViewState applies a snapshot and re-renders', () => {
+    const table = createDataTable(container, { data: ROWS, columns: COLS })
+    table.setViewState({ sorts: [{ key: 'score', dir: 'desc' }], searchQuery: 'a' })
+    expect(table.getViewState()).toEqual({
+      sorts: [{ key: 'score', dir: 'desc' }],
+      searchQuery: 'a',
+    })
+    expect(container.querySelector<HTMLInputElement>('.dt-search-input')!.value).toBe('a')
+  })
+
+  it('setViewState resets fields absent from the given view', () => {
+    const table = createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('th[data-action="toggle-sort"][data-key="score"]')!)
+    table.setViewState({ page: 2 })
+    expect(table.getViewState()).toEqual({ page: 2 })
+  })
+
+  it('setViewState falls back to default visible columns when given stale keys', () => {
+    const table = createDataTable(container, { data: ROWS, columns: COLS })
+    table.setViewState({ visibleCols: ['nonexistent'] })
+    expect(colHeaders(container)).toEqual(expect.arrayContaining(['Name', 'Score', 'Dept']))
+  })
 })
