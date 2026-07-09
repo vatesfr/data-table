@@ -35,17 +35,17 @@ jobs:
       - name: Build React demo
         run: npm run build -w demo/react
         env:
-          VITE_BASE_URL: /flexi-table/react/
+          VITE_BASE_URL: /data-table/react/
 
       - name: Build Vue demo
         run: npm run build -w demo/vue
         env:
-          VITE_BASE_URL: /flexi-table/vue/
+          VITE_BASE_URL: /data-table/vue/
 
       - name: Build Vanilla demo
         run: npm run build -w demo/vanilla
         env:
-          VITE_BASE_URL: /flexi-table/vanilla/
+          VITE_BASE_URL: /data-table/vanilla/
 
       - name: Assemble site
         run: |
@@ -59,7 +59,7 @@ jobs:
           <head>
             <meta charset="UTF-8" />
             <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-            <title>FlexiTable demos</title>
+            <title>data-table demos</title>
             <style>
               body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; gap: 16px; }
               h1 { font-size: 1.4rem; font-weight: 600; margin: 0 0 8px; }
@@ -69,7 +69,7 @@ jobs:
             </style>
           </head>
           <body>
-            <h1>FlexiTable — live demos</h1>
+            <h1>data-table — live demos</h1>
             <div class="links">
               <a href="react/">React</a>
               <a href="vue/">Vue</a>

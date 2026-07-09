@@ -21,13 +21,13 @@
     "node": ">=18"
   },
   "type": "module",
-  "main": "./dist/flexi-table-react.umd.cjs",
-  "module": "./dist/flexi-table-react.js",
+  "main": "./dist/data-table-react.umd.cjs",
+  "module": "./dist/data-table-react.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/flexi-table-react.js",
-      "require": "./dist/flexi-table-react.umd.cjs",
+      "import": "./dist/data-table-react.js",
+      "require": "./dist/data-table-react.umd.cjs",
       "types": "./dist/index.d.ts"
     }
   },
