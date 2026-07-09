@@ -45,7 +45,7 @@
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
-    "@vates/data-table-core": "*"
+    "@vates/data-table-core": "^0.1.0"
   },
   "peerDependencies": {
     "vue": ">=3.3.0"

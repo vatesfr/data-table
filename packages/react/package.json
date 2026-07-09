@@ -43,7 +43,11 @@
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
-    "@vates/data-table-core": "*"
+    "@vates/data-table-core": "^0.1.0"
+  },
+  "peerDependencies": {
+    "react": ">=18.0.0",
+    "react-dom": ">=18.0.0"
   },
   "devDependencies": {
     "@testing-library/react": "^16.3.2",

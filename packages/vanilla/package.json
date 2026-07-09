@@ -43,7 +43,7 @@
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
-    "@vates/data-table-core": "*"
+    "@vates/data-table-core": "^0.1.0"
   },
   "devDependencies": {
     "jsdom": "^25.0.1",
