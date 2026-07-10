@@ -461,7 +461,7 @@ function onColDragEnd(): void {
             </tr>
 
             <!-- Aggregate row -->
-            <tr v-if="hasAggregates" class="dt__agg-row">
+            <tr v-if="group.key !== null && hasAggregates" class="dt__agg-row">
               <td v-if="selectable" class="dt__agg-td" style="width: 36px" />
               <td class="dt__agg-td" style="width: 28px" />
               <td v-for="col in activeColumns" :key="col.key" class="dt__agg-td">

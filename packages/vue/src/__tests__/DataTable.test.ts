@@ -57,6 +57,30 @@ describe('DataTable — rowClick', () => {
   })
 })
 
+describe('DataTable — aggregate row', () => {
+  it('does not render an aggregate row when there is no grouping', () => {
+    const cols: ColumnDef<Row>[] = [
+      { key: 'name', label: 'Name' },
+      { key: 'score', label: 'Score', type: 'number', aggregate: 'sum' },
+    ]
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: cols, rowKey: 'id' } })
+    expect(wrapper.find('.dt__agg-row').exists()).toBe(false)
+  })
+
+  it('renders an aggregate row per group when grouping is active', async () => {
+    const cols: ColumnDef<Row>[] = [
+      { key: 'name', label: 'Name', groupable: true },
+      { key: 'score', label: 'Score', type: 'number', aggregate: 'sum' },
+    ]
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: cols, rowKey: 'id' } })
+    const groupBtn = wrapper.findAll('button').find((b) => b.text() === 'Group')!
+    await groupBtn.trigger('click')
+    const nameItem = wrapper.findAll('.dt__dd-item').find((el) => el.text().includes('Name'))!
+    await nameItem.trigger('click')
+    expect(wrapper.find('.dt__agg-row').exists()).toBe(true)
+  })
+})
+
 describe('DataTable — computed columns', () => {
   it('renders a cell value produced by col.value instead of row[key]', () => {
     const cols: ColumnDef<Row>[] = [
