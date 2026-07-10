@@ -156,6 +156,19 @@ const COLUMNS: ColumnDef<Employee>[] = [
 { key: 'employeeName', label: 'Name', value: (row) => row.name }
 ```
 
+## Aggregation
+
+▶ [Try it in the demo](https://vatesfr.github.io/data-table/vanilla/#full-table)
+
+Set `aggregate` on a column to show a computed value in a row below each group header — try grouping by Department in the demo. Built-in types: `'sum' | 'count' | 'avg' | 'min' | 'max'`; or supply a function for anything else:
+
+```ts
+{ key: 'salary', label: 'Salary', type: 'number', aggregate: 'sum' }
+{ key: 'score', label: 'Score', type: 'number', aggregate: (rows) => Math.max(...rows.map((r) => r.score)) }
+```
+
+The aggregate row only appears once grouping is active and only shows values for columns that define `aggregate`; it's always visible regardless of a group's collapsed state.
+
 ## Row selection
 
 ▶ [Try it in the demo](https://vatesfr.github.io/data-table/vanilla/#row-selection)
@@ -174,6 +187,21 @@ const table = createDataTable(container, {
 
 Selection uses object identity, so it persists across sort/filter changes as long as row references are stable.
 
+## Row click
+
+▶ [Try it in the demo](https://vatesfr.github.io/data-table/vanilla/#row-click)
+
+Pass `onRowClick` to react to a data row being clicked — it receives the full row object and the native click event, no key lookup needed. Group header rows, the aggregate row, and the selection checkbox cell never trigger it.
+
+```ts
+const table = createDataTable(container, {
+  data: employees,
+  columns: COLUMNS,
+  rowKey: 'id',
+  onRowClick: (row, event) => console.log('clicked', row.name),
+})
+```
+
 ## Column reordering
 
 ▶ [Try it in the demo](https://vatesfr.github.io/data-table/vanilla/#full-table)
@@ -182,16 +210,17 @@ Drag a column header to reorder it, or use the ▲▼ buttons next to each colum
 
 ## Options
 
-| Option                  | Type                       | Default | Description                                  |
-| ----------------------- | -------------------------- | ------- | -------------------------------------------- |
-| `data`                  | `TRow[]`                   | —       | Row data                                     |
-| `columns`               | `ColumnDef<TRow>[]`        | —       | Column definitions                           |
-| `rowKey`                | `keyof TRow & string`      | —       | Unique row identifier                        |
-| `defaultVisibleColumns` | `string[]`                 | all     | Initially visible column keys                |
-| `labels`                | `Partial<DataTableLabels>` | English | UI string overrides                          |
-| `defaultPageSize`       | `number`                   | 0 (off) | Initial rows per page; 0 disables pagination |
-| `selectable`            | `boolean`                  | `false` | Show checkbox column for row selection       |
-| `onSelectionChange`     | `(rows: TRow[]) => void`   | —       | Called when selection changes                |
+| Option                  | Type                                     | Default | Description                                  |
+| ----------------------- | ---------------------------------------- | ------- | -------------------------------------------- |
+| `data`                  | `TRow[]`                                 | —       | Row data                                     |
+| `columns`               | `ColumnDef<TRow>[]`                      | —       | Column definitions                           |
+| `rowKey`                | `keyof TRow & string`                    | —       | Unique row identifier                        |
+| `defaultVisibleColumns` | `string[]`                               | all     | Initially visible column keys                |
+| `labels`                | `Partial<DataTableLabels>`               | English | UI string overrides                          |
+| `defaultPageSize`       | `number`                                 | 0 (off) | Initial rows per page; 0 disables pagination |
+| `selectable`            | `boolean`                                | `false` | Show checkbox column for row selection       |
+| `onSelectionChange`     | `(rows: TRow[]) => void`                 | —       | Called when selection changes                |
+| `onRowClick`            | `(row: TRow, event: MouseEvent) => void` | —       | Called when a data row is clicked            |
 
 ## Column definition
 
@@ -207,6 +236,7 @@ interface ColumnDef<TRow extends object> {
   filterable?: boolean // default: true
   groupable?: boolean // default: false
   multiMode?: 'and' | 'or' // match mode for array-valued columns; default: 'or'
+  aggregate?: 'sum' | 'count' | 'avg' | 'min' | 'max' | ((rows: TRow[]) => unknown) // see Aggregation
 }
 ```
 

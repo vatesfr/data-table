@@ -307,7 +307,7 @@ const SECTIONS = [
   { id: 'full-table', label: 'Full-featured table' },
   { id: 'row-selection', label: 'Row selection' },
   { id: 'row-click', label: 'Row click' },
-  { id: 'persisted-table', label: 'Persisted table' },
+  { id: 'persisted-table', label: 'View persistence & sharing' },
   { id: 'dynamic-data', label: 'Dynamic data' },
 ]
 
@@ -374,7 +374,8 @@ app.innerHTML = `
       📖 ${docLink('column-reordering', 'Column reordering')} ·
       ${docLink('multi-value-array-columns', 'Multi-value columns')} ·
       ${docLink('computed-columns', 'Computed columns')} ·
-      ${docLink('cell-customization', 'Cell customization')}
+      ${docLink('cell-customization', 'Cell customization')} ·
+      ${docLink('aggregation', 'Aggregation')}
     </p>
     <div id="table1"></div>
 
@@ -391,6 +392,7 @@ app.innerHTML = `
     <h2 id="row-click" style="font-size:16px;font-weight:600;margin-top:40px;margin-bottom:4px;scroll-margin-top:56px">Row click</h2>
     <p style="font-size:14px;color:var(--color-text-secondary);margin-top:0;margin-bottom:8px">
       Pass <code>onRowClick</code> to react to a row being clicked — it receives the full row object, no key lookup needed.
+      ${docLink('row-click', '📖 Docs')}
     </p>
     <div id="click-banner" style="display:none;padding:8px 12px;margin-bottom:12px;
       background:var(--color-background-info);border:0.5px solid var(--color-border-info);
@@ -497,15 +499,10 @@ themeBtn.addEventListener('click', () => {
   themeBtn.textContent = THEME_LABELS[currentTheme]
 })
 
-localeBtns.addEventListener('click', (e) => {
-  const btn = (e.target as HTMLElement).closest('[data-locale]') as HTMLElement | null
-  if (!btn) return
-  currentLocale = btn.dataset.locale!
-  renderLocaleBtns()
-  table1.setColumns(COLUMNS) // triggers a re-render with updated locale... but locale is captured at creation
-  // Labels are set at creation time; to change locale we recreate the table
-  table1.destroy()
-  table1 = createDataTable(document.getElementById('table1')!, {
+// ---- Table 1: full-featured ----
+
+function createTable1() {
+  return createDataTable<Employee>(document.getElementById('table1')!, {
     data: SAMPLE_DATA,
     columns: COLUMNS,
     rowKey: 'id',
@@ -513,72 +510,74 @@ localeBtns.addEventListener('click', (e) => {
     defaultPageSize: 5,
     labels: LOCALES[currentLocale],
   })
-})
-
-// ---- Table 1: full-featured ----
-
-let table1 = createDataTable<Employee>(document.getElementById('table1')!, {
-  data: SAMPLE_DATA,
-  columns: COLUMNS,
-  rowKey: 'id',
-  defaultVisibleColumns: DEFAULT_VISIBLE,
-  defaultPageSize: 5,
-  labels: LOCALES[currentLocale],
-})
+}
+let table1 = createTable1()
 
 // ---- Table 2: selectable ----
 
 const banner = document.getElementById('selection-banner')!
 
-createDataTable<Employee>(document.getElementById('table2')!, {
-  data: SAMPLE_DATA,
-  columns: COLUMNS,
-  rowKey: 'id',
-  defaultVisibleColumns: SELECTION_VISIBLE,
-  defaultPageSize: 5,
-  selectable: true,
-  onSelectionChange(rows) {
-    if (rows.length === 0) {
-      banner.style.display = 'none'
-    } else {
-      banner.style.display = 'flex'
-      banner.innerHTML = `
-        <span style="color:var(--color-text-info);font-weight:500;white-space:nowrap">${rows.length} selected</span>
-        <span style="color:var(--color-text-secondary);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
-          ${rows.map((r) => r.name).join(', ')}
-        </span>
-      `
-    }
-  },
-})
+function createTable2() {
+  return createDataTable<Employee>(document.getElementById('table2')!, {
+    data: SAMPLE_DATA,
+    columns: COLUMNS,
+    rowKey: 'id',
+    defaultVisibleColumns: SELECTION_VISIBLE,
+    defaultPageSize: 5,
+    labels: LOCALES[currentLocale],
+    selectable: true,
+    onSelectionChange(rows) {
+      if (rows.length === 0) {
+        banner.style.display = 'none'
+      } else {
+        banner.style.display = 'flex'
+        banner.innerHTML = `
+          <span style="color:var(--color-text-info);font-weight:500;white-space:nowrap">${rows.length} selected</span>
+          <span style="color:var(--color-text-secondary);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+            ${rows.map((r) => r.name).join(', ')}
+          </span>
+        `
+      }
+    },
+  })
+}
+let table2 = createTable2()
 
 // ---- Table: row click ----
 
 const clickBanner = document.getElementById('click-banner')!
 
-createDataTable<Employee>(document.getElementById('table-click')!, {
-  data: SAMPLE_DATA,
-  columns: COLUMNS,
-  rowKey: 'id',
-  defaultVisibleColumns: CLICK_VISIBLE,
-  defaultPageSize: 5,
-  onRowClick(row) {
-    clickBanner.style.display = 'block'
-    clickBanner.textContent = `Last clicked: ${row.name} (${row.role})`
-  },
-})
+function createTableClick() {
+  return createDataTable<Employee>(document.getElementById('table-click')!, {
+    data: SAMPLE_DATA,
+    columns: COLUMNS,
+    rowKey: 'id',
+    defaultVisibleColumns: CLICK_VISIBLE,
+    defaultPageSize: 5,
+    labels: LOCALES[currentLocale],
+    onRowClick(row) {
+      clickBanner.style.display = 'block'
+      clickBanner.textContent = `Last clicked: ${row.name} (${row.role})`
+    },
+  })
+}
+let tableClick = createTableClick()
 
 // ---- Table: view persistence & sharing ----
 
-const tablePersist = createDataTable<Employee>(document.getElementById('table-persist')!, {
-  data: SAMPLE_DATA,
-  columns: COLUMNS,
-  rowKey: 'id',
-  defaultVisibleColumns: PERSISTED_VISIBLE,
-  defaultPageSize: 5,
-})
-persistViewToLocalStorage(tablePersist, 'vanilla-demo-view')
-syncViewToUrl(tablePersist)
+function createTablePersist() {
+  return createDataTable<Employee>(document.getElementById('table-persist')!, {
+    data: SAMPLE_DATA,
+    columns: COLUMNS,
+    rowKey: 'id',
+    defaultVisibleColumns: PERSISTED_VISIBLE,
+    defaultPageSize: 5,
+    labels: LOCALES[currentLocale],
+  })
+}
+let tablePersist = createTablePersist()
+let unpersistView = persistViewToLocalStorage(tablePersist, 'vanilla-demo-view')
+let unsyncView = syncViewToUrl(tablePersist)
 
 const copyLinkBtn = document.getElementById('copy-link-btn')!
 copyLinkBtn.addEventListener('click', () => {
@@ -590,12 +589,17 @@ copyLinkBtn.addEventListener('click', () => {
 // ---- Table 3: dynamic data ----
 
 let dynamicData = SAMPLE_DATA.slice(0, 5)
-const table3 = createDataTable<Employee>(document.getElementById('table3')!, {
-  data: dynamicData,
-  columns: COLUMNS,
-  rowKey: 'id',
-  defaultVisibleColumns: DYNAMIC_VISIBLE,
-})
+
+function createTable3() {
+  return createDataTable<Employee>(document.getElementById('table3')!, {
+    data: dynamicData,
+    columns: COLUMNS,
+    rowKey: 'id',
+    defaultVisibleColumns: DYNAMIC_VISIBLE,
+    labels: LOCALES[currentLocale],
+  })
+}
+let table3 = createTable3()
 
 let nextId = 100
 document.getElementById('add-row-btn')!.addEventListener('click', () => {
@@ -618,6 +622,43 @@ document.getElementById('add-row-btn')!.addEventListener('click', () => {
     },
   ]
   table3.setData(dynamicData)
+})
+
+// ---- Locale switcher: recreate every table with the new locale ----
+//
+// Labels are set at creation time, so changing locale means destroying and recreating each
+// table — there's no other way to change them after the fact. Registered here (rather than in
+// the "Locale switcher" section above) because it needs every table's create-factory and
+// instance variable, all defined further down the file: function declarations hoist, but the
+// `let` bindings for those instances don't exist yet at that point in the script's execution —
+// harmless here since this only runs later, in response to a click, by which time everything
+// below has finished initializing.
+
+localeBtns.addEventListener('click', (e) => {
+  const btn = (e.target as HTMLElement).closest('[data-locale]') as HTMLElement | null
+  if (!btn) return
+  currentLocale = btn.dataset.locale!
+  renderLocaleBtns()
+
+  table1.destroy()
+  table1 = createTable1()
+
+  table2.destroy()
+  table2 = createTable2()
+  banner.style.display = 'none' // the new table starts with an empty selection
+
+  tableClick.destroy()
+  tableClick = createTableClick()
+
+  unpersistView()
+  unsyncView()
+  tablePersist.destroy()
+  tablePersist = createTablePersist()
+  unpersistView = persistViewToLocalStorage(tablePersist, 'vanilla-demo-view')
+  unsyncView = syncViewToUrl(tablePersist)
+
+  table3.destroy()
+  table3 = createTable3()
 })
 
 // All tables are populated by this point, so the page has its real (final) height —
