@@ -340,6 +340,31 @@ const DEFAULT_VISIBLE = [
   'skills',
 ]
 
+// Row selection/click only need a couple of columns to make their point — a narrower
+// defaultVisibleColumns keeps each section visually distinct instead of repeating the same
+// 9-column table. The persisted table keeps more, since reordering needs several columns to
+// be meaningful.
+const SELECTION_VISIBLE = ['name', 'department', 'salary']
+const CLICK_VISIBLE = ['name', 'department', 'role']
+const PERSISTED_VISIBLE = ['name', 'department', 'salary', 'status', 'score']
+
+const SECTIONS = [
+  { id: 'full-table', label: 'Full-featured table' },
+  { id: 'row-selection', label: 'Row selection' },
+  { id: 'row-click', label: 'Row click' },
+  { id: 'custom-layout', label: 'Custom layout' },
+  { id: 'persisted-table', label: 'Persisted table' },
+]
+
+// Height of the sticky nav (padding + link line-height + border) — used both as scroll-margin-top
+// on each heading (so anchor/scrollspy navigation doesn't leave it hidden behind the nav) and as
+// the scrollspy threshold line.
+const NAV_OFFSET = 56
+// A few px of slack for the scrollspy threshold: scroll-margin-top-driven anchor scrolls can
+// land the heading a fraction of a pixel past NAV_OFFSET (subpixel rounding), which a strict
+// `<= NAV_OFFSET` comparison would miss.
+const SCROLLSPY_TOLERANCE = 4
+
 const LOCALES: Record<string, DataTableLabels> = {
   EN: LABELS_EN,
   FR: LABELS_FR,
@@ -441,7 +466,7 @@ function EmployeeCards() {
 // usePersistedView/useUrlView can reach it, unlike <DataTable> which builds its own
 // internal, unreachable state. Try reordering or hiding columns, then reload the page.
 function PersistedTable() {
-  const table = useTableState(SAMPLE_DATA, COLUMNS, DEFAULT_VISIBLE, undefined, 5)
+  const table = useTableState(SAMPLE_DATA, COLUMNS, PERSISTED_VISIBLE, undefined, 5)
   usePersistedView(table, 'data-table-demo-persisted-view')
   useUrlView(table, { paramName: 'pview' })
   return <DataTableView table={table} data={SAMPLE_DATA} columns={COLUMNS} rowKey="id" />
@@ -455,6 +480,7 @@ export default function App() {
   const [selected, setSelected] = useState<Employee[]>([])
   const [clicked, setClicked] = useState<Employee | null>(null)
   const [theme, setTheme] = useState<'' | 'dark' | 'light'>('')
+  const [activeSection, setActiveSection] = useState(SECTIONS[0].id)
 
   useEffect(() => {
     if (theme) {
@@ -463,6 +489,33 @@ export default function App() {
       delete document.documentElement.dataset.theme
     }
   }, [theme])
+
+  // Highlights the nav link for whichever section the user has scrolled to: on every scroll,
+  // finds the last heading (in document order) that's scrolled up to or past a line just below
+  // the sticky nav — measuring actual position directly (rather than watching for
+  // IntersectionObserver enter/exit events) avoids both getting stuck between headings on a
+  // wide observed band and missing a heading entirely on a fast scroll/jump past a narrow one.
+  useEffect(() => {
+    function updateActiveSection() {
+      // At the bottom of the page, the last section's heading may never reach the threshold
+      // line if its content is shorter than the remaining viewport — force it active instead.
+      const atBottom =
+        window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 2
+      if (atBottom) {
+        setActiveSection(SECTIONS[SECTIONS.length - 1].id)
+        return
+      }
+      let active = SECTIONS[0].id
+      for (const s of SECTIONS) {
+        const el = document.getElementById(s.id)
+        if (el && el.getBoundingClientRect().top <= NAV_OFFSET + SCROLLSPY_TOLERANCE) active = s.id
+      }
+      setActiveSection(active)
+    }
+    updateActiveSection()
+    window.addEventListener('scroll', updateActiveSection, { passive: true })
+    return () => window.removeEventListener('scroll', updateActiveSection)
+  }, [])
 
   return (
     <div style={{ maxWidth: 1100, margin: '0 auto', padding: '32px 24px' }}>
@@ -528,10 +581,71 @@ export default function App() {
           fontSize: 14,
           color: 'var(--color-text-secondary)',
           marginTop: 0,
-          marginBottom: 24,
+          marginBottom: 16,
         }}
       >
         @vates/data-table-react
+      </p>
+
+      <nav
+        style={{
+          position: 'sticky',
+          top: 0,
+          zIndex: 10,
+          display: 'flex',
+          gap: 4,
+          flexWrap: 'wrap',
+          padding: '8px 0',
+          marginBottom: 8,
+          background: 'var(--color-background-primary)',
+          borderBottom: '0.5px solid var(--color-border-tertiary)',
+        }}
+      >
+        {SECTIONS.map((s) => (
+          <a
+            key={s.id}
+            href={`#${s.id}`}
+            style={{
+              padding: '4px 10px',
+              borderRadius: 6,
+              fontSize: 13,
+              fontWeight: activeSection === s.id ? 600 : 400,
+              color:
+                activeSection === s.id
+                  ? 'var(--color-text-primary)'
+                  : 'var(--color-text-secondary)',
+              background:
+                activeSection === s.id ? 'var(--color-background-secondary)' : 'transparent',
+              textDecoration: 'none',
+            }}
+          >
+            {s.label}
+          </a>
+        ))}
+      </nav>
+
+      <h2
+        id="full-table"
+        style={{
+          fontSize: 16,
+          fontWeight: 600,
+          marginTop: 24,
+          marginBottom: 4,
+          scrollMarginTop: NAV_OFFSET,
+        }}
+      >
+        Full-featured table
+      </h2>
+      <p
+        style={{
+          fontSize: 14,
+          color: 'var(--color-text-secondary)',
+          marginTop: 0,
+          marginBottom: 16,
+        }}
+      >
+        Every feature together: sort, filter, group, aggregate, column reordering, i18n, dark mode.
+        Try dragging a column header, or grouping by Department.
       </p>
       <DataTable
         data={SAMPLE_DATA}
@@ -542,7 +656,16 @@ export default function App() {
         defaultPageSize={5}
       />
 
-      <h2 style={{ fontSize: 16, fontWeight: 600, marginTop: 40, marginBottom: 4 }}>
+      <h2
+        id="row-selection"
+        style={{
+          fontSize: 16,
+          fontWeight: 600,
+          marginTop: 40,
+          marginBottom: 4,
+          scrollMarginTop: NAV_OFFSET,
+        }}
+      >
         Row selection
       </h2>
       <p
@@ -604,13 +727,24 @@ export default function App() {
         data={SAMPLE_DATA}
         columns={COLUMNS}
         rowKey="id"
-        defaultVisibleColumns={DEFAULT_VISIBLE}
+        defaultVisibleColumns={SELECTION_VISIBLE}
         defaultPageSize={5}
         selectable
         onSelectionChange={setSelected}
       />
 
-      <h2 style={{ fontSize: 16, fontWeight: 600, marginTop: 40, marginBottom: 4 }}>Row click</h2>
+      <h2
+        id="row-click"
+        style={{
+          fontSize: 16,
+          fontWeight: 600,
+          marginTop: 40,
+          marginBottom: 4,
+          scrollMarginTop: NAV_OFFSET,
+        }}
+      >
+        Row click
+      </h2>
       <p
         style={{
           fontSize: 14,
@@ -641,12 +775,21 @@ export default function App() {
         data={SAMPLE_DATA}
         columns={COLUMNS}
         rowKey="id"
-        defaultVisibleColumns={DEFAULT_VISIBLE}
+        defaultVisibleColumns={CLICK_VISIBLE}
         defaultPageSize={5}
         onRowClick={setClicked}
       />
 
-      <h2 style={{ fontSize: 16, fontWeight: 600, marginTop: 40, marginBottom: 4 }}>
+      <h2
+        id="custom-layout"
+        style={{
+          fontSize: 16,
+          fontWeight: 600,
+          marginTop: 40,
+          marginBottom: 4,
+          scrollMarginTop: NAV_OFFSET,
+        }}
+      >
         Custom layout via useTableState
       </h2>
       <p
@@ -663,7 +806,16 @@ export default function App() {
       </p>
       <EmployeeCards />
 
-      <h2 style={{ fontSize: 16, fontWeight: 600, marginTop: 40, marginBottom: 4 }}>
+      <h2
+        id="persisted-table"
+        style={{
+          fontSize: 16,
+          fontWeight: 600,
+          marginTop: 40,
+          marginBottom: 4,
+          scrollMarginTop: NAV_OFFSET,
+        }}
+      >
         Persisted table via DataTableView
       </h2>
       <p

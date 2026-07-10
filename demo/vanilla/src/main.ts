@@ -294,6 +294,32 @@ const DEFAULT_VISIBLE = [
   'skills',
 ]
 
+// Each secondary section only needs a couple of columns to make its point — a narrower
+// defaultVisibleColumns keeps each table visually distinct instead of repeating the same
+// 9-column table everywhere. The persisted table keeps more, since reordering needs several
+// columns to be meaningful.
+const SELECTION_VISIBLE = ['name', 'department', 'salary']
+const CLICK_VISIBLE = ['name', 'department', 'role']
+const PERSISTED_VISIBLE = ['name', 'department', 'salary', 'status', 'score']
+const DYNAMIC_VISIBLE = ['name', 'department', 'role', 'score']
+
+const SECTIONS = [
+  { id: 'full-table', label: 'Full-featured table' },
+  { id: 'row-selection', label: 'Row selection' },
+  { id: 'row-click', label: 'Row click' },
+  { id: 'persisted-table', label: 'Persisted table' },
+  { id: 'dynamic-data', label: 'Dynamic data' },
+]
+
+// Height of the sticky nav (padding + link line-height + border) — used both as scroll-margin-top
+// on each heading (so anchor/scrollspy navigation doesn't leave it hidden behind the nav) and as
+// the scrollspy threshold line.
+const NAV_OFFSET = 56
+// A few px of slack for the scrollspy threshold: scroll-margin-top-driven anchor scrolls can
+// land the heading a fraction of a pixel past NAV_OFFSET (subpixel rounding), which a strict
+// `<= NAV_OFFSET` comparison would miss.
+const SCROLLSPY_TOLERANCE = 4
+
 const LOCALES: Record<string, DataTableLabels> = {
   EN: LABELS_EN,
   FR: LABELS_FR,
@@ -315,12 +341,26 @@ app.innerHTML = `
         <button id="theme-btn" style="padding:2px 8px;border-radius:4px;border:1px solid var(--color-border-secondary);cursor:pointer;font-size:13px;background:var(--color-background-primary);color:var(--color-text-secondary);font-family:inherit">Auto</button>
       </div>
     </div>
-    <p style="font-size:14px;color:var(--color-text-secondary);margin-top:0;margin-bottom:24px">
+    <p style="font-size:14px;color:var(--color-text-secondary);margin-top:0;margin-bottom:16px">
       @vates/data-table-vanilla
+    </p>
+
+    <nav style="position:sticky;top:0;z-index:10;display:flex;gap:4px;flex-wrap:wrap;padding:8px 0;
+      margin-bottom:8px;background:var(--color-background-primary);border-bottom:0.5px solid var(--color-border-tertiary)">
+      ${SECTIONS.map(
+        (s) =>
+          `<a href="#${s.id}" data-nav-id="${s.id}" style="padding:4px 10px;border-radius:6px;font-size:13px;color:var(--color-text-secondary);text-decoration:none">${s.label}</a>`,
+      ).join('')}
+    </nav>
+
+    <h2 id="full-table" style="font-size:16px;font-weight:600;margin-top:24px;margin-bottom:4px;scroll-margin-top:56px">Full-featured table</h2>
+    <p style="font-size:14px;color:var(--color-text-secondary);margin-top:0;margin-bottom:16px">
+      Every feature together: sort, filter, group, aggregate, column reordering, i18n, dark mode.
+      Try dragging a column header, or grouping by Department.
     </p>
     <div id="table1"></div>
 
-    <h2 style="font-size:16px;font-weight:600;margin-top:40px;margin-bottom:4px">Row selection</h2>
+    <h2 id="row-selection" style="font-size:16px;font-weight:600;margin-top:40px;margin-bottom:4px;scroll-margin-top:56px">Row selection</h2>
     <p style="font-size:14px;color:var(--color-text-secondary);margin-top:0;margin-bottom:16px">
       Pass <code>selectable</code> to show checkboxes; <code>onSelectionChange</code> receives the updated array.
     </p>
@@ -329,7 +369,7 @@ app.innerHTML = `
       border-radius:6px;font-size:13px"></div>
     <div id="table2"></div>
 
-    <h2 style="font-size:16px;font-weight:600;margin-top:40px;margin-bottom:4px">Row click</h2>
+    <h2 id="row-click" style="font-size:16px;font-weight:600;margin-top:40px;margin-bottom:4px;scroll-margin-top:56px">Row click</h2>
     <p style="font-size:14px;color:var(--color-text-secondary);margin-top:0;margin-bottom:8px">
       Pass <code>onRowClick</code> to react to a row being clicked — it receives the full row object, no key lookup needed.
     </p>
@@ -338,7 +378,7 @@ app.innerHTML = `
       border-radius:6px;font-size:13px;color:var(--color-text-info)"></div>
     <div id="table-click"></div>
 
-    <h2 style="font-size:16px;font-weight:600;margin-top:40px;margin-bottom:4px">View persistence &amp; sharing</h2>
+    <h2 id="persisted-table" style="font-size:16px;font-weight:600;margin-top:40px;margin-bottom:4px;scroll-margin-top:56px">View persistence &amp; sharing</h2>
     <p style="font-size:14px;color:var(--color-text-secondary);margin-top:0;margin-bottom:12px">
       <code>persistViewToLocalStorage</code> saves sort/filter/group/etc. across reloads;
       <code>syncViewToUrl</code> reflects them in the URL — reload the page or use "Copy share link"
@@ -348,7 +388,7 @@ app.innerHTML = `
       background:none;cursor:pointer;font-size:13px;font-family:inherit;margin-bottom:12px">Copy share link</button>
     <div id="table-persist"></div>
 
-    <h2 style="font-size:16px;font-weight:600;margin-top:40px;margin-bottom:4px">Dynamic data</h2>
+    <h2 id="dynamic-data" style="font-size:16px;font-weight:600;margin-top:40px;margin-bottom:4px;scroll-margin-top:56px">Dynamic data</h2>
     <p style="font-size:14px;color:var(--color-text-secondary);margin-top:0;margin-bottom:12px">
       Call <code>table.setData()</code> to push new rows at any time.
     </p>
@@ -357,6 +397,48 @@ app.innerHTML = `
     <div id="table3" style="margin-top:12px"></div>
   </div>
 `
+
+// ---- Scrollspy: highlight the active nav link ----
+//
+// Highlights the nav link for whichever section the user has scrolled to: on every scroll,
+// finds the last heading (in document order) that's scrolled up to or past a line just below
+// the sticky nav — measuring actual position directly (rather than watching for
+// IntersectionObserver enter/exit events) avoids both getting stuck between headings on a wide
+// observed band and missing a heading entirely on a fast scroll/jump past a narrow one.
+
+const navLinks = new Map(
+  SECTIONS.map((s) => [
+    s.id,
+    document.querySelector<HTMLAnchorElement>(`a[data-nav-id="${s.id}"]`)!,
+  ]),
+)
+
+function setActiveNavLink(id: string) {
+  for (const [sectionId, link] of navLinks) {
+    const active = sectionId === id
+    link.style.fontWeight = active ? '600' : '400'
+    link.style.color = active ? 'var(--color-text-primary)' : 'var(--color-text-secondary)'
+    link.style.background = active ? 'var(--color-background-secondary)' : 'transparent'
+  }
+}
+
+function updateActiveSection() {
+  // At the bottom of the page, the last section's heading may never reach the threshold
+  // line if its content is shorter than the remaining viewport — force it active instead.
+  const atBottom = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 2
+  if (atBottom) {
+    setActiveNavLink(SECTIONS[SECTIONS.length - 1].id)
+    return
+  }
+  let active = SECTIONS[0].id
+  for (const s of SECTIONS) {
+    const el = document.getElementById(s.id)
+    if (el && el.getBoundingClientRect().top <= NAV_OFFSET + SCROLLSPY_TOLERANCE) active = s.id
+  }
+  setActiveNavLink(active)
+}
+updateActiveSection()
+window.addEventListener('scroll', updateActiveSection, { passive: true })
 
 // ---- Locale switcher ----
 
@@ -433,7 +515,7 @@ createDataTable<Employee>(document.getElementById('table2')!, {
   data: SAMPLE_DATA,
   columns: COLUMNS,
   rowKey: 'id',
-  defaultVisibleColumns: DEFAULT_VISIBLE,
+  defaultVisibleColumns: SELECTION_VISIBLE,
   defaultPageSize: 5,
   selectable: true,
   onSelectionChange(rows) {
@@ -459,7 +541,7 @@ createDataTable<Employee>(document.getElementById('table-click')!, {
   data: SAMPLE_DATA,
   columns: COLUMNS,
   rowKey: 'id',
-  defaultVisibleColumns: DEFAULT_VISIBLE,
+  defaultVisibleColumns: CLICK_VISIBLE,
   defaultPageSize: 5,
   onRowClick(row) {
     clickBanner.style.display = 'block'
@@ -473,7 +555,7 @@ const tablePersist = createDataTable<Employee>(document.getElementById('table-pe
   data: SAMPLE_DATA,
   columns: COLUMNS,
   rowKey: 'id',
-  defaultVisibleColumns: DEFAULT_VISIBLE,
+  defaultVisibleColumns: PERSISTED_VISIBLE,
   defaultPageSize: 5,
 })
 persistViewToLocalStorage(tablePersist, 'vanilla-demo-view')
@@ -493,7 +575,7 @@ const table3 = createDataTable<Employee>(document.getElementById('table3')!, {
   data: dynamicData,
   columns: COLUMNS,
   rowKey: 'id',
-  defaultVisibleColumns: DEFAULT_VISIBLE,
+  defaultVisibleColumns: DYNAMIC_VISIBLE,
 })
 
 let nextId = 100

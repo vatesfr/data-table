@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import {
   DataTable,
   DataTableView,
@@ -326,6 +326,31 @@ const DEFAULT_VISIBLE = [
   'skills',
 ]
 
+// Row selection/click only need a couple of columns to make their point — a narrower
+// defaultVisibleColumns keeps each section visually distinct instead of repeating the same
+// 9-column table. The persisted table keeps more, since reordering needs several columns to
+// be meaningful.
+const SELECTION_VISIBLE = ['name', 'department', 'salary']
+const CLICK_VISIBLE = ['name', 'department', 'role']
+const PERSISTED_VISIBLE = ['name', 'department', 'salary', 'status', 'score']
+
+const SECTIONS = [
+  { id: 'full-table', label: 'Full-featured table' },
+  { id: 'row-selection', label: 'Row selection' },
+  { id: 'row-click', label: 'Row click' },
+  { id: 'custom-layout', label: 'Custom layout' },
+  { id: 'persisted-table', label: 'Persisted table' },
+]
+
+// Height of the sticky nav (padding + link line-height + border) — used both as scroll-margin-top
+// on each heading (so anchor/scrollspy navigation doesn't leave it hidden behind the nav) and as
+// the scrollspy threshold line.
+const NAV_OFFSET = 56
+// A few px of slack for the scrollspy threshold: scroll-margin-top-driven anchor scrolls can
+// land the heading a fraction of a pixel past NAV_OFFSET (subpixel rounding), which a strict
+// `<= NAV_OFFSET` comparison would miss.
+const SCROLLSPY_TOLERANCE = 4
+
 const LOCALES: Record<string, DataTableLabels> = {
   EN: LABELS_EN,
   FR: LABELS_FR,
@@ -353,6 +378,38 @@ function cycleTheme() {
   }
 }
 
+// Highlights the nav link for whichever section the user has scrolled to: on every scroll,
+// finds the last heading (in document order) that's scrolled up to or past a line just below
+// the sticky nav — measuring actual position directly (rather than watching for
+// IntersectionObserver enter/exit events) avoids both getting stuck between headings on a wide
+// observed band and missing a heading entirely on a fast scroll/jump past a narrow one.
+const activeSection = ref(SECTIONS[0].id)
+
+function updateActiveSection() {
+  // At the bottom of the page, the last section's heading may never reach the threshold
+  // line if its content is shorter than the remaining viewport — force it active instead.
+  const atBottom = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 2
+  if (atBottom) {
+    activeSection.value = SECTIONS[SECTIONS.length - 1].id
+    return
+  }
+  let active = SECTIONS[0].id
+  for (const s of SECTIONS) {
+    const el = document.getElementById(s.id)
+    if (el && el.getBoundingClientRect().top <= NAV_OFFSET + SCROLLSPY_TOLERANCE) active = s.id
+  }
+  activeSection.value = active
+}
+
+onMounted(() => {
+  updateActiveSection()
+  window.addEventListener('scroll', updateActiveSection, { passive: true })
+})
+
+onUnmounted(() => {
+  window.removeEventListener('scroll', updateActiveSection)
+})
+
 // Headless section: useTableState owns the sort/filter logic; you own the render.
 // usePersistedView/useUrlView are opt-in helpers — the sort below survives a reload
 // (localStorage) and round-trips through "Copy share link" (URL query param).
@@ -365,7 +422,7 @@ useUrlView(table)
 // usePersistedView/useUrlView can reach it, unlike <DataTable> which builds its own
 // internal, unreachable state. Try reordering or hiding columns, then reload the page.
 const persistedTable = useTableState(SAMPLE_DATA, COLUMNS, {
-  defaultVisibleColumns: DEFAULT_VISIBLE,
+  defaultVisibleColumns: PERSISTED_VISIBLE,
   defaultPageSize: 5,
 })
 usePersistedView(persistedTable, 'data-table-demo-persisted-view')
@@ -439,12 +496,68 @@ function copyShareLink() {
         font-size: 14px;
         color: var(--color-text-secondary);
         margin-top: 0;
-        margin-bottom: 24px;
+        margin-bottom: 16px;
       "
     >
       @vates/data-table-vue
     </p>
 
+    <nav
+      style="
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        display: flex;
+        gap: 4px;
+        flex-wrap: wrap;
+        padding: 8px 0;
+        margin-bottom: 8px;
+        background: var(--color-background-primary);
+        border-bottom: 0.5px solid var(--color-border-tertiary);
+      "
+    >
+      <a
+        v-for="s in SECTIONS"
+        :key="s.id"
+        :href="`#${s.id}`"
+        :style="{
+          padding: '4px 10px',
+          borderRadius: '6px',
+          fontSize: '13px',
+          fontWeight: activeSection === s.id ? '600' : '400',
+          color:
+            activeSection === s.id ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
+          background: activeSection === s.id ? 'var(--color-background-secondary)' : 'transparent',
+          textDecoration: 'none',
+        }"
+      >
+        {{ s.label }}
+      </a>
+    </nav>
+
+    <h2
+      id="full-table"
+      style="
+        font-size: 16px;
+        font-weight: 600;
+        margin-top: 24px;
+        margin-bottom: 4px;
+        scroll-margin-top: 56px;
+      "
+    >
+      Full-featured table
+    </h2>
+    <p
+      style="
+        font-size: 14px;
+        color: var(--color-text-secondary);
+        margin-top: 0;
+        margin-bottom: 16px;
+      "
+    >
+      Every feature together: sort, filter, group, aggregate, column reordering, i18n, dark mode.
+      Try dragging a column header, or grouping by Department.
+    </p>
     <DataTable
       :data="SAMPLE_DATA"
       :columns="COLUMNS"
@@ -482,7 +595,16 @@ function copyShareLink() {
     </DataTable>
 
     <!-- Row selection section -->
-    <h2 style="font-size: 16px; font-weight: 600; margin-top: 40px; margin-bottom: 4px">
+    <h2
+      id="row-selection"
+      style="
+        font-size: 16px;
+        font-weight: 600;
+        margin-top: 40px;
+        margin-bottom: 4px;
+        scroll-margin-top: 56px;
+      "
+    >
       Row selection
     </h2>
     <p
@@ -542,7 +664,7 @@ function copyShareLink() {
       :data="SAMPLE_DATA"
       :columns="COLUMNS"
       row-key="id"
-      :default-visible-columns="DEFAULT_VISIBLE"
+      :default-visible-columns="SELECTION_VISIBLE"
       :default-page-size="5"
       :selectable="true"
       @selection-change="selected = $event"
@@ -550,22 +672,22 @@ function copyShareLink() {
       <template #cell-department="{ value }">
         <Badge :value="String(value)" :color-map="DEPT_COLORS" />
       </template>
-      <template #cell-status="{ value }">
-        <Badge :value="String(value)" :color-map="STATUS_COLORS" />
-      </template>
-      <template #cell-score="{ value }">
-        <ScoreBar :value="Number(value)" />
-      </template>
       <template #filter-department="{ value }">
         <Badge :value="value" :color-map="DEPT_COLORS" />
-      </template>
-      <template #filter-status="{ value }">
-        <Badge :value="value" :color-map="STATUS_COLORS" />
       </template>
     </DataTable>
 
     <!-- Row click section -->
-    <h2 style="font-size: 16px; font-weight: 600; margin-top: 40px; margin-bottom: 4px">
+    <h2
+      id="row-click"
+      style="
+        font-size: 16px;
+        font-weight: 600;
+        margin-top: 40px;
+        margin-bottom: 4px;
+        scroll-margin-top: 56px;
+      "
+    >
       Row click
     </h2>
     <p
@@ -592,23 +714,26 @@ function copyShareLink() {
       :data="SAMPLE_DATA"
       :columns="COLUMNS"
       row-key="id"
-      :default-visible-columns="DEFAULT_VISIBLE"
+      :default-visible-columns="CLICK_VISIBLE"
       :default-page-size="5"
       @row-click="clicked = $event"
     >
       <template #cell-department="{ value }">
         <Badge :value="String(value)" :color-map="DEPT_COLORS" />
       </template>
-      <template #cell-status="{ value }">
-        <Badge :value="String(value)" :color-map="STATUS_COLORS" />
-      </template>
-      <template #cell-score="{ value }">
-        <ScoreBar :value="Number(value)" />
-      </template>
     </DataTable>
 
     <!-- Headless section -->
-    <h2 style="font-size: 16px; font-weight: 600; margin-top: 40px; margin-bottom: 4px">
+    <h2
+      id="custom-layout"
+      style="
+        font-size: 16px;
+        font-weight: 600;
+        margin-top: 40px;
+        margin-bottom: 4px;
+        scroll-margin-top: 56px;
+      "
+    >
       Custom layout via useTableState
     </h2>
     <p
@@ -685,7 +810,16 @@ function copyShareLink() {
       </div>
     </div>
 
-    <h2 style="font-size: 16px; font-weight: 600; margin-top: 40px; margin-bottom: 4px">
+    <h2
+      id="persisted-table"
+      style="
+        font-size: 16px;
+        font-weight: 600;
+        margin-top: 40px;
+        margin-bottom: 4px;
+        scroll-margin-top: 56px;
+      "
+    >
       Persisted table via DataTableView
     </h2>
     <p
