@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, type ReactNode } from 'react'
 import {
   DataTable,
   DataTableView,
@@ -373,6 +373,23 @@ const LOCALES: Record<string, DataTableLabels> = {
   PT: LABELS_PT,
 }
 
+// Cross-links between this demo and the package README: each README concept the demo
+// showcases gets a link straight to the section that demonstrates it, and vice versa.
+const README_URL = 'https://github.com/vatesfr/data-table/blob/main/packages/react/README.md'
+
+function DocLink({ anchor, children }: { anchor: string; children: ReactNode }) {
+  return (
+    <a
+      href={`${README_URL}#${anchor}`}
+      target="_blank"
+      rel="noopener"
+      style={{ color: 'var(--color-text-secondary)', textDecoration: 'underline' }}
+    >
+      {children}
+    </a>
+  )
+}
+
 function fmtSalary(n: number) {
   return n.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })
 }
@@ -465,8 +482,8 @@ function EmployeeCards() {
 // Same built-in look as <DataTable>, but the caller owns useTableState — so
 // usePersistedView/useUrlView can reach it, unlike <DataTable> which builds its own
 // internal, unreachable state. Try reordering or hiding columns, then reload the page.
-function PersistedTable() {
-  const table = useTableState(SAMPLE_DATA, COLUMNS, PERSISTED_VISIBLE, undefined, 5)
+function PersistedTable({ labels }: { labels?: Partial<DataTableLabels> }) {
+  const table = useTableState(SAMPLE_DATA, COLUMNS, PERSISTED_VISIBLE, labels, 5)
   usePersistedView(table, 'data-table-demo-persisted-view')
   useUrlView(table, { paramName: 'pview' })
   return <DataTableView table={table} data={SAMPLE_DATA} columns={COLUMNS} rowKey="id" />
@@ -529,28 +546,30 @@ export default function App() {
       >
         <h1 style={{ fontSize: 20, fontWeight: 600, margin: 0 }}>DataTable — React</h1>
         <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-          {Object.keys(LOCALES).map((key) => (
-            <button
-              key={key}
-              onClick={() => setLocaleKey(key)}
-              style={{
-                padding: '2px 8px',
-                borderRadius: 4,
-                border: '1px solid var(--color-border-secondary)',
-                cursor: 'pointer',
-                fontSize: 13,
-                fontWeight: localeKey === key ? 600 : 400,
-                background:
-                  localeKey === key
-                    ? 'var(--color-background-secondary)'
-                    : 'var(--color-background-primary)',
-                color: 'var(--color-text-primary)',
-                fontFamily: 'inherit',
-              }}
-            >
-              {key}
-            </button>
-          ))}
+          <div id="i18n" style={{ display: 'flex', gap: 4 }}>
+            {Object.keys(LOCALES).map((key) => (
+              <button
+                key={key}
+                onClick={() => setLocaleKey(key)}
+                style={{
+                  padding: '2px 8px',
+                  borderRadius: 4,
+                  border: '1px solid var(--color-border-secondary)',
+                  cursor: 'pointer',
+                  fontSize: 13,
+                  fontWeight: localeKey === key ? 600 : 400,
+                  background:
+                    localeKey === key
+                      ? 'var(--color-background-secondary)'
+                      : 'var(--color-background-primary)',
+                  color: 'var(--color-text-primary)',
+                  fontFamily: 'inherit',
+                }}
+              >
+                {key}
+              </button>
+            ))}
+          </div>
           <div
             style={{
               width: 1,
@@ -559,21 +578,23 @@ export default function App() {
               margin: '0 2px',
             }}
           />
-          <button
-            onClick={() => setTheme((t) => THEME_CYCLE[t])}
-            style={{
-              padding: '2px 8px',
-              borderRadius: 4,
-              border: '1px solid var(--color-border-secondary)',
-              cursor: 'pointer',
-              fontSize: 13,
-              background: 'var(--color-background-primary)',
-              color: 'var(--color-text-secondary)',
-              fontFamily: 'inherit',
-            }}
-          >
-            {THEME_LABELS[theme]}
-          </button>
+          <div id="theming">
+            <button
+              onClick={() => setTheme((t) => THEME_CYCLE[t])}
+              style={{
+                padding: '2px 8px',
+                borderRadius: 4,
+                border: '1px solid var(--color-border-secondary)',
+                cursor: 'pointer',
+                fontSize: 13,
+                background: 'var(--color-background-primary)',
+                color: 'var(--color-text-secondary)',
+                fontFamily: 'inherit',
+              }}
+            >
+              {THEME_LABELS[theme]}
+            </button>
+          </div>
         </div>
       </div>
       <p
@@ -641,11 +662,29 @@ export default function App() {
           fontSize: 14,
           color: 'var(--color-text-secondary)',
           marginTop: 0,
-          marginBottom: 16,
+          marginBottom: 4,
         }}
       >
         Every feature together: sort, filter, group, aggregate, column reordering, i18n, dark mode.
         Try dragging a column header, or grouping by Department.
+      </p>
+      <p
+        style={{
+          fontSize: 12,
+          color: 'var(--color-text-secondary)',
+          marginTop: 0,
+          marginBottom: 16,
+        }}
+      >
+        📖 <DocLink anchor="column-reordering">Column reordering</DocLink>
+        {' · '}
+        <DocLink anchor="multi-value-array-columns">Multi-value columns</DocLink>
+        {' · '}
+        <DocLink anchor="computed-columns">Computed columns</DocLink>
+        {' · '}
+        <DocLink anchor="custom-rendering">Custom rendering</DocLink>
+        {' · '}
+        <DocLink anchor="aggregation">Aggregation</DocLink>
       </p>
       <DataTable
         data={SAMPLE_DATA}
@@ -677,7 +716,7 @@ export default function App() {
         }}
       >
         Pass <code>selectable</code> to show checkboxes; <code>onSelectionChange</code> receives the
-        updated array of selected rows.
+        updated array of selected rows. <DocLink anchor="row-selection">📖 Docs</DocLink>
       </p>
       {selected.length > 0 && (
         <div
@@ -727,6 +766,7 @@ export default function App() {
         data={SAMPLE_DATA}
         columns={COLUMNS}
         rowKey="id"
+        labels={LOCALES[localeKey]}
         defaultVisibleColumns={SELECTION_VISIBLE}
         defaultPageSize={5}
         selectable
@@ -754,7 +794,7 @@ export default function App() {
         }}
       >
         Pass <code>onRowClick</code> to react to a row being clicked — it receives the full row
-        object, no key lookup needed.
+        object, no key lookup needed. <DocLink anchor="row-click">📖 Docs</DocLink>
       </p>
       {clicked && (
         <div
@@ -775,6 +815,7 @@ export default function App() {
         data={SAMPLE_DATA}
         columns={COLUMNS}
         rowKey="id"
+        labels={LOCALES[localeKey]}
         defaultVisibleColumns={CLICK_VISIBLE}
         defaultPageSize={5}
         onRowClick={setClicked}
@@ -829,9 +870,9 @@ export default function App() {
         <code>DataTable</code> builds its own <code>useTableState</code> internally, so persistence
         helpers can't reach it. <code>DataTableView</code> renders the same built-in UI from a{' '}
         <code>useTableState</code> instance you own instead — reorder or hide a column, then reload
-        the page.
+        the page. <DocLink anchor="view-persistence--sharing">📖 Docs</DocLink>
       </p>
-      <PersistedTable />
+      <PersistedTable labels={LOCALES[localeKey]} />
     </div>
   )
 }

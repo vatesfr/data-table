@@ -48,6 +48,8 @@ const COLUMNS: ColumnDef<Employee>[] = [
 
 ## Custom rendering
 
+▶ [Try it in the demo](https://vatesfr.github.io/data-table/vue/#full-table)
+
 Use named scoped slots to customize how cells, filter labels, and group headers render.
 
 ```vue
@@ -75,6 +77,8 @@ Slot naming: `#cell-{key}`, `#filter-{key}`, `#group-{key}` where `{key}` matche
 
 ## Multi-value (array) columns
 
+▶ [Try it in the demo](https://vatesfr.github.io/data-table/vue/#full-table)
+
 A column whose cell value is an array — tags, genres, categories — is detected automatically, no flag required:
 
 - The filter checklist lists each individual item instead of the stringified whole array (`"Action,RPG"` becomes separate `"Action"` and `"RPG"` entries), and a row matches if it contains any selected item (`multiMode: 'or'`, the default) or all of them (`multiMode: 'and'`).
@@ -96,6 +100,8 @@ const COLUMNS: ColumnDef<Game>[] = [
 ```
 
 ## Computed columns
+
+▶ [Try it in the demo](https://vatesfr.github.io/data-table/vue/#full-table)
 
 A column doesn't need a matching property on `TRow` — set `value` to a function to compute the cell value from the whole row. Sorting, filtering, grouping, and aggregation all work off the computed value, same as a regular column.
 
@@ -119,7 +125,22 @@ const COLUMNS: ColumnDef<Employee>[] = [
 { key: 'employeeName', label: 'Name', value: (row) => row.name }
 ```
 
+## Aggregation
+
+▶ [Try it in the demo](https://vatesfr.github.io/data-table/vue/#full-table)
+
+Set `aggregate` on a column to show a computed value in a row below each group header — try grouping by Department in the demo. Built-in types: `'sum' | 'count' | 'avg' | 'min' | 'max'`; or supply a function for anything else:
+
+```ts
+{ key: 'salary', label: 'Salary', type: 'number', aggregate: 'sum' }
+{ key: 'score', label: 'Score', type: 'number', aggregate: (rows) => Math.max(...rows.map((r) => r.score)) }
+```
+
+The aggregate row only appears once grouping is active and only shows values for columns that define `aggregate`; it's always visible regardless of a group's collapsed state.
+
 ## Row selection
+
+▶ [Try it in the demo](https://vatesfr.github.io/data-table/vue/#row-selection)
 
 Pass `:selectable="true"` to show a checkbox column. The header checkbox selects/deselects the full filtered dataset (all pages at once). Group header checkboxes select/deselect all rows in that group. Both support indeterminate state.
 
@@ -142,7 +163,24 @@ const selected = ref<Employee[]>([])
 
 `selectionChange` receives the array of currently selected rows that are present in the filtered dataset. Selection uses object identity (`Set<TRow>`), so it persists across sort/filter changes as long as row references are stable.
 
+## Row click
+
+▶ [Try it in the demo](https://vatesfr.github.io/data-table/vue/#row-click)
+
+Listen to `@row-click` to react to a data row being clicked — it receives the full row object and the native click event, no key lookup needed. Group header rows, the aggregate row, and the selection checkbox cell never trigger it.
+
+```vue
+<DataTable
+  :data="employees"
+  :columns="COLUMNS"
+  row-key="id"
+  @row-click="(row, event) => console.log('clicked', row.name)"
+/>
+```
+
 ## Column reordering
+
+▶ [Try it in the demo](https://vatesfr.github.io/data-table/vue/#full-table)
 
 Drag a column header to reorder it, or use the ▲▼ buttons next to each column in the Columns panel — both work out of the box, no extra props required. Order is tracked independently of visibility, so hiding and re-showing a column keeps its place. It's included in `getViewState()`/`setViewState()` (as `columnOrder`) for persistence and sharing.
 
@@ -162,9 +200,10 @@ All props accept `MaybeRefOrGetter` — you can pass refs, computed values, or p
 
 ## Events
 
-| Event             | Payload  | Description                                                                                  |
-| ----------------- | -------- | -------------------------------------------------------------------------------------------- |
-| `selectionChange` | `TRow[]` | Emitted when selection changes; payload is the selected rows present in the filtered dataset |
+| Event             | Payload                          | Description                                                                                  |
+| ----------------- | -------------------------------- | -------------------------------------------------------------------------------------------- |
+| `selectionChange` | `TRow[]`                         | Emitted when selection changes; payload is the selected rows present in the filtered dataset |
+| `rowClick`        | `[row: TRow, event: MouseEvent]` | Emitted when a data row is clicked                                                           |
 
 ## Column definition
 
@@ -180,6 +219,7 @@ interface ColumnDef<TRow extends object> {
   filterable?: boolean // default: true
   groupable?: boolean // default: false
   multiMode?: 'and' | 'or' // match mode for array-valued columns; default: 'or'
+  aggregate?: 'sum' | 'count' | 'avg' | 'min' | 'max' | ((rows: TRow[]) => unknown) // see Aggregation
 }
 ```
 
@@ -245,6 +285,8 @@ const {
 
 ## View persistence & sharing
 
+▶ [Try it in the demo](https://vatesfr.github.io/data-table/vue/#persisted-table)
+
 `getViewState()`/`setViewState()` capture and apply a serializable snapshot of sort, filters, groups, page, etc. — everything except selection, which is identity-based and not meaningful to persist or share. Two opt-in composables wire this up to `localStorage` and the URL:
 
 ```ts
@@ -262,6 +304,8 @@ To persist a view somewhere else (e.g. a backend), call `getViewState()`/`setVie
 `<DataTable>` builds its own `useTableState` internally, so these composables can't reach it — see `DataTableView` below for the built-in UI wired to a `useTableState` instance you own.
 
 ## `DataTableView` — the built-in UI, state you own
+
+▶ [Try it in the demo](https://vatesfr.github.io/data-table/vue/#persisted-table)
 
 `<DataTable>` is `useTableState` + a render layer bundled together, with no way to reach the state from outside. `DataTableView` is that same render layer, taking a `useTableState` result as a prop instead of creating its own — so you get the identical built-in UI while keeping full external access to it (persistence, imperative selection control, or anything else `useTableState` returns):
 
@@ -286,6 +330,8 @@ useUrlView(table)
 
 ## i18n
 
+▶ [Try it in the demo](https://vatesfr.github.io/data-table/vue/#i18n)
+
 Use a built-in locale or supply any `Partial<DataTableLabels>` overrides (shallow-merged over English defaults):
 
 ```ts
@@ -299,6 +345,8 @@ import { LABELS_FR } from '@vates/data-table-vue'
 Built-in locales: `LABELS_EN` (default), `LABELS_FR`, `LABELS_ES`, `LABELS_DE`, `LABELS_PT`.
 
 ## Theming
+
+▶ [Try it in the demo](https://vatesfr.github.io/data-table/vue/#theming)
 
 All colors are CSS custom properties. Define them in your own stylesheet (typically on `:root`). Dark mode activates automatically when the OS preference is dark via `prefers-color-scheme: dark`, and can be forced with a `data-theme` attribute:
 

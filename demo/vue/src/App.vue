@@ -362,6 +362,15 @@ const LOCALES: Record<string, DataTableLabels> = {
 const localeKey = ref('EN')
 const currentLocale = computed(() => LOCALES[localeKey.value])
 
+// Cross-links between this demo and the package README: each README concept the demo
+// showcases gets a link straight to the section that demonstrates it, and vice versa. Returned
+// as an HTML string (rendered via v-html below) since Vue templates can't interpolate raw
+// markup through {{ }}.
+const README_URL = 'https://github.com/vatesfr/data-table/blob/main/packages/vue/README.md'
+function docLink(anchor: string, label: string): string {
+  return `<a href="${README_URL}#${anchor}" target="_blank" rel="noopener" style="color:var(--color-text-secondary);text-decoration:underline">${label}</a>`
+}
+
 const selected = ref<Employee[]>([])
 const clicked = ref<Employee | null>(null)
 
@@ -421,10 +430,11 @@ useUrlView(table)
 // Same built-in look as <DataTable>, but the caller owns useTableState — so
 // usePersistedView/useUrlView can reach it, unlike <DataTable> which builds its own
 // internal, unreachable state. Try reordering or hiding columns, then reload the page.
-const persistedTable = useTableState(SAMPLE_DATA, COLUMNS, {
+const persistedTable = useTableState(SAMPLE_DATA, COLUMNS, () => ({
   defaultVisibleColumns: PERSISTED_VISIBLE,
   defaultPageSize: 5,
-})
+  labels: currentLocale.value,
+}))
 usePersistedView(persistedTable, 'data-table-demo-persisted-view')
 useUrlView(persistedTable, { paramName: 'pview' })
 
@@ -450,45 +460,49 @@ function copyShareLink() {
     >
       <h1 style="font-size: 20px; font-weight: 600; margin: 0">DataTable — Vue</h1>
       <div style="display: flex; gap: 4px; align-items: center">
-        <button
-          v-for="key in Object.keys(LOCALES)"
-          :key="key"
-          @click="localeKey = key"
-          :style="{
-            padding: '2px 8px',
-            borderRadius: '4px',
-            border: '1px solid var(--color-border-secondary)',
-            cursor: 'pointer',
-            fontSize: '13px',
-            fontWeight: localeKey === key ? '600' : '400',
-            background:
-              localeKey === key
-                ? 'var(--color-background-secondary)'
-                : 'var(--color-background-primary)',
-            color: 'var(--color-text-primary)',
-            fontFamily: 'inherit',
-          }"
-        >
-          {{ key }}
-        </button>
+        <div id="i18n" style="display: flex; gap: 4px">
+          <button
+            v-for="key in Object.keys(LOCALES)"
+            :key="key"
+            @click="localeKey = key"
+            :style="{
+              padding: '2px 8px',
+              borderRadius: '4px',
+              border: '1px solid var(--color-border-secondary)',
+              cursor: 'pointer',
+              fontSize: '13px',
+              fontWeight: localeKey === key ? '600' : '400',
+              background:
+                localeKey === key
+                  ? 'var(--color-background-secondary)'
+                  : 'var(--color-background-primary)',
+              color: 'var(--color-text-primary)',
+              fontFamily: 'inherit',
+            }"
+          >
+            {{ key }}
+          </button>
+        </div>
         <div
           style="width: 1px; height: 16px; background: var(--color-border-secondary); margin: 0 2px"
         />
-        <button
-          @click="cycleTheme"
-          :style="{
-            padding: '2px 8px',
-            borderRadius: '4px',
-            border: '1px solid var(--color-border-secondary)',
-            cursor: 'pointer',
-            fontSize: '13px',
-            background: 'var(--color-background-primary)',
-            color: 'var(--color-text-secondary)',
-            fontFamily: 'inherit',
-          }"
-        >
-          {{ THEME_LABELS[theme] }}
-        </button>
+        <div id="theming">
+          <button
+            @click="cycleTheme"
+            :style="{
+              padding: '2px 8px',
+              borderRadius: '4px',
+              border: '1px solid var(--color-border-secondary)',
+              cursor: 'pointer',
+              fontSize: '13px',
+              background: 'var(--color-background-primary)',
+              color: 'var(--color-text-secondary)',
+              fontFamily: 'inherit',
+            }"
+          >
+            {{ THEME_LABELS[theme] }}
+          </button>
+        </div>
       </div>
     </div>
     <p
@@ -548,15 +562,29 @@ function copyShareLink() {
       Full-featured table
     </h2>
     <p
+      style="font-size: 14px; color: var(--color-text-secondary); margin-top: 0; margin-bottom: 4px"
+    >
+      Every feature together: sort, filter, group, aggregate, column reordering, i18n, dark mode.
+      Try dragging a column header, or grouping by Department.
+    </p>
+    <p
       style="
-        font-size: 14px;
+        font-size: 12px;
         color: var(--color-text-secondary);
         margin-top: 0;
         margin-bottom: 16px;
       "
     >
-      Every feature together: sort, filter, group, aggregate, column reordering, i18n, dark mode.
-      Try dragging a column header, or grouping by Department.
+      📖
+      <span v-html="docLink('column-reordering', 'Column reordering')" />
+      ·
+      <span v-html="docLink('multi-value-array-columns', 'Multi-value columns')" />
+      ·
+      <span v-html="docLink('computed-columns', 'Computed columns')" />
+      ·
+      <span v-html="docLink('custom-rendering', 'Custom rendering')" />
+      ·
+      <span v-html="docLink('aggregation', 'Aggregation')" />
     </p>
     <DataTable
       :data="SAMPLE_DATA"
@@ -616,7 +644,7 @@ function copyShareLink() {
       }"
     >
       Pass <code>selectable</code> to show checkboxes; listen to <code>@selection-change</code> for
-      the updated rows array.
+      the updated rows array. <span v-html="docLink('row-selection', '📖 Docs')" />
     </p>
     <div
       v-if="selected.length > 0"
@@ -664,6 +692,7 @@ function copyShareLink() {
       :data="SAMPLE_DATA"
       :columns="COLUMNS"
       row-key="id"
+      :labels="currentLocale"
       :default-visible-columns="SELECTION_VISIBLE"
       :default-page-size="5"
       :selectable="true"
@@ -694,7 +723,7 @@ function copyShareLink() {
       style="font-size: 14px; color: var(--color-text-secondary); margin-top: 0; margin-bottom: 8px"
     >
       Listen to <code>@row-click</code> to react to a row being clicked — it receives the full row
-      object, no key lookup needed.
+      object, no key lookup needed. <span v-html="docLink('row-click', '📖 Docs')" />
     </p>
     <div
       v-if="clicked"
@@ -714,6 +743,7 @@ function copyShareLink() {
       :data="SAMPLE_DATA"
       :columns="COLUMNS"
       row-key="id"
+      :labels="currentLocale"
       :default-visible-columns="CLICK_VISIBLE"
       :default-page-size="5"
       @row-click="clicked = $event"
@@ -833,7 +863,7 @@ function copyShareLink() {
       <code>DataTable</code> builds its own <code>useTableState</code> internally, so persistence
       helpers can't reach it. <code>DataTableView</code> renders the same built-in UI from a
       <code>useTableState</code> instance you own instead — reorder or hide a column, then reload
-      the page.
+      the page. <span v-html="docLink('view-persistence--sharing', '📖 Docs')" />
     </p>
     <DataTableView :table="persistedTable" :data="SAMPLE_DATA" :columns="COLUMNS" row-key="id">
       <template #cell-department="{ value }">
