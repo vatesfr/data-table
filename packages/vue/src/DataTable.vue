@@ -1,5 +1,5 @@
 <script setup lang="ts" generic="TRow extends object">
-import { computed, watch, useSlots, getCurrentInstance } from 'vue'
+import { computed, ref, watch, useSlots, getCurrentInstance } from 'vue'
 import { computeAggregate, getColumnValue, type GroupResult } from '@vates/data-table-core'
 import { useTableState } from './useTableState'
 import type { ColumnDef } from './types'
@@ -59,6 +59,7 @@ const {
   pagedData,
   groupedData,
   activeColumns,
+  orderedColumns,
   stringValueMap,
   activeFilterCount,
   page,
@@ -67,6 +68,8 @@ const {
   searchQuery,
   L,
   toggleColVisibility,
+  moveColumn,
+  moveColumnBy,
   toggleSort,
   toggleFilter,
   setRangeFilter,
@@ -155,6 +158,25 @@ function groupValue(group: GroupResult<TRow>, key: string, i: number): unknown {
 function hasSlot(name: string): boolean {
   return name in slots
 }
+
+const dragColKey = ref<string | null>(null)
+const dragOverColKey = ref<string | null>(null)
+
+function onColDragStart(key: string): void {
+  dragColKey.value = key
+}
+function onColDragOver(key: string): void {
+  if (dragColKey.value && dragColKey.value !== key) dragOverColKey.value = key
+}
+function onColDrop(key: string): void {
+  if (dragColKey.value && dragColKey.value !== key) moveColumn(dragColKey.value, key)
+  dragColKey.value = null
+  dragOverColKey.value = null
+}
+function onColDragEnd(): void {
+  dragColKey.value = null
+  dragOverColKey.value = null
+}
 </script>
 
 <template>
@@ -167,14 +189,38 @@ function hasSlot(name: string): boolean {
           <ToolbarBtn :active="open">{{ L.columns }}</ToolbarBtn>
         </template>
         <div class="dt__dd-section">{{ L.columnsSection }}</div>
-        <label v-for="col in columns" :key="col.key" class="dt__dd-item dt__dd-item--clickable">
-          <input
-            type="checkbox"
-            :checked="visibleCols.has(col.key)"
-            @change="toggleColVisibility(col.key)"
-          />
-          {{ col.label }}
-        </label>
+        <div
+          v-for="(col, idx) in orderedColumns"
+          :key="col.key"
+          class="dt__dd-item dt__dd-item--col"
+        >
+          <label class="dt__dd-item--clickable dt__flex1">
+            <input
+              type="checkbox"
+              :checked="visibleCols.has(col.key)"
+              @change="toggleColVisibility(col.key)"
+            />
+            {{ col.label }}
+          </label>
+          <span class="dt__reorder-btns">
+            <button
+              type="button"
+              class="dt__reorder-btn"
+              :disabled="idx === 0"
+              @click="moveColumnBy(col.key, -1)"
+            >
+              ▲
+            </button>
+            <button
+              type="button"
+              class="dt__reorder-btn"
+              :disabled="idx === orderedColumns.length - 1"
+              @click="moveColumnBy(col.key, 1)"
+            >
+              ▼
+            </button>
+          </span>
+        </div>
       </Dropdown>
 
       <!-- Sort -->
@@ -364,7 +410,16 @@ function hasSlot(name: string): boolean {
               v-for="col in activeColumns"
               :key="col.key"
               class="dt__th"
+              :class="{
+                'dt__th--dragging': dragColKey === col.key,
+                'dt__th--drag-over': dragOverColKey === col.key,
+              }"
               :style="{ width: col.width ? `${col.width}px` : undefined }"
+              draggable="true"
+              @dragstart="onColDragStart(col.key)"
+              @dragover.prevent="onColDragOver(col.key)"
+              @drop.prevent="onColDrop(col.key)"
+              @dragend="onColDragEnd"
               @click="toggleSort(col.key)"
             >
               {{ col.label }}
@@ -549,6 +604,26 @@ function hasSlot(name: string): boolean {
 .dt__dd-item--clickable {
   cursor: pointer;
 }
+.dt__dd-item--col {
+  justify-content: space-between;
+}
+.dt__reorder-btns {
+  display: flex;
+  gap: 2px;
+}
+.dt__reorder-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px 4px;
+  font-size: 10px;
+  color: var(--color-text-secondary);
+  line-height: 1;
+}
+.dt__reorder-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
 .dt__dd-scroll {
   max-height: 380px;
   overflow-y: auto;
@@ -727,6 +802,12 @@ function hasSlot(name: string): boolean {
 .dt__th--cb {
   width: 36px;
   cursor: default;
+}
+.dt__th--dragging {
+  opacity: 0.4;
+}
+.dt__th--drag-over {
+  box-shadow: inset 2px 0 0 var(--color-text-primary);
 }
 
 /* Group rows */

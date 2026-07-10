@@ -11,6 +11,9 @@ import {
   toggleFilter as coreToggleFilter,
   toggleGroupBy,
   toggleCollapse,
+  getOrderedColumns,
+  reorderColumn as coreReorderColumn,
+  moveColumnBy as coreMoveColumnBy,
   getSortIcon,
   getSortIndex,
   countActiveFilters,
@@ -76,9 +79,11 @@ export function createDataTable<TRow extends object>(
   let page = 1
   let pageSize = options.defaultPageSize ?? 0
   let visibleCols = new Set<string>(options.defaultVisibleColumns ?? columns.map((c) => c.key))
+  let columnOrder: string[] = []
   let selection = new Set<TRow>()
   let openDropdown: string | null = null
   let searchQuery = ''
+  let draggedColKey: string | null = null
   const viewListeners = new Set<(view: TableViewState) => void>()
 
   // Updated by derive(), read by event handlers
@@ -101,10 +106,13 @@ export function createDataTable<TRow extends object>(
     _clampedPage = Math.min(page, Math.max(1, _numPages))
     const pagedData = paginateData(_processedData, _clampedPage, pageSize)
     _groupedData = groupData(pagedData, groupBy, columns, L.emptyValue)
-    const activeColumns = columns.filter((c) => visibleCols.has(c.key) && !groupBy.includes(c.key))
+    const orderedColumns = getOrderedColumns(columns, columnOrder)
+    const activeColumns = orderedColumns.filter(
+      (c) => visibleCols.has(c.key) && !groupBy.includes(c.key),
+    )
     const activeFilterCount = countActiveFilters(filters, rangeFilters)
     const selectedRows = _processedData.filter((r) => selection.has(r))
-    return { stringValueMap, activeColumns, activeFilterCount, selectedRows }
+    return { stringValueMap, orderedColumns, activeColumns, activeFilterCount, selectedRows }
   }
 
   function buildViewState(): TableViewState {
@@ -113,6 +121,7 @@ export function createDataTable<TRow extends object>(
     const isDefaultVisible =
       visibleCols.size === allKeys.length && allKeys.every((k) => visibleCols.has(k))
     if (!isDefaultVisible) view.visibleCols = [...visibleCols]
+    if (columnOrder.length) view.columnOrder = columnOrder
     if (sorts.length) view.sorts = sorts
     const filterEntries = Object.entries(filters).filter(([, v]) => v.size > 0)
     if (filterEntries.length)
@@ -134,6 +143,7 @@ export function createDataTable<TRow extends object>(
     visibleCols = validVisible?.length
       ? new Set(validVisible)
       : new Set(options.defaultVisibleColumns ?? columns.map((c) => c.key))
+    columnOrder = view.columnOrder?.filter((k) => columns.some((c) => c.key === k)) ?? []
     sorts = view.sorts ?? []
     filters = Object.fromEntries(
       Object.entries(view.filters ?? {}).map(([k, v]) => [k, new Set(v)]),
@@ -177,7 +187,8 @@ export function createDataTable<TRow extends object>(
     const selStart = focused instanceof HTMLInputElement ? focused.selectionStart : null
     const selEnd = focused instanceof HTMLInputElement ? focused.selectionEnd : null
 
-    const { stringValueMap, activeColumns, activeFilterCount, selectedRows } = derive()
+    const { stringValueMap, orderedColumns, activeColumns, activeFilterCount, selectedRows } =
+      derive()
 
     const allSelected = _processedData.length > 0 && selectedRows.length === _processedData.length
     const someSelected = selectedRows.length > 0 && !allSelected
@@ -201,8 +212,14 @@ export function createDataTable<TRow extends object>(
       `<button class="dt-btn${openDropdown === 'cols' ? ' dt-btn--active' : ''}" data-action="toggle-dd" data-dd="cols">${esc(L.columns)}</button>`,
       () => {
         let s = `<div class="dt-dd-section">${esc(L.columnsSection)}</div>`
-        for (const col of columns) {
-          s += `<label class="dt-dd-item"><input type="checkbox" data-action="toggle-col" data-key="${esc(col.key)}"${visibleCols.has(col.key) ? ' checked' : ''}> ${esc(col.label)}</label>`
+        for (let i = 0; i < orderedColumns.length; i++) {
+          const col = orderedColumns[i]
+          s += `<div class="dt-dd-item dt-dd-item--col">`
+          s += `<label class="dt-flex1"><input type="checkbox" data-action="toggle-col" data-key="${esc(col.key)}"${visibleCols.has(col.key) ? ' checked' : ''}> ${esc(col.label)}</label>`
+          s += `<span class="dt-reorder-btns">`
+          s += `<button type="button" class="dt-reorder-btn" data-action="move-col-up" data-key="${esc(col.key)}"${i === 0 ? ' disabled' : ''}>▲</button>`
+          s += `<button type="button" class="dt-reorder-btn" data-action="move-col-down" data-key="${esc(col.key)}"${i === orderedColumns.length - 1 ? ' disabled' : ''}>▼</button>`
+          s += `</span></div>`
         }
         return s
       },
@@ -314,7 +331,7 @@ export function createDataTable<TRow extends object>(
     }
     for (const col of activeColumns) {
       const sortIdx = getSortIndex(sorts, col.key)
-      html += `<th class="dt-th"${col.width ? ` style="width:${col.width}px"` : ''} data-action="toggle-sort" data-key="${esc(col.key)}"><span class="dt-th-inner">${esc(col.label)} <span class="dt-sort-icon${sortIdx ? ' dt-sort-icon--active' : ''}">${sortIdx ? `${sortIdx}${getSortIcon(sorts, col.key)}` : '↕'}</span></span></th>`
+      html += `<th class="dt-th" draggable="true" data-col-key="${esc(col.key)}"${col.width ? ` style="width:${col.width}px"` : ''} data-action="toggle-sort" data-key="${esc(col.key)}"><span class="dt-th-inner">${esc(col.label)} <span class="dt-sort-icon${sortIdx ? ' dt-sort-icon--active' : ''}">${sortIdx ? `${sortIdx}${getSortIcon(sorts, col.key)}` : '↕'}</span></span></th>`
     }
     html += `</tr></thead><tbody>`
 
@@ -496,6 +513,13 @@ export function createDataTable<TRow extends object>(
         viewChanged = true
         break
       }
+      case 'move-col-up':
+      case 'move-col-down': {
+        const base = columnOrder.length ? columnOrder : columns.map((c) => c.key)
+        columnOrder = coreMoveColumnBy(base, key, action === 'move-col-up' ? -1 : 1)
+        viewChanged = true
+        break
+      }
       case 'toggle-filter':
         filters = coreToggleFilter(filters, key, value)
         page = 1
@@ -653,6 +677,51 @@ export function createDataTable<TRow extends object>(
     notifyViewChange()
   }
 
+  // Drag-and-drop for column reordering bypasses the render()/innerHTML flow: replacing the
+  // dragged <th>'s DOM node mid-drag (as a re-render would) aborts the native drag operation in
+  // most browsers. So dragover/dragstart/dragend only toggle classes directly on existing nodes;
+  // only 'drop' (the terminal action) mutates state and triggers a full re-render.
+  function clearColDragClasses(): void {
+    for (const th of container.querySelectorAll<HTMLElement>('.dt-th[data-col-key]')) {
+      th.classList.remove('dt-th--dragging', 'dt-th--drag-over')
+    }
+  }
+
+  function handleColDragStart(e: DragEvent): void {
+    const th = (e.target as HTMLElement).closest<HTMLElement>('.dt-th[data-col-key]')
+    if (!th) return
+    draggedColKey = th.dataset.colKey ?? null
+    th.classList.add('dt-th--dragging')
+  }
+
+  function handleColDragOver(e: DragEvent): void {
+    const th = (e.target as HTMLElement).closest<HTMLElement>('.dt-th[data-col-key]')
+    if (!th || !draggedColKey || th.dataset.colKey === draggedColKey) return
+    e.preventDefault()
+    for (const other of container.querySelectorAll<HTMLElement>('.dt-th[data-col-key]')) {
+      other.classList.toggle('dt-th--drag-over', other === th)
+    }
+  }
+
+  function handleColDrop(e: DragEvent): void {
+    const th = (e.target as HTMLElement).closest<HTMLElement>('.dt-th[data-col-key]')
+    const targetKey = th?.dataset.colKey
+    if (!targetKey || !draggedColKey) return
+    e.preventDefault()
+    if (targetKey !== draggedColKey) {
+      const base = columnOrder.length ? columnOrder : columns.map((c) => c.key)
+      columnOrder = coreReorderColumn(base, draggedColKey, targetKey)
+      render()
+      notifyViewChange()
+    }
+    draggedColKey = null
+  }
+
+  function handleColDragEnd(): void {
+    draggedColKey = null
+    clearColDragClasses()
+  }
+
   function handleDocClick(e: MouseEvent): void {
     // composedPath() captures the dispatch-time path, so it stays correct even
     // after innerHTML re-renders detach the original target from the DOM.
@@ -665,6 +734,10 @@ export function createDataTable<TRow extends object>(
   container.addEventListener('click', handleClick)
   container.addEventListener('input', handleInput)
   container.addEventListener('change', handleChange)
+  container.addEventListener('dragstart', handleColDragStart)
+  container.addEventListener('dragover', handleColDragOver)
+  container.addEventListener('drop', handleColDrop)
+  container.addEventListener('dragend', handleColDragEnd)
   document.addEventListener('click', handleDocClick)
 
   render()
@@ -692,6 +765,10 @@ export function createDataTable<TRow extends object>(
       container.removeEventListener('click', handleClick)
       container.removeEventListener('input', handleInput)
       container.removeEventListener('change', handleChange)
+      container.removeEventListener('dragstart', handleColDragStart)
+      container.removeEventListener('dragover', handleColDragOver)
+      container.removeEventListener('drop', handleColDrop)
+      container.removeEventListener('dragend', handleColDragEnd)
       document.removeEventListener('click', handleDocClick)
       container.innerHTML = ''
     },

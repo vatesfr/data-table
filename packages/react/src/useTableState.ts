@@ -10,6 +10,9 @@ import {
   toggleFilter as _toggleFilter,
   toggleGroupBy,
   toggleCollapse,
+  getOrderedColumns,
+  reorderColumn as _reorderColumn,
+  moveColumnBy as _moveColumnBy,
   getSortIcon as _getSortIcon,
   getSortIndex as _getSortIndex,
   countActiveFilters,
@@ -33,6 +36,7 @@ export function useTableState<TRow extends object>(
   const [visibleCols, setVisibleCols] = useState<Set<string>>(
     () => new Set(defaultVisibleColumns ?? columns.map((c) => c.key)),
   )
+  const [columnOrder, setColumnOrder] = useState<string[]>([])
   const [sorts, setSorts] = useState<SortEntry[]>([])
   const [filters, setFilters] = useState<Record<string, Set<string>>>({})
   const [rangeFilters, setRangeFilters] = useState<Record<string, RangeFilter>>({})
@@ -77,8 +81,16 @@ export function useTableState<TRow extends object>(
   )
 
   const activeColumns = useMemo(
-    () => columns.filter((c) => visibleCols.has(c.key) && !groupBy.includes(c.key)),
-    [columns, visibleCols, groupBy],
+    () =>
+      getOrderedColumns(columns, columnOrder).filter(
+        (c) => visibleCols.has(c.key) && !groupBy.includes(c.key),
+      ),
+    [columns, columnOrder, visibleCols, groupBy],
+  )
+
+  const orderedColumns = useMemo(
+    () => getOrderedColumns(columns, columnOrder),
+    [columns, columnOrder],
   )
 
   const activeFilterCount = useMemo(
@@ -95,6 +107,7 @@ export function useTableState<TRow extends object>(
     // Raw state (for direct manipulation in the UI)
     selection,
     visibleCols,
+    columnOrder,
     sorts,
     filters,
     rangeFilters,
@@ -109,6 +122,7 @@ export function useTableState<TRow extends object>(
     pagedData,
     groupedData,
     activeColumns,
+    orderedColumns,
     stringValueMap,
     activeFilterCount,
     numPages,
@@ -122,6 +136,14 @@ export function useTableState<TRow extends object>(
         } else next.add(key)
         return next
       }),
+    moveColumn: (dragKey: string, targetKey: string) =>
+      setColumnOrder((prev) =>
+        _reorderColumn(prev.length ? prev : columns.map((c) => c.key), dragKey, targetKey),
+      ),
+    moveColumnBy: (key: string, delta: number) =>
+      setColumnOrder((prev) =>
+        _moveColumnBy(prev.length ? prev : columns.map((c) => c.key), key, delta),
+      ),
     toggleSort: (key: string) => setSorts((prev) => _toggleSort(prev, key)),
     toggleFilter: (key: string, value: string) => {
       setFilters((prev) => _toggleFilter(prev, key, value))
@@ -192,6 +214,7 @@ export function useTableState<TRow extends object>(
       const isDefaultVisible =
         visibleCols.size === allKeys.length && allKeys.every((k) => visibleCols.has(k))
       if (!isDefaultVisible) view.visibleCols = [...visibleCols]
+      if (columnOrder.length) view.columnOrder = columnOrder
       if (sorts.length) view.sorts = sorts
       const filterEntries = Object.entries(filters).filter(([, v]) => v.size > 0)
       if (filterEntries.length)
@@ -214,6 +237,7 @@ export function useTableState<TRow extends object>(
           ? new Set(validVisible)
           : new Set(defaultVisibleColumns ?? columns.map((c) => c.key)),
       )
+      setColumnOrder(view.columnOrder?.filter((k) => columns.some((c) => c.key === k)) ?? [])
       setSorts(view.sorts ?? [])
       setFilters(
         Object.fromEntries(Object.entries(view.filters ?? {}).map(([k, v]) => [k, new Set(v)])),

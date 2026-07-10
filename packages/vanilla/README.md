@@ -1,6 +1,6 @@
 # @vates/data-table-vanilla
 
-Vanilla JS adapter for [data-table](../../README.md) — a flexible, fully-typed data table with sorting, filtering, column visibility, and row grouping. No framework required.
+Vanilla JS adapter for [data-table](../../README.md) — a flexible, fully-typed data table with sorting, filtering, column visibility/reordering, and row grouping. No framework required.
 
 ## Install
 
@@ -163,6 +163,10 @@ const table = createDataTable(container, {
 ```
 
 Selection uses object identity, so it persists across sort/filter changes as long as row references are stable.
+
+## Column reordering
+
+Drag a column header to reorder it, or use the ▲▼ buttons next to each column in the Columns panel — both work out of the box, no extra options required. Order is tracked independently of visibility, so hiding and re-showing a column keeps its place. It's included in `getViewState()`/`setViewState()` (as `columnOrder`) for persistence and sharing.
 
 ## Options
 

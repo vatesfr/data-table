@@ -61,7 +61,7 @@ demo/
 All stateless logic lives here:
 
 - **`types.ts`** — shared interfaces: `ColumnDefBase<TRow>`, `AggregateType`, `SortEntry`, `RangeFilter`, `DataTableLabels`, `DEFAULT_LABELS` (English default strings)
-- **`logic.ts`** — pure functions: `getColumnValue`, `processData`, `searchData`, `groupData`, `computeStringValues`, `computeAggregate`, `paginateData`, `calcTotalPages`, `toggleSort`, `toggleFilter`, `toggleGroupBy`, `toggleCollapse`, `getSortIcon`, `getSortIndex`, `countActiveFilters`
+- **`logic.ts`** — pure functions: `getColumnValue`, `processData`, `searchData`, `groupData`, `computeStringValues`, `computeAggregate`, `paginateData`, `calcTotalPages`, `toggleSort`, `toggleFilter`, `toggleGroupBy`, `toggleCollapse`, `getOrderedColumns`, `reorderColumn`, `moveColumnBy`, `getSortIcon`, `getSortIndex`, `countActiveFilters`
 - **`locales.ts`** — built-in locale objects: `LABELS_EN`, `LABELS_FR`, `LABELS_ES`, `LABELS_DE`, `LABELS_PT`
 
 The internal `asRecord(row: object): Record<string, unknown>` helper exists because the generic constraint is `TRow extends object` (not `Record<string, unknown>`) — TypeScript interfaces lack index signatures so the wider constraint is needed, and `asRecord` lets internal logic access arbitrary keys.
@@ -136,6 +136,26 @@ Each adapter's own cell/group-header rendering (React `cellValue()`, Vue `cellTe
 ### Grouped columns
 
 When a column is added to `groupBy`, `useTableState` removes it from `activeColumns`, so it disappears from the table header and cells automatically. When grouping is cleared, the column reappears. Group header values are rendered with the same `cellValue()` / slot logic as table cells.
+
+### Column reordering
+
+`columnOrder: string[]` is a separate piece of state from `visibleCols` — it lists _all_ column keys (visible and hidden) in display order, not just the visible ones, so hiding a column and showing it again doesn't lose its position. It starts as `[]` (natural order, i.e. `columns` as passed in) and is only materialized on the first reorder.
+
+`getOrderedColumns(columns, order)` in core sorts the full column list per `order`, appending any column missing from it (added later, or `order` still `[]`) at the end in its original relative position — the same "stale/partial state still renders something sane" pattern used for `visibleCols` in `setViewState`. `activeColumns` in each adapter is `getOrderedColumns(columns, columnOrder).filter(visible && !grouped)`; a second derived value, `orderedColumns`, is the unfiltered version — all columns in display order, visible or not — used to render the Columns panel with its own drag/order controls.
+
+Two interactions both write to `columnOrder`, backed by two core primitives:
+
+- **Drag-and-drop on headers** — native HTML5 Drag and Drop API (`draggable`, `dragstart`/`dragover`/`drop`), not a pointer-events implementation, to keep the per-adapter diff small and avoid a dependency. `reorderColumn(order, dragKey, targetKey)` moves `dragKey` to just before `targetKey`; dropping doesn't distinguish drop-before vs drop-after halves of the target header, it always inserts before — a deliberate simplification.
+- **▲▼ buttons in the Columns panel** — a keyboard-reachable fallback, since native drag-and-drop has no keyboard path. `moveColumnBy(order, key, delta)` swaps `key` with its neighbor `delta` positions away (`-1`/`+1`), and is a no-op past either boundary (button `disabled` when at the start/end of `orderedColumns`).
+
+Both actions materialize `columnOrder` from `columns.map(c => c.key)` before calling the core primitive if it's still `[]`, so the first reorder always operates on a complete key list rather than an empty one.
+
+Per-adapter drag wiring:
+
+- **React/Vue** — `dragColKey`/`dragOverColKey` local state (React `useState`, Vue `ref`) drives inline opacity/box-shadow feedback on the dragged and hovered-over headers; both are cleared on `dragend` as well as `drop`, since a drag cancelled outside a valid target (e.g. dropped off the table) still fires `dragend` but not `drop`.
+- **Vanilla** — drag feedback bypasses the render()/innerHTML flow entirely: replacing the dragged `<th>`'s DOM node mid-drag (as a `render()` call would) aborts the native drag operation in most browsers. So `dragstart`/`dragover`/`dragend` only toggle CSS classes directly on the existing DOM nodes via `classList`; only `drop` (the terminal action, after which a fresh render is safe) mutates `columnOrder` and calls `render()`. These four drag listeners are registered on the container alongside the existing `click`/`input`/`change` delegation, since native drag events aren't part of that delegation.
+
+`TableViewState.columnOrder?: string[]` persists/shares the order the same way as every other field in `view.ts` — omitted when empty (natural order), wire key `o`.
 
 ### Aggregation in group headers
 

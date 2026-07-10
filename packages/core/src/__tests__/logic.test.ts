@@ -15,6 +15,9 @@ import {
   getSortIcon,
   getSortIndex,
   countActiveFilters,
+  getOrderedColumns,
+  reorderColumn,
+  moveColumnBy,
 } from '../logic'
 
 interface Row {
@@ -556,6 +559,79 @@ describe('getSortIndex', () => {
     ]
     expect(getSortIndex(sorts, 'dept')).toBe(1)
     expect(getSortIndex(sorts, 'name')).toBe(2)
+  })
+})
+
+// ─── getOrderedColumns ────────────────────────────────────────────────────────
+
+describe('getOrderedColumns', () => {
+  const COLS = [
+    { key: 'name' as const, label: 'Name' },
+    { key: 'dept' as const, label: 'Dept' },
+    { key: 'salary' as const, label: 'Salary' },
+  ]
+
+  it('returns columns unchanged when order is empty', () => {
+    expect(getOrderedColumns(COLS, [])).toEqual(COLS)
+  })
+
+  it('sorts columns per the given order', () => {
+    const result = getOrderedColumns(COLS, ['salary', 'name', 'dept'])
+    expect(result.map((c) => c.key)).toEqual(['salary', 'name', 'dept'])
+  })
+
+  it('appends columns missing from order at the end, in original relative order', () => {
+    const result = getOrderedColumns(COLS, ['salary'])
+    expect(result.map((c) => c.key)).toEqual(['salary', 'name', 'dept'])
+  })
+
+  it('drops stale keys from order that no longer match a column', () => {
+    const result = getOrderedColumns(COLS, ['ghost', 'salary', 'name', 'dept'])
+    expect(result.map((c) => c.key)).toEqual(['salary', 'name', 'dept'])
+  })
+})
+
+// ─── reorderColumn ────────────────────────────────────────────────────────────
+
+describe('reorderColumn', () => {
+  it('moves dragKey to just before targetKey', () => {
+    expect(reorderColumn(['a', 'b', 'c'], 'c', 'a')).toEqual(['c', 'a', 'b'])
+  })
+
+  it('moves dragKey later when targetKey is after it', () => {
+    expect(reorderColumn(['a', 'b', 'c'], 'a', 'c')).toEqual(['b', 'a', 'c'])
+  })
+
+  it('is a no-op when dragKey equals targetKey', () => {
+    expect(reorderColumn(['a', 'b', 'c'], 'b', 'b')).toEqual(['a', 'b', 'c'])
+  })
+
+  it('returns order unchanged when targetKey is not present', () => {
+    expect(reorderColumn(['a', 'b', 'c'], 'a', 'ghost')).toEqual(['a', 'b', 'c'])
+  })
+})
+
+// ─── moveColumnBy ─────────────────────────────────────────────────────────────
+
+describe('moveColumnBy', () => {
+  it('swaps key with the next neighbor when delta is +1', () => {
+    expect(moveColumnBy(['a', 'b', 'c'], 'a', 1)).toEqual(['b', 'a', 'c'])
+  })
+
+  it('swaps key with the previous neighbor when delta is -1', () => {
+    expect(moveColumnBy(['a', 'b', 'c'], 'c', -1)).toEqual(['a', 'c', 'b'])
+  })
+
+  it('is a no-op when already at the start', () => {
+    expect(moveColumnBy(['a', 'b', 'c'], 'a', -1)).toEqual(['a', 'b', 'c'])
+  })
+
+  it('is a no-op when already at the end', () => {
+    expect(moveColumnBy(['a', 'b', 'c'], 'c', 1)).toEqual(['a', 'b', 'c'])
+  })
+
+  it('is a no-op when key is not present', () => {
+    expect(moveColumnBy(['a', 'b', 'c'], 'ghost', 1)).toEqual(['a', 'b', 'c'])
   })
 })
 

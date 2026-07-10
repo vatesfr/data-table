@@ -5,6 +5,7 @@ describe('encodeViewState / decodeViewState', () => {
   it('round-trips a full view', () => {
     const view: TableViewState = {
       visibleCols: ['name', 'dept'],
+      columnOrder: ['dept', 'name', 'salary'],
       sorts: [{ key: 'salary', dir: 'desc' }],
       filters: { dept: ['Eng', 'HR'] },
       rangeFilters: { salary: { min: '50000', max: '' } },
@@ -23,6 +24,7 @@ describe('encodeViewState / decodeViewState', () => {
 
   it('omits fields at their default value', () => {
     const view: TableViewState = {
+      columnOrder: [],
       sorts: [],
       filters: { dept: [] },
       rangeFilters: { salary: { min: '', max: '' } },

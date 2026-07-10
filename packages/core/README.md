@@ -14,7 +14,7 @@ GroupResult<TRow extends object>    // { key, keyParts, rows } — one entry per
 SortEntry                           // { key: string; dir: 'asc' | 'desc' }
 RangeFilter                         // { min: string; max: string }
 DataTableLabels                     // all UI strings + 4 pluralization functions + emptyValue
-TableViewState                      // serializable snapshot of visibleCols/sorts/filters/rangeFilters/groupBy/collapsedGroups/page/pageSize/searchQuery (not selection)
+TableViewState                      // serializable snapshot of visibleCols/columnOrder/sorts/filters/rangeFilters/groupBy/collapsedGroups/page/pageSize/searchQuery (not selection)
 DEFAULT_LABELS                      // English defaults (alias for LABELS_EN)
 LABELS_EN                           // English
 LABELS_FR                           // French
@@ -36,6 +36,9 @@ toggleSort(sorts, key) // cycle asc → desc → off
 toggleFilter(filters, key, value) // toggle a checklist value
 toggleGroupBy(groupBy, key) // add/remove a group key
 toggleCollapse(collapsed, key) // toggle a collapsed group
+getOrderedColumns(columns, order) // sort columns per an order array of keys; columns missing from order are appended at the end
+reorderColumn(order, dragKey, targetKey) // move dragKey to just before targetKey (drag-and-drop)
+moveColumnBy(order, key, delta) // swap key with its neighbor delta positions away (e.g. -1/+1 for up/down buttons)
 getSortIcon(sorts, key) // '↑' | '↓' | '↕'
 getSortIndex(sorts, key) // 1-based position or null
 countActiveFilters(filters, rangeFilters) // total active filter count

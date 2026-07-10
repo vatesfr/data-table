@@ -8,6 +8,7 @@ import type { SortEntry, RangeFilter } from './types'
  */
 export interface TableViewState {
   visibleCols?: string[]
+  columnOrder?: string[]
   sorts?: SortEntry[]
   filters?: Record<string, string[]>
   rangeFilters?: Record<string, RangeFilter>
@@ -27,6 +28,7 @@ type WireRange = [key: string, min: string, max: string]
 
 interface WireViewState {
   v?: string[]
+  o?: string[]
   s?: WireSort[]
   f?: WireFilter[]
   r?: WireRange[]
@@ -40,6 +42,7 @@ interface WireViewState {
 function toWire(view: TableViewState): WireViewState {
   const wire: WireViewState = {}
   if (view.visibleCols?.length) wire.v = view.visibleCols
+  if (view.columnOrder?.length) wire.o = view.columnOrder
   if (view.sorts?.length)
     wire.s = view.sorts.map((s): WireSort => [s.key, s.dir === 'desc' ? 1 : 0])
 
@@ -62,6 +65,7 @@ function toWire(view: TableViewState): WireViewState {
 function fromWire(wire: WireViewState): TableViewState {
   const view: TableViewState = {}
   if (wire.v) view.visibleCols = wire.v
+  if (wire.o) view.columnOrder = wire.o
   if (wire.s) view.sorts = wire.s.map(([key, dirFlag]) => ({ key, dir: dirFlag ? 'desc' : 'asc' }))
   if (wire.f) view.filters = Object.fromEntries(wire.f)
   if (wire.r)

@@ -55,6 +55,12 @@ function colHeaders(container: HTMLElement): string[] {
   )
 }
 
+// jsdom has no DragEvent constructor; the handlers only read e.target and call
+// preventDefault(), both of which a plain (cancelable) Event supports.
+function dragEvt(type: string): Event {
+  return new Event(type, { bubbles: true, cancelable: true })
+}
+
 describe('createDataTable', () => {
   let container: HTMLDivElement
 
@@ -213,6 +219,74 @@ describe('createDataTable', () => {
     click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="cols"]')!)
     click(container.querySelector<HTMLElement>('[data-action="toggle-col"][data-key="name"]')!)
     expect(colHeaders(container)).toContain('Name')
+  })
+
+  // --- column reordering ---
+
+  it('renders headers as draggable with a data-col-key', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    const th = container.querySelector<HTMLElement>('th[data-col-key="score"]')!
+    expect(th.getAttribute('draggable')).toBe('true')
+  })
+
+  it('moving a column up in the columns dropdown reorders headers', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="cols"]')!)
+    click(container.querySelector<HTMLElement>('[data-action="move-col-up"][data-key="score"]')!)
+    expect(colHeaders(container)).toEqual(['Score', 'Name', 'Dept'])
+  })
+
+  it('moving a column down in the columns dropdown reorders headers', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="cols"]')!)
+    click(container.querySelector<HTMLElement>('[data-action="move-col-down"][data-key="name"]')!)
+    expect(colHeaders(container)).toEqual(['Score', 'Name', 'Dept'])
+  })
+
+  it('the up button on the first column is disabled', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="cols"]')!)
+    const btn = container.querySelector<HTMLButtonElement>(
+      '[data-action="move-col-up"][data-key="name"]',
+    )!
+    expect(btn.disabled).toBe(true)
+  })
+
+  it('dragging a header and dropping it on another reorders columns', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    const scoreTh = container.querySelector<HTMLElement>('th[data-col-key="score"]')!
+    const nameTh = container.querySelector<HTMLElement>('th[data-col-key="name"]')!
+    scoreTh.dispatchEvent(dragEvt('dragstart'))
+    nameTh.dispatchEvent(dragEvt('dragover'))
+    nameTh.dispatchEvent(dragEvt('drop'))
+    expect(colHeaders(container)).toEqual(['Score', 'Name', 'Dept'])
+  })
+
+  it('preserves order across visibility toggles', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    const scoreTh = container.querySelector<HTMLElement>('th[data-col-key="score"]')!
+    const nameTh = container.querySelector<HTMLElement>('th[data-col-key="name"]')!
+    scoreTh.dispatchEvent(dragEvt('dragstart'))
+    nameTh.dispatchEvent(dragEvt('dragover'))
+    nameTh.dispatchEvent(dragEvt('drop'))
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="cols"]')!)
+    click(container.querySelector<HTMLElement>('[data-action="toggle-col"][data-key="dept"]')!)
+    expect(colHeaders(container)).toEqual(['Score', 'Name'])
+  })
+
+  it('getViewState captures columnOrder and setViewState round-trips it', () => {
+    const table = createDataTable(container, { data: ROWS, columns: COLS })
+    const scoreTh = container.querySelector<HTMLElement>('th[data-col-key="score"]')!
+    const nameTh = container.querySelector<HTMLElement>('th[data-col-key="name"]')!
+    scoreTh.dispatchEvent(dragEvt('dragstart'))
+    nameTh.dispatchEvent(dragEvt('dragover'))
+    nameTh.dispatchEvent(dragEvt('drop'))
+    const view = table.getViewState()
+    expect(view.columnOrder).toEqual(['score', 'name', 'dept'])
+    table.setViewState({})
+    expect(colHeaders(container)).toEqual(['Name', 'Score', 'Dept'])
+    table.setViewState(view)
+    expect(colHeaders(container)).toEqual(['Score', 'Name', 'Dept'])
   })
 
   // --- checklist filter ---

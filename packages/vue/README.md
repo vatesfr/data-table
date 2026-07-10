@@ -1,6 +1,6 @@
 # @vates/data-table-vue
 
-Vue 3 adapter for [data-table](../../README.md) — a flexible, fully-typed data table with sorting, filtering, column visibility, and row grouping.
+Vue 3 adapter for [data-table](../../README.md) — a flexible, fully-typed data table with sorting, filtering, column visibility/reordering, and row grouping.
 
 ## Install
 
@@ -142,6 +142,10 @@ const selected = ref<Employee[]>([])
 
 `selectionChange` receives the array of currently selected rows that are present in the filtered dataset. Selection uses object identity (`Set<TRow>`), so it persists across sort/filter changes as long as row references are stable.
 
+## Column reordering
+
+Drag a column header to reorder it, or use the ▲▼ buttons next to each column in the Columns panel — both work out of the box, no extra props required. Order is tracked independently of visibility, so hiding and re-showing a column keeps its place. It's included in `getViewState()`/`setViewState()` (as `columnOrder`) for persistence and sharing.
+
 ## `DataTable` props
 
 | Prop                    | Type                       | Default | Description                                  |
@@ -191,6 +195,7 @@ import { useTableState } from '@vates/data-table-vue'
 const {
   // Reactive state (refs)
   visibleCols,
+  columnOrder,
   sorts,
   filters,
   rangeFilters,
@@ -204,6 +209,7 @@ const {
   pagedData,
   groupedData,
   activeColumns,
+  orderedColumns, // all columns (visible + hidden) sorted per columnOrder — for a custom columns panel
   stringValueMap,
   activeFilterCount,
   numPages,
@@ -211,6 +217,8 @@ const {
   L,
   // Actions
   toggleColVisibility,
+  moveColumn, // (dragKey: string, targetKey: string) => void — drag-and-drop reordering
+  moveColumnBy, // (key: string, delta: number) => void — swap with the neighbor delta positions away
   toggleSort,
   toggleFilter,
   setRangeFilter,

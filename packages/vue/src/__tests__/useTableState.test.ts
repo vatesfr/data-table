@@ -133,6 +133,41 @@ describe('useTableState — column visibility', () => {
   })
 })
 
+describe('useTableState — column ordering', () => {
+  it('defaults to natural column order', () => {
+    const { orderedColumns } = useTableState(ROWS, COLS)
+    expect(orderedColumns.value.map((c) => c.key)).toEqual(['id', 'name', 'score'])
+  })
+
+  it('moveColumn reorders by drag-and-drop semantics (insert before target)', () => {
+    const { orderedColumns, activeColumns, moveColumn } = useTableState(ROWS, COLS)
+    moveColumn('score', 'id')
+    expect(orderedColumns.value.map((c) => c.key)).toEqual(['score', 'id', 'name'])
+    expect(activeColumns.value.map((c) => c.key)).toEqual(['score', 'id', 'name'])
+  })
+
+  it('moveColumnBy swaps with the neighbor in the given direction', () => {
+    const { orderedColumns, moveColumnBy } = useTableState(ROWS, COLS)
+    moveColumnBy('id', 1)
+    expect(orderedColumns.value.map((c) => c.key)).toEqual(['name', 'id', 'score'])
+  })
+
+  it('moveColumnBy is a no-op past the boundary', () => {
+    const { orderedColumns, moveColumnBy } = useTableState(ROWS, COLS)
+    moveColumnBy('id', -1)
+    expect(orderedColumns.value.map((c) => c.key)).toEqual(['id', 'name', 'score'])
+  })
+
+  it('preserves order across visibility toggles', () => {
+    const { activeColumns, moveColumn, toggleColVisibility } = useTableState(ROWS, COLS)
+    moveColumn('score', 'id')
+    toggleColVisibility('name')
+    expect(activeColumns.value.map((c) => c.key)).toEqual(['score', 'id'])
+    toggleColVisibility('name')
+    expect(activeColumns.value.map((c) => c.key)).toEqual(['score', 'id', 'name'])
+  })
+})
+
 describe('useTableState — pagination', () => {
   it('setPage navigates between pages', () => {
     const { page, pagedData, setPage } = useTableState(ROWS, COLS, { defaultPageSize: 2 })
@@ -351,5 +386,22 @@ describe('useTableState — view state', () => {
     const { setViewState, activeColumns } = useTableState(ROWS, COLS)
     setViewState({ visibleCols: ['nonexistent'] })
     expect(activeColumns.value.map((c) => c.key)).toEqual(['id', 'name', 'score'])
+  })
+
+  it('getViewState captures columnOrder and setViewState round-trips it', () => {
+    const { getViewState, setViewState, moveColumn, orderedColumns } = useTableState(ROWS, COLS)
+    moveColumn('score', 'id')
+    const view = getViewState()
+    expect(view.columnOrder).toEqual(['score', 'id', 'name'])
+    setViewState({})
+    expect(orderedColumns.value.map((c) => c.key)).toEqual(['id', 'name', 'score'])
+    setViewState(view)
+    expect(orderedColumns.value.map((c) => c.key)).toEqual(['score', 'id', 'name'])
+  })
+
+  it('setViewState drops stale keys from columnOrder', () => {
+    const { setViewState, orderedColumns } = useTableState(ROWS, COLS)
+    setViewState({ columnOrder: ['score', 'ghost', 'id', 'name'] })
+    expect(orderedColumns.value.map((c) => c.key)).toEqual(['score', 'id', 'name'])
   })
 })

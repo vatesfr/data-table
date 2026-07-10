@@ -126,6 +126,16 @@ const S = {
     lineHeight: 1,
   } as CSSProperties,
   pageBtnDisabled: { opacity: 0.35, cursor: 'default' } as CSSProperties,
+  reorderBtn: {
+    background: 'none',
+    border: 'none',
+    cursor: 'pointer',
+    padding: '2px 4px',
+    fontSize: 10,
+    color: 'var(--color-text-secondary)',
+    lineHeight: 1,
+  } as CSSProperties,
+  reorderBtnDisabled: { opacity: 0.3, cursor: 'default' } as CSSProperties,
   pageInfo: {
     fontSize: 12,
     color: 'var(--color-text-secondary)',
@@ -188,6 +198,8 @@ export function DataTable<TRow extends object>({
   const [openFilterDD, setOpenFilterDD] = useState(false)
   const [openGroupDD, setOpenGroupDD] = useState(false)
   const [hoveredRow, setHoveredRow] = useState<TRow | null>(null)
+  const [dragColKey, setDragColKey] = useState<string | null>(null)
+  const [dragOverColKey, setDragOverColKey] = useState<string | null>(null)
 
   const {
     visibleCols,
@@ -199,6 +211,7 @@ export function DataTable<TRow extends object>({
     processedData,
     groupedData,
     activeColumns,
+    orderedColumns,
     stringValueMap,
     activeFilterCount,
     selection,
@@ -209,6 +222,8 @@ export function DataTable<TRow extends object>({
     searchQuery,
     L,
     toggleColVisibility,
+    moveColumn,
+    moveColumnBy,
     toggleSort,
     toggleFilter,
     setRangeFilter,
@@ -279,16 +294,47 @@ export function DataTable<TRow extends object>({
           trigger={<ToolbarBtn active={openColsDD}>{L.columns}</ToolbarBtn>}
         >
           <div style={S.ddSection}>{L.columnsSection}</div>
-          {columns.map((col) => (
-            <label key={col.key} style={{ ...S.ddItem, cursor: 'pointer' }}>
-              <input
-                type="checkbox"
-                checked={visibleCols.has(col.key)}
-                onChange={() => toggleColVisibility(col.key)}
-                style={{ margin: 0 }}
-              />
-              {col.label}
-            </label>
+          {orderedColumns.map((col, idx) => (
+            <div key={col.key} style={{ ...S.ddItem, justifyContent: 'space-between' }}>
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  flex: 1,
+                  cursor: 'pointer',
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={visibleCols.has(col.key)}
+                  onChange={() => toggleColVisibility(col.key)}
+                  style={{ margin: 0 }}
+                />
+                {col.label}
+              </label>
+              <span style={{ display: 'flex', gap: 2 }}>
+                <button
+                  type="button"
+                  onClick={() => moveColumnBy(col.key, -1)}
+                  disabled={idx === 0}
+                  style={{ ...S.reorderBtn, ...(idx === 0 ? S.reorderBtnDisabled : {}) }}
+                >
+                  ▲
+                </button>
+                <button
+                  type="button"
+                  onClick={() => moveColumnBy(col.key, 1)}
+                  disabled={idx === orderedColumns.length - 1}
+                  style={{
+                    ...S.reorderBtn,
+                    ...(idx === orderedColumns.length - 1 ? S.reorderBtnDisabled : {}),
+                  }}
+                >
+                  ▼
+                </button>
+              </span>
+            </div>
           ))}
         </Dropdown>
 
@@ -578,7 +624,31 @@ export function DataTable<TRow extends object>({
                 return (
                   <th
                     key={col.key}
-                    style={{ ...S.th, width: col.width }}
+                    draggable
+                    onDragStart={() => setDragColKey(col.key)}
+                    onDragOver={(e) => {
+                      e.preventDefault()
+                      if (dragColKey && dragColKey !== col.key) setDragOverColKey(col.key)
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault()
+                      if (dragColKey && dragColKey !== col.key) moveColumn(dragColKey, col.key)
+                      setDragColKey(null)
+                      setDragOverColKey(null)
+                    }}
+                    onDragEnd={() => {
+                      setDragColKey(null)
+                      setDragOverColKey(null)
+                    }}
+                    style={{
+                      ...S.th,
+                      width: col.width,
+                      opacity: dragColKey === col.key ? 0.4 : 1,
+                      boxShadow:
+                        dragOverColKey === col.key
+                          ? 'inset 2px 0 0 var(--color-text-primary)'
+                          : undefined,
+                    }}
                     onClick={() => toggleSort(col.key)}
                   >
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>

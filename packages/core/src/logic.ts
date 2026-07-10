@@ -146,6 +146,44 @@ export function toggleGroupBy(groupBy: string[], key: string): string[] {
   return groupBy.includes(key) ? groupBy.filter((k) => k !== key) : [...groupBy, key]
 }
 
+/**
+ * Sorts `columns` per `order` (an array of keys); any column missing from `order` — because it
+ * was added after the order was set, or `order` is empty (natural order) — is appended at the
+ * end in its original relative position.
+ */
+export function getOrderedColumns<TRow extends object>(
+  columns: ColumnDefBase<TRow>[],
+  order: string[],
+): ColumnDefBase<TRow>[] {
+  if (order.length === 0) return columns
+  const byKey = new Map(columns.map((c) => [c.key, c]))
+  const ordered = order
+    .map((k) => byKey.get(k))
+    .filter((c): c is ColumnDefBase<TRow> => c !== undefined)
+  const orderedKeys = new Set(ordered.map((c) => c.key))
+  return [...ordered, ...columns.filter((c) => !orderedKeys.has(c.key))]
+}
+
+/** Reorders `order` by moving `dragKey` to just before `targetKey` (drag-and-drop). */
+export function reorderColumn(order: string[], dragKey: string, targetKey: string): string[] {
+  if (dragKey === targetKey) return order
+  const next = order.filter((k) => k !== dragKey)
+  const targetIdx = next.indexOf(targetKey)
+  if (targetIdx === -1) return order
+  next.splice(targetIdx, 0, dragKey)
+  return next
+}
+
+/** Swaps `key` with its neighbor `delta` positions away (e.g. -1/+1 for up/down buttons). */
+export function moveColumnBy(order: string[], key: string, delta: number): string[] {
+  const idx = order.indexOf(key)
+  const newIdx = idx + delta
+  if (idx === -1 || newIdx < 0 || newIdx >= order.length) return order
+  const next = [...order]
+  ;[next[idx], next[newIdx]] = [next[newIdx], next[idx]]
+  return next
+}
+
 export function toggleCollapse(collapsedGroups: Set<string>, key: string): Set<string> {
   const next = new Set(collapsedGroups)
   if (next.has(key)) next.delete(key)
