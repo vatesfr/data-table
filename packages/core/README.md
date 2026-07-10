@@ -34,6 +34,8 @@ paginateData(data, page, pageSize) // slice rows for the current page (pageSize 
 calcTotalPages(count, pageSize) // total page count (pageSize 0 → 1)
 toggleSort(sorts, key) // cycle asc → desc → off
 toggleFilter(filters, key, value) // toggle a checklist value
+filterValuesBySearch(values, term) // narrow a checklist's values by a case-insensitive substring
+toggleFilterAll(filters, key, values) // select all given values if any is unselected, else deselect all of them
 toggleGroupBy(groupBy, key) // add/remove a group key
 toggleCollapse(collapsed, key) // toggle a collapsed group
 getOrderedColumns(columns, order) // sort columns per an order array of keys; columns missing from order are appended at the end

@@ -4,12 +4,14 @@ import {
   searchData,
   groupData,
   computeStringValues,
+  filterValuesBySearch,
   computeAggregate,
   getColumnValue,
   paginateData,
   calcTotalPages,
   toggleSort,
   toggleFilter,
+  toggleFilterAll,
   toggleGroupBy,
   toggleCollapse,
   getSortIcon,
@@ -404,6 +406,24 @@ describe('computeStringValues', () => {
   })
 })
 
+// ─── filterValuesBySearch ───────────────────────────────────────────────────
+
+describe('filterValuesBySearch', () => {
+  const VALUES = ['Larian Studios', 'Larva Interactive', 'Valve', 'CD Projekt Red']
+
+  it('returns all values when the term is empty', () => {
+    expect(filterValuesBySearch(VALUES, '')).toEqual(VALUES)
+  })
+
+  it('filters case-insensitively by substring', () => {
+    expect(filterValuesBySearch(VALUES, 'lar')).toEqual(['Larian Studios', 'Larva Interactive'])
+  })
+
+  it('returns an empty array when nothing matches', () => {
+    expect(filterValuesBySearch(VALUES, 'zzz')).toEqual([])
+  })
+})
+
 // ─── paginateData ─────────────────────────────────────────────────────────────
 
 describe('paginateData', () => {
@@ -497,6 +517,41 @@ describe('toggleFilter', () => {
   it('preserves other keys', () => {
     const initial = { name: new Set(['Alice']) }
     const result = toggleFilter(initial, 'dept', 'Eng')
+    expect(result['name'].has('Alice')).toBe(true)
+  })
+})
+
+// ─── toggleFilterAll ─────────────────────────────────────────────────────────
+
+describe('toggleFilterAll', () => {
+  it('selects all given values when none are selected', () => {
+    const result = toggleFilterAll({}, 'dept', ['Eng', 'HR'])
+    expect([...result['dept']]).toEqual(['Eng', 'HR'])
+  })
+
+  it('selects all given values when only some are selected', () => {
+    const result = toggleFilterAll({ dept: new Set(['Eng']) }, 'dept', ['Eng', 'HR'])
+    expect([...result['dept']].sort()).toEqual(['Eng', 'HR'])
+  })
+
+  it('deselects all given values when all are already selected', () => {
+    const result = toggleFilterAll({ dept: new Set(['Eng', 'HR']) }, 'dept', ['Eng', 'HR'])
+    expect(result['dept'].size).toBe(0)
+  })
+
+  it('only affects the given values, not other selected values for the same key', () => {
+    const result = toggleFilterAll({ dept: new Set(['Eng', 'Sales']) }, 'dept', ['Eng', 'HR'])
+    expect([...result['dept']].sort()).toEqual(['Eng', 'HR', 'Sales'])
+  })
+
+  it('is a no-op for an empty values array', () => {
+    const result = toggleFilterAll({ dept: new Set(['Eng']) }, 'dept', [])
+    expect([...result['dept']]).toEqual(['Eng'])
+  })
+
+  it('preserves other keys', () => {
+    const initial = { name: new Set(['Alice']) }
+    const result = toggleFilterAll(initial, 'dept', ['Eng'])
     expect(result['name'].has('Alice')).toBe(true)
   })
 })

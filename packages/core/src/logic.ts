@@ -123,6 +123,13 @@ export function computeStringValues<TRow extends object>(
   return map
 }
 
+/** Narrows a checklist's values by a case-insensitive substring search term. */
+export function filterValuesBySearch(values: string[], term: string): string[] {
+  if (!term) return values
+  const q = term.toLowerCase()
+  return values.filter((v) => v.toLowerCase().includes(q))
+}
+
 export function toggleSort(sorts: SortEntry[], key: string): SortEntry[] {
   const existing = sorts.find((s) => s.key === key)
   if (!existing) return [...sorts, { key, dir: 'asc' }]
@@ -139,6 +146,25 @@ export function toggleFilter(
   const next = new Set(filters[key] ?? [])
   if (next.has(value)) next.delete(value)
   else next.add(value)
+  return { ...filters, [key]: next }
+}
+
+/**
+ * Selects all `values` for `key` if any of them are currently unselected, deselects all of
+ * them if they're all already selected — same select-all-if-any-unselected convention as
+ * row selection's `toggleSelectAll`. `values` is typically a search-narrowed subset of the
+ * column's full checklist, so this only ever affects what's currently visible.
+ */
+export function toggleFilterAll(
+  filters: Record<string, Set<string>>,
+  key: string,
+  values: string[],
+): Record<string, Set<string>> {
+  const current = filters[key] ?? new Set<string>()
+  const allSelected = values.length > 0 && values.every((v) => current.has(v))
+  const next = new Set(current)
+  if (allSelected) values.forEach((v) => next.delete(v))
+  else values.forEach((v) => next.add(v))
   return { ...filters, [key]: next }
 }
 

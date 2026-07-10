@@ -125,6 +125,17 @@ Custom cell renders (React `render`, Vue `#cell-*` slots) that put clickable ele
 
 `pageSize: 0` disables pagination — all rows are returned on a single page. Both adapters default to `0`. When pagination is active, `pagedData` holds the current page's rows while `processedData` holds all filtered/sorted rows (used for `toggleSelectAll`, total count, etc.).
 
+### Filter dropdown
+
+Originally a flat list — one section header + checkbox list per string column, stacked in a single scrolling box — which became unusable for high-cardinality columns (hundreds of checkboxes; see GitHub issue #8). Now a master-detail layout:
+
+- **Left pane** lists every filterable column, string and numeric unified: `filterableCols = columns.filter(c => c.type !== 'date' && c.filterable !== false)`, in column order. A dot indicator marks a column with an active filter.
+- **Right pane** shows the selected column's controls — a search input + checklist for string columns, min/max range inputs for numeric columns. Selected column defaults to the first filterable column (`filterActiveKey` falls back to `filterableCols[0]?.key`) so the detail pane is never empty on open.
+- `filterActiveCol` (selected column) and `filterSearchTerms` (per-column search term) are local, ephemeral UI state — closure vars in vanilla, `useState`/`ref` in React/Vue — same category as `openDropdown`/`dragColKey`: never touches `filters`/`TableViewState`, not persisted or shared.
+- `filterValuesBySearch(values, term)` (core) narrows a checklist by case-insensitive substring, called with the active column's `stringValueMap[col.key]` and its search term. No count threshold gates the search input's visibility — because only one column's checklist is shown at a time (not all of them stacked, as before), showing it unconditionally isn't visual noise the way it would've been in the old flat layout.
+- A **select-all checkbox** sits on the same row as the search input — no visible label (to save vertical space in an already dense dropdown), accessible via `title`/`aria-label` (`L.selectAll`) instead. It toggles every value _currently listed_, i.e. post-search-narrowing, not the column's full value set: `toggleFilterAll(filters, key, values)` (core) selects all given values if any is unselected, else deselects all of them — same select-all-if-any-unselected convention as row selection's `toggleSelectAll`. Indeterminate when some but not all listed values are selected.
+- The `numericRanges` label was removed — it only existed for the old layout's "Numeric ranges" section header, which the per-column detail pane has no equivalent of.
+
 ### Global search
 
 `searchData(data, query, columns)` filters rows before `processData` runs — it matches any column's string value (using `col.format` when defined) case-insensitively against the query. Both adapters expose `searchQuery` state and a `setSearchQuery` action; `clearAll` resets it. The vanilla adapter restores focus on the search input across re-renders via `data-focus-key="search"`.

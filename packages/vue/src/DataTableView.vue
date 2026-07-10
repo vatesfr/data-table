@@ -1,6 +1,11 @@
 <script setup lang="ts" generic="TRow extends object">
 import { computed, ref, watch, useSlots, getCurrentInstance } from 'vue'
-import { computeAggregate, getColumnValue, type GroupResult } from '@vates/data-table-core'
+import {
+  computeAggregate,
+  getColumnValue,
+  filterValuesBySearch,
+  type GroupResult,
+} from '@vates/data-table-core'
 import type { ColumnDef, DataTableViewProps } from './types'
 import Dropdown from './components/Dropdown.vue'
 import ToolbarBtn from './components/ToolbarBtn.vue'
@@ -54,6 +59,7 @@ const {
   moveColumnBy,
   toggleSort,
   toggleFilter,
+  toggleFilterAll,
   setRangeFilter,
   clearColumnFilter,
   toggleGroup,
@@ -96,13 +102,54 @@ function isGroupSomeSelected(rows: TRow[]) {
   return rows.some((r) => selection.value.has(r)) && !isGroupAllSelected(rows)
 }
 
-const numericFilterCols = computed(() =>
-  props.columns.filter((c) => c.type === 'number' && c.filterable !== false),
-)
-const stringFilterCols = computed(() =>
-  props.columns.filter((c) => c.type !== 'number' && c.type !== 'date' && c.filterable !== false),
+const filterableCols = computed(() =>
+  props.columns.filter((c) => c.type !== 'date' && c.filterable !== false),
 )
 const groupableCols = computed(() => props.columns.filter((c) => c.groupable === true))
+const filterActiveCol = ref<string | null>(null)
+const filterSearchTerms = ref<Record<string, string>>({})
+const filterActiveKey = computed(
+  () =>
+    (filterActiveCol.value && filterableCols.value.some((c) => c.key === filterActiveCol.value)
+      ? filterActiveCol.value
+      : filterableCols.value[0]?.key) ?? null,
+)
+const filterDetailCol = computed(
+  () => filterableCols.value.find((c) => c.key === filterActiveKey.value) ?? null,
+)
+function hasActiveColFilter(col: ColumnDef<TRow>): boolean {
+  if (col.type === 'number') {
+    const rf = rangeFilters.value[col.key]
+    return rf !== undefined && (rf.min !== '' || rf.max !== '')
+  }
+  return (filters.value[col.key]?.size ?? 0) > 0
+}
+function filteredValuesFor(col: ColumnDef<TRow>): string[] {
+  return filterValuesBySearch(
+    stringValueMap.value[col.key] ?? [],
+    filterSearchTerms.value[col.key] ?? '',
+  )
+}
+function selectFilterCol(key: string): void {
+  filterActiveCol.value = key
+}
+function setFilterSearchTerm(key: string, term: string): void {
+  filterSearchTerms.value = { ...filterSearchTerms.value, [key]: term }
+}
+function filterSelectedCount(col: ColumnDef<TRow>): number {
+  return filteredValuesFor(col).filter((v) => filters.value[col.key]?.has(v)).length
+}
+function isFilterAllSelected(col: ColumnDef<TRow>): boolean {
+  const values = filteredValuesFor(col)
+  return values.length > 0 && filterSelectedCount(col) === values.length
+}
+function isFilterSomeSelected(col: ColumnDef<TRow>): boolean {
+  const count = filterSelectedCount(col)
+  return count > 0 && count < filteredValuesFor(col).length
+}
+function onToggleFilterAll(col: ColumnDef<TRow>): void {
+  toggleFilterAll(col.key, filteredValuesFor(col))
+}
 const hasActiveState = computed(
   () =>
     sorts.value.length > 0 ||
@@ -233,60 +280,107 @@ function onColDragEnd(): void {
       </Dropdown>
 
       <!-- Filter -->
-      <Dropdown v-if="stringFilterCols.length > 0 || numericFilterCols.length > 0">
+      <Dropdown v-if="filterableCols.length > 0">
         <template #trigger="{ open }">
           <ToolbarBtn :active="open || activeFilterCount > 0">
             {{ L.filter }}
             <span v-if="activeFilterCount > 0" class="dt__chip">{{ activeFilterCount }}</span>
           </ToolbarBtn>
         </template>
-        <div class="dt__dd-scroll">
-          <template v-for="col in stringFilterCols" :key="col.key">
-            <div class="dt__dd-section">{{ col.label }}</div>
-            <label
-              v-for="v in stringValueMap[col.key]"
-              :key="v"
-              class="dt__dd-item dt__dd-item--clickable"
+        <div class="dt__filter-panel">
+          <div class="dt__filter-cols">
+            <div
+              v-for="col in filterableCols"
+              :key="col.key"
+              class="dt__filter-col-item"
+              :class="{ 'dt__filter-col-item--active': col.key === filterActiveKey }"
+              @click="selectFilterCol(col.key)"
             >
-              <input
-                type="checkbox"
-                :checked="filters[col.key]?.has(v) ?? false"
-                @change="toggleFilter(col.key, v)"
-              />
-              <!--
-                Slot #filter-{key} — custom label in the filter dropdown.
-                Slot scope: { value: string }
-                Falls back to the raw string value.
-              -->
-              <slot :name="`filter-${col.key}`" :value="v">{{ v }}</slot>
-            </label>
-          </template>
-          <template v-if="numericFilterCols.length > 0">
-            <div class="dt__dd-section">{{ L.numericRanges }}</div>
-            <div v-for="col in numericFilterCols" :key="col.key" class="dt__range">
-              <div class="dt__range-label">{{ col.label }}</div>
-              <div class="dt__range-inputs">
-                <input
-                  type="number"
-                  :placeholder="L.min"
-                  :value="rangeFilters[col.key]?.min ?? ''"
-                  @input="setRangeFilter(col.key, 'min', ($event.target as HTMLInputElement).value)"
-                  class="dt__range-input"
-                />
-                <span class="dt__range-sep">–</span>
-                <input
-                  type="number"
-                  :placeholder="L.max"
-                  :value="rangeFilters[col.key]?.max ?? ''"
-                  @input="setRangeFilter(col.key, 'max', ($event.target as HTMLInputElement).value)"
-                  class="dt__range-input"
-                />
-              </div>
+              <span>{{ col.label }}</span>
+              <span v-if="hasActiveColFilter(col)" class="dt__filter-col-dot" />
             </div>
-          </template>
-          <div v-if="activeFilterCount > 0" class="dt__dd-footer">
-            <button @click="clearFilters">{{ L.clearFilters }}</button>
           </div>
+          <div class="dt__filter-detail">
+            <template v-if="filterDetailCol">
+              <div v-if="filterDetailCol.type === 'number'" class="dt__range">
+                <div class="dt__range-inputs">
+                  <input
+                    type="number"
+                    :placeholder="L.min"
+                    :value="rangeFilters[filterDetailCol.key]?.min ?? ''"
+                    @input="
+                      setRangeFilter(
+                        filterDetailCol.key,
+                        'min',
+                        ($event.target as HTMLInputElement).value,
+                      )
+                    "
+                    class="dt__range-input"
+                  />
+                  <span class="dt__range-sep">–</span>
+                  <input
+                    type="number"
+                    :placeholder="L.max"
+                    :value="rangeFilters[filterDetailCol.key]?.max ?? ''"
+                    @input="
+                      setRangeFilter(
+                        filterDetailCol.key,
+                        'max',
+                        ($event.target as HTMLInputElement).value,
+                      )
+                    "
+                    class="dt__range-input"
+                  />
+                </div>
+              </div>
+              <template v-else>
+                <div class="dt__filter-search-row">
+                  <input
+                    v-if="filteredValuesFor(filterDetailCol).length > 0"
+                    v-indeterminate="isFilterSomeSelected(filterDetailCol)"
+                    type="checkbox"
+                    class="dt__filter-select-all"
+                    :checked="isFilterAllSelected(filterDetailCol)"
+                    :title="L.selectAll"
+                    :aria-label="L.selectAll"
+                    @change="onToggleFilterAll(filterDetailCol)"
+                  />
+                  <input
+                    type="text"
+                    class="dt__dd-search"
+                    :placeholder="L.filterSearchPlaceholder"
+                    :value="filterSearchTerms[filterDetailCol.key] ?? ''"
+                    @input="
+                      setFilterSearchTerm(
+                        filterDetailCol.key,
+                        ($event.target as HTMLInputElement).value,
+                      )
+                    "
+                  />
+                </div>
+                <label
+                  v-for="v in filteredValuesFor(filterDetailCol)"
+                  :key="v"
+                  class="dt__dd-item dt__dd-item--clickable"
+                >
+                  <input
+                    type="checkbox"
+                    :checked="filters[filterDetailCol.key]?.has(v) ?? false"
+                    @change="toggleFilter(filterDetailCol.key, v)"
+                  />
+                  <!--
+                    Slot #filter-{key} — custom label in the filter dropdown.
+                    Slot scope: { value: string }
+                    Falls back to the raw string value.
+                  -->
+                  <slot :name="`filter-${filterDetailCol.key}`" :value="v">{{ v }}</slot>
+                </label>
+              </template>
+            </template>
+          </div>
+        </div>
+        <div v-if="activeFilterCount > 0" class="dt__dd-footer">
+          <button @click="clearFilters">{{ L.clearFilters }}</button>
         </div>
       </Dropdown>
 
@@ -606,10 +700,69 @@ function onColDragEnd(): void {
   opacity: 0.3;
   cursor: default;
 }
-.dt__dd-scroll {
+.dt__filter-panel {
+  display: flex;
+  min-width: 460px;
   max-height: 380px;
+}
+.dt__filter-cols {
+  width: 150px;
+  flex-shrink: 0;
   overflow-y: auto;
-  min-width: 240px;
+  border-right: 0.5px solid var(--color-border-tertiary);
+  padding: 4px 0;
+}
+.dt__filter-col-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 7px 10px;
+  font-size: 13px;
+  cursor: pointer;
+  color: var(--color-text-primary);
+}
+.dt__filter-col-item:hover {
+  background: var(--color-background-secondary);
+}
+.dt__filter-col-item--active {
+  background: var(--color-background-secondary);
+  font-weight: 500;
+}
+.dt__filter-col-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-text-info);
+  flex-shrink: 0;
+}
+.dt__filter-detail {
+  flex: 1;
+  overflow-y: auto;
+  padding: 6px 0;
+  min-width: 220px;
+}
+.dt__filter-search-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 2px 12px 6px;
+}
+.dt__dd-search {
+  display: block;
+  flex: 1;
+  padding: 5px 8px;
+  font-size: 12px;
+  border: 0.5px solid var(--color-border-secondary);
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+.dt__filter-select-all {
+  flex-shrink: 0;
+  margin: 0;
 }
 .dt__dd-footer {
   padding: 4px 14px 6px;
@@ -635,11 +788,6 @@ function onColDragEnd(): void {
 /* Range filter */
 .dt__range {
   padding: 4px 14px 8px;
-}
-.dt__range-label {
-  font-size: 12px;
-  margin-bottom: 4px;
-  color: var(--color-text-secondary);
 }
 .dt__range-inputs {
   display: flex;

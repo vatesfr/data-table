@@ -81,6 +81,96 @@ describe('DataTable — aggregate row', () => {
   })
 })
 
+describe('DataTable — filter dropdown', () => {
+  const FILTER_COLS: ColumnDef<Row>[] = [
+    { key: 'name', label: 'Name', filterable: true },
+    { key: 'score', label: 'Score', type: 'number', filterable: true },
+  ]
+
+  it('defaults the detail pane to the first filterable column', async () => {
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: FILTER_COLS, rowKey: 'id' } })
+    const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
+    await filterBtn.trigger('click')
+    expect(
+      wrapper
+        .findAll('.dt__filter-col-item')
+        .find((el) => el.text().includes('Name'))!
+        .classes(),
+    ).toContain('dt__filter-col-item--active')
+    expect(wrapper.findAll('.dt__dd-item').some((el) => el.text().includes('Alice'))).toBe(true)
+    expect(wrapper.find('input[type="number"]').exists()).toBe(false)
+  })
+
+  it('clicking a column in the list switches the detail pane to it', async () => {
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: FILTER_COLS, rowKey: 'id' } })
+    const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
+    await filterBtn.trigger('click')
+    const scoreItem = wrapper
+      .findAll('.dt__filter-col-item')
+      .find((el) => el.text().includes('Score'))!
+    await scoreItem.trigger('click')
+    expect(wrapper.find('input[type="number"]').exists()).toBe(true)
+    expect(wrapper.findAll('.dt__dd-item')).toHaveLength(0)
+  })
+
+  it('search narrows the checklist to matching values', async () => {
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: FILTER_COLS, rowKey: 'id' } })
+    const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
+    await filterBtn.trigger('click')
+    await wrapper.find('.dt__dd-search').setValue('ali')
+    const labels = wrapper.findAll('.dt__dd-item').map((el) => el.text())
+    expect(labels.some((t) => t.includes('Alice'))).toBe(true)
+    expect(labels.some((t) => t.includes('Bob'))).toBe(false)
+  })
+
+  function checklistCheckbox(wrapper: ReturnType<typeof mount>, value: string) {
+    return wrapper
+      .findAll('.dt__dd-item')
+      .find((el) => el.text() === value)!
+      .find('input[type="checkbox"]')
+  }
+
+  it('select-all checkbox selects every currently listed value', async () => {
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: FILTER_COLS, rowKey: 'id' } })
+    const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
+    await filterBtn.trigger('click')
+    await wrapper.find('.dt__filter-select-all').trigger('change')
+    expect((checklistCheckbox(wrapper, 'Alice').element as HTMLInputElement).checked).toBe(true)
+    expect((checklistCheckbox(wrapper, 'Bob').element as HTMLInputElement).checked).toBe(true)
+  })
+
+  it('select-all checkbox deselects every value when all are already selected', async () => {
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: FILTER_COLS, rowKey: 'id' } })
+    const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
+    await filterBtn.trigger('click')
+    const selectAll = wrapper.find('.dt__filter-select-all')
+    await selectAll.trigger('change')
+    await selectAll.trigger('change')
+    expect((checklistCheckbox(wrapper, 'Alice').element as HTMLInputElement).checked).toBe(false)
+    expect((checklistCheckbox(wrapper, 'Bob').element as HTMLInputElement).checked).toBe(false)
+  })
+
+  it('select-all checkbox only affects the search-narrowed values', async () => {
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: FILTER_COLS, rowKey: 'id' } })
+    const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
+    await filterBtn.trigger('click')
+    await wrapper.find('.dt__dd-search').setValue('ali')
+    await wrapper.find('.dt__filter-select-all').trigger('change')
+    expect((checklistCheckbox(wrapper, 'Alice').element as HTMLInputElement).checked).toBe(true)
+    await wrapper.find('.dt__dd-search').setValue('')
+    expect((checklistCheckbox(wrapper, 'Bob').element as HTMLInputElement).checked).toBe(false)
+  })
+
+  it('hides the select-all checkbox when search matches no values', async () => {
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: FILTER_COLS, rowKey: 'id' } })
+    const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
+    await filterBtn.trigger('click')
+    await wrapper.find('.dt__dd-search').setValue('zzz')
+    expect(wrapper.find('.dt__filter-select-all').exists()).toBe(false)
+    expect(wrapper.find('.dt__dd-search').exists()).toBe(true)
+  })
+})
+
 describe('DataTable — computed columns', () => {
   it('renders a cell value produced by col.value instead of row[key]', () => {
     const cols: ColumnDef<Row>[] = [

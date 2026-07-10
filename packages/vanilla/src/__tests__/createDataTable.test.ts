@@ -311,11 +311,137 @@ describe('createDataTable', () => {
     expect(container.innerHTML).toContain('Alice')
   })
 
+  it('filter dropdown shows the first filterable column selected by default', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="filter"]')!)
+    expect(
+      container
+        .querySelector('[data-action="select-filter-col"][data-key="name"]')
+        ?.classList.contains('dt-filter-col-item--active'),
+    ).toBe(true)
+    expect(
+      container.querySelector('[data-action="toggle-filter"][data-value="Alice"]'),
+    ).not.toBeNull()
+    expect(container.querySelector('[data-action="range-min"][data-key="score"]')).toBeNull()
+  })
+
+  it('clicking a column in the filter list switches the detail pane to that column', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="filter"]')!)
+    click(
+      container.querySelector<HTMLElement>('[data-action="select-filter-col"][data-key="score"]')!,
+    )
+    expect(container.querySelector('[data-action="range-min"][data-key="score"]')).not.toBeNull()
+    expect(container.querySelector('[data-action="toggle-filter"][data-value="Alice"]')).toBeNull()
+  })
+
+  it('filter search narrows the checklist to matching values', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="filter"]')!)
+    setInput(
+      container.querySelector<HTMLInputElement>('[data-action="filter-search"][data-key="name"]')!,
+      'ali',
+    )
+    expect(
+      container.querySelector('[data-action="toggle-filter"][data-value="Alice"]'),
+    ).not.toBeNull()
+    expect(container.querySelector('[data-action="toggle-filter"][data-value="Bob"]')).toBeNull()
+  })
+
+  it('select-all checkbox selects every currently listed value', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="filter"]')!)
+    click(
+      container.querySelector<HTMLElement>('[data-action="toggle-filter-all"][data-key="name"]')!,
+    )
+    for (const name of ['Alice', 'Bob', 'Clara', 'David']) {
+      expect(
+        container.querySelector<HTMLInputElement>(
+          `[data-action="toggle-filter"][data-value="${name}"]`,
+        )!.checked,
+      ).toBe(true)
+    }
+  })
+
+  it('select-all checkbox deselects every value when all are already selected', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="filter"]')!)
+    const selectAllCb = container.querySelector<HTMLElement>(
+      '[data-action="toggle-filter-all"][data-key="name"]',
+    )!
+    click(selectAllCb)
+    click(
+      container.querySelector<HTMLElement>('[data-action="toggle-filter-all"][data-key="name"]')!,
+    )
+    for (const name of ['Alice', 'Bob', 'Clara', 'David']) {
+      expect(
+        container.querySelector<HTMLInputElement>(
+          `[data-action="toggle-filter"][data-value="${name}"]`,
+        )!.checked,
+      ).toBe(false)
+    }
+  })
+
+  it('select-all checkbox only affects the search-narrowed values, not the full list', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="filter"]')!)
+    setInput(
+      container.querySelector<HTMLInputElement>('[data-action="filter-search"][data-key="name"]')!,
+      'ali',
+    )
+    click(
+      container.querySelector<HTMLElement>('[data-action="toggle-filter-all"][data-key="name"]')!,
+    )
+    expect(
+      container.querySelector<HTMLInputElement>(
+        '[data-action="toggle-filter"][data-value="Alice"]',
+      )!.checked,
+    ).toBe(true)
+    setInput(
+      container.querySelector<HTMLInputElement>('[data-action="filter-search"][data-key="name"]')!,
+      '',
+    )
+    for (const name of ['Bob', 'Clara', 'David']) {
+      expect(
+        container.querySelector<HTMLInputElement>(
+          `[data-action="toggle-filter"][data-value="${name}"]`,
+        )!.checked,
+      ).toBe(false)
+    }
+  })
+
+  it('select-all checkbox is indeterminate when only some listed values are selected', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="filter"]')!)
+    click(
+      container.querySelector<HTMLElement>('[data-action="toggle-filter"][data-value="Alice"]')!,
+    )
+    expect(
+      container.querySelector<HTMLInputElement>(
+        '[data-action="toggle-filter-all"][data-key="name"]',
+      )!.indeterminate,
+    ).toBe(true)
+  })
+
+  it('hides the select-all checkbox when search matches no values', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="filter"]')!)
+    setInput(
+      container.querySelector<HTMLInputElement>('[data-action="filter-search"][data-key="name"]')!,
+      'zzz',
+    )
+    expect(container.querySelector('[data-action="toggle-filter-all"][data-key="name"]')).toBeNull()
+    expect(container.querySelector('[data-action="filter-search"][data-key="name"]')).not.toBeNull()
+  })
+
   // --- range filter ---
 
   it('min range filter keeps only rows at or above the threshold', () => {
     createDataTable(container, { data: ROWS, columns: COLS })
     click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="filter"]')!)
+    click(
+      container.querySelector<HTMLElement>('[data-action="select-filter-col"][data-key="score"]')!,
+    )
     setInput(
       container.querySelector<HTMLInputElement>('[data-action="range-min"][data-key="score"]')!,
       '80',
@@ -326,6 +452,9 @@ describe('createDataTable', () => {
   it('max range filter keeps only rows at or below the threshold', () => {
     createDataTable(container, { data: ROWS, columns: COLS })
     click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="filter"]')!)
+    click(
+      container.querySelector<HTMLElement>('[data-action="select-filter-col"][data-key="score"]')!,
+    )
     setInput(
       container.querySelector<HTMLInputElement>('[data-action="range-max"][data-key="score"]')!,
       '70',

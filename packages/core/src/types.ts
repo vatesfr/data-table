@@ -52,7 +52,8 @@ export interface DataTableLabels {
   sortSection: string
   clearSorts: string
   filter: string
-  numericRanges: string
+  filterSearchPlaceholder: string
+  selectAll: string
   min: string
   max: string
   clearFilters: string

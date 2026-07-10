@@ -3,12 +3,14 @@ import {
   searchData,
   groupData,
   computeStringValues,
+  filterValuesBySearch,
   computeAggregate,
   getColumnValue,
   paginateData,
   calcTotalPages,
   toggleSort as coreToggleSort,
   toggleFilter as coreToggleFilter,
+  toggleFilterAll as coreToggleFilterAll,
   toggleGroupBy,
   toggleCollapse,
   getOrderedColumns,
@@ -82,6 +84,8 @@ export function createDataTable<TRow extends object>(
   let columnOrder: string[] = []
   let selection = new Set<TRow>()
   let openDropdown: string | null = null
+  let filterActiveCol: string | null = null
+  let filterSearchTerms: Record<string, string> = {}
   let searchQuery = ''
   let draggedColKey: string | null = null
   const viewListeners = new Set<(view: TableViewState) => void>()
@@ -91,6 +95,7 @@ export function createDataTable<TRow extends object>(
   let _groupedData: Array<{ key: string | null; keyParts: string[]; rows: TRow[] }> = []
   let _numPages = 1
   let _clampedPage = 1
+  let _filterDetailValues: string[] = []
 
   function derive() {
     const stringValueMap = computeStringValues(data, columns, L.emptyValue)
@@ -195,11 +200,20 @@ export function createDataTable<TRow extends object>(
     const hasActiveState =
       sorts.length > 0 || activeFilterCount > 0 || groupBy.length > 0 || searchQuery !== ''
     const hasAgg = activeColumns.some((c) => c.aggregate !== undefined)
-    const numericFilterCols = columns.filter((c) => c.type === 'number' && c.filterable !== false)
-    const stringFilterCols = columns.filter(
-      (c) => c.type !== 'number' && c.type !== 'date' && c.filterable !== false,
-    )
+    const filterableCols = columns.filter((c) => c.type !== 'date' && c.filterable !== false)
     const groupableCols = columns.filter((c) => c.groupable === true)
+    const filterActiveKey =
+      filterActiveCol && filterableCols.some((c) => c.key === filterActiveCol)
+        ? filterActiveCol
+        : (filterableCols[0]?.key ?? null)
+    const filterDetailCol = filterableCols.find((c) => c.key === filterActiveKey) ?? null
+    _filterDetailValues =
+      filterDetailCol && filterDetailCol.type !== 'number'
+        ? filterValuesBySearch(
+            stringValueMap[filterDetailCol.key] ?? [],
+            filterSearchTerms[filterDetailCol.key] ?? '',
+          )
+        : []
 
     let html = `<div class="dt">`
 
@@ -243,34 +257,54 @@ export function createDataTable<TRow extends object>(
     )
 
     // Filter
-    if (stringFilterCols.length > 0 || numericFilterCols.length > 0) {
+    if (filterableCols.length > 0) {
       html += buildDd(
         openDropdown === 'filter',
         `<button class="dt-btn${activeFilterCount > 0 ? ' dt-btn--active' : ''}" data-action="toggle-dd" data-dd="filter">${esc(L.filter)}${activeFilterCount > 0 ? ` <span class="dt-chip">${activeFilterCount}</span>` : ''}</button>`,
         () => {
-          let s = `<div style="max-height:380px;overflow-y:auto;min-width:240px">`
-          for (const col of stringFilterCols) {
-            s += `<div class="dt-dd-section">${esc(col.label)}</div>`
-            for (const v of stringValueMap[col.key] ?? []) {
-              s += `<label class="dt-dd-item"><input type="checkbox" data-action="toggle-filter" data-key="${esc(col.key)}" data-value="${esc(v)}"${filters[col.key]?.has(v) ? ' checked' : ''}> ${esc(v)}</label>`
-            }
+          let s = `<div class="dt-filter-panel">`
+          s += `<div class="dt-filter-cols">`
+          for (const col of filterableCols) {
+            const rf = rangeFilters[col.key]
+            const hasActive =
+              col.type === 'number'
+                ? rf !== undefined && (rf.min !== '' || rf.max !== '')
+                : (filters[col.key]?.size ?? 0) > 0
+            s += `<div class="dt-filter-col-item${col.key === filterActiveKey ? ' dt-filter-col-item--active' : ''}" data-action="select-filter-col" data-key="${esc(col.key)}"><span>${esc(col.label)}</span>${hasActive ? '<span class="dt-filter-col-dot"></span>' : ''}</div>`
           }
-          if (numericFilterCols.length > 0) {
-            s += `<div class="dt-dd-section">${esc(L.numericRanges)}</div>`
-            for (const col of numericFilterCols) {
-              const rf = rangeFilters[col.key]
-              s += `<div style="padding:4px 14px 8px"><div class="dt-dd-sublabel">${esc(col.label)}</div>`
+          s += `</div>`
+          s += `<div class="dt-filter-detail">`
+          if (filterDetailCol) {
+            if (filterDetailCol.type === 'number') {
+              const rf = rangeFilters[filterDetailCol.key]
+              s += `<div style="padding:4px 14px 8px">`
               s += `<div style="display:flex;gap:6px;align-items:center">`
-              s += `<input type="number" class="dt-range-input" placeholder="${esc(L.min)}" value="${esc(rf?.min ?? '')}" data-action="range-min" data-key="${esc(col.key)}" data-focus-key="rmin-${esc(col.key)}">`
+              s += `<input type="number" class="dt-range-input" placeholder="${esc(L.min)}" value="${esc(rf?.min ?? '')}" data-action="range-min" data-key="${esc(filterDetailCol.key)}" data-focus-key="rmin-${esc(filterDetailCol.key)}">`
               s += `<span class="dt-range-sep">–</span>`
-              s += `<input type="number" class="dt-range-input" placeholder="${esc(L.max)}" value="${esc(rf?.max ?? '')}" data-action="range-max" data-key="${esc(col.key)}" data-focus-key="rmax-${esc(col.key)}">`
+              s += `<input type="number" class="dt-range-input" placeholder="${esc(L.max)}" value="${esc(rf?.max ?? '')}" data-action="range-max" data-key="${esc(filterDetailCol.key)}" data-focus-key="rmax-${esc(filterDetailCol.key)}">`
               s += `</div></div>`
+            } else {
+              const term = filterSearchTerms[filterDetailCol.key] ?? ''
+              s += `<div class="dt-filter-search-row">`
+              if (_filterDetailValues.length > 0) {
+                const selectedCount = _filterDetailValues.filter((v) =>
+                  filters[filterDetailCol.key]?.has(v),
+                ).length
+                const allValuesSelected = selectedCount === _filterDetailValues.length
+                s += `<input type="checkbox" class="dt-filter-select-all" data-action="toggle-filter-all" data-key="${esc(filterDetailCol.key)}" title="${esc(L.selectAll)}" aria-label="${esc(L.selectAll)}"${allValuesSelected ? ' checked' : ''}>`
+              }
+              s += `<input type="text" class="dt-dd-search" placeholder="${esc(L.filterSearchPlaceholder)}" value="${esc(term)}" data-action="filter-search" data-key="${esc(filterDetailCol.key)}" data-focus-key="fsearch-${esc(filterDetailCol.key)}">`
+              s += `</div>`
+              for (const v of _filterDetailValues) {
+                s += `<label class="dt-dd-item"><input type="checkbox" data-action="toggle-filter" data-key="${esc(filterDetailCol.key)}" data-value="${esc(v)}"${filters[filterDetailCol.key]?.has(v) ? ' checked' : ''}> ${esc(v)}</label>`
+              }
             }
           }
+          s += `</div>` // dt-filter-detail
+          s += `</div>` // dt-filter-panel
           if (activeFilterCount > 0) {
             s += `<div class="dt-dd-footer"><button class="dt-clear-btn" data-action="clear-filters">${esc(L.clearFilters)}</button></div>`
           }
-          s += `</div>`
           return s
         },
       )
@@ -450,6 +484,15 @@ export function createDataTable<TRow extends object>(
         }
       }
     }
+    if (_filterDetailValues.length > 0 && filterDetailCol) {
+      const selectedCount = _filterDetailValues.filter((v) =>
+        filters[filterDetailCol.key]?.has(v),
+      ).length
+      if (selectedCount > 0 && selectedCount < _filterDetailValues.length) {
+        const cb = container.querySelector<HTMLInputElement>('[data-action="toggle-filter-all"]')
+        if (cb) cb.indeterminate = true
+      }
+    }
 
     // Restore focus
     if (focusKey) {
@@ -524,6 +567,14 @@ export function createDataTable<TRow extends object>(
         filters = coreToggleFilter(filters, key, value)
         page = 1
         viewChanged = true
+        break
+      case 'toggle-filter-all':
+        filters = coreToggleFilterAll(filters, key, _filterDetailValues)
+        page = 1
+        viewChanged = true
+        break
+      case 'select-filter-col':
+        filterActiveCol = key
         break
       case 'toggle-group':
         groupBy = toggleGroupBy(groupBy, key)
@@ -650,6 +701,12 @@ export function createDataTable<TRow extends object>(
       page = 1
       render()
       notifyViewChange()
+      return
+    }
+    if (action === 'filter-search') {
+      const key = target.dataset.key ?? ''
+      filterSearchTerms = { ...filterSearchTerms, [key]: target.value }
+      render()
       return
     }
     if (action !== 'range-min' && action !== 'range-max') return

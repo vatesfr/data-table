@@ -267,6 +267,52 @@ describe('useTableState — filters reset page', () => {
     expect(result.current.page).toBe(1)
   })
 
+  it('toggleFilterAll resets page to 1', () => {
+    const { result } = renderHook(() => useTableState(ROWS, COLS, undefined, undefined, 2))
+    act(() => {
+      result.current.setPage(2)
+    })
+    act(() => {
+      result.current.toggleFilterAll('name', ['Alice', 'Bob'])
+    })
+    expect(result.current.page).toBe(1)
+  })
+})
+
+describe('useTableState — toggleFilterAll', () => {
+  it('selects all given values when none are selected', () => {
+    const { result } = renderHook(() => useTableState(ROWS, COLS))
+    act(() => {
+      result.current.toggleFilterAll('name', ['Alice', 'Bob'])
+    })
+    expect(result.current.filters['name']?.has('Alice')).toBe(true)
+    expect(result.current.filters['name']?.has('Bob')).toBe(true)
+  })
+
+  it('deselects all given values when all are already selected', () => {
+    const { result } = renderHook(() => useTableState(ROWS, COLS))
+    act(() => {
+      result.current.toggleFilterAll('name', ['Alice', 'Bob'])
+    })
+    act(() => {
+      result.current.toggleFilterAll('name', ['Alice', 'Bob'])
+    })
+    expect(result.current.filters['name']?.size ?? 0).toBe(0)
+  })
+
+  it('only affects the given values, leaving other selections for the same key untouched', () => {
+    const { result } = renderHook(() => useTableState(ROWS, COLS))
+    act(() => {
+      result.current.toggleFilter('name', 'Clara')
+      result.current.toggleFilterAll('name', ['Alice', 'Bob'])
+    })
+    expect(result.current.filters['name']?.has('Clara')).toBe(true)
+    expect(result.current.filters['name']?.has('Alice')).toBe(true)
+    expect(result.current.filters['name']?.has('Bob')).toBe(true)
+  })
+})
+
+describe('useTableState — filters reset page (clearFilters)', () => {
   it('clearFilters resets page to 1', () => {
     const { result } = renderHook(() => useTableState(ROWS, COLS, undefined, undefined, 2))
     act(() => {

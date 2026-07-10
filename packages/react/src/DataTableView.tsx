@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, type CSSProperties } from 'react'
-import { computeAggregate, getColumnValue } from '@vates/data-table-core'
+import { computeAggregate, getColumnValue, filterValuesBySearch } from '@vates/data-table-core'
 import { Dropdown } from './components/Dropdown'
 import { ToolbarBtn } from './components/ToolbarBtn'
 import type { ColumnDef, DataTableViewProps } from './types'
@@ -175,6 +175,60 @@ const S = {
     padding: '4px 12px',
     borderBottom: '0.5px solid var(--color-border-tertiary)',
   } as CSSProperties,
+  filterPanel: { display: 'flex', minWidth: 460, maxHeight: 380 } as CSSProperties,
+  filterCols: {
+    width: 150,
+    flexShrink: 0,
+    overflowY: 'auto',
+    borderRight: '0.5px solid var(--color-border-tertiary)',
+    padding: '4px 0',
+  } as CSSProperties,
+  filterColItem: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 6,
+    padding: '7px 10px',
+    fontSize: 13,
+    cursor: 'pointer',
+    color: 'var(--color-text-primary)',
+  } as CSSProperties,
+  filterColItemActive: { background: 'var(--color-background-secondary)', fontWeight: 500 },
+  filterColDot: {
+    width: 6,
+    height: 6,
+    borderRadius: '50%',
+    background: 'var(--color-text-info)',
+    flexShrink: 0,
+  } as CSSProperties,
+  filterDetail: {
+    flex: 1,
+    overflowY: 'auto',
+    padding: '6px 0',
+    minWidth: 220,
+  } as CSSProperties,
+  filterSearchRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+    margin: '2px 12px 6px',
+  } as CSSProperties,
+  ddSearch: {
+    display: 'block',
+    flex: 1,
+    padding: '5px 8px',
+    fontSize: 12,
+    border: '0.5px solid var(--color-border-secondary)',
+    borderRadius: 6,
+    background: 'transparent',
+    color: 'inherit',
+    fontFamily: 'inherit',
+    boxSizing: 'border-box',
+  } as CSSProperties,
+  filterSelectAll: {
+    flexShrink: 0,
+    margin: 0,
+  } as CSSProperties,
 }
 
 function asRecord(row: object): Record<string, unknown> {
@@ -209,6 +263,8 @@ export function DataTableView<TRow extends object>({
   const [hoveredRow, setHoveredRow] = useState<TRow | null>(null)
   const [dragColKey, setDragColKey] = useState<string | null>(null)
   const [dragOverColKey, setDragOverColKey] = useState<string | null>(null)
+  const [filterActiveCol, setFilterActiveCol] = useState<string | null>(null)
+  const [filterSearchTerms, setFilterSearchTerms] = useState<Record<string, string>>({})
 
   const {
     visibleCols,
@@ -235,6 +291,7 @@ export function DataTableView<TRow extends object>({
     moveColumnBy,
     toggleSort,
     toggleFilter,
+    toggleFilterAll,
     setRangeFilter,
     toggleGroup,
     toggleGroupCollapse,
@@ -260,6 +317,8 @@ export function DataTableView<TRow extends object>({
     if (selectAllRef.current) selectAllRef.current.indeterminate = someSelected
   }, [someSelected])
 
+  const filterSelectAllRef = useRef<HTMLInputElement>(null)
+
   const groupAllSelected = (rows: TRow[]) => rows.length > 0 && rows.every((r) => selection.has(r))
   const groupSomeSelected = (rows: TRow[]) =>
     rows.some((r) => selection.has(r)) && !groupAllSelected(rows)
@@ -274,11 +333,31 @@ export function DataTableView<TRow extends object>({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedRows])
 
-  const numericFilterCols = columns.filter((c) => c.type === 'number' && c.filterable !== false)
-  const stringFilterCols = columns.filter(
-    (c) => c.type !== 'number' && c.type !== 'date' && c.filterable !== false,
-  )
+  const filterableCols = columns.filter((c) => c.type !== 'date' && c.filterable !== false)
   const groupableCols = columns.filter((c) => c.groupable === true)
+  const filterActiveKey =
+    filterActiveCol && filterableCols.some((c) => c.key === filterActiveCol)
+      ? filterActiveCol
+      : (filterableCols[0]?.key ?? null)
+  const filterDetailCol = filterableCols.find((c) => c.key === filterActiveKey) ?? null
+  const filterDetailValues =
+    filterDetailCol && filterDetailCol.type !== 'number'
+      ? filterValuesBySearch(
+          stringValueMap[filterDetailCol.key] ?? [],
+          filterSearchTerms[filterDetailCol.key] ?? '',
+        )
+      : []
+  const filterSelectedCount = filterDetailCol
+    ? filterDetailValues.filter((v) => filters[filterDetailCol.key]?.has(v)).length
+    : 0
+  const filterAllSelected =
+    filterDetailValues.length > 0 && filterSelectedCount === filterDetailValues.length
+  const filterSomeSelected = filterSelectedCount > 0 && !filterAllSelected
+
+  useEffect(() => {
+    if (filterSelectAllRef.current) filterSelectAllRef.current.indeterminate = filterSomeSelected
+  }, [filterSomeSelected])
+
   const hasActiveState =
     sorts.length > 0 || activeFilterCount > 0 || groupBy.length > 0 || searchQuery !== ''
   const hasAggregates = activeColumns.some((c) => c.aggregate !== undefined)
@@ -401,7 +480,7 @@ export function DataTableView<TRow extends object>({
         </Dropdown>
 
         {/* Filter */}
-        {(stringFilterCols.length > 0 || numericFilterCols.length > 0) && (
+        {filterableCols.length > 0 && (
           <Dropdown
             open={openFilterDD}
             setOpen={setOpenFilterDD}
@@ -414,66 +493,108 @@ export function DataTableView<TRow extends object>({
               </ToolbarBtn>
             }
           >
-            <div style={{ maxHeight: 380, overflowY: 'auto', minWidth: 240 }}>
-              {stringFilterCols.map((col) => (
-                <div key={col.key}>
-                  <div style={S.ddSection}>{col.label}</div>
-                  {(stringValueMap[col.key] ?? []).map((v) => (
-                    <label key={v} style={{ ...S.ddItem, cursor: 'pointer' }}>
-                      <input
-                        type="checkbox"
-                        checked={filters[col.key]?.has(v) ?? false}
-                        onChange={() => toggleFilter(col.key, v)}
-                        style={{ margin: 0 }}
-                      />
-                      {col.renderFilterLabel ? col.renderFilterLabel(v) : v}
-                    </label>
-                  ))}
-                </div>
-              ))}
-              {numericFilterCols.length > 0 && (
-                <>
-                  <div style={S.ddSection}>{L.numericRanges}</div>
-                  {numericFilterCols.map((col) => (
-                    <div key={col.key} style={{ padding: '4px 14px 8px' }}>
-                      <div
-                        style={{
-                          fontSize: 12,
-                          marginBottom: 4,
-                          color: 'var(--color-text-secondary)',
-                        }}
-                      >
-                        {col.label}
-                      </div>
+            <div style={S.filterPanel}>
+              <div style={S.filterCols}>
+                {filterableCols.map((col) => {
+                  const rf = rangeFilters[col.key]
+                  const hasActive =
+                    col.type === 'number'
+                      ? rf !== undefined && (rf.min !== '' || rf.max !== '')
+                      : (filters[col.key]?.size ?? 0) > 0
+                  return (
+                    <div
+                      key={col.key}
+                      onClick={() => setFilterActiveCol(col.key)}
+                      style={{
+                        ...S.filterColItem,
+                        ...(col.key === filterActiveKey ? S.filterColItemActive : {}),
+                      }}
+                    >
+                      <span>{col.label}</span>
+                      {hasActive && <span style={S.filterColDot} />}
+                    </div>
+                  )
+                })}
+              </div>
+              <div style={S.filterDetail}>
+                {filterDetailCol &&
+                  (filterDetailCol.type === 'number' ? (
+                    <div style={{ padding: '4px 14px 8px' }}>
                       <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                         <input
                           type="number"
                           placeholder={L.min}
-                          value={rangeFilters[col.key]?.min ?? ''}
-                          onChange={(e) => setRangeFilter(col.key, 'min', e.target.value)}
+                          value={rangeFilters[filterDetailCol.key]?.min ?? ''}
+                          onChange={(e) =>
+                            setRangeFilter(filterDetailCol.key, 'min', e.target.value)
+                          }
                           style={S.rangeInput}
                         />
                         <span style={{ color: 'var(--color-text-tertiary)', fontSize: 12 }}>–</span>
                         <input
                           type="number"
                           placeholder={L.max}
-                          value={rangeFilters[col.key]?.max ?? ''}
-                          onChange={(e) => setRangeFilter(col.key, 'max', e.target.value)}
+                          value={rangeFilters[filterDetailCol.key]?.max ?? ''}
+                          onChange={(e) =>
+                            setRangeFilter(filterDetailCol.key, 'max', e.target.value)
+                          }
                           style={S.rangeInput}
                         />
                       </div>
                     </div>
+                  ) : (
+                    <>
+                      <div style={S.filterSearchRow}>
+                        {filterDetailValues.length > 0 && (
+                          <input
+                            ref={filterSelectAllRef}
+                            type="checkbox"
+                            checked={filterAllSelected}
+                            onChange={() =>
+                              toggleFilterAll(filterDetailCol.key, filterDetailValues)
+                            }
+                            title={L.selectAll}
+                            aria-label={L.selectAll}
+                            style={S.filterSelectAll}
+                          />
+                        )}
+                        <input
+                          type="text"
+                          placeholder={L.filterSearchPlaceholder}
+                          value={filterSearchTerms[filterDetailCol.key] ?? ''}
+                          onChange={(e) =>
+                            setFilterSearchTerms({
+                              ...filterSearchTerms,
+                              [filterDetailCol.key]: e.target.value,
+                            })
+                          }
+                          style={S.ddSearch}
+                        />
+                      </div>
+                      {filterDetailValues.map((v) => (
+                        <label key={v} style={{ ...S.ddItem, cursor: 'pointer' }}>
+                          <input
+                            type="checkbox"
+                            checked={filters[filterDetailCol.key]?.has(v) ?? false}
+                            onChange={() => toggleFilter(filterDetailCol.key, v)}
+                            style={{ margin: 0 }}
+                          />
+                          {filterDetailCol.renderFilterLabel
+                            ? filterDetailCol.renderFilterLabel(v)
+                            : v}
+                        </label>
+                      ))}
+                    </>
                   ))}
-                </>
-              )}
-              {activeFilterCount > 0 && (
-                <div style={{ padding: '4px 14px 8px' }}>
-                  <button onClick={clearFilters} style={S.clearBtn}>
-                    {L.clearFilters}
-                  </button>
-                </div>
-              )}
+              </div>
             </div>
+            {activeFilterCount > 0 && (
+              <div style={{ padding: '4px 14px 8px' }}>
+                <button onClick={clearFilters} style={S.clearBtn}>
+                  {L.clearFilters}
+                </button>
+              </div>
+            )}
           </Dropdown>
         )}
 

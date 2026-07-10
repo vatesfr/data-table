@@ -217,6 +217,38 @@ describe('useTableState — filters reset page', () => {
     clearFilters()
     expect(page.value).toBe(1)
   })
+
+  it('toggleFilterAll resets page to 1', () => {
+    const { page, setPage, toggleFilterAll } = useTableState(ROWS, COLS, { defaultPageSize: 2 })
+    setPage(2)
+    toggleFilterAll('name', ['Alice', 'Bob'])
+    expect(page.value).toBe(1)
+  })
+})
+
+describe('useTableState — toggleFilterAll', () => {
+  it('selects all given values when none are selected', () => {
+    const { filters, toggleFilterAll } = useTableState(ROWS, COLS)
+    toggleFilterAll('name', ['Alice', 'Bob'])
+    expect(filters.value['name']?.has('Alice')).toBe(true)
+    expect(filters.value['name']?.has('Bob')).toBe(true)
+  })
+
+  it('deselects all given values when all are already selected', () => {
+    const { filters, toggleFilterAll } = useTableState(ROWS, COLS)
+    toggleFilterAll('name', ['Alice', 'Bob'])
+    toggleFilterAll('name', ['Alice', 'Bob'])
+    expect(filters.value['name']?.size ?? 0).toBe(0)
+  })
+
+  it('only affects the given values, leaving other selections for the same key untouched', () => {
+    const { filters, toggleFilter, toggleFilterAll } = useTableState(ROWS, COLS)
+    toggleFilter('name', 'Clara')
+    toggleFilterAll('name', ['Alice', 'Bob'])
+    expect(filters.value['name']?.has('Clara')).toBe(true)
+    expect(filters.value['name']?.has('Alice')).toBe(true)
+    expect(filters.value['name']?.has('Bob')).toBe(true)
+  })
 })
 
 describe('useTableState — search', () => {

@@ -8,6 +8,7 @@ import {
   calcTotalPages,
   toggleSort as _toggleSort,
   toggleFilter as _toggleFilter,
+  toggleFilterAll as _toggleFilterAll,
   toggleGroupBy,
   toggleCollapse,
   getOrderedColumns,
@@ -149,6 +150,10 @@ export function useTableState<TRow extends object>(
     toggleSort: (key: string) => setSorts((prev) => _toggleSort(prev, key)),
     toggleFilter: (key: string, value: string) => {
       setFilters((prev) => _toggleFilter(prev, key, value))
+      setPageState(1)
+    },
+    toggleFilterAll: (key: string, values: string[]) => {
+      setFilters((prev) => _toggleFilterAll(prev, key, values))
       setPageState(1)
     },
     setRangeFilter: (key: string, field: 'min' | 'max', value: string) => {
