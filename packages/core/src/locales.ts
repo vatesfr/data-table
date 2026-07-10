@@ -24,6 +24,7 @@ export const LABELS_EN: DataTableLabels = {
   pageOf: (p, t) => `Page ${p} of ${t}`,
   search: 'Search…',
   emptyValue: '(none)',
+  moreValues: (n) => `+${n} more`,
 }
 
 export const LABELS_FR: DataTableLabels = {
@@ -50,6 +51,7 @@ export const LABELS_FR: DataTableLabels = {
   pageOf: (p, t) => `Page ${p} sur ${t}`,
   search: 'Rechercher…',
   emptyValue: '(aucun)',
+  moreValues: (n) => `+${n} de plus`,
 }
 
 export const LABELS_ES: DataTableLabels = {
@@ -76,6 +78,7 @@ export const LABELS_ES: DataTableLabels = {
   pageOf: (p, t) => `Página ${p} de ${t}`,
   search: 'Buscar…',
   emptyValue: '(ninguno)',
+  moreValues: (n) => `+${n} más`,
 }
 
 export const LABELS_DE: DataTableLabels = {
@@ -102,6 +105,7 @@ export const LABELS_DE: DataTableLabels = {
   pageOf: (p, t) => `Seite ${p} von ${t}`,
   search: 'Suchen…',
   emptyValue: '(keine)',
+  moreValues: (n) => `+${n} weitere`,
 }
 
 export const LABELS_PT: DataTableLabels = {
@@ -128,4 +132,5 @@ export const LABELS_PT: DataTableLabels = {
   pageOf: (p, t) => `Página ${p} de ${t}`,
   search: 'Pesquisar…',
   emptyValue: '(nenhum)',
+  moreValues: (n) => `+${n} mais`,
 }

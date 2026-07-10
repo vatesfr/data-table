@@ -234,6 +234,105 @@ describe('DataTable — filter dropdown', () => {
   })
 })
 
+describe('DataTable — date filter tree', () => {
+  interface GameRow {
+    id: number
+    name: string
+    released: string
+  }
+  const DATE_COLS: ColumnDef<GameRow>[] = [
+    { key: 'name', label: 'Name', filterable: false },
+    { key: 'released', label: 'Released', type: 'date', filterable: true },
+  ]
+  const DATE_ROWS: GameRow[] = [
+    { id: 1, name: 'Game A', released: '2023-05-14' },
+    { id: 2, name: 'Game B', released: '2023-05-20' },
+    { id: 3, name: 'Game C', released: '2021-01-02' },
+  ]
+
+  function treeItem(wrapper: ReturnType<typeof mount>, text: string) {
+    return wrapper.findAll('.dt__date-tree-item').find((el) => el.text().includes(text))!
+  }
+
+  it('renders year nodes collapsed by default, with months hidden until expanded', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: DATE_ROWS, columns: DATE_COLS, rowKey: 'id' },
+    })
+    const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
+    await filterBtn.trigger('click')
+    expect(wrapper.text()).toContain('2023')
+    expect(wrapper.text()).toContain('2021')
+    expect(wrapper.text()).not.toContain('May')
+  })
+
+  it('expanding a year reveals its months, expanding a month reveals its days', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: DATE_ROWS, columns: DATE_COLS, rowKey: 'id' },
+    })
+    const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
+    await filterBtn.trigger('click')
+    await treeItem(wrapper, '2023').find('.dt__date-tree-toggle--branch').trigger('click')
+    expect(wrapper.text()).toContain('May')
+    await treeItem(wrapper, 'May').find('.dt__date-tree-toggle--branch').trigger('click')
+    expect(treeItem(wrapper, '14').exists()).toBe(true)
+    expect(treeItem(wrapper, '20').exists()).toBe(true)
+  })
+
+  it('checking a year node selects every date under it and filters rows accordingly', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: DATE_ROWS, columns: DATE_COLS, rowKey: 'id' },
+    })
+    const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
+    await filterBtn.trigger('click')
+    await treeItem(wrapper, '2023').find('input[type="checkbox"]').trigger('change')
+    expect(wrapper.text()).toContain('Game A')
+    expect(wrapper.text()).toContain('Game B')
+    expect(wrapper.text()).not.toContain('Game C')
+  })
+
+  it('unchecking an already fully-selected year deselects every date under it', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: DATE_ROWS, columns: DATE_COLS, rowKey: 'id' },
+    })
+    const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
+    await filterBtn.trigger('click')
+    const yearCheckbox = treeItem(wrapper, '2023').find('input[type="checkbox"]')
+    await yearCheckbox.trigger('change')
+    await yearCheckbox.trigger('change')
+    expect(wrapper.text()).toContain('Game C')
+  })
+
+  it('is indeterminate on a month node when only some of its days are selected', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: DATE_ROWS, columns: DATE_COLS, rowKey: 'id' },
+    })
+    const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
+    await filterBtn.trigger('click')
+    await treeItem(wrapper, '2023').find('.dt__date-tree-toggle--branch').trigger('click')
+    await treeItem(wrapper, 'May').find('.dt__date-tree-toggle--branch').trigger('click')
+    await treeItem(wrapper, '14').find('input[type="checkbox"]').trigger('change')
+    const monthCheckbox = treeItem(wrapper, 'May').find('input[type="checkbox"]')
+      .element as HTMLInputElement
+    expect(monthCheckbox.indeterminate).toBe(true)
+  })
+
+  it('caps the active-filter chip at 3 values, summarizing the rest as "+N more"', async () => {
+    const rows: GameRow[] = [
+      { id: 1, name: 'Game A', released: '2023-01-01' },
+      { id: 2, name: 'Game B', released: '2023-02-01' },
+      { id: 3, name: 'Game C', released: '2023-03-01' },
+      { id: 4, name: 'Game D', released: '2023-04-01' },
+    ]
+    const wrapper = mount(DataTable, { props: { data: rows, columns: DATE_COLS, rowKey: 'id' } })
+    const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
+    await filterBtn.trigger('click')
+    await treeItem(wrapper, '2023').find('input[type="checkbox"]').trigger('change')
+    expect(wrapper.find('.dt__chip--info').text()).toContain(
+      '2023-01-01, 2023-02-01, 2023-03-01, +1 more',
+    )
+  })
+})
+
 describe('DataTable — computed columns', () => {
   it('renders a cell value produced by col.value instead of row[key]', () => {
     const cols: ColumnDef<Row>[] = [

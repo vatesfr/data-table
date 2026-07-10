@@ -1,4 +1,4 @@
-import type { ColumnDefBase, SortEntry, RangeFilter } from './types'
+import type { ColumnDefBase, SortEntry, RangeFilter, DateTreeNode } from './types'
 
 function asRecord(row: object): Record<string, unknown> {
   return row as Record<string, unknown>
@@ -111,9 +111,7 @@ export function computeStringValues<TRow extends object>(
   emptyLabel = '(none)',
 ): Record<string, string[]> {
   const map: Record<string, string[]> = {}
-  const cols = columns.filter(
-    (c) => c.type !== 'number' && c.type !== 'date' && c.filterable !== false,
-  )
+  const cols = columns.filter((c) => c.type !== 'number' && c.filterable !== false)
   for (const col of cols) {
     const values = [
       ...new Set(data.flatMap((r) => multiValues(getColumnValue(col, r), emptyLabel))),
@@ -137,9 +135,7 @@ export function computeStringValueCounts<TRow extends object>(
   emptyLabel = '(none)',
 ): Record<string, Map<string, number>> {
   const map: Record<string, Map<string, number>> = {}
-  const cols = columns.filter(
-    (c) => c.type !== 'number' && c.type !== 'date' && c.filterable !== false,
-  )
+  const cols = columns.filter((c) => c.type !== 'number' && c.filterable !== false)
   for (const col of cols) {
     const otherFilters = { ...filters }
     delete otherFilters[col.key]
@@ -173,6 +169,92 @@ export function filterValuesByCount(
   selected: Set<string>,
 ): string[] {
   return values.filter((v) => selected.has(v) || (counts.get(v) ?? 0) > 0)
+}
+
+/**
+ * Groups a `type: 'date'` column's checklist values (from `computeStringValues`) into a
+ * Year › Month › Day tree, mirroring spreadsheet-style date autofilters — a high-cardinality
+ * date column becomes navigable by year/month instead of one flat per-day checklist. Each
+ * value is parsed with `new Date(v)`; values that don't parse are collected under a single
+ * `emptyLabel` leaf alongside the year nodes rather than silently dropped.
+ */
+export function computeDateTree(values: string[], emptyLabel = '(none)'): DateTreeNode[] {
+  const years = new Map<string, Map<string, Map<string, string[]>>>()
+  const invalid: string[] = []
+  for (const v of values) {
+    const d = new Date(v)
+    if (isNaN(d.getTime())) {
+      invalid.push(v)
+      continue
+    }
+    const y = String(d.getFullYear())
+    const m = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    if (!years.has(y)) years.set(y, new Map())
+    const months = years.get(y)!
+    if (!months.has(m)) months.set(m, new Map())
+    const days = months.get(m)!
+    if (!days.has(day)) days.set(day, [])
+    days.get(day)!.push(v)
+  }
+
+  const nodes: DateTreeNode[] = [...years.keys()].sort().map((y) => {
+    const months = years.get(y)!
+    const monthNodes: DateTreeNode[] = [...months.keys()].sort().map((m) => {
+      const days = months.get(m)!
+      const dayNodes: DateTreeNode[] = [...days.keys()].sort().map((day) => ({
+        key: day,
+        path: `${y}-${m}-${day}`,
+        values: days.get(day)!,
+        children: [],
+      }))
+      return {
+        key: m,
+        path: `${y}-${m}`,
+        values: dayNodes.flatMap((n) => n.values),
+        children: dayNodes,
+      }
+    })
+    return {
+      key: y,
+      path: y,
+      values: monthNodes.flatMap((n) => n.values),
+      children: monthNodes,
+    }
+  })
+
+  if (invalid.length > 0)
+    nodes.push({ key: emptyLabel, path: emptyLabel, values: invalid, children: [] })
+  return nodes
+}
+
+/** Checked/unchecked/indeterminate state of a date-tree node given the column's currently selected filter values. */
+export function getDateTreeNodeState(
+  node: DateTreeNode,
+  selected: Set<string>,
+): 'checked' | 'unchecked' | 'indeterminate' {
+  const selectedCount = node.values.filter((v) => selected.has(v)).length
+  if (selectedCount === 0) return 'unchecked'
+  return selectedCount === node.values.length ? 'checked' : 'indeterminate'
+}
+
+/** Sum of `computeStringValueCounts`-style facet counts across every raw value under a date-tree node. */
+export function sumDateTreeNodeCount(node: DateTreeNode, counts: Map<string, number>): number {
+  return node.values.reduce((sum, v) => sum + (counts.get(v) ?? 0), 0)
+}
+
+/**
+ * Depth-first lookup of a node by its `path`. Vanilla's delegated click handler has no closure
+ * over the node objects rendered into the HTML string — only the `data-path` it wrote out —
+ * so it re-derives the node (and its `values`) from the freshly recomputed tree via this.
+ */
+export function findDateTreeNode(nodes: DateTreeNode[], path: string): DateTreeNode | undefined {
+  for (const node of nodes) {
+    if (node.path === path) return node
+    const found = findDateTreeNode(node.children, path)
+    if (found) return found
+  }
+  return undefined
 }
 
 export function toggleSort(sorts: SortEntry[], key: string): SortEntry[] {

@@ -21,11 +21,16 @@ import {
   getSortIcon,
   getSortIndex,
   countActiveFilters,
+  computeDateTree,
+  getDateTreeNodeState,
+  sumDateTreeNodeCount,
+  findDateTreeNode,
   DEFAULT_LABELS,
   type SortEntry,
   type RangeFilter,
   type DataTableLabels,
   type TableViewState,
+  type DateTreeNode,
 } from '@vates/data-table-core'
 import type { ColumnDef, DataTableOptions, DataTableInstance } from './types'
 import { STYLES } from './styles'
@@ -88,6 +93,7 @@ export function createDataTable<TRow extends object>(
   let openDropdown: string | null = null
   let filterActiveCol: string | null = null
   let filterSearchTerms: Record<string, string> = {}
+  let expandedDateNodes: Record<string, Set<string>> = {}
   let searchQuery = ''
   let draggedColKey: string | null = null
   const viewListeners = new Set<(view: TableViewState) => void>()
@@ -98,6 +104,7 @@ export function createDataTable<TRow extends object>(
   let _numPages = 1
   let _clampedPage = 1
   let _filterDetailValues: string[] = []
+  let _filterDetailTree: DateTreeNode[] = []
 
   function derive() {
     const stringValueMap = computeStringValues(data, columns, L.emptyValue)
@@ -200,6 +207,13 @@ export function createDataTable<TRow extends object>(
     return formatStr(getColumnValue(col, row), row, col)
   }
 
+  const FILTER_CHIP_MAX = 3
+  function summarizeFilterValues(vals: Set<string>): string {
+    const arr = [...vals]
+    if (arr.length <= FILTER_CHIP_MAX) return arr.join(', ')
+    return `${arr.slice(0, FILTER_CHIP_MAX).join(', ')}, ${L.moreValues(arr.length - FILTER_CHIP_MAX)}`
+  }
+
   function render(): void {
     // Save focus state
     const focused = document.activeElement as HTMLElement | null
@@ -222,7 +236,7 @@ export function createDataTable<TRow extends object>(
     const hasActiveState =
       sorts.length > 0 || activeFilterCount > 0 || groupBy.length > 0 || searchQuery !== ''
     const hasAgg = activeColumns.some((c) => c.aggregate !== undefined)
-    const filterableCols = columns.filter((c) => c.type !== 'date' && c.filterable !== false)
+    const filterableCols = columns.filter((c) => c.filterable !== false)
     const groupableCols = columns.filter((c) => c.groupable === true)
     const filterActiveKey =
       filterActiveCol && filterableCols.some((c) => c.key === filterActiveCol)
@@ -240,6 +254,40 @@ export function createDataTable<TRow extends object>(
             filters[filterDetailCol.key] ?? new Set(),
           )
         : []
+    _filterDetailTree =
+      filterDetailCol && filterDetailCol.type === 'date'
+        ? computeDateTree(_filterDetailValues, L.emptyValue)
+        : []
+
+    const monthName = (m: string) =>
+      new Date(2000, Number(m) - 1, 1).toLocaleDateString(undefined, { month: 'long' })
+
+    function renderDateTreeNodes(nodes: DateTreeNode[], colKey: string, depth: number): string {
+      const searchActive = (filterSearchTerms[colKey] ?? '') !== ''
+      let s = ''
+      for (const node of nodes) {
+        const state = getDateTreeNodeState(node, filters[colKey] ?? new Set())
+        const isLeaf = node.children.length === 0
+        const expanded = searchActive || (expandedDateNodes[colKey]?.has(node.path) ?? false)
+        const label =
+          depth === 1
+            ? esc(monthName(node.key))
+            : depth === 2
+              ? String(Number(node.key))
+              : esc(node.key)
+        const count = sumDateTreeNodeCount(node, stringValueCounts[colKey] ?? new Map())
+        s += `<label class="dt-date-tree-item" style="padding-left:${14 + depth * 16}px">`
+        s += isLeaf
+          ? `<span class="dt-date-tree-toggle"></span>`
+          : `<span class="dt-date-tree-toggle dt-date-tree-toggle--branch" data-action="toggle-date-expand" data-key="${esc(colKey)}" data-path="${esc(node.path)}">${expanded ? '▼' : '▶'}</span>`
+        s += `<input type="checkbox" data-action="toggle-date-node" data-key="${esc(colKey)}" data-path="${esc(node.path)}"${state === 'checked' ? ' checked' : ''}${state === 'indeterminate' ? ' data-indeterminate' : ''}>`
+        s += `<span class="dt-flex1">${label}</span>`
+        s += `<span class="dt-filter-count">${count}</span>`
+        s += `</label>`
+        if (!isLeaf && expanded) s += renderDateTreeNodes(node.children, colKey, depth + 1)
+      }
+      return s
+    }
 
     let html = `<div class="dt">`
 
@@ -321,9 +369,13 @@ export function createDataTable<TRow extends object>(
               }
               s += `<input type="text" class="dt-dd-search" placeholder="${esc(L.filterSearchPlaceholder)}" value="${esc(term)}" data-action="filter-search" data-key="${esc(filterDetailCol.key)}" data-focus-key="fsearch-${esc(filterDetailCol.key)}">`
               s += `</div>`
-              for (const v of _filterDetailValues) {
-                const count = stringValueCounts[filterDetailCol.key]?.get(v) ?? 0
-                s += `<label class="dt-dd-item"><input type="checkbox" data-action="toggle-filter" data-key="${esc(filterDetailCol.key)}" data-value="${esc(v)}"${filters[filterDetailCol.key]?.has(v) ? ' checked' : ''}> <span class="dt-flex1">${esc(v)}</span><span class="dt-filter-count">${count}</span></label>`
+              if (filterDetailCol.type === 'date') {
+                s += renderDateTreeNodes(_filterDetailTree, filterDetailCol.key, 0)
+              } else {
+                for (const v of _filterDetailValues) {
+                  const count = stringValueCounts[filterDetailCol.key]?.get(v) ?? 0
+                  s += `<label class="dt-dd-item"><input type="checkbox" data-action="toggle-filter" data-key="${esc(filterDetailCol.key)}" data-value="${esc(v)}"${filters[filterDetailCol.key]?.has(v) ? ' checked' : ''}> <span class="dt-flex1">${esc(v)}</span><span class="dt-filter-count">${count}</span></label>`
+                }
               }
             }
           }
@@ -373,7 +425,7 @@ export function createDataTable<TRow extends object>(
       }
       for (const [key, vals] of Object.entries(filters)) {
         if (!vals.size) continue
-        html += `<span class="dt-chip dt-chip--filter">${esc(columns.find((c) => c.key === key)?.label ?? key)}: ${esc([...vals].join(', '))} <span class="dt-chip-x" data-action="clear-filter-key" data-key="${esc(key)}">×</span></span>`
+        html += `<span class="dt-chip dt-chip--filter">${esc(columns.find((c) => c.key === key)?.label ?? key)}: ${esc(summarizeFilterValues(vals))} <span class="dt-chip-x" data-action="clear-filter-key" data-key="${esc(key)}">×</span></span>`
       }
       for (let i = 0; i < groupBy.length; i++) {
         const key = groupBy[i]
@@ -520,6 +572,11 @@ export function createDataTable<TRow extends object>(
         if (cb) cb.indeterminate = true
       }
     }
+    for (const cb of container.querySelectorAll<HTMLInputElement>(
+      '[data-action="toggle-date-node"][data-indeterminate]',
+    )) {
+      cb.indeterminate = true
+    }
 
     // Restore focus
     if (focusKey) {
@@ -557,6 +614,7 @@ export function createDataTable<TRow extends object>(
     const dd = actionEl.dataset.dd ?? ''
     const value = actionEl.dataset.value ?? ''
     const gkey = actionEl.dataset.gkey ?? ''
+    const path = actionEl.dataset.path ?? ''
     const procIdx = parseInt(actionEl.dataset.procIdx ?? '-1', 10)
 
     let selectionChanged = false
@@ -600,6 +658,26 @@ export function createDataTable<TRow extends object>(
         page = 1
         viewChanged = true
         break
+      case 'toggle-date-node': {
+        const node = findDateTreeNode(_filterDetailTree, path)
+        if (node) {
+          filters = coreToggleFilterAll(filters, key, node.values)
+          page = 1
+          viewChanged = true
+        }
+        break
+      }
+      case 'toggle-date-expand': {
+        // The toggle arrow sits inside the same <label> as the node's checkbox — without
+        // preventDefault() here, the browser's native label→control forwarding would also
+        // dispatch a click on the checkbox, triggering an unwanted toggle-date-node.
+        e.preventDefault()
+        const next = new Set(expandedDateNodes[key] ?? [])
+        if (next.has(path)) next.delete(path)
+        else next.add(path)
+        expandedDateNodes = { ...expandedDateNodes, [key]: next }
+        break
+      }
       case 'select-filter-col':
         filterActiveCol = key
         break

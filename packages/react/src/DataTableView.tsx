@@ -1,9 +1,13 @@
-import { useState, useRef, useEffect, type CSSProperties } from 'react'
+import { useState, useRef, useEffect, type CSSProperties, type ReactNode } from 'react'
 import {
   computeAggregate,
   getColumnValue,
   filterValuesBySearch,
   filterValuesByCount,
+  computeDateTree,
+  getDateTreeNodeState,
+  sumDateTreeNodeCount,
+  type DateTreeNode,
 } from '@vates/data-table-core'
 import { Dropdown } from './components/Dropdown'
 import { ToolbarBtn } from './components/ToolbarBtn'
@@ -238,6 +242,13 @@ const S = {
     flexShrink: 0,
     margin: 0,
   } as CSSProperties,
+  dateTreeToggle: {
+    width: 14,
+    flexShrink: 0,
+    textAlign: 'center',
+    fontSize: 10,
+    color: 'var(--color-text-tertiary)',
+  } as CSSProperties,
 }
 
 function asRecord(row: object): Record<string, unknown> {
@@ -274,6 +285,7 @@ export function DataTableView<TRow extends object>({
   const [dragOverColKey, setDragOverColKey] = useState<string | null>(null)
   const [filterActiveCol, setFilterActiveCol] = useState<string | null>(null)
   const [filterSearchTerms, setFilterSearchTerms] = useState<Record<string, string>>({})
+  const [expandedDateNodes, setExpandedDateNodes] = useState<Record<string, Set<string>>>({})
 
   const {
     visibleCols,
@@ -343,7 +355,7 @@ export function DataTableView<TRow extends object>({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedRows])
 
-  const filterableCols = columns.filter((c) => c.type !== 'date' && c.filterable !== false)
+  const filterableCols = columns.filter((c) => c.filterable !== false)
   const groupableCols = columns.filter((c) => c.groupable === true)
   const filterActiveKey =
     filterActiveCol && filterableCols.some((c) => c.key === filterActiveCol)
@@ -372,6 +384,66 @@ export function DataTableView<TRow extends object>({
     if (filterSelectAllRef.current) filterSelectAllRef.current.indeterminate = filterSomeSelected
   }, [filterSomeSelected])
 
+  const filterDetailTree =
+    filterDetailCol && filterDetailCol.type === 'date'
+      ? computeDateTree(filterDetailValues, L.emptyValue)
+      : []
+  const isDateNodeExpanded = (colKey: string, path: string, searchActive: boolean) =>
+    searchActive || (expandedDateNodes[colKey]?.has(path) ?? false)
+  const toggleDateNodeExpand = (colKey: string, path: string) =>
+    setExpandedDateNodes((prev) => {
+      const next = new Set(prev[colKey] ?? [])
+      if (next.has(path)) next.delete(path)
+      else next.add(path)
+      return { ...prev, [colKey]: next }
+    })
+  const monthName = (m: string) =>
+    new Date(2000, Number(m) - 1, 1).toLocaleDateString(undefined, { month: 'long' })
+
+  const renderDateTreeNodes = (nodes: DateTreeNode[], colKey: string, depth: number): ReactNode => {
+    const searchActive = (filterSearchTerms[colKey] ?? '') !== ''
+    return nodes.map((node) => {
+      const state = getDateTreeNodeState(node, filters[colKey] ?? new Set())
+      const isLeaf = node.children.length === 0
+      const expanded = isDateNodeExpanded(colKey, node.path, searchActive)
+      const label =
+        depth === 1 ? monthName(node.key) : depth === 2 ? String(Number(node.key)) : node.key
+      return (
+        <div key={node.path}>
+          <label style={{ ...S.ddItem, paddingLeft: 14 + depth * 16 }}>
+            {isLeaf ? (
+              <span style={S.dateTreeToggle} />
+            ) : (
+              <span
+                style={{ ...S.dateTreeToggle, cursor: 'pointer' }}
+                onClick={(e) => {
+                  e.preventDefault()
+                  toggleDateNodeExpand(colKey, node.path)
+                }}
+              >
+                {expanded ? '▼' : '▶'}
+              </span>
+            )}
+            <input
+              type="checkbox"
+              checked={state === 'checked'}
+              ref={(el) => {
+                if (el) el.indeterminate = state === 'indeterminate'
+              }}
+              onChange={() => toggleFilterAll(colKey, node.values)}
+              style={{ margin: 0 }}
+            />
+            <span style={{ flex: 1 }}>{label}</span>
+            <span style={S.filterCount} aria-hidden="true">
+              {sumDateTreeNodeCount(node, stringValueCounts[colKey] ?? new Map())}
+            </span>
+          </label>
+          {!isLeaf && expanded && renderDateTreeNodes(node.children, colKey, depth + 1)}
+        </div>
+      )
+    })
+  }
+
   const hasActiveState =
     sorts.length > 0 || activeFilterCount > 0 || groupBy.length > 0 || searchQuery !== ''
   const hasAggregates = activeColumns.some((c) => c.aggregate !== undefined)
@@ -385,6 +457,13 @@ export function DataTableView<TRow extends object>({
 
   const cellValue = (row: TRow, col: ColumnDef<TRow>) =>
     formatValue(getColumnValue(col, row), row, col)
+
+  const FILTER_CHIP_MAX = 3
+  const summarizeFilterValues = (vals: Set<string>) => {
+    const arr = [...vals]
+    if (arr.length <= FILTER_CHIP_MAX) return arr.join(', ')
+    return `${arr.slice(0, FILTER_CHIP_MAX).join(', ')}, ${L.moreValues(arr.length - FILTER_CHIP_MAX)}`
+  }
 
   return (
     <div style={S.wrap}>
@@ -585,24 +664,26 @@ export function DataTableView<TRow extends object>({
                           style={S.ddSearch}
                         />
                       </div>
-                      {filterDetailValues.map((v) => (
-                        <label key={v} style={{ ...S.ddItem, cursor: 'pointer' }}>
-                          <input
-                            type="checkbox"
-                            checked={filters[filterDetailCol.key]?.has(v) ?? false}
-                            onChange={() => toggleFilter(filterDetailCol.key, v)}
-                            style={{ margin: 0 }}
-                          />
-                          <span style={{ flex: 1 }}>
-                            {filterDetailCol.renderFilterLabel
-                              ? filterDetailCol.renderFilterLabel(v)
-                              : v}
-                          </span>
-                          <span style={S.filterCount} aria-hidden="true">
-                            {stringValueCounts[filterDetailCol.key]?.get(v) ?? 0}
-                          </span>
-                        </label>
-                      ))}
+                      {filterDetailCol.type === 'date'
+                        ? renderDateTreeNodes(filterDetailTree, filterDetailCol.key, 0)
+                        : filterDetailValues.map((v) => (
+                            <label key={v} style={{ ...S.ddItem, cursor: 'pointer' }}>
+                              <input
+                                type="checkbox"
+                                checked={filters[filterDetailCol.key]?.has(v) ?? false}
+                                onChange={() => toggleFilter(filterDetailCol.key, v)}
+                                style={{ margin: 0 }}
+                              />
+                              <span style={{ flex: 1 }}>
+                                {filterDetailCol.renderFilterLabel
+                                  ? filterDetailCol.renderFilterLabel(v)
+                                  : v}
+                              </span>
+                              <span style={S.filterCount} aria-hidden="true">
+                                {stringValueCounts[filterDetailCol.key]?.get(v) ?? 0}
+                              </span>
+                            </label>
+                          ))}
                     </>
                   ))}
               </div>
@@ -720,7 +801,7 @@ export function DataTableView<TRow extends object>({
                   border: '0.5px solid var(--color-border-info)',
                 }}
               >
-                {columns.find((c) => c.key === key)?.label}: {[...vals].join(', ')}
+                {columns.find((c) => c.key === key)?.label}: {summarizeFilterValues(vals)}
                 <span
                   onClick={() => clearColumnFilter(key)}
                   style={{ cursor: 'pointer', marginLeft: 2 }}

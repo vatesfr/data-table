@@ -7,7 +7,12 @@ export interface ColumnDef<
 > extends ColumnDefBase<TRow> {
   /** Render a custom React node in table cells and group headers */
   render?: (value: unknown, row: TRow) => ReactNode
-  /** Render a custom label in filter dropdown options */
+  /**
+   * Render a custom label in filter dropdown options. Not applied to `type: 'date'` columns —
+   * their filter is a Year/Month/Day tree, and a branch node's label (e.g. a month) has no
+   * single raw value to hand back; only a day leaf's underlying values are checklist-like, and
+   * even then a leaf can bundle more than one raw value (e.g. several timestamps on the same day).
+   */
   renderFilterLabel?: (value: string) => ReactNode
 }
 

@@ -7,6 +7,10 @@ import {
   computeStringValueCounts,
   filterValuesBySearch,
   filterValuesByCount,
+  computeDateTree,
+  getDateTreeNodeState,
+  sumDateTreeNodeCount,
+  findDateTreeNode,
   computeAggregate,
   getColumnValue,
   paginateData,
@@ -406,6 +410,17 @@ describe('computeStringValues', () => {
     const result = computeStringValues(ROWS, cols)
     expect(result['band']).toEqual(['High', 'Low'])
   })
+
+  it('includes date columns (fed into computeDateTree by the filter UI, not excluded like number)', () => {
+    const cols = [{ key: 'released' as const, label: 'Released', type: 'date' as const }]
+    const games = [
+      { released: '2023-05-14' },
+      { released: '2021-01-02' },
+      { released: '2023-05-14' },
+    ]
+    const result = computeStringValues(games, cols)
+    expect(result['released']).toEqual(['2021-01-02', '2023-05-14'])
+  })
 })
 
 // ─── computeStringValueCounts ───────────────────────────────────────────────
@@ -456,6 +471,13 @@ describe('computeStringValueCounts', () => {
     const result = computeStringValueCounts(GAMES_WITH_EMPTY, {}, {}, cols, 'N/A')
     expect(result['tags']?.get('N/A')).toBe(1)
   })
+
+  it('includes date columns', () => {
+    const cols = [{ key: 'released' as const, label: 'Released', type: 'date' as const }]
+    const games = [{ released: '2023-05-14' }, { released: '2023-05-14' }]
+    const result = computeStringValueCounts(games, {}, {}, cols)
+    expect(result['released']?.get('2023-05-14')).toBe(2)
+  })
 })
 
 // ─── filterValuesBySearch ───────────────────────────────────────────────────
@@ -500,6 +522,99 @@ describe('filterValuesByCount', () => {
       'Action',
       'Adventure',
     ])
+  })
+})
+
+// ─── computeDateTree ────────────────────────────────────────────────────────
+
+describe('computeDateTree', () => {
+  it('groups values into a Year › Month › Day tree, sorted at every level', () => {
+    const tree = computeDateTree(['2023-05-14', '2021-01-02', '2023-01-30'])
+    expect(tree.map((n) => n.key)).toEqual(['2021', '2023'])
+    const y2023 = tree[1]
+    expect(y2023.children.map((n) => n.key)).toEqual(['01', '05'])
+    expect(y2023.children[0].children.map((n) => n.key)).toEqual(['30'])
+  })
+
+  it('rolls up values from leaves to their ancestor month/year nodes', () => {
+    const tree = computeDateTree(['2023-05-14', '2023-05-20'])
+    const year = tree[0]
+    expect(year.values).toEqual(['2023-05-14', '2023-05-20'])
+    expect(year.children[0].values).toEqual(['2023-05-14', '2023-05-20'])
+  })
+
+  it('groups multiple raw values landing on the same day under one day leaf', () => {
+    const tree = computeDateTree(['2023-05-14T09:00:00.000Z', '2023-05-14T18:00:00.000Z'])
+    const day = tree[0].children[0].children[0]
+    expect(day.values).toEqual(['2023-05-14T09:00:00.000Z', '2023-05-14T18:00:00.000Z'])
+  })
+
+  it('buckets unparseable values under a trailing emptyLabel leaf instead of dropping them', () => {
+    const tree = computeDateTree(['2023-05-14', 'not-a-date'], 'N/A')
+    expect(tree[tree.length - 1]).toEqual({
+      key: 'N/A',
+      path: 'N/A',
+      values: ['not-a-date'],
+      children: [],
+    })
+  })
+
+  it('returns an empty array for an empty input', () => {
+    expect(computeDateTree([])).toEqual([])
+  })
+})
+
+// ─── getDateTreeNodeState ───────────────────────────────────────────────────
+
+describe('getDateTreeNodeState', () => {
+  const node = computeDateTree(['2023-05-14', '2023-05-20'])[0].children[0] // 2023-05, 2 leaves
+
+  it('is unchecked when none of the node values are selected', () => {
+    expect(getDateTreeNodeState(node, new Set())).toBe('unchecked')
+  })
+
+  it('is checked when every node value is selected', () => {
+    expect(getDateTreeNodeState(node, new Set(['2023-05-14', '2023-05-20']))).toBe('checked')
+  })
+
+  it('is indeterminate when only some node values are selected', () => {
+    expect(getDateTreeNodeState(node, new Set(['2023-05-14']))).toBe('indeterminate')
+  })
+})
+
+// ─── sumDateTreeNodeCount ───────────────────────────────────────────────────
+
+describe('sumDateTreeNodeCount', () => {
+  it('sums the facet counts of every raw value under a node', () => {
+    const node = computeDateTree(['2023-05-14', '2023-05-20'])[0].children[0]
+    const counts = new Map([
+      ['2023-05-14', 3],
+      ['2023-05-20', 1],
+    ])
+    expect(sumDateTreeNodeCount(node, counts)).toBe(4)
+  })
+
+  it('treats a value missing from the counts map as 0', () => {
+    const node = computeDateTree(['2023-05-14'])[0].children[0]
+    expect(sumDateTreeNodeCount(node, new Map())).toBe(0)
+  })
+})
+
+// ─── findDateTreeNode ───────────────────────────────────────────────────────
+
+describe('findDateTreeNode', () => {
+  const tree = computeDateTree(['2023-05-14', '2021-01-02'])
+
+  it('finds a year node by path', () => {
+    expect(findDateTreeNode(tree, '2021')?.key).toBe('2021')
+  })
+
+  it('finds a nested day node by its full path', () => {
+    expect(findDateTreeNode(tree, '2023-05-14')?.values).toEqual(['2023-05-14'])
+  })
+
+  it('returns undefined for an unknown path', () => {
+    expect(findDateTreeNode(tree, '1999-01-01')).toBeUndefined()
   })
 })
 

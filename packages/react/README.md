@@ -84,6 +84,18 @@ const COLUMNS: ColumnDef<Game>[] = [
 ]
 ```
 
+## Date filter tree
+
+▶ [Try it in the demo](https://vatesfr.github.io/data-table/react/#full-table)
+
+`type: 'date'` columns get a Year › Month › Day checkbox tree in the filter dropdown instead of a checklist or numeric range. Check a year or month to select every date under it in one click, or drill into individual days; the search box and per-value row counts work the same as for string columns. Values that don't parse as dates are grouped under the `emptyValue` label rather than dropped.
+
+```tsx
+{ key: 'joined', label: 'Joined', type: 'date' }
+```
+
+`renderFilterLabel` isn't applied to date columns — a tree branch (a year or month) has no single raw value to hand it, and even a day leaf can bundle more than one.
+
 ## Computed columns
 
 ▶ [Try it in the demo](https://vatesfr.github.io/data-table/react/#full-table)
@@ -186,7 +198,7 @@ Drag a column header to reorder it, or use the ▲▼ buttons next to each colum
 interface ColumnDef<TRow extends object> {
   key: string // unique column id; used for row[key] lookup unless `value` is set
   label: string
-  type?: 'string' | 'number' | 'date' // controls filter UI; default: 'string'
+  type?: 'string' | 'number' | 'date' // controls filter UI: checklist / range / year-month-day tree; default: 'string'
   width?: number
   value?: (row: TRow) => unknown // compute the cell value from the whole row (also covers aliasing)
   format?: (value: unknown, row: TRow) => string

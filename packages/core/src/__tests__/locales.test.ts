@@ -27,6 +27,9 @@ describe('LABELS_EN', () => {
   describe('pageOf', () => {
     it('formats page and total', () => expect(LABELS_EN.pageOf(2, 10)).toBe('Page 2 of 10'))
   })
+  describe('moreValues', () => {
+    it('formats the hidden count', () => expect(LABELS_EN.moreValues(12)).toBe('+12 more'))
+  })
 })
 
 // FR uses > 1 instead of !== 1: 0 total is singular (unlike EN where 0 is plural)
@@ -56,6 +59,9 @@ describe('LABELS_FR', () => {
   describe('pageOf', () => {
     it('uses "sur"', () => expect(LABELS_FR.pageOf(2, 10)).toBe('Page 2 sur 10'))
   })
+  describe('moreValues', () => {
+    it('formats the hidden count', () => expect(LABELS_FR.moreValues(12)).toBe('+12 de plus'))
+  })
 })
 
 describe('LABELS_ES', () => {
@@ -83,6 +89,9 @@ describe('LABELS_ES', () => {
   })
   describe('pageOf', () => {
     it('uses "de"', () => expect(LABELS_ES.pageOf(2, 10)).toBe('Página 2 de 10'))
+  })
+  describe('moreValues', () => {
+    it('formats the hidden count', () => expect(LABELS_ES.moreValues(12)).toBe('+12 más'))
   })
 })
 
@@ -112,6 +121,9 @@ describe('LABELS_DE', () => {
   describe('pageOf', () => {
     it('uses "von"', () => expect(LABELS_DE.pageOf(2, 10)).toBe('Seite 2 von 10'))
   })
+  describe('moreValues', () => {
+    it('formats the hidden count', () => expect(LABELS_DE.moreValues(12)).toBe('+12 weitere'))
+  })
 })
 
 describe('LABELS_PT', () => {
@@ -139,5 +151,8 @@ describe('LABELS_PT', () => {
   })
   describe('pageOf', () => {
     it('uses "de"', () => expect(LABELS_PT.pageOf(2, 10)).toBe('Página 2 de 10'))
+  })
+  describe('moreValues', () => {
+    it('formats the hidden count', () => expect(LABELS_PT.moreValues(12)).toBe('+12 mais'))
   })
 })

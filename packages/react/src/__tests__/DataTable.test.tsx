@@ -238,6 +238,99 @@ describe('DataTable — filter dropdown', () => {
   })
 })
 
+describe('DataTable — date filter tree', () => {
+  interface GameRow {
+    id: number
+    name: string
+    released: string
+  }
+  const DATE_COLS: ColumnDef<GameRow>[] = [
+    { key: 'name', label: 'Name', filterable: false },
+    { key: 'released', label: 'Released', type: 'date', filterable: true },
+  ]
+  const DATE_ROWS: GameRow[] = [
+    { id: 1, name: 'Game A', released: '2023-05-14' },
+    { id: 2, name: 'Game B', released: '2023-05-20' },
+    { id: 3, name: 'Game C', released: '2021-01-02' },
+  ]
+
+  function toggleFor(container: HTMLElement, text: string): HTMLElement {
+    const label = [...container.querySelectorAll('label')].find((l) =>
+      l.textContent?.includes(text),
+    )!
+    return label.querySelector('span')!
+  }
+
+  it('renders year nodes collapsed by default, with months hidden until expanded', () => {
+    const { getByText, queryByText } = render(
+      <DataTable data={DATE_ROWS} columns={DATE_COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Filter'))
+    expect(getByText('2023')).toBeTruthy()
+    expect(getByText('2021')).toBeTruthy()
+    expect(queryByText('May')).toBeNull()
+  })
+
+  it('expanding a year reveals its months, expanding a month reveals its days', () => {
+    const { getByText, container } = render(
+      <DataTable data={DATE_ROWS} columns={DATE_COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Filter'))
+    fireEvent.click(toggleFor(container, '2023'))
+    expect(getByText('May')).toBeTruthy()
+    fireEvent.click(toggleFor(container, 'May'))
+    expect(getByText('14')).toBeTruthy()
+    expect(getByText('20')).toBeTruthy()
+  })
+
+  it('checking a year node selects every date under it and filters rows accordingly', () => {
+    const { getByText, getByLabelText, queryByText } = render(
+      <DataTable data={DATE_ROWS} columns={DATE_COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Filter'))
+    fireEvent.click(getByLabelText('2023', { exact: false }))
+    expect(getByText('Game A')).toBeTruthy()
+    expect(getByText('Game B')).toBeTruthy()
+    expect(queryByText('Game C')).toBeNull()
+  })
+
+  it('unchecking an already fully-selected year deselects every date under it', () => {
+    const { getByText, getByLabelText } = render(
+      <DataTable data={DATE_ROWS} columns={DATE_COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Filter'))
+    fireEvent.click(getByLabelText('2023', { exact: false }))
+    fireEvent.click(getByLabelText('2023', { exact: false }))
+    expect(getByText('Game C')).toBeTruthy()
+  })
+
+  it('is indeterminate on a month node when only some of its days are selected', () => {
+    const { getByText, getByLabelText, container } = render(
+      <DataTable data={DATE_ROWS} columns={DATE_COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Filter'))
+    fireEvent.click(toggleFor(container, '2023'))
+    fireEvent.click(toggleFor(container, 'May'))
+    fireEvent.click(getByLabelText('14', { exact: false }))
+    expect((getByLabelText('May', { exact: false }) as HTMLInputElement).indeterminate).toBe(true)
+  })
+
+  it('caps the active-filter chip at 3 values, summarizing the rest as "+N more"', () => {
+    const rows: GameRow[] = [
+      { id: 1, name: 'Game A', released: '2023-01-01' },
+      { id: 2, name: 'Game B', released: '2023-02-01' },
+      { id: 3, name: 'Game C', released: '2023-03-01' },
+      { id: 4, name: 'Game D', released: '2023-04-01' },
+    ]
+    const { getByText, getByLabelText, container } = render(
+      <DataTable data={rows} columns={DATE_COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Filter'))
+    fireEvent.click(getByLabelText('2023', { exact: false }))
+    expect(container.textContent).toContain('2023-01-01, 2023-02-01, 2023-03-01, +1 more')
+  })
+})
+
 describe('DataTable — computed columns', () => {
   it('renders a cell value produced by col.value instead of row[key]', () => {
     const cols: ColumnDef<Row>[] = [

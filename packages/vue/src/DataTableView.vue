@@ -5,11 +5,13 @@ import {
   getColumnValue,
   filterValuesBySearch,
   filterValuesByCount,
+  computeDateTree,
   type GroupResult,
 } from '@vates/data-table-core'
 import type { ColumnDef, DataTableViewProps } from './types'
 import Dropdown from './components/Dropdown.vue'
 import ToolbarBtn from './components/ToolbarBtn.vue'
+import DateTreeItem from './components/DateTreeItem.vue'
 
 const props = withDefaults(defineProps<DataTableViewProps<TRow>>(), { rowKey: 'id' })
 
@@ -104,9 +106,7 @@ function isGroupSomeSelected(rows: TRow[]) {
   return rows.some((r) => selection.value.has(r)) && !isGroupAllSelected(rows)
 }
 
-const filterableCols = computed(() =>
-  props.columns.filter((c) => c.type !== 'date' && c.filterable !== false),
-)
+const filterableCols = computed(() => props.columns.filter((c) => c.filterable !== false))
 const groupableCols = computed(() => props.columns.filter((c) => c.groupable === true))
 const filterActiveCol = ref<string | null>(null)
 const filterSearchTerms = ref<Record<string, string>>({})
@@ -159,6 +159,21 @@ function isFilterSomeSelected(col: ColumnDef<TRow>): boolean {
 function onToggleFilterAll(col: ColumnDef<TRow>): void {
   toggleFilterAll(col.key, filteredValuesFor(col))
 }
+const expandedDateNodes = ref<Record<string, Set<string>>>({})
+const filterDetailTree = computed(() =>
+  filterDetailCol.value && filterDetailCol.value.type === 'date'
+    ? computeDateTree(filteredValuesFor(filterDetailCol.value), L.value.emptyValue)
+    : [],
+)
+function isDateSearchActive(col: ColumnDef<TRow>): boolean {
+  return (filterSearchTerms.value[col.key] ?? '') !== ''
+}
+function toggleDateNodeExpand(colKey: string, path: string): void {
+  const next = new Set(expandedDateNodes.value[colKey] ?? [])
+  if (next.has(path)) next.delete(path)
+  else next.add(path)
+  expandedDateNodes.value = { ...expandedDateNodes.value, [colKey]: next }
+}
 const hasActiveState = computed(
   () =>
     sorts.value.length > 0 ||
@@ -180,6 +195,13 @@ function formatValue(v: unknown, row: TRow, col: ColumnDef<TRow>): string {
 
 function cellText(row: TRow, col: ColumnDef<TRow>): string {
   return formatValue(getColumnValue(col, row), row, col)
+}
+
+const FILTER_CHIP_MAX = 3
+function summarizeFilterValues(vals: Set<string>): string {
+  const arr = [...vals]
+  if (arr.length <= FILTER_CHIP_MAX) return arr.join(', ')
+  return `${arr.slice(0, FILTER_CHIP_MAX).join(', ')}, ${L.value.moreValues(arr.length - FILTER_CHIP_MAX)}`
 }
 
 function findCol(key: string): ColumnDef<TRow> | undefined {
@@ -367,26 +389,42 @@ function onColDragEnd(): void {
                     "
                   />
                 </div>
-                <label
-                  v-for="v in filteredValuesFor(filterDetailCol)"
-                  :key="v"
-                  class="dt__dd-item dt__dd-item--clickable"
-                >
-                  <input
-                    type="checkbox"
-                    :checked="filters[filterDetailCol.key]?.has(v) ?? false"
-                    @change="toggleFilter(filterDetailCol.key, v)"
-                  />
-                  <!--
-                    Slot #filter-{key} — custom label in the filter dropdown.
-                    Slot scope: { value: string }
-                    Falls back to the raw string value.
-                  -->
-                  <span class="dt__flex1">
-                    <slot :name="`filter-${filterDetailCol.key}`" :value="v">{{ v }}</slot>
-                  </span>
-                  <span class="dt__filter-count">{{ countFor(filterDetailCol, v) }}</span>
-                </label>
+                <DateTreeItem
+                  v-if="filterDetailCol.type === 'date'"
+                  :nodes="filterDetailTree"
+                  :depth="0"
+                  :selected="filters[filterDetailCol.key] ?? new Set()"
+                  :counts="stringValueCounts[filterDetailCol.key] ?? new Map()"
+                  :expanded="expandedDateNodes[filterDetailCol.key] ?? new Set()"
+                  :search-active="isDateSearchActive(filterDetailCol)"
+                  @toggle-node="(values) => toggleFilterAll(filterDetailCol!.key, values)"
+                  @toggle-expand="(path) => toggleDateNodeExpand(filterDetailCol!.key, path)"
+                />
+                <template v-else>
+                  <label
+                    v-for="v in filteredValuesFor(filterDetailCol)"
+                    :key="v"
+                    class="dt__dd-item dt__dd-item--clickable"
+                  >
+                    <input
+                      type="checkbox"
+                      :checked="filters[filterDetailCol.key]?.has(v) ?? false"
+                      @change="toggleFilter(filterDetailCol.key, v)"
+                    />
+                    <!--
+                      Slot #filter-{key} — custom label in the filter dropdown.
+                      Slot scope: { value: string }
+                      Falls back to the raw string value.
+                      Not applied to `type: 'date'` columns (DateTreeItem.vue below) — a tree
+                      branch node's label (a year/month) has no single raw value to pass through,
+                      and even a day leaf can bundle more than one raw value.
+                    -->
+                    <span class="dt__flex1">
+                      <slot :name="`filter-${filterDetailCol.key}`" :value="v">{{ v }}</slot>
+                    </span>
+                    <span class="dt__filter-count">{{ countFor(filterDetailCol, v) }}</span>
+                  </label>
+                </template>
               </template>
             </template>
           </div>
@@ -449,7 +487,7 @@ function onColDragEnd(): void {
       </span>
       <template v-for="[key, vals] in Object.entries(filters)" :key="key">
         <span v-if="vals.size > 0" class="dt__chip dt__chip--info">
-          {{ columns.find((c) => c.key === key)?.label }}: {{ [...vals].join(', ') }}
+          {{ columns.find((c) => c.key === key)?.label }}: {{ summarizeFilterValues(vals) }}
           <span class="dt__chip-remove" @click="clearColumnFilter(key)">×</span>
         </span>
       </template>

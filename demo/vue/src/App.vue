@@ -292,8 +292,8 @@ const COLUMNS: ColumnDef<Employee>[] = [
       }),
     aggregate: 'sum',
   },
-  // filterable: false — no filter UI for this column
-  { key: 'joined', label: 'Joined', type: 'date', width: 100, filterable: false },
+  // type: 'date' gets a Year › Month › Day filter tree instead of a checklist/range
+  { key: 'joined', label: 'Joined', type: 'date', width: 100 },
   // computed column: value is a function, so there's no matching 'tenure' property on Employee —
   // sort/filter/group/aggregate all work off the function's return value just like a real column
   {

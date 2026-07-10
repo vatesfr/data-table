@@ -20,7 +20,7 @@ export interface ColumnDefBase<TRow extends object = Record<string, unknown>> {
    */
   key: (keyof TRow & string) | (string & {})
   label: string
-  /** Determines filter UI: 'string' → checklist, 'number' → range. Default: 'string' */
+  /** Determines filter UI: 'string' → checklist, 'number' → range, 'date' → year/month/day tree. Default: 'string' */
   type?: 'string' | 'number' | 'date'
   width?: number
   /**
@@ -43,6 +43,21 @@ export interface ColumnDefBase<TRow extends object = Record<string, unknown>> {
    * automatically — no flag needed to enable multi-value filtering/grouping/display.
    */
   multiMode?: 'and' | 'or'
+}
+
+/**
+ * One level of a `type: 'date'` column's filter tree (see `computeDateTree`): `key` is this
+ * node's own path segment (a 4-digit year, 0-padded month, or 0-padded day — or `emptyLabel`
+ * for values that don't parse as dates), `path` is the full dot-free path from the root
+ * (`"2023"`, `"2023-05"`, `"2023-05-14"`) and doubles as a stable id for expand/collapse state,
+ * and `values` lists every raw filter value (as stored in `filters`) under this node — a single
+ * value for a leaf (day), every descendant leaf's values rolled up otherwise.
+ */
+export interface DateTreeNode {
+  key: string
+  path: string
+  values: string[]
+  children: DateTreeNode[]
 }
 
 export interface DataTableLabels {
@@ -70,6 +85,8 @@ export interface DataTableLabels {
   search: string
   /** Filter/group label for rows whose array-valued column is empty (e.g. `tags: []`) */
   emptyValue: string
+  /** Suffix for the active-filters toolbar chip when a column has more selected values than are shown (e.g. a whole year picked via the date tree) */
+  moreValues: (count: number) => string
 }
 
 export { LABELS_EN as DEFAULT_LABELS } from './locales'

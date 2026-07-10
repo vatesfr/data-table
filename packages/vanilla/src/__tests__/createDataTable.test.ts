@@ -533,6 +533,94 @@ describe('createDataTable', () => {
     expect(container.querySelectorAll('tbody tr')).toHaveLength(2) // Bob (60) and David (70)
   })
 
+  // --- date filter tree ---
+
+  interface GameRow {
+    id: number
+    name: string
+    released: string
+  }
+  const DATE_COLS: ColumnDef<GameRow>[] = [
+    { key: 'name', label: 'Name', filterable: false },
+    { key: 'released', label: 'Released', type: 'date', filterable: true },
+  ]
+  const DATE_ROWS: GameRow[] = [
+    { id: 1, name: 'Game A', released: '2023-05-14' },
+    { id: 2, name: 'Game B', released: '2023-05-20' },
+    { id: 3, name: 'Game C', released: '2021-01-02' },
+  ]
+
+  function openDateFilter(): void {
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="filter"]')!)
+  }
+  function dateNode(text: string): HTMLElement {
+    return [...container.querySelectorAll<HTMLElement>('.dt-date-tree-item')].find((el) =>
+      el.textContent?.includes(text),
+    )!
+  }
+
+  it('renders year nodes collapsed by default, with months hidden until expanded', () => {
+    createDataTable(container, { data: DATE_ROWS, columns: DATE_COLS })
+    openDateFilter()
+    expect(container.innerHTML).toContain('2023')
+    expect(container.innerHTML).toContain('2021')
+    expect(container.innerHTML).not.toContain('May')
+  })
+
+  it('expanding a year reveals its months, expanding a month reveals its days', () => {
+    createDataTable(container, { data: DATE_ROWS, columns: DATE_COLS })
+    openDateFilter()
+    click(dateNode('2023').querySelector('[data-action="toggle-date-expand"]')!)
+    expect(container.innerHTML).toContain('May')
+    click(dateNode('May').querySelector('[data-action="toggle-date-expand"]')!)
+    expect(dateNode('14')).toBeTruthy()
+    expect(dateNode('20')).toBeTruthy()
+  })
+
+  it('checking a year node selects every date under it and filters rows accordingly', () => {
+    createDataTable(container, { data: DATE_ROWS, columns: DATE_COLS })
+    openDateFilter()
+    click(dateNode('2023').querySelector('[data-action="toggle-date-node"]')!)
+    expect(container.innerHTML).toContain('Game A')
+    expect(container.innerHTML).toContain('Game B')
+    expect(container.innerHTML).not.toContain('Game C')
+  })
+
+  it('unchecking an already fully-selected year deselects every date under it', () => {
+    createDataTable(container, { data: DATE_ROWS, columns: DATE_COLS })
+    openDateFilter()
+    click(dateNode('2023').querySelector('[data-action="toggle-date-node"]')!)
+    click(dateNode('2023').querySelector('[data-action="toggle-date-node"]')!)
+    expect(container.innerHTML).toContain('Game C')
+  })
+
+  it('is indeterminate on a month node when only some of its days are selected', () => {
+    createDataTable(container, { data: DATE_ROWS, columns: DATE_COLS })
+    openDateFilter()
+    click(dateNode('2023').querySelector('[data-action="toggle-date-expand"]')!)
+    click(dateNode('May').querySelector('[data-action="toggle-date-expand"]')!)
+    click(dateNode('14').querySelector('[data-action="toggle-date-node"]')!)
+    const monthCheckbox = dateNode('May').querySelector<HTMLInputElement>(
+      '[data-action="toggle-date-node"]',
+    )!
+    expect(monthCheckbox.indeterminate).toBe(true)
+  })
+
+  it('caps the active-filter chip at 3 values, summarizing the rest as "+N more"', () => {
+    const rows: GameRow[] = [
+      { id: 1, name: 'Game A', released: '2023-01-01' },
+      { id: 2, name: 'Game B', released: '2023-02-01' },
+      { id: 3, name: 'Game C', released: '2023-03-01' },
+      { id: 4, name: 'Game D', released: '2023-04-01' },
+    ]
+    createDataTable(container, { data: rows, columns: DATE_COLS })
+    openDateFilter()
+    click(dateNode('2023').querySelector('[data-action="toggle-date-node"]')!)
+    expect(container.querySelector('.dt-chip--filter')?.textContent).toContain(
+      '2023-01-01, 2023-02-01, 2023-03-01, +1 more',
+    )
+  })
+
   // --- pagination ---
 
   it('defaultPageSize limits rows per page', () => {

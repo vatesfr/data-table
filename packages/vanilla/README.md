@@ -131,6 +131,16 @@ createDataTable(container, { data, columns: COLUMNS, rowKey: 'id' })
 - Cells without a custom `format` display the array joined with `, `.
 - Every checklist item (array-valued columns and plain string columns alike) shows how many rows currently match it — helpful for scanning a high-cardinality column like `tags` before picking a value. The count is faceted: it reflects every other active filter, but not the checklist's own column, so selecting a value elsewhere narrows the counts shown here without a value's own selection state affecting its neighbors. A value with a count of 0 is dropped from the checklist entirely — unless it's already selected, in which case it stays listed so it can still be unticked.
 
+## Date filter tree
+
+▶ [Try it in the demo](https://vatesfr.github.io/data-table/vanilla/#full-table)
+
+`type: 'date'` columns get a Year › Month › Day checkbox tree in the filter dropdown instead of a checklist or numeric range. Check a year or month to select every date under it in one click, or drill into individual days; the search box and per-value row counts work the same as for string columns. Values that don't parse as dates are grouped under the `emptyValue` label rather than dropped.
+
+```ts
+{ key: 'joined', label: 'Joined', type: 'date' }
+```
+
 ## Computed columns
 
 ▶ [Try it in the demo](https://vatesfr.github.io/data-table/vanilla/#full-table)
@@ -229,7 +239,7 @@ Drag a column header to reorder it, or use the ▲▼ buttons next to each colum
 interface ColumnDef<TRow extends object> {
   key: string // unique column id; used for row[key] lookup unless `value` is set
   label: string
-  type?: 'string' | 'number' | 'date' // controls filter UI; default: 'string'
+  type?: 'string' | 'number' | 'date' // controls filter UI: checklist / range / year-month-day tree; default: 'string'
   width?: number
   value?: (row: TRow) => unknown // compute the cell value from the whole row (also covers aliasing)
   format?: (value: unknown, row: TRow) => string
