@@ -1,10 +1,12 @@
 export { default as DataTable } from './DataTable.vue'
+export { default as DataTableView } from './DataTableView.vue'
 export { default as Badge } from './components/Badge.vue'
 export { default as ScoreBar } from './components/ScoreBar.vue'
 export { useTableState } from './useTableState'
+export type { TableState } from './useTableState'
 export { usePersistedView, useUrlView } from './persistence'
 export type { ViewStateApi, UseUrlViewOptions } from './persistence'
-export type { ColumnDef, DataTableProps } from './types'
+export type { ColumnDef, DataTableProps, DataTableViewProps } from './types'
 export type {
   DataTableLabels,
   SortEntry,

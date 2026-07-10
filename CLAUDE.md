@@ -69,16 +69,18 @@ The internal `asRecord(row: object): Record<string, unknown>` helper exists beca
 ### React package (`packages/react`)
 
 - **`types.ts`** — `ColumnDef<TRow>` extends `ColumnDefBase` with `render?` and `renderFilterLabel?` (render props)
-- **`useTableState.ts`** — wraps core logic with `useState`/`useMemo`; exposes all state, derived values, and actions
-- **`DataTable.tsx`** — thin render layer; delegates all state and logic to `useTableState`
+- **`useTableState.ts`** — wraps core logic with `useState`/`useMemo`; exposes all state, derived values, and actions; also exports `TableState<TRow>` (`ReturnType<typeof useTableState<TRow>>`)
+- **`DataTableView.tsx`** — the actual render layer; takes a `TableState<TRow>` (the `useTableState` return value) as a `table` prop instead of calling the hook itself
+- **`DataTable.tsx`** — thin wrapper: calls `useTableState` internally and renders `<DataTableView table={table} .../>`
 
 Cell rendering priority: `col.render(value, row)` → `col.format(value)` → `String(value)`. Group headers use the same `cellValue()` function so custom renders apply there too.
 
 ### Vue package (`packages/vue`)
 
 - **`types.ts`** — `ColumnDef<TRow>` extends `ColumnDefBase` (no render props; customization is via slots)
-- **`useTableState.ts`** — same purpose as React but different signature: `useTableState(data, columns, options?)` where `options` is `{ defaultVisibleColumns?, labels?, defaultPageSize? }`; uses `ref`/`computed` and accepts `MaybeRefOrGetter` for reactive inputs
-- **`DataTable.vue`** — uses `<script setup lang="ts" generic="TRow extends object">`
+- **`useTableState.ts`** — same purpose as React but different signature: `useTableState(data, columns, options?)` where `options` is `{ defaultVisibleColumns?, labels?, defaultPageSize? }`; uses `ref`/`computed` and accepts `MaybeRefOrGetter` for reactive inputs; also exports `TableState<TRow>` (`ReturnType<typeof useTableState<TRow>>`)
+- **`DataTableView.vue`** — the actual render layer; uses `<script setup lang="ts" generic="TRow extends object">` and takes a `TableState<TRow>` as a `table` prop instead of calling `useTableState` itself
+- **`DataTable.vue`** — thin wrapper: calls `useTableState` internally, renders `<DataTableView :table="table" .../>`, and forwards its own slots straight through
 - **`components/Dropdown.vue`** — self-manages open/close state and exposes it to `#trigger` slot
 
 Vue customization uses **scoped slots** instead of render props:
@@ -169,7 +171,7 @@ Built-in locales live in `packages/core/src/locales.ts` and are re-exported from
 
 ### View persistence
 
-`TableViewState` in `packages/core/src/view.ts` is a serializable snapshot of everything a user can change through the UI — `visibleCols`, `sorts`, `filters`, `rangeFilters`, `groupBy`, `collapsedGroups`, `page`, `pageSize`, `searchQuery` — except `selection`, which is tracked by object identity and isn't meaningful to persist or share. All fields are optional: a partial view (e.g. just a sort) applies on top of whatever defaults are already in place.
+`TableViewState` in `packages/core/src/view.ts` is a serializable snapshot of everything a user can change through the UI — `visibleCols`, `columnOrder`, `sorts`, `filters`, `rangeFilters`, `groupBy`, `collapsedGroups`, `page`, `pageSize`, `searchQuery` — except `selection`, which is tracked by object identity and isn't meaningful to persist or share. All fields are optional: a partial view (e.g. just a sort) applies on top of whatever defaults are already in place.
 
 `encodeViewState`/`decodeViewState` serialize a view to/from a compact, URL-safe string, kept small by three rules: 1-letter wire keys, tuples instead of objects (`sorts` as `[key, dirFlag]`, `filters` as `[key, values[]]` pairs, `rangeFilters` as `[key, min, max]`), and omitting any field at its natural default (empty array/object/string, `page: 1`, `pageSize: 0`) — most shared/persisted views differ from the defaults in only one or two fields. The string itself is base64url of that compact JSON — hand-rolled (not `btoa`/`TextEncoder`) since core targets ES2020 with no DOM/Node lib and must run identically in browsers, Node (SSR), and the vanilla adapter; base64url is cheaper here than `encodeURIComponent(JSON.stringify(...))` because JSON's punctuation would otherwise be percent-escaped at 3 chars apiece.
 
@@ -181,6 +183,22 @@ Actually writing a view to `localStorage` or the URL is opt-in, via separate hel
 - `useUrlView(table, options?)` (React/Vue) / `syncViewToUrl(table, options?)` (vanilla) — loads from the `view` query param (configurable via `paramName`) on mount/init and on `popstate`, writes back via `history.replaceState` (not `pushState`, so per-change sort/filter/etc. tweaks don't spam browser history).
 
 Both URL helpers only apply state when the param is actually present and decodes successfully — an absent or malformed param leaves whatever state is already there alone rather than forcing a reset to defaults. This matters when composing both helpers (as the demos do): on a plain reload with no `view` param, the URL helper's hydration step must not clobber the localStorage-restored view with an empty one.
+
+### DataTableView — reaching state that `<DataTable>` can't expose (React/Vue)
+
+`usePersistedView`/`useUrlView` (and any other external code wanting imperative selection control, e.g. `table.clearSelection()`) need the actual `useTableState` return value — but `<DataTable>` builds one internally and never exposes it, so nothing outside the component can reach it. Rather than bolt on an escape hatch (a `forwardRef`/`useImperativeHandle` or `defineExpose` handle), the render layer itself was split out: `DataTableView` takes a `table: TableState<TRow>` prop (the `useTableState` return value, type-aliased as `TableState<TRow>` and exported from `useTableState.ts`) instead of calling the hook itself, and `DataTable` is now a thin wrapper — `useTableState(...)` + `<DataTableView table={table} .../>`.
+
+This is fully declarative (no ref timing/SSR concerns) and stays complete automatically as `useTableState` grows — passing the whole object through means every current and future action/derived value is reachable via `table`, with no separate "exposed API" surface to keep in sync by hand. A consumer who needs external control does exactly what the "Custom layout"/headless demos already did, just rendering the built-in UI instead of a hand-rolled one:
+
+```tsx
+const table = useTableState(data, columns)
+usePersistedView(table, 'my-table-view')
+return <DataTableView table={table} data={data} columns={columns} />
+```
+
+`DataTableViewProps<TRow>` (in each adapter's `types.ts`) holds every prop `DataTableView` needs beyond `table` — `data` (for the unfiltered row count) and `columns` (for filter/sort/group panels, which list _all_ columns, not just active ones) can't be derived from `table` alone, so they're passed separately, same as `<DataTable>` already required them. `DataTableProps` is `Omit<DataTableViewProps<TRow>, 'table'> & { defaultVisibleColumns?, labels?, defaultPageSize? }` — the three fields that only make sense at `useTableState` construction time.
+
+Vue's split has one extra wrinkle around `onRowClick`/`rowClick` detection (see Row click above): `DataTableView`'s `isRowClickable` check reads its own `vnode.props.onRowClick`, but `DataTable` always forwards the `row-click` emit unconditionally (clicking a row always emits, matching the emit's own semantics, regardless of whether anyone's listening) — so if `DataTableView` self-detected off its incoming listener, it would always see one and always show clickable styling. `DataTable` instead does its own `vnode.props` check (reflecting whether _its_ caller passed a listener) and forwards the result down as an explicit `rowClickable` prop, which `DataTableView` prefers over self-detection when present; `DataTableView` used directly (no wrapper) falls back to self-detection since there's no wrapper to supply the prop.
 
 ### Testing
 

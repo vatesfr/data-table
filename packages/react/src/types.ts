@@ -1,5 +1,6 @@
 import type { MouseEvent, ReactNode } from 'react'
 import type { ColumnDefBase, DataTableLabels } from '@vates/data-table-core'
+import type { TableState } from './useTableState'
 
 export interface ColumnDef<
   TRow extends object = Record<string, unknown>,
@@ -10,14 +11,26 @@ export interface ColumnDef<
   renderFilterLabel?: (value: string) => ReactNode
 }
 
-export interface DataTableProps<TRow extends object = Record<string, unknown>> {
+export interface DataTableViewProps<TRow extends object = Record<string, unknown>> {
+  /**
+   * State returned by `useTableState`, owned by the caller — this is what lets you reach
+   * persistence (`usePersistedView`/`useUrlView`) or imperative selection control
+   * (`table.clearSelection()`, etc.) from outside while still getting the built-in table UI.
+   */
+  table: TableState<TRow>
   data: TRow[]
   columns: ColumnDef<TRow>[]
   rowKey?: keyof TRow & string
-  defaultVisibleColumns?: string[]
-  labels?: Partial<DataTableLabels>
-  defaultPageSize?: number
   selectable?: boolean
   onSelectionChange?: (rows: TRow[]) => void
   onRowClick?: (row: TRow, event: MouseEvent<HTMLTableRowElement>) => void
+}
+
+export interface DataTableProps<TRow extends object = Record<string, unknown>> extends Omit<
+  DataTableViewProps<TRow>,
+  'table'
+> {
+  defaultVisibleColumns?: string[]
+  labels?: Partial<DataTableLabels>
+  defaultPageSize?: number
 }

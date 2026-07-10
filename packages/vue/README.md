@@ -259,6 +259,31 @@ useUrlView(table) // reflected in ?view=... — reload the page or share the lin
 
 To persist a view somewhere else (e.g. a backend), call `getViewState()`/`setViewState(view)` directly — `usePersistedView`/`useUrlView` work with any object shaped like `{ getViewState(), setViewState(view) }`, so `table` (or anything else with that shape) can be passed in.
 
+`<DataTable>` builds its own `useTableState` internally, so these composables can't reach it — see `DataTableView` below for the built-in UI wired to a `useTableState` instance you own.
+
+## `DataTableView` — the built-in UI, state you own
+
+`<DataTable>` is `useTableState` + a render layer bundled together, with no way to reach the state from outside. `DataTableView` is that same render layer, taking a `useTableState` result as a prop instead of creating its own — so you get the identical built-in UI while keeping full external access to it (persistence, imperative selection control, or anything else `useTableState` returns):
+
+```vue
+<script setup lang="ts">
+import { useTableState, usePersistedView, useUrlView, DataTableView } from '@vates/data-table-vue'
+
+const table = useTableState(employees, COLUMNS, {
+  defaultVisibleColumns: DEFAULT_VISIBLE,
+  defaultPageSize: 20,
+})
+usePersistedView(table, 'employee-table-view')
+useUrlView(table)
+</script>
+
+<template>
+  <DataTableView :table="table" :data="employees" :columns="COLUMNS" row-key="id" />
+</template>
+```
+
+`DataTableView` takes the same props as `<DataTable>` minus `defaultVisibleColumns`/`labels`/`defaultPageSize` (those only make sense at `useTableState` construction time) plus `table`, and supports the same `#cell-{key}`/`#filter-{key}`/`#group-{key}` scoped slots. In fact, `<DataTable>` is implemented as exactly this — a thin wrapper that calls `useTableState` and renders `<DataTableView :table="table" .../>`, forwarding its own slots straight through.
+
 ## i18n
 
 Use a built-in locale or supply any `Partial<DataTableLabels>` overrides (shallow-merged over English defaults):

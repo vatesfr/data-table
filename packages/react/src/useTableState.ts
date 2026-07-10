@@ -24,6 +24,8 @@ import {
 } from '@vates/data-table-core'
 import type { ColumnDef } from './types'
 
+export type TableState<TRow extends object> = ReturnType<typeof useTableState<TRow>>
+
 export function useTableState<TRow extends object>(
   data: TRow[],
   columns: ColumnDef<TRow>[],

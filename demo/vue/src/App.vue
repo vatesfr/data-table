@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue'
 import {
   DataTable,
+  DataTableView,
   Badge,
   ScoreBar,
   useTableState,
@@ -360,6 +361,16 @@ const { processedData, getSortIcon, toggleSort } = table
 usePersistedView(table, 'data-table-demo-view')
 useUrlView(table)
 
+// Same built-in look as <DataTable>, but the caller owns useTableState — so
+// usePersistedView/useUrlView can reach it, unlike <DataTable> which builds its own
+// internal, unreachable state. Try reordering or hiding columns, then reload the page.
+const persistedTable = useTableState(SAMPLE_DATA, COLUMNS, {
+  defaultVisibleColumns: DEFAULT_VISIBLE,
+  defaultPageSize: 5,
+})
+usePersistedView(persistedTable, 'data-table-demo-persisted-view')
+useUrlView(persistedTable, { paramName: 'pview' })
+
 const SORT_COLS = ['name', 'salary', 'score'] as const
 
 function fmtSalary(n: number) {
@@ -673,5 +684,33 @@ function copyShareLink() {
         </div>
       </div>
     </div>
+
+    <h2 style="font-size: 16px; font-weight: 600; margin-top: 40px; margin-bottom: 4px">
+      Persisted table via DataTableView
+    </h2>
+    <p
+      style="
+        font-size: 14px;
+        color: var(--color-text-secondary);
+        margin-top: 0;
+        margin-bottom: 16px;
+      "
+    >
+      <code>DataTable</code> builds its own <code>useTableState</code> internally, so persistence
+      helpers can't reach it. <code>DataTableView</code> renders the same built-in UI from a
+      <code>useTableState</code> instance you own instead — reorder or hide a column, then reload
+      the page.
+    </p>
+    <DataTableView :table="persistedTable" :data="SAMPLE_DATA" :columns="COLUMNS" row-key="id">
+      <template #cell-department="{ value }">
+        <Badge :value="String(value)" :color-map="DEPT_COLORS" />
+      </template>
+      <template #cell-status="{ value }">
+        <Badge :value="String(value)" :color-map="STATUS_COLORS" />
+      </template>
+      <template #cell-score="{ value }">
+        <ScoreBar :value="Number(value)" />
+      </template>
+    </DataTableView>
   </div>
 </template>

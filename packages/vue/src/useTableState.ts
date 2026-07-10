@@ -30,6 +30,8 @@ export interface UseTableStateOptions {
   defaultPageSize?: number
 }
 
+export type TableState<TRow extends object> = ReturnType<typeof useTableState<TRow>>
+
 export function useTableState<TRow extends object>(
   getData: MaybeRefOrGetter<TRow[]>,
   getColumns: MaybeRefOrGetter<ColumnDef<TRow>[]>,

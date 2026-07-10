@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import {
   DataTable,
+  DataTableView,
   Badge,
   ScoreBar,
   useTableState,
@@ -436,6 +437,16 @@ function EmployeeCards() {
   )
 }
 
+// Same built-in look as <DataTable>, but the caller owns useTableState — so
+// usePersistedView/useUrlView can reach it, unlike <DataTable> which builds its own
+// internal, unreachable state. Try reordering or hiding columns, then reload the page.
+function PersistedTable() {
+  const table = useTableState(SAMPLE_DATA, COLUMNS, DEFAULT_VISIBLE, undefined, 5)
+  usePersistedView(table, 'data-table-demo-persisted-view')
+  useUrlView(table, { paramName: 'pview' })
+  return <DataTableView table={table} data={SAMPLE_DATA} columns={COLUMNS} rowKey="id" />
+}
+
 const THEME_CYCLE = { '': 'dark', dark: 'light', light: '' } as const
 const THEME_LABELS = { '': 'Auto', dark: 'Dark', light: 'Light' }
 
@@ -651,6 +662,24 @@ export default function App() {
         reload the page or use "Copy share link" and open it in a new tab.
       </p>
       <EmployeeCards />
+
+      <h2 style={{ fontSize: 16, fontWeight: 600, marginTop: 40, marginBottom: 4 }}>
+        Persisted table via DataTableView
+      </h2>
+      <p
+        style={{
+          fontSize: 14,
+          color: 'var(--color-text-secondary)',
+          marginTop: 0,
+          marginBottom: 16,
+        }}
+      >
+        <code>DataTable</code> builds its own <code>useTableState</code> internally, so persistence
+        helpers can't reach it. <code>DataTableView</code> renders the same built-in UI from a{' '}
+        <code>useTableState</code> instance you own instead — reorder or hide a column, then reload
+        the page.
+      </p>
+      <PersistedTable />
     </div>
   )
 }
