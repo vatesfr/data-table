@@ -113,6 +113,69 @@ describe('DataTable — filter dropdown', () => {
     expect(wrapper.findAll('.dt__dd-item')).toHaveLength(0)
   })
 
+  it('hides a value with zero rows matching under other active filters', async () => {
+    interface Row2 {
+      id: number
+      name: string
+      dept: string
+    }
+    const COLS2: ColumnDef<Row2>[] = [
+      { key: 'name', label: 'Name', filterable: true },
+      { key: 'dept', label: 'Dept', filterable: true },
+    ]
+    const ROWS2: Row2[] = [
+      { id: 1, name: 'Alice', dept: 'Eng' },
+      { id: 2, name: 'Bob', dept: 'HR' },
+    ]
+    const wrapper = mount(DataTable, { props: { data: ROWS2, columns: COLS2, rowKey: 'id' } })
+    const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
+    await filterBtn.trigger('click')
+    await checklistCheckbox(wrapper, 'Alice').trigger('change')
+    const deptItem = wrapper
+      .findAll('.dt__filter-col-item')
+      .find((el) => el.text().includes('Dept'))!
+    await deptItem.trigger('click')
+    const labels = wrapper.findAll('.dt__dd-item').map((el) => el.text())
+    expect(labels.some((t) => t.startsWith('Eng'))).toBe(true)
+    expect(labels.some((t) => t.startsWith('HR'))).toBe(false)
+  })
+
+  it('keeps a selected value visible even when its live count drops to 0', async () => {
+    interface Row2 {
+      id: number
+      name: string
+      dept: string
+      score: number
+    }
+    const COLS2: ColumnDef<Row2>[] = [
+      { key: 'name', label: 'Name', filterable: true },
+      { key: 'dept', label: 'Dept', filterable: true },
+      { key: 'score', label: 'Score', type: 'number', filterable: true },
+    ]
+    const ROWS2: Row2[] = [
+      { id: 1, name: 'Alice', dept: 'Eng', score: 90 },
+      { id: 2, name: 'Bob', dept: 'HR', score: 60 },
+    ]
+    const wrapper = mount(DataTable, { props: { data: ROWS2, columns: COLS2, rowKey: 'id' } })
+    const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
+    await filterBtn.trigger('click')
+    const deptItem = wrapper
+      .findAll('.dt__filter-col-item')
+      .find((el) => el.text().includes('Dept'))!
+    await deptItem.trigger('click')
+    // Select dept=HR (Bob) while it's still the only active filter, so it's visible to check.
+    await checklistCheckbox(wrapper, 'HR').trigger('change')
+    const scoreItem = wrapper
+      .findAll('.dt__filter-col-item')
+      .find((el) => el.text().includes('Score'))!
+    await scoreItem.trigger('click')
+    // A min-score range filter that excludes Bob (score 60) zeroes HR's live facet count —
+    // range filters, unlike a column's own checklist filter, are never excluded from a facet.
+    await wrapper.find('input[placeholder="Min"]').setValue('100')
+    await deptItem.trigger('click')
+    expect((checklistCheckbox(wrapper, 'HR').element as HTMLInputElement).checked).toBe(true)
+  })
+
   it('search narrows the checklist to matching values', async () => {
     const wrapper = mount(DataTable, { props: { data: ROWS, columns: FILTER_COLS, rowKey: 'id' } })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
@@ -126,7 +189,7 @@ describe('DataTable — filter dropdown', () => {
   function checklistCheckbox(wrapper: ReturnType<typeof mount>, value: string) {
     return wrapper
       .findAll('.dt__dd-item')
-      .find((el) => el.text() === value)!
+      .find((el) => el.text().startsWith(value))!
       .find('input[type="checkbox"]')
   }
 

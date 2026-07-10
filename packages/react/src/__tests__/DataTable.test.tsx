@@ -117,8 +117,8 @@ describe('DataTable — filter dropdown', () => {
     )
     fireEvent.click(getByText('Filter'))
     fireEvent.click(getByLabelText('Select all'))
-    expect((getByLabelText('Alice') as HTMLInputElement).checked).toBe(true)
-    expect((getByLabelText('Bob') as HTMLInputElement).checked).toBe(true)
+    expect((getByLabelText('Alice', { exact: false }) as HTMLInputElement).checked).toBe(true)
+    expect((getByLabelText('Bob', { exact: false }) as HTMLInputElement).checked).toBe(true)
   })
 
   it('select-all checkbox deselects every value when all are already selected', () => {
@@ -128,8 +128,8 @@ describe('DataTable — filter dropdown', () => {
     fireEvent.click(getByText('Filter'))
     fireEvent.click(getByLabelText('Select all'))
     fireEvent.click(getByLabelText('Select all'))
-    expect((getByLabelText('Alice') as HTMLInputElement).checked).toBe(false)
-    expect((getByLabelText('Bob') as HTMLInputElement).checked).toBe(false)
+    expect((getByLabelText('Alice', { exact: false }) as HTMLInputElement).checked).toBe(false)
+    expect((getByLabelText('Bob', { exact: false }) as HTMLInputElement).checked).toBe(false)
   })
 
   it('select-all checkbox only affects the search-narrowed values', () => {
@@ -140,9 +140,9 @@ describe('DataTable — filter dropdown', () => {
     const [filterSearchInput] = getAllByPlaceholderText('Search…')
     fireEvent.change(filterSearchInput, { target: { value: 'ali' } })
     fireEvent.click(getByLabelText('Select all'))
-    expect((getByLabelText('Alice') as HTMLInputElement).checked).toBe(true)
+    expect((getByLabelText('Alice', { exact: false }) as HTMLInputElement).checked).toBe(true)
     fireEvent.change(filterSearchInput, { target: { value: '' } })
-    expect((getByLabelText('Bob') as HTMLInputElement).checked).toBe(false)
+    expect((getByLabelText('Bob', { exact: false }) as HTMLInputElement).checked).toBe(false)
   })
 
   it('select-all checkbox is indeterminate when only some listed values are selected', () => {
@@ -150,7 +150,7 @@ describe('DataTable — filter dropdown', () => {
       <DataTable data={ROWS} columns={FILTER_COLS} rowKey="id" />,
     )
     fireEvent.click(getByText('Filter'))
-    fireEvent.click(getByLabelText('Alice'))
+    fireEvent.click(getByLabelText('Alice', { exact: false }))
     expect((getByLabelText('Select all') as HTMLInputElement).indeterminate).toBe(true)
   })
 
@@ -163,6 +163,64 @@ describe('DataTable — filter dropdown', () => {
     fireEvent.change(filterSearchInput, { target: { value: 'zzz' } })
     expect(queryByLabelText('Select all')).toBeNull()
     expect(filterSearchInput).toBeTruthy()
+  })
+
+  it('hides a value with zero rows matching under other active filters', () => {
+    interface Row2 {
+      id: number
+      name: string
+      dept: string
+    }
+    const COLS2: ColumnDef<Row2>[] = [
+      { key: 'name', label: 'Name', filterable: true },
+      { key: 'dept', label: 'Dept', filterable: true },
+    ]
+    const ROWS2: Row2[] = [
+      { id: 1, name: 'Alice', dept: 'Eng' },
+      { id: 2, name: 'Bob', dept: 'HR' },
+    ]
+    const { getByText, getAllByText, getByLabelText, queryByLabelText } = render(
+      <DataTable data={ROWS2} columns={COLS2} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Filter'))
+    fireEvent.click(getByLabelText('Alice', { exact: false }))
+    const deptItem = getAllByText('Dept').find((el) => el.closest('th') === null)!
+    fireEvent.click(deptItem)
+    expect(getByLabelText('Eng', { exact: false })).toBeTruthy()
+    expect(queryByLabelText('HR', { exact: false })).toBeNull()
+  })
+
+  it('keeps a selected value visible even when its live count drops to 0', () => {
+    interface Row2 {
+      id: number
+      name: string
+      dept: string
+      score: number
+    }
+    const COLS2: ColumnDef<Row2>[] = [
+      { key: 'name', label: 'Name', filterable: true },
+      { key: 'dept', label: 'Dept', filterable: true },
+      { key: 'score', label: 'Score', type: 'number', filterable: true },
+    ]
+    const ROWS2: Row2[] = [
+      { id: 1, name: 'Alice', dept: 'Eng', score: 90 },
+      { id: 2, name: 'Bob', dept: 'HR', score: 60 },
+    ]
+    const { getByText, getAllByText, getByLabelText, getByPlaceholderText } = render(
+      <DataTable data={ROWS2} columns={COLS2} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Filter'))
+    const deptItem = getAllByText('Dept').find((el) => el.closest('th') === null)!
+    fireEvent.click(deptItem)
+    // Select dept=HR (Bob) while it's still the only active filter, so it's visible to check.
+    fireEvent.click(getByLabelText('HR', { exact: false }))
+    const scoreItem = getAllByText('Score').find((el) => el.closest('th') === null)!
+    fireEvent.click(scoreItem)
+    // A min-score range filter that excludes Bob (score 60) zeroes HR's live facet count —
+    // range filters, unlike a column's own checklist filter, are never excluded from a facet.
+    fireEvent.change(getByPlaceholderText('Min'), { target: { value: '100' } })
+    fireEvent.click(deptItem)
+    expect((getByLabelText('HR', { exact: false }) as HTMLInputElement).checked).toBe(true)
   })
 
   it('search narrows the checklist to matching values', () => {

@@ -4,6 +4,7 @@ import {
   computeAggregate,
   getColumnValue,
   filterValuesBySearch,
+  filterValuesByCount,
   type GroupResult,
 } from '@vates/data-table-core'
 import type { ColumnDef, DataTableViewProps } from './types'
@@ -48,6 +49,7 @@ const {
   activeColumns,
   orderedColumns,
   stringValueMap,
+  stringValueCounts,
   activeFilterCount,
   page,
   pageSize,
@@ -125,10 +127,17 @@ function hasActiveColFilter(col: ColumnDef<TRow>): boolean {
   return (filters.value[col.key]?.size ?? 0) > 0
 }
 function filteredValuesFor(col: ColumnDef<TRow>): string[] {
-  return filterValuesBySearch(
-    stringValueMap.value[col.key] ?? [],
-    filterSearchTerms.value[col.key] ?? '',
+  return filterValuesByCount(
+    filterValuesBySearch(
+      stringValueMap.value[col.key] ?? [],
+      filterSearchTerms.value[col.key] ?? '',
+    ),
+    stringValueCounts.value[col.key] ?? new Map(),
+    filters.value[col.key] ?? new Set(),
   )
+}
+function countFor(col: ColumnDef<TRow>, value: string): number {
+  return stringValueCounts.value[col.key]?.get(value) ?? 0
 }
 function selectFilterCol(key: string): void {
   filterActiveCol.value = key
@@ -373,7 +382,10 @@ function onColDragEnd(): void {
                     Slot scope: { value: string }
                     Falls back to the raw string value.
                   -->
-                  <slot :name="`filter-${filterDetailCol.key}`" :value="v">{{ v }}</slot>
+                  <span class="dt__flex1">
+                    <slot :name="`filter-${filterDetailCol.key}`" :value="v">{{ v }}</slot>
+                  </span>
+                  <span class="dt__filter-count">{{ countFor(filterDetailCol, v) }}</span>
                 </label>
               </template>
             </template>
@@ -783,6 +795,11 @@ function onColDragEnd(): void {
 }
 .dt__flex1 {
   flex: 1;
+}
+.dt__filter-count {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+  flex-shrink: 0;
 }
 
 /* Range filter */

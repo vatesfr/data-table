@@ -1,5 +1,10 @@
 import { useState, useRef, useEffect, type CSSProperties } from 'react'
-import { computeAggregate, getColumnValue, filterValuesBySearch } from '@vates/data-table-core'
+import {
+  computeAggregate,
+  getColumnValue,
+  filterValuesBySearch,
+  filterValuesByCount,
+} from '@vates/data-table-core'
 import { Dropdown } from './components/Dropdown'
 import { ToolbarBtn } from './components/ToolbarBtn'
 import type { ColumnDef, DataTableViewProps } from './types'
@@ -64,6 +69,10 @@ const S = {
     fontWeight: 500,
     letterSpacing: '0.05em',
     textTransform: 'uppercase',
+  } as CSSProperties,
+  filterCount: {
+    fontSize: 12,
+    color: 'var(--color-text-tertiary)',
   } as CSSProperties,
   chip: {
     display: 'inline-flex',
@@ -278,6 +287,7 @@ export function DataTableView<TRow extends object>({
     activeColumns,
     orderedColumns,
     stringValueMap,
+    stringValueCounts,
     activeFilterCount,
     selection,
     selectedRows,
@@ -342,9 +352,13 @@ export function DataTableView<TRow extends object>({
   const filterDetailCol = filterableCols.find((c) => c.key === filterActiveKey) ?? null
   const filterDetailValues =
     filterDetailCol && filterDetailCol.type !== 'number'
-      ? filterValuesBySearch(
-          stringValueMap[filterDetailCol.key] ?? [],
-          filterSearchTerms[filterDetailCol.key] ?? '',
+      ? filterValuesByCount(
+          filterValuesBySearch(
+            stringValueMap[filterDetailCol.key] ?? [],
+            filterSearchTerms[filterDetailCol.key] ?? '',
+          ),
+          stringValueCounts[filterDetailCol.key] ?? new Map(),
+          filters[filterDetailCol.key] ?? new Set(),
         )
       : []
   const filterSelectedCount = filterDetailCol
@@ -579,9 +593,14 @@ export function DataTableView<TRow extends object>({
                             onChange={() => toggleFilter(filterDetailCol.key, v)}
                             style={{ margin: 0 }}
                           />
-                          {filterDetailCol.renderFilterLabel
-                            ? filterDetailCol.renderFilterLabel(v)
-                            : v}
+                          <span style={{ flex: 1 }}>
+                            {filterDetailCol.renderFilterLabel
+                              ? filterDetailCol.renderFilterLabel(v)
+                              : v}
+                          </span>
+                          <span style={S.filterCount} aria-hidden="true">
+                            {stringValueCounts[filterDetailCol.key]?.get(v) ?? 0}
+                          </span>
                         </label>
                       ))}
                     </>

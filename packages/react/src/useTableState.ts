@@ -4,6 +4,7 @@ import {
   searchData,
   groupData,
   computeStringValues,
+  computeStringValueCounts,
   paginateData,
   calcTotalPages,
   toggleSort as _toggleSort,
@@ -53,6 +54,11 @@ export function useTableState<TRow extends object>(
   const stringValueMap = useMemo(
     () => computeStringValues(data, columns, L.emptyValue),
     [data, columns, L.emptyValue],
+  )
+
+  const stringValueCounts = useMemo(
+    () => computeStringValueCounts(data, filters, rangeFilters, columns, L.emptyValue),
+    [data, filters, rangeFilters, columns, L.emptyValue],
   )
 
   const processedData = useMemo(
@@ -127,6 +133,7 @@ export function useTableState<TRow extends object>(
     activeColumns,
     orderedColumns,
     stringValueMap,
+    stringValueCounts,
     activeFilterCount,
     numPages,
     L,

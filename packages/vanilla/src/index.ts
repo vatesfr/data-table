@@ -3,7 +3,9 @@ import {
   searchData,
   groupData,
   computeStringValues,
+  computeStringValueCounts,
   filterValuesBySearch,
+  filterValuesByCount,
   computeAggregate,
   getColumnValue,
   paginateData,
@@ -99,6 +101,13 @@ export function createDataTable<TRow extends object>(
 
   function derive() {
     const stringValueMap = computeStringValues(data, columns, L.emptyValue)
+    const stringValueCounts = computeStringValueCounts(
+      data,
+      filters,
+      rangeFilters,
+      columns,
+      L.emptyValue,
+    )
     _processedData = processData(
       searchData(data, searchQuery, columns),
       filters,
@@ -117,7 +126,14 @@ export function createDataTable<TRow extends object>(
     )
     const activeFilterCount = countActiveFilters(filters, rangeFilters)
     const selectedRows = _processedData.filter((r) => selection.has(r))
-    return { stringValueMap, orderedColumns, activeColumns, activeFilterCount, selectedRows }
+    return {
+      stringValueMap,
+      stringValueCounts,
+      orderedColumns,
+      activeColumns,
+      activeFilterCount,
+      selectedRows,
+    }
   }
 
   function buildViewState(): TableViewState {
@@ -192,8 +208,14 @@ export function createDataTable<TRow extends object>(
     const selStart = focused instanceof HTMLInputElement ? focused.selectionStart : null
     const selEnd = focused instanceof HTMLInputElement ? focused.selectionEnd : null
 
-    const { stringValueMap, orderedColumns, activeColumns, activeFilterCount, selectedRows } =
-      derive()
+    const {
+      stringValueMap,
+      stringValueCounts,
+      orderedColumns,
+      activeColumns,
+      activeFilterCount,
+      selectedRows,
+    } = derive()
 
     const allSelected = _processedData.length > 0 && selectedRows.length === _processedData.length
     const someSelected = selectedRows.length > 0 && !allSelected
@@ -209,9 +231,13 @@ export function createDataTable<TRow extends object>(
     const filterDetailCol = filterableCols.find((c) => c.key === filterActiveKey) ?? null
     _filterDetailValues =
       filterDetailCol && filterDetailCol.type !== 'number'
-        ? filterValuesBySearch(
-            stringValueMap[filterDetailCol.key] ?? [],
-            filterSearchTerms[filterDetailCol.key] ?? '',
+        ? filterValuesByCount(
+            filterValuesBySearch(
+              stringValueMap[filterDetailCol.key] ?? [],
+              filterSearchTerms[filterDetailCol.key] ?? '',
+            ),
+            stringValueCounts[filterDetailCol.key] ?? new Map(),
+            filters[filterDetailCol.key] ?? new Set(),
           )
         : []
 
@@ -296,7 +322,8 @@ export function createDataTable<TRow extends object>(
               s += `<input type="text" class="dt-dd-search" placeholder="${esc(L.filterSearchPlaceholder)}" value="${esc(term)}" data-action="filter-search" data-key="${esc(filterDetailCol.key)}" data-focus-key="fsearch-${esc(filterDetailCol.key)}">`
               s += `</div>`
               for (const v of _filterDetailValues) {
-                s += `<label class="dt-dd-item"><input type="checkbox" data-action="toggle-filter" data-key="${esc(filterDetailCol.key)}" data-value="${esc(v)}"${filters[filterDetailCol.key]?.has(v) ? ' checked' : ''}> ${esc(v)}</label>`
+                const count = stringValueCounts[filterDetailCol.key]?.get(v) ?? 0
+                s += `<label class="dt-dd-item"><input type="checkbox" data-action="toggle-filter" data-key="${esc(filterDetailCol.key)}" data-value="${esc(v)}"${filters[filterDetailCol.key]?.has(v) ? ' checked' : ''}> <span class="dt-flex1">${esc(v)}</span><span class="dt-filter-count">${count}</span></label>`
               }
             }
           }

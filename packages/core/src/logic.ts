@@ -123,11 +123,56 @@ export function computeStringValues<TRow extends object>(
   return map
 }
 
+/**
+ * Same value set as `computeStringValues`, paired with how many rows would match each value —
+ * computed as a facet: for a given column, rows are narrowed by every *other* active filter
+ * (but not that column's own filter), so ticking a box in one checklist updates the counts
+ * shown in another, while a column's own counts stay stable as its own boxes are ticked.
+ */
+export function computeStringValueCounts<TRow extends object>(
+  data: TRow[],
+  filters: Record<string, Set<string>>,
+  rangeFilters: Record<string, RangeFilter>,
+  columns: ColumnDefBase<TRow>[],
+  emptyLabel = '(none)',
+): Record<string, Map<string, number>> {
+  const map: Record<string, Map<string, number>> = {}
+  const cols = columns.filter(
+    (c) => c.type !== 'number' && c.type !== 'date' && c.filterable !== false,
+  )
+  for (const col of cols) {
+    const otherFilters = { ...filters }
+    delete otherFilters[col.key]
+    const rows = processData(data, otherFilters, rangeFilters, [], columns, emptyLabel)
+    const counts = new Map<string, number>()
+    for (const row of rows) {
+      for (const v of multiValues(getColumnValue(col, row), emptyLabel)) {
+        counts.set(v, (counts.get(v) ?? 0) + 1)
+      }
+    }
+    map[col.key] = counts
+  }
+  return map
+}
+
 /** Narrows a checklist's values by a case-insensitive substring search term. */
 export function filterValuesBySearch(values: string[], term: string): string[] {
   if (!term) return values
   const q = term.toLowerCase()
   return values.filter((v) => v.toLowerCase().includes(q))
+}
+
+/**
+ * Drops checklist values with a facet count of 0, i.e. no row currently matches them given the
+ * other active filters (see `computeStringValueCounts`) — except a value the user has already
+ * selected, which stays listed regardless of its live count so it can still be unchecked.
+ */
+export function filterValuesByCount(
+  values: string[],
+  counts: Map<string, number>,
+  selected: Set<string>,
+): string[] {
+  return values.filter((v) => selected.has(v) || (counts.get(v) ?? 0) > 0)
 }
 
 export function toggleSort(sorts: SortEntry[], key: string): SortEntry[] {

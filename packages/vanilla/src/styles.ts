@@ -17,6 +17,7 @@ export const STYLES = `
 .dt-dd-item--click:hover{background:var(--color-background-secondary,#f7f6f3)}
 .dt-dd-item--col{justify-content:space-between}
 .dt-flex1{flex:1}
+.dt-filter-count{font-size:12px;color:var(--color-text-tertiary,#9b9a96);flex-shrink:0}
 .dt-reorder-btns{display:flex;gap:2px}
 .dt-reorder-btn{background:none;border:none;cursor:pointer;padding:2px 4px;font-size:10px;color:var(--color-text-secondary,#6b6a66);line-height:1;font-family:inherit}
 .dt-reorder-btn:disabled{opacity:.3;cursor:default}

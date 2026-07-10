@@ -4,7 +4,9 @@ import {
   searchData,
   groupData,
   computeStringValues,
+  computeStringValueCounts,
   filterValuesBySearch,
+  filterValuesByCount,
   computeAggregate,
   getColumnValue,
   paginateData,
@@ -406,6 +408,56 @@ describe('computeStringValues', () => {
   })
 })
 
+// ─── computeStringValueCounts ───────────────────────────────────────────────
+
+describe('computeStringValueCounts', () => {
+  const COLS = [
+    { key: 'name' as const, label: 'Name', type: 'string' as const },
+    { key: 'dept' as const, label: 'Dept', type: 'string' as const },
+    { key: 'salary' as const, label: 'Salary', type: 'number' as const },
+  ]
+
+  it('counts how many rows have each value, with no filters active', () => {
+    const result = computeStringValueCounts(ROWS, {}, {}, COLS)
+    expect(result['dept']?.get('Eng')).toBe(2)
+    expect(result['dept']?.get('HR')).toBe(2)
+  })
+
+  it('excludes numeric columns from the map', () => {
+    const result = computeStringValueCounts(ROWS, {}, {}, COLS)
+    expect(result['salary']).toBeUndefined()
+  })
+
+  it("does not narrow a column's own counts by its own active filter", () => {
+    const filters = { dept: new Set(['Eng']) }
+    const result = computeStringValueCounts(ROWS, filters, {}, COLS)
+    expect(result['dept']?.get('Eng')).toBe(2)
+    expect(result['dept']?.get('HR')).toBe(2)
+  })
+
+  it("narrows a column's counts by other columns' active filters (faceted)", () => {
+    const filters = { dept: new Set(['Eng']) }
+    const result = computeStringValueCounts(ROWS, filters, {}, COLS)
+    // Only Alice/Clara (Eng) remain when computing name counts, since dept's filter is "other".
+    expect(result['name']?.get('Alice')).toBe(1)
+    expect(result['name']?.get('Bob')).toBeUndefined()
+  })
+
+  it('flattens and dedupes array-valued columns, tallying per item', () => {
+    const cols = [{ key: 'tags' as const, label: 'Tags' }]
+    const result = computeStringValueCounts(GAMES, {}, {}, cols)
+    expect(result['tags']?.get('Action')).toBe(2)
+    expect(result['tags']?.get('RPG')).toBe(2)
+    expect(result['tags']?.get('Adventure')).toBe(1)
+  })
+
+  it('counts rows with an empty array under the emptyLabel bucket', () => {
+    const cols = [{ key: 'tags' as const, label: 'Tags' }]
+    const result = computeStringValueCounts(GAMES_WITH_EMPTY, {}, {}, cols, 'N/A')
+    expect(result['tags']?.get('N/A')).toBe(1)
+  })
+})
+
 // ─── filterValuesBySearch ───────────────────────────────────────────────────
 
 describe('filterValuesBySearch', () => {
@@ -421,6 +473,33 @@ describe('filterValuesBySearch', () => {
 
   it('returns an empty array when nothing matches', () => {
     expect(filterValuesBySearch(VALUES, 'zzz')).toEqual([])
+  })
+})
+
+// ─── filterValuesByCount ────────────────────────────────────────────────────
+
+describe('filterValuesByCount', () => {
+  const VALUES = ['Action', 'Adventure', 'RPG']
+
+  it('drops values with a count of 0', () => {
+    const counts = new Map([
+      ['Action', 2],
+      ['RPG', 1],
+    ])
+    expect(filterValuesByCount(VALUES, counts, new Set())).toEqual(['Action', 'RPG'])
+  })
+
+  it('drops values missing from the counts map entirely', () => {
+    const counts = new Map([['Action', 2]])
+    expect(filterValuesByCount(VALUES, counts, new Set())).toEqual(['Action'])
+  })
+
+  it('keeps a selected value even at a count of 0', () => {
+    const counts = new Map([['Action', 2]])
+    expect(filterValuesByCount(VALUES, counts, new Set(['Adventure']))).toEqual([
+      'Action',
+      'Adventure',
+    ])
   })
 })
 

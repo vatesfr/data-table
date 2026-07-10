@@ -303,6 +303,18 @@ describe('useTableState — multi-value (array) columns', () => {
     expect(stringValueMap.value['tags']).toEqual(['Action', 'Adventure', 'RPG'])
   })
 
+  it('stringValueCounts tallies how many rows have each value', () => {
+    const { stringValueCounts } = useTableState(GAMES, GAME_COLS)
+    expect(stringValueCounts.value['tags']?.get('Action')).toBe(2)
+    expect(stringValueCounts.value['tags']?.get('RPG')).toBe(1)
+  })
+
+  it("stringValueCounts for a column ignores that column's own active filter (faceted)", () => {
+    const { stringValueCounts, toggleFilter } = useTableState(GAMES, GAME_COLS)
+    toggleFilter('tags', 'RPG')
+    expect(stringValueCounts.value['tags']?.get('Action')).toBe(2)
+  })
+
   it('toggleFilter matches rows whose array contains the selected value', () => {
     const { processedData, toggleFilter } = useTableState(GAMES, GAME_COLS)
     toggleFilter('tags', 'RPG')

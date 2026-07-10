@@ -301,6 +301,77 @@ describe('createDataTable', () => {
     expect(container.innerHTML).toContain('Alice')
   })
 
+  it('checklist filter shows a row count next to each value', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="filter"]')!)
+    click(
+      container.querySelector<HTMLElement>('[data-action="select-filter-col"][data-key="dept"]')!,
+    )
+    const engLabel = [...container.querySelectorAll('.dt-dd-item')].find((el) =>
+      el.textContent?.includes('Eng'),
+    )!
+    expect(engLabel.querySelector('.dt-filter-count')?.textContent).toBe('2')
+  })
+
+  it("checklist filter counts are faceted by other columns' active filters", () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="filter"]')!)
+    click(
+      container.querySelector<HTMLElement>('[data-action="toggle-filter"][data-value="Alice"]')!,
+    )
+    click(
+      container.querySelector<HTMLElement>('[data-action="select-filter-col"][data-key="dept"]')!,
+    )
+    const engLabel = [...container.querySelectorAll('.dt-dd-item')].find((el) =>
+      el.textContent?.includes('Eng'),
+    )!
+    expect(engLabel.querySelector('.dt-filter-count')?.textContent).toBe('1')
+  })
+
+  it('checklist filter hides a value with zero rows matching under other active filters', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="filter"]')!)
+    click(
+      container.querySelector<HTMLElement>('[data-action="toggle-filter"][data-value="Alice"]')!,
+    )
+    click(
+      container.querySelector<HTMLElement>('[data-action="select-filter-col"][data-key="dept"]')!,
+    )
+    expect(
+      [...container.querySelectorAll('.dt-dd-item')].some((el) => el.textContent?.includes('Eng')),
+    ).toBe(true)
+    expect(
+      [...container.querySelectorAll('.dt-dd-item')].some((el) => el.textContent?.includes('HR')),
+    ).toBe(false)
+  })
+
+  it('checklist filter keeps a selected value visible even when its live count drops to 0', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="filter"]')!)
+    click(
+      container.querySelector<HTMLElement>('[data-action="select-filter-col"][data-key="dept"]')!,
+    )
+    // Select dept=HR (Bob, David) while it's still the only active filter, so it's visible to check.
+    click(container.querySelector<HTMLElement>('[data-action="toggle-filter"][data-value="HR"]')!)
+    click(
+      container.querySelector<HTMLElement>('[data-action="select-filter-col"][data-key="score"]')!,
+    )
+    // A min-score range filter that excludes both HR rows (60, 70) zeroes HR's live facet count —
+    // range filters, unlike a column's own checklist filter, are never excluded from a facet.
+    setInput(
+      container.querySelector<HTMLInputElement>('[data-action="range-min"][data-key="score"]')!,
+      '75',
+    )
+    click(
+      container.querySelector<HTMLElement>('[data-action="select-filter-col"][data-key="dept"]')!,
+    )
+    const hrCheckbox = container.querySelector<HTMLInputElement>(
+      '[data-action="toggle-filter"][data-value="HR"]',
+    )!
+    expect(hrCheckbox).not.toBeNull()
+    expect(hrCheckbox.checked).toBe(true)
+  })
+
   it('checklist filter resets page to 1', () => {
     createDataTable(container, { data: ROWS, columns: COLS, defaultPageSize: 2 })
     click(container.querySelector<HTMLElement>('[data-action="page-next"]')!)
