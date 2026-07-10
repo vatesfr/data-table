@@ -328,6 +328,14 @@ const LOCALES: Record<string, DataTableLabels> = {
   PT: LABELS_PT,
 }
 
+// Cross-links between this demo and the package README: each README concept the demo
+// showcases gets a link straight to the section that demonstrates it, and vice versa.
+const README_URL = 'https://github.com/vatesfr/data-table/blob/main/packages/vanilla/README.md'
+
+function docLink(anchor: string, label: string): string {
+  return `<a href="${README_URL}#${anchor}" target="_blank" rel="noopener" style="color:var(--color-text-secondary);text-decoration:underline">${label}</a>`
+}
+
 // ---- Page scaffold ----
 
 const app = document.getElementById('app')!
@@ -336,9 +344,13 @@ app.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
       <h1 style="font-size:20px;font-weight:600;margin:0">DataTable — Vanilla</h1>
       <div style="display:flex;gap:4px;align-items:center">
-        <div id="locale-btns" style="display:flex;gap:4px"></div>
+        <div id="i18n" style="display:flex;gap:4px">
+          <div id="locale-btns" style="display:flex;gap:4px"></div>
+        </div>
         <div style="width:1px;height:16px;background:var(--color-border-secondary);margin:0 2px"></div>
-        <button id="theme-btn" style="padding:2px 8px;border-radius:4px;border:1px solid var(--color-border-secondary);cursor:pointer;font-size:13px;background:var(--color-background-primary);color:var(--color-text-secondary);font-family:inherit">Auto</button>
+        <div id="theming">
+          <button id="theme-btn" style="padding:2px 8px;border-radius:4px;border:1px solid var(--color-border-secondary);cursor:pointer;font-size:13px;background:var(--color-background-primary);color:var(--color-text-secondary);font-family:inherit">Auto</button>
+        </div>
       </div>
     </div>
     <p style="font-size:14px;color:var(--color-text-secondary);margin-top:0;margin-bottom:16px">
@@ -354,15 +366,22 @@ app.innerHTML = `
     </nav>
 
     <h2 id="full-table" style="font-size:16px;font-weight:600;margin-top:24px;margin-bottom:4px;scroll-margin-top:56px">Full-featured table</h2>
-    <p style="font-size:14px;color:var(--color-text-secondary);margin-top:0;margin-bottom:16px">
+    <p style="font-size:14px;color:var(--color-text-secondary);margin-top:0;margin-bottom:4px">
       Every feature together: sort, filter, group, aggregate, column reordering, i18n, dark mode.
       Try dragging a column header, or grouping by Department.
+    </p>
+    <p style="font-size:12px;color:var(--color-text-secondary);margin-top:0;margin-bottom:16px">
+      📖 ${docLink('column-reordering', 'Column reordering')} ·
+      ${docLink('multi-value-array-columns', 'Multi-value columns')} ·
+      ${docLink('computed-columns', 'Computed columns')} ·
+      ${docLink('cell-customization', 'Cell customization')}
     </p>
     <div id="table1"></div>
 
     <h2 id="row-selection" style="font-size:16px;font-weight:600;margin-top:40px;margin-bottom:4px;scroll-margin-top:56px">Row selection</h2>
     <p style="font-size:14px;color:var(--color-text-secondary);margin-top:0;margin-bottom:16px">
       Pass <code>selectable</code> to show checkboxes; <code>onSelectionChange</code> receives the updated array.
+      ${docLink('row-selection', '📖 Docs')}
     </p>
     <div id="selection-banner" style="display:none;align-items:center;gap:12px;padding:8px 12px;margin-bottom:12px;
       background:var(--color-background-info);border:0.5px solid var(--color-border-info);
@@ -383,6 +402,7 @@ app.innerHTML = `
       <code>persistViewToLocalStorage</code> saves sort/filter/group/etc. across reloads;
       <code>syncViewToUrl</code> reflects them in the URL — reload the page or use "Copy share link"
       and open it in a new tab.
+      ${docLink('view-persistence--sharing', '📖 Docs')}
     </p>
     <button id="copy-link-btn" style="padding:5px 12px;border-radius:6px;border:0.5px solid var(--color-border-secondary);
       background:none;cursor:pointer;font-size:13px;font-family:inherit;margin-bottom:12px">Copy share link</button>
@@ -437,7 +457,6 @@ function updateActiveSection() {
   }
   setActiveNavLink(active)
 }
-updateActiveSection()
 window.addEventListener('scroll', updateActiveSection, { passive: true })
 
 // ---- Locale switcher ----
@@ -600,3 +619,9 @@ document.getElementById('add-row-btn')!.addEventListener('click', () => {
   ]
   table3.setData(dynamicData)
 })
+
+// All tables are populated by this point, so the page has its real (final) height —
+// safe to run the initial scrollspy check now (see the scrollspy block above: running it
+// earlier, while the table containers are still empty, made the page look shorter than the
+// viewport and falsely triggered the "at the bottom of the page" fallback).
+updateActiveSection()

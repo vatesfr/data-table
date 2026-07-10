@@ -49,6 +49,8 @@ CSS is injected automatically into `<head>` on the first `createDataTable` call.
 
 ## Theming
 
+▶ [Try it in the demo](https://vatesfr.github.io/data-table/vanilla/#theming)
+
 All colors are CSS custom properties. Dark mode activates automatically when the OS preference is dark. You can force a theme by setting `data-theme` on any ancestor element (typically `<html>`):
 
 ```js
@@ -84,6 +86,8 @@ To override individual tokens, define the custom property in your own stylesheet
 
 ## Cell customization
 
+▶ [Try it in the demo](https://vatesfr.github.io/data-table/vanilla/#full-table)
+
 Cell output is string-only. Use `col.format(value, row)` to control what is rendered — the second argument gives access to the rest of the row for cross-field conditional formatting:
 
 ```ts
@@ -94,6 +98,8 @@ Cell output is string-only. Use `col.format(value, row)` to control what is rend
 For richer DOM output (icons, interactive elements), post-process the container after `setData`.
 
 ## Multi-value (array) columns
+
+▶ [Try it in the demo](https://vatesfr.github.io/data-table/vanilla/#full-table)
 
 A column whose cell value is an array — tags, genres, categories — is detected automatically, no flag required:
 
@@ -126,6 +132,8 @@ createDataTable(container, { data, columns: COLUMNS, rowKey: 'id' })
 
 ## Computed columns
 
+▶ [Try it in the demo](https://vatesfr.github.io/data-table/vanilla/#full-table)
+
 A column doesn't need a matching property on `TRow` — set `value` to a function to compute the cell value from the whole row. Sorting, filtering, grouping, and aggregation all work off the computed value, same as a regular column.
 
 ```ts
@@ -150,6 +158,8 @@ const COLUMNS: ColumnDef<Employee>[] = [
 
 ## Row selection
 
+▶ [Try it in the demo](https://vatesfr.github.io/data-table/vanilla/#row-selection)
+
 Pass `selectable` to show a checkbox column. The header checkbox selects/deselects the full filtered dataset (all pages at once). Group header checkboxes select/deselect all rows in that group. Both support indeterminate state.
 
 ```ts
@@ -165,6 +175,8 @@ const table = createDataTable(container, {
 Selection uses object identity, so it persists across sort/filter changes as long as row references are stable.
 
 ## Column reordering
+
+▶ [Try it in the demo](https://vatesfr.github.io/data-table/vanilla/#full-table)
 
 Drag a column header to reorder it, or use the ▲▼ buttons next to each column in the Columns panel — both work out of the box, no extra options required. Order is tracked independently of visibility, so hiding and re-showing a column keeps its place. It's included in `getViewState()`/`setViewState()` (as `columnOrder`) for persistence and sharing.
 
@@ -211,6 +223,8 @@ interface ColumnDef<TRow extends object> {
 
 ## View persistence & sharing
 
+▶ [Try it in the demo](https://vatesfr.github.io/data-table/vanilla/#persisted-table)
+
 `getViewState()`/`setViewState()` capture and apply a serializable snapshot of sort, filters, groups, page, etc. — everything except selection, which is identity-based and not meaningful to persist or share. Two opt-in helpers wire this up to `localStorage` and the URL:
 
 ```ts
@@ -234,6 +248,8 @@ unsync()
 To persist a view somewhere else (e.g. a backend), call `getViewState()`/`setViewState(view)`/`onViewChange(cb)` directly — the two helpers above work with any object shaped like that, so `table` (or anything else with that shape) can be passed in.
 
 ## i18n
+
+▶ [Try it in the demo](https://vatesfr.github.io/data-table/vanilla/#i18n)
 
 Use a built-in locale or supply any `Partial<DataTableLabels>` overrides (shallow-merged over English defaults):
 
