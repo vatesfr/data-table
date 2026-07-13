@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Filter dropdown redesigned as a searchable master-detail panel — left pane lists all filterable columns, right pane shows the selected column's controls — replacing the old single stacked checklist that didn't scale to high-cardinality columns
+- Per-value row counts shown in filter checklists, computed as facets over every other active filter
+- Year › Month › Day filter tree for date columns, replacing a min/max range
+- Filter checklist value sorting (alphabetical/count, ascending/descending)
+- Column reordering via drag-and-drop on headers and ▲▼ buttons in the Columns panel
+- `DataTableView` (React/Vue): render layer split out from `DataTable` so external code (e.g. `usePersistedView`/`useUrlView`, or a fully custom layout) can access the underlying `useTableState` value directly
+
+### Fixed
+
+- Dark theme contrast improved across the vanilla, React, and Vue adapters
+- Vue: aggregate row no longer renders when no grouping is active
+
+### Changed
+
+- Theme palette single-sourced in core and shared by vanilla, React, and Vue
+
+### Internal
+
+- npm publish switched to trusted publishing (OIDC)
+- Demo docs cross-linked and reorganized (sticky nav, Row click/Aggregation docs, locale switcher fix)
+
 ## [0.1.0] - 2026-07-09
 
 ### Added
