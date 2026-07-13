@@ -71,16 +71,16 @@ To override individual tokens, define the custom property in your own stylesheet
 | Token                          | Light     | Dark      |
 | ------------------------------ | --------- | --------- |
 | `--color-background-primary`   | `#ffffff` | `#141413` |
-| `--color-background-secondary` | `#f7f6f3` | `#1e1d1b` |
+| `--color-background-secondary` | `#f7f6f3` | `#2b2a26` |
 | `--color-background-info`      | `#e6f1fb` | `#0d2640` |
 | `--color-background-warning`   | `#faeeda` | `#2a1900` |
 | `--color-text-primary`         | `#1a1916` | `#e8e7e4` |
 | `--color-text-secondary`       | `#6b6a66` | `#9b9a96` |
-| `--color-text-tertiary`        | `#9b9a96` | `#6b6a66` |
+| `--color-text-tertiary`        | `#9b9a96` | `#86847e` |
 | `--color-text-info`            | `#185fa5` | `#5b9fe0` |
 | `--color-text-warning`         | `#854f0b` | `#e8a040` |
-| `--color-border-secondary`     | `#dddcd8` | `#333230` |
-| `--color-border-tertiary`      | `#eeedea` | `#252422` |
+| `--color-border-secondary`     | `#dddcd8` | `#504d46` |
+| `--color-border-tertiary`      | `#eeedea` | `#333029` |
 | `--color-border-info`          | `#b8d6f5` | `#1a4070` |
 | `--color-border-warning`       | `#f0d4a8` | `#4a2c00` |
 
