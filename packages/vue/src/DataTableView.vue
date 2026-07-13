@@ -11,6 +11,7 @@ import {
   getValueSortIcon,
   getDateSortIcon,
   computeDateTree,
+  selectRange,
   type GroupResult,
   type ValueSort,
 } from '@vates/data-table-core'
@@ -70,6 +71,7 @@ const {
   toggleSort,
   toggleFilter,
   toggleFilterAll,
+  setFilterValues,
   setRangeFilter,
   clearColumnFilter,
   toggleGroup,
@@ -118,7 +120,19 @@ const filterableCols = computed(() => props.columns.filter((c) => c.filterable !
 const groupableCols = computed(() => props.columns.filter((c) => c.groupable === true))
 const filterActiveCol = ref<string | null>(null)
 const filterSearchTerms = ref<Record<string, string>>({})
+const filterSelectionAnchor = ref<Record<string, string>>({})
 const filterValueSort = ref<Record<string, ValueSort>>({})
+
+function onFilterValueClick(col: ColumnDef<TRow>, value: string, event: MouseEvent) {
+  const anchor = filterSelectionAnchor.value[col.key]
+  if (event.shiftKey && anchor != null) {
+    const shouldSelect = !(filters.value[col.key]?.has(value) ?? false)
+    setFilterValues(col.key, selectRange(filteredValuesFor(col), anchor, value), shouldSelect)
+  } else {
+    toggleFilter(col.key, value)
+  }
+  filterSelectionAnchor.value = { ...filterSelectionAnchor.value, [col.key]: value }
+}
 const filterActiveKey = computed(
   () =>
     (filterActiveCol.value && filterableCols.value.some((c) => c.key === filterActiveCol.value)
@@ -448,7 +462,7 @@ function onColDragEnd(): void {
                     <input
                       type="checkbox"
                       :checked="filters[filterDetailCol.key]?.has(v) ?? false"
-                      @change="toggleFilter(filterDetailCol.key, v)"
+                      @click="onFilterValueClick(filterDetailCol, v, $event)"
                     />
                     <!--
                       Slot #filter-{key} — custom label in the filter dropdown.
@@ -674,7 +688,7 @@ function onColDragEnd(): void {
                   <input
                     type="checkbox"
                     :checked="selection.has(row)"
-                    @change="toggleRowSelection(row)"
+                    @click="toggleRowSelection(row, $event.shiftKey)"
                   />
                 </td>
                 <td v-if="group.key !== null" class="dt__td" style="width: 28px" />

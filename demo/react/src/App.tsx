@@ -716,7 +716,8 @@ export default function App() {
         }}
       >
         Pass <code>selectable</code> to show checkboxes; <code>onSelectionChange</code> receives the
-        updated array of selected rows. <DocLink anchor="row-selection">📖 Docs</DocLink>
+        updated array of selected rows. Shift-click a checkbox to select (or deselect) the whole
+        range since the last-clicked row. <DocLink anchor="row-selection">📖 Docs</DocLink>
       </p>
       {selected.length > 0 && (
         <div

@@ -107,6 +107,29 @@ describe('useTableState — row selection', () => {
     clearSelection()
     expect(selectedRows.value).toEqual([])
   })
+
+  it('shift-click toggleRowSelection selects the range between the last click and the target', () => {
+    const { selectedRows, toggleRowSelection } = useTableState(ROWS, COLS)
+    toggleRowSelection(ROWS[0]) // anchor = Alice
+    toggleRowSelection(ROWS[2], true) // shift-click Clara
+    expect(selectedRows.value).toEqual([ROWS[0], ROWS[1], ROWS[2]])
+  })
+
+  it('shift-click deselects the range when the clicked row is already selected', () => {
+    const { selectedRows, toggleRowSelection, toggleSelectAll } = useTableState(ROWS, COLS)
+    toggleSelectAll(ROWS) // all four selected
+    toggleRowSelection(ROWS[0]) // anchor = Alice, now deselected
+    toggleRowSelection(ROWS[0]) // re-select Alice, anchor stays Alice
+    toggleRowSelection(ROWS[2], true) // shift-click already-selected Clara
+    // Clara was selected, so the whole range [Alice, Bob, Clara] gets deselected; David stays.
+    expect(selectedRows.value).toEqual([ROWS[3]])
+  })
+
+  it('shift-click with no prior anchor falls back to a plain toggle', () => {
+    const { selectedRows, toggleRowSelection } = useTableState(ROWS, COLS)
+    toggleRowSelection(ROWS[2], true)
+    expect(selectedRows.value).toEqual([ROWS[2]])
+  })
 })
 
 describe('useTableState — column visibility', () => {
@@ -248,6 +271,24 @@ describe('useTableState — toggleFilterAll', () => {
     expect(filters.value['name']?.has('Clara')).toBe(true)
     expect(filters.value['name']?.has('Alice')).toBe(true)
     expect(filters.value['name']?.has('Bob')).toBe(true)
+  })
+})
+
+describe('useTableState — setFilterValues', () => {
+  it('adds the given values unconditionally when selected is true', () => {
+    const { filters, setFilterValues } = useTableState(ROWS, COLS)
+    setFilterValues('name', ['Alice', 'Bob'], true)
+    expect(filters.value['name']?.has('Alice')).toBe(true)
+    expect(filters.value['name']?.has('Bob')).toBe(true)
+  })
+
+  it('removes the given values unconditionally when selected is false', () => {
+    const { filters, setFilterValues } = useTableState(ROWS, COLS)
+    setFilterValues('name', ['Alice', 'Bob', 'Clara'], true)
+    setFilterValues('name', ['Alice', 'Bob'], false)
+    expect(filters.value['name']?.has('Alice')).toBe(false)
+    expect(filters.value['name']?.has('Bob')).toBe(false)
+    expect(filters.value['name']?.has('Clara')).toBe(true)
   })
 })
 

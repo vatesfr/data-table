@@ -644,7 +644,8 @@ function copyShareLink() {
       }"
     >
       Pass <code>selectable</code> to show checkboxes; listen to <code>@selection-change</code> for
-      the updated rows array. <span v-html="docLink('row-selection', '📖 Docs')" />
+      the updated rows array. Shift-click a checkbox to select (or deselect) the whole range since
+      the last-clicked row. <span v-html="docLink('row-selection', '📖 Docs')" />
     </p>
     <div
       v-if="selected.length > 0"

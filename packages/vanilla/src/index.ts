@@ -18,6 +18,8 @@ import {
   toggleSort as coreToggleSort,
   toggleFilter as coreToggleFilter,
   toggleFilterAll as coreToggleFilterAll,
+  setFilterValues as coreSetFilterValues,
+  selectRange,
   toggleGroupBy,
   toggleCollapse,
   getOrderedColumns,
@@ -98,9 +100,11 @@ export function createDataTable<TRow extends object>(
   let visibleCols = new Set<string>(options.defaultVisibleColumns ?? columns.map((c) => c.key))
   let columnOrder: string[] = []
   let selection = new Set<TRow>()
+  let selectionAnchor: TRow | null = null
   let openDropdown: string | null = null
   let filterActiveCol: string | null = null
   let filterSearchTerms: Record<string, string> = {}
+  let filterSelectionAnchor: Record<string, string> = {}
   let filterValueSort: Record<string, ValueSort> = {}
   let expandedDateNodes: Record<string, Set<string>> = {}
   let searchQuery = ''
@@ -669,11 +673,24 @@ export function createDataTable<TRow extends object>(
         viewChanged = true
         break
       }
-      case 'toggle-filter':
-        filters = coreToggleFilter(filters, key, value)
+      case 'toggle-filter': {
+        const anchor = filterSelectionAnchor[key]
+        if (e.shiftKey && anchor != null) {
+          const shouldSelect = !(filters[key]?.has(value) ?? false)
+          filters = coreSetFilterValues(
+            filters,
+            key,
+            selectRange(_filterDetailValues, anchor, value),
+            shouldSelect,
+          )
+        } else {
+          filters = coreToggleFilter(filters, key, value)
+        }
+        filterSelectionAnchor = { ...filterSelectionAnchor, [key]: value }
         page = 1
         viewChanged = true
         break
+      }
       case 'toggle-filter-all':
         filters = coreToggleFilterAll(filters, key, _filterDetailValues)
         page = 1
@@ -770,9 +787,18 @@ export function createDataTable<TRow extends object>(
         if (procIdx >= 0 && procIdx < _processedData.length) {
           const row = _processedData[procIdx]
           const next = new Set(selection)
-          if (next.has(row)) next.delete(row)
-          else next.add(row)
+          if (e.shiftKey && selectionAnchor) {
+            const shouldSelect = !next.has(row)
+            const range = selectRange(_processedData, selectionAnchor, row)
+            if (shouldSelect) range.forEach((r) => next.add(r))
+            else range.forEach((r) => next.delete(r))
+          } else if (next.has(row)) {
+            next.delete(row)
+          } else {
+            next.add(row)
+          }
           selection = next
+          selectionAnchor = row
           selectionChanged = true
         }
         break

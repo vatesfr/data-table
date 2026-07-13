@@ -355,6 +355,39 @@ export function toggleFilterAll(
   return { ...filters, [key]: next }
 }
 
+/**
+ * Sets `values` for `key` to `selected` unconditionally — unlike `toggleFilterAll`, which
+ * derives the direction itself from whether all of `values` are already selected. Backs
+ * shift-click range selection in the filter checklist, where the direction (select vs
+ * deselect) is instead decided by the clicked checkbox's own new state, so the whole range
+ * needs to move the same way regardless of the other values' prior state.
+ */
+export function setFilterValues(
+  filters: Record<string, Set<string>>,
+  key: string,
+  values: string[],
+  selected: boolean,
+): Record<string, Set<string>> {
+  const next = new Set(filters[key] ?? [])
+  if (selected) values.forEach((v) => next.add(v))
+  else values.forEach((v) => next.delete(v))
+  return { ...filters, [key]: next }
+}
+
+/**
+ * Returns the contiguous run of `items` between `anchor` and `target` (inclusive, in `items`'
+ * order), for shift-click range selection over a rendered list. Falls back to `[target]` alone
+ * if `anchor` isn't present in `items` — e.g. it scrolled out of the current page or got
+ * filtered/sorted out since it was set.
+ */
+export function selectRange<T>(items: T[], anchor: T, target: T): T[] {
+  const anchorIdx = items.indexOf(anchor)
+  if (anchorIdx === -1) return [target]
+  const targetIdx = items.indexOf(target)
+  const [start, end] = anchorIdx <= targetIdx ? [anchorIdx, targetIdx] : [targetIdx, anchorIdx]
+  return items.slice(start, end + 1)
+}
+
 export function toggleGroupBy(groupBy: string[], key: string): string[] {
   return groupBy.includes(key) ? groupBy.filter((k) => k !== key) : [...groupBy, key]
 }

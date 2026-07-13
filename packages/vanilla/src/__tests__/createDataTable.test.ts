@@ -44,6 +44,10 @@ function click(el: Element): void {
   el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
 }
 
+function shiftClick(el: Element): void {
+  el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, shiftKey: true }))
+}
+
 function setInput(el: HTMLInputElement, value: string): void {
   el.value = value
   el.dispatchEvent(new Event('input', { bubbles: true }))
@@ -453,6 +457,65 @@ describe('createDataTable', () => {
     }
   })
 
+  it('shift-clicking a filter value selects the range from the last-clicked value', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="filter"]')!)
+    click(
+      container.querySelector<HTMLElement>('[data-action="toggle-filter"][data-value="Alice"]')!,
+    )
+    shiftClick(
+      container.querySelector<HTMLElement>('[data-action="toggle-filter"][data-value="Clara"]')!,
+    )
+    expect(
+      container.querySelector<HTMLInputElement>(
+        '[data-action="toggle-filter"][data-value="Alice"]',
+      )!.checked,
+    ).toBe(true)
+    expect(
+      container.querySelector<HTMLInputElement>('[data-action="toggle-filter"][data-value="Bob"]')!
+        .checked,
+    ).toBe(true)
+    expect(
+      container.querySelector<HTMLInputElement>(
+        '[data-action="toggle-filter"][data-value="Clara"]',
+      )!.checked,
+    ).toBe(true)
+    expect(
+      container.querySelector<HTMLInputElement>(
+        '[data-action="toggle-filter"][data-value="David"]',
+      )!.checked,
+    ).toBe(false)
+  })
+
+  it('shift-clicking an already-selected filter value deselects the range', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="filter"]')!)
+    click(
+      container.querySelector<HTMLElement>('[data-action="toggle-filter-all"][data-key="name"]')!,
+    )
+    click(
+      container.querySelector<HTMLElement>('[data-action="toggle-filter"][data-value="Alice"]')!,
+    )
+    click(
+      container.querySelector<HTMLElement>('[data-action="toggle-filter"][data-value="Alice"]')!,
+    )
+    shiftClick(
+      container.querySelector<HTMLElement>('[data-action="toggle-filter"][data-value="Clara"]')!,
+    )
+    for (const name of ['Alice', 'Bob', 'Clara']) {
+      expect(
+        container.querySelector<HTMLInputElement>(
+          `[data-action="toggle-filter"][data-value="${name}"]`,
+        )!.checked,
+      ).toBe(false)
+    }
+    expect(
+      container.querySelector<HTMLInputElement>(
+        '[data-action="toggle-filter"][data-value="David"]',
+      )!.checked,
+    ).toBe(true)
+  })
+
   it('select-all checkbox only affects the search-narrowed values, not the full list', () => {
     createDataTable(container, { data: ROWS, columns: COLS })
     click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="filter"]')!)
@@ -776,6 +839,44 @@ describe('createDataTable', () => {
     click(container.querySelector<HTMLElement>('[data-action="select-all"]')!)
     click(container.querySelector<HTMLElement>('[data-action="select-all"]')!)
     expect(onChange).toHaveBeenLastCalledWith([])
+  })
+
+  it('shift-clicking a row selects the range from the last-clicked row', () => {
+    const onChange = vi.fn()
+    createDataTable(container, {
+      data: ROWS,
+      columns: COLS,
+      selectable: true,
+      onSelectionChange: onChange,
+    })
+    click(
+      container.querySelector<HTMLElement>('[data-action="toggle-row-select"][data-proc-idx="0"]')!,
+    )
+    shiftClick(
+      container.querySelector<HTMLElement>('[data-action="toggle-row-select"][data-proc-idx="2"]')!,
+    )
+    expect(onChange).toHaveBeenLastCalledWith([ROWS[0], ROWS[1], ROWS[2]])
+  })
+
+  it('shift-clicking an already-selected row deselects the range', () => {
+    const onChange = vi.fn()
+    createDataTable(container, {
+      data: ROWS,
+      columns: COLS,
+      selectable: true,
+      onSelectionChange: onChange,
+    })
+    click(container.querySelector<HTMLElement>('[data-action="select-all"]')!)
+    click(
+      container.querySelector<HTMLElement>('[data-action="toggle-row-select"][data-proc-idx="0"]')!,
+    )
+    click(
+      container.querySelector<HTMLElement>('[data-action="toggle-row-select"][data-proc-idx="0"]')!,
+    )
+    shiftClick(
+      container.querySelector<HTMLElement>('[data-action="toggle-row-select"][data-proc-idx="2"]')!,
+    )
+    expect(onChange).toHaveBeenLastCalledWith([ROWS[3]])
   })
 
   // --- row click ---

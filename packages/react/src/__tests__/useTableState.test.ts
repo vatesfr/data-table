@@ -133,6 +133,43 @@ describe('useTableState — row selection', () => {
     })
     expect(result.current.selectedRows).toEqual([])
   })
+
+  it('shift-click toggleRowSelection selects the range between the last click and the target', () => {
+    const { result } = renderHook(() => useTableState(ROWS, COLS))
+    act(() => {
+      result.current.toggleRowSelection(ROWS[0]) // anchor = Alice
+    })
+    act(() => {
+      result.current.toggleRowSelection(ROWS[2], true) // shift-click Clara
+    })
+    expect(result.current.selectedRows).toEqual([ROWS[0], ROWS[1], ROWS[2]])
+  })
+
+  it('shift-click deselects the range when the clicked row is already selected', () => {
+    const { result } = renderHook(() => useTableState(ROWS, COLS))
+    act(() => {
+      result.current.toggleSelectAll(ROWS) // all four selected
+    })
+    act(() => {
+      result.current.toggleRowSelection(ROWS[0]) // anchor = Alice, now deselected
+    })
+    act(() => {
+      result.current.toggleRowSelection(ROWS[0]) // re-select Alice, anchor stays Alice
+    })
+    act(() => {
+      result.current.toggleRowSelection(ROWS[2], true) // shift-click already-selected Clara
+    })
+    // Clara was selected, so the whole range [Alice, Bob, Clara] gets deselected; David stays.
+    expect(result.current.selectedRows).toEqual([ROWS[3]])
+  })
+
+  it('shift-click with no prior anchor falls back to a plain toggle', () => {
+    const { result } = renderHook(() => useTableState(ROWS, COLS))
+    act(() => {
+      result.current.toggleRowSelection(ROWS[2], true)
+    })
+    expect(result.current.selectedRows).toEqual([ROWS[2]])
+  })
 })
 
 describe('useTableState — column visibility', () => {
@@ -309,6 +346,30 @@ describe('useTableState — toggleFilterAll', () => {
     expect(result.current.filters['name']?.has('Clara')).toBe(true)
     expect(result.current.filters['name']?.has('Alice')).toBe(true)
     expect(result.current.filters['name']?.has('Bob')).toBe(true)
+  })
+})
+
+describe('useTableState — setFilterValues', () => {
+  it('adds the given values unconditionally when selected is true', () => {
+    const { result } = renderHook(() => useTableState(ROWS, COLS))
+    act(() => {
+      result.current.setFilterValues('name', ['Alice', 'Bob'], true)
+    })
+    expect(result.current.filters['name']?.has('Alice')).toBe(true)
+    expect(result.current.filters['name']?.has('Bob')).toBe(true)
+  })
+
+  it('removes the given values unconditionally when selected is false', () => {
+    const { result } = renderHook(() => useTableState(ROWS, COLS))
+    act(() => {
+      result.current.setFilterValues('name', ['Alice', 'Bob', 'Clara'], true)
+    })
+    act(() => {
+      result.current.setFilterValues('name', ['Alice', 'Bob'], false)
+    })
+    expect(result.current.filters['name']?.has('Alice')).toBe(false)
+    expect(result.current.filters['name']?.has('Bob')).toBe(false)
+    expect(result.current.filters['name']?.has('Clara')).toBe(true)
   })
 })
 

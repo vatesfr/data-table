@@ -383,6 +383,7 @@ app.innerHTML = `
     <h2 id="row-selection" style="font-size:16px;font-weight:600;margin-top:40px;margin-bottom:4px;scroll-margin-top:56px">Row selection</h2>
     <p style="font-size:14px;color:var(--color-text-secondary);margin-top:0;margin-bottom:16px">
       Pass <code>selectable</code> to show checkboxes; <code>onSelectionChange</code> receives the updated array.
+      Shift-click a checkbox to select (or deselect) the whole range since the last-clicked row.
       ${docLink('row-selection', '📖 Docs')}
     </p>
     <div id="selection-banner" style="display:none;align-items:center;gap:12px;padding:8px 12px;margin-bottom:12px;

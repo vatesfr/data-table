@@ -10,6 +10,8 @@ import {
   toggleSort as _toggleSort,
   toggleFilter as _toggleFilter,
   toggleFilterAll as _toggleFilterAll,
+  setFilterValues as _setFilterValues,
+  selectRange,
   toggleGroupBy,
   toggleCollapse,
   getOrderedColumns,
@@ -57,6 +59,7 @@ export function useTableState<TRow extends object>(
   const page = ref(1)
   const pageSize = ref(options.value.defaultPageSize ?? 0)
   const selection = shallowRef<Set<TRow>>(new Set())
+  const selectionAnchor = shallowRef<TRow | null>(null)
   const searchQuery = ref('')
 
   const stringValueMap = computed(() =>
@@ -158,6 +161,10 @@ export function useTableState<TRow extends object>(
       filters.value = _toggleFilterAll(filters.value, key, values)
       page.value = 1
     },
+    setFilterValues: (key: string, values: string[], selected: boolean) => {
+      filters.value = _setFilterValues(filters.value, key, values, selected)
+      page.value = 1
+    },
     setRangeFilter: (key: string, field: 'min' | 'max', value: string) => {
       rangeFilters.value = {
         ...rangeFilters.value,
@@ -213,11 +220,20 @@ export function useTableState<TRow extends object>(
     },
     getSortIcon: (key: string) => _getSortIcon(sorts.value, key),
     getSortIndex: (key: string) => _getSortIndex(sorts.value, key),
-    toggleRowSelection: (row: TRow) => {
+    toggleRowSelection: (row: TRow, shiftKey = false) => {
       const next = new Set(selection.value)
-      if (next.has(row)) next.delete(row)
-      else next.add(row)
+      if (shiftKey && selectionAnchor.value) {
+        const shouldSelect = !next.has(row)
+        const range = selectRange(processedData.value, selectionAnchor.value, row)
+        if (shouldSelect) range.forEach((r) => next.add(r))
+        else range.forEach((r) => next.delete(r))
+      } else if (next.has(row)) {
+        next.delete(row)
+      } else {
+        next.add(row)
+      }
       selection.value = next
+      selectionAnchor.value = row
     },
     toggleSelectAll: (rows: TRow[]) => {
       const next = new Set(selection.value)
@@ -228,6 +244,7 @@ export function useTableState<TRow extends object>(
     },
     clearSelection: () => {
       selection.value = new Set()
+      selectionAnchor.value = null
     },
     getViewState: (): TableViewState => {
       const view: TableViewState = {}

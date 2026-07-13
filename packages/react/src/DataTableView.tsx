@@ -12,6 +12,7 @@ import {
   computeDateTree,
   getDateTreeNodeState,
   sumDateTreeNodeCount,
+  selectRange,
   type DateTreeNode,
   type ValueSort,
 } from '@vates/data-table-core'
@@ -305,6 +306,7 @@ export function DataTableView<TRow extends object>({
   const [dragOverColKey, setDragOverColKey] = useState<string | null>(null)
   const [filterActiveCol, setFilterActiveCol] = useState<string | null>(null)
   const [filterSearchTerms, setFilterSearchTerms] = useState<Record<string, string>>({})
+  const [filterSelectionAnchor, setFilterSelectionAnchor] = useState<Record<string, string>>({})
   const [expandedDateNodes, setExpandedDateNodes] = useState<Record<string, Set<string>>>({})
   const [filterValueSort, setFilterValueSort] = useState<Record<string, ValueSort>>({})
 
@@ -335,6 +337,7 @@ export function DataTableView<TRow extends object>({
     toggleSort,
     toggleFilter,
     toggleFilterAll,
+    setFilterValues,
     setRangeFilter,
     toggleGroup,
     toggleGroupCollapse,
@@ -716,7 +719,22 @@ export function DataTableView<TRow extends object>({
                               <input
                                 type="checkbox"
                                 checked={filters[filterDetailCol.key]?.has(v) ?? false}
-                                onChange={() => toggleFilter(filterDetailCol.key, v)}
+                                readOnly
+                                onClick={(e) => {
+                                  const key = filterDetailCol.key
+                                  const anchor = filterSelectionAnchor[key]
+                                  if (e.shiftKey && anchor != null) {
+                                    const shouldSelect = !(filters[key]?.has(v) ?? false)
+                                    setFilterValues(
+                                      key,
+                                      selectRange(filterDetailValues, anchor, v),
+                                      shouldSelect,
+                                    )
+                                  } else {
+                                    toggleFilter(key, v)
+                                  }
+                                  setFilterSelectionAnchor({ ...filterSelectionAnchor, [key]: v })
+                                }}
                                 style={{ margin: 0 }}
                               />
                               <span style={{ flex: 1 }}>
@@ -1029,7 +1047,8 @@ export function DataTableView<TRow extends object>({
                           <input
                             type="checkbox"
                             checked={selection.has(row)}
-                            onChange={() => toggleRowSelection(row)}
+                            readOnly
+                            onClick={(e) => toggleRowSelection(row, e.shiftKey)}
                             style={{ margin: 0 }}
                           />
                         </td>

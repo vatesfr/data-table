@@ -236,6 +236,46 @@ describe('DataTable — filter dropdown', () => {
     expect(labels.some((t) => t.includes('Alice'))).toBe(true)
     expect(labels.some((t) => t.includes('Bob'))).toBe(false)
   })
+
+  it('shift-clicking a checklist value selects the range from the last-clicked value', () => {
+    const ROWS4: Row[] = [
+      { id: 1, name: 'Alice', score: 90 },
+      { id: 2, name: 'Bob', score: 60 },
+      { id: 3, name: 'Clara', score: 80 },
+      { id: 4, name: 'David', score: 70 },
+    ]
+    const { getByText, getByLabelText } = render(
+      <DataTable data={ROWS4} columns={FILTER_COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Filter'))
+    fireEvent.click(getByLabelText('Alice', { exact: false }))
+    fireEvent.click(getByLabelText('Clara', { exact: false }), { shiftKey: true })
+    expect((getByLabelText('Alice', { exact: false }) as HTMLInputElement).checked).toBe(true)
+    expect((getByLabelText('Bob', { exact: false }) as HTMLInputElement).checked).toBe(true)
+    expect((getByLabelText('Clara', { exact: false }) as HTMLInputElement).checked).toBe(true)
+    expect((getByLabelText('David', { exact: false }) as HTMLInputElement).checked).toBe(false)
+  })
+
+  it('shift-clicking an already-selected checklist value deselects the range', () => {
+    const ROWS4: Row[] = [
+      { id: 1, name: 'Alice', score: 90 },
+      { id: 2, name: 'Bob', score: 60 },
+      { id: 3, name: 'Clara', score: 80 },
+      { id: 4, name: 'David', score: 70 },
+    ]
+    const { getByText, getByLabelText } = render(
+      <DataTable data={ROWS4} columns={FILTER_COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Filter'))
+    fireEvent.click(getByLabelText('Select all'))
+    fireEvent.click(getByLabelText('Alice', { exact: false }))
+    fireEvent.click(getByLabelText('Alice', { exact: false }))
+    fireEvent.click(getByLabelText('Clara', { exact: false }), { shiftKey: true })
+    expect((getByLabelText('Alice', { exact: false }) as HTMLInputElement).checked).toBe(false)
+    expect((getByLabelText('Bob', { exact: false }) as HTMLInputElement).checked).toBe(false)
+    expect((getByLabelText('Clara', { exact: false }) as HTMLInputElement).checked).toBe(false)
+    expect((getByLabelText('David', { exact: false }) as HTMLInputElement).checked).toBe(true)
+  })
 })
 
 describe('DataTable — filter value sort', () => {

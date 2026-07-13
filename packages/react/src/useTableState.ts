@@ -10,6 +10,8 @@ import {
   toggleSort as _toggleSort,
   toggleFilter as _toggleFilter,
   toggleFilterAll as _toggleFilterAll,
+  setFilterValues as _setFilterValues,
+  selectRange,
   toggleGroupBy,
   toggleCollapse,
   getOrderedColumns,
@@ -49,6 +51,7 @@ export function useTableState<TRow extends object>(
   const [page, setPageState] = useState(1)
   const [pageSize, setPageSizeState] = useState(defaultPageSize ?? 0)
   const [selection, setSelection] = useState<Set<TRow>>(new Set())
+  const [selectionAnchor, setSelectionAnchor] = useState<TRow | null>(null)
   const [searchQuery, setSearchQueryState] = useState('')
 
   const stringValueMap = useMemo(
@@ -163,6 +166,10 @@ export function useTableState<TRow extends object>(
       setFilters((prev) => _toggleFilterAll(prev, key, values))
       setPageState(1)
     },
+    setFilterValues: (key: string, values: string[], selected: boolean) => {
+      setFilters((prev) => _setFilterValues(prev, key, values, selected))
+      setPageState(1)
+    },
     setRangeFilter: (key: string, field: 'min' | 'max', value: string) => {
       setRangeFilters((prev) => ({
         ...prev,
@@ -206,13 +213,23 @@ export function useTableState<TRow extends object>(
     },
     getSortIcon: (key: string) => _getSortIcon(sorts, key),
     getSortIndex: (key: string) => _getSortIndex(sorts, key),
-    toggleRowSelection: (row: TRow) =>
+    toggleRowSelection: (row: TRow, shiftKey = false) => {
       setSelection((prev) => {
         const next = new Set(prev)
-        if (next.has(row)) next.delete(row)
-        else next.add(row)
+        if (shiftKey && selectionAnchor) {
+          const shouldSelect = !next.has(row)
+          const range = selectRange(processedData, selectionAnchor, row)
+          if (shouldSelect) range.forEach((r) => next.add(r))
+          else range.forEach((r) => next.delete(r))
+        } else if (next.has(row)) {
+          next.delete(row)
+        } else {
+          next.add(row)
+        }
         return next
-      }),
+      })
+      setSelectionAnchor(row)
+    },
     toggleSelectAll: (rows: TRow[]) =>
       setSelection((prev) => {
         const next = new Set(prev)
@@ -221,7 +238,10 @@ export function useTableState<TRow extends object>(
         else rows.forEach((r) => next.add(r))
         return next
       }),
-    clearSelection: () => setSelection(new Set()),
+    clearSelection: () => {
+      setSelection(new Set())
+      setSelectionAnchor(null)
+    },
     getViewState: (): TableViewState => {
       const view: TableViewState = {}
       const allKeys = columns.map((c) => c.key)

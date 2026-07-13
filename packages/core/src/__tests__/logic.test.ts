@@ -18,6 +18,8 @@ import {
   toggleSort,
   toggleFilter,
   toggleFilterAll,
+  setFilterValues,
+  selectRange,
   toggleGroupBy,
   toggleCollapse,
   getSortIcon,
@@ -886,6 +888,61 @@ describe('toggleFilterAll', () => {
     const initial = { name: new Set(['Alice']) }
     const result = toggleFilterAll(initial, 'dept', ['Eng'])
     expect(result['name'].has('Alice')).toBe(true)
+  })
+})
+
+describe('setFilterValues', () => {
+  it('adds all given values when selected is true', () => {
+    const result = setFilterValues({}, 'dept', ['Eng', 'HR'], true)
+    expect([...result['dept']].sort()).toEqual(['Eng', 'HR'])
+  })
+
+  it('does not deselect values already selected when selected is true', () => {
+    const result = setFilterValues({ dept: new Set(['Eng', 'Sales']) }, 'dept', ['Eng', 'HR'], true)
+    expect([...result['dept']].sort()).toEqual(['Eng', 'HR', 'Sales'])
+  })
+
+  it('removes all given values when selected is false, regardless of prior state', () => {
+    const result = setFilterValues(
+      { dept: new Set(['Eng', 'HR', 'Sales']) },
+      'dept',
+      ['Eng', 'HR'],
+      false,
+    )
+    expect([...result['dept']]).toEqual(['Sales'])
+  })
+
+  it('preserves other keys', () => {
+    const initial = { name: new Set(['Alice']) }
+    const result = setFilterValues(initial, 'dept', ['Eng'], true)
+    expect(result['name'].has('Alice')).toBe(true)
+  })
+})
+
+// ─── selectRange ──────────────────────────────────────────────────────────────
+
+describe('selectRange', () => {
+  it('returns the inclusive run between anchor and target when anchor comes first', () => {
+    expect(selectRange(['a', 'b', 'c', 'd'], 'a', 'c')).toEqual(['a', 'b', 'c'])
+  })
+
+  it('returns the inclusive run in list order when target comes before anchor', () => {
+    expect(selectRange(['a', 'b', 'c', 'd'], 'c', 'a')).toEqual(['a', 'b', 'c'])
+  })
+
+  it('returns a single-item array when anchor and target are the same', () => {
+    expect(selectRange(['a', 'b', 'c'], 'b', 'b')).toEqual(['b'])
+  })
+
+  it('falls back to just the target when the anchor is not present in items', () => {
+    expect(selectRange(['a', 'b', 'c'], 'z', 'b')).toEqual(['b'])
+  })
+
+  it('works with object identity, not just primitives', () => {
+    const a = { id: 1 }
+    const b = { id: 2 }
+    const c = { id: 3 }
+    expect(selectRange([a, b, c], a, c)).toEqual([a, b, c])
   })
 })
 
