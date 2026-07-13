@@ -8,6 +8,7 @@
     "build": "vite build"
   },
   "dependencies": {
+    "@vates/data-table-core": "*",
     "@vates/data-table-react": "*",
     "react": "^18.3.0",
     "react-dom": "^18.3.0"

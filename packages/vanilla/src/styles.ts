@@ -1,8 +1,7 @@
+import { renderThemeCss } from '@vates/data-table-core'
+
 export const STYLES = `
-:root{--color-background-primary:#fff;--color-background-secondary:#f7f6f3;--color-background-info:#e6f1fb;--color-background-warning:#faeeda;--color-text-primary:#1a1916;--color-text-secondary:#6b6a66;--color-text-tertiary:#9b9a96;--color-text-info:#185fa5;--color-text-warning:#854f0b;--color-border-secondary:#dddcd8;--color-border-tertiary:#eeedea;--color-border-info:#b8d6f5;--color-border-warning:#f0d4a8}
-@media(prefers-color-scheme:dark){:root{--color-background-primary:#141413;--color-background-secondary:#2b2a26;--color-background-info:#0d2640;--color-background-warning:#2a1900;--color-text-primary:#e8e7e4;--color-text-secondary:#9b9a96;--color-text-tertiary:#86847e;--color-text-info:#5b9fe0;--color-text-warning:#e8a040;--color-border-secondary:#504d46;--color-border-tertiary:#333029;--color-border-info:#1a4070;--color-border-warning:#4a2c00}}
-[data-theme=dark]{--color-background-primary:#141413;--color-background-secondary:#2b2a26;--color-background-info:#0d2640;--color-background-warning:#2a1900;--color-text-primary:#e8e7e4;--color-text-secondary:#9b9a96;--color-text-tertiary:#86847e;--color-text-info:#5b9fe0;--color-text-warning:#e8a040;--color-border-secondary:#504d46;--color-border-tertiary:#333029;--color-border-info:#1a4070;--color-border-warning:#4a2c00}
-[data-theme=light]{--color-background-primary:#fff;--color-background-secondary:#f7f6f3;--color-background-info:#e6f1fb;--color-background-warning:#faeeda;--color-text-primary:#1a1916;--color-text-secondary:#6b6a66;--color-text-tertiary:#9b9a96;--color-text-info:#185fa5;--color-text-warning:#854f0b;--color-border-secondary:#dddcd8;--color-border-tertiary:#eeedea;--color-border-info:#b8d6f5;--color-border-warning:#f0d4a8}
+${renderThemeCss()}
 .dt{font-family:inherit;font-size:14px;color:var(--color-text-primary,#1a1916)}
 .dt-toolbar{display:flex;align-items:center;gap:8px;padding:12px 0;border-bottom:0.5px solid var(--color-border-tertiary,#eeedea);flex-wrap:wrap}
 .dt-stats{margin-left:auto;font-size:12px;color:var(--color-text-secondary,#6b6a66)}
