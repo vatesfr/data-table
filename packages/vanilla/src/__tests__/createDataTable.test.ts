@@ -695,6 +695,15 @@ describe('createDataTable', () => {
       el.textContent?.includes(text),
     )!
   }
+  // Day leaves have no `.dt-date-tree-toggle--branch` span (only year/month branches do), and
+  // their rendered text has the hidden facet count glued on with no separator (e.g. day "20"
+  // renders as "201"), so a plain substring match on a year like "2024" would also match "20" —
+  // filtering to leaf rows first disambiguates cleanly.
+  function dayNode(day: string): HTMLElement {
+    return [...container.querySelectorAll<HTMLElement>('.dt-date-tree-item')].find(
+      (el) => !el.querySelector('.dt-date-tree-toggle--branch') && el.textContent?.startsWith(day),
+    )!
+  }
 
   it('renders year nodes collapsed by default, with months hidden until expanded', () => {
     createDataTable(container, { data: DATE_ROWS, columns: DATE_COLS })
@@ -756,6 +765,47 @@ describe('createDataTable', () => {
     expect(container.querySelector('.dt-chip--filter')?.textContent).toContain(
       '2023-01-01, 2023-02-01, 2023-03-01, +1 more',
     )
+  })
+
+  it('shift-clicking two day nodes selects the range between them, not other years', () => {
+    const rows: GameRow[] = [
+      { id: 1, name: 'Game A', released: '2023-05-14' },
+      { id: 2, name: 'Game B', released: '2023-05-20' },
+      { id: 3, name: 'Game C', released: '2021-01-02' },
+      { id: 4, name: 'Game D', released: '2024-07-01' },
+    ]
+    createDataTable(container, { data: rows, columns: DATE_COLS })
+    openDateFilter()
+    click(dateNode('2023').querySelector('[data-action="toggle-date-expand"]')!)
+    click(dateNode('May').querySelector('[data-action="toggle-date-expand"]')!)
+    click(dayNode('14').querySelector('[data-action="toggle-date-node"]')!)
+    shiftClick(dayNode('20').querySelector('[data-action="toggle-date-node"]')!)
+    expect(container.innerHTML).toContain('Game A')
+    expect(container.innerHTML).toContain('Game B')
+    expect(container.innerHTML).not.toContain('Game C')
+    expect(container.innerHTML).not.toContain('Game D')
+  })
+
+  it('shift-clicking from a year down to a specific day does not pull in a later sibling day', () => {
+    const rows: GameRow[] = [
+      { id: 1, name: 'Game A', released: '2023-05-14' },
+      { id: 2, name: 'Game B', released: '2023-05-20' },
+      { id: 3, name: 'Game C', released: '2021-01-02' },
+      { id: 4, name: 'Game D', released: '2024-07-01' },
+    ]
+    createDataTable(container, { data: rows, columns: DATE_COLS })
+    openDateFilter()
+    click(dateNode('2023').querySelector('[data-action="toggle-date-expand"]')!)
+    click(dateNode('May').querySelector('[data-action="toggle-date-expand"]')!)
+    click(dateNode('2021').querySelector('[data-action="toggle-date-node"]')!)
+    shiftClick(dayNode('14').querySelector('[data-action="toggle-date-node"]')!)
+    // The range is a chronological interval (2021-01-02 through 2023-05-14), not a sweep over
+    // rendered rows — so day 20 (chronologically after the target) must stay excluded even
+    // though the "2023" year row sits between the anchor and the target.
+    expect(container.innerHTML).toContain('Game A')
+    expect(container.innerHTML).toContain('Game C')
+    expect(container.innerHTML).not.toContain('Game B')
+    expect(container.innerHTML).not.toContain('Game D')
   })
 
   // --- pagination ---

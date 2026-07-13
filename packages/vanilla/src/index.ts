@@ -32,6 +32,7 @@ import {
   getDateTreeNodeState,
   sumDateTreeNodeCount,
   findDateTreeNode,
+  selectDateRange,
   DEFAULT_LABELS,
   type SortEntry,
   type RangeFilter,
@@ -699,7 +700,16 @@ export function createDataTable<TRow extends object>(
       case 'toggle-date-node': {
         const node = findDateTreeNode(_filterDetailTree, path)
         if (node) {
-          filters = coreToggleFilterAll(filters, key, node.values)
+          const anchor = filterSelectionAnchor[key]
+          const anchorNode = anchor != null ? findDateTreeNode(_filterDetailTree, anchor) : null
+          const state = getDateTreeNodeState(node, filters[key] ?? new Set())
+          if (e.shiftKey && anchorNode) {
+            const values = selectDateRange(_filterDetailValues, anchorNode, node)
+            filters = coreSetFilterValues(filters, key, values, state !== 'checked')
+          } else {
+            filters = coreToggleFilterAll(filters, key, node.values)
+          }
+          filterSelectionAnchor = { ...filterSelectionAnchor, [key]: node.path }
           page = 1
           viewChanged = true
         }

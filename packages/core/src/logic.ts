@@ -317,6 +317,37 @@ export function findDateTreeNode(nodes: DateTreeNode[], path: string): DateTreeN
   return undefined
 }
 
+/**
+ * Shift-click range selection over the date tree, computed as a chronological interval rather
+ * than over the tree's rendered rows. The tree's year/month/day grouping is purely a *display*
+ * concern — ranging is a flat-list operation underneath it, exactly like the plain checklist,
+ * just re-expressed in terms of dates instead of list positions. Using rendered-row order instead
+ * (crossing a branch row includes that whole branch) would be wrong: ranging from `2023-02` to
+ * `2024-06` must select everything chronologically between those two months, but never `2024-07`
+ * — even though the `2024` year row sits "between" them if the tree happens to be expanded that
+ * far. `anchorNode`/`targetNode` can be a leaf (day) or a branch (year/month); the interval spans
+ * the earliest to latest raw value across both nodes' own `values`, and every value in `allValues`
+ * that falls inside it (by parsed date, not string order, matching `computeDateTree`'s own
+ * parsing) is returned — values that don't parse as dates are excluded, same as they'd never
+ * match a chronological interval in the first place.
+ */
+export function selectDateRange(
+  allValues: string[],
+  anchorNode: DateTreeNode,
+  targetNode: DateTreeNode,
+): string[] {
+  const bounds = [...anchorNode.values, ...targetNode.values]
+    .map((v) => new Date(v).getTime())
+    .filter((t) => !isNaN(t))
+  if (bounds.length === 0) return []
+  const start = Math.min(...bounds)
+  const end = Math.max(...bounds)
+  return allValues.filter((v) => {
+    const t = new Date(v).getTime()
+    return !isNaN(t) && t >= start && t <= end
+  })
+}
+
 export function toggleSort(sorts: SortEntry[], key: string): SortEntry[] {
   const existing = sorts.find((s) => s.key === key)
   if (!existing) return [...sorts, { key, dir: 'asc' }]

@@ -402,6 +402,19 @@ describe('DataTable — date filter tree', () => {
     return label.querySelector('span')!
   }
 
+  // Day leaves render an empty arrow span (unlike year/month branches, which show ▶/▼), and
+  // their visible day text has the hidden facet count digit glued onto it with no separator
+  // (e.g. day "14" with a count of 1 renders as "141") — so an exact getByLabelText match never
+  // works and a substring match collides with any year string containing the same digits (e.g.
+  // "20" inside "2024"). Filtering to leaf rows first disambiguates cleanly.
+  function dayCheckbox(container: HTMLElement, day: string): HTMLInputElement {
+    const label = [...container.querySelectorAll('label')].find((l) => {
+      const arrowText = l.querySelector('span')?.textContent ?? ''
+      return arrowText === '' && l.textContent?.startsWith(day)
+    })!
+    return label.querySelector('input[type="checkbox"]') as HTMLInputElement
+  }
+
   it('renders year nodes collapsed by default, with months hidden until expanded', () => {
     const { getByText, queryByText } = render(
       <DataTable data={DATE_ROWS} columns={DATE_COLS} rowKey="id" />,
@@ -469,6 +482,51 @@ describe('DataTable — date filter tree', () => {
     fireEvent.click(getByText('Filter'))
     fireEvent.click(getByLabelText('2023', { exact: false }))
     expect(container.textContent).toContain('2023-01-01, 2023-02-01, 2023-03-01, +1 more')
+  })
+
+  it('shift-clicking two day nodes selects the range between them, not other years', () => {
+    const rows: GameRow[] = [
+      { id: 1, name: 'Game A', released: '2023-05-14' },
+      { id: 2, name: 'Game B', released: '2023-05-20' },
+      { id: 3, name: 'Game C', released: '2021-01-02' },
+      { id: 4, name: 'Game D', released: '2024-07-01' },
+    ]
+    const { getByText, container, queryByText } = render(
+      <DataTable data={rows} columns={DATE_COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Filter'))
+    fireEvent.click(toggleFor(container, '2023'))
+    fireEvent.click(toggleFor(container, 'May'))
+    fireEvent.click(dayCheckbox(container, '14'))
+    fireEvent.click(dayCheckbox(container, '20'), { shiftKey: true })
+    expect(getByText('Game A')).toBeTruthy()
+    expect(getByText('Game B')).toBeTruthy()
+    expect(queryByText('Game C')).toBeNull()
+    expect(queryByText('Game D')).toBeNull()
+  })
+
+  it('shift-clicking from a year down to a specific day does not pull in a later sibling day', () => {
+    const rows: GameRow[] = [
+      { id: 1, name: 'Game A', released: '2023-05-14' },
+      { id: 2, name: 'Game B', released: '2023-05-20' },
+      { id: 3, name: 'Game C', released: '2021-01-02' },
+      { id: 4, name: 'Game D', released: '2024-07-01' },
+    ]
+    const { getByText, getByLabelText, container, queryByText } = render(
+      <DataTable data={rows} columns={DATE_COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Filter'))
+    fireEvent.click(toggleFor(container, '2023'))
+    fireEvent.click(toggleFor(container, 'May'))
+    fireEvent.click(getByLabelText('2021', { exact: false }))
+    fireEvent.click(dayCheckbox(container, '14'), { shiftKey: true })
+    // The range is a chronological interval (2021-01-02 through 2023-05-14), not a sweep over
+    // rendered rows — so day 20 (chronologically after the target) must stay excluded even
+    // though the "2023" year row sits between the anchor and the target.
+    expect(getByText('Game A')).toBeTruthy()
+    expect(getByText('Game C')).toBeTruthy()
+    expect(queryByText('Game B')).toBeNull()
+    expect(queryByText('Game D')).toBeNull()
   })
 })
 

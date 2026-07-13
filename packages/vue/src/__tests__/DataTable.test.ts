@@ -390,6 +390,18 @@ describe('DataTable — date filter tree', () => {
     return wrapper.findAll('.dt__date-tree-item').find((el) => el.text().includes(text))!
   }
 
+  // Day leaves have no `.dt__date-tree-toggle--branch` span (only year/month branches do), and
+  // their rendered text has the hidden facet count glued on with no separator (e.g. day "20"
+  // renders as "201"), so a plain substring match on a year like "2024" would also match "20" —
+  // filtering to leaf rows first disambiguates cleanly.
+  function dayTreeItem(wrapper: ReturnType<typeof mount>, day: string) {
+    return wrapper
+      .findAll('.dt__date-tree-item')
+      .find(
+        (el) => !el.find('.dt__date-tree-toggle--branch').exists() && el.text().startsWith(day),
+      )!
+  }
+
   it('renders year nodes collapsed by default, with months hidden until expanded', async () => {
     const wrapper = mount(DataTable, {
       props: { data: DATE_ROWS, columns: DATE_COLS, rowKey: 'id' },
@@ -420,7 +432,7 @@ describe('DataTable — date filter tree', () => {
     })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
-    await treeItem(wrapper, '2023').find('input[type="checkbox"]').trigger('change')
+    await treeItem(wrapper, '2023').find('input[type="checkbox"]').trigger('click')
     expect(wrapper.text()).toContain('Game A')
     expect(wrapper.text()).toContain('Game B')
     expect(wrapper.text()).not.toContain('Game C')
@@ -433,8 +445,8 @@ describe('DataTable — date filter tree', () => {
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
     const yearCheckbox = treeItem(wrapper, '2023').find('input[type="checkbox"]')
-    await yearCheckbox.trigger('change')
-    await yearCheckbox.trigger('change')
+    await yearCheckbox.trigger('click')
+    await yearCheckbox.trigger('click')
     expect(wrapper.text()).toContain('Game C')
   })
 
@@ -446,7 +458,7 @@ describe('DataTable — date filter tree', () => {
     await filterBtn.trigger('click')
     await treeItem(wrapper, '2023').find('.dt__date-tree-toggle--branch').trigger('click')
     await treeItem(wrapper, 'May').find('.dt__date-tree-toggle--branch').trigger('click')
-    await treeItem(wrapper, '14').find('input[type="checkbox"]').trigger('change')
+    await treeItem(wrapper, '14').find('input[type="checkbox"]').trigger('click')
     const monthCheckbox = treeItem(wrapper, 'May').find('input[type="checkbox"]')
       .element as HTMLInputElement
     expect(monthCheckbox.indeterminate).toBe(true)
@@ -462,10 +474,57 @@ describe('DataTable — date filter tree', () => {
     const wrapper = mount(DataTable, { props: { data: rows, columns: DATE_COLS, rowKey: 'id' } })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
-    await treeItem(wrapper, '2023').find('input[type="checkbox"]').trigger('change')
+    await treeItem(wrapper, '2023').find('input[type="checkbox"]').trigger('click')
     expect(wrapper.find('.dt__chip--info').text()).toContain(
       '2023-01-01, 2023-02-01, 2023-03-01, +1 more',
     )
+  })
+
+  it('shift-clicking two day nodes selects the range between them, not other years', async () => {
+    const rows: GameRow[] = [
+      { id: 1, name: 'Game A', released: '2023-05-14' },
+      { id: 2, name: 'Game B', released: '2023-05-20' },
+      { id: 3, name: 'Game C', released: '2021-01-02' },
+      { id: 4, name: 'Game D', released: '2024-07-01' },
+    ]
+    const wrapper = mount(DataTable, { props: { data: rows, columns: DATE_COLS, rowKey: 'id' } })
+    const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
+    await filterBtn.trigger('click')
+    await treeItem(wrapper, '2023').find('.dt__date-tree-toggle--branch').trigger('click')
+    await treeItem(wrapper, 'May').find('.dt__date-tree-toggle--branch').trigger('click')
+    await dayTreeItem(wrapper, '14').find('input[type="checkbox"]').trigger('click')
+    await dayTreeItem(wrapper, '20')
+      .find('input[type="checkbox"]')
+      .trigger('click', { shiftKey: true })
+    expect(wrapper.text()).toContain('Game A')
+    expect(wrapper.text()).toContain('Game B')
+    expect(wrapper.text()).not.toContain('Game C')
+    expect(wrapper.text()).not.toContain('Game D')
+  })
+
+  it('shift-clicking from a year down to a specific day does not pull in a later sibling day', async () => {
+    const rows: GameRow[] = [
+      { id: 1, name: 'Game A', released: '2023-05-14' },
+      { id: 2, name: 'Game B', released: '2023-05-20' },
+      { id: 3, name: 'Game C', released: '2021-01-02' },
+      { id: 4, name: 'Game D', released: '2024-07-01' },
+    ]
+    const wrapper = mount(DataTable, { props: { data: rows, columns: DATE_COLS, rowKey: 'id' } })
+    const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
+    await filterBtn.trigger('click')
+    await treeItem(wrapper, '2023').find('.dt__date-tree-toggle--branch').trigger('click')
+    await treeItem(wrapper, 'May').find('.dt__date-tree-toggle--branch').trigger('click')
+    await treeItem(wrapper, '2021').find('input[type="checkbox"]').trigger('click')
+    await dayTreeItem(wrapper, '14')
+      .find('input[type="checkbox"]')
+      .trigger('click', { shiftKey: true })
+    // The range is a chronological interval (2021-01-02 through 2023-05-14), not a sweep over
+    // rendered rows — so day 20 (chronologically after the target) must stay excluded even
+    // though the "2023" year row sits between the anchor and the target.
+    expect(wrapper.text()).toContain('Game A')
+    expect(wrapper.text()).toContain('Game C')
+    expect(wrapper.text()).not.toContain('Game B')
+    expect(wrapper.text()).not.toContain('Game D')
   })
 })
 

@@ -12,6 +12,8 @@ import {
   computeDateTree,
   getDateTreeNodeState,
   sumDateTreeNodeCount,
+  findDateTreeNode,
+  selectDateRange,
   selectRange,
   type DateTreeNode,
   type ValueSort,
@@ -464,10 +466,22 @@ export function DataTableView<TRow extends object>({
             <input
               type="checkbox"
               checked={state === 'checked'}
+              readOnly
               ref={(el) => {
                 if (el) el.indeterminate = state === 'indeterminate'
               }}
-              onChange={() => toggleFilterAll(colKey, node.values)}
+              onClick={(e) => {
+                const anchor = filterSelectionAnchor[colKey]
+                const anchorNode =
+                  anchor != null ? findDateTreeNode(filterDetailTree, anchor) : null
+                if (e.shiftKey && anchorNode) {
+                  const values = selectDateRange(filterDetailValues, anchorNode, node)
+                  setFilterValues(colKey, values, state !== 'checked')
+                } else {
+                  toggleFilterAll(colKey, node.values)
+                }
+                setFilterSelectionAnchor({ ...filterSelectionAnchor, [colKey]: node.path })
+              }}
               style={{ margin: 0 }}
             />
             <span style={{ flex: 1 }}>{label}</span>

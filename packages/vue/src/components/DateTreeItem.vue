@@ -19,7 +19,7 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  toggleNode: [values: string[]]
+  toggleNode: [node: DateTreeNode, event: MouseEvent]
   toggleExpand: [path: string]
 }>()
 
@@ -63,7 +63,7 @@ function label(node: DateTreeNode): string {
         type="checkbox"
         v-indeterminate="getDateTreeNodeState(node, selected) === 'indeterminate'"
         :checked="getDateTreeNodeState(node, selected) === 'checked'"
-        @change="emit('toggleNode', node.values)"
+        @click="emit('toggleNode', node, $event)"
       />
       <span class="dt__flex1">{{ label(node) }}</span>
       <span class="dt__filter-count">{{ sumDateTreeNodeCount(node, counts) }}</span>
@@ -76,7 +76,7 @@ function label(node: DateTreeNode): string {
       :counts="counts"
       :expanded="expanded"
       :search-active="searchActive"
-      @toggle-node="(v) => emit('toggleNode', v)"
+      @toggle-node="(n, e) => emit('toggleNode', n, e)"
       @toggle-expand="(p) => emit('toggleExpand', p)"
     />
   </div>

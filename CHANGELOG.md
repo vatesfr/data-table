@@ -14,7 +14,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - Year › Month › Day filter tree for date columns, replacing a min/max range
 - Filter checklist value sorting (alphabetical/count, ascending/descending)
 - Column reordering via drag-and-drop on headers and ▲▼ buttons in the Columns panel
-- Shift-click range selection for table rows and filter checklist values — extends or shrinks the selection between the last-clicked item and the shift-clicked one
+- Shift-click range selection for table rows, filter checklist values, and the date filter tree — extends or shrinks the selection between the last-clicked item and the shift-clicked one
 - `DataTableView` (React/Vue): render layer split out from `DataTable` so external code (e.g. `usePersistedView`/`useUrlView`, or a fully custom layout) can access the underlying `useTableState` value directly
 
 ### Fixed

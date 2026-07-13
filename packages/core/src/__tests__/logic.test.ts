@@ -20,6 +20,7 @@ import {
   toggleFilterAll,
   setFilterValues,
   selectRange,
+  selectDateRange,
   toggleGroupBy,
   toggleCollapse,
   getSortIcon,
@@ -756,6 +757,61 @@ describe('findDateTreeNode', () => {
 
   it('returns undefined for an unknown path', () => {
     expect(findDateTreeNode(tree, '1999-01-01')).toBeUndefined()
+  })
+})
+
+describe('selectDateRange', () => {
+  const values = [
+    '2021-01-02',
+    '2023-02-10',
+    '2023-05-14',
+    '2023-05-20',
+    '2023-06-01',
+    '2024-06-15',
+    '2024-07-01',
+  ]
+  const tree = computeDateTree(values)
+  const node = (path: string) => findDateTreeNode(tree, path)!
+
+  it('selects the leaf values between two day nodes', () => {
+    const result = selectDateRange(values, node('2023-05-14'), node('2023-05-20'))
+    expect(result.sort()).toEqual(['2023-05-14', '2023-05-20'])
+  })
+
+  it('selects every value chronologically between two month nodes, excluding a later sibling month', () => {
+    // Regression: ranging 2023-02 → 2024-06 must not pull in 2024-07 just because the "2024"
+    // year row would sit visually between them if the tree were rendered/expanded — the range
+    // is a chronological interval, not a sweep over rendered rows.
+    const result = selectDateRange(values, node('2023-02'), node('2024-06'))
+    expect(result.sort()).toEqual([
+      '2023-02-10',
+      '2023-05-14',
+      '2023-05-20',
+      '2023-06-01',
+      '2024-06-15',
+    ])
+  })
+
+  it('is order-independent — clicking the later node first gives the same interval', () => {
+    const result = selectDateRange(values, node('2024-06'), node('2023-02'))
+    expect(result.sort()).toEqual([
+      '2023-02-10',
+      '2023-05-14',
+      '2023-05-20',
+      '2023-06-01',
+      '2024-06-15',
+    ])
+  })
+
+  it('spans a full year when one endpoint is a year node', () => {
+    const result = selectDateRange(values, node('2021'), node('2023-05'))
+    expect(result.sort()).toEqual(['2021-01-02', '2023-02-10', '2023-05-14', '2023-05-20'])
+  })
+
+  it('excludes values that fall outside the interval', () => {
+    const result = selectDateRange(values, node('2023-05-14'), node('2023-05-20'))
+    expect(result).not.toContain('2024-07-01')
+    expect(result).not.toContain('2021-01-02')
   })
 })
 

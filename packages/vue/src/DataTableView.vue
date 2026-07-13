@@ -11,8 +11,12 @@ import {
   getValueSortIcon,
   getDateSortIcon,
   computeDateTree,
+  getDateTreeNodeState,
+  findDateTreeNode,
+  selectDateRange,
   selectRange,
   type GroupResult,
+  type DateTreeNode,
   type ValueSort,
 } from '@vates/data-table-core'
 import type { ColumnDef, DataTableViewProps } from './types'
@@ -213,6 +217,19 @@ function toggleDateNodeExpand(colKey: string, path: string): void {
   if (next.has(path)) next.delete(path)
   else next.add(path)
   expandedDateNodes.value = { ...expandedDateNodes.value, [colKey]: next }
+}
+function onDateNodeClick(col: ColumnDef<TRow>, node: DateTreeNode, event: MouseEvent): void {
+  const key = col.key
+  const anchor = filterSelectionAnchor.value[key]
+  const anchorNode = anchor != null ? findDateTreeNode(filterDetailTree.value, anchor) : null
+  const state = getDateTreeNodeState(node, filters.value[key] ?? new Set())
+  if (event.shiftKey && anchorNode) {
+    const values = selectDateRange(filteredValuesFor(col), anchorNode, node)
+    setFilterValues(key, values, state !== 'checked')
+  } else {
+    toggleFilterAll(key, node.values)
+  }
+  filterSelectionAnchor.value = { ...filterSelectionAnchor.value, [key]: node.path }
 }
 const hasActiveState = computed(
   () =>
@@ -450,7 +467,7 @@ function onColDragEnd(): void {
                   :counts="stringValueCounts[filterDetailCol.key] ?? new Map()"
                   :expanded="expandedDateNodes[filterDetailCol.key] ?? new Set()"
                   :search-active="isDateSearchActive(filterDetailCol)"
-                  @toggle-node="(values) => toggleFilterAll(filterDetailCol!.key, values)"
+                  @toggle-node="(node, event) => onDateNodeClick(filterDetailCol!, node, event)"
                   @toggle-expand="(path) => toggleDateNodeExpand(filterDetailCol!.key, path)"
                 />
                 <template v-else>
