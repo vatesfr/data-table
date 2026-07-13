@@ -10,6 +10,12 @@ export interface RangeFilter {
   max: string
 }
 
+/** Sort applied to a filter checklist's values: `by` picks the basis, `dir` the direction. */
+export interface ValueSort {
+  by: 'alpha' | 'count'
+  dir: SortDir
+}
+
 export type AggregateType = 'sum' | 'count' | 'avg' | 'min' | 'max'
 
 export interface ColumnDefBase<TRow extends object = Record<string, unknown>> {
@@ -69,6 +75,8 @@ export interface DataTableLabels {
   filter: string
   filterSearchPlaceholder: string
   selectAll: string
+  /** Title/aria-label for the button that cycles a filter checklist's value sort order */
+  sortValues: string
   min: string
   max: string
   clearFilters: string

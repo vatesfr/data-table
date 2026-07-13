@@ -238,6 +238,107 @@ describe('DataTable — filter dropdown', () => {
   })
 })
 
+describe('DataTable — filter value sort', () => {
+  interface TagRow {
+    id: number
+    name: string
+    tags: string[]
+  }
+  const TAG_COLS: ColumnDef<TagRow>[] = [
+    { key: 'name', label: 'Name', filterable: false },
+    { key: 'tags', label: 'Tags', filterable: true },
+  ]
+  // Action=2, Adventure=1, RPG=1
+  const TAG_ROWS: TagRow[] = [
+    { id: 1, name: 'Game A', tags: ['Action', 'RPG'] },
+    { id: 2, name: 'Game B', tags: ['Action', 'Adventure'] },
+  ]
+
+  function checklistValueOrder(container: HTMLElement): string[] {
+    return [...container.querySelectorAll('label')]
+      .map((l) => l.textContent?.match(/^[A-Za-z]+/)?.[0])
+      .filter((v): v is string => !!v)
+  }
+
+  it('sorts checklist values alphabetically ascending by default', () => {
+    const { getByText, container } = render(
+      <DataTable data={TAG_ROWS} columns={TAG_COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Filter'))
+    expect(checklistValueOrder(container)).toEqual(['Action', 'Adventure', 'RPG'])
+  })
+
+  it('cycles to alphabetical descending on the first click', () => {
+    const { getByText, getByLabelText, container } = render(
+      <DataTable data={TAG_ROWS} columns={TAG_COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Filter'))
+    fireEvent.click(getByLabelText('Sort values'))
+    expect(checklistValueOrder(container)).toEqual(['RPG', 'Adventure', 'Action'])
+  })
+
+  it('cycles to count descending (tie-broken alphabetically) on the second click', () => {
+    const { getByText, getByLabelText, container } = render(
+      <DataTable data={TAG_ROWS} columns={TAG_COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Filter'))
+    fireEvent.click(getByLabelText('Sort values'))
+    fireEvent.click(getByLabelText('Sort values'))
+    expect(checklistValueOrder(container)).toEqual(['Action', 'Adventure', 'RPG'])
+  })
+
+  it('cycles to count ascending (tie-broken alphabetically) on the third click', () => {
+    const { getByText, getByLabelText, container } = render(
+      <DataTable data={TAG_ROWS} columns={TAG_COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Filter'))
+    fireEvent.click(getByLabelText('Sort values'))
+    fireEvent.click(getByLabelText('Sort values'))
+    fireEvent.click(getByLabelText('Sort values'))
+    expect(checklistValueOrder(container)).toEqual(['Adventure', 'RPG', 'Action'])
+  })
+
+  it('cycles back to alphabetical ascending on the fourth click', () => {
+    const { getByText, getByLabelText, container } = render(
+      <DataTable data={TAG_ROWS} columns={TAG_COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Filter'))
+    fireEvent.click(getByLabelText('Sort values'))
+    fireEvent.click(getByLabelText('Sort values'))
+    fireEvent.click(getByLabelText('Sort values'))
+    fireEvent.click(getByLabelText('Sort values'))
+    expect(checklistValueOrder(container)).toEqual(['Action', 'Adventure', 'RPG'])
+  })
+
+  it('toggles the date tree between chronologically ascending and descending', () => {
+    interface GameRow {
+      id: number
+      name: string
+      released: string
+    }
+    const DATE_COLS: ColumnDef<GameRow>[] = [
+      { key: 'name', label: 'Name', filterable: false },
+      { key: 'released', label: 'Released', type: 'date', filterable: true },
+    ]
+    const DATE_ROWS: GameRow[] = [
+      { id: 1, name: 'Game A', released: '2023-05-14' },
+      { id: 2, name: 'Game C', released: '2021-01-02' },
+    ]
+    function yearOrder(container: HTMLElement): string[] {
+      return [...container.querySelectorAll('label')]
+        .map((l) => l.textContent?.match(/\d{4}/)?.[0])
+        .filter((v): v is string => !!v)
+    }
+    const { getByText, getByLabelText, container } = render(
+      <DataTable data={DATE_ROWS} columns={DATE_COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Filter'))
+    expect(yearOrder(container)).toEqual(['2021', '2023'])
+    fireEvent.click(getByLabelText('Sort values'))
+    expect(yearOrder(container)).toEqual(['2023', '2021'])
+  })
+})
+
 describe('DataTable — date filter tree', () => {
   interface GameRow {
     id: number

@@ -24,7 +24,7 @@ A flexible, fully-typed data table for React, Vue 3, and vanilla JS — with sor
 ## Features
 
 - Multi-column sort
-- Value checklist filters (with per-column search-to-narrow and select-all), numeric range filters, and a Year/Month/Day tree filter for date columns
+- Value checklist filters (with per-column search-to-narrow, select-all, and alphabetical/count sort order), numeric range filters, and a Year/Month/Day tree filter for date columns (sortable ascending/descending)
 - Column visibility toggle and reordering (drag headers, or ▲▼ buttons in the Columns panel)
 - Row grouping (grouped column hides from the table automatically)
 - Row selection with checkboxes — select all (across pages), group selection, indeterminate state

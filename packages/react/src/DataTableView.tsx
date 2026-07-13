@@ -4,10 +4,16 @@ import {
   getColumnValue,
   filterValuesBySearch,
   filterValuesByCount,
+  sortFilterValues,
+  cycleValueSort,
+  toggleSortDir,
+  getValueSortIcon,
+  getDateSortIcon,
   computeDateTree,
   getDateTreeNodeState,
   sumDateTreeNodeCount,
   type DateTreeNode,
+  type ValueSort,
 } from '@vates/data-table-core'
 import { Dropdown } from './components/Dropdown'
 import { ToolbarBtn } from './components/ToolbarBtn'
@@ -242,6 +248,18 @@ const S = {
     flexShrink: 0,
     margin: 0,
   } as CSSProperties,
+  valueSortBtn: {
+    flexShrink: 0,
+    padding: '4px 7px',
+    fontSize: 11,
+    background: 'none',
+    border: '0.5px solid var(--color-border-secondary)',
+    borderRadius: 6,
+    cursor: 'pointer',
+    color: 'var(--color-text-secondary)',
+    fontFamily: 'inherit',
+    whiteSpace: 'nowrap',
+  } as CSSProperties,
   dateTreeToggle: {
     width: 14,
     flexShrink: 0,
@@ -254,6 +272,8 @@ const S = {
 function asRecord(row: object): Record<string, unknown> {
   return row as Record<string, unknown>
 }
+
+const DEFAULT_VALUE_SORT: ValueSort = { by: 'alpha', dir: 'asc' }
 
 /**
  * Renders the built-in table UI for a `useTableState` result you own yourself — the same
@@ -286,6 +306,7 @@ export function DataTableView<TRow extends object>({
   const [filterActiveCol, setFilterActiveCol] = useState<string | null>(null)
   const [filterSearchTerms, setFilterSearchTerms] = useState<Record<string, string>>({})
   const [expandedDateNodes, setExpandedDateNodes] = useState<Record<string, Set<string>>>({})
+  const [filterValueSort, setFilterValueSort] = useState<Record<string, ValueSort>>({})
 
   const {
     visibleCols,
@@ -362,15 +383,28 @@ export function DataTableView<TRow extends object>({
       ? filterActiveCol
       : (filterableCols[0]?.key ?? null)
   const filterDetailCol = filterableCols.find((c) => c.key === filterActiveKey) ?? null
+  const valueSortFor = (key: string) => filterValueSort[key] ?? DEFAULT_VALUE_SORT
+  const cycleFilterValueSort = (col: ColumnDef<TRow>) => {
+    const current = valueSortFor(col.key)
+    const next =
+      col.type === 'date'
+        ? { ...current, dir: toggleSortDir(current.dir) }
+        : cycleValueSort(current)
+    setFilterValueSort({ ...filterValueSort, [col.key]: next })
+  }
   const filterDetailValues =
     filterDetailCol && filterDetailCol.type !== 'number'
-      ? filterValuesByCount(
-          filterValuesBySearch(
-            stringValueMap[filterDetailCol.key] ?? [],
-            filterSearchTerms[filterDetailCol.key] ?? '',
+      ? sortFilterValues(
+          filterValuesByCount(
+            filterValuesBySearch(
+              stringValueMap[filterDetailCol.key] ?? [],
+              filterSearchTerms[filterDetailCol.key] ?? '',
+            ),
+            stringValueCounts[filterDetailCol.key] ?? new Map(),
+            filters[filterDetailCol.key] ?? new Set(),
           ),
           stringValueCounts[filterDetailCol.key] ?? new Map(),
-          filters[filterDetailCol.key] ?? new Set(),
+          valueSortFor(filterDetailCol.key),
         )
       : []
   const filterSelectedCount = filterDetailCol
@@ -386,7 +420,7 @@ export function DataTableView<TRow extends object>({
 
   const filterDetailTree =
     filterDetailCol && filterDetailCol.type === 'date'
-      ? computeDateTree(filterDetailValues, L.emptyValue)
+      ? computeDateTree(filterDetailValues, L.emptyValue, valueSortFor(filterDetailCol.key).dir)
       : []
   const isDateNodeExpanded = (colKey: string, path: string, searchActive: boolean) =>
     searchActive || (expandedDateNodes[colKey]?.has(path) ?? false)
@@ -663,6 +697,17 @@ export function DataTableView<TRow extends object>({
                           }
                           style={S.ddSearch}
                         />
+                        <button
+                          type="button"
+                          onClick={() => cycleFilterValueSort(filterDetailCol)}
+                          title={L.sortValues}
+                          aria-label={L.sortValues}
+                          style={S.valueSortBtn}
+                        >
+                          {filterDetailCol.type === 'date'
+                            ? getDateSortIcon(valueSortFor(filterDetailCol.key).dir)
+                            : getValueSortIcon(valueSortFor(filterDetailCol.key))}
+                        </button>
                       </div>
                       {filterDetailCol.type === 'date'
                         ? renderDateTreeNodes(filterDetailTree, filterDetailCol.key, 0)

@@ -130,12 +130,13 @@ createDataTable(container, { data, columns: COLUMNS, rowKey: 'id' })
 - A row with an empty array (`tags: []`) is bucketed under a labeled placeholder — `(none)` by default, customizable via the `emptyValue` label — instead of a blank checklist entry or an unlabeled group.
 - Cells without a custom `format` display the array joined with `, `.
 - Every checklist item (array-valued columns and plain string columns alike) shows how many rows currently match it — helpful for scanning a high-cardinality column like `tags` before picking a value. The count is faceted: it reflects every other active filter, but not the checklist's own column, so selecting a value elsewhere narrows the counts shown here without a value's own selection state affecting its neighbors. A value with a count of 0 is dropped from the checklist entirely — unless it's already selected, in which case it stays listed so it can still be unticked.
+- A sort-order button next to the search input cycles the checklist between alphabetical (A→Z / Z→A) and by-count (high→low / low→high) order — default is alphabetical ascending.
 
 ## Date filter tree
 
 ▶ [Try it in the demo](https://vatesfr.github.io/data-table/vanilla/#full-table)
 
-`type: 'date'` columns get a Year › Month › Day checkbox tree in the filter dropdown instead of a checklist or numeric range. Check a year or month to select every date under it in one click, or drill into individual days; the search box and per-value row counts work the same as for string columns. Values that don't parse as dates are grouped under the `emptyValue` label rather than dropped.
+`type: 'date'` columns get a Year › Month › Day checkbox tree in the filter dropdown instead of a checklist or numeric range. Check a year or month to select every date under it in one click, or drill into individual days; the search box and per-value row counts work the same as for string columns. The same sort-order button toggles the tree's chronological order (ascending/descending) instead — there's no by-count order for a tree of grouped branches. Values that don't parse as dates are grouped under the `emptyValue` label rather than dropped.
 
 ```ts
 { key: 'joined', label: 'Joined', type: 'date' }

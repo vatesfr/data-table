@@ -234,6 +234,104 @@ describe('DataTable — filter dropdown', () => {
   })
 })
 
+describe('DataTable — filter value sort', () => {
+  interface TagRow {
+    id: number
+    name: string
+    tags: string[]
+  }
+  const TAG_COLS: ColumnDef<TagRow>[] = [
+    { key: 'name', label: 'Name', filterable: false },
+    { key: 'tags', label: 'Tags', filterable: true },
+  ]
+  // Action=2, Adventure=1, RPG=1
+  const TAG_ROWS: TagRow[] = [
+    { id: 1, name: 'Game A', tags: ['Action', 'RPG'] },
+    { id: 2, name: 'Game B', tags: ['Action', 'Adventure'] },
+  ]
+
+  function checklistValueOrder(wrapper: ReturnType<typeof mount>): string[] {
+    return wrapper
+      .findAll('.dt__dd-item')
+      .map((el) => el.text().match(/^[A-Za-z]+/)?.[0])
+      .filter((v): v is string => !!v)
+  }
+
+  async function openTagsFilter(wrapper: ReturnType<typeof mount>) {
+    const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
+    await filterBtn.trigger('click')
+  }
+
+  it('sorts checklist values alphabetically ascending by default', async () => {
+    const wrapper = mount(DataTable, { props: { data: TAG_ROWS, columns: TAG_COLS, rowKey: 'id' } })
+    await openTagsFilter(wrapper)
+    expect(checklistValueOrder(wrapper)).toEqual(['Action', 'Adventure', 'RPG'])
+  })
+
+  it('cycles to alphabetical descending on the first click', async () => {
+    const wrapper = mount(DataTable, { props: { data: TAG_ROWS, columns: TAG_COLS, rowKey: 'id' } })
+    await openTagsFilter(wrapper)
+    await wrapper.find('.dt__value-sort-btn').trigger('click')
+    expect(checklistValueOrder(wrapper)).toEqual(['RPG', 'Adventure', 'Action'])
+  })
+
+  it('cycles to count descending (tie-broken alphabetically) on the second click', async () => {
+    const wrapper = mount(DataTable, { props: { data: TAG_ROWS, columns: TAG_COLS, rowKey: 'id' } })
+    await openTagsFilter(wrapper)
+    await wrapper.find('.dt__value-sort-btn').trigger('click')
+    await wrapper.find('.dt__value-sort-btn').trigger('click')
+    expect(checklistValueOrder(wrapper)).toEqual(['Action', 'Adventure', 'RPG'])
+  })
+
+  it('cycles to count ascending (tie-broken alphabetically) on the third click', async () => {
+    const wrapper = mount(DataTable, { props: { data: TAG_ROWS, columns: TAG_COLS, rowKey: 'id' } })
+    await openTagsFilter(wrapper)
+    await wrapper.find('.dt__value-sort-btn').trigger('click')
+    await wrapper.find('.dt__value-sort-btn').trigger('click')
+    await wrapper.find('.dt__value-sort-btn').trigger('click')
+    expect(checklistValueOrder(wrapper)).toEqual(['Adventure', 'RPG', 'Action'])
+  })
+
+  it('cycles back to alphabetical ascending on the fourth click', async () => {
+    const wrapper = mount(DataTable, { props: { data: TAG_ROWS, columns: TAG_COLS, rowKey: 'id' } })
+    await openTagsFilter(wrapper)
+    await wrapper.find('.dt__value-sort-btn').trigger('click')
+    await wrapper.find('.dt__value-sort-btn').trigger('click')
+    await wrapper.find('.dt__value-sort-btn').trigger('click')
+    await wrapper.find('.dt__value-sort-btn').trigger('click')
+    expect(checklistValueOrder(wrapper)).toEqual(['Action', 'Adventure', 'RPG'])
+  })
+
+  it('toggles the date tree between chronologically ascending and descending', async () => {
+    interface GameRow {
+      id: number
+      name: string
+      released: string
+    }
+    const DATE_COLS: ColumnDef<GameRow>[] = [
+      { key: 'name', label: 'Name', filterable: false },
+      { key: 'released', label: 'Released', type: 'date', filterable: true },
+    ]
+    const DATE_ROWS: GameRow[] = [
+      { id: 1, name: 'Game A', released: '2023-05-14' },
+      { id: 2, name: 'Game C', released: '2021-01-02' },
+    ]
+    function yearOrder(wrapper: ReturnType<typeof mount>): string[] {
+      return wrapper
+        .findAll('.dt__date-tree-item')
+        .map((el) => el.text().match(/\d{4}/)?.[0])
+        .filter((v): v is string => !!v)
+    }
+    const wrapper = mount(DataTable, {
+      props: { data: DATE_ROWS, columns: DATE_COLS, rowKey: 'id' },
+    })
+    await openTagsFilter(wrapper)
+    expect(yearOrder(wrapper)).toEqual(['2021', '2023'])
+    await wrapper.find('.dt__value-sort-btn').trigger('click')
+    expect(yearOrder(wrapper)).toEqual(['2023', '2021'])
+  })
+})
+
 describe('DataTable — date filter tree', () => {
   interface GameRow {
     id: number

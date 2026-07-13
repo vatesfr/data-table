@@ -505,6 +505,80 @@ describe('createDataTable', () => {
     expect(container.querySelector('[data-action="filter-search"][data-key="name"]')).not.toBeNull()
   })
 
+  // --- filter value sort ---
+
+  function tagValues(): (string | undefined)[] {
+    return [...container.querySelectorAll<HTMLInputElement>('[data-action="toggle-filter"]')].map(
+      (el) => el.dataset.value,
+    )
+  }
+  function clickValueSort(key: string): void {
+    click(
+      container.querySelector<HTMLElement>(`[data-action="toggle-value-sort"][data-key="${key}"]`)!,
+    )
+  }
+
+  it('checklist values are sorted alphabetically ascending by default', () => {
+    createDataTable(container, { data: GAMES, columns: GAME_COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="filter"]')!)
+    expect(tagValues()).toEqual(['Action', 'Adventure', 'RPG'])
+  })
+
+  it('cycles to alphabetical descending on the first click', () => {
+    createDataTable(container, { data: GAMES, columns: GAME_COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="filter"]')!)
+    clickValueSort('tags')
+    expect(tagValues()).toEqual(['RPG', 'Adventure', 'Action'])
+  })
+
+  it('cycles to count descending (tie-broken alphabetically) on the second click', () => {
+    createDataTable(container, { data: GAMES, columns: GAME_COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="filter"]')!)
+    clickValueSort('tags')
+    clickValueSort('tags')
+    // Action=2, Adventure=1, RPG=1 (tie broken alphabetically)
+    expect(tagValues()).toEqual(['Action', 'Adventure', 'RPG'])
+  })
+
+  it('cycles to count ascending (tie-broken alphabetically) on the third click', () => {
+    createDataTable(container, { data: GAMES, columns: GAME_COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="filter"]')!)
+    clickValueSort('tags')
+    clickValueSort('tags')
+    clickValueSort('tags')
+    // Adventure=1, RPG=1 (tie broken alphabetically), Action=2
+    expect(tagValues()).toEqual(['Adventure', 'RPG', 'Action'])
+  })
+
+  it('cycles back to alphabetical ascending on the fourth click', () => {
+    createDataTable(container, { data: GAMES, columns: GAME_COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="filter"]')!)
+    clickValueSort('tags')
+    clickValueSort('tags')
+    clickValueSort('tags')
+    clickValueSort('tags')
+    expect(tagValues()).toEqual(['Action', 'Adventure', 'RPG'])
+  })
+
+  it('date tree years are chronologically ascending by default', () => {
+    createDataTable(container, { data: DATE_ROWS, columns: DATE_COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="filter"]')!)
+    const years = [
+      ...container.querySelectorAll<HTMLInputElement>('[data-action="toggle-date-node"]'),
+    ].map((el) => el.dataset.path)
+    expect(years).toEqual(['2021', '2023'])
+  })
+
+  it('toggles the date tree to chronologically descending', () => {
+    createDataTable(container, { data: DATE_ROWS, columns: DATE_COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="filter"]')!)
+    clickValueSort('released')
+    const years = [
+      ...container.querySelectorAll<HTMLInputElement>('[data-action="toggle-date-node"]'),
+    ].map((el) => el.dataset.path)
+    expect(years).toEqual(['2023', '2021'])
+  })
+
   // --- range filter ---
 
   it('min range filter keeps only rows at or above the threshold', () => {

@@ -67,6 +67,7 @@ export const STYLES = `
 .dt-filter-search-row{display:flex;align-items:center;gap:6px;margin:2px 12px 6px}
 .dt-dd-search{flex:1;padding:5px 8px;font-size:12px;border:0.5px solid var(--color-border-secondary,#dddcd8);border-radius:6px;background:transparent;color:inherit;font-family:inherit;box-sizing:border-box}
 .dt-filter-select-all{flex-shrink:0;margin:0}
+.dt-value-sort-btn{flex-shrink:0;padding:4px 7px;font-size:11px;background:none;border:0.5px solid var(--color-border-secondary,#dddcd8);border-radius:6px;cursor:pointer;color:var(--color-text-secondary,#6b6a66);font-family:inherit;white-space:nowrap}
 .dt-date-tree-item{display:flex;align-items:center;gap:8px;padding:5px 14px;font-size:13px;color:var(--color-text-primary,#1a1916);cursor:pointer}
 .dt-date-tree-toggle{width:14px;flex-shrink:0;text-align:center;font-size:10px;color:var(--color-text-tertiary,#9b9a96)}
 .dt-date-tree-toggle--branch{cursor:pointer}

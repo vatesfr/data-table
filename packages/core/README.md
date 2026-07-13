@@ -13,6 +13,7 @@ ColumnDefBase<TRow extends object>  // column definition (key, label, type, valu
 GroupResult<TRow extends object>    // { key, keyParts, rows } — one entry per group from groupData
 SortEntry                           // { key: string; dir: 'asc' | 'desc' }
 RangeFilter                         // { min: string; max: string }
+ValueSort                           // { by: 'alpha' | 'count'; dir: 'asc' | 'desc' } — a filter checklist's value sort order
 DataTableLabels                     // all UI strings + 4 pluralization functions + emptyValue
 TableViewState                      // serializable snapshot of visibleCols/columnOrder/sorts/filters/rangeFilters/groupBy/collapsedGroups/page/pageSize/searchQuery (not selection)
 DEFAULT_LABELS                      // English defaults (alias for LABELS_EN)
@@ -36,6 +37,11 @@ toggleSort(sorts, key) // cycle asc → desc → off
 toggleFilter(filters, key, value) // toggle a checklist value
 filterValuesBySearch(values, term) // narrow a checklist's values by a case-insensitive substring
 toggleFilterAll(filters, key, values) // select all given values if any is unselected, else deselect all of them
+sortFilterValues(values, counts, sort) // reorder a filter checklist's values by ValueSort (alphabetical or by facet count, asc/desc)
+cycleValueSort(sort) // advance a ValueSort: alpha-asc → alpha-desc → count-desc → count-asc → alpha-asc
+toggleSortDir(dir) // flip 'asc' | 'desc' (used for the date tree's own asc/desc toggle)
+getValueSortIcon(sort) // compact icon for a ValueSort, e.g. 'ABC ↑' or '# ↓'
+getDateSortIcon(dir) // compact icon for a date tree's sort direction, '↑' | '↓'
 toggleGroupBy(groupBy, key) // add/remove a group key
 toggleCollapse(collapsed, key) // toggle a collapsed group
 getOrderedColumns(columns, order) // sort columns per an order array of keys; columns missing from order are appended at the end

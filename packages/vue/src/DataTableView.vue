@@ -5,8 +5,14 @@ import {
   getColumnValue,
   filterValuesBySearch,
   filterValuesByCount,
+  sortFilterValues,
+  cycleValueSort,
+  toggleSortDir,
+  getValueSortIcon,
+  getDateSortIcon,
   computeDateTree,
   type GroupResult,
+  type ValueSort,
 } from '@vates/data-table-core'
 import type { ColumnDef, DataTableViewProps } from './types'
 import Dropdown from './components/Dropdown.vue'
@@ -106,10 +112,13 @@ function isGroupSomeSelected(rows: TRow[]) {
   return rows.some((r) => selection.value.has(r)) && !isGroupAllSelected(rows)
 }
 
+const DEFAULT_VALUE_SORT: ValueSort = { by: 'alpha', dir: 'asc' }
+
 const filterableCols = computed(() => props.columns.filter((c) => c.filterable !== false))
 const groupableCols = computed(() => props.columns.filter((c) => c.groupable === true))
 const filterActiveCol = ref<string | null>(null)
 const filterSearchTerms = ref<Record<string, string>>({})
+const filterValueSort = ref<Record<string, ValueSort>>({})
 const filterActiveKey = computed(
   () =>
     (filterActiveCol.value && filterableCols.value.some((c) => c.key === filterActiveCol.value)
@@ -126,14 +135,27 @@ function hasActiveColFilter(col: ColumnDef<TRow>): boolean {
   }
   return (filters.value[col.key]?.size ?? 0) > 0
 }
+function valueSortFor(key: string): ValueSort {
+  return filterValueSort.value[key] ?? DEFAULT_VALUE_SORT
+}
+function cycleFilterValueSort(col: ColumnDef<TRow>): void {
+  const current = valueSortFor(col.key)
+  const next =
+    col.type === 'date' ? { ...current, dir: toggleSortDir(current.dir) } : cycleValueSort(current)
+  filterValueSort.value = { ...filterValueSort.value, [col.key]: next }
+}
 function filteredValuesFor(col: ColumnDef<TRow>): string[] {
-  return filterValuesByCount(
-    filterValuesBySearch(
-      stringValueMap.value[col.key] ?? [],
-      filterSearchTerms.value[col.key] ?? '',
+  return sortFilterValues(
+    filterValuesByCount(
+      filterValuesBySearch(
+        stringValueMap.value[col.key] ?? [],
+        filterSearchTerms.value[col.key] ?? '',
+      ),
+      stringValueCounts.value[col.key] ?? new Map(),
+      filters.value[col.key] ?? new Set(),
     ),
     stringValueCounts.value[col.key] ?? new Map(),
-    filters.value[col.key] ?? new Set(),
+    valueSortFor(col.key),
   )
 }
 function countFor(col: ColumnDef<TRow>, value: string): number {
@@ -162,7 +184,11 @@ function onToggleFilterAll(col: ColumnDef<TRow>): void {
 const expandedDateNodes = ref<Record<string, Set<string>>>({})
 const filterDetailTree = computed(() =>
   filterDetailCol.value && filterDetailCol.value.type === 'date'
-    ? computeDateTree(filteredValuesFor(filterDetailCol.value), L.value.emptyValue)
+    ? computeDateTree(
+        filteredValuesFor(filterDetailCol.value),
+        L.value.emptyValue,
+        valueSortFor(filterDetailCol.value.key).dir,
+      )
     : [],
 )
 function isDateSearchActive(col: ColumnDef<TRow>): boolean {
@@ -388,6 +414,19 @@ function onColDragEnd(): void {
                       )
                     "
                   />
+                  <button
+                    type="button"
+                    class="dt__value-sort-btn"
+                    :title="L.sortValues"
+                    :aria-label="L.sortValues"
+                    @click="cycleFilterValueSort(filterDetailCol)"
+                  >
+                    {{
+                      filterDetailCol.type === 'date'
+                        ? getDateSortIcon(valueSortFor(filterDetailCol.key).dir)
+                        : getValueSortIcon(valueSortFor(filterDetailCol.key))
+                    }}
+                  </button>
                 </div>
                 <DateTreeItem
                   v-if="filterDetailCol.type === 'date'"
@@ -813,6 +852,18 @@ function onColDragEnd(): void {
 .dt__filter-select-all {
   flex-shrink: 0;
   margin: 0;
+}
+.dt__value-sort-btn {
+  flex-shrink: 0;
+  padding: 4px 7px;
+  font-size: 11px;
+  background: none;
+  border: 0.5px solid var(--color-border-secondary);
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--color-text-secondary);
+  font-family: inherit;
+  white-space: nowrap;
 }
 .dt__dd-footer {
   padding: 4px 14px 6px;

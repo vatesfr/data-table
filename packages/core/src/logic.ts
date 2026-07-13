@@ -1,4 +1,11 @@
-import type { ColumnDefBase, SortEntry, RangeFilter, DateTreeNode } from './types'
+import type {
+  ColumnDefBase,
+  SortEntry,
+  RangeFilter,
+  DateTreeNode,
+  ValueSort,
+  SortDir,
+} from './types'
 
 function asRecord(row: object): Record<string, unknown> {
   return row as Record<string, unknown>
@@ -172,13 +179,61 @@ export function filterValuesByCount(
 }
 
 /**
+ * Reorders a filter checklist's (already search/count-narrowed) values by alphabetical order
+ * or by facet count (see `computeStringValueCounts`), ascending or descending. Default is
+ * `{ by: 'alpha', dir: 'asc' }`, matching the order `computeStringValues` already produces.
+ */
+export function sortFilterValues(
+  values: string[],
+  counts: Map<string, number>,
+  sort: ValueSort,
+): string[] {
+  return [...values].sort((a, b) => {
+    if (sort.by === 'count') {
+      const cmp = (counts.get(a) ?? 0) - (counts.get(b) ?? 0)
+      return (sort.dir === 'desc' ? -cmp : cmp) || a.localeCompare(b)
+    }
+    const cmp = a.localeCompare(b)
+    return sort.dir === 'desc' ? -cmp : cmp
+  })
+}
+
+/** Advances a filter checklist's `ValueSort` through alpha-asc → alpha-desc → count-desc → count-asc → alpha-asc. */
+export function cycleValueSort(sort: ValueSort): ValueSort {
+  if (sort.by === 'alpha')
+    return sort.dir === 'asc' ? { by: 'alpha', dir: 'desc' } : { by: 'count', dir: 'desc' }
+  return sort.dir === 'desc' ? { by: 'count', dir: 'asc' } : { by: 'alpha', dir: 'asc' }
+}
+
+/** Flips a plain ascending/descending direction, used for the date tree's asc/desc toggle. */
+export function toggleSortDir(dir: SortDir): SortDir {
+  return dir === 'asc' ? 'desc' : 'asc'
+}
+
+/** Compact icon for a filter checklist's current `ValueSort`, e.g. `"ABC ↑"` or `"# ↓"`. */
+export function getValueSortIcon(sort: ValueSort): string {
+  return `${sort.by === 'count' ? '#' : 'ABC'} ${sort.dir === 'asc' ? '↑' : '↓'}`
+}
+
+/** Compact icon for a date tree's current sort direction. */
+export function getDateSortIcon(dir: SortDir): string {
+  return dir === 'asc' ? '↑' : '↓'
+}
+
+/**
  * Groups a `type: 'date'` column's checklist values (from `computeStringValues`) into a
  * Year › Month › Day tree, mirroring spreadsheet-style date autofilters — a high-cardinality
  * date column becomes navigable by year/month instead of one flat per-day checklist. Each
  * value is parsed with `new Date(v)`; values that don't parse are collected under a single
- * `emptyLabel` leaf alongside the year nodes rather than silently dropped.
+ * `emptyLabel` leaf alongside the year nodes rather than silently dropped. `dir` orders the
+ * year/month/day nodes at every level chronologically ascending (default) or descending; the
+ * trailing `emptyLabel` leaf always stays last regardless of `dir`.
  */
-export function computeDateTree(values: string[], emptyLabel = '(none)'): DateTreeNode[] {
+export function computeDateTree(
+  values: string[],
+  emptyLabel = '(none)',
+  dir: SortDir = 'asc',
+): DateTreeNode[] {
   const years = new Map<string, Map<string, Map<string, string[]>>>()
   const invalid: string[] = []
   for (const v of values) {
@@ -198,11 +253,16 @@ export function computeDateTree(values: string[], emptyLabel = '(none)'): DateTr
     days.get(day)!.push(v)
   }
 
-  const nodes: DateTreeNode[] = [...years.keys()].sort().map((y) => {
+  const orderKeys = (keys: string[]): string[] => {
+    const sorted = keys.sort()
+    return dir === 'desc' ? sorted.reverse() : sorted
+  }
+
+  const nodes: DateTreeNode[] = orderKeys([...years.keys()]).map((y) => {
     const months = years.get(y)!
-    const monthNodes: DateTreeNode[] = [...months.keys()].sort().map((m) => {
+    const monthNodes: DateTreeNode[] = orderKeys([...months.keys()]).map((m) => {
       const days = months.get(m)!
-      const dayNodes: DateTreeNode[] = [...days.keys()].sort().map((day) => ({
+      const dayNodes: DateTreeNode[] = orderKeys([...days.keys()]).map((day) => ({
         key: day,
         path: `${y}-${m}-${day}`,
         values: days.get(day)!,

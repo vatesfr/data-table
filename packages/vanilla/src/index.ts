@@ -6,6 +6,11 @@ import {
   computeStringValueCounts,
   filterValuesBySearch,
   filterValuesByCount,
+  sortFilterValues,
+  cycleValueSort,
+  toggleSortDir,
+  getValueSortIcon,
+  getDateSortIcon,
   computeAggregate,
   getColumnValue,
   paginateData,
@@ -31,6 +36,7 @@ import {
   type DataTableLabels,
   type TableViewState,
   type DateTreeNode,
+  type ValueSort,
 } from '@vates/data-table-core'
 import type { ColumnDef, DataTableOptions, DataTableInstance } from './types'
 import { STYLES } from './styles'
@@ -67,6 +73,8 @@ function buildDd(isOpen: boolean, trigger: string, contentFn: () => string): str
   return `<div class="dt-dd-wrap">${trigger}${isOpen ? `<div class="dt-dd">${contentFn()}</div>` : ''}</div>`
 }
 
+const DEFAULT_VALUE_SORT: ValueSort = { by: 'alpha', dir: 'asc' }
+
 // --- Factory ---
 
 export function createDataTable<TRow extends object>(
@@ -93,6 +101,7 @@ export function createDataTable<TRow extends object>(
   let openDropdown: string | null = null
   let filterActiveCol: string | null = null
   let filterSearchTerms: Record<string, string> = {}
+  let filterValueSort: Record<string, ValueSort> = {}
   let expandedDateNodes: Record<string, Set<string>> = {}
   let searchQuery = ''
   let draggedColKey: string | null = null
@@ -207,6 +216,10 @@ export function createDataTable<TRow extends object>(
     return formatStr(getColumnValue(col, row), row, col)
   }
 
+  function valueSortFor(key: string): ValueSort {
+    return filterValueSort[key] ?? DEFAULT_VALUE_SORT
+  }
+
   const FILTER_CHIP_MAX = 3
   function summarizeFilterValues(vals: Set<string>): string {
     const arr = [...vals]
@@ -245,18 +258,22 @@ export function createDataTable<TRow extends object>(
     const filterDetailCol = filterableCols.find((c) => c.key === filterActiveKey) ?? null
     _filterDetailValues =
       filterDetailCol && filterDetailCol.type !== 'number'
-        ? filterValuesByCount(
-            filterValuesBySearch(
-              stringValueMap[filterDetailCol.key] ?? [],
-              filterSearchTerms[filterDetailCol.key] ?? '',
+        ? sortFilterValues(
+            filterValuesByCount(
+              filterValuesBySearch(
+                stringValueMap[filterDetailCol.key] ?? [],
+                filterSearchTerms[filterDetailCol.key] ?? '',
+              ),
+              stringValueCounts[filterDetailCol.key] ?? new Map(),
+              filters[filterDetailCol.key] ?? new Set(),
             ),
             stringValueCounts[filterDetailCol.key] ?? new Map(),
-            filters[filterDetailCol.key] ?? new Set(),
+            valueSortFor(filterDetailCol.key),
           )
         : []
     _filterDetailTree =
       filterDetailCol && filterDetailCol.type === 'date'
-        ? computeDateTree(_filterDetailValues, L.emptyValue)
+        ? computeDateTree(_filterDetailValues, L.emptyValue, valueSortFor(filterDetailCol.key).dir)
         : []
 
     const monthName = (m: string) =>
@@ -368,6 +385,10 @@ export function createDataTable<TRow extends object>(
                 s += `<input type="checkbox" class="dt-filter-select-all" data-action="toggle-filter-all" data-key="${esc(filterDetailCol.key)}" title="${esc(L.selectAll)}" aria-label="${esc(L.selectAll)}"${allValuesSelected ? ' checked' : ''}>`
               }
               s += `<input type="text" class="dt-dd-search" placeholder="${esc(L.filterSearchPlaceholder)}" value="${esc(term)}" data-action="filter-search" data-key="${esc(filterDetailCol.key)}" data-focus-key="fsearch-${esc(filterDetailCol.key)}">`
+              const vs = valueSortFor(filterDetailCol.key)
+              const sortIcon =
+                filterDetailCol.type === 'date' ? getDateSortIcon(vs.dir) : getValueSortIcon(vs)
+              s += `<button type="button" class="dt-value-sort-btn" data-action="toggle-value-sort" data-key="${esc(filterDetailCol.key)}" title="${esc(L.sortValues)}" aria-label="${esc(L.sortValues)}">${esc(sortIcon)}</button>`
               s += `</div>`
               if (filterDetailCol.type === 'date') {
                 s += renderDateTreeNodes(_filterDetailTree, filterDetailCol.key, 0)
@@ -681,6 +702,16 @@ export function createDataTable<TRow extends object>(
       case 'select-filter-col':
         filterActiveCol = key
         break
+      case 'toggle-value-sort': {
+        const col = columns.find((c) => c.key === key)
+        const current = valueSortFor(key)
+        const next =
+          col?.type === 'date'
+            ? { ...current, dir: toggleSortDir(current.dir) }
+            : cycleValueSort(current)
+        filterValueSort = { ...filterValueSort, [key]: next }
+        break
+      }
       case 'toggle-group':
         groupBy = toggleGroupBy(groupBy, key)
         viewChanged = true

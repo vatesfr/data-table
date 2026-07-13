@@ -26,6 +26,11 @@ import {
   getOrderedColumns,
   reorderColumn,
   moveColumnBy,
+  sortFilterValues,
+  cycleValueSort,
+  toggleSortDir,
+  getValueSortIcon,
+  getDateSortIcon,
 } from '../logic'
 
 interface Row {
@@ -525,6 +530,121 @@ describe('filterValuesByCount', () => {
   })
 })
 
+// ─── sortFilterValues ───────────────────────────────────────────────────────
+
+describe('sortFilterValues', () => {
+  const VALUES = ['Charlie', 'Alice', 'Bob']
+  const COUNTS = new Map([
+    ['Charlie', 3],
+    ['Alice', 1],
+    ['Bob', 3],
+  ])
+
+  it('sorts alphabetically ascending', () => {
+    expect(sortFilterValues(VALUES, COUNTS, { by: 'alpha', dir: 'asc' })).toEqual([
+      'Alice',
+      'Bob',
+      'Charlie',
+    ])
+  })
+
+  it('sorts alphabetically descending', () => {
+    expect(sortFilterValues(VALUES, COUNTS, { by: 'alpha', dir: 'desc' })).toEqual([
+      'Charlie',
+      'Bob',
+      'Alice',
+    ])
+  })
+
+  it('sorts by count descending, tie-breaking alphabetically', () => {
+    expect(sortFilterValues(VALUES, COUNTS, { by: 'count', dir: 'desc' })).toEqual([
+      'Bob',
+      'Charlie',
+      'Alice',
+    ])
+  })
+
+  it('sorts by count ascending, tie-breaking alphabetically', () => {
+    expect(sortFilterValues(VALUES, COUNTS, { by: 'count', dir: 'asc' })).toEqual([
+      'Alice',
+      'Bob',
+      'Charlie',
+    ])
+  })
+
+  it('treats a value missing from counts as 0', () => {
+    const result = sortFilterValues(['Zed', 'Alice'], new Map([['Alice', 1]]), {
+      by: 'count',
+      dir: 'asc',
+    })
+    expect(result).toEqual(['Zed', 'Alice'])
+  })
+
+  it('does not mutate the input array', () => {
+    const original = [...VALUES]
+    sortFilterValues(VALUES, COUNTS, { by: 'alpha', dir: 'desc' })
+    expect(VALUES).toEqual(original)
+  })
+})
+
+// ─── cycleValueSort ─────────────────────────────────────────────────────────
+
+describe('cycleValueSort', () => {
+  it('cycles alpha-asc → alpha-desc → count-desc → count-asc → alpha-asc', () => {
+    let sort: { by: 'alpha' | 'count'; dir: 'asc' | 'desc' } = { by: 'alpha', dir: 'asc' }
+    sort = cycleValueSort(sort)
+    expect(sort).toEqual({ by: 'alpha', dir: 'desc' })
+    sort = cycleValueSort(sort)
+    expect(sort).toEqual({ by: 'count', dir: 'desc' })
+    sort = cycleValueSort(sort)
+    expect(sort).toEqual({ by: 'count', dir: 'asc' })
+    sort = cycleValueSort(sort)
+    expect(sort).toEqual({ by: 'alpha', dir: 'asc' })
+  })
+})
+
+// ─── toggleSortDir ──────────────────────────────────────────────────────────
+
+describe('toggleSortDir', () => {
+  it('flips asc to desc', () => {
+    expect(toggleSortDir('asc')).toBe('desc')
+  })
+
+  it('flips desc to asc', () => {
+    expect(toggleSortDir('desc')).toBe('asc')
+  })
+})
+
+// ─── getValueSortIcon / getDateSortIcon ────────────────────────────────────
+
+describe('getValueSortIcon', () => {
+  it('renders alpha-asc', () => {
+    expect(getValueSortIcon({ by: 'alpha', dir: 'asc' })).toBe('ABC ↑')
+  })
+
+  it('renders alpha-desc', () => {
+    expect(getValueSortIcon({ by: 'alpha', dir: 'desc' })).toBe('ABC ↓')
+  })
+
+  it('renders count-desc', () => {
+    expect(getValueSortIcon({ by: 'count', dir: 'desc' })).toBe('# ↓')
+  })
+
+  it('renders count-asc', () => {
+    expect(getValueSortIcon({ by: 'count', dir: 'asc' })).toBe('# ↑')
+  })
+})
+
+describe('getDateSortIcon', () => {
+  it('renders asc', () => {
+    expect(getDateSortIcon('asc')).toBe('↑')
+  })
+
+  it('renders desc', () => {
+    expect(getDateSortIcon('desc')).toBe('↓')
+  })
+})
+
 // ─── computeDateTree ────────────────────────────────────────────────────────
 
 describe('computeDateTree', () => {
@@ -561,6 +681,25 @@ describe('computeDateTree', () => {
 
   it('returns an empty array for an empty input', () => {
     expect(computeDateTree([])).toEqual([])
+  })
+
+  it('orders years/months/days ascending by default', () => {
+    const tree = computeDateTree(['2023-05-14', '2021-01-02', '2023-01-30'])
+    expect(tree.map((n) => n.key)).toEqual(['2021', '2023'])
+    expect(tree[1].children.map((n) => n.key)).toEqual(['01', '05'])
+  })
+
+  it('orders years/months/days descending when dir is "desc"', () => {
+    const tree = computeDateTree(['2023-05-14', '2021-01-02', '2023-01-30'], '(none)', 'desc')
+    expect(tree.map((n) => n.key)).toEqual(['2023', '2021'])
+    expect(tree[0].children.map((n) => n.key)).toEqual(['05', '01'])
+    expect(tree[0].children[0].children.map((n) => n.key)).toEqual(['14'])
+  })
+
+  it('keeps the trailing emptyLabel leaf last regardless of dir', () => {
+    const tree = computeDateTree(['2023-05-14', '2021-01-02', 'not-a-date'], '(none)', 'desc')
+    expect(tree[tree.length - 1].key).toBe('(none)')
+    expect(tree.map((n) => n.key)).toEqual(['2023', '2021', '(none)'])
   })
 })
 
