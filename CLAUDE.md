@@ -91,7 +91,7 @@ Vue customization uses **scoped slots** instead of render props:
 
 ### Vanilla package (`packages/vanilla`)
 
-- **`types.ts`** — `ColumnDef<TRow>` is a type alias for `ColumnDefBase<TRow>` (no render props; only `format` for string output)
+- **`types.ts`** — `ColumnDef<TRow>` extends `ColumnDefBase<TRow>` with `render?: (value, row) => Node`
 - **`styles.ts`** — CSS string injected once into `<head>` via a `<style data-dt-styles>` tag on first `createDataTable` call
 - **`index.ts`** — exports `createDataTable(container, options)` which returns `{ setData, setColumns, destroy }`
 
@@ -99,7 +99,9 @@ Vue customization uses **scoped slots** instead of render props:
 
 Focus is saved/restored across re-renders (via `data-focus-key` attributes on range filter inputs and the search input) so typing doesn't lose cursor position.
 
-Cell customization uses `col.format(value) → string` only — no JSX/DOM nodes. For richer cells, consumers can post-process the container DOM after `setData`.
+Cell customization: `col.format(value, row) → string` for plain text (always HTML-escaped), or `col.render(value, row) → Node` for arbitrary DOM (images, links, badges — see GitHub issue #3) — `render` takes priority over `format` when both are set, mirroring React's `render`/`format` priority. `render` support is threaded through the single `formatStr(v, row, col)` helper, so it applies uniformly to data cells, group header values, and aggregate cells (same column-reuse pattern as React's `cellValue()`).
+
+Since `render()` builds the whole table as one HTML string and assigns it via `innerHTML` in a single shot, a real DOM node can't be inlined into that string. Instead `formatStr` leaves a numbered placeholder (`<span data-render-slot="N">`) and queues `{ id, col, value, row }` into a `pendingRenders` array (reset at the top of each `render()` call); once `container.innerHTML = html` runs, a follow-up pass resolves each placeholder via `container.querySelector('[data-render-slot="N"]')` and `slot.replaceWith(col.render(value, row))`. This keeps the callback API DOM-native (matching React's `render`, no second string-based dialect to learn) without restructuring the rest of `render()` away from its string-building model.
 
 ### Row selection
 

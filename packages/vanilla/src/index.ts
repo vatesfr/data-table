@@ -48,6 +48,8 @@ export type { ColumnDef, DataTableOptions, DataTableInstance }
 export type { DataTableLabels, TableViewState } from '@vates/data-table-core'
 export { persistViewToLocalStorage, syncViewToUrl } from './persistence'
 export type { ViewStateApi, SyncViewToUrlOptions } from './persistence'
+export { createScoreBar } from './components/scoreBar'
+export type { ScoreBarOptions } from './components/scoreBar'
 export * from '@vates/data-table-core/locales'
 
 // --- Styles ---
@@ -111,6 +113,13 @@ export function createDataTable<TRow extends object>(
   let searchQuery = ''
   let draggedColKey: string | null = null
   const viewListeners = new Set<(view: TableViewState) => void>()
+
+  // render() builds one HTML string and assigns it via innerHTML in one shot, so a col.render()
+  // callback can't return a DOM node inline — instead formatStr() leaves a numbered placeholder
+  // span and queues the call here; a pass right after container.innerHTML = html resolves each
+  // placeholder to the real node.
+  let pendingRenders: Array<{ id: number; col: ColumnDef<TRow>; value: unknown; row: TRow }> = []
+  let renderIdCounter = 0
 
   // Updated by derive(), read by event handlers
   let _processedData: TRow[] = []
@@ -206,6 +215,11 @@ export function createDataTable<TRow extends object>(
   }
 
   function formatStr(v: unknown, row: TRow, col: ColumnDef<TRow>): string {
+    if (col.render) {
+      const id = renderIdCounter++
+      pendingRenders.push({ id, col, value: v, row })
+      return `<span data-render-slot="${id}"></span>`
+    }
     if (col.format) return esc(col.format(v, row))
     if (Array.isArray(v)) return esc(v.join(', '))
     return esc(v != null ? String(v) : '')
@@ -233,6 +247,9 @@ export function createDataTable<TRow extends object>(
   }
 
   function render(): void {
+    pendingRenders = []
+    renderIdCounter = 0
+
     // Save focus state
     const focused = document.activeElement as HTMLElement | null
     const focusKey =
@@ -566,6 +583,12 @@ export function createDataTable<TRow extends object>(
     html += `</div>` // .dt
 
     container.innerHTML = html
+
+    // Resolve col.render() placeholders now that their slots exist in the DOM
+    for (const { id, col, value, row } of pendingRenders) {
+      const slot = container.querySelector(`[data-render-slot="${id}"]`)
+      if (slot && col.render) slot.replaceWith(col.render(value, row))
+    }
 
     // Fix indeterminate checkboxes (not settable via HTML attribute)
     if (selectable) {

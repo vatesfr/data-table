@@ -88,14 +88,27 @@ To override individual tokens, define the custom property in your own stylesheet
 
 ▶ [Try it in the demo](https://vatesfr.github.io/data-table/vanilla/#full-table)
 
-Cell output is string-only. Use `col.format(value, row)` to control what is rendered — the second argument gives access to the rest of the row for cross-field conditional formatting:
+Use `col.format(value, row)` to control the plain-text string rendered for a cell — the second argument gives access to the rest of the row for cross-field conditional formatting:
 
 ```ts
 { key: 'status', label: 'Status', format: (v) => v === 1 ? 'Active' : 'Inactive' }
 { key: 'playtime', label: 'Played (h)', format: (v, row) => row.score > 90 ? `⭐ ${v}` : String(v) }
 ```
 
-For richer DOM output (icons, interactive elements), post-process the container after `setData`.
+`format`'s return value is always HTML-escaped, so it can't be used to render markup. For richer cells — images, links, colored badges — use `col.render(value, row)` instead: it returns a DOM node that's mounted directly into the cell, taking priority over `format` when both are set. It also applies to group header values and aggregate cells for the same column.
+
+```ts
+{
+  key: 'name',
+  label: 'Name',
+  render: (v, row) => {
+    const a = document.createElement('a')
+    a.href = `/games/${row.id}`
+    a.textContent = String(v)
+    return a
+  },
+}
+```
 
 ## Multi-value (array) columns
 

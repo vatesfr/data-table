@@ -2,6 +2,7 @@ import {
   createDataTable,
   persistViewToLocalStorage,
   syncViewToUrl,
+  createScoreBar,
   LABELS_EN,
   LABELS_FR,
   LABELS_DE,
@@ -277,7 +278,15 @@ const COLUMNS: ColumnDef<Employee>[] = [
     aggregate: 'avg',
   },
   { key: 'status', label: 'Status', type: 'string', width: 90, groupable: true },
-  { key: 'score', label: 'Score', type: 'number', width: 80 },
+  // render returns a DOM node instead of a string, so it can build richer cells (bars, badges,
+  // links) than format's escaped-string output allows
+  {
+    key: 'score',
+    label: 'Score',
+    type: 'number',
+    width: 80,
+    render: (v) => createScoreBar(Number(v)),
+  },
   // array-valued column: filter checklist lists individual skills, grouping fans a row into
   // one group per skill, and cells join the array with ', ' — all automatic, no flag needed
   { key: 'skills', label: 'Skills', width: 180, groupable: true },

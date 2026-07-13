@@ -153,6 +153,79 @@ describe('createDataTable', () => {
     expect(container.innerHTML).toContain('Alice:90')
   })
 
+  it('mounts the DOM node returned by render into the cell', () => {
+    const cols: ColumnDef<Row>[] = [
+      {
+        key: 'score',
+        label: 'Score',
+        render: (v, row) => {
+          const span = document.createElement('span')
+          span.className = 'custom-score'
+          span.textContent = `${row.name}: ${v}`
+          return span
+        },
+      },
+    ]
+    createDataTable(container, { data: ROWS, columns: cols })
+    const nodes = container.querySelectorAll('.custom-score')
+    expect(nodes).toHaveLength(ROWS.length)
+    expect(nodes[0].textContent).toBe('Alice: 90')
+    // No leftover placeholder spans once every node is mounted
+    expect(container.querySelector('[data-render-slot]')).toBeNull()
+  })
+
+  it('render takes priority over format on the same column', () => {
+    const cols: ColumnDef<Row>[] = [
+      {
+        key: 'score',
+        label: 'Score',
+        format: (v) => `${v} pts`,
+        render: (v) => {
+          const span = document.createElement('span')
+          span.textContent = `rendered:${v}`
+          return span
+        },
+      },
+    ]
+    createDataTable(container, { data: ROWS, columns: cols })
+    expect(container.innerHTML).toContain('rendered:90')
+    expect(container.innerHTML).not.toContain('90 pts')
+  })
+
+  it('applies render to group header and aggregate cells', () => {
+    const cols: ColumnDef<Row>[] = [
+      {
+        key: 'dept',
+        label: 'Dept',
+        groupable: true,
+        render: (v) => {
+          const b = document.createElement('b')
+          b.textContent = `[${v}]`
+          return b
+        },
+      },
+      {
+        key: 'score',
+        label: 'Score',
+        aggregate: 'sum',
+        render: (v) => {
+          const em = document.createElement('em')
+          em.textContent = `sum=${v}`
+          return em
+        },
+      },
+    ]
+    createDataTable(container, { data: ROWS, columns: cols })
+    // dept starts hidden here (no explicit groupBy toggle in this test setup),
+    // so instead assert via the toggle-group action to activate grouping.
+    const dropdownBtn = container.querySelector<HTMLElement>('[data-dd="group"]')!
+    click(dropdownBtn)
+    const groupItem = container.querySelector<HTMLElement>('[data-action="toggle-group"]')!
+    click(groupItem)
+    expect(container.querySelector('.dt-group-td b')?.textContent).toMatch(/^\[(Eng|HR)\]$/)
+    expect(container.querySelector('.dt-agg-td em')?.textContent).toMatch(/^sum=\d+$/)
+  })
+
   // --- instance methods ---
 
   it('setData replaces rows', () => {

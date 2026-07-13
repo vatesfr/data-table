@@ -1,6 +1,11 @@
 import type { ColumnDefBase, DataTableLabels, TableViewState } from '@vates/data-table-core'
 
-export type ColumnDef<TRow extends object = Record<string, unknown>> = ColumnDefBase<TRow>
+export interface ColumnDef<
+  TRow extends object = Record<string, unknown>,
+> extends ColumnDefBase<TRow> {
+  /** Returns a DOM node to render for this cell instead of a string. Takes priority over `format`. */
+  render?: (value: unknown, row: TRow) => Node
+}
 
 export interface DataTableOptions<TRow extends object = Record<string, unknown>> {
   data: TRow[]
