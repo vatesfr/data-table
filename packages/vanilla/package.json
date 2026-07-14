@@ -1,6 +1,6 @@
 {
   "name": "@vates/data-table-vanilla",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Vanilla JS adapter for data-table",
   "license": "MIT",
   "author": "Vates",
@@ -49,7 +49,7 @@
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
-    "@vates/data-table-core": "^0.1.0"
+    "@vates/data-table-core": "^0.2.0"
   },
   "devDependencies": {
     "jsdom": "^25.0.1",

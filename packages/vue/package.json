@@ -1,6 +1,6 @@
 {
   "name": "@vates/data-table-vue",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Vue 3 adapter for data-table",
   "license": "MIT",
   "author": "Vates",
@@ -51,7 +51,7 @@
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
-    "@vates/data-table-core": "^0.1.0"
+    "@vates/data-table-core": "^0.2.0"
   },
   "peerDependencies": {
     "vue": ">=3.3.0"
