@@ -22,6 +22,22 @@ export function getColumnValue<TRow extends object>(col: ColumnDefBase<TRow>, ro
 }
 
 /**
+ * Reads a column's cell value and coerces it per `col.type`, so every type-aware comparison
+ * (currently just sort) agrees on what a column's value *means* instead of each call site
+ * guessing independently from the raw value's runtime `typeof` — the root cause behind both
+ * the date/string sort mismatch (issue #10) and the same-shaped bug for numeric-string values
+ * in a `type: 'number'` column. `'date'` parses via `col.parseDate` (default `new Date`),
+ * `'number'` coerces via `Number`; anything else (including untyped/computed columns) passes
+ * the raw value through unchanged, preserving numeric sort for plain numbers with no `type` set.
+ */
+function getComparableValue<TRow extends object>(col: ColumnDefBase<TRow>, row: TRow): unknown {
+  const raw = getColumnValue(col, row)
+  if (col.type === 'date') return (col.parseDate ?? defaultParseDate)(raw as string)
+  if (col.type === 'number') return Number(raw)
+  return raw
+}
+
+/**
  * Normalizes a cell value to a string array: arrays are stringified item-by-item, scalars
  * become a single-item array. An empty array normalizes to a single `emptyLabel` item instead
  * of dropping the row, so rows with no items still get a (labeled) filter/group bucket rather
@@ -66,16 +82,11 @@ export function processData<TRow extends object>(
     result.sort((a, b) => {
       for (const { key, dir } of sorts) {
         const col = colByKey.get(key)
-        const va = col ? getColumnValue(col, a) : asRecord(a)[key]
-        const vb = col ? getColumnValue(col, b) : asRecord(b)[key]
+        const va = col ? getComparableValue(col, a) : asRecord(a)[key]
+        const vb = col ? getComparableValue(col, b) : asRecord(b)[key]
         let cmp = 0
-        if (col?.type === 'date') {
-          const parseDate = col.parseDate ?? defaultParseDate
-          const da = parseDate(va as string)
-          const db = parseDate(vb as string)
-          if (!isNaN(da) && !isNaN(db)) cmp = da - db
-          else cmp = String(va ?? '').localeCompare(String(vb ?? ''))
-        } else if (typeof va === 'number' && typeof vb === 'number') cmp = va - vb
+        if (typeof va === 'number' && typeof vb === 'number' && !isNaN(va) && !isNaN(vb))
+          cmp = va - vb
         else cmp = String(va ?? '').localeCompare(String(vb ?? ''))
         if (cmp !== 0) return dir === 'asc' ? cmp : -cmp
       }

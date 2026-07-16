@@ -331,6 +331,29 @@ describe('processData', () => {
     const result = processData(rows, {}, {}, [{ key: 'd', dir: 'asc' }], cols)
     expect(result.map((r) => r.id)).toEqual([2, 1])
   })
+
+  it('sorts a type: "number" column numerically even when values are numeric strings', () => {
+    // Regression, same bug class as date sort (issue #10): a numeric string like "1200" must
+    // not be compared as a plain string, where "1200" < "80" alphabetically.
+    const cols = [{ key: 'n' as const, label: 'N', type: 'number' as const }]
+    const rows = [
+      { id: 1, n: '1200' },
+      { id: 2, n: '80' },
+      { id: 3, n: '950' },
+    ]
+    const result = processData(rows, {}, {}, [{ key: 'n', dir: 'asc' }], cols)
+    expect(result.map((r) => r.id)).toEqual([2, 3, 1])
+  })
+
+  it('falls back to string comparison when a type: "number" value fails to parse', () => {
+    const cols = [{ key: 'n' as const, label: 'N', type: 'number' as const }]
+    const rows = [
+      { id: 1, n: 'not a number' },
+      { id: 2, n: '5' },
+    ]
+    const result = processData(rows, {}, {}, [{ key: 'n', dir: 'asc' }], cols)
+    expect(result.map((r) => r.id)).toEqual([2, 1])
+  })
 })
 
 // ─── groupData ───────────────────────────────────────────────────────────────
