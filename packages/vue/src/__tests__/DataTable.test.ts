@@ -646,6 +646,109 @@ describe('DataTable — keyboard navigation', () => {
   })
 })
 
+describe('DataTable — keyboard navigation across pages', () => {
+  const ROWS6: Row[] = [
+    { id: 1, name: 'Alice', score: 90 },
+    { id: 2, name: 'Bob', score: 60 },
+    { id: 3, name: 'Clara', score: 80 },
+    { id: 4, name: 'Dave', score: 70 },
+    { id: 5, name: 'Eve', score: 50 },
+    { id: 6, name: 'Frank', score: 40 },
+  ]
+
+  function dataRows(wrapper: ReturnType<typeof mount>) {
+    return wrapper.findAll('tbody tr')
+  }
+
+  async function clickNextPage(wrapper: ReturnType<typeof mount>): Promise<void> {
+    const btn = wrapper.findAll('button').find((b) => b.text() === '›')!
+    await btn.trigger('click')
+  }
+
+  it('ArrowDown on the last row of a page moves to the first row of the next page', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS6, columns: COLS, rowKey: 'id', selectable: true, defaultPageSize: 2 },
+      attachTo: document.body,
+    })
+    const [, last] = dataRows(wrapper)
+    ;(last.element as HTMLElement).focus()
+    await last.trigger('keydown', { key: 'ArrowDown' })
+    const newFirst = dataRows(wrapper)[0]
+    expect(newFirst.text()).toContain('Clara')
+    expect(newFirst.attributes('tabindex')).toBe('0')
+    expect(document.activeElement).toBe(newFirst.element)
+    wrapper.unmount()
+  })
+
+  it('ArrowUp on the first row of a page moves to the last row of the previous page', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS6, columns: COLS, rowKey: 'id', selectable: true, defaultPageSize: 2 },
+      attachTo: document.body,
+    })
+    await clickNextPage(wrapper)
+    const [first] = dataRows(wrapper)
+    expect(first.text()).toContain('Clara')
+    ;(first.element as HTMLElement).focus()
+    await first.trigger('keydown', { key: 'ArrowUp' })
+    const rows = dataRows(wrapper)
+    const last = rows[rows.length - 1]
+    expect(last.text()).toContain('Bob')
+    expect(last.attributes('tabindex')).toBe('0')
+    expect(document.activeElement).toBe(last.element)
+    wrapper.unmount()
+  })
+
+  it('Ctrl+End jumps to the true last row across all pages', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS6, columns: COLS, rowKey: 'id', selectable: true, defaultPageSize: 2 },
+      attachTo: document.body,
+    })
+    const [first] = dataRows(wrapper)
+    ;(first.element as HTMLElement).focus()
+    await first.trigger('keydown', { key: 'End', ctrlKey: true })
+    const rows = dataRows(wrapper)
+    const last = rows[rows.length - 1]
+    expect(last.text()).toContain('Frank')
+    expect(last.attributes('tabindex')).toBe('0')
+    expect(document.activeElement).toBe(last.element)
+    wrapper.unmount()
+  })
+
+  it('Ctrl+Home jumps to the true first row across all pages', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS6, columns: COLS, rowKey: 'id', selectable: true, defaultPageSize: 2 },
+      attachTo: document.body,
+    })
+    const [first] = dataRows(wrapper)
+    ;(first.element as HTMLElement).focus()
+    await first.trigger('keydown', { key: 'End', ctrlKey: true })
+    const focusedRow = dataRows(wrapper).find((r) => r.element === document.activeElement)!
+    await focusedRow.trigger('keydown', { key: 'Home', ctrlKey: true })
+    const newFirst = dataRows(wrapper)[0]
+    expect(newFirst.text()).toContain('Alice')
+    expect(newFirst.attributes('tabindex')).toBe('0')
+    expect(document.activeElement).toBe(newFirst.element)
+    wrapper.unmount()
+  })
+
+  it('Shift+ArrowDown across a page boundary extends the selection onto the next page', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS6, columns: COLS, rowKey: 'id', selectable: true, defaultPageSize: 2 },
+      attachTo: document.body,
+    })
+    const [, last] = dataRows(wrapper)
+    const lastCheckbox = last.find('input[type="checkbox"]')
+    await lastCheckbox.trigger('click') // selects Bob, sets the anchor
+    ;(last.element as HTMLElement).focus()
+    await last.trigger('keydown', { key: 'ArrowDown', shiftKey: true })
+    const newFirst = dataRows(wrapper)[0]
+    const newFirstCheckbox = newFirst.find('input[type="checkbox"]')
+    expect((newFirstCheckbox.element as HTMLInputElement).checked).toBe(true)
+    expect(document.activeElement).toBe(newFirst.element)
+    wrapper.unmount()
+  })
+})
+
 describe('DataTable — computed columns', () => {
   it('renders a cell value produced by col.value instead of row[key]', () => {
     const cols: ColumnDef<Row>[] = [

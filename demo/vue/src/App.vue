@@ -645,8 +645,9 @@ function copyShareLink() {
     >
       Pass <code>selectable</code> to show checkboxes; listen to <code>@selection-change</code> for
       the updated rows array. Shift-click a checkbox to select (or deselect) the whole range since
-      the last-clicked row. Click a row then use ↑/↓/Home/End to move focus, <kbd>Space</kbd> to
-      select, and Shift+↑/↓ to extend the range from the keyboard.
+      the last-clicked row. Click a row then use ↑/↓/Home/End to move focus (↑/↓ cross page
+      boundaries; <kbd>Ctrl</kbd>+Home/End jump to the true first/last row across all pages),
+      <kbd>Space</kbd> to select, and Shift+↑/↓/Home/End to extend the range from the keyboard.
       <span v-html="docLink('row-selection', '📖 Docs')" />
     </p>
     <div

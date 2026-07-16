@@ -393,7 +393,8 @@ app.innerHTML = `
     <p style="font-size:14px;color:var(--color-text-secondary);margin-top:0;margin-bottom:16px">
       Pass <code>selectable</code> to show checkboxes; <code>onSelectionChange</code> receives the updated array.
       Shift-click a checkbox to select (or deselect) the whole range since the last-clicked row.
-      Click a row then use ↑/↓/Home/End to move focus, <code>Space</code> to select, and Shift+↑/↓
+      Click a row then use ↑/↓/Home/End to move focus (↑/↓ cross page boundaries; <code>Ctrl</code>+Home/End
+      jump to the true first/last row across all pages), <code>Space</code> to select, and Shift+↑/↓/Home/End
       to extend the range from the keyboard.
       ${docLink('row-selection', '📖 Docs')}
     </p>

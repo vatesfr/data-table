@@ -220,6 +220,15 @@ export function createDataTable<TRow extends object>(
     for (const cb of viewListeners) cb(view)
   }
 
+  // Arrow-key/Ctrl+Home/Ctrl+End navigation can target a row that isn't on the current page —
+  // `_visibleRows` only covers `_groupedData`, which is built from the current page's slice. This
+  // recomputes the same pipeline (paginate → group → flatten-visible) for an arbitrary page, on
+  // demand, so a boundary key press can find the row it needs to jump to.
+  function visibleRowsForPage(p: number): TRow[] {
+    const paged = paginateData(_processedData, p, pageSize)
+    return getVisibleRows(groupData(paged, groupBy, columns, L.emptyValue), collapsedGroups)
+  }
+
   /** Shared by the checkbox click handler and keyboard Space/Shift+Arrow — see toggleRowSelection in React/Vue. */
   function applyRowSelectionToggle(row: TRow, shiftKey: boolean): void {
     const next = new Set(selection)
@@ -984,15 +993,23 @@ export function createDataTable<TRow extends object>(
     const row = _processedData[procIdx]
 
     let selectionChanged = false
+    let viewChanged = false
 
-    const moveFocus = (target: TRow | undefined) => {
-      if (!target || target === row) return
+    // `targetPage`, when given, crosses a page boundary — `render()`'s existing focus-restore
+    // step (see the bottom of `render()`) re-focuses `focusedRow` by object identity once the
+    // new page's rows exist in the DOM, so this doesn't need its own post-render focus step.
+    const moveFocus = (target: TRow | undefined, targetPage?: number) => {
+      if (!target || (targetPage === undefined && target === row)) return
       e.preventDefault()
       if (e.shiftKey && selectable) {
         applyRowSelectionToggle(target, true)
         selectionChanged = true
       }
       focusedRow = target
+      if (targetPage !== undefined && targetPage !== _clampedPage) {
+        page = targetPage
+        viewChanged = true
+      }
       render()
     }
 
@@ -1001,15 +1018,28 @@ export function createDataTable<TRow extends object>(
       case 'ArrowUp': {
         const delta = e.key === 'ArrowDown' ? 1 : -1
         const idx = _visibleRows.indexOf(row)
-        moveFocus(_visibleRows[Math.max(0, Math.min(_visibleRows.length - 1, idx + delta))])
+        const nextIdx = idx + delta
+        if (nextIdx >= 0 && nextIdx < _visibleRows.length) {
+          moveFocus(_visibleRows[nextIdx])
+        } else if (delta === 1 && _clampedPage < _numPages) {
+          moveFocus(visibleRowsForPage(_clampedPage + 1)[0], _clampedPage + 1)
+        } else if (delta === -1 && _clampedPage > 1) {
+          const prevRows = visibleRowsForPage(_clampedPage - 1)
+          moveFocus(prevRows[prevRows.length - 1], _clampedPage - 1)
+        }
         break
       }
       case 'Home':
-        moveFocus(_visibleRows[0])
+      case 'End': {
+        if (e.ctrlKey || e.metaKey) {
+          const targetPage = e.key === 'Home' ? 1 : _numPages
+          const rows = targetPage === _clampedPage ? _visibleRows : visibleRowsForPage(targetPage)
+          moveFocus(e.key === 'Home' ? rows[0] : rows[rows.length - 1], targetPage)
+        } else {
+          moveFocus(e.key === 'Home' ? _visibleRows[0] : _visibleRows[_visibleRows.length - 1])
+        }
         break
-      case 'End':
-        moveFocus(_visibleRows[_visibleRows.length - 1])
-        break
+      }
       case ' ':
         if (selectable) {
           e.preventDefault()
@@ -1029,6 +1059,9 @@ export function createDataTable<TRow extends object>(
 
     if (selectionChanged) {
       onSelectionChange?.(_processedData.filter((r) => selection.has(r)))
+    }
+    if (viewChanged) {
+      notifyViewChange()
     }
   }
 

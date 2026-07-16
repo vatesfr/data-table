@@ -16,6 +16,8 @@ import {
   selectDateRange,
   selectRange,
   getVisibleRows,
+  paginateData,
+  groupData,
   type GroupResult,
   type DateTreeNode,
   type ValueSort,
@@ -126,6 +128,39 @@ function focusRow(row: TRow): void {
   rowRefs.get(row)?.focus()
 }
 
+// Arrow-key/Ctrl+Home/Ctrl+End navigation can target a row that isn't on the current page —
+// `visibleRows` only covers `groupedData`, which is built from the current page's slice. This
+// recomputes the same pipeline (paginate → group → flatten-visible) for an arbitrary page, on
+// demand, so a boundary key press can find the row it needs to jump to.
+function visibleRowsForPage(p: number): TRow[] {
+  return getVisibleRows(
+    groupData(
+      paginateData(processedData.value, p, pageSize.value),
+      groupBy.value,
+      props.columns,
+      L.value.emptyValue,
+    ),
+    collapsedGroups.value,
+  )
+}
+
+// Changing `page` re-renders asynchronously, so a row on the new page can't be focused until
+// after that render commits — this records the target and the `watch` below (flush: 'post',
+// i.e. after the DOM update) picks it up.
+let pendingFocusRow: TRow | null = null
+
+watch(
+  page,
+  () => {
+    if (pendingFocusRow) {
+      const target = pendingFocusRow
+      pendingFocusRow = null
+      focusRow(target)
+    }
+  },
+  { flush: 'post' },
+)
+
 function handleRowKeyDown(event: KeyboardEvent, row: TRow): void {
   if (!isRowNavEnabled.value) return
   const rows = visibleRows.value
@@ -134,16 +169,50 @@ function handleRowKeyDown(event: KeyboardEvent, row: TRow): void {
     case 'ArrowDown':
     case 'ArrowUp': {
       const delta = event.key === 'ArrowDown' ? 1 : -1
-      const target = rows[Math.max(0, Math.min(rows.length - 1, idx + delta))]
-      if (target && target !== row) {
+      const nextIdx = idx + delta
+      if (nextIdx >= 0 && nextIdx < rows.length) {
+        const target = rows[nextIdx]
         event.preventDefault()
         if (event.shiftKey && props.selectable) toggleRowSelection(target, true)
         focusRow(target)
+      } else if (delta === 1 && page.value < numPages.value) {
+        const target = visibleRowsForPage(page.value + 1)[0]
+        if (target) {
+          event.preventDefault()
+          if (event.shiftKey && props.selectable) toggleRowSelection(target, true)
+          pendingFocusRow = target
+          setPage(page.value + 1)
+        }
+      } else if (delta === -1 && page.value > 1) {
+        const prevRows = visibleRowsForPage(page.value - 1)
+        const target = prevRows[prevRows.length - 1]
+        if (target) {
+          event.preventDefault()
+          if (event.shiftKey && props.selectable) toggleRowSelection(target, true)
+          pendingFocusRow = target
+          setPage(page.value - 1)
+        }
       }
       break
     }
     case 'Home':
     case 'End': {
+      if (event.ctrlKey || event.metaKey) {
+        const targetPage = event.key === 'Home' ? 1 : numPages.value
+        const targetRows = targetPage === page.value ? rows : visibleRowsForPage(targetPage)
+        const target = event.key === 'Home' ? targetRows[0] : targetRows[targetRows.length - 1]
+        if (target) {
+          event.preventDefault()
+          if (event.shiftKey && props.selectable) toggleRowSelection(target, true)
+          if (targetPage === page.value) {
+            focusRow(target)
+          } else {
+            pendingFocusRow = target
+            setPage(targetPage)
+          }
+        }
+        break
+      }
       const target = rows[event.key === 'Home' ? 0 : rows.length - 1]
       if (target && target !== row) {
         event.preventDefault()

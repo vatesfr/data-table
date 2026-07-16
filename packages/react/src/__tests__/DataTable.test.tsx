@@ -632,6 +632,98 @@ describe('DataTable — keyboard navigation', () => {
   })
 })
 
+describe('DataTable — keyboard navigation across pages', () => {
+  const ROWS6: Row[] = [
+    { id: 1, name: 'Alice', score: 90 },
+    { id: 2, name: 'Bob', score: 60 },
+    { id: 3, name: 'Clara', score: 80 },
+    { id: 4, name: 'Dave', score: 70 },
+    { id: 5, name: 'Eve', score: 50 },
+    { id: 6, name: 'Frank', score: 40 },
+  ]
+
+  function dataRows(container: HTMLElement): HTMLElement[] {
+    return [...container.querySelectorAll<HTMLElement>('tbody tr')]
+  }
+
+  function clickNextPage(container: HTMLElement): void {
+    fireEvent.click([...container.querySelectorAll('button')].find((b) => b.textContent === '›')!)
+  }
+
+  it('ArrowDown on the last row of a page moves to the first row of the next page', () => {
+    const { container } = render(
+      <DataTable data={ROWS6} columns={COLS} rowKey="id" selectable defaultPageSize={2} />,
+    )
+    const [, last] = dataRows(container)
+    last.focus()
+    fireEvent.keyDown(last, { key: 'ArrowDown' })
+    const [newFirst] = dataRows(container)
+    expect(newFirst.textContent).toContain('Clara')
+    expect(newFirst.getAttribute('tabindex')).toBe('0')
+    expect(document.activeElement).toBe(newFirst)
+  })
+
+  it('ArrowUp on the first row of a page moves to the last row of the previous page', () => {
+    const { container } = render(
+      <DataTable data={ROWS6} columns={COLS} rowKey="id" selectable defaultPageSize={2} />,
+    )
+    clickNextPage(container)
+    const [first] = dataRows(container)
+    expect(first.textContent).toContain('Clara')
+    first.focus()
+    fireEvent.keyDown(first, { key: 'ArrowUp' })
+    const rows = dataRows(container)
+    const last = rows[rows.length - 1]
+    expect(last.textContent).toContain('Bob')
+    expect(last.getAttribute('tabindex')).toBe('0')
+    expect(document.activeElement).toBe(last)
+  })
+
+  it('Ctrl+End jumps to the true last row across all pages', () => {
+    const { container } = render(
+      <DataTable data={ROWS6} columns={COLS} rowKey="id" selectable defaultPageSize={2} />,
+    )
+    const [first] = dataRows(container)
+    first.focus()
+    fireEvent.keyDown(first, { key: 'End', ctrlKey: true })
+    const rows = dataRows(container)
+    const last = rows[rows.length - 1]
+    expect(last.textContent).toContain('Frank')
+    expect(last.getAttribute('tabindex')).toBe('0')
+    expect(document.activeElement).toBe(last)
+  })
+
+  it('Ctrl+Home jumps to the true first row across all pages', () => {
+    const { container } = render(
+      <DataTable data={ROWS6} columns={COLS} rowKey="id" selectable defaultPageSize={2} />,
+    )
+    const [first] = dataRows(container)
+    first.focus()
+    fireEvent.keyDown(first, { key: 'End', ctrlKey: true })
+    const focused = document.activeElement as HTMLElement
+    fireEvent.keyDown(focused, { key: 'Home', ctrlKey: true })
+    const newFirst = dataRows(container)[0]
+    expect(newFirst.textContent).toContain('Alice')
+    expect(newFirst.getAttribute('tabindex')).toBe('0')
+    expect(document.activeElement).toBe(newFirst)
+  })
+
+  it('Shift+ArrowDown across a page boundary extends the selection onto the next page', () => {
+    const { container } = render(
+      <DataTable data={ROWS6} columns={COLS} rowKey="id" selectable defaultPageSize={2} />,
+    )
+    const [, last] = dataRows(container)
+    const lastCheckbox = last.querySelector('input[type="checkbox"]') as HTMLInputElement
+    fireEvent.click(lastCheckbox) // selects Bob, sets the anchor
+    last.focus()
+    fireEvent.keyDown(last, { key: 'ArrowDown', shiftKey: true })
+    const newFirst = dataRows(container)[0]
+    const newFirstCheckbox = newFirst.querySelector('input[type="checkbox"]') as HTMLInputElement
+    expect(newFirstCheckbox.checked).toBe(true)
+    expect(document.activeElement).toBe(newFirst)
+  })
+})
+
 describe('DataTable — computed columns', () => {
   it('renders a cell value produced by col.value instead of row[key]', () => {
     const cols: ColumnDef<Row>[] = [

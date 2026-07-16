@@ -1049,7 +1049,11 @@ describe('createDataTable', () => {
     return [...el.querySelectorAll<HTMLElement>('.dt-tr[data-proc-idx]')]
   }
 
-  function keydown(el: Element, key: string, opts: { shiftKey?: boolean } = {}): void {
+  function keydown(
+    el: Element,
+    key: string,
+    opts: { shiftKey?: boolean; ctrlKey?: boolean; metaKey?: boolean } = {},
+  ): void {
     el.dispatchEvent(
       new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...opts }),
     )
@@ -1153,6 +1157,110 @@ describe('createDataTable', () => {
     const [first] = dataRows(container)
     first.focus()
     expect(() => keydown(first, 'Enter')).not.toThrow()
+  })
+
+  // --- keyboard navigation across pages ---
+
+  const ROWS6: Row[] = [
+    { id: 1, name: 'Alice', score: 90, dept: 'Eng' },
+    { id: 2, name: 'Bob', score: 60, dept: 'HR' },
+    { id: 3, name: 'Clara', score: 80, dept: 'Eng' },
+    { id: 4, name: 'Dave', score: 70, dept: 'HR' },
+    { id: 5, name: 'Eve', score: 50, dept: 'Eng' },
+    { id: 6, name: 'Frank', score: 40, dept: 'HR' },
+  ]
+
+  it('ArrowDown on the last row of a page moves to the first row of the next page', () => {
+    createDataTable(container, {
+      data: ROWS6,
+      columns: COLS,
+      selectable: true,
+      defaultPageSize: 2,
+    })
+    const [, last] = dataRows(container)
+    last.focus()
+    keydown(last, 'ArrowDown')
+    const newFirst = dataRows(container)[0]
+    expect(newFirst.textContent).toContain('Clara')
+    expect(newFirst.getAttribute('tabindex')).toBe('0')
+    expect(document.activeElement).toBe(newFirst)
+  })
+
+  it('ArrowUp on the first row of a page moves to the last row of the previous page', () => {
+    createDataTable(container, {
+      data: ROWS6,
+      columns: COLS,
+      selectable: true,
+      defaultPageSize: 2,
+    })
+    click(container.querySelector<HTMLElement>('[data-action="page-next"]')!)
+    const [first] = dataRows(container)
+    expect(first.textContent).toContain('Clara')
+    first.focus()
+    keydown(first, 'ArrowUp')
+    const rows = dataRows(container)
+    const last = rows[rows.length - 1]
+    expect(last.textContent).toContain('Bob')
+    expect(last.getAttribute('tabindex')).toBe('0')
+    expect(document.activeElement).toBe(last)
+  })
+
+  it('Ctrl+End jumps to the true last row across all pages', () => {
+    createDataTable(container, {
+      data: ROWS6,
+      columns: COLS,
+      selectable: true,
+      defaultPageSize: 2,
+    })
+    const [first] = dataRows(container)
+    first.focus()
+    keydown(first, 'End', { ctrlKey: true })
+    const rows = dataRows(container)
+    const last = rows[rows.length - 1]
+    expect(last.textContent).toContain('Frank')
+    expect(last.getAttribute('tabindex')).toBe('0')
+    expect(document.activeElement).toBe(last)
+  })
+
+  it('Ctrl+Home jumps to the true first row across all pages', () => {
+    createDataTable(container, {
+      data: ROWS6,
+      columns: COLS,
+      selectable: true,
+      defaultPageSize: 2,
+    })
+    const [first] = dataRows(container)
+    first.focus()
+    keydown(first, 'End', { ctrlKey: true })
+    const focused = document.activeElement as HTMLElement
+    keydown(focused, 'Home', { ctrlKey: true })
+    const newFirst = dataRows(container)[0]
+    expect(newFirst.textContent).toContain('Alice')
+    expect(newFirst.getAttribute('tabindex')).toBe('0')
+    expect(document.activeElement).toBe(newFirst)
+  })
+
+  it('Shift+ArrowDown across a page boundary extends the selection onto the next page', () => {
+    createDataTable(container, {
+      data: ROWS6,
+      columns: COLS,
+      selectable: true,
+      defaultPageSize: 2,
+    })
+    click(
+      container.querySelector<HTMLElement>('[data-action="toggle-row-select"][data-proc-idx="1"]')!,
+    ) // selects Bob, sets the anchor
+    // click() above re-renders (replaces the DOM), so re-query for a fresh reference to Bob's row
+    // before focusing/dispatching the next keydown, rather than reusing a now-detached node.
+    const last = dataRows(container)[1]
+    last.focus()
+    keydown(last, 'ArrowDown', { shiftKey: true })
+    const newFirst = dataRows(container)[0]
+    const newFirstCheckbox = newFirst.querySelector<HTMLInputElement>(
+      '[data-action="toggle-row-select"]',
+    )!
+    expect(newFirstCheckbox.checked).toBe(true)
+    expect(document.activeElement).toBe(newFirst)
   })
 
   // --- grouping ---
