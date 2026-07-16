@@ -87,11 +87,11 @@ describe('useTableState — row selection', () => {
     expect(selectedRows.value).toEqual([])
   })
 
-  it('toggleSelectAll selects all when only some are selected (partial)', () => {
+  it('toggleSelectAll deselects all when only some are selected (partial)', () => {
     const { selectedRows, toggleRowSelection, toggleSelectAll } = useTableState(ROWS, COLS)
     toggleRowSelection(ROWS[0])
     toggleSelectAll(ROWS)
-    expect(selectedRows.value).toHaveLength(4)
+    expect(selectedRows.value).toHaveLength(0)
   })
 
   it('toggleSelectAll with empty array is a no-op', () => {

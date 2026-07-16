@@ -406,10 +406,11 @@ export function toggleFilter(
 }
 
 /**
- * Selects all `values` for `key` if any of them are currently unselected, deselects all of
- * them if they're all already selected — same select-all-if-any-unselected convention as
- * row selection's `toggleSelectAll`. `values` is typically a search-narrowed subset of the
- * column's full checklist, so this only ever affects what's currently visible.
+ * Deselects all `values` for `key` if any of them are currently selected (matching Gmail's
+ * select-all-checkbox convention: an indeterminate or fully-checked state clears on click),
+ * selects all of them only if none are currently selected — same convention as row selection's
+ * `toggleSelectAll`. `values` is typically a search-narrowed subset of the column's full
+ * checklist, so this only ever affects what's currently visible.
  */
 export function toggleFilterAll(
   filters: Record<string, Set<string>>,
@@ -417,9 +418,9 @@ export function toggleFilterAll(
   values: string[],
 ): Record<string, Set<string>> {
   const current = filters[key] ?? new Set<string>()
-  const allSelected = values.length > 0 && values.every((v) => current.has(v))
+  const someSelected = values.some((v) => current.has(v))
   const next = new Set(current)
-  if (allSelected) values.forEach((v) => next.delete(v))
+  if (someSelected) values.forEach((v) => next.delete(v))
   else values.forEach((v) => next.add(v))
   return { ...filters, [key]: next }
 }

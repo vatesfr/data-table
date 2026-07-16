@@ -101,7 +101,7 @@ describe('useTableState — row selection', () => {
     expect(result.current.selectedRows).toEqual([])
   })
 
-  it('toggleSelectAll selects all when only some are selected (partial)', () => {
+  it('toggleSelectAll deselects all when only some are selected (partial)', () => {
     const { result } = renderHook(() => useTableState(ROWS, COLS))
     act(() => {
       result.current.toggleRowSelection(ROWS[0])
@@ -109,7 +109,7 @@ describe('useTableState — row selection', () => {
     act(() => {
       result.current.toggleSelectAll(ROWS)
     })
-    expect(result.current.selectedRows).toHaveLength(4)
+    expect(result.current.selectedRows).toHaveLength(0)
   })
 
   it('toggleSelectAll with empty array is a no-op', () => {

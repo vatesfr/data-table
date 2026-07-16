@@ -1037,9 +1037,9 @@ describe('toggleFilterAll', () => {
     expect([...result['dept']]).toEqual(['Eng', 'HR'])
   })
 
-  it('selects all given values when only some are selected', () => {
+  it('deselects all given values when only some are selected', () => {
     const result = toggleFilterAll({ dept: new Set(['Eng']) }, 'dept', ['Eng', 'HR'])
-    expect([...result['dept']].sort()).toEqual(['Eng', 'HR'])
+    expect(result['dept'].size).toBe(0)
   })
 
   it('deselects all given values when all are already selected', () => {
@@ -1049,7 +1049,7 @@ describe('toggleFilterAll', () => {
 
   it('only affects the given values, not other selected values for the same key', () => {
     const result = toggleFilterAll({ dept: new Set(['Eng', 'Sales']) }, 'dept', ['Eng', 'HR'])
-    expect([...result['dept']].sort()).toEqual(['Eng', 'HR', 'Sales'])
+    expect([...result['dept']].sort()).toEqual(['Sales'])
   })
 
   it('is a no-op for an empty values array', () => {

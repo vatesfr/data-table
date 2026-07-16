@@ -233,8 +233,8 @@ export function useTableState<TRow extends object>(
     toggleSelectAll: (rows: TRow[]) =>
       setSelection((prev) => {
         const next = new Set(prev)
-        const allSelected = rows.length > 0 && rows.every((r) => next.has(r))
-        if (allSelected) rows.forEach((r) => next.delete(r))
+        const someSelected = rows.some((r) => next.has(r))
+        if (someSelected) rows.forEach((r) => next.delete(r))
         else rows.forEach((r) => next.add(r))
         return next
       }),

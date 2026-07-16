@@ -7,6 +7,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Changed
+
+- Select-all checkboxes (header, group headers, filter checklist) now clear the selection when clicked in an indeterminate or fully-checked state, and only select all when nothing is selected — matching Gmail's convention instead of always escalating to select-all
+
 ## [0.2.0] - 2026-07-14
 
 ### Added

@@ -36,7 +36,7 @@ calcTotalPages(count, pageSize) // total page count (pageSize 0 → 1)
 toggleSort(sorts, key) // cycle asc → desc → off
 toggleFilter(filters, key, value) // toggle a checklist value
 filterValuesBySearch(values, term) // narrow a checklist's values by a case-insensitive substring
-toggleFilterAll(filters, key, values) // select all given values if any is unselected, else deselect all of them
+toggleFilterAll(filters, key, values) // deselect all given values if any is selected, else select all of them
 sortFilterValues(values, counts, sort) // reorder a filter checklist's values by ValueSort (alphabetical or by facet count, asc/desc)
 cycleValueSort(sort) // advance a ValueSort: alpha-asc → alpha-desc → count-desc → count-asc → alpha-asc
 toggleSortDir(dir) // flip 'asc' | 'desc' (used for the date tree's own asc/desc toggle)

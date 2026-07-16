@@ -863,8 +863,8 @@ export function createDataTable<TRow extends object>(
         break
       case 'select-all': {
         const next = new Set(selection)
-        const allSel = _processedData.length > 0 && _processedData.every((r) => next.has(r))
-        if (allSel) _processedData.forEach((r) => next.delete(r))
+        const someSel = _processedData.some((r) => next.has(r))
+        if (someSel) _processedData.forEach((r) => next.delete(r))
         else _processedData.forEach((r) => next.add(r))
         selection = next
         selectionChanged = true
@@ -884,8 +884,8 @@ export function createDataTable<TRow extends object>(
         if (group) {
           const groupRows = group.rows
           const next = new Set(selection)
-          const allSel = groupRows.length > 0 && groupRows.every((r) => next.has(r))
-          if (allSel) groupRows.forEach((r) => next.delete(r))
+          const someSel = groupRows.some((r) => next.has(r))
+          if (someSel) groupRows.forEach((r) => next.delete(r))
           else groupRows.forEach((r) => next.add(r))
           selection = next
           selectionChanged = true
