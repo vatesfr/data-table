@@ -1,5 +1,5 @@
 <script setup lang="ts" generic="TRow extends object">
-import { computed, ref, watch, useSlots, getCurrentInstance } from 'vue'
+import { computed, ref, shallowRef, watch, useSlots, getCurrentInstance } from 'vue'
 import {
   computeAggregate,
   getColumnValue,
@@ -16,11 +16,14 @@ import {
   selectDateRange,
   selectRange,
   getVisibleRows,
+  isSameVisibleItem,
+  indexOfVisibleItem,
   paginateData,
   groupData,
   type GroupResult,
   type DateTreeNode,
   type ValueSort,
+  type VisibleItem,
 } from '@vates/data-table-core'
 import type { ColumnDef, DataTableViewProps } from './types'
 import Dropdown from './components/Dropdown.vue'
@@ -100,39 +103,51 @@ watch(selectedRows, (rows) => {
   emit('selectionChange', rows)
 })
 
-// Roving tabindex: exactly one data row is a Tab stop at a time (the rest are tabindex="-1"),
-// arrow keys move it — mirrors the anchor/range idea the checklist/date-tree checkboxes already
-// use for shift-click. Rows only join the tab sequence when they're actually interactive.
-const focusedRow = ref<TRow | null>(null)
-const rowRefs = new Map<TRow, HTMLTableRowElement>()
+// Roving tabindex: exactly one item (a data row or a group header row) is a Tab stop at a time
+// (the rest are tabindex="-1"), arrow keys move it — mirrors the anchor/range idea the
+// checklist/date-tree checkboxes already use for shift-click. Data rows only join the tab
+// sequence when they're actually interactive; group headers always do, since collapsing a group
+// is already a click away regardless of selectable/onRowClick.
+// shallowRef (not ref) — VisibleItem<TRow> embeds a TRow field, and Vue's deep-unwrap conflicts
+// with the generic constraint here the same way it does for `selection` (see "Row selection").
+const focusTarget = shallowRef<VisibleItem<TRow> | null>(null)
+const rowRefs = new Map<TRow | string, HTMLTableRowElement>()
 
 const isRowNavEnabled = computed(() => props.selectable || isRowClickable.value)
-const visibleRows = computed(() => getVisibleRows(groupedData.value, collapsedGroups.value))
-const effectiveFocusRow = computed(() =>
-  focusedRow.value && visibleRows.value.includes(focusedRow.value)
-    ? focusedRow.value
-    : (visibleRows.value[0] ?? null),
+const visibleItems = computed(() => getVisibleRows(groupedData.value, collapsedGroups.value))
+const navigableItems = computed(() =>
+  visibleItems.value.filter((item) => item.kind === 'group' || isRowNavEnabled.value),
+)
+const effectiveFocusTarget = computed(() =>
+  focusTarget.value && indexOfVisibleItem(navigableItems.value, focusTarget.value) !== -1
+    ? focusTarget.value
+    : (navigableItems.value[0] ?? null),
 )
 
-function setRowRef(row: TRow, el: Element | null): void {
-  if (el) rowRefs.set(row, el as HTMLTableRowElement)
-  else rowRefs.delete(row)
+function isFocusTarget(item: VisibleItem<TRow>): boolean {
+  return effectiveFocusTarget.value !== null && isSameVisibleItem(effectiveFocusTarget.value, item)
 }
 
-function setFocusedRow(row: TRow): void {
-  focusedRow.value = row
+function setItemRef(key: TRow | string, el: Element | null): void {
+  if (el) rowRefs.set(key, el as HTMLTableRowElement)
+  else rowRefs.delete(key)
 }
 
-function focusRow(row: TRow): void {
-  setFocusedRow(row)
-  rowRefs.get(row)?.focus()
+function setFocusTarget(target: VisibleItem<TRow>): void {
+  focusTarget.value = target
 }
 
-// Arrow-key/Ctrl+Home/Ctrl+End navigation can target a row that isn't on the current page —
-// `visibleRows` only covers `groupedData`, which is built from the current page's slice. This
+function focusItem(target: VisibleItem<TRow>): void {
+  setFocusTarget(target)
+  const refKey = target.kind === 'row' ? target.row : target.key
+  rowRefs.get(refKey)?.focus()
+}
+
+// Arrow-key/Ctrl+Home/Ctrl+End navigation can target an item that isn't on the current page —
+// `visibleItems` only covers `groupedData`, which is built from the current page's slice. This
 // recomputes the same pipeline (paginate → group → flatten-visible) for an arbitrary page, on
-// demand, so a boundary key press can find the row it needs to jump to.
-function visibleRowsForPage(p: number): TRow[] {
+// demand, so a boundary key press can find the item it needs to jump to.
+function visibleItemsForPage(p: number): VisibleItem<TRow>[] {
   return getVisibleRows(
     groupData(
       paginateData(processedData.value, p, pageSize.value),
@@ -141,55 +156,57 @@ function visibleRowsForPage(p: number): TRow[] {
       L.value.emptyValue,
     ),
     collapsedGroups.value,
-  )
+  ).filter((item) => item.kind === 'group' || isRowNavEnabled.value)
 }
 
-// Changing `page` re-renders asynchronously, so a row on the new page can't be focused until
+// Changing `page` re-renders asynchronously, so an item on the new page can't be focused until
 // after that render commits — this records the target and the `watch` below (flush: 'post',
 // i.e. after the DOM update) picks it up.
-let pendingFocusRow: TRow | null = null
+let pendingFocusTarget: VisibleItem<TRow> | null = null
 
 watch(
   page,
   () => {
-    if (pendingFocusRow) {
-      const target = pendingFocusRow
-      pendingFocusRow = null
-      focusRow(target)
+    if (pendingFocusTarget) {
+      const target = pendingFocusTarget
+      pendingFocusTarget = null
+      focusItem(target)
     }
   },
   { flush: 'post' },
 )
 
-function handleRowKeyDown(event: KeyboardEvent, row: TRow): void {
-  if (!isRowNavEnabled.value) return
-  const rows = visibleRows.value
-  const idx = rows.indexOf(row)
+function handleKeyDown(event: KeyboardEvent, target: VisibleItem<TRow>): void {
+  const items = navigableItems.value
+  const idx = indexOfVisibleItem(items, target)
   switch (event.key) {
     case 'ArrowDown':
     case 'ArrowUp': {
       const delta = event.key === 'ArrowDown' ? 1 : -1
       const nextIdx = idx + delta
-      if (nextIdx >= 0 && nextIdx < rows.length) {
-        const target = rows[nextIdx]
+      if (nextIdx >= 0 && nextIdx < items.length) {
+        const next = items[nextIdx]
         event.preventDefault()
-        if (event.shiftKey && props.selectable) toggleRowSelection(target, true)
-        focusRow(target)
+        if (event.shiftKey && props.selectable && next.kind === 'row')
+          toggleRowSelection(next.row, true)
+        focusItem(next)
       } else if (delta === 1 && page.value < numPages.value) {
-        const target = visibleRowsForPage(page.value + 1)[0]
-        if (target) {
+        const next = visibleItemsForPage(page.value + 1)[0]
+        if (next) {
           event.preventDefault()
-          if (event.shiftKey && props.selectable) toggleRowSelection(target, true)
-          pendingFocusRow = target
+          if (event.shiftKey && props.selectable && next.kind === 'row')
+            toggleRowSelection(next.row, true)
+          pendingFocusTarget = next
           setPage(page.value + 1)
         }
       } else if (delta === -1 && page.value > 1) {
-        const prevRows = visibleRowsForPage(page.value - 1)
-        const target = prevRows[prevRows.length - 1]
-        if (target) {
+        const prevItems = visibleItemsForPage(page.value - 1)
+        const next = prevItems[prevItems.length - 1]
+        if (next) {
           event.preventDefault()
-          if (event.shiftKey && props.selectable) toggleRowSelection(target, true)
-          pendingFocusRow = target
+          if (event.shiftKey && props.selectable && next.kind === 'row')
+            toggleRowSelection(next.row, true)
+          pendingFocusTarget = next
           setPage(page.value - 1)
         }
       }
@@ -199,37 +216,49 @@ function handleRowKeyDown(event: KeyboardEvent, row: TRow): void {
     case 'End': {
       if (event.ctrlKey || event.metaKey) {
         const targetPage = event.key === 'Home' ? 1 : numPages.value
-        const targetRows = targetPage === page.value ? rows : visibleRowsForPage(targetPage)
-        const target = event.key === 'Home' ? targetRows[0] : targetRows[targetRows.length - 1]
-        if (target) {
+        const targetItems = targetPage === page.value ? items : visibleItemsForPage(targetPage)
+        const next = event.key === 'Home' ? targetItems[0] : targetItems[targetItems.length - 1]
+        if (next) {
           event.preventDefault()
-          if (event.shiftKey && props.selectable) toggleRowSelection(target, true)
+          if (event.shiftKey && props.selectable && next.kind === 'row')
+            toggleRowSelection(next.row, true)
           if (targetPage === page.value) {
-            focusRow(target)
+            focusItem(next)
           } else {
-            pendingFocusRow = target
+            pendingFocusTarget = next
             setPage(targetPage)
           }
         }
         break
       }
-      const target = rows[event.key === 'Home' ? 0 : rows.length - 1]
-      if (target && target !== row) {
+      const next = items[event.key === 'Home' ? 0 : items.length - 1]
+      if (next && !isSameVisibleItem(next, target)) {
         event.preventDefault()
-        if (event.shiftKey && props.selectable) toggleRowSelection(target, true)
-        focusRow(target)
+        if (event.shiftKey && props.selectable && next.kind === 'row')
+          toggleRowSelection(next.row, true)
+        focusItem(next)
       }
       break
     }
     case ' ':
-      if (props.selectable) {
+      if (target.kind === 'group') {
+        if (props.selectable) {
+          event.preventDefault()
+          const group = groupedData.value.find((g) => g.key === target.key)
+          if (group) toggleSelectAll(group.rows)
+        }
+      } else if (props.selectable) {
         event.preventDefault()
-        toggleRowSelection(row, event.shiftKey)
+        toggleRowSelection(target.row, event.shiftKey)
       }
       break
     case 'Enter':
       event.preventDefault()
-      handleRowClick(row, event)
+      if (target.kind === 'group') {
+        toggleGroupCollapse(target.key)
+      } else {
+        handleRowClick(target.row, event)
+      }
       break
   }
 }
@@ -777,8 +806,13 @@ function onColDragEnd(): void {
             <!-- Group header -->
             <tr
               v-if="group.key !== null"
+              :ref="(el) => setItemRef(group.key!, el as Element | null)"
+              :tabindex="isFocusTarget({ kind: 'group', key: group.key! }) ? 0 : -1"
+              :aria-expanded="!collapsedGroups.has(group.key!)"
               class="dt__group-row"
               @click="toggleGroupCollapse(group.key!)"
+              @keydown="handleKeyDown($event, { kind: 'group', key: group.key! })"
+              @focusin="setFocusTarget({ kind: 'group', key: group.key! })"
             >
               <td v-if="selectable" class="dt__group-td" style="width: 36px" @click.stop>
                 <input
@@ -832,8 +866,10 @@ function onColDragEnd(): void {
               <tr
                 v-for="(row, ri) in group.rows"
                 :key="(asRecord(row)[rowKey] as string | number) ?? ri"
-                :ref="(el) => setRowRef(row, el as Element | null)"
-                :tabindex="isRowNavEnabled ? (row === effectiveFocusRow ? 0 : -1) : undefined"
+                :ref="(el) => setItemRef(row, el as Element | null)"
+                :tabindex="
+                  isRowNavEnabled ? (isFocusTarget({ kind: 'row', row }) ? 0 : -1) : undefined
+                "
                 :aria-selected="selectable ? selection.has(row) : undefined"
                 :class="{
                   'dt__tr--stripe': ri % 2 !== 0,
@@ -841,8 +877,8 @@ function onColDragEnd(): void {
                   'dt__tr--clickable': isRowClickable,
                 }"
                 @click="handleRowClick(row, $event)"
-                @keydown="handleRowKeyDown($event, row)"
-                @focusin="setFocusedRow(row)"
+                @keydown="handleKeyDown($event, { kind: 'row', row })"
+                @focusin="setFocusTarget({ kind: 'row', row })"
               >
                 <td v-if="selectable" class="dt__td" style="width: 36px" @click.stop>
                   <input

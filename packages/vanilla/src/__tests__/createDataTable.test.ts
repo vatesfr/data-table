@@ -1263,6 +1263,79 @@ describe('createDataTable', () => {
     expect(document.activeElement).toBe(newFirst)
   })
 
+  // --- keyboard navigation with grouping ---
+
+  function groupHeaderRows(el: HTMLElement): HTMLElement[] {
+    return [...el.querySelectorAll<HTMLElement>('.dt-group-row[data-gkey]')]
+  }
+
+  function groupByDept(): void {
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="group"]')!)
+    click(container.querySelector<HTMLElement>('[data-action="toggle-group"][data-key="dept"]')!)
+  }
+
+  it('makes every group header row a Tab stop, one at a time', () => {
+    createDataTable(container, { data: ROWS, columns: COLS, selectable: true })
+    groupByDept()
+    const headers = groupHeaderRows(container)
+    expect(headers).toHaveLength(2)
+    expect(headers[0].getAttribute('tabindex')).toBe('0')
+    expect(headers[1].getAttribute('tabindex')).toBe('-1')
+  })
+
+  it("ArrowDown walks through a group's rows and on to the next group header", () => {
+    createDataTable(container, { data: ROWS, columns: COLS, selectable: true })
+    groupByDept()
+    const [firstHeader] = groupHeaderRows(container)
+    firstHeader.focus()
+    keydown(firstHeader, 'ArrowDown') // -> Alice
+    keydown(document.activeElement!, 'ArrowDown') // -> Clara
+    keydown(document.activeElement!, 'ArrowDown') // -> HR header
+    expect(document.activeElement).toBe(groupHeaderRows(container)[1])
+  })
+
+  it('Enter toggles collapse on a focused group header, regardless of selectable/onRowClick', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    groupByDept()
+    const [firstHeader] = groupHeaderRows(container)
+    firstHeader.focus()
+    keydown(firstHeader, 'Enter')
+    expect(container.textContent).not.toContain('Alice')
+    keydown(document.activeElement!, 'Enter')
+    expect(container.textContent).toContain('Alice')
+  })
+
+  it("Space toggles the group's own select-all checkbox on a focused group header", () => {
+    createDataTable(container, { data: ROWS, columns: COLS, selectable: true })
+    groupByDept()
+    const [firstHeader] = groupHeaderRows(container)
+    firstHeader.focus()
+    keydown(firstHeader, ' ')
+    const checkbox = groupHeaderRows(container)[0].querySelector<HTMLInputElement>(
+      '[data-action="toggle-group-select"]',
+    )!
+    expect(checkbox.checked).toBe(true)
+  })
+
+  it('Ctrl+End from a group header jumps to the true last row across all groups', () => {
+    createDataTable(container, { data: ROWS, columns: COLS, selectable: true })
+    groupByDept()
+    const [firstHeader] = groupHeaderRows(container)
+    firstHeader.focus()
+    keydown(firstHeader, 'End', { ctrlKey: true })
+    expect(document.activeElement?.textContent).toContain('David')
+  })
+
+  it("a collapsed group's header stays reachable and its rows are skipped", () => {
+    createDataTable(container, { data: ROWS, columns: COLS, selectable: true })
+    groupByDept()
+    const [firstHeader] = groupHeaderRows(container)
+    firstHeader.focus()
+    keydown(firstHeader, 'Enter') // collapse Eng
+    keydown(document.activeElement!, 'ArrowDown')
+    expect(document.activeElement).toBe(groupHeaderRows(container)[1])
+  })
+
   // --- grouping ---
 
   it('renders group header rows when a column is grouped', () => {

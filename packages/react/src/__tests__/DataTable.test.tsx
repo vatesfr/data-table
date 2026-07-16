@@ -724,6 +724,114 @@ describe('DataTable — keyboard navigation across pages', () => {
   })
 })
 
+describe('DataTable — keyboard navigation with grouping', () => {
+  interface GroupRow {
+    id: number
+    name: string
+    dept: string
+  }
+
+  const GROUP_COLS: ColumnDef<GroupRow>[] = [
+    { key: 'name', label: 'Name' },
+    { key: 'dept', label: 'Department', groupable: true },
+  ]
+
+  const GROUP_ROWS: GroupRow[] = [
+    { id: 1, name: 'Alice', dept: 'Eng' },
+    { id: 2, name: 'Bob', dept: 'Eng' },
+    { id: 3, name: 'Clara', dept: 'HR' },
+    { id: 4, name: 'David', dept: 'HR' },
+  ]
+
+  function groupHeaderRows(container: HTMLElement): HTMLElement[] {
+    return [...container.querySelectorAll<HTMLElement>('tbody tr[aria-expanded]')]
+  }
+
+  // Clicking "Group" reveals a "Department" entry in the dropdown, ambiguous with the still
+  // -present "Department" column header until the click actually applies groupBy (which then
+  // removes that column from activeColumns) — so pick the dropdown's copy explicitly.
+  function groupByDept(
+    getByText: (t: string) => HTMLElement,
+    getAllByText: (t: string) => HTMLElement[],
+  ) {
+    fireEvent.click(getByText('Group'))
+    fireEvent.click(getAllByText('Department').find((el) => el.closest('th') === null)!)
+  }
+
+  it('makes every group header row a Tab stop, one at a time', () => {
+    const { getByText, getAllByText, container } = render(
+      <DataTable data={GROUP_ROWS} columns={GROUP_COLS} rowKey="id" selectable />,
+    )
+    groupByDept(getByText, getAllByText)
+    const headers = groupHeaderRows(container)
+    expect(headers).toHaveLength(2)
+    expect(headers[0].getAttribute('tabindex')).toBe('0')
+    expect(headers[1].getAttribute('tabindex')).toBe('-1')
+  })
+
+  it('ArrowDown walks through a group’s rows and on to the next group header', () => {
+    const { getByText, getAllByText, container } = render(
+      <DataTable data={GROUP_ROWS} columns={GROUP_COLS} rowKey="id" selectable />,
+    )
+    groupByDept(getByText, getAllByText)
+    const [firstHeader] = groupHeaderRows(container)
+    firstHeader.focus()
+    fireEvent.keyDown(document.activeElement!, { key: 'ArrowDown' }) // -> Alice
+    fireEvent.keyDown(document.activeElement!, { key: 'ArrowDown' }) // -> Bob
+    fireEvent.keyDown(document.activeElement!, { key: 'ArrowDown' }) // -> HR header
+    expect(document.activeElement).toBe(groupHeaderRows(container)[1])
+  })
+
+  it('Enter toggles collapse on a focused group header, regardless of selectable/onRowClick', () => {
+    const { getByText, getAllByText, container, queryByText } = render(
+      <DataTable data={GROUP_ROWS} columns={GROUP_COLS} rowKey="id" />,
+    )
+    groupByDept(getByText, getAllByText)
+    const [firstHeader] = groupHeaderRows(container)
+    firstHeader.focus()
+    fireEvent.keyDown(firstHeader, { key: 'Enter' })
+    expect(queryByText('Alice')).toBeNull()
+    fireEvent.keyDown(document.activeElement!, { key: 'Enter' })
+    expect(queryByText('Alice')).toBeTruthy()
+  })
+
+  it('Space toggles the group’s own select-all checkbox on a focused group header', () => {
+    const { getByText, getAllByText, container } = render(
+      <DataTable data={GROUP_ROWS} columns={GROUP_COLS} rowKey="id" selectable />,
+    )
+    groupByDept(getByText, getAllByText)
+    const [firstHeader] = groupHeaderRows(container)
+    firstHeader.focus()
+    fireEvent.keyDown(firstHeader, { key: ' ' })
+    const checkbox = firstHeader.querySelector('input[type="checkbox"]') as HTMLInputElement
+    expect(checkbox.checked).toBe(true)
+  })
+
+  it('Ctrl+End from a group header jumps to the true last row across all groups', () => {
+    const { getByText, getAllByText, container } = render(
+      <DataTable data={GROUP_ROWS} columns={GROUP_COLS} rowKey="id" selectable />,
+    )
+    groupByDept(getByText, getAllByText)
+    const [firstHeader] = groupHeaderRows(container)
+    firstHeader.focus()
+    fireEvent.keyDown(firstHeader, { key: 'End', ctrlKey: true })
+    expect(document.activeElement?.textContent).toContain('David')
+  })
+
+  it('a collapsed group’s header stays reachable and its rows are skipped', () => {
+    const { getByText, getAllByText, container } = render(
+      <DataTable data={GROUP_ROWS} columns={GROUP_COLS} rowKey="id" selectable />,
+    )
+    groupByDept(getByText, getAllByText)
+    const [firstHeader] = groupHeaderRows(container)
+    firstHeader.focus()
+    fireEvent.keyDown(firstHeader, { key: 'Enter' }) // collapse Eng
+    fireEvent.keyDown(document.activeElement!, { key: 'ArrowDown' })
+    // Eng's rows are hidden, so ArrowDown from its (still focusable) header goes straight to HR's header
+    expect(document.activeElement).toBe(groupHeaderRows(container)[1])
+  })
+})
+
 describe('DataTable — computed columns', () => {
   it('renders a cell value produced by col.value instead of row[key]', () => {
     const cols: ColumnDef<Row>[] = [

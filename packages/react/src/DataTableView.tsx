@@ -23,10 +23,13 @@ import {
   selectDateRange,
   selectRange,
   getVisibleRows,
+  isSameVisibleItem,
+  indexOfVisibleItem,
   paginateData,
   groupData,
   type DateTreeNode,
   type ValueSort,
+  type VisibleItem,
 } from '@vates/data-table-core'
 import { Dropdown } from './components/Dropdown'
 import { ToolbarBtn } from './components/ToolbarBtn'
@@ -314,8 +317,8 @@ export function DataTableView<TRow extends object>({
   const [openFilterDD, setOpenFilterDD] = useState(false)
   const [openGroupDD, setOpenGroupDD] = useState(false)
   const [hoveredRow, setHoveredRow] = useState<TRow | null>(null)
-  const [focusedRow, setFocusedRow] = useState<TRow | null>(null)
-  const rowRefs = useRef(new Map<TRow, HTMLTableRowElement>())
+  const [focusTarget, setFocusTarget] = useState<VisibleItem<TRow> | null>(null)
+  const rowRefs = useRef(new Map<TRow | string, HTMLTableRowElement>())
   const [dragColKey, setDragColKey] = useState<string | null>(null)
   const [dragOverColKey, setDragOverColKey] = useState<string | null>(null)
   const [filterActiveCol, setFilterActiveCol] = useState<string | null>(null)
@@ -393,69 +396,77 @@ export function DataTableView<TRow extends object>({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedRows])
 
-  // Roving tabindex: exactly one data row is a Tab stop at a time (the rest are tabIndex={-1}),
-  // arrow keys move it, matching how the checklist/date-tree checkboxes reuse the same anchor
-  // idea for range selection. Rows only join the tab sequence when they're actually interactive.
+  // Roving tabindex: exactly one item (a data row or a group header row) is a Tab stop at a
+  // time (the rest are tabIndex={-1}), arrow keys move it, matching how the checklist/date-tree
+  // checkboxes reuse the same anchor idea for range selection. Data rows only join the tab
+  // sequence when they're actually interactive; group headers always do, since collapsing a
+  // group is already a click away regardless of selectable/onRowClick.
   const rowNavEnabled = selectable || !!onRowClick
-  const visibleRows = getVisibleRows(groupedData, collapsedGroups)
-  const effectiveFocusRow =
-    focusedRow && visibleRows.includes(focusedRow) ? focusedRow : (visibleRows[0] ?? null)
+  const visibleItems = getVisibleRows(groupedData, collapsedGroups)
+  const navigableItems = visibleItems.filter((item) => item.kind === 'group' || rowNavEnabled)
+  const effectiveFocusTarget =
+    focusTarget && indexOfVisibleItem(navigableItems, focusTarget) !== -1
+      ? focusTarget
+      : (navigableItems[0] ?? null)
+  const isFocusTarget = (item: VisibleItem<TRow>) =>
+    effectiveFocusTarget !== null && isSameVisibleItem(effectiveFocusTarget, item)
 
-  const focusRow = (row: TRow) => {
-    setFocusedRow(row)
-    rowRefs.current.get(row)?.focus()
+  const focusItem = (target: VisibleItem<TRow>) => {
+    setFocusTarget(target)
+    const refKey = target.kind === 'row' ? target.row : target.key
+    rowRefs.current.get(refKey)?.focus()
   }
 
-  // Arrow-key/Ctrl+Home/Ctrl+End navigation can target a row that isn't on the current page —
-  // `visibleRows` only covers `groupedData`, which is built from the current page's slice. This
+  // Arrow-key/Ctrl+Home/Ctrl+End navigation can target an item that isn't on the current page —
+  // `visibleItems` only covers `groupedData`, which is built from the current page's slice. This
   // recomputes the same pipeline (paginate → group → flatten-visible) for an arbitrary page, on
-  // demand, so a boundary key press can find the row it needs to jump to.
-  const visibleRowsForPage = (p: number): TRow[] =>
+  // demand, so a boundary key press can find the item it needs to jump to.
+  const visibleItemsForPage = (p: number): VisibleItem<TRow>[] =>
     getVisibleRows(
       groupData(paginateData(processedData, p, pageSize), groupBy, columns, L.emptyValue),
       collapsedGroups,
-    )
+    ).filter((item) => item.kind === 'group' || rowNavEnabled)
 
-  // Changing `page` re-renders asynchronously, so a row on the new page can't be focused until
+  // Changing `page` re-renders asynchronously, so an item on the new page can't be focused until
   // after that render commits — this records the target and a `useEffect` below picks it up.
-  const pendingFocusRow = useRef<TRow | null>(null)
+  const pendingFocusTarget = useRef<VisibleItem<TRow> | null>(null)
 
   useEffect(() => {
-    if (pendingFocusRow.current) {
-      const target = pendingFocusRow.current
-      pendingFocusRow.current = null
-      focusRow(target)
+    if (pendingFocusTarget.current) {
+      const target = pendingFocusTarget.current
+      pendingFocusTarget.current = null
+      focusItem(target)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page])
 
-  const handleRowKeyDown = (e: KeyboardEvent<HTMLTableRowElement>, row: TRow) => {
-    const idx = visibleRows.indexOf(row)
+  const handleKeyDown = (e: KeyboardEvent<HTMLTableRowElement>, target: VisibleItem<TRow>) => {
+    const idx = indexOfVisibleItem(navigableItems, target)
     switch (e.key) {
       case 'ArrowDown':
       case 'ArrowUp': {
         const delta = e.key === 'ArrowDown' ? 1 : -1
         const nextIdx = idx + delta
-        if (nextIdx >= 0 && nextIdx < visibleRows.length) {
-          const target = visibleRows[nextIdx]
+        if (nextIdx >= 0 && nextIdx < navigableItems.length) {
+          const next = navigableItems[nextIdx]
           e.preventDefault()
-          if (e.shiftKey && selectable) toggleRowSelection(target, true)
-          focusRow(target)
+          if (e.shiftKey && selectable && next.kind === 'row') toggleRowSelection(next.row, true)
+          focusItem(next)
         } else if (delta === 1 && page < numPages) {
-          const target = visibleRowsForPage(page + 1)[0]
-          if (target) {
+          const next = visibleItemsForPage(page + 1)[0]
+          if (next) {
             e.preventDefault()
-            if (e.shiftKey && selectable) toggleRowSelection(target, true)
-            pendingFocusRow.current = target
+            if (e.shiftKey && selectable && next.kind === 'row') toggleRowSelection(next.row, true)
+            pendingFocusTarget.current = next
             setPage(page + 1)
           }
         } else if (delta === -1 && page > 1) {
-          const prevRows = visibleRowsForPage(page - 1)
-          const target = prevRows[prevRows.length - 1]
-          if (target) {
+          const prevItems = visibleItemsForPage(page - 1)
+          const next = prevItems[prevItems.length - 1]
+          if (next) {
             e.preventDefault()
-            if (e.shiftKey && selectable) toggleRowSelection(target, true)
-            pendingFocusRow.current = target
+            if (e.shiftKey && selectable && next.kind === 'row') toggleRowSelection(next.row, true)
+            pendingFocusTarget.current = next
             setPage(page - 1)
           }
         }
@@ -465,37 +476,46 @@ export function DataTableView<TRow extends object>({
       case 'End': {
         if (e.ctrlKey || e.metaKey) {
           const targetPage = e.key === 'Home' ? 1 : numPages
-          const targetRows = targetPage === page ? visibleRows : visibleRowsForPage(targetPage)
-          const target = e.key === 'Home' ? targetRows[0] : targetRows[targetRows.length - 1]
-          if (target) {
+          const targetItems = targetPage === page ? navigableItems : visibleItemsForPage(targetPage)
+          const next = e.key === 'Home' ? targetItems[0] : targetItems[targetItems.length - 1]
+          if (next) {
             e.preventDefault()
-            if (e.shiftKey && selectable) toggleRowSelection(target, true)
-            if (targetPage === page) focusRow(target)
+            if (e.shiftKey && selectable && next.kind === 'row') toggleRowSelection(next.row, true)
+            if (targetPage === page) focusItem(next)
             else {
-              pendingFocusRow.current = target
+              pendingFocusTarget.current = next
               setPage(targetPage)
             }
           }
           break
         }
-        const target = visibleRows[e.key === 'Home' ? 0 : visibleRows.length - 1]
-        if (target && target !== row) {
+        const next = navigableItems[e.key === 'Home' ? 0 : navigableItems.length - 1]
+        if (next && !isSameVisibleItem(next, target)) {
           e.preventDefault()
-          if (e.shiftKey && selectable) toggleRowSelection(target, true)
-          focusRow(target)
+          if (e.shiftKey && selectable && next.kind === 'row') toggleRowSelection(next.row, true)
+          focusItem(next)
         }
         break
       }
       case ' ':
-        if (selectable) {
+        if (target.kind === 'group') {
+          if (selectable) {
+            e.preventDefault()
+            const group = groupedData.find((g) => g.key === target.key)
+            if (group) toggleSelectAll(group.rows)
+          }
+        } else if (selectable) {
           e.preventDefault()
-          toggleRowSelection(row, e.shiftKey)
+          toggleRowSelection(target.row, e.shiftKey)
         }
         break
       case 'Enter':
-        if (onRowClick) {
+        if (target.kind === 'group') {
           e.preventDefault()
-          onRowClick(row, e)
+          toggleGroupCollapse(target.key)
+        } else if (onRowClick) {
+          e.preventDefault()
+          onRowClick(target.row, e)
         }
         break
     }
@@ -1118,6 +1138,14 @@ export function DataTableView<TRow extends object>({
                 gkey !== null && (
                   <tr
                     key={`g-${gkey}`}
+                    ref={(el) => {
+                      if (el) rowRefs.current.set(gkey, el)
+                      else rowRefs.current.delete(gkey)
+                    }}
+                    tabIndex={isFocusTarget({ kind: 'group', key: gkey }) ? 0 : -1}
+                    aria-expanded={!isCollapsed}
+                    onKeyDown={(e) => handleKeyDown(e, { kind: 'group', key: gkey })}
+                    onFocus={() => setFocusTarget({ kind: 'group', key: gkey })}
                     style={S.groupRow}
                     onClick={() => toggleGroupCollapse(gkey)}
                   >
@@ -1180,10 +1208,16 @@ export function DataTableView<TRow extends object>({
                         if (el) rowRefs.current.set(row, el)
                         else rowRefs.current.delete(row)
                       }}
-                      tabIndex={rowNavEnabled ? (row === effectiveFocusRow ? 0 : -1) : undefined}
+                      tabIndex={
+                        rowNavEnabled ? (isFocusTarget({ kind: 'row', row }) ? 0 : -1) : undefined
+                      }
                       aria-selected={selectable ? selection.has(row) : undefined}
-                      onKeyDown={rowNavEnabled ? (e) => handleRowKeyDown(e, row) : undefined}
-                      onFocus={rowNavEnabled ? () => setFocusedRow(row) : undefined}
+                      onKeyDown={
+                        rowNavEnabled ? (e) => handleKeyDown(e, { kind: 'row', row }) : undefined
+                      }
+                      onFocus={
+                        rowNavEnabled ? () => setFocusTarget({ kind: 'row', row }) : undefined
+                      }
                       onClick={onRowClick ? (e) => onRowClick(row, e) : undefined}
                       onMouseEnter={onRowClick ? () => setHoveredRow(row) : undefined}
                       onMouseLeave={onRowClick ? () => setHoveredRow(null) : undefined}

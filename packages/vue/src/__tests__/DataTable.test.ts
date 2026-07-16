@@ -749,6 +749,133 @@ describe('DataTable — keyboard navigation across pages', () => {
   })
 })
 
+describe('DataTable — keyboard navigation with grouping', () => {
+  interface GroupRow {
+    id: number
+    name: string
+    dept: string
+  }
+
+  const GROUP_COLS: ColumnDef<GroupRow>[] = [
+    { key: 'name', label: 'Name' },
+    { key: 'dept', label: 'Department', groupable: true },
+  ]
+
+  const GROUP_ROWS: GroupRow[] = [
+    { id: 1, name: 'Alice', dept: 'Eng' },
+    { id: 2, name: 'Bob', dept: 'Eng' },
+    { id: 3, name: 'Clara', dept: 'HR' },
+    { id: 4, name: 'David', dept: 'HR' },
+  ]
+
+  function groupHeaderRows(wrapper: ReturnType<typeof mount>) {
+    return wrapper.findAll('.dt__group-row')
+  }
+
+  function dataRows(wrapper: ReturnType<typeof mount>) {
+    return wrapper.findAll('tbody tr:not(.dt__group-row):not(.dt__agg-row)')
+  }
+
+  // Finds the wrapper for whichever row/header currently has DOM focus, since a keydown can move
+  // focus to an element we don't already hold a stale reference to (e.g. across a re-render).
+  function activeItemWrapper(wrapper: ReturnType<typeof mount>) {
+    return [...groupHeaderRows(wrapper), ...dataRows(wrapper)].find(
+      (r) => r.element === document.activeElement,
+    )!
+  }
+
+  async function groupByDept(wrapper: ReturnType<typeof mount>): Promise<void> {
+    const groupBtn = wrapper.findAll('button').find((b) => b.text() === 'Group')!
+    await groupBtn.trigger('click')
+    const deptItem = wrapper.findAll('.dt__dd-item').find((el) => el.text().includes('Department'))!
+    await deptItem.trigger('click')
+  }
+
+  it('makes every group header row a Tab stop, one at a time', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: GROUP_ROWS, columns: GROUP_COLS, rowKey: 'id', selectable: true },
+      attachTo: document.body,
+    })
+    await groupByDept(wrapper)
+    const headers = groupHeaderRows(wrapper)
+    expect(headers).toHaveLength(2)
+    expect(headers[0].attributes('tabindex')).toBe('0')
+    expect(headers[1].attributes('tabindex')).toBe('-1')
+    wrapper.unmount()
+  })
+
+  it("ArrowDown walks through a group's rows and on to the next group header", async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: GROUP_ROWS, columns: GROUP_COLS, rowKey: 'id', selectable: true },
+      attachTo: document.body,
+    })
+    await groupByDept(wrapper)
+    const [firstHeader] = groupHeaderRows(wrapper)
+    ;(firstHeader.element as HTMLElement).focus()
+    await firstHeader.trigger('keydown', { key: 'ArrowDown' }) // -> Alice
+    await activeItemWrapper(wrapper).trigger('keydown', { key: 'ArrowDown' }) // -> Bob
+    await activeItemWrapper(wrapper).trigger('keydown', { key: 'ArrowDown' }) // -> HR header
+    expect(document.activeElement).toBe(groupHeaderRows(wrapper)[1].element)
+    wrapper.unmount()
+  })
+
+  it('Enter toggles collapse on a focused group header, regardless of selectable/onRowClick', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: GROUP_ROWS, columns: GROUP_COLS, rowKey: 'id' },
+      attachTo: document.body,
+    })
+    await groupByDept(wrapper)
+    const [firstHeader] = groupHeaderRows(wrapper)
+    ;(firstHeader.element as HTMLElement).focus()
+    await firstHeader.trigger('keydown', { key: 'Enter' })
+    expect(wrapper.text()).not.toContain('Alice')
+    await activeItemWrapper(wrapper).trigger('keydown', { key: 'Enter' })
+    expect(wrapper.text()).toContain('Alice')
+    wrapper.unmount()
+  })
+
+  it("Space toggles the group's own select-all checkbox on a focused group header", async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: GROUP_ROWS, columns: GROUP_COLS, rowKey: 'id', selectable: true },
+      attachTo: document.body,
+    })
+    await groupByDept(wrapper)
+    const [firstHeader] = groupHeaderRows(wrapper)
+    ;(firstHeader.element as HTMLElement).focus()
+    await firstHeader.trigger('keydown', { key: ' ' })
+    const checkbox = firstHeader.find('input[type="checkbox"]')
+    expect((checkbox.element as HTMLInputElement).checked).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('Ctrl+End from a group header jumps to the true last row across all groups', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: GROUP_ROWS, columns: GROUP_COLS, rowKey: 'id', selectable: true },
+      attachTo: document.body,
+    })
+    await groupByDept(wrapper)
+    const [firstHeader] = groupHeaderRows(wrapper)
+    ;(firstHeader.element as HTMLElement).focus()
+    await firstHeader.trigger('keydown', { key: 'End', ctrlKey: true })
+    expect(document.activeElement?.textContent).toContain('David')
+    wrapper.unmount()
+  })
+
+  it("a collapsed group's header stays reachable and its rows are skipped", async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: GROUP_ROWS, columns: GROUP_COLS, rowKey: 'id', selectable: true },
+      attachTo: document.body,
+    })
+    await groupByDept(wrapper)
+    const [firstHeader] = groupHeaderRows(wrapper)
+    ;(firstHeader.element as HTMLElement).focus()
+    await firstHeader.trigger('keydown', { key: 'Enter' }) // collapse Eng
+    await activeItemWrapper(wrapper).trigger('keydown', { key: 'ArrowDown' })
+    expect(document.activeElement).toBe(groupHeaderRows(wrapper)[1].element)
+    wrapper.unmount()
+  })
+})
+
 describe('DataTable — computed columns', () => {
   it('renders a cell value produced by col.value instead of row[key]', () => {
     const cols: ColumnDef<Row>[] = [

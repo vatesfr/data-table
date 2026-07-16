@@ -134,17 +134,47 @@ export function groupData<TRow extends object>(
   return Object.entries(groups).map(([key, { keyParts, rows }]) => ({ key, keyParts, rows }))
 }
 
+/** A single keyboard-navigable target in the table body: a group header row, or a data row. */
+export type VisibleItem<TRow> = { kind: 'group'; key: string } | { kind: 'row'; row: TRow }
+
 /**
- * Flattens `groupData`'s result into the rows actually rendered — i.e. skipping a collapsed
- * group's rows entirely, the same condition each adapter's own render already applies. This is
- * the row order used for keyboard arrow-key navigation: rows hidden behind a collapsed group
- * are not valid Up/Down targets, and expanding/collapsing a group changes what's reachable.
+ * Flattens `groupData`'s result into the items actually rendered, in display order — a group
+ * header for every group (even a collapsed one, so it stays reachable to re-expand), followed by
+ * its rows unless it's collapsed, the same condition each adapter's own render already applies.
+ * This is the order used for keyboard arrow-key navigation: a collapsed group's rows are not
+ * valid Up/Down targets, but its header always is, and expanding/collapsing a group changes what
+ * else is reachable.
  */
 export function getVisibleRows<TRow extends object>(
   groups: GroupResult<TRow>[],
   collapsedGroups: Set<string>,
-): TRow[] {
-  return groups.flatMap(({ key, rows }) => (key !== null && collapsedGroups.has(key) ? [] : rows))
+): VisibleItem<TRow>[] {
+  return groups.flatMap(({ key, rows }): VisibleItem<TRow>[] => {
+    if (key === null) return rows.map((row) => ({ kind: 'row', row }))
+    const rowItems: VisibleItem<TRow>[] = collapsedGroups.has(key)
+      ? []
+      : rows.map((row) => ({ kind: 'row', row }))
+    return [{ kind: 'group', key }, ...rowItems]
+  })
+}
+
+/** Whether `a` and `b` are the same navigable target — rows compare by object identity, groups by key. */
+export function isSameVisibleItem<TRow extends object>(
+  a: VisibleItem<TRow>,
+  b: VisibleItem<TRow>,
+): boolean {
+  if (a.kind === 'group' && b.kind === 'group') return a.key === b.key
+  if (a.kind === 'row' && b.kind === 'row') return a.row === b.row
+  return false
+}
+
+/** Index of `target` within `items` (see `isSameVisibleItem`), or -1 if `target` is null/absent. */
+export function indexOfVisibleItem<TRow extends object>(
+  items: VisibleItem<TRow>[],
+  target: VisibleItem<TRow> | null,
+): number {
+  if (target === null) return -1
+  return items.findIndex((item) => isSameVisibleItem(item, target))
 }
 
 export function computeStringValues<TRow extends object>(

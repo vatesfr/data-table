@@ -4,6 +4,8 @@ import {
   searchData,
   groupData,
   getVisibleRows,
+  isSameVisibleItem,
+  indexOfVisibleItem,
   computeStringValues,
   computeStringValueCounts,
   filterValuesBySearch,
@@ -437,25 +439,63 @@ describe('groupData', () => {
 // ─── getVisibleRows ──────────────────────────────────────────────────────────
 
 describe('getVisibleRows', () => {
-  it('flattens an ungrouped result (single null-key group) as-is', () => {
+  it('flattens an ungrouped result (single null-key group) as-is, with no group header items', () => {
     const groups = groupData(ROWS, [])
-    expect(getVisibleRows(groups, new Set())).toEqual(ROWS)
+    expect(getVisibleRows(groups, new Set())).toEqual(ROWS.map((row) => ({ kind: 'row', row })))
   })
 
-  it('flattens all groups in order when none are collapsed', () => {
+  it('includes one group header item per group plus its rows in order when none are collapsed', () => {
     const groups = groupData(ROWS, ['dept'])
+    const visible = getVisibleRows(groups, new Set())
+    const headerKeys = visible.filter((i) => i.kind === 'group').map((i) => i.key)
+    expect(headerKeys.sort()).toEqual(['Eng', 'HR'])
     expect(
-      getVisibleRows(groups, new Set())
-        .map((r) => r.name)
+      visible
+        .filter((i) => i.kind === 'row')
+        .map((i) => i.row.name)
         .sort(),
     ).toEqual(ROWS.map((r) => r.name).sort())
   })
 
-  it("omits a collapsed group's rows entirely", () => {
+  it("omits a collapsed group's rows but keeps its header item reachable", () => {
     const groups = groupData(ROWS, ['dept'])
     const visible = getVisibleRows(groups, new Set(['Eng']))
-    expect(visible.some((r) => r.dept === 'Eng')).toBe(false)
-    expect(visible.filter((r) => r.dept === 'HR')).toHaveLength(2)
+    expect(visible.some((i) => i.kind === 'group' && i.key === 'Eng')).toBe(true)
+    expect(visible.some((i) => i.kind === 'row' && i.row.dept === 'Eng')).toBe(false)
+    expect(visible.filter((i) => i.kind === 'row' && i.row.dept === 'HR')).toHaveLength(2)
+  })
+})
+
+describe('isSameVisibleItem / indexOfVisibleItem', () => {
+  it('matches row items by object identity, not structural equality', () => {
+    const row = ROWS[0]
+    const copy = { ...row }
+    expect(isSameVisibleItem({ kind: 'row', row }, { kind: 'row', row })).toBe(true)
+    expect(isSameVisibleItem({ kind: 'row', row }, { kind: 'row', row: copy })).toBe(false)
+  })
+
+  it('matches group items by key', () => {
+    expect(isSameVisibleItem({ kind: 'group', key: 'Eng' }, { kind: 'group', key: 'Eng' })).toBe(
+      true,
+    )
+    expect(isSameVisibleItem({ kind: 'group', key: 'Eng' }, { kind: 'group', key: 'HR' })).toBe(
+      false,
+    )
+  })
+
+  it('never matches across kinds', () => {
+    expect(isSameVisibleItem({ kind: 'group', key: 'Eng' }, { kind: 'row', row: ROWS[0] })).toBe(
+      false,
+    )
+  })
+
+  it('indexOfVisibleItem finds the matching item, or -1 for null/absent target', () => {
+    const groups = groupData(ROWS, ['dept'])
+    const items = getVisibleRows(groups, new Set())
+    expect(indexOfVisibleItem(items, null)).toBe(-1)
+    expect(indexOfVisibleItem(items, { kind: 'group', key: 'Eng' })).toBeGreaterThanOrEqual(0)
+    expect(indexOfVisibleItem(items, { kind: 'row', row: ROWS[0] })).toBeGreaterThanOrEqual(0)
+    expect(indexOfVisibleItem(items, { kind: 'group', key: 'Nope' })).toBe(-1)
   })
 })
 
