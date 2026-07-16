@@ -206,6 +206,7 @@ const filterDetailTree = computed(() =>
         filteredValuesFor(filterDetailCol.value),
         L.value.emptyValue,
         valueSortFor(filterDetailCol.value.key).dir,
+        filterDetailCol.value.parseDate,
       )
     : [],
 )
@@ -224,7 +225,7 @@ function onDateNodeClick(col: ColumnDef<TRow>, node: DateTreeNode, event: MouseE
   const anchorNode = anchor != null ? findDateTreeNode(filterDetailTree.value, anchor) : null
   const state = getDateTreeNodeState(node, filters.value[key] ?? new Set())
   if (event.shiftKey && anchorNode) {
-    const values = selectDateRange(filteredValuesFor(col), anchorNode, node)
+    const values = selectDateRange(filteredValuesFor(col), anchorNode, node, col.parseDate)
     setFilterValues(key, values, state !== 'checked')
   } else {
     toggleFilterAll(key, node.values)

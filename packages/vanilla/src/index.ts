@@ -295,7 +295,12 @@ export function createDataTable<TRow extends object>(
         : []
     _filterDetailTree =
       filterDetailCol && filterDetailCol.type === 'date'
-        ? computeDateTree(_filterDetailValues, L.emptyValue, valueSortFor(filterDetailCol.key).dir)
+        ? computeDateTree(
+            _filterDetailValues,
+            L.emptyValue,
+            valueSortFor(filterDetailCol.key).dir,
+            filterDetailCol.parseDate,
+          )
         : []
 
     const monthName = (m: string) =>
@@ -727,7 +732,8 @@ export function createDataTable<TRow extends object>(
           const anchorNode = anchor != null ? findDateTreeNode(_filterDetailTree, anchor) : null
           const state = getDateTreeNodeState(node, filters[key] ?? new Set())
           if (e.shiftKey && anchorNode) {
-            const values = selectDateRange(_filterDetailValues, anchorNode, node)
+            const parseDate = columns.find((c) => c.key === key)?.parseDate
+            const values = selectDateRange(_filterDetailValues, anchorNode, node, parseDate)
             filters = coreSetFilterValues(filters, key, values, state !== 'checked')
           } else {
             filters = coreToggleFilterAll(filters, key, node.values)

@@ -425,7 +425,12 @@ export function DataTableView<TRow extends object>({
 
   const filterDetailTree =
     filterDetailCol && filterDetailCol.type === 'date'
-      ? computeDateTree(filterDetailValues, L.emptyValue, valueSortFor(filterDetailCol.key).dir)
+      ? computeDateTree(
+          filterDetailValues,
+          L.emptyValue,
+          valueSortFor(filterDetailCol.key).dir,
+          filterDetailCol.parseDate,
+        )
       : []
   const isDateNodeExpanded = (colKey: string, path: string, searchActive: boolean) =>
     searchActive || (expandedDateNodes[colKey]?.has(path) ?? false)
@@ -439,7 +444,12 @@ export function DataTableView<TRow extends object>({
   const monthName = (m: string) =>
     new Date(2000, Number(m) - 1, 1).toLocaleDateString(undefined, { month: 'long' })
 
-  const renderDateTreeNodes = (nodes: DateTreeNode[], colKey: string, depth: number): ReactNode => {
+  const renderDateTreeNodes = (
+    nodes: DateTreeNode[],
+    colKey: string,
+    depth: number,
+    parseDate: ((value: string) => number) | undefined,
+  ): ReactNode => {
     const searchActive = (filterSearchTerms[colKey] ?? '') !== ''
     return nodes.map((node) => {
       const state = getDateTreeNodeState(node, filters[colKey] ?? new Set())
@@ -475,7 +485,7 @@ export function DataTableView<TRow extends object>({
                 const anchorNode =
                   anchor != null ? findDateTreeNode(filterDetailTree, anchor) : null
                 if (e.shiftKey && anchorNode) {
-                  const values = selectDateRange(filterDetailValues, anchorNode, node)
+                  const values = selectDateRange(filterDetailValues, anchorNode, node, parseDate)
                   setFilterValues(colKey, values, state !== 'checked')
                 } else {
                   toggleFilterAll(colKey, node.values)
@@ -489,7 +499,7 @@ export function DataTableView<TRow extends object>({
               {sumDateTreeNodeCount(node, stringValueCounts[colKey] ?? new Map())}
             </span>
           </label>
-          {!isLeaf && expanded && renderDateTreeNodes(node.children, colKey, depth + 1)}
+          {!isLeaf && expanded && renderDateTreeNodes(node.children, colKey, depth + 1, parseDate)}
         </div>
       )
     })
@@ -727,7 +737,12 @@ export function DataTableView<TRow extends object>({
                         </button>
                       </div>
                       {filterDetailCol.type === 'date'
-                        ? renderDateTreeNodes(filterDetailTree, filterDetailCol.key, 0)
+                        ? renderDateTreeNodes(
+                            filterDetailTree,
+                            filterDetailCol.key,
+                            0,
+                            filterDetailCol.parseDate,
+                          )
                         : filterDetailValues.map((v) => (
                             <label key={v} style={{ ...S.ddItem, cursor: 'pointer' }}>
                               <input

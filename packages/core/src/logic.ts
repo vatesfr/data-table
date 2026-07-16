@@ -11,6 +11,11 @@ function asRecord(row: object): Record<string, unknown> {
   return row as Record<string, unknown>
 }
 
+/** Default `type: 'date'` value parser, shared by sort, `computeDateTree`, and `selectDateRange`. */
+function defaultParseDate(v: string): number {
+  return new Date(v).getTime()
+}
+
 /** Reads a column's cell value from a row per its `value` accessor (or `row[key]` if unset). */
 export function getColumnValue<TRow extends object>(col: ColumnDefBase<TRow>, row: TRow): unknown {
   return col.value ? col.value(row) : asRecord(row)[col.key]
@@ -64,7 +69,13 @@ export function processData<TRow extends object>(
         const va = col ? getColumnValue(col, a) : asRecord(a)[key]
         const vb = col ? getColumnValue(col, b) : asRecord(b)[key]
         let cmp = 0
-        if (typeof va === 'number' && typeof vb === 'number') cmp = va - vb
+        if (col?.type === 'date') {
+          const parseDate = col.parseDate ?? defaultParseDate
+          const da = parseDate(va as string)
+          const db = parseDate(vb as string)
+          if (!isNaN(da) && !isNaN(db)) cmp = da - db
+          else cmp = String(va ?? '').localeCompare(String(vb ?? ''))
+        } else if (typeof va === 'number' && typeof vb === 'number') cmp = va - vb
         else cmp = String(va ?? '').localeCompare(String(vb ?? ''))
         if (cmp !== 0) return dir === 'asc' ? cmp : -cmp
       }
@@ -224,24 +235,26 @@ export function getDateSortIcon(dir: SortDir): string {
  * Groups a `type: 'date'` column's checklist values (from `computeStringValues`) into a
  * Year › Month › Day tree, mirroring spreadsheet-style date autofilters — a high-cardinality
  * date column becomes navigable by year/month instead of one flat per-day checklist. Each
- * value is parsed with `new Date(v)`; values that don't parse are collected under a single
- * `emptyLabel` leaf alongside the year nodes rather than silently dropped. `dir` orders the
- * year/month/day nodes at every level chronologically ascending (default) or descending; the
- * trailing `emptyLabel` leaf always stays last regardless of `dir`.
+ * value is parsed with `parseDate` (default `new Date(v)`); values that don't parse are
+ * collected under a single `emptyLabel` leaf alongside the year nodes rather than silently
+ * dropped. `dir` orders the year/month/day nodes at every level chronologically ascending
+ * (default) or descending; the trailing `emptyLabel` leaf always stays last regardless of `dir`.
  */
 export function computeDateTree(
   values: string[],
   emptyLabel = '(none)',
   dir: SortDir = 'asc',
+  parseDate: (value: string) => number = defaultParseDate,
 ): DateTreeNode[] {
   const years = new Map<string, Map<string, Map<string, string[]>>>()
   const invalid: string[] = []
   for (const v of values) {
-    const d = new Date(v)
-    if (isNaN(d.getTime())) {
+    const t = parseDate(v)
+    if (isNaN(t)) {
       invalid.push(v)
       continue
     }
+    const d = new Date(t)
     const y = String(d.getFullYear())
     const m = String(d.getMonth() + 1).padStart(2, '0')
     const day = String(d.getDate()).padStart(2, '0')
@@ -328,22 +341,23 @@ export function findDateTreeNode(nodes: DateTreeNode[], path: string): DateTreeN
  * far. `anchorNode`/`targetNode` can be a leaf (day) or a branch (year/month); the interval spans
  * the earliest to latest raw value across both nodes' own `values`, and every value in `allValues`
  * that falls inside it (by parsed date, not string order, matching `computeDateTree`'s own
- * parsing) is returned — values that don't parse as dates are excluded, same as they'd never
+ * `parseDate`) is returned — values that don't parse as dates are excluded, same as they'd never
  * match a chronological interval in the first place.
  */
 export function selectDateRange(
   allValues: string[],
   anchorNode: DateTreeNode,
   targetNode: DateTreeNode,
+  parseDate: (value: string) => number = defaultParseDate,
 ): string[] {
   const bounds = [...anchorNode.values, ...targetNode.values]
-    .map((v) => new Date(v).getTime())
+    .map((v) => parseDate(v))
     .filter((t) => !isNaN(t))
   if (bounds.length === 0) return []
   const start = Math.min(...bounds)
   const end = Math.max(...bounds)
   return allValues.filter((v) => {
-    const t = new Date(v).getTime()
+    const t = parseDate(v)
     return !isNaN(t) && t >= start && t <= end
   })
 }

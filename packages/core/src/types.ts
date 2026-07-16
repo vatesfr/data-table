@@ -28,6 +28,13 @@ export interface ColumnDefBase<TRow extends object = Record<string, unknown>> {
   label: string
   /** Determines filter UI: 'string' → checklist, 'number' → range, 'date' → year/month/day tree. Default: 'string' */
   type?: 'string' | 'number' | 'date'
+  /**
+   * Parses a `type: 'date'` column's raw string value to a comparable epoch number, used by
+   * sorting, the date filter tree (`computeDateTree`), and its range selection
+   * (`selectDateRange`) — all three otherwise disagree on ambiguous formats (e.g. `MM/DD` vs
+   * `DD/MM`) since `new Date(v)` guesses. Default: `(v) => new Date(v).getTime()`.
+   */
+  parseDate?: (value: string) => number
   width?: number
   /**
    * How to read this column's cell value from a row. Omitted: reads `row[key]`. Function:

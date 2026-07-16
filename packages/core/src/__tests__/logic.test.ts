@@ -288,6 +288,49 @@ describe('processData', () => {
     const result = processData(GAMES_WITH_EMPTY, { tags: new Set(['N/A']) }, {}, [], [], 'N/A')
     expect(result.map((r) => r.name)).toEqual(['Game D'])
   })
+
+  it('sorts a date column chronologically, not as plain strings', () => {
+    const cols = [{ key: 'd' as const, label: 'Date', type: 'date' as const }]
+    const rows = [
+      { id: 1, d: '1 Jan, 2020' },
+      { id: 2, d: '5 Dec, 2019' },
+      { id: 3, d: '23 Apr, 2020' },
+      { id: 4, d: '9 Sep, 2020' },
+    ]
+    const result = processData(rows, {}, {}, [{ key: 'd', dir: 'asc' }], cols)
+    expect(result.map((r) => r.id)).toEqual([2, 1, 3, 4])
+  })
+
+  it('sorts a date column using a custom parseDate instead of new Date', () => {
+    const cols = [
+      {
+        key: 'd' as const,
+        label: 'Date',
+        type: 'date' as const,
+        parseDate: (v: string) => {
+          const [d, m, y] = v.split('/').map(Number)
+          return new Date(y, m - 1, d).getTime()
+        },
+      },
+    ]
+    // DD/MM/YYYY: default new Date(v) would read these as MM/DD and sort id 2 before id 1.
+    const rows = [
+      { id: 1, d: '20/05/2023' },
+      { id: 2, d: '06/06/2023' },
+    ]
+    const result = processData(rows, {}, {}, [{ key: 'd', dir: 'asc' }], cols)
+    expect(result.map((r) => r.id)).toEqual([1, 2])
+  })
+
+  it('falls back to string comparison when a date value fails to parse', () => {
+    const cols = [{ key: 'd' as const, label: 'Date', type: 'date' as const }]
+    const rows = [
+      { id: 1, d: 'not a date' },
+      { id: 2, d: '2020-01-01' },
+    ]
+    const result = processData(rows, {}, {}, [{ key: 'd', dir: 'asc' }], cols)
+    expect(result.map((r) => r.id)).toEqual([2, 1])
+  })
 })
 
 // ─── groupData ───────────────────────────────────────────────────────────────
@@ -704,6 +747,17 @@ describe('computeDateTree', () => {
     expect(tree[tree.length - 1].key).toBe('(none)')
     expect(tree.map((n) => n.key)).toEqual(['2023', '2021', '(none)'])
   })
+
+  it('uses a custom parseDate to resolve an otherwise-ambiguous format', () => {
+    // "05/06/2023" is ambiguous (MM/DD vs DD/DD); a custom parser can pin it to DD/MM/YYYY,
+    // which `new Date(v)` (the default) would instead read as month 5, day 6.
+    const parseDate = (v: string) => {
+      const [d, m, y] = v.split('/').map(Number)
+      return new Date(y, m - 1, d).getTime()
+    }
+    const tree = computeDateTree(['05/06/2023', '01/01/2023'], '(none)', 'asc', parseDate)
+    expect(tree[0].children.map((n) => n.key)).toEqual(['01', '06'])
+  })
 })
 
 // ─── getDateTreeNodeState ───────────────────────────────────────────────────
@@ -812,6 +866,20 @@ describe('selectDateRange', () => {
     const result = selectDateRange(values, node('2023-05-14'), node('2023-05-20'))
     expect(result).not.toContain('2024-07-01')
     expect(result).not.toContain('2021-01-02')
+  })
+
+  it('uses a custom parseDate to resolve an otherwise-ambiguous format', () => {
+    const parseDate = (v: string) => {
+      const [d, m, y] = v.split('/').map(Number)
+      return new Date(y, m - 1, d).getTime()
+    }
+    const ddmm = ['01/01/2023', '06/05/2023', '20/05/2023', '01/06/2023']
+    const tree = computeDateTree(ddmm, '(none)', 'asc', parseDate)
+    const find = (path: string) => findDateTreeNode(tree, path)!
+    // 06/05/2023 and 20/05/2023 are DD/MM (May), which the default new Date(v) would misread
+    // as MM/DD (June); the custom parser keeps them grouped under the "05" (May) month node.
+    const result = selectDateRange(ddmm, find('2023-05'), find('2023-05'), parseDate)
+    expect(result.sort()).toEqual(['06/05/2023', '20/05/2023'])
   })
 })
 
