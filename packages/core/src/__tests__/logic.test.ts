@@ -3,6 +3,7 @@ import {
   processData,
   searchData,
   groupData,
+  getVisibleRows,
   computeStringValues,
   computeStringValueCounts,
   filterValuesBySearch,
@@ -430,6 +431,31 @@ describe('groupData', () => {
     const result = groupData(GAMES_WITH_EMPTY, ['tags'], [], 'N/A')
     expect(result.map((g) => g.key)).toContain('N/A')
     expect(result.find((g) => g.key === 'N/A')?.rows.map((r) => r.name)).toEqual(['Game D'])
+  })
+})
+
+// ─── getVisibleRows ──────────────────────────────────────────────────────────
+
+describe('getVisibleRows', () => {
+  it('flattens an ungrouped result (single null-key group) as-is', () => {
+    const groups = groupData(ROWS, [])
+    expect(getVisibleRows(groups, new Set())).toEqual(ROWS)
+  })
+
+  it('flattens all groups in order when none are collapsed', () => {
+    const groups = groupData(ROWS, ['dept'])
+    expect(
+      getVisibleRows(groups, new Set())
+        .map((r) => r.name)
+        .sort(),
+    ).toEqual(ROWS.map((r) => r.name).sort())
+  })
+
+  it("omits a collapsed group's rows entirely", () => {
+    const groups = groupData(ROWS, ['dept'])
+    const visible = getVisibleRows(groups, new Set(['Eng']))
+    expect(visible.some((r) => r.dept === 'Eng')).toBe(false)
+    expect(visible.filter((r) => r.dept === 'HR')).toHaveLength(2)
   })
 })
 

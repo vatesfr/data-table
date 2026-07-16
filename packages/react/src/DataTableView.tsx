@@ -1,4 +1,11 @@
-import { useState, useRef, useEffect, type CSSProperties, type ReactNode } from 'react'
+import {
+  useState,
+  useRef,
+  useEffect,
+  type CSSProperties,
+  type KeyboardEvent,
+  type ReactNode,
+} from 'react'
 import {
   computeAggregate,
   getColumnValue,
@@ -15,6 +22,7 @@ import {
   findDateTreeNode,
   selectDateRange,
   selectRange,
+  getVisibleRows,
   type DateTreeNode,
   type ValueSort,
 } from '@vates/data-table-core'
@@ -304,6 +312,8 @@ export function DataTableView<TRow extends object>({
   const [openFilterDD, setOpenFilterDD] = useState(false)
   const [openGroupDD, setOpenGroupDD] = useState(false)
   const [hoveredRow, setHoveredRow] = useState<TRow | null>(null)
+  const [focusedRow, setFocusedRow] = useState<TRow | null>(null)
+  const rowRefs = useRef(new Map<TRow, HTMLTableRowElement>())
   const [dragColKey, setDragColKey] = useState<string | null>(null)
   const [dragOverColKey, setDragOverColKey] = useState<string | null>(null)
   const [filterActiveCol, setFilterActiveCol] = useState<string | null>(null)
@@ -380,6 +390,58 @@ export function DataTableView<TRow extends object>({
     onSelectionChange?.(selectedRows)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedRows])
+
+  // Roving tabindex: exactly one data row is a Tab stop at a time (the rest are tabIndex={-1}),
+  // arrow keys move it, matching how the checklist/date-tree checkboxes reuse the same anchor
+  // idea for range selection. Rows only join the tab sequence when they're actually interactive.
+  const rowNavEnabled = selectable || !!onRowClick
+  const visibleRows = getVisibleRows(groupedData, collapsedGroups)
+  const effectiveFocusRow =
+    focusedRow && visibleRows.includes(focusedRow) ? focusedRow : (visibleRows[0] ?? null)
+
+  const focusRow = (row: TRow) => {
+    setFocusedRow(row)
+    rowRefs.current.get(row)?.focus()
+  }
+
+  const handleRowKeyDown = (e: KeyboardEvent<HTMLTableRowElement>, row: TRow) => {
+    const idx = visibleRows.indexOf(row)
+    switch (e.key) {
+      case 'ArrowDown':
+      case 'ArrowUp': {
+        const delta = e.key === 'ArrowDown' ? 1 : -1
+        const target = visibleRows[Math.max(0, Math.min(visibleRows.length - 1, idx + delta))]
+        if (target && target !== row) {
+          e.preventDefault()
+          if (e.shiftKey && selectable) toggleRowSelection(target, true)
+          focusRow(target)
+        }
+        break
+      }
+      case 'Home':
+      case 'End': {
+        const target = visibleRows[e.key === 'Home' ? 0 : visibleRows.length - 1]
+        if (target && target !== row) {
+          e.preventDefault()
+          if (e.shiftKey && selectable) toggleRowSelection(target, true)
+          focusRow(target)
+        }
+        break
+      }
+      case ' ':
+        if (selectable) {
+          e.preventDefault()
+          toggleRowSelection(row, e.shiftKey)
+        }
+        break
+      case 'Enter':
+        if (onRowClick) {
+          e.preventDefault()
+          onRowClick(row, e)
+        }
+        break
+    }
+  }
 
   const filterableCols = columns.filter((c) => c.filterable !== false)
   const groupableCols = columns.filter((c) => c.groupable === true)
@@ -1056,6 +1118,14 @@ export function DataTableView<TRow extends object>({
                   rows.map((row, ri) => (
                     <tr
                       key={rowKey ? String(asRecord(row)[rowKey] ?? ri) : ri}
+                      ref={(el) => {
+                        if (el) rowRefs.current.set(row, el)
+                        else rowRefs.current.delete(row)
+                      }}
+                      tabIndex={rowNavEnabled ? (row === effectiveFocusRow ? 0 : -1) : undefined}
+                      aria-selected={selectable ? selection.has(row) : undefined}
+                      onKeyDown={rowNavEnabled ? (e) => handleRowKeyDown(e, row) : undefined}
+                      onFocus={rowNavEnabled ? () => setFocusedRow(row) : undefined}
                       onClick={onRowClick ? (e) => onRowClick(row, e) : undefined}
                       onMouseEnter={onRowClick ? () => setHoveredRow(row) : undefined}
                       onMouseLeave={onRowClick ? () => setHoveredRow(null) : undefined}
@@ -1077,6 +1147,7 @@ export function DataTableView<TRow extends object>({
                             type="checkbox"
                             checked={selection.has(row)}
                             readOnly
+                            tabIndex={-1}
                             onClick={(e) => toggleRowSelection(row, e.shiftKey)}
                             style={{ margin: 0 }}
                           />

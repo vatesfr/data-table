@@ -1043,6 +1043,118 @@ describe('createDataTable', () => {
     expect(onRowClick).not.toHaveBeenCalled()
   })
 
+  // --- keyboard navigation ---
+
+  function dataRows(el: HTMLElement): HTMLElement[] {
+    return [...el.querySelectorAll<HTMLElement>('.dt-tr[data-proc-idx]')]
+  }
+
+  function keydown(el: Element, key: string, opts: { shiftKey?: boolean } = {}): void {
+    el.dispatchEvent(
+      new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...opts }),
+    )
+  }
+
+  it('does not add a tabindex to rows when neither selectable nor onRowClick is set', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    for (const row of dataRows(container)) expect(row.getAttribute('tabindex')).toBeNull()
+  })
+
+  it('makes the first row the sole tab stop by default, the rest tabindex -1', () => {
+    createDataTable(container, { data: ROWS, columns: COLS, selectable: true })
+    const [first, ...rest] = dataRows(container)
+    expect(first.getAttribute('tabindex')).toBe('0')
+    for (const row of rest) expect(row.getAttribute('tabindex')).toBe('-1')
+  })
+
+  it('excludes the row checkbox from the tab sequence', () => {
+    createDataTable(container, { data: ROWS, columns: COLS, selectable: true })
+    const checkbox = container.querySelector('[data-action="toggle-row-select"]')!
+    expect(checkbox.getAttribute('tabindex')).toBe('-1')
+  })
+
+  it('ArrowDown moves the roving tabindex to the next row and keeps DOM focus on it', () => {
+    createDataTable(container, { data: ROWS, columns: COLS, selectable: true })
+    const [first] = dataRows(container)
+    first.focus()
+    keydown(first, 'ArrowDown')
+    const [newFirst, second] = dataRows(container)
+    expect(newFirst.getAttribute('tabindex')).toBe('-1')
+    expect(second.getAttribute('tabindex')).toBe('0')
+    expect(document.activeElement).toBe(second)
+  })
+
+  it('ArrowUp on the first row is a no-op (clamped at the boundary)', () => {
+    createDataTable(container, { data: ROWS, columns: COLS, selectable: true })
+    const [first] = dataRows(container)
+    first.focus()
+    keydown(first, 'ArrowUp')
+    expect(dataRows(container)[0].getAttribute('tabindex')).toBe('0')
+    expect(document.activeElement).toBe(dataRows(container)[0])
+  })
+
+  it('End moves the roving tabindex to the last row', () => {
+    createDataTable(container, { data: ROWS, columns: COLS, selectable: true })
+    const [first] = dataRows(container)
+    first.focus()
+    keydown(first, 'End')
+    const rows = dataRows(container)
+    const last = rows[rows.length - 1]
+    expect(last.getAttribute('tabindex')).toBe('0')
+    expect(document.activeElement).toBe(last)
+  })
+
+  it('Space toggles selection on the focused row', () => {
+    createDataTable(container, { data: ROWS, columns: COLS, selectable: true })
+    const [first] = dataRows(container)
+    first.focus()
+    keydown(first, ' ')
+    const checkbox = () =>
+      container.querySelector<HTMLInputElement>(
+        '[data-action="toggle-row-select"][data-proc-idx="0"]',
+      )!
+    expect(checkbox().checked).toBe(true)
+    keydown(dataRows(container)[0], ' ')
+    expect(checkbox().checked).toBe(false)
+  })
+
+  it('Shift+ArrowDown extends the selection range like a shift-click would', () => {
+    createDataTable(container, { data: ROWS, columns: COLS, selectable: true })
+    click(
+      container.querySelector<HTMLElement>('[data-action="toggle-row-select"][data-proc-idx="0"]')!,
+    ) // selects Alice, sets the anchor
+    const [first] = dataRows(container)
+    first.focus()
+    keydown(first, 'ArrowDown', { shiftKey: true })
+    expect(
+      container.querySelector<HTMLInputElement>(
+        '[data-action="toggle-row-select"][data-proc-idx="0"]',
+      )!.checked,
+    ).toBe(true)
+    expect(
+      container.querySelector<HTMLInputElement>(
+        '[data-action="toggle-row-select"][data-proc-idx="1"]',
+      )!.checked,
+    ).toBe(true)
+    expect(document.activeElement).toBe(dataRows(container)[1])
+  })
+
+  it('Enter fires onRowClick with the row and the keyboard event', () => {
+    const onRowClick = vi.fn()
+    createDataTable(container, { data: ROWS, columns: COLS, onRowClick })
+    const [first] = dataRows(container)
+    first.focus()
+    keydown(first, 'Enter')
+    expect(onRowClick).toHaveBeenCalledWith(ROWS[0], expect.any(KeyboardEvent))
+  })
+
+  it('Enter does nothing when onRowClick is not set', () => {
+    createDataTable(container, { data: ROWS, columns: COLS, selectable: true })
+    const [first] = dataRows(container)
+    first.focus()
+    expect(() => keydown(first, 'Enter')).not.toThrow()
+  })
+
   // --- grouping ---
 
   it('renders group header rows when a column is grouped', () => {

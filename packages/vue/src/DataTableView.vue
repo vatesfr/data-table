@@ -15,6 +15,7 @@ import {
   findDateTreeNode,
   selectDateRange,
   selectRange,
+  getVisibleRows,
   type GroupResult,
   type DateTreeNode,
   type ValueSort,
@@ -28,7 +29,7 @@ const props = withDefaults(defineProps<DataTableViewProps<TRow>>(), { rowKey: 'i
 
 const emit = defineEmits<{
   selectionChange: [rows: TRow[]]
-  rowClick: [row: TRow, event: MouseEvent]
+  rowClick: [row: TRow, event: MouseEvent | KeyboardEvent]
 }>()
 
 const slots = useSlots()
@@ -44,7 +45,7 @@ const isRowClickable = computed(
   () => props.rowClickable ?? !!getCurrentInstance()?.vnode.props?.onRowClick,
 )
 
-function handleRowClick(row: TRow, event: MouseEvent) {
+function handleRowClick(row: TRow, event: MouseEvent | KeyboardEvent) {
   emit('rowClick', row, event)
 }
 
@@ -96,6 +97,73 @@ const {
 watch(selectedRows, (rows) => {
   emit('selectionChange', rows)
 })
+
+// Roving tabindex: exactly one data row is a Tab stop at a time (the rest are tabindex="-1"),
+// arrow keys move it — mirrors the anchor/range idea the checklist/date-tree checkboxes already
+// use for shift-click. Rows only join the tab sequence when they're actually interactive.
+const focusedRow = ref<TRow | null>(null)
+const rowRefs = new Map<TRow, HTMLTableRowElement>()
+
+const isRowNavEnabled = computed(() => props.selectable || isRowClickable.value)
+const visibleRows = computed(() => getVisibleRows(groupedData.value, collapsedGroups.value))
+const effectiveFocusRow = computed(() =>
+  focusedRow.value && visibleRows.value.includes(focusedRow.value)
+    ? focusedRow.value
+    : (visibleRows.value[0] ?? null),
+)
+
+function setRowRef(row: TRow, el: Element | null): void {
+  if (el) rowRefs.set(row, el as HTMLTableRowElement)
+  else rowRefs.delete(row)
+}
+
+function setFocusedRow(row: TRow): void {
+  focusedRow.value = row
+}
+
+function focusRow(row: TRow): void {
+  setFocusedRow(row)
+  rowRefs.get(row)?.focus()
+}
+
+function handleRowKeyDown(event: KeyboardEvent, row: TRow): void {
+  if (!isRowNavEnabled.value) return
+  const rows = visibleRows.value
+  const idx = rows.indexOf(row)
+  switch (event.key) {
+    case 'ArrowDown':
+    case 'ArrowUp': {
+      const delta = event.key === 'ArrowDown' ? 1 : -1
+      const target = rows[Math.max(0, Math.min(rows.length - 1, idx + delta))]
+      if (target && target !== row) {
+        event.preventDefault()
+        if (event.shiftKey && props.selectable) toggleRowSelection(target, true)
+        focusRow(target)
+      }
+      break
+    }
+    case 'Home':
+    case 'End': {
+      const target = rows[event.key === 'Home' ? 0 : rows.length - 1]
+      if (target && target !== row) {
+        event.preventDefault()
+        if (event.shiftKey && props.selectable) toggleRowSelection(target, true)
+        focusRow(target)
+      }
+      break
+    }
+    case ' ':
+      if (props.selectable) {
+        event.preventDefault()
+        toggleRowSelection(row, event.shiftKey)
+      }
+      break
+    case 'Enter':
+      event.preventDefault()
+      handleRowClick(row, event)
+      break
+  }
+}
 
 const allSelected = computed(
   () => processedData.value.length > 0 && selectedRows.value.length === processedData.value.length,
@@ -695,16 +763,22 @@ function onColDragEnd(): void {
               <tr
                 v-for="(row, ri) in group.rows"
                 :key="(asRecord(row)[rowKey] as string | number) ?? ri"
+                :ref="(el) => setRowRef(row, el as Element | null)"
+                :tabindex="isRowNavEnabled ? (row === effectiveFocusRow ? 0 : -1) : undefined"
+                :aria-selected="selectable ? selection.has(row) : undefined"
                 :class="{
                   'dt__tr--stripe': ri % 2 !== 0,
                   'dt__tr--selected': selectable && selection.has(row),
                   'dt__tr--clickable': isRowClickable,
                 }"
                 @click="handleRowClick(row, $event)"
+                @keydown="handleRowKeyDown($event, row)"
+                @focusin="setFocusedRow(row)"
               >
                 <td v-if="selectable" class="dt__td" style="width: 36px" @click.stop>
                   <input
                     type="checkbox"
+                    tabindex="-1"
                     :checked="selection.has(row)"
                     @click="toggleRowSelection(row, $event.shiftKey)"
                   />

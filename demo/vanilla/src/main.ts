@@ -393,6 +393,8 @@ app.innerHTML = `
     <p style="font-size:14px;color:var(--color-text-secondary);margin-top:0;margin-bottom:16px">
       Pass <code>selectable</code> to show checkboxes; <code>onSelectionChange</code> receives the updated array.
       Shift-click a checkbox to select (or deselect) the whole range since the last-clicked row.
+      Click a row then use ↑/↓/Home/End to move focus, <code>Space</code> to select, and Shift+↑/↓
+      to extend the range from the keyboard.
       ${docLink('row-selection', '📖 Docs')}
     </p>
     <div id="selection-banner" style="display:none;align-items:center;gap:12px;padding:8px 12px;margin-bottom:12px;
@@ -403,6 +405,7 @@ app.innerHTML = `
     <h2 id="row-click" style="font-size:16px;font-weight:600;margin-top:40px;margin-bottom:4px;scroll-margin-top:56px">Row click</h2>
     <p style="font-size:14px;color:var(--color-text-secondary);margin-top:0;margin-bottom:8px">
       Pass <code>onRowClick</code> to react to a row being clicked — it receives the full row object, no key lookup needed.
+      Also fires on <code>Enter</code> while a row has keyboard focus.
       ${docLink('row-click', '📖 Docs')}
     </p>
     <div id="click-banner" style="display:none;padding:8px 12px;margin-bottom:12px;

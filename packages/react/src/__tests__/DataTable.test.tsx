@@ -530,6 +530,108 @@ describe('DataTable — date filter tree', () => {
   })
 })
 
+describe('DataTable — keyboard navigation', () => {
+  const ROWS3: Row[] = [
+    { id: 1, name: 'Alice', score: 90 },
+    { id: 2, name: 'Bob', score: 60 },
+    { id: 3, name: 'Clara', score: 80 },
+  ]
+
+  function dataRows(container: HTMLElement): HTMLElement[] {
+    return [...container.querySelectorAll<HTMLElement>('tbody tr')]
+  }
+
+  it('does not add a tabIndex to rows when neither selectable nor onRowClick is set', () => {
+    const { container } = render(<DataTable data={ROWS3} columns={COLS} rowKey="id" />)
+    for (const row of dataRows(container)) expect(row.getAttribute('tabindex')).toBeNull()
+  })
+
+  it('makes the first row the sole tab stop by default, the rest tabIndex -1', () => {
+    const { container } = render(<DataTable data={ROWS3} columns={COLS} rowKey="id" selectable />)
+    const [first, ...rest] = dataRows(container)
+    expect(first.getAttribute('tabindex')).toBe('0')
+    for (const row of rest) expect(row.getAttribute('tabindex')).toBe('-1')
+  })
+
+  it('excludes the row checkbox from the tab sequence', () => {
+    const { container } = render(<DataTable data={ROWS3} columns={COLS} rowKey="id" selectable />)
+    const checkbox = container.querySelector('tbody tr input[type="checkbox"]')!
+    expect(checkbox.getAttribute('tabindex')).toBe('-1')
+  })
+
+  it('ArrowDown moves the roving tabIndex to the next row', () => {
+    const { container } = render(<DataTable data={ROWS3} columns={COLS} rowKey="id" selectable />)
+    const [first, second] = dataRows(container)
+    first.focus()
+    fireEvent.keyDown(first, { key: 'ArrowDown' })
+    expect(first.getAttribute('tabindex')).toBe('-1')
+    expect(second.getAttribute('tabindex')).toBe('0')
+    expect(document.activeElement).toBe(second)
+  })
+
+  it('ArrowUp on the first row is a no-op (clamped at the boundary)', () => {
+    const { container } = render(<DataTable data={ROWS3} columns={COLS} rowKey="id" selectable />)
+    const [first] = dataRows(container)
+    first.focus()
+    fireEvent.keyDown(first, { key: 'ArrowUp' })
+    expect(first.getAttribute('tabindex')).toBe('0')
+    expect(document.activeElement).toBe(first)
+  })
+
+  it('End moves the roving tabIndex to the last row', () => {
+    const { container } = render(<DataTable data={ROWS3} columns={COLS} rowKey="id" selectable />)
+    const [first, , last] = dataRows(container)
+    first.focus()
+    fireEvent.keyDown(first, { key: 'End' })
+    expect(last.getAttribute('tabindex')).toBe('0')
+    expect(document.activeElement).toBe(last)
+  })
+
+  it('Space toggles selection on the focused row', () => {
+    const { container } = render(<DataTable data={ROWS3} columns={COLS} rowKey="id" selectable />)
+    const [first] = dataRows(container)
+    const checkbox = first.querySelector('input[type="checkbox"]') as HTMLInputElement
+    first.focus()
+    fireEvent.keyDown(first, { key: ' ' })
+    expect(checkbox.checked).toBe(true)
+    fireEvent.keyDown(first, { key: ' ' })
+    expect(checkbox.checked).toBe(false)
+  })
+
+  it('Shift+ArrowDown extends the selection range like a shift-click would', () => {
+    const { container } = render(<DataTable data={ROWS3} columns={COLS} rowKey="id" selectable />)
+    const [first, second] = dataRows(container)
+    const firstCheckbox = first.querySelector('input[type="checkbox"]') as HTMLInputElement
+    const secondCheckbox = second.querySelector('input[type="checkbox"]') as HTMLInputElement
+    fireEvent.click(firstCheckbox) // selects Alice, sets the anchor
+    first.focus()
+    fireEvent.keyDown(first, { key: 'ArrowDown', shiftKey: true })
+    expect(firstCheckbox.checked).toBe(true)
+    expect(secondCheckbox.checked).toBe(true)
+    expect(document.activeElement).toBe(second)
+  })
+
+  it('Enter fires onRowClick with the row and the keyboard event', () => {
+    const onRowClick = vi.fn()
+    const { container } = render(
+      <DataTable data={ROWS3} columns={COLS} rowKey="id" onRowClick={onRowClick} />,
+    )
+    const [first] = dataRows(container)
+    first.focus()
+    fireEvent.keyDown(first, { key: 'Enter' })
+    expect(onRowClick).toHaveBeenCalledTimes(1)
+    expect(onRowClick.mock.calls[0][0]).toEqual(ROWS3[0])
+    expect(onRowClick.mock.calls[0][1].type).toBe('keydown')
+  })
+
+  it('Enter does nothing when onRowClick is not set', () => {
+    const { container } = render(<DataTable data={ROWS3} columns={COLS} rowKey="id" selectable />)
+    const [first] = dataRows(container)
+    first.focus()
+    expect(() => fireEvent.keyDown(first, { key: 'Enter' })).not.toThrow()
+  })
+})
+
 describe('DataTable — computed columns', () => {
   it('renders a cell value produced by col.value instead of row[key]', () => {
     const cols: ColumnDef<Row>[] = [

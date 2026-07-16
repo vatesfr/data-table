@@ -22,6 +22,7 @@ import {
   selectRange,
   toggleGroupBy,
   toggleCollapse,
+  getVisibleRows,
   getOrderedColumns,
   reorderColumn as coreReorderColumn,
   moveColumnBy as coreMoveColumnBy,
@@ -104,6 +105,7 @@ export function createDataTable<TRow extends object>(
   let columnOrder: string[] = []
   let selection = new Set<TRow>()
   let selectionAnchor: TRow | null = null
+  let focusedRow: TRow | null = null
   let openDropdown: string | null = null
   let filterActiveCol: string | null = null
   let filterSearchTerms: Record<string, string> = {}
@@ -128,6 +130,10 @@ export function createDataTable<TRow extends object>(
   let _clampedPage = 1
   let _filterDetailValues: string[] = []
   let _filterDetailTree: DateTreeNode[] = []
+  // Rows actually rendered, in display order — skips a collapsed group's rows, same as the
+  // condition the row-building loop below already applies. This is the Up/Down/Home/End
+  // navigation order for the roving-tabindex row focus (see "Keyboard navigation").
+  let _visibleRows: TRow[] = []
 
   function derive() {
     const stringValueMap = computeStringValues(data, columns, L.emptyValue)
@@ -214,6 +220,23 @@ export function createDataTable<TRow extends object>(
     for (const cb of viewListeners) cb(view)
   }
 
+  /** Shared by the checkbox click handler and keyboard Space/Shift+Arrow — see toggleRowSelection in React/Vue. */
+  function applyRowSelectionToggle(row: TRow, shiftKey: boolean): void {
+    const next = new Set(selection)
+    if (shiftKey && selectionAnchor) {
+      const shouldSelect = !next.has(row)
+      const range = selectRange(_processedData, selectionAnchor, row)
+      if (shouldSelect) range.forEach((r) => next.add(r))
+      else range.forEach((r) => next.delete(r))
+    } else if (next.has(row)) {
+      next.delete(row)
+    } else {
+      next.add(row)
+    }
+    selection = next
+    selectionAnchor = row
+  }
+
   function formatStr(v: unknown, row: TRow, col: ColumnDef<TRow>): string {
     if (col.render) {
       const id = renderIdCounter++
@@ -256,6 +279,10 @@ export function createDataTable<TRow extends object>(
       focused && container.contains(focused) ? (focused.dataset.focusKey ?? null) : null
     const selStart = focused instanceof HTMLInputElement ? focused.selectionStart : null
     const selEnd = focused instanceof HTMLInputElement ? focused.selectionEnd : null
+    // A row's DOM node is destroyed by the innerHTML rebuild below, same as any focused input —
+    // but rows are identified by object identity (like selectionAnchor), not a fixed focus-key
+    // string, so restoring it needs its own post-render step (see the bottom of this function).
+    const wasRowFocused = !!focused?.closest('.dt-tr[data-proc-idx]')
 
     const {
       stringValueMap,
@@ -265,6 +292,11 @@ export function createDataTable<TRow extends object>(
       activeFilterCount,
       selectedRows,
     } = derive()
+
+    _visibleRows = getVisibleRows(_groupedData, collapsedGroups)
+    const rowNavEnabled = selectable || !!onRowClick
+    const effectiveFocusRow =
+      focusedRow && _visibleRows.includes(focusedRow) ? focusedRow : (_visibleRows[0] ?? null)
 
     const allSelected = _processedData.length > 0 && selectedRows.length === _processedData.length
     const someSelected = selectedRows.length > 0 && !allSelected
@@ -498,6 +530,15 @@ export function createDataTable<TRow extends object>(
 
     const procIdxMap = new Map(_processedData.map((r, i) => [r, i]))
 
+    // Roving tabindex: exactly one data row is a Tab stop at a time, arrow keys move it (see
+    // handleKeyDown below) — mirrors the anchor/range idea the checklist/date-tree checkboxes
+    // already use for shift-click. Rows only join the tab sequence when they're interactive.
+    function rowOpenTag(row: TRow, procIdx: number, rk: string | number, trClass: string): string {
+      const tabIndexAttr = rowNavEnabled ? ` tabindex="${row === effectiveFocusRow ? 0 : -1}"` : ''
+      const ariaSelectedAttr = selectable ? ` aria-selected="${selection.has(row)}"` : ''
+      return `<tr class="${trClass}" data-row-key="${esc(String(rk))}" data-action="row-click" data-proc-idx="${procIdx}"${tabIndexAttr}${ariaSelectedAttr}>`
+    }
+
     for (const { key: gkey, keyParts, rows } of _groupedData) {
       if (gkey !== null) {
         const isCollapsed = collapsedGroups.has(gkey)
@@ -537,9 +578,9 @@ export function createDataTable<TRow extends object>(
             const isSelected = selection.has(row)
             const trClass = `dt-tr${isSelected ? ' dt-tr--selected' : ri % 2 !== 0 ? ' dt-tr--odd' : ''}${onRowClick ? ' dt-tr--clickable' : ''}`
             const rk = rowKey ? String((row as Record<string, unknown>)[rowKey] ?? ri) : ri
-            html += `<tr class="${trClass}" data-row-key="${esc(rk)}" data-action="row-click" data-proc-idx="${procIdx}">`
+            html += rowOpenTag(row, procIdx, rk, trClass)
             if (selectable) {
-              html += `<td class="dt-td" style="width:36px" data-no-row-click><input type="checkbox" data-action="toggle-row-select" data-proc-idx="${procIdx}"${isSelected ? ' checked' : ''}></td>`
+              html += `<td class="dt-td" style="width:36px" data-no-row-click><input type="checkbox" tabindex="-1" data-action="toggle-row-select" data-proc-idx="${procIdx}"${isSelected ? ' checked' : ''}></td>`
             }
             html += `<td class="dt-td" style="width:28px"></td>`
             for (const col of activeColumns) {
@@ -555,9 +596,9 @@ export function createDataTable<TRow extends object>(
           const isSelected = selection.has(row)
           const trClass = `dt-tr${isSelected ? ' dt-tr--selected' : ri % 2 !== 0 ? ' dt-tr--odd' : ''}${onRowClick ? ' dt-tr--clickable' : ''}`
           const rk = rowKey ? String((row as Record<string, unknown>)[rowKey] ?? ri) : ri
-          html += `<tr class="${trClass}" data-row-key="${esc(rk)}" data-action="row-click" data-proc-idx="${procIdx}">`
+          html += rowOpenTag(row, procIdx, rk, trClass)
           if (selectable) {
-            html += `<td class="dt-td" style="width:36px" data-no-row-click><input type="checkbox" data-action="toggle-row-select" data-proc-idx="${procIdx}"${isSelected ? ' checked' : ''}></td>`
+            html += `<td class="dt-td" style="width:36px" data-no-row-click><input type="checkbox" tabindex="-1" data-action="toggle-row-select" data-proc-idx="${procIdx}"${isSelected ? ' checked' : ''}></td>`
           }
           for (const col of activeColumns) {
             html += `<td class="dt-td">${cellStr(row, col)}</td>`
@@ -643,6 +684,13 @@ export function createDataTable<TRow extends object>(
           break
         }
       }
+    }
+    // Restore row focus by object identity (a row has no fixed focus-key string) — essential,
+    // not just cosmetic: without it, arrow-key navigation would drop focus to <body> on every
+    // keystroke, since each keydown triggers a re-render that destroys the old row's DOM node.
+    if (wasRowFocused && effectiveFocusRow) {
+      const idx = _processedData.indexOf(effectiveFocusRow)
+      container.querySelector<HTMLElement>(`.dt-tr[data-proc-idx="${idx}"]`)?.focus()
     }
   }
 
@@ -825,19 +873,8 @@ export function createDataTable<TRow extends object>(
       case 'toggle-row-select': {
         if (procIdx >= 0 && procIdx < _processedData.length) {
           const row = _processedData[procIdx]
-          const next = new Set(selection)
-          if (e.shiftKey && selectionAnchor) {
-            const shouldSelect = !next.has(row)
-            const range = selectRange(_processedData, selectionAnchor, row)
-            if (shouldSelect) range.forEach((r) => next.add(r))
-            else range.forEach((r) => next.delete(r))
-          } else if (next.has(row)) {
-            next.delete(row)
-          } else {
-            next.add(row)
-          }
-          selection = next
-          selectionAnchor = row
+          applyRowSelectionToggle(row, e.shiftKey)
+          focusedRow = row
           selectionChanged = true
         }
         break
@@ -877,6 +914,7 @@ export function createDataTable<TRow extends object>(
           procIdx >= 0 &&
           procIdx < _processedData.length
         ) {
+          focusedRow = _processedData[procIdx]
           onRowClick?.(_processedData[procIdx], e)
         }
         return
@@ -933,6 +971,65 @@ export function createDataTable<TRow extends object>(
     page = 1
     render()
     notifyViewChange()
+  }
+
+  // Roving-tabindex row navigation — see "Keyboard navigation". Delegated like click/input, but
+  // on a separate listener since it must act on keys bubbling from inside a row (e.g. its
+  // checkbox) too, not just on the row element itself.
+  function handleKeyDown(e: KeyboardEvent): void {
+    const tr = (e.target as HTMLElement).closest<HTMLElement>('.dt-tr[data-proc-idx]')
+    if (!tr || (!selectable && !onRowClick)) return
+    const procIdx = parseInt(tr.dataset.procIdx ?? '-1', 10)
+    if (procIdx < 0 || procIdx >= _processedData.length) return
+    const row = _processedData[procIdx]
+
+    let selectionChanged = false
+
+    const moveFocus = (target: TRow | undefined) => {
+      if (!target || target === row) return
+      e.preventDefault()
+      if (e.shiftKey && selectable) {
+        applyRowSelectionToggle(target, true)
+        selectionChanged = true
+      }
+      focusedRow = target
+      render()
+    }
+
+    switch (e.key) {
+      case 'ArrowDown':
+      case 'ArrowUp': {
+        const delta = e.key === 'ArrowDown' ? 1 : -1
+        const idx = _visibleRows.indexOf(row)
+        moveFocus(_visibleRows[Math.max(0, Math.min(_visibleRows.length - 1, idx + delta))])
+        break
+      }
+      case 'Home':
+        moveFocus(_visibleRows[0])
+        break
+      case 'End':
+        moveFocus(_visibleRows[_visibleRows.length - 1])
+        break
+      case ' ':
+        if (selectable) {
+          e.preventDefault()
+          applyRowSelectionToggle(row, e.shiftKey)
+          focusedRow = row
+          selectionChanged = true
+          render()
+        }
+        break
+      case 'Enter':
+        if (onRowClick) {
+          e.preventDefault()
+          onRowClick(row, e)
+        }
+        break
+    }
+
+    if (selectionChanged) {
+      onSelectionChange?.(_processedData.filter((r) => selection.has(r)))
+    }
   }
 
   // Drag-and-drop for column reordering bypasses the render()/innerHTML flow: replacing the
@@ -992,6 +1089,7 @@ export function createDataTable<TRow extends object>(
   container.addEventListener('click', handleClick)
   container.addEventListener('input', handleInput)
   container.addEventListener('change', handleChange)
+  container.addEventListener('keydown', handleKeyDown)
   container.addEventListener('dragstart', handleColDragStart)
   container.addEventListener('dragover', handleColDragOver)
   container.addEventListener('drop', handleColDrop)
@@ -1023,6 +1121,7 @@ export function createDataTable<TRow extends object>(
       container.removeEventListener('click', handleClick)
       container.removeEventListener('input', handleInput)
       container.removeEventListener('change', handleChange)
+      container.removeEventListener('keydown', handleKeyDown)
       container.removeEventListener('dragstart', handleColDragStart)
       container.removeEventListener('dragover', handleColDragOver)
       container.removeEventListener('drop', handleColDrop)

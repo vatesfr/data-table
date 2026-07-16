@@ -16,7 +16,8 @@ export interface DataTableOptions<TRow extends object = Record<string, unknown>>
   defaultPageSize?: number
   selectable?: boolean
   onSelectionChange?: (rows: TRow[]) => void
-  onRowClick?: (row: TRow, event: MouseEvent) => void
+  /** Fires on a row click, or on Enter while a row has keyboard focus (see "Keyboard navigation"). */
+  onRowClick?: (row: TRow, event: MouseEvent | KeyboardEvent) => void
 }
 
 export interface DataTableInstance<TRow extends object = Record<string, unknown>> {

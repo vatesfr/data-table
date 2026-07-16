@@ -645,7 +645,9 @@ function copyShareLink() {
     >
       Pass <code>selectable</code> to show checkboxes; listen to <code>@selection-change</code> for
       the updated rows array. Shift-click a checkbox to select (or deselect) the whole range since
-      the last-clicked row. <span v-html="docLink('row-selection', '📖 Docs')" />
+      the last-clicked row. Click a row then use ↑/↓/Home/End to move focus, <kbd>Space</kbd> to
+      select, and Shift+↑/↓ to extend the range from the keyboard.
+      <span v-html="docLink('row-selection', '📖 Docs')" />
     </p>
     <div
       v-if="selected.length > 0"
@@ -724,7 +726,8 @@ function copyShareLink() {
       style="font-size: 14px; color: var(--color-text-secondary); margin-top: 0; margin-bottom: 8px"
     >
       Listen to <code>@row-click</code> to react to a row being clicked — it receives the full row
-      object, no key lookup needed. <span v-html="docLink('row-click', '📖 Docs')" />
+      object, no key lookup needed. Also fires on <kbd>Enter</kbd> while a row has keyboard focus.
+      <span v-html="docLink('row-click', '📖 Docs')" />
     </p>
     <div
       v-if="clicked"

@@ -8,7 +8,7 @@ const props = withDefaults(defineProps<DataTableProps<TRow>>(), { rowKey: 'id' }
 
 const emit = defineEmits<{
   selectionChange: [rows: TRow[]]
-  rowClick: [row: TRow, event: MouseEvent]
+  rowClick: [row: TRow, event: MouseEvent | KeyboardEvent]
 }>()
 
 // Detects whether our own caller passed a @row-click listener, so it can be forwarded to
@@ -16,7 +16,7 @@ const emit = defineEmits<{
 // forwarded below regardless (clicking a row always emits, whether or not anyone's listening).
 const isRowClickable = !!getCurrentInstance()?.vnode.props?.onRowClick
 
-function forwardRowClick(row: TRow, event: MouseEvent): void {
+function forwardRowClick(row: TRow, event: MouseEvent | KeyboardEvent): void {
   emit('rowClick', row, event)
 }
 

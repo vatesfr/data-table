@@ -528,6 +528,124 @@ describe('DataTable — date filter tree', () => {
   })
 })
 
+describe('DataTable — keyboard navigation', () => {
+  const ROWS3: Row[] = [
+    { id: 1, name: 'Alice', score: 90 },
+    { id: 2, name: 'Bob', score: 60 },
+    { id: 3, name: 'Clara', score: 80 },
+  ]
+
+  function dataRows(wrapper: ReturnType<typeof mount>) {
+    return wrapper.findAll('tbody tr')
+  }
+
+  it('does not add a tabindex to rows when neither selectable nor onRowClick is set', () => {
+    const wrapper = mount(DataTable, { props: { data: ROWS3, columns: COLS, rowKey: 'id' } })
+    for (const row of dataRows(wrapper)) expect(row.attributes('tabindex')).toBeUndefined()
+  })
+
+  it('makes the first row the sole tab stop by default, the rest tabindex -1', () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS3, columns: COLS, rowKey: 'id', selectable: true },
+    })
+    const [first, ...rest] = dataRows(wrapper)
+    expect(first.attributes('tabindex')).toBe('0')
+    for (const row of rest) expect(row.attributes('tabindex')).toBe('-1')
+  })
+
+  it('excludes the row checkbox from the tab sequence', () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS3, columns: COLS, rowKey: 'id', selectable: true },
+    })
+    expect(wrapper.find('tbody tr input[type="checkbox"]').attributes('tabindex')).toBe('-1')
+  })
+
+  // document.activeElement only reflects focus() for elements connected to `document` — mount()
+  // renders into a detached fragment by default, so these need `attachTo: document.body`.
+  it('ArrowDown moves the roving tabindex to the next row', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS3, columns: COLS, rowKey: 'id', selectable: true },
+      attachTo: document.body,
+    })
+    const [first, second] = dataRows(wrapper)
+    ;(first.element as HTMLElement).focus()
+    await first.trigger('keydown', { key: 'ArrowDown' })
+    expect(first.attributes('tabindex')).toBe('-1')
+    expect(second.attributes('tabindex')).toBe('0')
+    expect(document.activeElement).toBe(second.element)
+    wrapper.unmount()
+  })
+
+  it('ArrowUp on the first row is a no-op (clamped at the boundary)', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS3, columns: COLS, rowKey: 'id', selectable: true },
+      attachTo: document.body,
+    })
+    const [first] = dataRows(wrapper)
+    ;(first.element as HTMLElement).focus()
+    await first.trigger('keydown', { key: 'ArrowUp' })
+    expect(first.attributes('tabindex')).toBe('0')
+    expect(document.activeElement).toBe(first.element)
+    wrapper.unmount()
+  })
+
+  it('End moves the roving tabindex to the last row', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS3, columns: COLS, rowKey: 'id', selectable: true },
+      attachTo: document.body,
+    })
+    const rows = dataRows(wrapper)
+    const first = rows[0]
+    const last = rows[rows.length - 1]
+    ;(first.element as HTMLElement).focus()
+    await first.trigger('keydown', { key: 'End' })
+    expect(last.attributes('tabindex')).toBe('0')
+    expect(document.activeElement).toBe(last.element)
+    wrapper.unmount()
+  })
+
+  it('Space toggles selection on the focused row', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS3, columns: COLS, rowKey: 'id', selectable: true },
+    })
+    const [first] = dataRows(wrapper)
+    const checkbox = first.find('input[type="checkbox"]')
+    ;(first.element as HTMLElement).focus()
+    await first.trigger('keydown', { key: ' ' })
+    expect((checkbox.element as HTMLInputElement).checked).toBe(true)
+    await first.trigger('keydown', { key: ' ' })
+    expect((checkbox.element as HTMLInputElement).checked).toBe(false)
+  })
+
+  it('Shift+ArrowDown extends the selection range like a shift-click would', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS3, columns: COLS, rowKey: 'id', selectable: true },
+      attachTo: document.body,
+    })
+    const [first, second] = dataRows(wrapper)
+    const firstCheckbox = first.find('input[type="checkbox"]')
+    const secondCheckbox = second.find('input[type="checkbox"]')
+    await firstCheckbox.trigger('click') // selects Alice, sets the anchor
+    ;(first.element as HTMLElement).focus()
+    await first.trigger('keydown', { key: 'ArrowDown', shiftKey: true })
+    expect((firstCheckbox.element as HTMLInputElement).checked).toBe(true)
+    expect((secondCheckbox.element as HTMLInputElement).checked).toBe(true)
+    expect(document.activeElement).toBe(second.element)
+    wrapper.unmount()
+  })
+
+  it('Enter emits rowClick with the row and the keyboard event', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS3, columns: COLS, rowKey: 'id', onRowClick: vi.fn() },
+    })
+    const [first] = dataRows(wrapper)
+    ;(first.element as HTMLElement).focus()
+    await first.trigger('keydown', { key: 'Enter' })
+    expect(wrapper.emitted('rowClick')).toBeTruthy()
+    expect(wrapper.emitted('rowClick')![0][0]).toEqual(ROWS3[0])
+  })
+})
+
 describe('DataTable — computed columns', () => {
   it('renders a cell value produced by col.value instead of row[key]', () => {
     const cols: ColumnDef<Row>[] = [

@@ -134,6 +134,19 @@ export function groupData<TRow extends object>(
   return Object.entries(groups).map(([key, { keyParts, rows }]) => ({ key, keyParts, rows }))
 }
 
+/**
+ * Flattens `groupData`'s result into the rows actually rendered — i.e. skipping a collapsed
+ * group's rows entirely, the same condition each adapter's own render already applies. This is
+ * the row order used for keyboard arrow-key navigation: rows hidden behind a collapsed group
+ * are not valid Up/Down targets, and expanding/collapsing a group changes what's reachable.
+ */
+export function getVisibleRows<TRow extends object>(
+  groups: GroupResult<TRow>[],
+  collapsedGroups: Set<string>,
+): TRow[] {
+  return groups.flatMap(({ key, rows }) => (key !== null && collapsedGroups.has(key) ? [] : rows))
+}
+
 export function computeStringValues<TRow extends object>(
   data: TRow[],
   columns: ColumnDefBase<TRow>[],

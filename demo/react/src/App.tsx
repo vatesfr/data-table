@@ -717,7 +717,9 @@ export default function App() {
       >
         Pass <code>selectable</code> to show checkboxes; <code>onSelectionChange</code> receives the
         updated array of selected rows. Shift-click a checkbox to select (or deselect) the whole
-        range since the last-clicked row. <DocLink anchor="row-selection">📖 Docs</DocLink>
+        range since the last-clicked row. Click a row then use ↑/↓/Home/End to move focus,{' '}
+        <kbd>Space</kbd> to select, and Shift+↑/↓ to extend the range from the keyboard.{' '}
+        <DocLink anchor="row-selection">📖 Docs</DocLink>
       </p>
       {selected.length > 0 && (
         <div
@@ -795,7 +797,8 @@ export default function App() {
         }}
       >
         Pass <code>onRowClick</code> to react to a row being clicked — it receives the full row
-        object, no key lookup needed. <DocLink anchor="row-click">📖 Docs</DocLink>
+        object, no key lookup needed. Also fires on <kbd>Enter</kbd> while a row has keyboard focus.{' '}
+        <DocLink anchor="row-click">📖 Docs</DocLink>
       </p>
       {clicked && (
         <div

@@ -1,4 +1,4 @@
-import type { MouseEvent, ReactNode } from 'react'
+import type { KeyboardEvent, MouseEvent, ReactNode } from 'react'
 import type { ColumnDefBase, DataTableLabels } from '@vates/data-table-core'
 import type { TableState } from './useTableState'
 
@@ -28,7 +28,11 @@ export interface DataTableViewProps<TRow extends object = Record<string, unknown
   rowKey?: keyof TRow & string
   selectable?: boolean
   onSelectionChange?: (rows: TRow[]) => void
-  onRowClick?: (row: TRow, event: MouseEvent<HTMLTableRowElement>) => void
+  /** Fires on a row click, or on Enter while a row has keyboard focus (see "Keyboard navigation"). */
+  onRowClick?: (
+    row: TRow,
+    event: MouseEvent<HTMLTableRowElement> | KeyboardEvent<HTMLTableRowElement>,
+  ) => void
 }
 
 export interface DataTableProps<TRow extends object = Record<string, unknown>> extends Omit<
