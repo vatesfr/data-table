@@ -1043,6 +1043,22 @@ describe('createDataTable', () => {
     expect(onRowClick).not.toHaveBeenCalled()
   })
 
+  it('clicking a row closes an open toolbar dropdown', () => {
+    createDataTable(container, { data: ROWS, columns: COLS, onRowClick: vi.fn() })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="group"]')!)
+    expect(container.querySelector('.dt-dd')).not.toBeNull()
+    click(container.querySelector<HTMLElement>('[data-action="row-click"][data-proc-idx="0"]')!)
+    expect(container.querySelector('.dt-dd')).toBeNull()
+  })
+
+  it('clicking a row closes an open dropdown even when onRowClick is not set', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="group"]')!)
+    expect(container.querySelector('.dt-dd')).not.toBeNull()
+    click(container.querySelector<HTMLElement>('[data-action="row-click"][data-proc-idx="0"]')!)
+    expect(container.querySelector('.dt-dd')).toBeNull()
+  })
+
   // --- keyboard navigation ---
 
   function dataRows(el: HTMLElement): HTMLElement[] {

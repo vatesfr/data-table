@@ -752,9 +752,14 @@ export function createDataTable<TRow extends object>(
     const target = e.target as HTMLElement
     const actionEl = target.closest('[data-action]') as HTMLElement | null
 
-    // Close dropdown when clicking outside a dd-wrap
+    // Close dropdown when clicking outside a dd-wrap — tracked separately from
+    // `viewChanged`/`selectionChanged` below since some actions (row-click) return early without
+    // reaching the shared `render()` at the bottom of this function, but still need the
+    // now-closed dropdown reflected in the DOM rather than staying visibly open.
+    let dropdownClosed = false
     if (openDropdown !== null && !target.closest('.dt-dd-wrap')) {
       openDropdown = null
+      dropdownClosed = true
       if (!actionEl) {
         render()
         return
@@ -960,8 +965,10 @@ export function createDataTable<TRow extends object>(
           focusTarget = { kind: 'row', row: _processedData[procIdx] }
           onRowClick?.(_processedData[procIdx], e)
         }
+        if (dropdownClosed) render()
         return
       default:
+        if (dropdownClosed) render()
         return
     }
 
