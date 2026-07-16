@@ -36,6 +36,7 @@ export function useTableState<TRow extends object>(
   defaultVisibleColumns?: string[],
   labelOverrides?: Partial<DataTableLabels>,
   defaultPageSize?: number,
+  defaultGroupsCollapsed = true,
 ) {
   const L = { ...DEFAULT_LABELS, ...labelOverrides }
 
@@ -128,6 +129,7 @@ export function useTableState<TRow extends object>(
     page,
     pageSize,
     searchQuery,
+    defaultGroupsCollapsed,
     // Derived
     selectedRows,
     processedData,

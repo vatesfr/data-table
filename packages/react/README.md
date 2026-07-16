@@ -181,17 +181,18 @@ Drag a column header to reorder it, or use the ▲▼ buttons next to each colum
 
 ## `DataTable` props
 
-| Prop                    | Type                                                          | Default | Description                                  |
-| ----------------------- | ------------------------------------------------------------- | ------- | -------------------------------------------- |
-| `data`                  | `TRow[]`                                                      | —       | Row data                                     |
-| `columns`               | `ColumnDef<TRow>[]`                                           | —       | Column definitions                           |
-| `rowKey`                | `keyof TRow & string`                                         | —       | Unique row identifier                        |
-| `defaultVisibleColumns` | `string[]`                                                    | all     | Initially visible column keys                |
-| `labels`                | `Partial<DataTableLabels>`                                    | English | UI string overrides                          |
-| `defaultPageSize`       | `number`                                                      | 0 (off) | Initial rows per page; 0 disables pagination |
-| `selectable`            | `boolean`                                                     | `false` | Show checkbox column for row selection       |
-| `onSelectionChange`     | `(rows: TRow[]) => void`                                      | —       | Called when selection changes                |
-| `onRowClick`            | `(row: TRow, event: MouseEvent<HTMLTableRowElement>) => void` | —       | Called when a data row is clicked            |
+| Prop                     | Type                                                          | Default | Description                                  |
+| ------------------------ | ------------------------------------------------------------- | ------- | -------------------------------------------- |
+| `data`                   | `TRow[]`                                                      | —       | Row data                                     |
+| `columns`                | `ColumnDef<TRow>[]`                                           | —       | Column definitions                           |
+| `rowKey`                 | `keyof TRow & string`                                         | —       | Unique row identifier                        |
+| `defaultVisibleColumns`  | `string[]`                                                    | all     | Initially visible column keys                |
+| `labels`                 | `Partial<DataTableLabels>`                                    | English | UI string overrides                          |
+| `defaultPageSize`        | `number`                                                      | 0 (off) | Initial rows per page; 0 disables pagination |
+| `defaultGroupsCollapsed` | `boolean`                                                     | `true`  | Whether newly-grouped groups start collapsed |
+| `selectable`             | `boolean`                                                     | `false` | Show checkbox column for row selection       |
+| `onSelectionChange`      | `(rows: TRow[]) => void`                                      | —       | Called when selection changes                |
+| `onRowClick`             | `(row: TRow, event: MouseEvent<HTMLTableRowElement>) => void` | —       | Called when a data row is clicked            |
 
 ## Column definition
 
@@ -231,6 +232,7 @@ const {
   rangeFilters,
   groupBy,
   collapsedGroups,
+  defaultGroupsCollapsed,
   page,
   pageSize,
   selection, // Set<TRow> — use .has(row) to check membership
@@ -268,7 +270,14 @@ const {
   clearSelection, // () => void
   getViewState, // () => TableViewState — snapshot of sort/filter/group/page/etc. (not selection)
   setViewState, // (view: TableViewState) => void — apply a snapshot; fields absent from it reset to default
-} = useTableState(data, columns, defaultVisibleColumns, labelOverrides, defaultPageSize)
+} = useTableState(
+  data,
+  columns,
+  defaultVisibleColumns,
+  labelOverrides,
+  defaultPageSize,
+  defaultGroupsCollapsed, // default true — pass false to start groups expanded
+)
 ```
 
 ## View persistence & sharing

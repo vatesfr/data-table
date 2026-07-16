@@ -1291,7 +1291,12 @@ describe('createDataTable', () => {
   }
 
   it('makes every group header row a Tab stop, one at a time', () => {
-    createDataTable(container, { data: ROWS, columns: COLS, selectable: true })
+    createDataTable(container, {
+      data: ROWS,
+      columns: COLS,
+      selectable: true,
+      defaultGroupsCollapsed: false,
+    })
     groupByDept()
     const headers = groupHeaderRows(container)
     expect(headers).toHaveLength(2)
@@ -1300,7 +1305,12 @@ describe('createDataTable', () => {
   })
 
   it("ArrowDown walks through a group's rows and on to the next group header", () => {
-    createDataTable(container, { data: ROWS, columns: COLS, selectable: true })
+    createDataTable(container, {
+      data: ROWS,
+      columns: COLS,
+      selectable: true,
+      defaultGroupsCollapsed: false,
+    })
     groupByDept()
     const [firstHeader] = groupHeaderRows(container)
     firstHeader.focus()
@@ -1311,7 +1321,7 @@ describe('createDataTable', () => {
   })
 
   it('Enter toggles collapse on a focused group header, regardless of selectable/onRowClick', () => {
-    createDataTable(container, { data: ROWS, columns: COLS })
+    createDataTable(container, { data: ROWS, columns: COLS, defaultGroupsCollapsed: false })
     groupByDept()
     const [firstHeader] = groupHeaderRows(container)
     firstHeader.focus()
@@ -1322,7 +1332,12 @@ describe('createDataTable', () => {
   })
 
   it("Space toggles the group's own select-all checkbox on a focused group header", () => {
-    createDataTable(container, { data: ROWS, columns: COLS, selectable: true })
+    createDataTable(container, {
+      data: ROWS,
+      columns: COLS,
+      selectable: true,
+      defaultGroupsCollapsed: false,
+    })
     groupByDept()
     const [firstHeader] = groupHeaderRows(container)
     firstHeader.focus()
@@ -1334,7 +1349,12 @@ describe('createDataTable', () => {
   })
 
   it('Ctrl+End from a group header jumps to the true last row across all groups', () => {
-    createDataTable(container, { data: ROWS, columns: COLS, selectable: true })
+    createDataTable(container, {
+      data: ROWS,
+      columns: COLS,
+      selectable: true,
+      defaultGroupsCollapsed: false,
+    })
     groupByDept()
     const [firstHeader] = groupHeaderRows(container)
     firstHeader.focus()
@@ -1343,7 +1363,12 @@ describe('createDataTable', () => {
   })
 
   it("a collapsed group's header stays reachable and its rows are skipped", () => {
-    createDataTable(container, { data: ROWS, columns: COLS, selectable: true })
+    createDataTable(container, {
+      data: ROWS,
+      columns: COLS,
+      selectable: true,
+      defaultGroupsCollapsed: false,
+    })
     groupByDept()
     const [firstHeader] = groupHeaderRows(container)
     firstHeader.focus()
@@ -1369,12 +1394,28 @@ describe('createDataTable', () => {
   })
 
   it('collapsing a group hides its data rows', () => {
-    createDataTable(container, { data: ROWS, columns: COLS })
+    createDataTable(container, { data: ROWS, columns: COLS, defaultGroupsCollapsed: false })
     click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="group"]')!)
     click(container.querySelector<HTMLElement>('[data-action="toggle-group"][data-key="dept"]')!)
     const before = container.querySelectorAll('.dt-tr').length
     click(container.querySelector<HTMLElement>('.dt-group-row')!)
     expect(container.querySelectorAll('.dt-tr').length).toBeLessThan(before)
+  })
+
+  it('starts groups collapsed by default, and clicking a header expands it', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="group"]')!)
+    click(container.querySelector<HTMLElement>('[data-action="toggle-group"][data-key="dept"]')!)
+    expect(container.querySelectorAll('.dt-tr').length).toBe(0)
+    click(container.querySelector<HTMLElement>('.dt-group-row')!)
+    expect(container.querySelectorAll('.dt-tr').length).toBeGreaterThan(0)
+  })
+
+  it('defaultGroupsCollapsed: false starts groups expanded', () => {
+    createDataTable(container, { data: ROWS, columns: COLS, defaultGroupsCollapsed: false })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="group"]')!)
+    click(container.querySelector<HTMLElement>('[data-action="toggle-group"][data-key="dept"]')!)
+    expect(container.querySelectorAll('.dt-tr').length).toBeGreaterThan(0)
   })
 
   // --- search ---

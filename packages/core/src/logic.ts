@@ -148,10 +148,11 @@ export type VisibleItem<TRow> = { kind: 'group'; key: string } | { kind: 'row'; 
 export function getVisibleRows<TRow extends object>(
   groups: GroupResult<TRow>[],
   collapsedGroups: Set<string>,
+  defaultCollapsed = false,
 ): VisibleItem<TRow>[] {
   return groups.flatMap(({ key, rows }): VisibleItem<TRow>[] => {
     if (key === null) return rows.map((row) => ({ kind: 'row', row }))
-    const rowItems: VisibleItem<TRow>[] = collapsedGroups.has(key)
+    const rowItems: VisibleItem<TRow>[] = isGroupCollapsed(collapsedGroups, key, defaultCollapsed)
       ? []
       : rows.map((row) => ({ kind: 'row', row }))
     return [{ kind: 'group', key }, ...rowItems]
@@ -535,6 +536,20 @@ export function toggleCollapse(collapsedGroups: Set<string>, key: string): Set<s
   if (next.has(key)) next.delete(key)
   else next.add(key)
   return next
+}
+
+/**
+ * Whether group `key` is currently collapsed. `collapsedGroups` tracks manual toggles *away from*
+ * `defaultCollapsed` rather than absolute collapsed state, so a group key that's never been
+ * toggled (including one that's never been seen before, e.g. new data) picks up `defaultCollapsed`
+ * for free — no separate step is needed to seed newly-appearing groups.
+ */
+export function isGroupCollapsed(
+  collapsedGroups: Set<string>,
+  key: string,
+  defaultCollapsed = false,
+): boolean {
+  return defaultCollapsed ? !collapsedGroups.has(key) : collapsedGroups.has(key)
 }
 
 export function getSortIcon(sorts: SortEntry[], key: string): string {

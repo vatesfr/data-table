@@ -16,6 +16,7 @@ import {
   selectDateRange,
   selectRange,
   getVisibleRows,
+  isGroupCollapsed,
   isSameVisibleItem,
   indexOfVisibleItem,
   paginateData,
@@ -61,6 +62,7 @@ const {
   rangeFilters,
   groupBy,
   collapsedGroups,
+  defaultGroupsCollapsed,
   selection,
   selectedRows,
   processedData,
@@ -114,7 +116,9 @@ const focusTarget = shallowRef<VisibleItem<TRow> | null>(null)
 const rowRefs = new Map<TRow | string, HTMLTableRowElement>()
 
 const isRowNavEnabled = computed(() => props.selectable || isRowClickable.value)
-const visibleItems = computed(() => getVisibleRows(groupedData.value, collapsedGroups.value))
+const visibleItems = computed(() =>
+  getVisibleRows(groupedData.value, collapsedGroups.value, defaultGroupsCollapsed.value),
+)
 const navigableItems = computed(() =>
   visibleItems.value.filter((item) => item.kind === 'group' || isRowNavEnabled.value),
 )
@@ -126,6 +130,10 @@ const effectiveFocusTarget = computed(() =>
 
 function isFocusTarget(item: VisibleItem<TRow>): boolean {
   return effectiveFocusTarget.value !== null && isSameVisibleItem(effectiveFocusTarget.value, item)
+}
+
+function groupCollapsed(key: string): boolean {
+  return isGroupCollapsed(collapsedGroups.value, key, defaultGroupsCollapsed.value)
 }
 
 function setItemRef(key: TRow | string, el: Element | null): void {
@@ -156,6 +164,7 @@ function visibleItemsForPage(p: number): VisibleItem<TRow>[] {
       L.value.emptyValue,
     ),
     collapsedGroups.value,
+    defaultGroupsCollapsed.value,
   ).filter((item) => item.kind === 'group' || isRowNavEnabled.value)
 }
 
@@ -808,7 +817,7 @@ function onColDragEnd(): void {
               v-if="group.key !== null"
               :ref="(el) => setItemRef(group.key!, el as Element | null)"
               :tabindex="isFocusTarget({ kind: 'group', key: group.key! }) ? 0 : -1"
-              :aria-expanded="!collapsedGroups.has(group.key!)"
+              :aria-expanded="!groupCollapsed(group.key!)"
               class="dt__group-row"
               @click="toggleGroupCollapse(group.key!)"
               @keydown="handleKeyDown($event, { kind: 'group', key: group.key! })"
@@ -823,7 +832,7 @@ function onColDragEnd(): void {
                 />
               </td>
               <td class="dt__group-td">
-                {{ collapsedGroups.has(group.key!) ? '▶' : '▼' }}
+                {{ groupCollapsed(group.key!) ? '▶' : '▼' }}
               </td>
               <td :colspan="activeColumns.length" class="dt__group-td">
                 <template v-for="(g, i) in groupBy" :key="g">
@@ -862,7 +871,7 @@ function onColDragEnd(): void {
             </tr>
 
             <!-- Data rows -->
-            <template v-if="group.key === null || !collapsedGroups.has(group.key!)">
+            <template v-if="group.key === null || !groupCollapsed(group.key!)">
               <tr
                 v-for="(row, ri) in group.rows"
                 :key="(asRecord(row)[rowKey] as string | number) ?? ri"

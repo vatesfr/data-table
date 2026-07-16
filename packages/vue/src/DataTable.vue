@@ -4,7 +4,13 @@ import { useTableState } from './useTableState'
 import DataTableView from './DataTableView.vue'
 import type { DataTableProps } from './types'
 
-const props = withDefaults(defineProps<DataTableProps<TRow>>(), { rowKey: 'id' })
+// Vue casts an absent boolean prop with no explicit default to `false`, not `undefined` — an
+// explicit default here is required so an omitted `defaultGroupsCollapsed` still falls through to
+// useTableState's own `?? true` default instead of being silently forced to `false`.
+const props = withDefaults(defineProps<DataTableProps<TRow>>(), {
+  rowKey: 'id',
+  defaultGroupsCollapsed: true,
+})
 
 const emit = defineEmits<{
   selectionChange: [rows: TRow[]]
@@ -34,6 +40,7 @@ const table = useTableState(
     defaultVisibleColumns: props.defaultVisibleColumns,
     labels: props.labels,
     defaultPageSize: props.defaultPageSize,
+    defaultGroupsCollapsed: props.defaultGroupsCollapsed,
   }),
 )
 </script>

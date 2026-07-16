@@ -565,7 +565,8 @@ function copyShareLink() {
       style="font-size: 14px; color: var(--color-text-secondary); margin-top: 0; margin-bottom: 4px"
     >
       Every feature together: sort, filter, group, aggregate, column reordering, i18n, dark mode.
-      Try dragging a column header, or grouping by Department.
+      Try dragging a column header, or grouping by Department — groups start collapsed by default
+      (<code>default-groups-collapsed</code>).
     </p>
     <p
       style="

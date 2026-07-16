@@ -760,7 +760,13 @@ describe('DataTable — keyboard navigation with grouping', () => {
 
   it('makes every group header row a Tab stop, one at a time', () => {
     const { getByText, getAllByText, container } = render(
-      <DataTable data={GROUP_ROWS} columns={GROUP_COLS} rowKey="id" selectable />,
+      <DataTable
+        data={GROUP_ROWS}
+        columns={GROUP_COLS}
+        rowKey="id"
+        selectable
+        defaultGroupsCollapsed={false}
+      />,
     )
     groupByDept(getByText, getAllByText)
     const headers = groupHeaderRows(container)
@@ -771,7 +777,13 @@ describe('DataTable — keyboard navigation with grouping', () => {
 
   it('ArrowDown walks through a group’s rows and on to the next group header', () => {
     const { getByText, getAllByText, container } = render(
-      <DataTable data={GROUP_ROWS} columns={GROUP_COLS} rowKey="id" selectable />,
+      <DataTable
+        data={GROUP_ROWS}
+        columns={GROUP_COLS}
+        rowKey="id"
+        selectable
+        defaultGroupsCollapsed={false}
+      />,
     )
     groupByDept(getByText, getAllByText)
     const [firstHeader] = groupHeaderRows(container)
@@ -784,7 +796,12 @@ describe('DataTable — keyboard navigation with grouping', () => {
 
   it('Enter toggles collapse on a focused group header, regardless of selectable/onRowClick', () => {
     const { getByText, getAllByText, container, queryByText } = render(
-      <DataTable data={GROUP_ROWS} columns={GROUP_COLS} rowKey="id" />,
+      <DataTable
+        data={GROUP_ROWS}
+        columns={GROUP_COLS}
+        rowKey="id"
+        defaultGroupsCollapsed={false}
+      />,
     )
     groupByDept(getByText, getAllByText)
     const [firstHeader] = groupHeaderRows(container)
@@ -797,7 +814,13 @@ describe('DataTable — keyboard navigation with grouping', () => {
 
   it('Space toggles the group’s own select-all checkbox on a focused group header', () => {
     const { getByText, getAllByText, container } = render(
-      <DataTable data={GROUP_ROWS} columns={GROUP_COLS} rowKey="id" selectable />,
+      <DataTable
+        data={GROUP_ROWS}
+        columns={GROUP_COLS}
+        rowKey="id"
+        selectable
+        defaultGroupsCollapsed={false}
+      />,
     )
     groupByDept(getByText, getAllByText)
     const [firstHeader] = groupHeaderRows(container)
@@ -809,7 +832,13 @@ describe('DataTable — keyboard navigation with grouping', () => {
 
   it('Ctrl+End from a group header jumps to the true last row across all groups', () => {
     const { getByText, getAllByText, container } = render(
-      <DataTable data={GROUP_ROWS} columns={GROUP_COLS} rowKey="id" selectable />,
+      <DataTable
+        data={GROUP_ROWS}
+        columns={GROUP_COLS}
+        rowKey="id"
+        selectable
+        defaultGroupsCollapsed={false}
+      />,
     )
     groupByDept(getByText, getAllByText)
     const [firstHeader] = groupHeaderRows(container)
@@ -820,7 +849,13 @@ describe('DataTable — keyboard navigation with grouping', () => {
 
   it('a collapsed group’s header stays reachable and its rows are skipped', () => {
     const { getByText, getAllByText, container } = render(
-      <DataTable data={GROUP_ROWS} columns={GROUP_COLS} rowKey="id" selectable />,
+      <DataTable
+        data={GROUP_ROWS}
+        columns={GROUP_COLS}
+        rowKey="id"
+        selectable
+        defaultGroupsCollapsed={false}
+      />,
     )
     groupByDept(getByText, getAllByText)
     const [firstHeader] = groupHeaderRows(container)
@@ -829,6 +864,31 @@ describe('DataTable — keyboard navigation with grouping', () => {
     fireEvent.keyDown(document.activeElement!, { key: 'ArrowDown' })
     // Eng's rows are hidden, so ArrowDown from its (still focusable) header goes straight to HR's header
     expect(document.activeElement).toBe(groupHeaderRows(container)[1])
+  })
+
+  it('starts groups collapsed by default, and Enter expands one', () => {
+    const { getByText, getAllByText, container, queryByText } = render(
+      <DataTable data={GROUP_ROWS} columns={GROUP_COLS} rowKey="id" />,
+    )
+    groupByDept(getByText, getAllByText)
+    expect(queryByText('Alice')).toBeNull()
+    const [firstHeader] = groupHeaderRows(container)
+    firstHeader.focus()
+    fireEvent.keyDown(firstHeader, { key: 'Enter' })
+    expect(queryByText('Alice')).toBeTruthy()
+  })
+
+  it('defaultGroupsCollapsed={false} starts groups expanded', () => {
+    const { getByText, getAllByText, queryByText } = render(
+      <DataTable
+        data={GROUP_ROWS}
+        columns={GROUP_COLS}
+        rowKey="id"
+        defaultGroupsCollapsed={false}
+      />,
+    )
+    groupByDept(getByText, getAllByText)
+    expect(queryByText('Alice')).toBeTruthy()
   })
 })
 

@@ -23,6 +23,7 @@ import {
   toggleGroupBy,
   toggleCollapse,
   getVisibleRows,
+  isGroupCollapsed,
   isSameVisibleItem,
   indexOfVisibleItem,
   getOrderedColumns,
@@ -94,7 +95,13 @@ export function createDataTable<TRow extends object>(
 
   let data = options.data
   let columns = options.columns
-  const { rowKey, selectable = false, onSelectionChange, onRowClick } = options
+  const {
+    rowKey,
+    selectable = false,
+    onSelectionChange,
+    onRowClick,
+    defaultGroupsCollapsed = true,
+  } = options
   const L: DataTableLabels = { ...DEFAULT_LABELS, ...options.labels }
 
   let sorts: SortEntry[] = []
@@ -233,9 +240,11 @@ export function createDataTable<TRow extends object>(
   // on demand, so a boundary key press can find the item it needs to jump to.
   function visibleItemsForPage(p: number): VisibleItem<TRow>[] {
     const paged = paginateData(_processedData, p, pageSize)
-    return getVisibleRows(groupData(paged, groupBy, columns, L.emptyValue), collapsedGroups).filter(
-      (item) => item.kind === 'group' || selectable || !!onRowClick,
-    )
+    return getVisibleRows(
+      groupData(paged, groupBy, columns, L.emptyValue),
+      collapsedGroups,
+      defaultGroupsCollapsed,
+    ).filter((item) => item.kind === 'group' || selectable || !!onRowClick)
   }
 
   /** Shared by the checkbox click handler and keyboard Space/Shift+Arrow — see toggleRowSelection in React/Vue. */
@@ -325,7 +334,7 @@ export function createDataTable<TRow extends object>(
       selectedRows,
     } = derive()
 
-    _visibleItems = getVisibleRows(_groupedData, collapsedGroups)
+    _visibleItems = getVisibleRows(_groupedData, collapsedGroups, defaultGroupsCollapsed)
     const rowNavEnabled = selectable || !!onRowClick
     _navigableItems = _visibleItems.filter((item) => item.kind === 'group' || rowNavEnabled)
     const effectiveFocusTarget =
@@ -580,7 +589,7 @@ export function createDataTable<TRow extends object>(
 
     for (const { key: gkey, keyParts, rows } of _groupedData) {
       if (gkey !== null) {
-        const isCollapsed = collapsedGroups.has(gkey)
+        const isCollapsed = isGroupCollapsed(collapsedGroups, gkey, defaultGroupsCollapsed)
         const gAllSel = rows.length > 0 && rows.every((r) => selection.has(r))
         const groupTabIndex = isFocusTarget({ kind: 'group', key: gkey }) ? 0 : -1
         html += `<tr class="dt-group-row" data-action="toggle-group-collapse" data-gkey="${esc(gkey)}" tabindex="${groupTabIndex}" aria-expanded="${!isCollapsed}">`

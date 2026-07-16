@@ -26,6 +26,7 @@ import {
   selectDateRange,
   toggleGroupBy,
   toggleCollapse,
+  isGroupCollapsed,
   getSortIcon,
   getSortIndex,
   countActiveFilters,
@@ -463,6 +464,27 @@ describe('getVisibleRows', () => {
     expect(visible.some((i) => i.kind === 'group' && i.key === 'Eng')).toBe(true)
     expect(visible.some((i) => i.kind === 'row' && i.row.dept === 'Eng')).toBe(false)
     expect(visible.filter((i) => i.kind === 'row' && i.row.dept === 'HR')).toHaveLength(2)
+  })
+
+  it('collapses every group by default when defaultCollapsed is true, except those toggled back open', () => {
+    const groups = groupData(ROWS, ['dept'])
+    const visible = getVisibleRows(groups, new Set(['Eng']), true)
+    expect(visible.some((i) => i.kind === 'row' && i.row.dept === 'Eng')).toBe(true)
+    expect(visible.some((i) => i.kind === 'row' && i.row.dept === 'HR')).toBe(false)
+  })
+})
+
+// ─── isGroupCollapsed ─────────────────────────────────────────────────────────
+
+describe('isGroupCollapsed', () => {
+  it('defaults to expanded, treating collapsedGroups as the set of collapsed keys', () => {
+    expect(isGroupCollapsed(new Set(), 'Eng')).toBe(false)
+    expect(isGroupCollapsed(new Set(['Eng']), 'Eng')).toBe(true)
+  })
+
+  it('inverts to collapsed-by-default when defaultCollapsed is true, treating collapsedGroups as toggled-open keys', () => {
+    expect(isGroupCollapsed(new Set(), 'Eng', true)).toBe(true)
+    expect(isGroupCollapsed(new Set(['Eng']), 'Eng', true)).toBe(false)
   })
 })
 

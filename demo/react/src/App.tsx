@@ -666,7 +666,8 @@ export default function App() {
         }}
       >
         Every feature together: sort, filter, group, aggregate, column reordering, i18n, dark mode.
-        Try dragging a column header, or grouping by Department.
+        Try dragging a column header, or grouping by Department — groups start collapsed by default
+        (<code>defaultGroupsCollapsed</code>).
       </p>
       <p
         style={{

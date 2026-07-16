@@ -14,6 +14,8 @@ export interface DataTableOptions<TRow extends object = Record<string, unknown>>
   defaultVisibleColumns?: string[]
   labels?: Partial<DataTableLabels>
   defaultPageSize?: number
+  /** Whether newly-grouped groups start collapsed. Defaults to `true`; pass `false` to start expanded. */
+  defaultGroupsCollapsed?: boolean
   selectable?: boolean
   onSelectionChange?: (rows: TRow[]) => void
   /** Fires on a row click, or on Enter while a row has keyboard focus (see "Keyboard navigation"). */

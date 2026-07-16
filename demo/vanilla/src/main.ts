@@ -378,7 +378,8 @@ app.innerHTML = `
     <h2 id="full-table" style="font-size:16px;font-weight:600;margin-top:24px;margin-bottom:4px;scroll-margin-top:56px">Full-featured table</h2>
     <p style="font-size:14px;color:var(--color-text-secondary);margin-top:0;margin-bottom:4px">
       Every feature together: sort, filter, group, aggregate, column reordering, i18n, dark mode.
-      Try dragging a column header, or grouping by Department.
+      Try dragging a column header, or grouping by Department — groups start collapsed by default
+      (<code>defaultGroupsCollapsed</code>).
     </p>
     <p style="font-size:12px;color:var(--color-text-secondary);margin-top:0;margin-bottom:16px">
       📖 ${docLink('column-reordering', 'Column reordering')} ·

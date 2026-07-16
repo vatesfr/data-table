@@ -200,15 +200,16 @@ Drag a column header to reorder it, or use the ▲▼ buttons next to each colum
 
 ## `DataTable` props
 
-| Prop                    | Type                       | Default | Description                                  |
-| ----------------------- | -------------------------- | ------- | -------------------------------------------- |
-| `data`                  | `TRow[]`                   | —       | Row data                                     |
-| `columns`               | `ColumnDef<TRow>[]`        | —       | Column definitions                           |
-| `rowKey`                | `keyof TRow & string`      | —       | Unique row identifier                        |
-| `defaultVisibleColumns` | `string[]`                 | all     | Initially visible column keys                |
-| `labels`                | `Partial<DataTableLabels>` | English | UI string overrides                          |
-| `defaultPageSize`       | `number`                   | 0 (off) | Initial rows per page; 0 disables pagination |
-| `selectable`            | `boolean`                  | `false` | Show checkbox column for row selection       |
+| Prop                     | Type                       | Default | Description                                  |
+| ------------------------ | -------------------------- | ------- | -------------------------------------------- |
+| `data`                   | `TRow[]`                   | —       | Row data                                     |
+| `columns`                | `ColumnDef<TRow>[]`        | —       | Column definitions                           |
+| `rowKey`                 | `keyof TRow & string`      | —       | Unique row identifier                        |
+| `defaultVisibleColumns`  | `string[]`                 | all     | Initially visible column keys                |
+| `labels`                 | `Partial<DataTableLabels>` | English | UI string overrides                          |
+| `defaultPageSize`        | `number`                   | 0 (off) | Initial rows per page; 0 disables pagination |
+| `defaultGroupsCollapsed` | `boolean`                  | `true`  | Whether newly-grouped groups start collapsed |
+| `selectable`             | `boolean`                  | `false` | Show checkbox column for row selection       |
 
 All props accept `MaybeRefOrGetter` — you can pass refs, computed values, or plain values.
 
@@ -255,6 +256,7 @@ const {
   rangeFilters,
   groupBy,
   collapsedGroups,
+  defaultGroupsCollapsed,
   page,
   pageSize,
   selection, // ShallowRef<Set<TRow>> — use selection.value.has(row) to check membership

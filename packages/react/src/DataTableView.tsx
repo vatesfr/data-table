@@ -23,6 +23,7 @@ import {
   selectDateRange,
   selectRange,
   getVisibleRows,
+  isGroupCollapsed,
   isSameVisibleItem,
   indexOfVisibleItem,
   paginateData,
@@ -334,6 +335,7 @@ export function DataTableView<TRow extends object>({
     rangeFilters,
     groupBy,
     collapsedGroups,
+    defaultGroupsCollapsed,
     processedData,
     groupedData,
     activeColumns,
@@ -402,7 +404,7 @@ export function DataTableView<TRow extends object>({
   // sequence when they're actually interactive; group headers always do, since collapsing a
   // group is already a click away regardless of selectable/onRowClick.
   const rowNavEnabled = selectable || !!onRowClick
-  const visibleItems = getVisibleRows(groupedData, collapsedGroups)
+  const visibleItems = getVisibleRows(groupedData, collapsedGroups, defaultGroupsCollapsed)
   const navigableItems = visibleItems.filter((item) => item.kind === 'group' || rowNavEnabled)
   const effectiveFocusTarget =
     focusTarget && indexOfVisibleItem(navigableItems, focusTarget) !== -1
@@ -425,6 +427,7 @@ export function DataTableView<TRow extends object>({
     getVisibleRows(
       groupData(paginateData(processedData, p, pageSize), groupBy, columns, L.emptyValue),
       collapsedGroups,
+      defaultGroupsCollapsed,
     ).filter((item) => item.kind === 'group' || rowNavEnabled)
 
   // Changing `page` re-renders asynchronously, so an item on the new page can't be focused until
@@ -1133,7 +1136,8 @@ export function DataTableView<TRow extends object>({
           </thead>
           <tbody>
             {groupedData.map(({ key: gkey, keyParts, rows }) => {
-              const isCollapsed = gkey !== null && collapsedGroups.has(gkey)
+              const isCollapsed =
+                gkey !== null && isGroupCollapsed(collapsedGroups, gkey, defaultGroupsCollapsed)
               return [
                 gkey !== null && (
                   <tr

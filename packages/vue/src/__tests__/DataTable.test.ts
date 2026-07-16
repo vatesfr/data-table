@@ -793,7 +793,13 @@ describe('DataTable — keyboard navigation with grouping', () => {
 
   it('makes every group header row a Tab stop, one at a time', async () => {
     const wrapper = mount(DataTable, {
-      props: { data: GROUP_ROWS, columns: GROUP_COLS, rowKey: 'id', selectable: true },
+      props: {
+        data: GROUP_ROWS,
+        columns: GROUP_COLS,
+        rowKey: 'id',
+        selectable: true,
+        defaultGroupsCollapsed: false,
+      },
       attachTo: document.body,
     })
     await groupByDept(wrapper)
@@ -806,7 +812,13 @@ describe('DataTable — keyboard navigation with grouping', () => {
 
   it("ArrowDown walks through a group's rows and on to the next group header", async () => {
     const wrapper = mount(DataTable, {
-      props: { data: GROUP_ROWS, columns: GROUP_COLS, rowKey: 'id', selectable: true },
+      props: {
+        data: GROUP_ROWS,
+        columns: GROUP_COLS,
+        rowKey: 'id',
+        selectable: true,
+        defaultGroupsCollapsed: false,
+      },
       attachTo: document.body,
     })
     await groupByDept(wrapper)
@@ -821,7 +833,7 @@ describe('DataTable — keyboard navigation with grouping', () => {
 
   it('Enter toggles collapse on a focused group header, regardless of selectable/onRowClick', async () => {
     const wrapper = mount(DataTable, {
-      props: { data: GROUP_ROWS, columns: GROUP_COLS, rowKey: 'id' },
+      props: { data: GROUP_ROWS, columns: GROUP_COLS, rowKey: 'id', defaultGroupsCollapsed: false },
       attachTo: document.body,
     })
     await groupByDept(wrapper)
@@ -836,7 +848,13 @@ describe('DataTable — keyboard navigation with grouping', () => {
 
   it("Space toggles the group's own select-all checkbox on a focused group header", async () => {
     const wrapper = mount(DataTable, {
-      props: { data: GROUP_ROWS, columns: GROUP_COLS, rowKey: 'id', selectable: true },
+      props: {
+        data: GROUP_ROWS,
+        columns: GROUP_COLS,
+        rowKey: 'id',
+        selectable: true,
+        defaultGroupsCollapsed: false,
+      },
       attachTo: document.body,
     })
     await groupByDept(wrapper)
@@ -850,7 +868,13 @@ describe('DataTable — keyboard navigation with grouping', () => {
 
   it('Ctrl+End from a group header jumps to the true last row across all groups', async () => {
     const wrapper = mount(DataTable, {
-      props: { data: GROUP_ROWS, columns: GROUP_COLS, rowKey: 'id', selectable: true },
+      props: {
+        data: GROUP_ROWS,
+        columns: GROUP_COLS,
+        rowKey: 'id',
+        selectable: true,
+        defaultGroupsCollapsed: false,
+      },
       attachTo: document.body,
     })
     await groupByDept(wrapper)
@@ -863,7 +887,13 @@ describe('DataTable — keyboard navigation with grouping', () => {
 
   it("a collapsed group's header stays reachable and its rows are skipped", async () => {
     const wrapper = mount(DataTable, {
-      props: { data: GROUP_ROWS, columns: GROUP_COLS, rowKey: 'id', selectable: true },
+      props: {
+        data: GROUP_ROWS,
+        columns: GROUP_COLS,
+        rowKey: 'id',
+        selectable: true,
+        defaultGroupsCollapsed: false,
+      },
       attachTo: document.body,
     })
     await groupByDept(wrapper)
@@ -872,6 +902,35 @@ describe('DataTable — keyboard navigation with grouping', () => {
     await firstHeader.trigger('keydown', { key: 'Enter' }) // collapse Eng
     await activeItemWrapper(wrapper).trigger('keydown', { key: 'ArrowDown' })
     expect(document.activeElement).toBe(groupHeaderRows(wrapper)[1].element)
+    wrapper.unmount()
+  })
+
+  it('starts groups collapsed by default, and Enter expands one', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: GROUP_ROWS, columns: GROUP_COLS, rowKey: 'id' },
+      attachTo: document.body,
+    })
+    await groupByDept(wrapper)
+    expect(dataRows(wrapper)).toHaveLength(0)
+    const [firstHeader] = groupHeaderRows(wrapper)
+    ;(firstHeader.element as HTMLElement).focus()
+    await firstHeader.trigger('keydown', { key: 'Enter' })
+    expect(wrapper.text()).toContain('Alice')
+    wrapper.unmount()
+  })
+
+  it('defaultGroupsCollapsed: false starts groups expanded', async () => {
+    const wrapper = mount(DataTable, {
+      props: {
+        data: GROUP_ROWS,
+        columns: GROUP_COLS,
+        rowKey: 'id',
+        defaultGroupsCollapsed: false,
+      },
+      attachTo: document.body,
+    })
+    await groupByDept(wrapper)
+    expect(wrapper.text()).toContain('Alice')
     wrapper.unmount()
   })
 })

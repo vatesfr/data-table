@@ -42,4 +42,6 @@ export interface DataTableProps<TRow extends object = Record<string, unknown>> e
   defaultVisibleColumns?: string[]
   labels?: Partial<DataTableLabels>
   defaultPageSize?: number
+  /** Whether newly-grouped groups start collapsed. Defaults to `true`; pass `false` to start expanded. */
+  defaultGroupsCollapsed?: boolean
 }

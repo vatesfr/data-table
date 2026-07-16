@@ -32,6 +32,8 @@ export interface UseTableStateOptions {
   defaultVisibleColumns?: string[]
   labels?: Partial<DataTableLabels>
   defaultPageSize?: number
+  /** Whether newly-grouped groups start collapsed. Defaults to `true`; pass `false` to start expanded. */
+  defaultGroupsCollapsed?: boolean
 }
 
 export type TableState<TRow extends object> = ReturnType<typeof useTableState<TRow>>
@@ -46,6 +48,7 @@ export function useTableState<TRow extends object>(
   const options = computed(() => toValue(getOptions) ?? {})
 
   const L = computed(() => ({ ...DEFAULT_LABELS, ...options.value.labels }))
+  const defaultGroupsCollapsed = computed(() => options.value.defaultGroupsCollapsed ?? true)
 
   const visibleCols = ref<Set<string>>(
     new Set(options.value.defaultVisibleColumns ?? columns.value.map((c) => c.key)),
@@ -122,6 +125,7 @@ export function useTableState<TRow extends object>(
     page,
     pageSize,
     searchQuery,
+    defaultGroupsCollapsed,
     // Computed
     selectedRows,
     processedData,
