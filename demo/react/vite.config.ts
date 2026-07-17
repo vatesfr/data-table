@@ -10,5 +10,6 @@ export default defineConfig({
       '@vates/data-table-core': resolve(__dirname, '../../packages/core/src'),
       '@vates/data-table-react': resolve(__dirname, '../../packages/react/src/index.ts'),
     },
+    dedupe: ['react', 'react-dom', 'react/jsx-runtime'],
   },
 })
