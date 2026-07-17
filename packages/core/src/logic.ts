@@ -755,6 +755,49 @@ export function computeAggregate<TRow extends object>(
   }
 }
 
+/**
+ * A fixed-row-height windowed-rendering slice: which item indices should actually be mounted,
+ * the pixel offset to position that window at within the scrollable list, and the list's total
+ * (virtual) height so the real scrollbar still reports the full item count's size regardless of
+ * how few items are actually in the DOM.
+ */
+export interface VirtualRange {
+  startIndex: number
+  /** Exclusive — the slice is `values.slice(startIndex, endIndex)`. */
+  endIndex: number
+  offsetY: number
+  totalHeight: number
+}
+
+/**
+ * Computes which rows of a fixed-row-height list are visible (plus `overscan` extra rows each
+ * side, to avoid a blank flash between paint and the next scroll-driven re-render) given the
+ * list's current scroll position and viewport size. Used to virtualize the filter dropdown's
+ * checklist (see "Filter dropdown" in the docs) — a column with thousands of distinct values
+ * would otherwise mount one `<input>`/`<label>` per value regardless of how many are actually
+ * scrolled into view.
+ */
+export function computeVirtualRange(
+  scrollTop: number,
+  viewportHeight: number,
+  itemHeight: number,
+  totalCount: number,
+  overscan = 5,
+): VirtualRange {
+  if (totalCount <= 0 || itemHeight <= 0) {
+    return { startIndex: 0, endIndex: 0, offsetY: 0, totalHeight: 0 }
+  }
+  const startIndex = Math.max(0, Math.floor(scrollTop / itemHeight) - overscan)
+  const visibleCount = Math.ceil(viewportHeight / itemHeight) + overscan * 2
+  const endIndex = Math.min(totalCount, startIndex + visibleCount)
+  return {
+    startIndex,
+    endIndex,
+    offsetY: startIndex * itemHeight,
+    totalHeight: totalCount * itemHeight,
+  }
+}
+
 export function countActiveFilters(
   filters: Record<string, Set<string>>,
   rangeFilters: Record<string, RangeFilter>,

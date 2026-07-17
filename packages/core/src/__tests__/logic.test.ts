@@ -41,6 +41,7 @@ import {
   toggleSortDir,
   getValueSortIcon,
   getDateSortIcon,
+  computeVirtualRange,
 } from '../logic'
 
 interface Row {
@@ -1479,5 +1480,48 @@ describe('countActiveFilters', () => {
     const filters = { dept: new Set(['Eng']) }
     const range = { salary: { min: '50000', max: '' } }
     expect(countActiveFilters(filters, range)).toBe(2)
+  })
+})
+
+// ─── computeVirtualRange ─────────────────────────────────────────────────────
+
+describe('computeVirtualRange', () => {
+  it('returns all zeros for an empty list', () => {
+    expect(computeVirtualRange(0, 260, 32, 0)).toEqual({
+      startIndex: 0,
+      endIndex: 0,
+      offsetY: 0,
+      totalHeight: 0,
+    })
+  })
+
+  it('starts at 0 (clamped) when scrolled to the top, padded by overscan', () => {
+    const range = computeVirtualRange(0, 260, 32, 10_000, 5)
+    expect(range.startIndex).toBe(0)
+    expect(range.offsetY).toBe(0)
+    expect(range.totalHeight).toBe(10_000 * 32)
+  })
+
+  it('computes startIndex/offsetY from scrollTop minus overscan', () => {
+    // scrolled to row 100 (3200px), minus 5 rows of overscan = row 95
+    const range = computeVirtualRange(3200, 260, 32, 10_000, 5)
+    expect(range.startIndex).toBe(95)
+    expect(range.offsetY).toBe(95 * 32)
+  })
+
+  it('clamps endIndex to totalCount near the end of the list', () => {
+    const range = computeVirtualRange(9990 * 32, 260, 32, 10_000, 5)
+    expect(range.endIndex).toBe(10_000)
+  })
+
+  it('never returns a negative startIndex even with large overscan near the top', () => {
+    const range = computeVirtualRange(32, 260, 32, 10_000, 5)
+    expect(range.startIndex).toBe(0)
+  })
+
+  it('renders the whole list without windowing when it fits within the viewport', () => {
+    const range = computeVirtualRange(0, 260, 32, 3, 5)
+    expect(range.startIndex).toBe(0)
+    expect(range.endIndex).toBe(3)
   })
 })
