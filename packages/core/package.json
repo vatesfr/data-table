@@ -49,6 +49,7 @@
     "build": "vite build",
     "test": "vitest run",
     "test:watch": "vitest",
+    "bench": "vitest bench --run",
     "type-check": "tsc --noEmit",
     "prepublishOnly": "npm run build"
   },

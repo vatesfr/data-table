@@ -79,19 +79,30 @@ export function processData<TRow extends object>(
   }
 
   if (sorts.length > 0) {
-    result.sort((a, b) => {
-      for (const { key, dir } of sorts) {
+    // Decorate-sort-undecorate: `getComparableValue` (esp. a `type: 'date'` column's
+    // parseDate) is pure per-row, but a comparator recomputes it for both sides on every
+    // comparison — O(n log n) calls instead of O(n). Precomputing once per row per sort key
+    // avoids re-parsing the same row's date string dozens of times during a large sort.
+    const decorated = result.map((row) => ({
+      row,
+      values: sorts.map(({ key }) => {
         const col = colByKey.get(key)
-        const va = col ? getComparableValue(col, a) : asRecord(a)[key]
-        const vb = col ? getComparableValue(col, b) : asRecord(b)[key]
+        return col ? getComparableValue(col, row) : asRecord(row)[key]
+      }),
+    }))
+    decorated.sort((a, b) => {
+      for (let i = 0; i < sorts.length; i++) {
+        const va = a.values[i]
+        const vb = b.values[i]
         let cmp = 0
         if (typeof va === 'number' && typeof vb === 'number' && !isNaN(va) && !isNaN(vb))
           cmp = va - vb
         else cmp = String(va ?? '').localeCompare(String(vb ?? ''))
-        if (cmp !== 0) return dir === 'asc' ? cmp : -cmp
+        if (cmp !== 0) return sorts[i].dir === 'asc' ? cmp : -cmp
       }
       return 0
     })
+    result = decorated.map((d) => d.row)
   }
 
   return result
@@ -207,6 +218,12 @@ export function computeStringValues<TRow extends object>(
  * computed as a facet: for a given column, rows are narrowed by every *other* active filter
  * (but not that column's own filter), so ticking a box in one checklist updates the counts
  * shown in another, while a column's own counts stay stable as its own boxes are ticked.
+ *
+ * `targetKeys`, if given, restricts which columns counts are actually computed for — the master-
+ * detail filter dropdown only ever displays one column's checklist at a time, so callers can pass
+ * `[activeColumnKey]` to avoid the O(filterableColumns × rows) cost of computing counts for every
+ * column when only one is ever read. `columns` must still be the *full* column list even when
+ * narrowing via `targetKeys`, since it's also used to resolve each *other* filter's accessor.
  */
 export function computeStringValueCounts<TRow extends object>(
   data: TRow[],
@@ -214,9 +231,14 @@ export function computeStringValueCounts<TRow extends object>(
   rangeFilters: Record<string, RangeFilter>,
   columns: ColumnDefBase<TRow>[],
   emptyLabel = '(none)',
+  targetKeys?: string[],
 ): Record<string, Map<string, number>> {
   const map: Record<string, Map<string, number>> = {}
-  const cols = columns.filter((c) => c.type !== 'number' && c.filterable !== false)
+  let cols = columns.filter((c) => c.type !== 'number' && c.filterable !== false)
+  if (targetKeys) {
+    const keySet = new Set(targetKeys)
+    cols = cols.filter((c) => keySet.has(c.key))
+  }
   for (const col of cols) {
     const otherFilters = { ...filters }
     delete otherFilters[col.key]

@@ -769,6 +769,20 @@ describe('computeStringValueCounts', () => {
     const result = computeStringValueCounts(games, {}, {}, cols)
     expect(result['released']?.get('2023-05-14')).toBe(2)
   })
+
+  it('with targetKeys, only computes counts for the given columns', () => {
+    const result = computeStringValueCounts(ROWS, {}, {}, COLS, '(none)', ['dept'])
+    expect(result['dept']?.get('Eng')).toBe(2)
+    expect(result['name']).toBeUndefined()
+  })
+
+  it('targetKeys still resolves other filters against the full columns list', () => {
+    const filters = { dept: new Set(['Eng']) }
+    const result = computeStringValueCounts(ROWS, filters, {}, COLS, '(none)', ['name'])
+    expect(result['name']?.get('Alice')).toBe(1)
+    expect(result['name']?.get('Bob')).toBeUndefined()
+    expect(result['dept']).toBeUndefined()
+  })
 })
 
 // ─── filterValuesBySearch ───────────────────────────────────────────────────
