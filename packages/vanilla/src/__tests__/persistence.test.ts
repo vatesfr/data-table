@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { encodeViewState, decodeViewState } from '@vates/data-table-core'
 import { createDataTable } from '../index'
-import { persistViewToLocalStorage, syncViewToUrl } from '../persistence'
+import { persistViewToLocalStorage, syncViewToUrl, resetView } from '../persistence'
 import type { ColumnDef } from '../types'
 
 interface Row {
@@ -114,6 +114,42 @@ describe('persistence helpers', () => {
       persistViewToLocalStorage(table, 'key5')
       syncViewToUrl(table)
       expect(table.getViewState()).toEqual({ sorts: [{ key: 'score', dir: 'desc' }] })
+    })
+  })
+
+  describe('resetView', () => {
+    it('resets live state to construction-time defaults', () => {
+      const table = createDataTable(container, { data: ROWS, columns: COLS })
+      table.setViewState({ searchQuery: 'xyz' })
+      resetView(table)
+      expect(table.getViewState()).toEqual({})
+    })
+
+    it('clears the given localStorage key', () => {
+      const table = createDataTable(container, { data: ROWS, columns: COLS })
+      persistViewToLocalStorage(table, 'key6')
+      table.setViewState({ searchQuery: 'xyz' })
+      expect(localStorage.getItem('key6')).not.toBeNull()
+      resetView(table, { storageKey: 'key6' })
+      expect(localStorage.getItem('key6')).toBeNull()
+    })
+
+    it('clears the given URL param', () => {
+      const table = createDataTable(container, { data: ROWS, columns: COLS })
+      syncViewToUrl(table, { paramName: 'v' })
+      table.setViewState({ searchQuery: 'xyz' })
+      expect(new URLSearchParams(window.location.search).has('v')).toBe(true)
+      resetView(table, { paramName: 'v' })
+      expect(new URLSearchParams(window.location.search).has('v')).toBe(false)
+    })
+
+    it('leaves localStorage/URL untouched when no storageKey/paramName is given', () => {
+      localStorage.setItem('unrelated', 'x')
+      window.history.replaceState(null, '', '/?other=1')
+      const table = createDataTable(container, { data: ROWS, columns: COLS })
+      resetView(table)
+      expect(localStorage.getItem('unrelated')).toBe('x')
+      expect(new URLSearchParams(window.location.search).get('other')).toBe('1')
     })
   })
 })

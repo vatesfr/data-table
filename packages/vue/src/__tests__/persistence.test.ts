@@ -3,7 +3,7 @@ import { defineComponent, h, nextTick } from 'vue'
 import { mount } from '@vue/test-utils'
 import { encodeViewState, decodeViewState } from '@vates/data-table-core'
 import { useTableState } from '../useTableState'
-import { usePersistedView, useUrlView } from '../persistence'
+import { usePersistedView, useUrlView, resetView } from '../persistence'
 import type { ColumnDef } from '../types'
 
 interface Row {
@@ -108,5 +108,41 @@ describe('usePersistedView + useUrlView composed', () => {
       useUrlView(t)
     })
     expect(table.sorts.value).toEqual([{ key: 'score', dir: 'desc' }])
+  })
+})
+
+describe('resetView', () => {
+  it('resets live state to construction-time defaults', () => {
+    const { table } = mountWithTableState(() => {})
+    table.toggleSort('score')
+    table.setSearchQuery('xyz')
+    resetView(table)
+    expect(table.sorts.value).toEqual([])
+    expect(table.searchQuery.value).toBe('')
+  })
+
+  it('clears the given localStorage key', () => {
+    localStorage.setItem('key6', encodeViewState({ searchQuery: 'xyz' }))
+    const { table } = mountWithTableState(() => {})
+    resetView(table, { storageKey: 'key6' })
+    expect(localStorage.getItem('key6')).toBeNull()
+  })
+
+  it('clears the given URL param', async () => {
+    const { table } = mountWithTableState((t) => useUrlView(t, { paramName: 'v' }))
+    table.setSearchQuery('xyz')
+    await nextTick()
+    expect(new URLSearchParams(window.location.search).has('v')).toBe(true)
+    resetView(table, { paramName: 'v' })
+    expect(new URLSearchParams(window.location.search).has('v')).toBe(false)
+  })
+
+  it('leaves localStorage/URL untouched when no storageKey/paramName is given', () => {
+    localStorage.setItem('unrelated', 'x')
+    window.history.replaceState(null, '', '/?other=1')
+    const { table } = mountWithTableState(() => {})
+    resetView(table)
+    expect(localStorage.getItem('unrelated')).toBe('x')
+    expect(new URLSearchParams(window.location.search).get('other')).toBe('1')
   })
 })

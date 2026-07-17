@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { encodeViewState, decodeViewState } from '@vates/data-table-core'
 import { useTableState } from '../useTableState'
-import { usePersistedView, useUrlView } from '../persistence'
+import { usePersistedView, useUrlView, resetView } from '../persistence'
 import type { ColumnDef } from '../types'
 
 interface Row {
@@ -125,5 +125,48 @@ describe('usePersistedView + useUrlView composed', () => {
       return table
     })
     expect(result.current.sorts).toEqual([{ key: 'score', dir: 'desc' }])
+  })
+})
+
+describe('resetView', () => {
+  it('resets live state to construction-time defaults', () => {
+    const { result } = renderHook(() => useTableState(ROWS, COLS))
+    act(() => {
+      result.current.toggleSort('score')
+      result.current.setSearchQuery('xyz')
+    })
+    act(() => resetView(result.current))
+    expect(result.current.sorts).toEqual([])
+    expect(result.current.searchQuery).toBe('')
+  })
+
+  it('clears the given localStorage key', () => {
+    localStorage.setItem('key6', encodeViewState({ searchQuery: 'xyz' }))
+    const { result } = renderHook(() => useTableState(ROWS, COLS))
+    act(() => resetView(result.current, { storageKey: 'key6' }))
+    expect(localStorage.getItem('key6')).toBeNull()
+  })
+
+  it('clears the given URL param', () => {
+    const { result } = renderHook(() => {
+      const table = useTableState(ROWS, COLS)
+      useUrlView(table, { paramName: 'v' })
+      return table
+    })
+    act(() => {
+      result.current.setSearchQuery('xyz')
+    })
+    expect(new URLSearchParams(window.location.search).has('v')).toBe(true)
+    act(() => resetView(result.current, { paramName: 'v' }))
+    expect(new URLSearchParams(window.location.search).has('v')).toBe(false)
+  })
+
+  it('leaves localStorage/URL untouched when no storageKey/paramName is given', () => {
+    localStorage.setItem('unrelated', 'x')
+    window.history.replaceState(null, '', '/?other=1')
+    const { result } = renderHook(() => useTableState(ROWS, COLS))
+    act(() => resetView(result.current))
+    expect(localStorage.getItem('unrelated')).toBe('x')
+    expect(new URLSearchParams(window.location.search).get('other')).toBe('1')
   })
 })

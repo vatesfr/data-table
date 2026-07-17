@@ -298,6 +298,14 @@ useUrlView(table) // reflected in ?view=... — reload the page or share the lin
 
 To persist a view somewhere else (e.g. a backend), call `getViewState()`/`setViewState(view)` directly — `usePersistedView`/`useUrlView` work with any object shaped like `{ getViewState(), setViewState(view) }`, so `table` (or anything else with that shape) can be passed in.
 
+`resetView(table, { storageKey?, paramName? })` puts a table back to its construction-time defaults and clears whatever `usePersistedView`/`useUrlView` persisted for it — pass the same `storageKey`/`paramName` you gave those hooks (both optional, since you might only be using one of them):
+
+```tsx
+import { resetView } from '@vates/data-table-react'
+
+;<button onClick={() => resetView(table, { storageKey: 'my-table-view' })}>Reset</button>
+```
+
 `<DataTable>` builds its own `useTableState` internally, so these hooks can't reach it — see `DataTableView` below for the built-in UI wired to a `useTableState` instance you own.
 
 ## `DataTableView` — the built-in UI, state you own

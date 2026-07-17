@@ -4,8 +4,8 @@ export { default as Badge } from './components/Badge.vue'
 export { default as ScoreBar } from './components/ScoreBar.vue'
 export { useTableState } from './useTableState'
 export type { TableState } from './useTableState'
-export { usePersistedView, useUrlView } from './persistence'
-export type { ViewStateApi, UseUrlViewOptions } from './persistence'
+export { usePersistedView, useUrlView, resetView } from './persistence'
+export type { ViewStateApi, UseUrlViewOptions, ResetViewOptions } from './persistence'
 export type { ColumnDef, DataTableProps, DataTableViewProps } from './types'
 export type {
   DataTableLabels,

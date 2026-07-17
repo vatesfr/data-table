@@ -2,6 +2,7 @@ import {
   createDataTable,
   persistViewToLocalStorage,
   syncViewToUrl,
+  resetView,
   createScoreBar,
   LABELS_EN,
   LABELS_FR,
@@ -10,6 +11,7 @@ import {
   LABELS_PT,
   type ColumnDef,
   type DataTableLabels,
+  type TableViewState,
 } from '@vates/data-table-vanilla'
 import { HUGE_DATA, HUGE_COLUMNS, HUGE_ROW_COUNT } from './hugeData'
 
@@ -349,6 +351,53 @@ function docLink(anchor: string, label: string): string {
   return `<a href="${README_URL}#${anchor}" target="_blank" rel="noopener" style="color:var(--color-text-secondary);text-decoration:underline">${label}</a>`
 }
 
+// Every table on the page persists its own view (sort/filter/group/etc.) independently — each
+// gets its own localStorage key and its own URL query param, so the six sections don't clobber
+// each other and "Copy share link" round-trips the whole page's state in one URL.
+const VIEW_KEYS: Record<string, { storageKey: string; paramName: string }> = {
+  full: { storageKey: 'dt-demo-full-table', paramName: 'full' },
+  selection: { storageKey: 'dt-demo-row-selection', paramName: 'sel' },
+  click: { storageKey: 'dt-demo-row-click', paramName: 'click' },
+  persisted: { storageKey: 'dt-demo-persisted-table', paramName: 'persisted' },
+  dynamic: { storageKey: 'dt-demo-dynamic-data', paramName: 'dyn' },
+  huge: { storageKey: 'dt-demo-huge-dataset', paramName: 'huge' },
+}
+
+const VIEW_BTN_STYLE =
+  'padding:5px 12px;border-radius:6px;border:0.5px solid var(--color-border-secondary);background:none;cursor:pointer;font-size:13px;font-family:inherit'
+
+// Markup for the "Copy share link" / "Reset" pair shown above every table. Lives outside each
+// table's own container div (a table's render() rebuilds its container's innerHTML on every
+// change, which would wipe these out) and is wired via one delegated click listener on `app`,
+// dispatching on `data-view-copy`/`data-view-reset` — see the bottom of this file.
+function renderViewControls(key: string): string {
+  return `
+    <div style="display:flex;gap:8px;margin-bottom:12px">
+      <button data-view-copy="${key}" style="${VIEW_BTN_STYLE}">Copy share link</button>
+      <button data-view-reset="${key}" style="${VIEW_BTN_STYLE}">Reset</button>
+    </div>
+  `
+}
+
+type ViewStateTable = {
+  getViewState(): TableViewState
+  setViewState(view: TableViewState): void
+  onViewChange(cb: (view: TableViewState) => void): () => void
+}
+
+// Wires persistViewToLocalStorage + syncViewToUrl for one table and returns a single unsubscribe
+// covering both — called again after every locale-switch recreation (see below), since a fresh
+// table instance needs its own fresh subscriptions.
+function wireViewPersistence(table: ViewStateTable, key: keyof typeof VIEW_KEYS): () => void {
+  const { storageKey, paramName } = VIEW_KEYS[key]
+  const unpersist = persistViewToLocalStorage(table, storageKey)
+  const unsync = syncViewToUrl(table, { paramName })
+  return () => {
+    unpersist()
+    unsync()
+  }
+}
+
 // ---- Page scaffold ----
 
 const app = document.getElementById('app')!
@@ -368,6 +417,11 @@ app.innerHTML = `
     </div>
     <p style="font-size:14px;color:var(--color-text-secondary);margin-top:0;margin-bottom:16px">
       @vates/data-table-vanilla
+    </p>
+    <p style="font-size:13px;color:var(--color-text-secondary);margin-top:0;margin-bottom:16px">
+      Every table below persists its own sort/filter/group/etc. to <code>localStorage</code> and the
+      URL (${docLink('view-persistence--sharing', '📖 Docs')}) — reload the page, use its "Copy share
+      link" button, or hit "Reset" to clear it back to defaults.
     </p>
 
     <nav style="position:sticky;top:0;z-index:10;display:flex;gap:4px;flex-wrap:wrap;padding:8px 0;
@@ -391,6 +445,7 @@ app.innerHTML = `
       ${docLink('cell-customization', 'Cell customization')} ·
       ${docLink('aggregation', 'Aggregation')}
     </p>
+    ${renderViewControls('full')}
     <div id="table1"></div>
 
     <h2 id="row-selection" style="font-size:16px;font-weight:600;margin-top:40px;margin-bottom:4px;scroll-margin-top:56px">Row selection</h2>
@@ -405,6 +460,7 @@ app.innerHTML = `
     <div id="selection-banner" style="display:none;align-items:center;gap:12px;padding:8px 12px;margin-bottom:12px;
       background:var(--color-background-info);border:0.5px solid var(--color-border-info);
       border-radius:6px;font-size:13px"></div>
+    ${renderViewControls('selection')}
     <div id="table2"></div>
 
     <h2 id="row-click" style="font-size:16px;font-weight:600;margin-top:40px;margin-bottom:4px;scroll-margin-top:56px">Row click</h2>
@@ -416,6 +472,7 @@ app.innerHTML = `
     <div id="click-banner" style="display:none;padding:8px 12px;margin-bottom:12px;
       background:var(--color-background-info);border:0.5px solid var(--color-border-info);
       border-radius:6px;font-size:13px;color:var(--color-text-info)"></div>
+    ${renderViewControls('click')}
     <div id="table-click"></div>
 
     <h2 id="persisted-table" style="font-size:16px;font-weight:600;margin-top:40px;margin-bottom:4px;scroll-margin-top:56px">View persistence &amp; sharing</h2>
@@ -425,17 +482,18 @@ app.innerHTML = `
       and open it in a new tab.
       ${docLink('view-persistence--sharing', '📖 Docs')}
     </p>
-    <button id="copy-link-btn" style="padding:5px 12px;border-radius:6px;border:0.5px solid var(--color-border-secondary);
-      background:none;cursor:pointer;font-size:13px;font-family:inherit;margin-bottom:12px">Copy share link</button>
+    ${renderViewControls('persisted')}
     <div id="table-persist"></div>
 
     <h2 id="dynamic-data" style="font-size:16px;font-weight:600;margin-top:40px;margin-bottom:4px;scroll-margin-top:56px">Dynamic data</h2>
     <p style="font-size:14px;color:var(--color-text-secondary);margin-top:0;margin-bottom:12px">
-      Call <code>table.setData()</code> to push new rows at any time.
+      Call <code>table.setData()</code> to push new rows at any time. This table's sort/filter/group
+      state persists too, independently of the data itself.
     </p>
     <button id="add-row-btn" style="padding:5px 12px;border-radius:6px;border:0.5px solid var(--color-border-secondary);
-      background:none;cursor:pointer;font-size:13px;font-family:inherit">+ Add random row</button>
-    <div id="table3" style="margin-top:12px"></div>
+      background:none;cursor:pointer;font-size:13px;font-family:inherit;margin-bottom:12px">+ Add random row</button>
+    ${renderViewControls('dynamic')}
+    <div id="table3"></div>
 
     <h2 id="huge-dataset" style="font-size:16px;font-weight:600;margin-top:40px;margin-bottom:4px;scroll-margin-top:56px">Huge dataset</h2>
     <p style="font-size:14px;color:var(--color-text-secondary);margin-top:0;margin-bottom:16px">
@@ -446,6 +504,7 @@ app.innerHTML = `
       its checklist only ever mounts the rows scrolled into view. Try grouping by
       <code>Category</code> and/or <code>Region</code>.
     </p>
+    ${renderViewControls('huge')}
     <div id="table-huge"></div>
   </div>
 `
@@ -542,6 +601,7 @@ function createTable1() {
   })
 }
 let table1 = createTable1()
+let unwireTable1 = wireViewPersistence(table1, 'full')
 
 // ---- Table 2: selectable ----
 
@@ -572,6 +632,7 @@ function createTable2() {
   })
 }
 let table2 = createTable2()
+let unwireTable2 = wireViewPersistence(table2, 'selection')
 
 // ---- Table: row click ----
 
@@ -592,6 +653,7 @@ function createTableClick() {
   })
 }
 let tableClick = createTableClick()
+let unwireTableClick = wireViewPersistence(tableClick, 'click')
 
 // ---- Table: view persistence & sharing ----
 
@@ -606,15 +668,7 @@ function createTablePersist() {
   })
 }
 let tablePersist = createTablePersist()
-let unpersistView = persistViewToLocalStorage(tablePersist, 'vanilla-demo-view')
-let unsyncView = syncViewToUrl(tablePersist)
-
-const copyLinkBtn = document.getElementById('copy-link-btn')!
-copyLinkBtn.addEventListener('click', () => {
-  navigator.clipboard.writeText(window.location.href)
-  copyLinkBtn.textContent = 'Copied!'
-  setTimeout(() => (copyLinkBtn.textContent = 'Copy share link'), 1500)
-})
+let unwireTablePersist = wireViewPersistence(tablePersist, 'persisted')
 
 // ---- Table 3: dynamic data ----
 
@@ -630,6 +684,7 @@ function createTable3() {
   })
 }
 let table3 = createTable3()
+let unwireTable3 = wireViewPersistence(table3, 'dynamic')
 
 let nextId = 100
 document.getElementById('add-row-btn')!.addEventListener('click', () => {
@@ -666,6 +721,37 @@ function createTableHuge() {
   })
 }
 let tableHuge = createTableHuge()
+let unwireTableHuge = wireViewPersistence(tableHuge, 'huge')
+
+// ---- Reset / copy-share-link buttons: one delegated listener for every table's controls ----
+//
+// RESET_TARGETS' arrow functions close over the `let` instance variables above and read them at
+// call time, so they always resolve to whichever table is currently live — important since the
+// locale switcher below destroys and recreates every table.
+const RESET_TARGETS: Record<string, () => ViewStateTable> = {
+  full: () => table1,
+  selection: () => table2,
+  click: () => tableClick,
+  persisted: () => tablePersist,
+  dynamic: () => table3,
+  huge: () => tableHuge,
+}
+
+app.addEventListener('click', (e) => {
+  const target = e.target as HTMLElement
+  const copyBtn = target.closest<HTMLButtonElement>('[data-view-copy]')
+  if (copyBtn) {
+    navigator.clipboard.writeText(window.location.href)
+    copyBtn.textContent = 'Copied!'
+    setTimeout(() => (copyBtn.textContent = 'Copy share link'), 1500)
+    return
+  }
+  const resetBtn = target.closest<HTMLButtonElement>('[data-view-reset]')
+  if (resetBtn) {
+    const key = resetBtn.dataset.viewReset!
+    resetView(RESET_TARGETS[key](), VIEW_KEYS[key])
+  }
+})
 
 // ---- Locale switcher: recreate every table with the new locale ----
 //
@@ -683,28 +769,36 @@ localeBtns.addEventListener('click', (e) => {
   currentLocale = btn.dataset.locale!
   renderLocaleBtns()
 
+  unwireTable1()
   table1.destroy()
   table1 = createTable1()
+  unwireTable1 = wireViewPersistence(table1, 'full')
 
+  unwireTable2()
   table2.destroy()
   table2 = createTable2()
+  unwireTable2 = wireViewPersistence(table2, 'selection')
   banner.style.display = 'none' // the new table starts with an empty selection
 
+  unwireTableClick()
   tableClick.destroy()
   tableClick = createTableClick()
+  unwireTableClick = wireViewPersistence(tableClick, 'click')
 
-  unpersistView()
-  unsyncView()
+  unwireTablePersist()
   tablePersist.destroy()
   tablePersist = createTablePersist()
-  unpersistView = persistViewToLocalStorage(tablePersist, 'vanilla-demo-view')
-  unsyncView = syncViewToUrl(tablePersist)
+  unwireTablePersist = wireViewPersistence(tablePersist, 'persisted')
 
+  unwireTable3()
   table3.destroy()
   table3 = createTable3()
+  unwireTable3 = wireViewPersistence(table3, 'dynamic')
 
+  unwireTableHuge()
   tableHuge.destroy()
   tableHuge = createTableHuge()
+  unwireTableHuge = wireViewPersistence(tableHuge, 'huge')
 })
 
 // All tables are populated by this point, so the page has its real (final) height —

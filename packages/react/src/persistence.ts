@@ -75,3 +75,28 @@ export function useUrlView(table: ViewStateApi, options?: UseUrlViewOptions): vo
     window.history.replaceState(null, '', url)
   })
 }
+
+export interface ResetViewOptions {
+  /** localStorage key passed to `usePersistedView` for this table, if any. */
+  storageKey?: string
+  /** Query string parameter name passed to `useUrlView` for this table. Default: 'view'. */
+  paramName?: string
+}
+
+/**
+ * Resets a table to its construction-time defaults and clears whatever `usePersistedView`/
+ * `useUrlView` persisted for it — pass the same `storageKey`/`paramName` you gave those hooks
+ * (both optional, since a consumer may use only one, or neither).
+ */
+export function resetView(table: ViewStateApi, options?: ResetViewOptions): void {
+  table.setViewState({})
+  if (options?.storageKey) localStorage.removeItem(options.storageKey)
+  const paramName = options?.paramName ?? 'view'
+  const params = new URLSearchParams(window.location.search)
+  if (params.has(paramName)) {
+    params.delete(paramName)
+    const query = params.toString()
+    const url = `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash}`
+    window.history.replaceState(null, '', url)
+  }
+}

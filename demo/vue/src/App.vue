@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import {
-  DataTable,
   DataTableView,
   Badge,
   ScoreBar,
   useTableState,
   usePersistedView,
   useUrlView,
+  resetView,
   LABELS_EN,
   LABELS_FR,
   LABELS_DE,
@@ -17,6 +17,7 @@ import {
   type DataTableLabels,
 } from '@vates/data-table-vue'
 import { HUGE_DATA, HUGE_COLUMNS, HUGE_ROW_COUNT } from './hugeData'
+import ViewControls from './ViewControls.vue'
 
 interface Employee {
   id: number
@@ -365,6 +366,18 @@ const LOCALES: Record<string, DataTableLabels> = {
 const localeKey = ref('EN')
 const currentLocale = computed(() => LOCALES[localeKey.value])
 
+// Every table on the page persists its own view (sort/filter/group/etc.) independently — each
+// gets its own localStorage key and its own URL query param, so the six sections don't clobber
+// each other and "Copy share link" round-trips the whole page's state in one URL.
+const VIEW_KEYS: Record<string, { storageKey: string; paramName: string }> = {
+  full: { storageKey: 'dt-demo-full-table', paramName: 'full' },
+  selection: { storageKey: 'dt-demo-row-selection', paramName: 'sel' },
+  click: { storageKey: 'dt-demo-row-click', paramName: 'click' },
+  custom: { storageKey: 'dt-demo-custom-layout', paramName: 'custom' },
+  persisted: { storageKey: 'dt-demo-persisted-table', paramName: 'persisted' },
+  huge: { storageKey: 'dt-demo-huge-dataset', paramName: 'huge' },
+}
+
 // Cross-links between this demo and the package README: each README concept the demo
 // showcases gets a link straight to the section that demonstrates it, and vice versa. Returned
 // as an HTML string (rendered via v-html below) since Vue templates can't interpolate raw
@@ -427,8 +440,8 @@ onUnmounted(() => {
 // (localStorage) and round-trips through "Copy share link" (URL query param).
 const table = useTableState(SAMPLE_DATA, COLUMNS)
 const { processedData, getSortIcon, toggleSort } = table
-usePersistedView(table, 'data-table-demo-view')
-useUrlView(table)
+usePersistedView(table, VIEW_KEYS.custom.storageKey)
+useUrlView(table, { paramName: VIEW_KEYS.custom.paramName })
 
 // Same built-in look as <DataTable>, but the caller owns useTableState — so
 // usePersistedView/useUrlView can reach it, unlike <DataTable> which builds its own
@@ -438,20 +451,46 @@ const persistedTable = useTableState(SAMPLE_DATA, COLUMNS, () => ({
   defaultPageSize: 5,
   labels: currentLocale.value,
 }))
-usePersistedView(persistedTable, 'data-table-demo-persisted-view')
-useUrlView(persistedTable, { paramName: 'pview' })
+usePersistedView(persistedTable, VIEW_KEYS.persisted.storageKey)
+useUrlView(persistedTable, { paramName: VIEW_KEYS.persisted.paramName })
+
+// The remaining sections below (full-featured, row-selection, row-click, huge-dataset) are
+// wired the same way — useTableState + DataTableView instead of <DataTable> — purely so each
+// can also reach usePersistedView/useUrlView/resetView; nothing about their own features changes.
+const fullTable = useTableState(SAMPLE_DATA, COLUMNS, () => ({
+  defaultVisibleColumns: DEFAULT_VISIBLE,
+  defaultPageSize: 5,
+  labels: currentLocale.value,
+}))
+usePersistedView(fullTable, VIEW_KEYS.full.storageKey)
+useUrlView(fullTable, { paramName: VIEW_KEYS.full.paramName })
+
+const selectionTable = useTableState(SAMPLE_DATA, COLUMNS, () => ({
+  defaultVisibleColumns: SELECTION_VISIBLE,
+  defaultPageSize: 5,
+  labels: currentLocale.value,
+}))
+usePersistedView(selectionTable, VIEW_KEYS.selection.storageKey)
+useUrlView(selectionTable, { paramName: VIEW_KEYS.selection.paramName })
+
+const clickTable = useTableState(SAMPLE_DATA, COLUMNS, () => ({
+  defaultVisibleColumns: CLICK_VISIBLE,
+  defaultPageSize: 5,
+  labels: currentLocale.value,
+}))
+usePersistedView(clickTable, VIEW_KEYS.click.storageKey)
+useUrlView(clickTable, { paramName: VIEW_KEYS.click.paramName })
+
+// No `labels` option — matches the huge-dataset table's pre-existing behavior of always using
+// the default English labels regardless of the page's locale switcher.
+const hugeTable = useTableState(HUGE_DATA, HUGE_COLUMNS, () => ({ defaultPageSize: 100 }))
+usePersistedView(hugeTable, VIEW_KEYS.huge.storageKey)
+useUrlView(hugeTable, { paramName: VIEW_KEYS.huge.paramName })
 
 const SORT_COLS = ['name', 'salary', 'score'] as const
 
 function fmtSalary(n: number) {
   return n.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })
-}
-
-const copied = ref(false)
-function copyShareLink() {
-  navigator.clipboard.writeText(window.location.href)
-  copied.value = true
-  setTimeout(() => (copied.value = false), 1500)
 }
 </script>
 
@@ -517,6 +556,18 @@ function copyShareLink() {
       "
     >
       @vates/data-table-vue
+    </p>
+    <p
+      style="
+        font-size: 13px;
+        color: var(--color-text-secondary);
+        margin-top: 0;
+        margin-bottom: 16px;
+      "
+    >
+      Every table below persists its own sort/filter/group/etc. to <code>localStorage</code> and the
+      URL (<span v-html="docLink('view-persistence--sharing', '📖 Docs')" />) — reload the page, use
+      its "Copy share link" button, or hit "Reset" to clear it back to defaults.
     </p>
 
     <nav
@@ -590,14 +641,8 @@ function copyShareLink() {
       ·
       <span v-html="docLink('aggregation', 'Aggregation')" />
     </p>
-    <DataTable
-      :data="SAMPLE_DATA"
-      :columns="COLUMNS"
-      row-key="id"
-      :labels="currentLocale"
-      :default-visible-columns="DEFAULT_VISIBLE"
-      :default-page-size="5"
-    >
+    <ViewControls @reset="resetView(fullTable, VIEW_KEYS.full)" />
+    <DataTableView :table="fullTable" :data="SAMPLE_DATA" :columns="COLUMNS" row-key="id">
       <!-- Custom cell rendering via named slots -->
       <template #cell-department="{ value }">
         <Badge :value="String(value)" :color-map="DEPT_COLORS" />
@@ -624,7 +669,7 @@ function copyShareLink() {
       <template #group-status="{ value }">
         <Badge :value="String(value)" :color-map="STATUS_COLORS" />
       </template>
-    </DataTable>
+    </DataTableView>
 
     <!-- Row selection section -->
     <h2
@@ -696,13 +741,12 @@ function copyShareLink() {
         Export
       </button>
     </div>
-    <DataTable
+    <ViewControls @reset="resetView(selectionTable, VIEW_KEYS.selection)" />
+    <DataTableView
+      :table="selectionTable"
       :data="SAMPLE_DATA"
       :columns="COLUMNS"
       row-key="id"
-      :labels="currentLocale"
-      :default-visible-columns="SELECTION_VISIBLE"
-      :default-page-size="5"
       :selectable="true"
       @selection-change="selected = $event"
     >
@@ -712,7 +756,7 @@ function copyShareLink() {
       <template #filter-department="{ value }">
         <Badge :value="value" :color-map="DEPT_COLORS" />
       </template>
-    </DataTable>
+    </DataTableView>
 
     <!-- Row click section -->
     <h2
@@ -748,19 +792,18 @@ function copyShareLink() {
     >
       Last clicked: {{ clicked.name }} ({{ clicked.role }})
     </div>
-    <DataTable
+    <ViewControls @reset="resetView(clickTable, VIEW_KEYS.click)" />
+    <DataTableView
+      :table="clickTable"
       :data="SAMPLE_DATA"
       :columns="COLUMNS"
       row-key="id"
-      :labels="currentLocale"
-      :default-visible-columns="CLICK_VISIBLE"
-      :default-page-size="5"
       @row-click="clicked = $event"
     >
       <template #cell-department="{ value }">
         <Badge :value="String(value)" :color-map="DEPT_COLORS" />
       </template>
-    </DataTable>
+    </DataTableView>
 
     <!-- Headless section -->
     <h2
@@ -807,22 +850,9 @@ function copyShareLink() {
       >
         {{ col.charAt(0).toUpperCase() + col.slice(1) }} {{ getSortIcon(col) }}
       </button>
-      <button
-        @click="copyShareLink"
-        style="
-          padding: 4px 10px;
-          border-radius: 6px;
-          border: 1px solid var(--color-border-secondary);
-          cursor: pointer;
-          background: var(--color-background-primary);
-          color: var(--color-text-secondary);
-          font-size: 13px;
-          font-family: inherit;
-          margin-left: auto;
-        "
-      >
-        {{ copied ? 'Copied!' : 'Copy share link' }}
-      </button>
+      <div style="margin-left: auto">
+        <ViewControls @reset="resetView(table, VIEW_KEYS.custom)" />
+      </div>
     </div>
 
     <!-- Card grid -->
@@ -874,6 +904,7 @@ function copyShareLink() {
       <code>useTableState</code> instance you own instead — reorder or hide a column, then reload
       the page. <span v-html="docLink('view-persistence--sharing', '📖 Docs')" />
     </p>
+    <ViewControls @reset="resetView(persistedTable, VIEW_KEYS.persisted)" />
     <DataTableView :table="persistedTable" :data="SAMPLE_DATA" :columns="COLUMNS" row-key="id">
       <template #cell-department="{ value }">
         <Badge :value="String(value)" :color-map="DEPT_COLORS" />
@@ -914,6 +945,7 @@ function copyShareLink() {
       only ever mounts the rows scrolled into view. Try grouping by <code>Category</code> and/or
       <code>Region</code>.
     </p>
-    <DataTable :data="HUGE_DATA" :columns="HUGE_COLUMNS" row-key="id" :default-page-size="100" />
+    <ViewControls @reset="resetView(hugeTable, VIEW_KEYS.huge)" />
+    <DataTableView :table="hugeTable" :data="HUGE_DATA" :columns="HUGE_COLUMNS" row-key="id" />
   </div>
 </template>

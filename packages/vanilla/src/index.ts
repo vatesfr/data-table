@@ -55,8 +55,8 @@ import { STYLES } from './styles'
 
 export type { ColumnDef, DataTableOptions, DataTableInstance }
 export type { DataTableLabels, TableViewState } from '@vates/data-table-core'
-export { persistViewToLocalStorage, syncViewToUrl } from './persistence'
-export type { ViewStateApi, SyncViewToUrlOptions } from './persistence'
+export { persistViewToLocalStorage, syncViewToUrl, resetView } from './persistence'
+export type { ViewStateApi, SyncViewToUrlOptions, ResetViewOptions } from './persistence'
 export { createScoreBar } from './components/scoreBar'
 export type { ScoreBarOptions } from './components/scoreBar'
 export * from '@vates/data-table-core/locales'

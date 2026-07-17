@@ -1,12 +1,12 @@
 import { useState, useEffect, type ReactNode } from 'react'
 import {
-  DataTable,
   DataTableView,
   Badge,
   ScoreBar,
   useTableState,
   usePersistedView,
   useUrlView,
+  resetView,
   LABELS_EN,
   LABELS_FR,
   LABELS_DE,
@@ -376,6 +376,51 @@ const LOCALES: Record<string, DataTableLabels> = {
   PT: LABELS_PT,
 }
 
+// Every table on the page persists its own view (sort/filter/group/etc.) independently — each
+// gets its own localStorage key and its own URL query param, so the six sections don't clobber
+// each other and "Copy share link" round-trips the whole page's state in one URL.
+const VIEW_KEYS: Record<string, { storageKey: string; paramName: string }> = {
+  full: { storageKey: 'dt-demo-full-table', paramName: 'full' },
+  selection: { storageKey: 'dt-demo-row-selection', paramName: 'sel' },
+  click: { storageKey: 'dt-demo-row-click', paramName: 'click' },
+  custom: { storageKey: 'dt-demo-custom-layout', paramName: 'custom' },
+  persisted: { storageKey: 'dt-demo-persisted-table', paramName: 'persisted' },
+  huge: { storageKey: 'dt-demo-huge-dataset', paramName: 'huge' },
+}
+
+const VIEW_CONTROL_BTN_STYLE = {
+  padding: '4px 10px',
+  borderRadius: 6,
+  border: '1px solid var(--color-border-secondary)',
+  cursor: 'pointer',
+  background: 'var(--color-background-primary)',
+  color: 'var(--color-text-secondary)',
+  fontSize: 13,
+  fontFamily: 'inherit',
+} as const
+
+// Shared by every section below: "Copy share link" copies the whole page URL (every section's
+// state round-trips through its own query param, see VIEW_KEYS); "Reset" clears just this one
+// table's own storageKey/paramName via resetView, back to its construction-time defaults.
+function ViewControls({ onReset }: { onReset: () => void }) {
+  const [copied, setCopied] = useState(false)
+  function copyShareLink() {
+    navigator.clipboard.writeText(window.location.href)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1500)
+  }
+  return (
+    <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+      <button onClick={copyShareLink} style={VIEW_CONTROL_BTN_STYLE}>
+        {copied ? 'Copied!' : 'Copy share link'}
+      </button>
+      <button onClick={onReset} style={VIEW_CONTROL_BTN_STYLE}>
+        Reset
+      </button>
+    </div>
+  )
+}
+
 // Cross-links between this demo and the package README: each README concept the demo
 // showcases gets a link straight to the section that demonstrates it, and vice versa.
 const README_URL = 'https://github.com/vatesfr/data-table/blob/main/packages/react/README.md'
@@ -403,15 +448,8 @@ function fmtSalary(n: number) {
 function EmployeeCards() {
   const table = useTableState(SAMPLE_DATA, COLUMNS)
   const { processedData, getSortIcon, toggleSort } = table
-  usePersistedView(table, 'data-table-demo-view')
-  useUrlView(table)
-  const [copied, setCopied] = useState(false)
-
-  function copyShareLink() {
-    navigator.clipboard.writeText(window.location.href)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 1500)
-  }
+  usePersistedView(table, VIEW_KEYS.custom.storageKey)
+  useUrlView(table, { paramName: VIEW_KEYS.custom.paramName })
 
   return (
     <>
@@ -434,22 +472,9 @@ function EmployeeCards() {
             {col.charAt(0).toUpperCase() + col.slice(1)} {getSortIcon(col)}
           </button>
         ))}
-        <button
-          onClick={copyShareLink}
-          style={{
-            padding: '4px 10px',
-            borderRadius: 6,
-            border: '1px solid var(--color-border-secondary)',
-            cursor: 'pointer',
-            background: 'var(--color-background-primary)',
-            color: 'var(--color-text-secondary)',
-            fontSize: 13,
-            fontFamily: 'inherit',
-            marginLeft: 'auto',
-          }}
-        >
-          {copied ? 'Copied!' : 'Copy share link'}
-        </button>
+        <div style={{ marginLeft: 'auto' }}>
+          <ViewControls onReset={() => resetView(table, VIEW_KEYS.custom)} />
+        </div>
       </div>
       <div
         style={{
@@ -487,9 +512,92 @@ function EmployeeCards() {
 // internal, unreachable state. Try reordering or hiding columns, then reload the page.
 function PersistedTable({ labels }: { labels?: Partial<DataTableLabels> }) {
   const table = useTableState(SAMPLE_DATA, COLUMNS, PERSISTED_VISIBLE, labels, 5)
-  usePersistedView(table, 'data-table-demo-persisted-view')
-  useUrlView(table, { paramName: 'pview' })
-  return <DataTableView table={table} data={SAMPLE_DATA} columns={COLUMNS} rowKey="id" />
+  usePersistedView(table, VIEW_KEYS.persisted.storageKey)
+  useUrlView(table, { paramName: VIEW_KEYS.persisted.paramName })
+  return (
+    <>
+      <ViewControls onReset={() => resetView(table, VIEW_KEYS.persisted)} />
+      <DataTableView table={table} data={SAMPLE_DATA} columns={COLUMNS} rowKey="id" />
+    </>
+  )
+}
+
+// Full-featured table, wired the same way as PersistedTable above (useTableState + DataTableView
+// instead of <DataTable>) purely so this section can also reach usePersistedView/useUrlView/
+// resetView — nothing about the table's own features changes.
+function FullTable({ labels }: { labels?: Partial<DataTableLabels> }) {
+  const table = useTableState(SAMPLE_DATA, COLUMNS, DEFAULT_VISIBLE, labels, 5)
+  usePersistedView(table, VIEW_KEYS.full.storageKey)
+  useUrlView(table, { paramName: VIEW_KEYS.full.paramName })
+  return (
+    <>
+      <ViewControls onReset={() => resetView(table, VIEW_KEYS.full)} />
+      <DataTableView table={table} data={SAMPLE_DATA} columns={COLUMNS} rowKey="id" />
+    </>
+  )
+}
+
+function SelectionTable({
+  labels,
+  onSelectionChange,
+}: {
+  labels?: Partial<DataTableLabels>
+  onSelectionChange: (rows: Employee[]) => void
+}) {
+  const table = useTableState(SAMPLE_DATA, COLUMNS, SELECTION_VISIBLE, labels, 5)
+  usePersistedView(table, VIEW_KEYS.selection.storageKey)
+  useUrlView(table, { paramName: VIEW_KEYS.selection.paramName })
+  return (
+    <>
+      <ViewControls onReset={() => resetView(table, VIEW_KEYS.selection)} />
+      <DataTableView
+        table={table}
+        data={SAMPLE_DATA}
+        columns={COLUMNS}
+        rowKey="id"
+        selectable
+        onSelectionChange={onSelectionChange}
+      />
+    </>
+  )
+}
+
+function ClickTable({
+  labels,
+  onRowClick,
+}: {
+  labels?: Partial<DataTableLabels>
+  onRowClick: (row: Employee) => void
+}) {
+  const table = useTableState(SAMPLE_DATA, COLUMNS, CLICK_VISIBLE, labels, 5)
+  usePersistedView(table, VIEW_KEYS.click.storageKey)
+  useUrlView(table, { paramName: VIEW_KEYS.click.paramName })
+  return (
+    <>
+      <ViewControls onReset={() => resetView(table, VIEW_KEYS.click)} />
+      <DataTableView
+        table={table}
+        data={SAMPLE_DATA}
+        columns={COLUMNS}
+        rowKey="id"
+        onRowClick={onRowClick}
+      />
+    </>
+  )
+}
+
+// No `labels` prop — matches the huge-dataset table's pre-existing behavior of always using the
+// default English labels regardless of the page's locale switcher.
+function HugeTable() {
+  const table = useTableState(HUGE_DATA, HUGE_COLUMNS, undefined, undefined, 100)
+  usePersistedView(table, VIEW_KEYS.huge.storageKey)
+  useUrlView(table, { paramName: VIEW_KEYS.huge.paramName })
+  return (
+    <>
+      <ViewControls onReset={() => resetView(table, VIEW_KEYS.huge)} />
+      <DataTableView table={table} data={HUGE_DATA} columns={HUGE_COLUMNS} rowKey="id" />
+    </>
+  )
 }
 
 const THEME_CYCLE = { '': 'dark', dark: 'light', light: '' } as const
@@ -610,6 +718,18 @@ export default function App() {
       >
         @vates/data-table-react
       </p>
+      <p
+        style={{
+          fontSize: 13,
+          color: 'var(--color-text-secondary)',
+          marginTop: 0,
+          marginBottom: 16,
+        }}
+      >
+        Every table below persists its own sort/filter/group/etc. to <code>localStorage</code> and
+        the URL (<DocLink anchor="view-persistence--sharing">📖 Docs</DocLink>) — reload the page,
+        use its "Copy share link" button, or hit "Reset" to clear it back to defaults.
+      </p>
 
       <nav
         style={{
@@ -690,14 +810,7 @@ export default function App() {
         {' · '}
         <DocLink anchor="aggregation">Aggregation</DocLink>
       </p>
-      <DataTable
-        data={SAMPLE_DATA}
-        columns={COLUMNS}
-        rowKey="id"
-        labels={LOCALES[localeKey]}
-        defaultVisibleColumns={DEFAULT_VISIBLE}
-        defaultPageSize={5}
-      />
+      <FullTable labels={LOCALES[localeKey]} />
 
       <h2
         id="row-selection"
@@ -770,16 +883,7 @@ export default function App() {
           </button>
         </div>
       )}
-      <DataTable
-        data={SAMPLE_DATA}
-        columns={COLUMNS}
-        rowKey="id"
-        labels={LOCALES[localeKey]}
-        defaultVisibleColumns={SELECTION_VISIBLE}
-        defaultPageSize={5}
-        selectable
-        onSelectionChange={setSelected}
-      />
+      <SelectionTable labels={LOCALES[localeKey]} onSelectionChange={setSelected} />
 
       <h2
         id="row-click"
@@ -820,15 +924,7 @@ export default function App() {
           Last clicked: {clicked.name} ({clicked.role})
         </div>
       )}
-      <DataTable
-        data={SAMPLE_DATA}
-        columns={COLUMNS}
-        rowKey="id"
-        labels={LOCALES[localeKey]}
-        defaultVisibleColumns={CLICK_VISIBLE}
-        defaultPageSize={5}
-        onRowClick={setClicked}
-      />
+      <ClickTable labels={LOCALES[localeKey]} onRowClick={setClicked} />
 
       <h2
         id="custom-layout"
@@ -910,7 +1006,7 @@ export default function App() {
         its checklist only ever mounts the rows scrolled into view. Try grouping by{' '}
         <code>Category</code> and/or <code>Region</code>.
       </p>
-      <DataTable data={HUGE_DATA} columns={HUGE_COLUMNS} rowKey="id" defaultPageSize={100} />
+      <HugeTable />
     </div>
   )
 }

@@ -304,6 +304,14 @@ unsync()
 
 To persist a view somewhere else (e.g. a backend), call `getViewState()`/`setViewState(view)`/`onViewChange(cb)` directly — the two helpers above work with any object shaped like that, so `table` (or anything else with that shape) can be passed in.
 
+`resetView(table, { storageKey?, paramName? })` puts a table back to its construction-time defaults and clears whatever `persistViewToLocalStorage`/`syncViewToUrl` persisted for it — pass the same `storageKey`/`paramName` you gave those functions (both optional, since you might only be using one of them):
+
+```ts
+import { resetView } from '@vates/data-table-vanilla'
+
+resetButton.addEventListener('click', () => resetView(table, { storageKey: 'my-table-view' }))
+```
+
 ## i18n
 
 ▶ [Try it in the demo](https://vatesfr.github.io/data-table/vanilla/#i18n)
