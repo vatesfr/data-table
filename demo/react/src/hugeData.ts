@@ -2,17 +2,114 @@ import type { ColumnDef } from '@vates/data-table-react'
 
 export interface HugeRow {
   id: number
-  name: string
+  customer: string
   category: string
-  status: string
   region: string
-  price: number
-  joined: string
+  status: string
+  amount: number
+  orderDate: string
 }
 
-const CATEGORIES = Array.from({ length: 20 }, (_, i) => `Category ${i + 1}`)
-const STATUSES = ['Active', 'Inactive', 'Pending', 'Archived', 'Draft']
-const REGIONS = ['EMEA', 'AMER', 'APAC']
+const FIRST_NAMES = [
+  'Emma',
+  'Liam',
+  'Olivia',
+  'Noah',
+  'Ava',
+  'Ethan',
+  'Sophia',
+  'Mason',
+  'Isabella',
+  'Lucas',
+  'Mia',
+  'Oliver',
+  'Amelia',
+  'Elijah',
+  'Charlotte',
+  'James',
+  'Harper',
+  'Benjamin',
+  'Evelyn',
+  'Henry',
+  'Abigail',
+  'Alexander',
+  'Emily',
+  'Sebastian',
+  'Elizabeth',
+  'Jack',
+  'Sofia',
+  'Owen',
+  'Avery',
+  'Daniel',
+  'Ella',
+  'Matthew',
+  'Scarlett',
+  'Aiden',
+  'Grace',
+  'Samuel',
+  'Chloe',
+  'David',
+  'Victoria',
+  'Joseph',
+]
+const LAST_NAMES = [
+  'Smith',
+  'Johnson',
+  'Williams',
+  'Brown',
+  'Jones',
+  'Garcia',
+  'Miller',
+  'Davis',
+  'Rodriguez',
+  'Martinez',
+  'Hernandez',
+  'Lopez',
+  'Gonzalez',
+  'Wilson',
+  'Anderson',
+  'Thomas',
+  'Taylor',
+  'Moore',
+  'Jackson',
+  'Martin',
+  'Lee',
+  'Perez',
+  'Thompson',
+  'White',
+  'Harris',
+  'Sanchez',
+  'Clark',
+  'Ramirez',
+  'Lewis',
+  'Robinson',
+  'Walker',
+  'Young',
+  'Allen',
+  'King',
+  'Wright',
+  'Scott',
+  'Torres',
+  'Nguyen',
+  'Hill',
+  'Flores',
+]
+const CATEGORIES = [
+  'Electronics',
+  'Clothing & Accessories',
+  'Home & Kitchen',
+  'Books',
+  'Sports & Outdoors',
+  'Toys & Games',
+  'Beauty & Personal Care',
+  'Grocery',
+  'Automotive',
+  'Office Supplies',
+  'Pet Supplies',
+  'Health & Wellness',
+]
+const REGIONS = ['North America', 'Europe', 'Asia Pacific', 'Latin America', 'Middle East & Africa']
+const STATUSES = ['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled', 'Returned']
 
 /** Deterministic PRNG so the generated dataset is stable across reloads. */
 function mulberry32(seed: number): () => number {
@@ -34,14 +131,16 @@ function makeHugeData(n: number): HugeRow[] {
   const end = new Date('2025-01-01').getTime()
   const rows: HugeRow[] = []
   for (let i = 0; i < n; i++) {
+    const first = FIRST_NAMES[Math.floor(rand() * FIRST_NAMES.length)]
+    const last = LAST_NAMES[Math.floor(rand() * LAST_NAMES.length)]
     rows.push({
-      id: i + 1,
-      name: `Item ${String(i + 1).padStart(6, '0')} ${rand().toString(36).slice(2, 8)}`,
+      id: 100000 + i,
+      customer: `${first} ${last}`,
       category: CATEGORIES[Math.floor(rand() * CATEGORIES.length)],
-      status: STATUSES[Math.floor(rand() * STATUSES.length)],
       region: REGIONS[Math.floor(rand() * REGIONS.length)],
-      price: Math.round(rand() * 100000) / 100,
-      joined: new Date(start + rand() * (end - start)).toISOString().slice(0, 10),
+      status: STATUSES[Math.floor(rand() * STATUSES.length)],
+      amount: Math.round(rand() * 100000) / 100,
+      orderDate: new Date(start + rand() * (end - start)).toISOString().slice(0, 10),
     })
   }
   return rows
@@ -50,11 +149,17 @@ function makeHugeData(n: number): HugeRow[] {
 export const HUGE_DATA: HugeRow[] = makeHugeData(HUGE_ROW_COUNT)
 
 export const HUGE_COLUMNS: ColumnDef<HugeRow>[] = [
-  { key: 'id', label: 'ID', type: 'number' },
-  { key: 'name', label: 'Name' },
+  { key: 'id', label: 'Order ID', type: 'number' },
+  { key: 'customer', label: 'Customer', filterable: true },
   { key: 'category', label: 'Category', filterable: true, groupable: true },
+  { key: 'region', label: 'Region', filterable: true, groupable: true },
   { key: 'status', label: 'Status', filterable: true },
-  { key: 'region', label: 'Region', filterable: true },
-  { key: 'price', label: 'Price', type: 'number', aggregate: 'sum' },
-  { key: 'joined', label: 'Joined', type: 'date' },
+  {
+    key: 'amount',
+    label: 'Amount',
+    type: 'number',
+    aggregate: 'sum',
+    format: (v) => `$${Number(v).toFixed(2)}`,
+  },
+  { key: 'orderDate', label: 'Order Date', type: 'date' },
 ]

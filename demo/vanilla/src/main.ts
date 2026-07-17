@@ -439,9 +439,12 @@ app.innerHTML = `
 
     <h2 id="huge-dataset" style="font-size:16px;font-weight:600;margin-top:40px;margin-bottom:4px;scroll-margin-top:56px">Huge dataset</h2>
     <p style="font-size:14px;color:var(--color-text-secondary);margin-top:0;margin-bottom:16px">
-      A generated dataset of ${HUGE_ROW_COUNT.toLocaleString()} rows, to demonstrate the table
-      staying responsive at scale — sorting, filtering (with faceted per-value counts), and
-      grouping all run over the full dataset, while only ~100 rows are ever rendered per page.
+      A generated e-commerce order history — ${HUGE_ROW_COUNT.toLocaleString()} rows across
+      thousands of customers — to demonstrate the table staying responsive at scale: sorting,
+      filtering, and grouping all run over the full dataset, while only ~100 rows are ever
+      rendered per page. The <code>Customer</code> filter has thousands of distinct values, but
+      its checklist only ever mounts the rows scrolled into view. Try grouping by
+      <code>Category</code> and/or <code>Region</code>.
     </p>
     <div id="table-huge"></div>
   </div>

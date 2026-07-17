@@ -907,9 +907,12 @@ function copyShareLink() {
         margin-bottom: 16px;
       "
     >
-      A generated dataset of {{ HUGE_ROW_COUNT.toLocaleString() }} rows, to demonstrate the table
-      staying responsive at scale — sorting, filtering (with faceted per-value counts), and grouping
-      all run over the full dataset, while only ~100 rows are ever rendered per page.
+      A generated e-commerce order history — {{ HUGE_ROW_COUNT.toLocaleString() }} rows across
+      thousands of customers — to demonstrate the table staying responsive at scale: sorting,
+      filtering, and grouping all run over the full dataset, while only ~100 rows are ever rendered
+      per page. The <code>Customer</code> filter has thousands of distinct values, but its checklist
+      only ever mounts the rows scrolled into view. Try grouping by <code>Category</code> and/or
+      <code>Region</code>.
     </p>
     <DataTable :data="HUGE_DATA" :columns="HUGE_COLUMNS" row-key="id" :default-page-size="100" />
   </div>
