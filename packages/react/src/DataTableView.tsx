@@ -66,9 +66,9 @@ const S = {
     textAlign: 'left',
     fontWeight: 500,
     fontSize: 12,
-    background: 'var(--color-background-secondary)',
+    background: 'var(--color-background-tertiary)',
     color: 'var(--color-text-secondary)',
-    borderBottom: '0.5px solid var(--color-border-tertiary)',
+    borderBottom: '1px solid var(--color-border-secondary)',
     whiteSpace: 'nowrap',
     userSelect: 'none',
     cursor: 'pointer',
@@ -113,14 +113,15 @@ const S = {
   } as CSSProperties,
   groupRow: {
     background: 'var(--color-background-secondary)',
-    fontWeight: 500,
+    borderLeft: '3px solid var(--color-border-secondary)',
+    fontWeight: 600,
     fontSize: 12,
-    color: 'var(--color-text-secondary)',
+    color: 'var(--color-text-primary)',
     cursor: 'pointer',
   } as CSSProperties,
   groupTd: {
     padding: '6px 12px',
-    borderBottom: '0.5px solid var(--color-border-tertiary)',
+    borderBottom: '1px solid var(--color-border-secondary)',
   } as CSSProperties,
   clearBtn: {
     fontSize: 12,
@@ -1236,7 +1237,7 @@ export function DataTableView<TRow extends object>({
                               ? 'var(--color-background-secondary)'
                               : ri % 2 === 0
                                 ? 'transparent'
-                                : 'var(--color-background-secondary)',
+                                : 'color-mix(in srgb, var(--color-background-secondary) 45%, transparent)',
                         cursor: onRowClick ? 'pointer' : undefined,
                       }}
                     >

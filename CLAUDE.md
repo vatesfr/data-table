@@ -222,6 +222,15 @@ Per-adapter drag wiring:
 
 `ColumnDefBase.aggregate` accepts `'sum' | 'count' | 'avg' | 'min' | 'max'` or a custom `(rows: TRow[]) => unknown` function. When any active column defines an aggregate, a secondary `dt__agg-row` / `dt-agg-row` row is rendered below each group header with per-column values. `computeAggregate(col, rows)` in core handles all built-in types; `col.format` is used for display when available, passed `sampleRow` (see "Pagination") rather than `rows[0]` since `rows` can legitimately be empty for a header rendered right at a page boundary. The aggregate row is always visible regardless of collapse state — for a collapsed group `rows` is the full group (backfilled by `paginateVisibleGroups`), for an expanded/split group it's whatever chunk of the group is visible on this page (see "Pagination" for why these differ).
 
+### Visual hierarchy (header / group rows / stripes)
+
+Header, group header rows, aggregate rows, and the odd-row stripe used to all share one `--color-background-secondary` token with no other distinguishing treatment, making them hard to tell apart at a glance. Each now reads as its own tier:
+
+- The table header alone uses a new token, `--color-background-tertiary` (defined in `theme.ts`'s `LIGHT_THEME`/`DARK_THEME` alongside the existing tokens, and picked up automatically by `renderThemeCss()`), plus a heavier `1px` (was `0.5px`) bottom border — the strongest visual anchor, sitting above everything else.
+- Group header rows keep `--color-background-secondary` (unchanged) but gain a `3px solid` left accent border and switch their text from `--color-text-secondary` to `--color-text-primary` at `font-weight: 600` (was `500`/secondary) — previously group rows used the same muted styling as the header, which made them read as faded captions instead of bold section dividers. The left border is set on the `<tr>` itself (not a `<td>`) and relies on `border-collapse: collapse` (already set on all three adapters' `<table>`) to render at the table's left edge regardless of which cells happen to be present (checkbox column optional, etc).
+- The odd-row stripe now uses `color-mix(in srgb, var(--color-background-secondary) 45%, transparent)` instead of the token at full strength, so plain alternating rows read as a subtle texture rather than competing with group rows for the same gray. Hover (`onRowClick` set) and selection stay at full strength, so they still read as a stronger, more "active" cue than the passive stripe.
+- Aggregate rows are intentionally left unchanged (still muted `--color-text-secondary`, `font-weight: 500`) — once the group row above it went bold/primary, the contrast between "section title" and "summary line" falls out for free with no separate change needed.
+
 ### i18n
 
 `DataTableLabels` in `packages/core/src/types.ts` defines static string keys and 5 formatting functions (`rowCount(filtered, total)`, `groupCount(n)`, `groupLabel(index)`, `rowsInGroup(n)`, `pageOf(page, total)`). `DEFAULT_LABELS` is English. Both adapters accept a `labels?: Partial<DataTableLabels>` prop/option that is shallow-merged over the defaults.

@@ -1239,9 +1239,9 @@ function onColDragEnd(): void {
   text-align: left;
   font-weight: 500;
   font-size: 12px;
-  background: var(--color-background-secondary);
+  background: var(--color-background-tertiary);
   color: var(--color-text-secondary);
-  border-bottom: 0.5px solid var(--color-border-tertiary);
+  border-bottom: 1px solid var(--color-border-secondary);
   white-space: nowrap;
   user-select: none;
   cursor: pointer;
@@ -1253,7 +1253,7 @@ function onColDragEnd(): void {
   vertical-align: middle;
 }
 .dt__tr--stripe {
-  background: var(--color-background-secondary);
+  background: color-mix(in srgb, var(--color-background-secondary) 45%, transparent);
 }
 .dt__tr--selected {
   background: var(--color-background-info) !important;
@@ -1278,14 +1278,15 @@ function onColDragEnd(): void {
 /* Group rows */
 .dt__group-row {
   background: var(--color-background-secondary);
-  font-weight: 500;
+  border-left: 3px solid var(--color-border-secondary);
+  font-weight: 600;
   font-size: 12px;
-  color: var(--color-text-secondary);
+  color: var(--color-text-primary);
   cursor: pointer;
 }
 .dt__group-td {
   padding: 6px 12px;
-  border-bottom: 0.5px solid var(--color-border-tertiary);
+  border-bottom: 1px solid var(--color-border-secondary);
 }
 .dt__group-sep {
   margin: 0 4px;

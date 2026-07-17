@@ -72,6 +72,7 @@ To override individual tokens, define the custom property in your own stylesheet
 | ------------------------------ | --------- | --------- |
 | `--color-background-primary`   | `#ffffff` | `#141413` |
 | `--color-background-secondary` | `#f7f6f3` | `#2b2a26` |
+| `--color-background-tertiary`  | `#eae9e5` | `#3a3830` |
 | `--color-background-info`      | `#e6f1fb` | `#0d2640` |
 | `--color-background-warning`   | `#faeeda` | `#2a1900` |
 | `--color-text-primary`         | `#1a1916` | `#e8e7e4` |

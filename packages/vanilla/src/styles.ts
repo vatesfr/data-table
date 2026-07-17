@@ -34,18 +34,18 @@ ${renderThemeCss()}
 .dt-chip-x{cursor:pointer;margin-left:2px}
 .dt-table-wrap{overflow-x:auto;border:0.5px solid var(--color-border-tertiary,#eeedea);border-radius:8px;margin-top:12px}
 .dt-table{width:100%;border-collapse:collapse;font-size:13px}
-.dt-th{padding:8px 12px;text-align:left;font-weight:500;font-size:12px;background:var(--color-background-secondary,#f7f6f3);color:var(--color-text-secondary,#6b6a66);border-bottom:0.5px solid var(--color-border-tertiary,#eeedea);white-space:nowrap;user-select:none;cursor:pointer}
+.dt-th{padding:8px 12px;text-align:left;font-weight:500;font-size:12px;background:var(--color-background-tertiary,#eae9e5);color:var(--color-text-secondary,#6b6a66);border-bottom:1px solid var(--color-border-secondary,#dddcd8);white-space:nowrap;user-select:none;cursor:pointer}
 .dt-th--no-sort{cursor:default}
 .dt-th--dragging{opacity:.4}
 .dt-th--drag-over{box-shadow:inset 2px 0 0 var(--color-text-primary,#1a1916)}
 .dt-th-inner{display:inline-flex;align-items:center;gap:4px}
 .dt-td{padding:8px 12px;border-bottom:0.5px solid var(--color-border-tertiary,#eeedea);color:var(--color-text-primary,#1a1916);vertical-align:middle}
-.dt-tr--odd .dt-td{background:var(--color-background-secondary,#f7f6f3)}
+.dt-tr--odd .dt-td{background:color-mix(in srgb,var(--color-background-secondary,#f7f6f3) 45%,transparent)}
 .dt-tr--clickable{cursor:pointer}
 .dt-tr--clickable:hover .dt-td{background:var(--color-background-secondary,#f7f6f3)}
 .dt-tr--selected .dt-td{background:var(--color-background-info,#e6f1fb)}
-.dt-group-row{background:var(--color-background-secondary,#f7f6f3);font-weight:500;font-size:12px;color:var(--color-text-secondary,#6b6a66);cursor:pointer}
-.dt-group-td{padding:6px 12px;border-bottom:0.5px solid var(--color-border-tertiary,#eeedea)}
+.dt-group-row{background:var(--color-background-secondary,#f7f6f3);border-left:3px solid var(--color-border-secondary,#dddcd8);font-weight:600;font-size:12px;color:var(--color-text-primary,#1a1916);cursor:pointer}
+.dt-group-td{padding:6px 12px;border-bottom:1px solid var(--color-border-secondary,#dddcd8)}
 .dt-group-sep{margin:0 4px;opacity:.4}
 .dt-group-colname{margin-right:4px;opacity:.6}
 .dt-group-count{margin-left:10px;font-weight:400;opacity:.6}

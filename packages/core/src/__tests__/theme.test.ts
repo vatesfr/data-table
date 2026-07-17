@@ -16,4 +16,15 @@ describe('theme', () => {
     expect(css).toContain('[data-theme=dark]{')
     expect(css).toContain('[data-theme=light]{')
   })
+
+  it('defines a tertiary background token distinct from the secondary one, for the table header', () => {
+    expect(LIGHT_THEME['color-background-tertiary']).toBeDefined()
+    expect(LIGHT_THEME['color-background-tertiary']).not.toBe(
+      LIGHT_THEME['color-background-secondary'],
+    )
+    expect(DARK_THEME['color-background-tertiary']).toBeDefined()
+    expect(DARK_THEME['color-background-tertiary']).not.toBe(
+      DARK_THEME['color-background-secondary'],
+    )
+  })
 })

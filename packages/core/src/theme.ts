@@ -1,6 +1,7 @@
 export const LIGHT_THEME: Record<string, string> = {
   'color-background-primary': '#fff',
   'color-background-secondary': '#f7f6f3',
+  'color-background-tertiary': '#eae9e5',
   'color-background-info': '#e6f1fb',
   'color-background-warning': '#faeeda',
   'color-text-primary': '#1a1916',
@@ -17,6 +18,7 @@ export const LIGHT_THEME: Record<string, string> = {
 export const DARK_THEME: Record<string, string> = {
   'color-background-primary': '#141413',
   'color-background-secondary': '#2b2a26',
+  'color-background-tertiary': '#3a3830',
   'color-background-info': '#0d2640',
   'color-background-warning': '#2a1900',
   'color-text-primary': '#e8e7e4',
