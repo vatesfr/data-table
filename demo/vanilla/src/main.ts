@@ -11,6 +11,7 @@ import {
   type ColumnDef,
   type DataTableLabels,
 } from '@vates/data-table-vanilla'
+import { HUGE_DATA, HUGE_COLUMNS, HUGE_ROW_COUNT } from './hugeData'
 
 interface Employee {
   id: number
@@ -320,6 +321,7 @@ const SECTIONS = [
   { id: 'row-click', label: 'Row click' },
   { id: 'persisted-table', label: 'View persistence & sharing' },
   { id: 'dynamic-data', label: 'Dynamic data' },
+  { id: 'huge-dataset', label: 'Huge dataset' },
 ]
 
 // Height of the sticky nav (padding + link line-height + border) — used both as scroll-margin-top
@@ -434,6 +436,14 @@ app.innerHTML = `
     <button id="add-row-btn" style="padding:5px 12px;border-radius:6px;border:0.5px solid var(--color-border-secondary);
       background:none;cursor:pointer;font-size:13px;font-family:inherit">+ Add random row</button>
     <div id="table3" style="margin-top:12px"></div>
+
+    <h2 id="huge-dataset" style="font-size:16px;font-weight:600;margin-top:40px;margin-bottom:4px;scroll-margin-top:56px">Huge dataset</h2>
+    <p style="font-size:14px;color:var(--color-text-secondary);margin-top:0;margin-bottom:16px">
+      A generated dataset of ${HUGE_ROW_COUNT.toLocaleString()} rows, to demonstrate the table
+      staying responsive at scale — sorting, filtering (with faceted per-value counts), and
+      grouping all run over the full dataset, while only ~100 rows are ever rendered per page.
+    </p>
+    <div id="table-huge"></div>
   </div>
 `
 
@@ -641,6 +651,19 @@ document.getElementById('add-row-btn')!.addEventListener('click', () => {
   table3.setData(dynamicData)
 })
 
+// ---- Table: huge dataset ----
+
+function createTableHuge() {
+  return createDataTable(document.getElementById('table-huge')!, {
+    data: HUGE_DATA,
+    columns: HUGE_COLUMNS,
+    rowKey: 'id',
+    defaultPageSize: 100,
+    labels: LOCALES[currentLocale],
+  })
+}
+let tableHuge = createTableHuge()
+
 // ---- Locale switcher: recreate every table with the new locale ----
 //
 // Labels are set at creation time, so changing locale means destroying and recreating each
@@ -676,6 +699,9 @@ localeBtns.addEventListener('click', (e) => {
 
   table3.destroy()
   table3 = createTable3()
+
+  tableHuge.destroy()
+  tableHuge = createTableHuge()
 })
 
 // All tables are populated by this point, so the page has its real (final) height —

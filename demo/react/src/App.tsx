@@ -15,6 +15,7 @@ import {
   type ColumnDef,
   type DataTableLabels,
 } from '@vates/data-table-react'
+import { HUGE_DATA, HUGE_COLUMNS, HUGE_ROW_COUNT } from './hugeData'
 
 interface Employee {
   id: number
@@ -355,6 +356,7 @@ const SECTIONS = [
   { id: 'row-click', label: 'Row click' },
   { id: 'custom-layout', label: 'Custom layout' },
   { id: 'persisted-table', label: 'Persisted table' },
+  { id: 'huge-dataset', label: 'Huge dataset' },
 ]
 
 // Height of the sticky nav (padding + link line-height + border) — used both as scroll-margin-top
@@ -880,6 +882,32 @@ export default function App() {
         the page. <DocLink anchor="view-persistence--sharing">📖 Docs</DocLink>
       </p>
       <PersistedTable labels={LOCALES[localeKey]} />
+
+      <h2
+        id="huge-dataset"
+        style={{
+          fontSize: 16,
+          fontWeight: 600,
+          marginTop: 40,
+          marginBottom: 4,
+          scrollMarginTop: NAV_OFFSET,
+        }}
+      >
+        Huge dataset
+      </h2>
+      <p
+        style={{
+          fontSize: 14,
+          color: 'var(--color-text-secondary)',
+          marginTop: 0,
+          marginBottom: 16,
+        }}
+      >
+        A generated dataset of {HUGE_ROW_COUNT.toLocaleString()} rows, to demonstrate the table
+        staying responsive at scale — sorting, filtering (with faceted per-value counts), and
+        grouping all run over the full dataset, while only ~100 rows are ever rendered per page.
+      </p>
+      <DataTable data={HUGE_DATA} columns={HUGE_COLUMNS} rowKey="id" defaultPageSize={100} />
     </div>
   )
 }

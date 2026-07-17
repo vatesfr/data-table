@@ -16,6 +16,7 @@ import {
   type ColumnDef,
   type DataTableLabels,
 } from '@vates/data-table-vue'
+import { HUGE_DATA, HUGE_COLUMNS, HUGE_ROW_COUNT } from './hugeData'
 
 interface Employee {
   id: number
@@ -341,6 +342,7 @@ const SECTIONS = [
   { id: 'row-click', label: 'Row click' },
   { id: 'custom-layout', label: 'Custom layout' },
   { id: 'persisted-table', label: 'Persisted table' },
+  { id: 'huge-dataset', label: 'Huge dataset' },
 ]
 
 // Height of the sticky nav (padding + link line-height + border) — used both as scroll-margin-top
@@ -883,5 +885,32 @@ function copyShareLink() {
         <ScoreBar :value="Number(value)" />
       </template>
     </DataTableView>
+
+    <!-- Huge dataset section -->
+    <h2
+      id="huge-dataset"
+      style="
+        font-size: 16px;
+        font-weight: 600;
+        margin-top: 40px;
+        margin-bottom: 4px;
+        scroll-margin-top: 56px;
+      "
+    >
+      Huge dataset
+    </h2>
+    <p
+      style="
+        font-size: 14px;
+        color: var(--color-text-secondary);
+        margin-top: 0;
+        margin-bottom: 16px;
+      "
+    >
+      A generated dataset of {{ HUGE_ROW_COUNT.toLocaleString() }} rows, to demonstrate the table
+      staying responsive at scale — sorting, filtering (with faceted per-value counts), and grouping
+      all run over the full dataset, while only ~100 rows are ever rendered per page.
+    </p>
+    <DataTable :data="HUGE_DATA" :columns="HUGE_COLUMNS" row-key="id" :default-page-size="100" />
   </div>
 </template>
