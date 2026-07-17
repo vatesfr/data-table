@@ -28,6 +28,7 @@ import {
   indexOfVisibleItem,
   paginateVisibleItems,
   mergePageSizeOptions,
+  computeVirtualRange,
   type DateTreeNode,
   type ValueSort,
   type VisibleItem,
@@ -35,6 +36,12 @@ import {
 import { Dropdown } from './components/Dropdown'
 import { ToolbarBtn } from './components/ToolbarBtn'
 import type { ColumnDef, DataTableViewProps } from './types'
+
+// Fixed row height for the filter dropdown's virtualized checklist (see computeVirtualRange) —
+// must match the actual rendered height of a checklist row exactly, which is why each row gets
+// an explicit inline height below instead of relying on ddItem's padding + line-height.
+const FILTER_LIST_ITEM_HEIGHT = 32
+const FILTER_LIST_VIEWPORT_HEIGHT = 260
 
 const S = {
   wrap: {
@@ -240,7 +247,6 @@ const S = {
   } as CSSProperties,
   filterDetail: {
     flex: 1,
-    overflowY: 'auto',
     padding: '6px 0',
     minWidth: 220,
   } as CSSProperties,
@@ -249,6 +255,14 @@ const S = {
     alignItems: 'center',
     gap: 6,
     margin: '2px 12px 6px',
+  } as CSSProperties,
+  // Fixed height + itemHeight are what make the windowed-rendering math in computeVirtualRange
+  // exact — a column with thousands of distinct values only ever mounts the rows scrolled into
+  // view (plus overscan) instead of one <label> per value. The search row above this stays
+  // outside it (in normal flow), so it never scrolls away.
+  filterList: {
+    height: FILTER_LIST_VIEWPORT_HEIGHT,
+    overflowY: 'auto',
   } as CSSProperties,
   ddSearch: {
     display: 'block',
@@ -328,6 +342,9 @@ export function DataTableView<TRow extends object>({
   const [filterSelectionAnchor, setFilterSelectionAnchor] = useState<Record<string, string>>({})
   const [expandedDateNodes, setExpandedDateNodes] = useState<Record<string, Set<string>>>({})
   const [filterValueSort, setFilterValueSort] = useState<Record<string, ValueSort>>({})
+  const [filterListScrollTop, setFilterListScrollTop] = useState(0)
+  const filterListRef = useRef<HTMLDivElement>(null)
+  const filterListRafPending = useRef(false)
 
   const {
     visibleCols,
@@ -576,6 +593,36 @@ export function DataTableView<TRow extends object>({
   useEffect(() => {
     if (filterSelectAllRef.current) filterSelectAllRef.current.indeterminate = filterSomeSelected
   }, [filterSomeSelected])
+
+  // Reset the virtualized checklist's scroll position whenever the values it's scrolled
+  // through change identity — switching columns or narrowing by search both shift what row 0
+  // even means, so staying scrolled to the same pixel offset would show an unrelated slice.
+  // Comparing against the previous render (rather than an effect) is React's own documented
+  // pattern for "adjust state when a prop changes" — https://react.dev/reference/react/useState#storing-information-from-previous-renders —
+  // and avoids the cascading-render lint error a setState-in-effect would trigger.
+  const filterListSearchTerm = filterDetailCol ? (filterSearchTerms[filterDetailCol.key] ?? '') : ''
+  const filterListResetKey = `${filterActiveKey ?? ''}::${filterListSearchTerm}`
+  const [prevFilterListResetKey, setPrevFilterListResetKey] = useState(filterListResetKey)
+  if (filterListResetKey !== prevFilterListResetKey) {
+    setPrevFilterListResetKey(filterListResetKey)
+    setFilterListScrollTop(0)
+  }
+  // Keyed on filterListResetKey, NOT filterListScrollTop — this only needs to imperatively move
+  // the DOM's scroll position when we're the ones forcing it back to 0 above. Keying it on
+  // filterListScrollTop instead (every state update, including ones the user's own scrolling
+  // just caused) re-applies a snapshot of scrollTop taken at a slightly earlier point in time on
+  // every scroll-driven re-render, fighting the live native scroll and making it flicker back —
+  // in practice, feeling like the list won't scroll at all.
+  useEffect(() => {
+    if (filterListRef.current) filterListRef.current.scrollTop = 0
+  }, [filterListResetKey])
+
+  const filterListVirtualRange = computeVirtualRange(
+    filterListScrollTop,
+    FILTER_LIST_VIEWPORT_HEIGHT,
+    FILTER_LIST_ITEM_HEIGHT,
+    filterDetailValues.length,
+  )
 
   const filterDetailTree =
     filterDetailCol && filterDetailCol.type === 'date'
@@ -897,39 +944,92 @@ export function DataTableView<TRow extends object>({
                             0,
                             filterDetailCol.parseDate,
                           )
-                        : filterDetailValues.map((v) => (
-                            <label key={v} style={{ ...S.ddItem, cursor: 'pointer' }}>
-                              <input
-                                type="checkbox"
-                                checked={filters[filterDetailCol.key]?.has(v) ?? false}
-                                readOnly
-                                onClick={(e) => {
-                                  const key = filterDetailCol.key
-                                  const anchor = filterSelectionAnchor[key]
-                                  if (e.shiftKey && anchor != null) {
-                                    const shouldSelect = !(filters[key]?.has(v) ?? false)
-                                    setFilterValues(
-                                      key,
-                                      selectRange(filterDetailValues, anchor, v),
-                                      shouldSelect,
-                                    )
-                                  } else {
-                                    toggleFilter(key, v)
+                        : (() => {
+                            // Virtualized: only the rows scrolled into view (+ overscan) are
+                            // ever mounted, regardless of how many thousands of distinct values
+                            // filterDetailValues holds — see computeVirtualRange/FILTER_LIST_*.
+                            // Select-all/shift-range above still operate on the full array, so
+                            // behavior is unaffected by how much of it is actually rendered.
+                            const { startIndex, endIndex, offsetY, totalHeight } =
+                              filterListVirtualRange
+                            return (
+                              <div
+                                ref={filterListRef}
+                                style={S.filterList}
+                                onScroll={() => {
+                                  if (!filterListRafPending.current) {
+                                    filterListRafPending.current = true
+                                    requestAnimationFrame(() => {
+                                      filterListRafPending.current = false
+                                      // Read the live scrollTop here (not a value captured back
+                                      // in the triggering onScroll call) — several scroll events
+                                      // can fire before this callback runs, and only the latest
+                                      // position matters.
+                                      if (filterListRef.current) {
+                                        setFilterListScrollTop(filterListRef.current.scrollTop)
+                                      }
+                                    })
                                   }
-                                  setFilterSelectionAnchor({ ...filterSelectionAnchor, [key]: v })
                                 }}
-                                style={{ margin: 0 }}
-                              />
-                              <span style={{ flex: 1 }}>
-                                {filterDetailCol.renderFilterLabel
-                                  ? filterDetailCol.renderFilterLabel(v)
-                                  : v}
-                              </span>
-                              <span style={S.filterCount} aria-hidden="true">
-                                {stringValueCounts[filterDetailCol.key]?.get(v) ?? 0}
-                              </span>
-                            </label>
-                          ))}
+                              >
+                                <div style={{ height: totalHeight, position: 'relative' }}>
+                                  <div
+                                    style={{
+                                      position: 'absolute',
+                                      top: offsetY,
+                                      left: 0,
+                                      right: 0,
+                                    }}
+                                  >
+                                    {filterDetailValues.slice(startIndex, endIndex).map((v) => (
+                                      <label
+                                        key={v}
+                                        style={{
+                                          ...S.ddItem,
+                                          height: FILTER_LIST_ITEM_HEIGHT,
+                                          boxSizing: 'border-box',
+                                          cursor: 'pointer',
+                                        }}
+                                      >
+                                        <input
+                                          type="checkbox"
+                                          checked={filters[filterDetailCol.key]?.has(v) ?? false}
+                                          readOnly
+                                          onClick={(e) => {
+                                            const key = filterDetailCol.key
+                                            const anchor = filterSelectionAnchor[key]
+                                            if (e.shiftKey && anchor != null) {
+                                              const shouldSelect = !(filters[key]?.has(v) ?? false)
+                                              setFilterValues(
+                                                key,
+                                                selectRange(filterDetailValues, anchor, v),
+                                                shouldSelect,
+                                              )
+                                            } else {
+                                              toggleFilter(key, v)
+                                            }
+                                            setFilterSelectionAnchor({
+                                              ...filterSelectionAnchor,
+                                              [key]: v,
+                                            })
+                                          }}
+                                          style={{ margin: 0 }}
+                                        />
+                                        <span style={{ flex: 1 }}>
+                                          {filterDetailCol.renderFilterLabel
+                                            ? filterDetailCol.renderFilterLabel(v)
+                                            : v}
+                                        </span>
+                                        <span style={S.filterCount} aria-hidden="true">
+                                          {stringValueCounts[filterDetailCol.key]?.get(v) ?? 0}
+                                        </span>
+                                      </label>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+                            )
+                          })()}
                     </>
                   ))}
               </div>

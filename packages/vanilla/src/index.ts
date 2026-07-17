@@ -39,6 +39,7 @@ import {
   sumDateTreeNodeCount,
   findDateTreeNode,
   selectDateRange,
+  computeVirtualRange,
   DEFAULT_LABELS,
   type SortEntry,
   type RangeFilter,
@@ -87,6 +88,11 @@ function buildDd(isOpen: boolean, trigger: string, contentFn: () => string): str
 }
 
 const DEFAULT_VALUE_SORT: ValueSort = { by: 'alpha', dir: 'asc' }
+// Fixed row height for the filter dropdown's virtualized checklist (see computeVirtualRange) —
+// must match the actual rendered height of a checklist row exactly, which is why each row gets
+// an explicit inline height below instead of relying on dt-dd-item's padding + line-height.
+const FILTER_LIST_ITEM_HEIGHT = 32
+const FILTER_LIST_VIEWPORT_HEIGHT = 260
 
 // --- Factory ---
 
@@ -125,6 +131,11 @@ export function createDataTable<TRow extends object>(
   let filterSelectionAnchor: Record<string, string> = {}
   let filterValueSort: Record<string, ValueSort> = {}
   let expandedDateNodes: Record<string, Set<string>> = {}
+  // Scroll position of the filter dropdown's virtualized checklist (see computeVirtualRange /
+  // FILTER_LIST_* below) — reset to 0 whenever the values being scrolled through change identity
+  // (switching column via select-filter-col, or narrowing by search).
+  let filterListScrollTop = 0
+  let filterListRafPending = false
   let searchQuery = ''
   let draggedColKey: string | null = null
   const viewListeners = new Set<(view: TableViewState) => void>()
@@ -143,6 +154,10 @@ export function createDataTable<TRow extends object>(
   let _clampedPage = 1
   let _filterDetailValues: string[] = []
   let _filterDetailTree: DateTreeNode[] = []
+  // Cached alongside _filterDetailValues so the scroll-only patch path (see
+  // handleFilterListScroll) can rebuild just the checklist's rendered rows without re-running
+  // the full derive()/render() pipeline.
+  let _stringValueCounts: Record<string, Map<string, number>> = {}
   // Every item across the *full* filtered/grouped dataset (not just this page) in display order —
   // a group header for every group (even a collapsed one, so it stays reachable) plus its rows
   // unless it's collapsed. Grouping over the full dataset first, then paginating this flattened
@@ -330,6 +345,30 @@ export function createDataTable<TRow extends object>(
     return filterValueSort[key] ?? DEFAULT_VALUE_SORT
   }
 
+  /**
+   * The virtualized checklist's inner content (spacer + windowed rows) for `col` — everything
+   * that goes *inside* the `.dt-filter-list` wrapper, not the wrapper itself. Shared by the full
+   * render() (below) and handleFilterListScroll's scroll-only patch, which needs to regenerate
+   * just this on every scroll tick without rebuilding (and thereby destroying) the scrollable
+   * `.dt-filter-list` element itself — see handleFilterListScroll for why that distinction matters.
+   */
+  function buildFilterListInnerHtml(col: ColumnDef<TRow>): string {
+    const { startIndex, endIndex, offsetY, totalHeight } = computeVirtualRange(
+      filterListScrollTop,
+      FILTER_LIST_VIEWPORT_HEIGHT,
+      FILTER_LIST_ITEM_HEIGHT,
+      _filterDetailValues.length,
+    )
+    let s = `<div style="height:${totalHeight}px;position:relative">`
+    s += `<div style="position:absolute;top:${offsetY}px;left:0;right:0">`
+    for (const v of _filterDetailValues.slice(startIndex, endIndex)) {
+      const count = _stringValueCounts[col.key]?.get(v) ?? 0
+      s += `<label class="dt-dd-item" style="height:${FILTER_LIST_ITEM_HEIGHT}px;box-sizing:border-box"><input type="checkbox" data-action="toggle-filter" data-key="${esc(col.key)}" data-value="${esc(v)}"${filters[col.key]?.has(v) ? ' checked' : ''}> <span class="dt-flex1">${esc(v)}</span><span class="dt-filter-count">${count}</span></label>`
+    }
+    s += `</div></div>`
+    return s
+  }
+
   const FILTER_CHIP_MAX = 3
   function summarizeFilterValues(vals: Set<string>): string {
     const arr = [...vals]
@@ -361,6 +400,7 @@ export function createDataTable<TRow extends object>(
       activeFilterCount,
       selectedRows,
     } = derive()
+    _stringValueCounts = stringValueCounts
 
     const rowNavEnabled = selectable || !!onRowClick
     _navigableItems = paginateVisibleItems(_visibleItems, _clampedPage, pageSize).filter(
@@ -524,10 +564,14 @@ export function createDataTable<TRow extends object>(
               if (filterDetailCol.type === 'date') {
                 s += renderDateTreeNodes(_filterDetailTree, filterDetailCol.key, 0)
               } else {
-                for (const v of _filterDetailValues) {
-                  const count = stringValueCounts[filterDetailCol.key]?.get(v) ?? 0
-                  s += `<label class="dt-dd-item"><input type="checkbox" data-action="toggle-filter" data-key="${esc(filterDetailCol.key)}" data-value="${esc(v)}"${filters[filterDetailCol.key]?.has(v) ? ' checked' : ''}> <span class="dt-flex1">${esc(v)}</span><span class="dt-filter-count">${count}</span></label>`
-                }
+                // Virtualized: only the rows scrolled into view (+ overscan) are ever mounted,
+                // regardless of how many thousands of distinct values _filterDetailValues holds
+                // — see computeVirtualRange/FILTER_LIST_*. Select-all/shift-range elsewhere
+                // still operate on the full _filterDetailValues array, so behavior is unaffected
+                // by how much of it is actually rendered.
+                s += `<div class="dt-filter-list" style="height:${FILTER_LIST_VIEWPORT_HEIGHT}px">`
+                s += buildFilterListInnerHtml(filterDetailCol)
+                s += `</div>`
               }
             }
           }
@@ -708,6 +752,12 @@ export function createDataTable<TRow extends object>(
     html += `</div>` // .dt
 
     container.innerHTML = html
+
+    // The virtualized filter checklist's scrollable element is destroyed and recreated by the
+    // innerHTML rebuild above (same reason focus needs restoring below) — the fresh element
+    // starts at scrollTop 0 regardless of where the user had actually scrolled to.
+    const filterListEl = container.querySelector<HTMLElement>('.dt-filter-list')
+    if (filterListEl) filterListEl.scrollTop = filterListScrollTop
 
     // Resolve col.render() placeholders now that their slots exist in the DOM
     for (const { id, col, value, row } of pendingRenders) {
@@ -901,6 +951,7 @@ export function createDataTable<TRow extends object>(
       }
       case 'select-filter-col':
         filterActiveCol = key
+        filterListScrollTop = 0
         break
       case 'toggle-value-sort': {
         const col = columns.find((c) => c.key === key)
@@ -1034,6 +1085,7 @@ export function createDataTable<TRow extends object>(
     if (action === 'filter-search') {
       const key = target.dataset.key ?? ''
       filterSearchTerms = { ...filterSearchTerms, [key]: target.value }
+      filterListScrollTop = 0
       render()
       return
     }
@@ -1060,6 +1112,39 @@ export function createDataTable<TRow extends object>(
     page = 1
     render()
     notifyViewChange()
+  }
+
+  // The filter dropdown's virtualized checklist (see FILTER_LIST_* / computeVirtualRange) needs
+  // to know its scroll position to know which rows to render — but native `scroll` events don't
+  // bubble, so this can't join the click/input/change delegation above. Capture-phase listeners
+  // fire on the way down to the target regardless of bubbling, which is what makes delegating a
+  // non-bubbling event to the container possible at all. rAF-throttled since a full render()
+  // rebuilds the whole page's HTML string, which would be wasteful to do on every scroll tick.
+  function handleFilterListScroll(e: Event): void {
+    const el = e.target as HTMLElement
+    if (!el.classList?.contains('dt-filter-list')) return
+    if (!filterListRafPending) {
+      filterListRafPending = true
+      requestAnimationFrame(() => {
+        filterListRafPending = false
+        // Read the live scrollTop here (not a value captured back in the triggering scroll
+        // event) — several scroll events can fire before this callback runs, and only the
+        // latest position matters.
+        filterListScrollTop = el.scrollTop
+        // Patch just this element's children instead of calling the full render(). A full
+        // render() rebuilds the *entire* page via innerHTML, which destroys and recreates
+        // .dt-filter-list itself — if that happens mid-gesture, any further wheel/scrollbar
+        // input from the same continuous scroll is left targeting a now-detached element and
+        // falls through to whatever scrollable ancestor is next (the whole page), which reads
+        // as "the list won't scroll" even though each individual scroll tick was handled.
+        // Keeping .dt-filter-list itself untouched (only reassigning its own innerHTML) means
+        // it's never replaced, so the browser's native scroll on it is never interrupted.
+        const filterableCols = columns.filter((c) => c.filterable !== false)
+        const filterActiveKey = resolveFilterActiveKey(filterableCols)
+        const filterDetailCol = filterableCols.find((c) => c.key === filterActiveKey) ?? null
+        if (filterDetailCol) el.innerHTML = buildFilterListInnerHtml(filterDetailCol)
+      })
+    }
   }
 
   // Roving-tabindex row navigation — see "Keyboard navigation". Delegated like click/input, but
@@ -1229,6 +1314,7 @@ export function createDataTable<TRow extends object>(
   container.addEventListener('click', handleClick)
   container.addEventListener('input', handleInput)
   container.addEventListener('change', handleChange)
+  container.addEventListener('scroll', handleFilterListScroll, true)
   container.addEventListener('keydown', handleKeyDown)
   container.addEventListener('dragstart', handleColDragStart)
   container.addEventListener('dragover', handleColDragOver)
@@ -1261,6 +1347,7 @@ export function createDataTable<TRow extends object>(
       container.removeEventListener('click', handleClick)
       container.removeEventListener('input', handleInput)
       container.removeEventListener('change', handleChange)
+      container.removeEventListener('scroll', handleFilterListScroll, true)
       container.removeEventListener('keydown', handleKeyDown)
       container.removeEventListener('dragstart', handleColDragStart)
       container.removeEventListener('dragover', handleColDragOver)

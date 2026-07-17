@@ -21,6 +21,7 @@ import {
   indexOfVisibleItem,
   paginateVisibleItems,
   mergePageSizeOptions,
+  computeVirtualRange,
   type PagedGroup,
   type DateTreeNode,
   type ValueSort,
@@ -296,6 +297,11 @@ function isGroupSomeSelected(rows: TRow[]) {
 }
 
 const DEFAULT_VALUE_SORT: ValueSort = { by: 'alpha', dir: 'asc' }
+// Fixed row height for the filter dropdown's virtualized checklist (see computeVirtualRange) —
+// must match the actual rendered height of a checklist row exactly, which is why each row gets
+// an explicit inline height below instead of relying on dt__dd-item's padding + line-height.
+const FILTER_LIST_ITEM_HEIGHT = 32
+const FILTER_LIST_VIEWPORT_HEIGHT = 260
 
 const filterableCols = computed(() => props.columns.filter((c) => c.filterable !== false))
 const groupableCols = computed(() => props.columns.filter((c) => c.groupable === true))
@@ -369,6 +375,42 @@ function filteredValuesFor(col: ColumnDef<TRow>): string[] {
 function countFor(col: ColumnDef<TRow>, value: string): number {
   return stringValueCounts.value[col.key]?.get(value) ?? 0
 }
+// Single memoized source for the checklist's rendered/sliced values — filteredValuesFor(col) is
+// a plain function re-run on every call, so computing it once here (rather than once for the
+// v-if length check and again for the v-for) avoids doubling the search/count/sort pipeline's
+// cost on top of what virtualization itself needs (slicing the array).
+const filterDetailValues = computed(() =>
+  filterDetailCol.value ? filteredValuesFor(filterDetailCol.value) : [],
+)
+const filterListScrollTop = ref(0)
+const filterListRef = ref<HTMLElement | null>(null)
+let filterListRafPending = false
+function onFilterListScroll(): void {
+  if (!filterListRafPending) {
+    filterListRafPending = true
+    requestAnimationFrame(() => {
+      filterListRafPending = false
+      // Read the live scrollTop here (not a value captured back in the triggering scroll
+      // event) — several scroll events can fire before this callback runs, and only the
+      // latest position matters.
+      if (filterListRef.value) filterListScrollTop.value = filterListRef.value.scrollTop
+    })
+  }
+}
+// Reset scroll whenever the checklist's values change identity — switching columns or
+// narrowing by search both shift what row 0 even means.
+watch([filterActiveKey, () => filterSearchTerms.value[filterActiveKey.value ?? '']], () => {
+  filterListScrollTop.value = 0
+  if (filterListRef.value) filterListRef.value.scrollTop = 0
+})
+const filterListVirtualRange = computed(() =>
+  computeVirtualRange(
+    filterListScrollTop.value,
+    FILTER_LIST_VIEWPORT_HEIGHT,
+    FILTER_LIST_ITEM_HEIGHT,
+    filterDetailValues.value.length,
+  ),
+)
 function selectFilterCol(key: string): void {
   filterActiveCol.value = key
 }
@@ -615,7 +657,7 @@ function onColDragEnd(): void {
               <template v-else>
                 <div class="dt__filter-search-row">
                   <input
-                    v-if="filteredValuesFor(filterDetailCol).length > 0"
+                    v-if="filterDetailValues.length > 0"
                     v-indeterminate="isFilterSomeSelected(filterDetailCol)"
                     type="checkbox"
                     class="dt__filter-select-all"
@@ -661,30 +703,67 @@ function onColDragEnd(): void {
                   @toggle-node="(node, event) => onDateNodeClick(filterDetailCol!, node, event)"
                   @toggle-expand="(path) => toggleDateNodeExpand(filterDetailCol!.key, path)"
                 />
+                <!--
+                  Virtualized: only the rows scrolled into view (+ overscan) are ever mounted,
+                  regardless of how many thousands of distinct values filterDetailValues holds —
+                  see computeVirtualRange/FILTER_LIST_*. Select-all/shift-range above still
+                  operate on the full filterDetailValues array, so behavior is unaffected by how
+                  much of it is actually rendered.
+                -->
                 <template v-else>
-                  <label
-                    v-for="v in filteredValuesFor(filterDetailCol)"
-                    :key="v"
-                    class="dt__dd-item dt__dd-item--clickable"
+                  <div
+                    ref="filterListRef"
+                    class="dt__filter-list"
+                    :style="{ height: FILTER_LIST_VIEWPORT_HEIGHT + 'px' }"
+                    @scroll="onFilterListScroll"
                   >
-                    <input
-                      type="checkbox"
-                      :checked="filters[filterDetailCol.key]?.has(v) ?? false"
-                      @click="onFilterValueClick(filterDetailCol, v, $event)"
-                    />
-                    <!--
-                      Slot #filter-{key} — custom label in the filter dropdown.
-                      Slot scope: { value: string }
-                      Falls back to the raw string value.
-                      Not applied to `type: 'date'` columns (DateTreeItem.vue below) — a tree
-                      branch node's label (a year/month) has no single raw value to pass through,
-                      and even a day leaf can bundle more than one raw value.
-                    -->
-                    <span class="dt__flex1">
-                      <slot :name="`filter-${filterDetailCol.key}`" :value="v">{{ v }}</slot>
-                    </span>
-                    <span class="dt__filter-count">{{ countFor(filterDetailCol, v) }}</span>
-                  </label>
+                    <div
+                      :style="{
+                        height: filterListVirtualRange.totalHeight + 'px',
+                        position: 'relative',
+                      }"
+                    >
+                      <div
+                        :style="{
+                          position: 'absolute',
+                          top: filterListVirtualRange.offsetY + 'px',
+                          left: 0,
+                          right: 0,
+                        }"
+                      >
+                        <label
+                          v-for="v in filterDetailValues.slice(
+                            filterListVirtualRange.startIndex,
+                            filterListVirtualRange.endIndex,
+                          )"
+                          :key="v"
+                          class="dt__dd-item dt__dd-item--clickable"
+                          :style="{
+                            height: FILTER_LIST_ITEM_HEIGHT + 'px',
+                            boxSizing: 'border-box',
+                          }"
+                        >
+                          <input
+                            type="checkbox"
+                            :checked="filters[filterDetailCol.key]?.has(v) ?? false"
+                            @click="onFilterValueClick(filterDetailCol, v, $event)"
+                          />
+                          <!--
+                            Slot #filter-{key} — custom label in the filter dropdown.
+                            Slot scope: { value: string }
+                            Falls back to the raw string value.
+                            Not applied to `type: 'date'` columns (DateTreeItem.vue below) — a
+                            tree branch node's label (a year/month) has no single raw value to
+                            pass through, and even a day leaf can bundle more than one raw value.
+                          -->
+                          <span class="dt__flex1">
+                            <slot :name="`filter-${filterDetailCol.key}`" :value="v">{{ v }}</slot>
+                          </span>
+                          <span class="dt__filter-count">{{ countFor(filterDetailCol, v) }}</span>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
                 </template>
               </template>
             </template>
@@ -1069,9 +1148,15 @@ function onColDragEnd(): void {
 }
 .dt__filter-detail {
   flex: 1;
-  overflow-y: auto;
   padding: 6px 0;
   min-width: 220px;
+}
+/* Fixed height (bound inline from FILTER_LIST_VIEWPORT_HEIGHT) + itemHeight are what make the
+   windowed-rendering math in computeVirtualRange exact — a column with thousands of distinct
+   values only ever mounts the rows scrolled into view. The search row above stays outside this
+   element (in normal flow), so it never scrolls away. */
+.dt__filter-list {
+  overflow-y: auto;
 }
 .dt__filter-search-row {
   display: flex;

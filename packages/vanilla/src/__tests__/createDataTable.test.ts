@@ -1716,3 +1716,56 @@ describe('createDataTable', () => {
     expect(colHeaders(container)).toEqual(expect.arrayContaining(['Name', 'Score', 'Dept']))
   })
 })
+
+describe('createDataTable — virtualized filter checklist', () => {
+  let container: HTMLDivElement
+
+  beforeEach(() => {
+    container = document.createElement('div')
+    document.body.appendChild(container)
+  })
+
+  afterEach(() => {
+    container.remove()
+  })
+
+  const MANY_COLS: ColumnDef<Row>[] = [{ key: 'name', label: 'Name', filterable: true }]
+  const MANY_ROWS: Row[] = Array.from({ length: 500 }, (_, i) => ({
+    id: i,
+    name: `Value ${String(i).padStart(4, '0')}`,
+    score: i,
+    dept: 'Eng',
+  }))
+
+  it('only mounts the rows scrolled into view, not every distinct value', () => {
+    createDataTable(container, { data: MANY_ROWS, columns: MANY_COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="filter"]')!)
+    const items = container.querySelectorAll('.dt-filter-list .dt-dd-item')
+    expect(items.length).toBeGreaterThan(0)
+    expect(items.length).toBeLessThan(50)
+  })
+
+  it('renders a different slice of values after scrolling', async () => {
+    createDataTable(container, { data: MANY_ROWS, columns: MANY_COLS, defaultPageSize: 10 })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="filter"]')!)
+    const list = container.querySelector<HTMLElement>('.dt-filter-list')!
+    expect(list.textContent).toContain('Value 0000')
+
+    Object.defineProperty(list, 'scrollTop', { value: 32 * 200, writable: true })
+    list.dispatchEvent(new Event('scroll'))
+    // scrollTop updates are throttled via requestAnimationFrame before the re-render.
+    await new Promise((resolve) => requestAnimationFrame(resolve))
+    await new Promise((resolve) => requestAnimationFrame(resolve))
+
+    const listAfter = container.querySelector<HTMLElement>('.dt-filter-list')!
+    expect(listAfter.textContent).not.toContain('Value 0000')
+    expect(listAfter.textContent).toContain('Value 0200')
+  })
+
+  it('select-all still selects every matching value, not just the rendered window', () => {
+    createDataTable(container, { data: MANY_ROWS, columns: MANY_COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="filter"]')!)
+    click(container.querySelector<HTMLElement>('[data-action="toggle-filter-all"]')!)
+    expect(container.querySelector('.dt-stats')?.textContent).toContain('500 / 500 rows')
+  })
+})

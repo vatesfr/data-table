@@ -272,6 +272,57 @@ describe('DataTable — filter dropdown', () => {
   })
 })
 
+describe('DataTable — virtualized filter checklist', () => {
+  const MANY_COLS: ColumnDef<Row>[] = [{ key: 'name', label: 'Name', filterable: true }]
+  const MANY_ROWS: Row[] = Array.from({ length: 500 }, (_, i) => ({
+    id: i,
+    name: `Value ${String(i).padStart(4, '0')}`,
+    score: i,
+  }))
+
+  it('only mounts the rows scrolled into view, not every distinct value', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: MANY_ROWS, columns: MANY_COLS, rowKey: 'id' },
+    })
+    const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
+    await filterBtn.trigger('click')
+    const items = wrapper.findAll('.dt__dd-item.dt__dd-item--clickable')
+    expect(items.length).toBeGreaterThan(0)
+    expect(items.length).toBeLessThan(50)
+  })
+
+  it('renders a different slice of values after scrolling', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: MANY_ROWS, columns: MANY_COLS, rowKey: 'id', defaultPageSize: 10 },
+    })
+    const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
+    await filterBtn.trigger('click')
+    const list = wrapper.find('.dt__filter-list')
+    expect(list.text()).toContain('Value 0000')
+
+    Object.defineProperty(list.element, 'scrollTop', { value: 32 * 200, writable: true })
+    await list.trigger('scroll')
+    // scrollTop updates are throttled via requestAnimationFrame before the re-render.
+    await new Promise((resolve) => requestAnimationFrame(resolve))
+    await new Promise((resolve) => requestAnimationFrame(resolve))
+    await wrapper.vm.$nextTick()
+
+    const listAfter = wrapper.find('.dt__filter-list')
+    expect(listAfter.text()).not.toContain('Value 0000')
+    expect(listAfter.text()).toContain('Value 0200')
+  })
+
+  it('select-all still selects every matching value, not just the rendered window', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: MANY_ROWS, columns: MANY_COLS, rowKey: 'id' },
+    })
+    const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
+    await filterBtn.trigger('click')
+    await wrapper.find('.dt__filter-select-all').trigger('change')
+    expect(wrapper.text()).toContain('500 / 500 rows')
+  })
+})
+
 describe('DataTable — filter value sort', () => {
   interface TagRow {
     id: number

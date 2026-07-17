@@ -278,6 +278,62 @@ describe('DataTable — filter dropdown', () => {
   })
 })
 
+describe('DataTable — virtualized filter checklist', () => {
+  const MANY_COLS: ColumnDef<Row>[] = [{ key: 'name', label: 'Name', filterable: true }]
+  const MANY_ROWS: Row[] = Array.from({ length: 500 }, (_, i) => ({
+    id: i,
+    name: `Value ${String(i).padStart(4, '0')}`,
+    score: i,
+  }))
+
+  function scrollableList(container: HTMLElement): HTMLElement {
+    const el = [...container.querySelectorAll<HTMLElement>('div')].find(
+      (d) => d.style.overflowY === 'auto' && d.style.height,
+    )
+    if (!el) throw new Error('virtualized checklist container not found')
+    return el
+  }
+
+  it('only mounts the rows scrolled into view, not every distinct value', () => {
+    const { container, getByText } = render(
+      <DataTable data={MANY_ROWS} columns={MANY_COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Filter'))
+    const checkboxes = container.querySelectorAll(
+      '.dt-filter-list-item, label input[type="checkbox"]',
+    )
+    // 500 distinct names exist, but only a small window (viewport/rowHeight + overscan) mounts.
+    expect(checkboxes.length).toBeGreaterThan(0)
+    expect(checkboxes.length).toBeLessThan(50)
+  })
+
+  it('renders a different slice of values after scrolling', async () => {
+    const { container, getByText, queryByLabelText } = render(
+      <DataTable data={MANY_ROWS} columns={MANY_COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Filter'))
+    expect(queryByLabelText('Value 0000', { exact: false })).toBeTruthy()
+
+    const list = scrollableList(container)
+    fireEvent.scroll(list, { target: { scrollTop: 32 * 200 } })
+    // scrollTop updates are throttled via requestAnimationFrame before the re-render.
+    await new Promise((resolve) => requestAnimationFrame(resolve))
+    await new Promise((resolve) => requestAnimationFrame(resolve))
+
+    expect(queryByLabelText('Value 0000', { exact: false })).toBeNull()
+    expect(queryByLabelText('Value 0200', { exact: false })).toBeTruthy()
+  })
+
+  it('select-all still selects every matching value, not just the rendered window', () => {
+    const { getByText, getByLabelText } = render(
+      <DataTable data={MANY_ROWS} columns={MANY_COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Filter'))
+    fireEvent.click(getByLabelText('Select all'))
+    expect(getByText(`500 / 500 rows`)).toBeTruthy()
+  })
+})
+
 describe('DataTable — filter value sort', () => {
   interface TagRow {
     id: number
