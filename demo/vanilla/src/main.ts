@@ -363,8 +363,12 @@ const VIEW_KEYS: Record<string, { storageKey: string; paramName: string }> = {
   huge: { storageKey: 'dt-demo-huge-dataset', paramName: 'huge' },
 }
 
+// Explicit background/color (not just a border) — a bare <button> doesn't inherit the page's
+// text color in most browsers (UA stylesheets give buttons their own default, often black
+// regardless of the page's own color-scheme), so without this the text renders unreadably dark
+// on the dark theme's near-black background. Matches the theme/locale toggle buttons' style.
 const VIEW_BTN_STYLE =
-  'padding:5px 12px;border-radius:6px;border:0.5px solid var(--color-border-secondary);background:none;cursor:pointer;font-size:13px;font-family:inherit'
+  'padding:4px 10px;border-radius:6px;border:1px solid var(--color-border-secondary);cursor:pointer;background:var(--color-background-primary);color:var(--color-text-secondary);font-size:13px;font-family:inherit'
 
 // Markup for the "Copy share link" / "Reset" pair shown above every table. Lives outside each
 // table's own container div (a table's render() rebuilds its container's innerHTML on every
@@ -490,8 +494,8 @@ app.innerHTML = `
       Call <code>table.setData()</code> to push new rows at any time. This table's sort/filter/group
       state persists too, independently of the data itself.
     </p>
-    <button id="add-row-btn" style="padding:5px 12px;border-radius:6px;border:0.5px solid var(--color-border-secondary);
-      background:none;cursor:pointer;font-size:13px;font-family:inherit;margin-bottom:12px">+ Add random row</button>
+    <button id="add-row-btn" style="padding:4px 10px;border-radius:6px;border:1px solid var(--color-border-secondary);
+      background:var(--color-background-primary);color:var(--color-text-secondary);cursor:pointer;font-size:13px;font-family:inherit;margin-bottom:12px">+ Add random row</button>
     ${renderViewControls('dynamic')}
     <div id="table3"></div>
 
