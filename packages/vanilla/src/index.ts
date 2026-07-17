@@ -13,7 +13,6 @@ import {
   getDateSortIcon,
   computeAggregate,
   getColumnValue,
-  paginateData,
   calcTotalPages,
   toggleSort as coreToggleSort,
   toggleFilter as coreToggleFilter,
@@ -23,6 +22,9 @@ import {
   toggleGroupBy,
   toggleCollapse,
   getVisibleRows,
+  paginateVisibleGroups,
+  paginateVisibleItems,
+  mergePageSizeOptions,
   isGroupCollapsed,
   isSameVisibleItem,
   indexOfVisibleItem,
@@ -45,6 +47,7 @@ import {
   type DateTreeNode,
   type ValueSort,
   type VisibleItem,
+  type PagedGroup,
 } from '@vates/data-table-core'
 import type { ColumnDef, DataTableOptions, DataTableInstance } from './types'
 import { STYLES } from './styles'
@@ -135,18 +138,22 @@ export function createDataTable<TRow extends object>(
 
   // Updated by derive(), read by event handlers
   let _processedData: TRow[] = []
-  let _groupedData: Array<{ key: string | null; keyParts: string[]; rows: TRow[] }> = []
+  let _groupedData: PagedGroup<TRow>[] = []
   let _numPages = 1
   let _clampedPage = 1
   let _filterDetailValues: string[] = []
   let _filterDetailTree: DateTreeNode[] = []
-  // Items actually rendered, in display order — a group header for every group (even a
-  // collapsed one, so it stays reachable) plus its rows unless it's collapsed, same as the
-  // condition the row-building loop below already applies. This is the Up/Down/Home/End
-  // navigation order for the roving-tabindex focus (see "Keyboard navigation").
+  // Every item across the *full* filtered/grouped dataset (not just this page) in display order —
+  // a group header for every group (even a collapsed one, so it stays reachable) plus its rows
+  // unless it's collapsed. Grouping over the full dataset first, then paginating this flattened
+  // sequence (see `paginateVisibleGroups`/`paginateVisibleItems`), is what lets a page's row
+  // budget count header rows alongside data rows instead of paginating data rows first and
+  // grouping whatever lands on that page afterward — see "Pagination" in the docs.
   let _visibleItems: VisibleItem<TRow>[] = []
-  // `_visibleItems` narrowed to what's actually a valid Tab stop right now: group headers always
-  // are, data rows only when the table is otherwise interactive (selectable or onRowClick).
+  // `_visibleItems` sliced to this page and narrowed to what's actually a valid Tab stop right
+  // now: group headers always are, data rows only when the table is otherwise interactive
+  // (selectable or onRowClick). This is the Up/Down/Home/End navigation order (see "Keyboard
+  // navigation").
   let _navigableItems: VisibleItem<TRow>[] = []
 
   function derive() {
@@ -166,10 +173,20 @@ export function createDataTable<TRow extends object>(
       columns,
       L.emptyValue,
     )
-    _numPages = calcTotalPages(_processedData.length, pageSize)
+    // Grouping runs over the *full* filtered/sorted data, not a page's slice — see the
+    // `_visibleItems` comment above.
+    const groupedFull = groupData(_processedData, groupBy, columns, L.emptyValue)
+    _visibleItems = getVisibleRows(groupedFull, collapsedGroups, defaultGroupsCollapsed)
+    _numPages = calcTotalPages(_visibleItems.length, pageSize)
     _clampedPage = Math.min(page, Math.max(1, _numPages))
-    const pagedData = paginateData(_processedData, _clampedPage, pageSize)
-    _groupedData = groupData(pagedData, groupBy, columns, L.emptyValue)
+    _groupedData = paginateVisibleGroups(
+      groupedFull,
+      _visibleItems,
+      collapsedGroups,
+      defaultGroupsCollapsed,
+      _clampedPage,
+      pageSize,
+    )
     const orderedColumns = getOrderedColumns(columns, columnOrder)
     const activeColumns = orderedColumns.filter(
       (c) => visibleCols.has(c.key) && !groupBy.includes(c.key),
@@ -235,16 +252,13 @@ export function createDataTable<TRow extends object>(
   }
 
   // Arrow-key/Ctrl+Home/Ctrl+End navigation can target an item that isn't on the current page —
-  // `_visibleItems` only covers `_groupedData`, which is built from the current page's slice.
-  // This recomputes the same pipeline (paginate → group → flatten-visible) for an arbitrary page,
-  // on demand, so a boundary key press can find the item it needs to jump to.
+  // `_visibleItems` already covers the *full* filtered/grouped dataset, so jumping to an arbitrary
+  // page is just slicing it again (with the same continuation-header handling as the current
+  // page), no re-grouping needed.
   function visibleItemsForPage(p: number): VisibleItem<TRow>[] {
-    const paged = paginateData(_processedData, p, pageSize)
-    return getVisibleRows(
-      groupData(paged, groupBy, columns, L.emptyValue),
-      collapsedGroups,
-      defaultGroupsCollapsed,
-    ).filter((item) => item.kind === 'group' || selectable || !!onRowClick)
+    return paginateVisibleItems(_visibleItems, p, pageSize).filter(
+      (item) => item.kind === 'group' || selectable || !!onRowClick,
+    )
   }
 
   /** Shared by the checkbox click handler and keyboard Space/Shift+Arrow — see toggleRowSelection in React/Vue. */
@@ -288,10 +302,10 @@ export function createDataTable<TRow extends object>(
     return esc(v != null ? String(v) : '')
   }
 
-  function aggStr(col: ColumnDef<TRow>, rows: TRow[]): string {
+  function aggStr(col: ColumnDef<TRow>, rows: TRow[], sampleRow: TRow): string {
     const v = computeAggregate(col, rows)
     if (v === undefined || v === null) return ''
-    return formatStr(v, rows[0], col)
+    return formatStr(v, sampleRow, col)
   }
 
   function cellStr(row: TRow, col: ColumnDef<TRow>): string {
@@ -334,9 +348,10 @@ export function createDataTable<TRow extends object>(
       selectedRows,
     } = derive()
 
-    _visibleItems = getVisibleRows(_groupedData, collapsedGroups, defaultGroupsCollapsed)
     const rowNavEnabled = selectable || !!onRowClick
-    _navigableItems = _visibleItems.filter((item) => item.kind === 'group' || rowNavEnabled)
+    _navigableItems = paginateVisibleItems(_visibleItems, _clampedPage, pageSize).filter(
+      (item) => item.kind === 'group' || rowNavEnabled,
+    )
     const effectiveFocusTarget =
       focusTarget && indexOfVisibleItem(_navigableItems, focusTarget) !== -1
         ? focusTarget
@@ -540,7 +555,10 @@ export function createDataTable<TRow extends object>(
       html += `<button class="dt-btn" data-action="clear-all" style="margin-left:4px">${esc(L.clearAll)}</button>`
     }
 
-    html += `<span class="dt-stats">${esc(L.rowCount(_processedData.length, data.length))}${groupBy.length > 0 ? esc(L.groupCount(_groupedData.length)) : ''}</span>`
+    // A group split across a page boundary contributes a second ("continued") chunk to
+    // `_groupedData` — deduped by key here so it isn't double-counted.
+    const pageGroupCount = new Set(_groupedData.map((g) => g.key)).size
+    html += `<span class="dt-stats">${esc(L.rowCount(_processedData.length, data.length))}${groupBy.length > 0 ? esc(L.groupCount(pageGroupCount)) : ''}</span>`
     html += `</div>` // toolbar
 
     // --- Active chips ---
@@ -587,7 +605,7 @@ export function createDataTable<TRow extends object>(
       return `<tr class="${trClass}" data-row-key="${esc(String(rk))}" data-action="row-click" data-proc-idx="${procIdx}"${tabIndexAttr}${ariaSelectedAttr}>`
     }
 
-    for (const { key: gkey, keyParts, rows } of _groupedData) {
+    for (const { key: gkey, keyParts, rows, continued, sampleRow } of _groupedData) {
       if (gkey !== null) {
         const isCollapsed = isGroupCollapsed(collapsedGroups, gkey, defaultGroupsCollapsed)
         const gAllSel = rows.length > 0 && rows.every((r) => selection.has(r))
@@ -602,12 +620,13 @@ export function createDataTable<TRow extends object>(
         for (let gi = 0; gi < groupBy.length; gi++) {
           const gColKey = groupBy[gi]
           const gCol = columns.find((c) => c.key === gColKey)
-          const raw = gCol ? getColumnValue(gCol, rows[0]) : undefined
+          const raw = gCol ? getColumnValue(gCol, sampleRow!) : undefined
           const value = Array.isArray(raw) ? keyParts[gi] : raw
           if (gi > 0) html += `<span class="dt-group-sep"> › </span>`
           html += `<span class="dt-group-colname">${esc(gCol?.label ?? gColKey)}:</span> `
-          html += gCol ? formatStr(value, rows[0], gCol) : esc(String(value ?? ''))
+          html += gCol ? formatStr(value, sampleRow!, gCol) : esc(String(value ?? ''))
         }
+        if (continued) html += ` <span class="dt-group-continued">${esc(L.groupContinued)}</span>`
         html += ` <span class="dt-group-count">${esc(L.rowsInGroup(rows.length))}</span></td></tr>`
 
         if (hasAgg) {
@@ -615,7 +634,7 @@ export function createDataTable<TRow extends object>(
           if (selectable) html += `<td class="dt-agg-td" style="width:36px"></td>`
           html += `<td class="dt-agg-td" style="width:28px"></td>`
           for (const col of activeColumns) {
-            html += `<td class="dt-agg-td">${aggStr(col, rows)}</td>`
+            html += `<td class="dt-agg-td">${aggStr(col, rows, sampleRow!)}</td>`
           }
           html += `</tr>`
         }
@@ -669,7 +688,7 @@ export function createDataTable<TRow extends object>(
       html += `<button class="dt-page-btn" data-action="page-last"${_clampedPage >= _numPages ? ' disabled' : ''}>»</button>`
       html += `<span class="dt-rows-per-page">${esc(L.rowsPerPage)}:</span>`
       html += `<select class="dt-page-select" data-action="set-page-size">`
-      for (const n of [10, 20, 50, 100]) {
+      for (const n of mergePageSizeOptions([10, 20, 50, 100], pageSize)) {
         html += `<option value="${n}"${pageSize === n ? ' selected' : ''}>${n}</option>`
       }
       html += `</select></div>`

@@ -665,6 +665,15 @@ describe('DataTable — keyboard navigation across pages', () => {
     await btn.trigger('click')
   }
 
+  it('the rows-per-page dropdown includes and selects a custom defaultPageSize not among the defaults', () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS6, columns: COLS, rowKey: 'id', defaultPageSize: 2 },
+    })
+    const select = wrapper.find('select').element as HTMLSelectElement
+    expect([...select.options].map((o) => o.value)).toEqual(['2', '10', '20', '50', '100'])
+    expect(select.value).toBe('2')
+  })
+
   it('ArrowDown on the last row of a page moves to the first row of the next page', async () => {
     const wrapper = mount(DataTable, {
       props: { data: ROWS6, columns: COLS, rowKey: 'id', selectable: true, defaultPageSize: 2 },
@@ -932,6 +941,86 @@ describe('DataTable — keyboard navigation with grouping', () => {
     await groupByDept(wrapper)
     expect(wrapper.text()).toContain('Alice')
     wrapper.unmount()
+  })
+})
+
+describe('DataTable — pagination with grouping', () => {
+  interface GroupRow {
+    id: number
+    name: string
+    dept: string
+  }
+
+  const GROUP_COLS: ColumnDef<GroupRow>[] = [
+    { key: 'name', label: 'Name' },
+    { key: 'dept', label: 'Department', groupable: true },
+  ]
+
+  const GROUP_ROWS: GroupRow[] = [
+    { id: 1, name: 'Alice', dept: 'Eng' },
+    { id: 2, name: 'Bob', dept: 'Eng' },
+    { id: 3, name: 'Clara', dept: 'HR' },
+    { id: 4, name: 'David', dept: 'HR' },
+  ]
+
+  function groupHeaderRows(wrapper: ReturnType<typeof mount>) {
+    return wrapper.findAll('.dt__group-row')
+  }
+
+  function tableRows(wrapper: ReturnType<typeof mount>) {
+    return wrapper.findAll('tbody tr:not(.dt__agg-row)')
+  }
+
+  async function groupByDept(wrapper: ReturnType<typeof mount>): Promise<void> {
+    const groupBtn = wrapper.findAll('button').find((b) => b.text() === 'Group')!
+    await groupBtn.trigger('click')
+    const deptItem = wrapper.findAll('.dt__dd-item').find((el) => el.text().includes('Department'))!
+    await deptItem.trigger('click')
+  }
+
+  async function clickNextPage(wrapper: ReturnType<typeof mount>): Promise<void> {
+    const btn = wrapper.findAll('button').find((b) => b.text() === '›')!
+    await btn.trigger('click')
+  }
+
+  it('counts header rows toward the page budget, so a page never renders more than pageSize rows', async () => {
+    const wrapper = mount(DataTable, {
+      props: {
+        data: GROUP_ROWS,
+        columns: GROUP_COLS,
+        rowKey: 'id',
+        defaultPageSize: 2,
+        defaultGroupsCollapsed: false,
+      },
+    })
+    await groupByDept(wrapper)
+    // 2 headers + 4 rows = 6 visible items; pageSize 2 => page 1 is [header Eng, Alice]
+    expect(tableRows(wrapper)).toHaveLength(2)
+    expect(wrapper.text()).toContain('Alice')
+    expect(wrapper.text()).not.toContain('Bob')
+  })
+
+  it("repeats a split group's header, marked as continued, on the page its rows continue onto", async () => {
+    const wrapper = mount(DataTable, {
+      props: {
+        data: GROUP_ROWS,
+        columns: GROUP_COLS,
+        rowKey: 'id',
+        defaultPageSize: 2,
+        defaultGroupsCollapsed: false,
+      },
+    })
+    await groupByDept(wrapper)
+    await clickNextPage(wrapper) // -> page 2: [Bob (Eng, continued), header HR (no rows here)]
+    expect(wrapper.text()).toContain('Bob')
+    expect(wrapper.text()).not.toContain('Alice')
+    const engHeader = groupHeaderRows(wrapper).find((h) => h.text().includes('Eng'))!
+    expect(engHeader.text()).toContain('cont')
+    // HR's header lands as the very last item on this page with none of its own rows following
+    // until the next page — it must still render its label instead of crashing on empty `rows`.
+    const hrHeader = groupHeaderRows(wrapper).find((h) => h.text().includes('HR'))!
+    expect(hrHeader).toBeTruthy()
+    expect(hrHeader.text()).not.toContain('cont')
   })
 })
 

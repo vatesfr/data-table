@@ -281,6 +281,93 @@ describe('useTableState — pagination', () => {
   })
 })
 
+describe('useTableState — pagination with grouping', () => {
+  interface DeptRow {
+    id: number
+    name: string
+    dept: string
+  }
+  const DEPT_COLS: ColumnDef<DeptRow>[] = [
+    { key: 'name', label: 'Name' },
+    { key: 'dept', label: 'Department', groupable: true },
+  ]
+  const DEPT_ROWS: DeptRow[] = [
+    { id: 1, name: 'Alice', dept: 'Eng' },
+    { id: 2, name: 'Bob', dept: 'Eng' },
+    { id: 3, name: 'Clara', dept: 'HR' },
+    { id: 4, name: 'David', dept: 'HR' },
+  ]
+
+  it('counts header rows toward numPages, growing when expanded vs. the 4 data rows alone', () => {
+    const { result } = renderHook(() =>
+      useTableState(DEPT_ROWS, DEPT_COLS, undefined, undefined, 2, false),
+    )
+    act(() => {
+      result.current.toggleGroup('dept')
+    })
+    // 2 headers + 4 rows = 6 visible items, pageSize 2 => 3 pages (not 2, as pure data pagination would give)
+    expect(result.current.numPages).toBe(3)
+  })
+
+  it("splits an expanded group's rows across a page boundary and repeats its header as a continued chunk", () => {
+    const { result } = renderHook(() =>
+      useTableState(DEPT_ROWS, DEPT_COLS, undefined, undefined, 2, false),
+    )
+    act(() => {
+      result.current.toggleGroup('dept')
+    })
+    expect(result.current.groupedData).toEqual([
+      {
+        key: 'Eng',
+        keyParts: ['Eng'],
+        rows: [DEPT_ROWS[0]],
+        continued: false,
+        sampleRow: DEPT_ROWS[0],
+      },
+    ])
+    act(() => {
+      result.current.setPage(2)
+    })
+    expect(result.current.groupedData).toEqual([
+      {
+        key: 'Eng',
+        keyParts: ['Eng'],
+        rows: [DEPT_ROWS[1]],
+        continued: true,
+        sampleRow: DEPT_ROWS[0],
+      },
+      { key: 'HR', keyParts: ['HR'], rows: [], continued: false, sampleRow: DEPT_ROWS[2] },
+    ])
+  })
+
+  it("backfills a collapsed group's rows from the full group instead of whatever page its header lands on", () => {
+    // defaultGroupsCollapsed defaults to true (6th arg omitted)
+    const { result } = renderHook(() =>
+      useTableState(DEPT_ROWS, DEPT_COLS, undefined, undefined, 2),
+    )
+    act(() => {
+      result.current.toggleGroup('dept')
+    })
+    // Both groups collapsed => visible items are just the 2 headers, all fitting on page 1
+    expect(result.current.numPages).toBe(1)
+    expect(result.current.groupedData.find((g) => g.key === 'Eng')?.rows).toEqual([
+      DEPT_ROWS[0],
+      DEPT_ROWS[1],
+    ])
+  })
+
+  it('pagedData reflects the data rows actually visible on the page, not a flat pageSize slice', () => {
+    const { result } = renderHook(() =>
+      useTableState(DEPT_ROWS, DEPT_COLS, undefined, undefined, 2, false),
+    )
+    act(() => {
+      result.current.toggleGroup('dept')
+    })
+    // page 1 budget: 1 header + 1 data row = 2 items, so only Alice is a *data* row here
+    expect(result.current.pagedData).toEqual([DEPT_ROWS[0]])
+  })
+})
+
 describe('useTableState — filters reset page', () => {
   it('toggleFilter resets page to 1', () => {
     const { result } = renderHook(() => useTableState(ROWS, COLS, undefined, undefined, 2))

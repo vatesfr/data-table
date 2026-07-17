@@ -913,6 +913,13 @@ describe('createDataTable', () => {
     expect(container.querySelector('.dt-pagination')).toBeNull()
   })
 
+  it('the rows-per-page dropdown includes and selects a custom defaultPageSize not among the defaults', () => {
+    createDataTable(container, { data: ROWS, columns: COLS, defaultPageSize: 2 })
+    const select = container.querySelector<HTMLSelectElement>('.dt-page-select')!
+    expect([...select.options].map((o) => o.value)).toEqual(['2', '10', '20', '50', '100'])
+    expect(select.value).toBe('2')
+  })
+
   // --- row selection ---
 
   it('renders checkboxes when selectable is true', () => {
@@ -1416,6 +1423,45 @@ describe('createDataTable', () => {
     click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="group"]')!)
     click(container.querySelector<HTMLElement>('[data-action="toggle-group"][data-key="dept"]')!)
     expect(container.querySelectorAll('.dt-tr').length).toBeGreaterThan(0)
+  })
+
+  // --- pagination with grouping ---
+  // ROWS groups as Eng:[Alice, Clara], HR:[Bob, David] (first-seen order) => visible items are
+  // [header Eng, Alice, Clara, header HR, Bob, David], 6 items total.
+
+  it('counts header rows toward the page budget, so a page never renders more than pageSize rows', () => {
+    createDataTable(container, {
+      data: ROWS,
+      columns: COLS,
+      defaultPageSize: 2,
+      defaultGroupsCollapsed: false,
+    })
+    groupByDept()
+    // pageSize 2 => page 1 is [header Eng, Alice]: 1 header row + 1 data row
+    expect(groupHeaderRows(container)).toHaveLength(1)
+    expect(container.querySelectorAll('.dt-tr')).toHaveLength(1)
+    expect(container.textContent).toContain('Alice')
+    expect(container.textContent).not.toContain('Clara')
+  })
+
+  it("repeats a split group's header, marked as continued, on the page its rows continue onto", () => {
+    createDataTable(container, {
+      data: ROWS,
+      columns: COLS,
+      defaultPageSize: 2,
+      defaultGroupsCollapsed: false,
+    })
+    groupByDept()
+    click(container.querySelector<HTMLElement>('[data-action="page-next"]')!) // -> page 2: [Clara (Eng, continued), header HR (no rows here)]
+    expect(container.textContent).toContain('Clara')
+    expect(container.textContent).not.toContain('Alice')
+    const engHeader = groupHeaderRows(container).find((h) => h.textContent?.includes('Eng'))!
+    expect(engHeader.textContent).toContain('cont')
+    // HR's header lands as the very last item on this page with none of its own rows following
+    // until the next page — it must still render its label instead of crashing on empty `rows`.
+    const hrHeader = groupHeaderRows(container).find((h) => h.textContent?.includes('HR'))!
+    expect(hrHeader).toBeTruthy()
+    expect(hrHeader.textContent).not.toContain('cont')
   })
 
   // --- search ---

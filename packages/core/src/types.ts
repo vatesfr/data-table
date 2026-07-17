@@ -95,6 +95,8 @@ export interface DataTableLabels {
   groupCount: (count: number) => string
   groupLabel: (index: number) => string
   rowsInGroup: (count: number) => string
+  /** Marker shown on a group header that repeats mid-way down a page — see "Pagination" — because the group's rows split across a page boundary */
+  groupContinued: string
   rowsPerPage: string
   pageOf: (page: number, total: number) => string
   search: string

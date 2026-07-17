@@ -650,6 +650,15 @@ describe('DataTable — keyboard navigation across pages', () => {
     fireEvent.click([...container.querySelectorAll('button')].find((b) => b.textContent === '›')!)
   }
 
+  it('the rows-per-page dropdown includes and selects a custom defaultPageSize not among the defaults', () => {
+    const { container } = render(
+      <DataTable data={ROWS6} columns={COLS} rowKey="id" defaultPageSize={2} />,
+    )
+    const select = container.querySelector('select')!
+    expect([...select.options].map((o) => o.value)).toEqual(['2', '10', '20', '50', '100'])
+    expect(select.value).toBe('2')
+  })
+
   it('ArrowDown on the last row of a page moves to the first row of the next page', () => {
     const { container } = render(
       <DataTable data={ROWS6} columns={COLS} rowKey="id" selectable defaultPageSize={2} />,
@@ -889,6 +898,50 @@ describe('DataTable — keyboard navigation with grouping', () => {
     )
     groupByDept(getByText, getAllByText)
     expect(queryByText('Alice')).toBeTruthy()
+  })
+
+  it('counts header rows toward the page budget, so a page never renders more than pageSize rows', () => {
+    const { getByText, getAllByText, container } = render(
+      <DataTable
+        data={GROUP_ROWS}
+        columns={GROUP_COLS}
+        rowKey="id"
+        defaultPageSize={2}
+        defaultGroupsCollapsed={false}
+      />,
+    )
+    groupByDept(getByText, getAllByText)
+    // 2 headers + 4 rows = 6 visible items; pageSize 2 => page 1 is [header Eng, Alice]
+    expect(container.querySelectorAll('tbody tr')).toHaveLength(2)
+    expect(container.textContent).toContain('Alice')
+    expect(container.textContent).not.toContain('Bob')
+  })
+
+  it("repeats a split group's header, marked as continued, on the page its rows continue onto", () => {
+    const { getByText, getAllByText, container } = render(
+      <DataTable
+        data={GROUP_ROWS}
+        columns={GROUP_COLS}
+        rowKey="id"
+        defaultPageSize={2}
+        defaultGroupsCollapsed={false}
+      />,
+    )
+    groupByDept(getByText, getAllByText)
+    const nextPageBtn = [...container.querySelectorAll('button')].find(
+      (b) => b.textContent === '›',
+    )!
+    fireEvent.click(nextPageBtn) // -> page 2: [Bob (Eng, continued), header HR (no rows of its own here)]
+    expect(container.textContent).toContain('Bob')
+    expect(container.textContent).not.toContain('Alice')
+    const engHeader = groupHeaderRows(container).find((h) => h.textContent?.includes('Eng'))!
+    expect(engHeader.textContent).toContain('cont')
+    // HR's header lands as the very last item on this page with none of its own rows following
+    // until the next page — it must still render its label (from a full-group sample row) instead
+    // of crashing on an empty `rows` array.
+    const hrHeader = groupHeaderRows(container).find((h) => h.textContent?.includes('HR'))!
+    expect(hrHeader).toBeTruthy()
+    expect(hrHeader.textContent).not.toContain('cont')
   })
 })
 

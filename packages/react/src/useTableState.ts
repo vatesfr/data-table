@@ -3,10 +3,12 @@ import {
   processData,
   searchData,
   groupData,
-  computeStringValues,
-  computeStringValueCounts,
+  getVisibleRows,
+  paginateVisibleGroups,
   paginateData,
   calcTotalPages,
+  computeStringValues,
+  computeStringValueCounts,
   toggleSort as _toggleSort,
   toggleFilter as _toggleFilter,
   toggleFilterAll as _toggleFilterAll,
@@ -78,19 +80,45 @@ export function useTableState<TRow extends object>(
     [data, searchQuery, columns, filters, rangeFilters, sorts, L.emptyValue],
   )
 
-  const numPages = useMemo(
-    () => calcTotalPages(processedData.length, pageSize),
-    [processedData.length, pageSize],
+  // Grouping runs over the *full* filtered/sorted data, not a page's slice, so pagination (below)
+  // can budget page size across header rows and data rows together instead of paginating data
+  // rows first and grouping whatever lands on that page afterward — see "Pagination" in the docs.
+  const groupedFull = useMemo(
+    () => groupData(processedData, groupBy, columns, L.emptyValue),
+    [processedData, groupBy, columns, L.emptyValue],
   )
 
+  const visibleItems = useMemo(
+    () => getVisibleRows(groupedFull, collapsedGroups, defaultGroupsCollapsed),
+    [groupedFull, collapsedGroups, defaultGroupsCollapsed],
+  )
+
+  const numPages = useMemo(
+    () => calcTotalPages(visibleItems.length, pageSize),
+    [visibleItems.length, pageSize],
+  )
+
+  const clampedPage = Math.min(page, numPages)
+
   const pagedData = useMemo(
-    () => paginateData(processedData, Math.min(page, numPages), pageSize),
-    [processedData, page, numPages, pageSize],
+    () =>
+      paginateData(visibleItems, clampedPage, pageSize)
+        .filter((item) => item.kind === 'row')
+        .map((item) => item.row),
+    [visibleItems, clampedPage, pageSize],
   )
 
   const groupedData = useMemo(
-    () => groupData(pagedData, groupBy, columns, L.emptyValue),
-    [pagedData, groupBy, columns, L.emptyValue],
+    () =>
+      paginateVisibleGroups(
+        groupedFull,
+        visibleItems,
+        collapsedGroups,
+        defaultGroupsCollapsed,
+        clampedPage,
+        pageSize,
+      ),
+    [groupedFull, visibleItems, collapsedGroups, defaultGroupsCollapsed, clampedPage, pageSize],
   )
 
   const activeColumns = useMemo(
@@ -135,6 +163,7 @@ export function useTableState<TRow extends object>(
     processedData,
     pagedData,
     groupedData,
+    visibleItems,
     activeColumns,
     orderedColumns,
     stringValueMap,

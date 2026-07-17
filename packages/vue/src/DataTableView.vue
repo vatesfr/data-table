@@ -15,13 +15,12 @@ import {
   findDateTreeNode,
   selectDateRange,
   selectRange,
-  getVisibleRows,
   isGroupCollapsed,
   isSameVisibleItem,
   indexOfVisibleItem,
-  paginateData,
-  groupData,
-  type GroupResult,
+  paginateVisibleItems,
+  mergePageSizeOptions,
+  type PagedGroup,
   type DateTreeNode,
   type ValueSort,
   type VisibleItem,
@@ -67,6 +66,7 @@ const {
   selectedRows,
   processedData,
   groupedData,
+  visibleItems,
   activeColumns,
   orderedColumns,
   stringValueMap,
@@ -116,11 +116,11 @@ const focusTarget = shallowRef<VisibleItem<TRow> | null>(null)
 const rowRefs = new Map<TRow | string, HTMLTableRowElement>()
 
 const isRowNavEnabled = computed(() => props.selectable || isRowClickable.value)
-const visibleItems = computed(() =>
-  getVisibleRows(groupedData.value, collapsedGroups.value, defaultGroupsCollapsed.value),
+const pageVisibleItems = computed(() =>
+  paginateVisibleItems(visibleItems.value, page.value, pageSize.value),
 )
 const navigableItems = computed(() =>
-  visibleItems.value.filter((item) => item.kind === 'group' || isRowNavEnabled.value),
+  pageVisibleItems.value.filter((item) => item.kind === 'group' || isRowNavEnabled.value),
 )
 const effectiveFocusTarget = computed(() =>
   focusTarget.value && indexOfVisibleItem(navigableItems.value, focusTarget.value) !== -1
@@ -135,6 +135,15 @@ function isFocusTarget(item: VisibleItem<TRow>): boolean {
 function groupCollapsed(key: string): boolean {
   return isGroupCollapsed(collapsedGroups.value, key, defaultGroupsCollapsed.value)
 }
+
+// Distinct group count on this page — not `groupedData.length`, since a group split across a
+// page boundary contributes a second ("continued") chunk that shouldn't be double-counted.
+const pageGroupCount = computed(() => new Set(groupedData.value.map((g) => g.key)).size)
+
+// A plain <select> bound to a value absent from its own options (e.g. a custom defaultPageSize
+// not in the four defaults) silently shows the wrong option as selected — merge the current
+// pageSize in so the dropdown always reflects it.
+const pageSizeOptions = computed(() => mergePageSizeOptions([10, 20, 50, 100], pageSize.value))
 
 function setItemRef(key: TRow | string, el: Element | null): void {
   if (el) rowRefs.set(key, el as HTMLTableRowElement)
@@ -152,20 +161,13 @@ function focusItem(target: VisibleItem<TRow>): void {
 }
 
 // Arrow-key/Ctrl+Home/Ctrl+End navigation can target an item that isn't on the current page —
-// `visibleItems` only covers `groupedData`, which is built from the current page's slice. This
-// recomputes the same pipeline (paginate → group → flatten-visible) for an arbitrary page, on
-// demand, so a boundary key press can find the item it needs to jump to.
+// `visibleItems` (from `table`) already covers the *full* filtered/grouped dataset, so jumping to
+// an arbitrary page is just slicing it again (with the same continuation-header handling as the
+// current page), no re-grouping needed.
 function visibleItemsForPage(p: number): VisibleItem<TRow>[] {
-  return getVisibleRows(
-    groupData(
-      paginateData(processedData.value, p, pageSize.value),
-      groupBy.value,
-      props.columns,
-      L.value.emptyValue,
-    ),
-    collapsedGroups.value,
-    defaultGroupsCollapsed.value,
-  ).filter((item) => item.kind === 'group' || isRowNavEnabled.value)
+  return paginateVisibleItems(visibleItems.value, p, pageSize.value).filter(
+    (item) => item.kind === 'group' || isRowNavEnabled.value,
+  )
 }
 
 // Changing `page` re-renders asynchronously, so an item on the new page can't be focused until
@@ -442,9 +444,9 @@ function findCol(key: string): ColumnDef<TRow> | undefined {
 }
 
 /** The value that defines a group for column `key` at groupBy index `i` — a single array item when the underlying value is an array, the raw value otherwise. */
-function groupValue(group: GroupResult<TRow>, key: string, i: number): unknown {
+function groupValue(group: PagedGroup<TRow>, key: string, i: number): unknown {
   const col = findCol(key)
-  const raw = col ? getColumnValue(col, group.rows[0]) : undefined
+  const raw = col ? getColumnValue(col, group.sampleRow!) : undefined
   return Array.isArray(raw) ? group.keyParts[i] : raw
 }
 
@@ -720,7 +722,7 @@ function onColDragEnd(): void {
 
       <div class="dt__stats">
         {{ L.rowCount(processedData.length, data.length) }}
-        <template v-if="groupBy.length > 0">{{ L.groupCount(groupedData.length) }}</template>
+        <template v-if="groupBy.length > 0">{{ L.groupCount(pageGroupCount) }}</template>
       </div>
     </div>
 
@@ -760,7 +762,7 @@ function onColDragEnd(): void {
         :value="pageSize"
         @change="setPageSize(Number(($event.target as HTMLSelectElement).value))"
       >
-        <option v-for="n in [10, 20, 50, 100]" :key="n" :value="n">{{ n }}</option>
+        <option v-for="n in pageSizeOptions" :key="n" :value="n">{{ n }}</option>
       </select>
     </div>
 
@@ -843,14 +845,21 @@ function onColDragEnd(): void {
                     Slot scope: { value: unknown, row: TRow }
                     Falls back to format() or string coercion.
                   -->
-                  <slot :name="`group-${g}`" :value="groupValue(group, g, i)" :row="group.rows[0]">
+                  <slot
+                    :name="`group-${g}`"
+                    :value="groupValue(group, g, i)"
+                    :row="group.sampleRow!"
+                  >
                     {{
                       findCol(g)
-                        ? formatValue(groupValue(group, g, i), group.rows[0], findCol(g)!)
+                        ? formatValue(groupValue(group, g, i), group.sampleRow!, findCol(g)!)
                         : String(groupValue(group, g, i) ?? '')
                     }}
                   </slot>
                 </template>
+                <span v-if="group.continued" class="dt__group-continued">{{
+                  L.groupContinued
+                }}</span>
                 <span class="dt__group-count">{{ L.rowsInGroup(group.rows.length) }}</span>
               </td>
             </tr>
@@ -864,7 +873,7 @@ function onColDragEnd(): void {
                   (() => {
                     const v = computeAggregate(col, group.rows)
                     if (v === undefined || v === null) return ''
-                    return col.format ? col.format(v, group.rows[0]) : String(v)
+                    return col.format ? col.format(v, group.sampleRow!) : String(v)
                   })()
                 }}
               </td>
@@ -1288,6 +1297,11 @@ function onColDragEnd(): void {
 }
 .dt__group-count {
   margin-left: 10px;
+  font-weight: 400;
+  opacity: 0.6;
+}
+.dt__group-continued {
+  margin-left: 8px;
   font-weight: 400;
   opacity: 0.6;
 }

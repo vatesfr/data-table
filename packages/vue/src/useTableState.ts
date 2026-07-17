@@ -3,10 +3,12 @@ import {
   processData,
   searchData,
   groupData,
-  computeStringValues,
-  computeStringValueCounts,
+  getVisibleRows,
+  paginateVisibleGroups,
   paginateData,
   calcTotalPages,
+  computeStringValues,
+  computeStringValueCounts,
   toggleSort as _toggleSort,
   toggleFilter as _toggleFilter,
   toggleFilterAll as _toggleFilterAll,
@@ -90,14 +92,36 @@ export function useTableState<TRow extends object>(
     ),
   )
 
-  const numPages = computed(() => calcTotalPages(processedData.value.length, pageSize.value))
+  // Grouping runs over the *full* filtered/sorted data, not a page's slice, so pagination (below)
+  // can budget page size across header rows and data rows together instead of paginating data
+  // rows first and grouping whatever lands on that page afterward — see "Pagination" in the docs.
+  const groupedFull = computed(() =>
+    groupData(processedData.value, groupBy.value, columns.value, L.value.emptyValue),
+  )
+
+  const visibleItems = computed(() =>
+    getVisibleRows(groupedFull.value, collapsedGroups.value, defaultGroupsCollapsed.value),
+  )
+
+  const numPages = computed(() => calcTotalPages(visibleItems.value.length, pageSize.value))
+
+  const clampedPage = computed(() => Math.min(page.value, numPages.value))
 
   const pagedData = computed(() =>
-    paginateData(processedData.value, Math.min(page.value, numPages.value), pageSize.value),
+    paginateData(visibleItems.value, clampedPage.value, pageSize.value)
+      .filter((item) => item.kind === 'row')
+      .map((item) => item.row),
   )
 
   const groupedData = computed(() =>
-    groupData(pagedData.value, groupBy.value, columns.value, L.value.emptyValue),
+    paginateVisibleGroups(
+      groupedFull.value,
+      visibleItems.value,
+      collapsedGroups.value,
+      defaultGroupsCollapsed.value,
+      clampedPage.value,
+      pageSize.value,
+    ),
   )
 
   const activeColumns = computed(() =>
@@ -131,6 +155,7 @@ export function useTableState<TRow extends object>(
     processedData,
     pagedData,
     groupedData,
+    visibleItems,
     activeColumns,
     orderedColumns,
     stringValueMap,

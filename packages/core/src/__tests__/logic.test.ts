@@ -4,6 +4,9 @@ import {
   searchData,
   groupData,
   getVisibleRows,
+  paginateVisibleGroups,
+  paginateVisibleItems,
+  mergePageSizeOptions,
   isSameVisibleItem,
   indexOfVisibleItem,
   computeStringValues,
@@ -442,7 +445,9 @@ describe('groupData', () => {
 describe('getVisibleRows', () => {
   it('flattens an ungrouped result (single null-key group) as-is, with no group header items', () => {
     const groups = groupData(ROWS, [])
-    expect(getVisibleRows(groups, new Set())).toEqual(ROWS.map((row) => ({ kind: 'row', row })))
+    expect(getVisibleRows(groups, new Set())).toEqual(
+      ROWS.map((row) => ({ kind: 'row', row, groupKey: null })),
+    )
   })
 
   it('includes one group header item per group plus its rows in order when none are collapsed', () => {
@@ -471,6 +476,130 @@ describe('getVisibleRows', () => {
     const visible = getVisibleRows(groups, new Set(['Eng']), true)
     expect(visible.some((i) => i.kind === 'row' && i.row.dept === 'Eng')).toBe(true)
     expect(visible.some((i) => i.kind === 'row' && i.row.dept === 'HR')).toBe(false)
+  })
+})
+
+// ─── paginateVisibleGroups ───────────────────────────────────────────────────
+
+describe('paginateVisibleGroups', () => {
+  // groupData(ROWS, ['dept']) => Eng:[Alice, Clara], HR:[Bob, David] (first-seen order)
+  it("splits an expanded group's rows across pages and repeats its header as 'continued'", () => {
+    const groupedFull = groupData(ROWS, ['dept'])
+    const visible = getVisibleRows(groupedFull, new Set())
+    // visible = [group Eng, row Alice, row Clara, group HR, row Bob, row David] (6 items)
+
+    const page1 = paginateVisibleGroups(groupedFull, visible, new Set(), false, 1, 2)
+    expect(page1).toEqual([
+      { key: 'Eng', keyParts: ['Eng'], rows: [ROWS[0]], continued: false, sampleRow: ROWS[0] },
+    ])
+
+    const page2 = paginateVisibleGroups(groupedFull, visible, new Set(), false, 2, 2)
+    expect(page2).toEqual([
+      { key: 'Eng', keyParts: ['Eng'], rows: [ROWS[2]], continued: true, sampleRow: ROWS[0] },
+      { key: 'HR', keyParts: ['HR'], rows: [], continued: false, sampleRow: ROWS[1] },
+    ])
+
+    const page3 = paginateVisibleGroups(groupedFull, visible, new Set(), false, 3, 2)
+    expect(page3).toEqual([
+      {
+        key: 'HR',
+        keyParts: ['HR'],
+        rows: [ROWS[1], ROWS[3]],
+        continued: true,
+        sampleRow: ROWS[1],
+      },
+    ])
+  })
+
+  it("backfills a collapsed group's rows from the full group instead of its (empty) visible slice", () => {
+    const groupedFull = groupData(ROWS, ['dept'])
+    const collapsedGroups = new Set(['Eng'])
+    const visible = getVisibleRows(groupedFull, collapsedGroups)
+    // visible = [group Eng (collapsed, no rows), group HR, row Bob, row David] (4 items)
+
+    const chunks = paginateVisibleGroups(groupedFull, visible, collapsedGroups, false, 1, 10)
+    expect(chunks).toEqual([
+      {
+        key: 'Eng',
+        keyParts: ['Eng'],
+        rows: [ROWS[0], ROWS[2]],
+        continued: false,
+        sampleRow: ROWS[0],
+      },
+      {
+        key: 'HR',
+        keyParts: ['HR'],
+        rows: [ROWS[1], ROWS[3]],
+        continued: false,
+        sampleRow: ROWS[1],
+      },
+    ])
+  })
+
+  it('reduces to plain data-row pagination with a single null-key chunk when ungrouped', () => {
+    const groupedFull = groupData(ROWS, [])
+    const visible = getVisibleRows(groupedFull, new Set())
+    const page1 = paginateVisibleGroups(groupedFull, visible, new Set(), false, 1, 2)
+    expect(page1).toEqual([
+      {
+        key: null,
+        keyParts: [],
+        rows: [ROWS[0], ROWS[1]],
+        continued: false,
+        sampleRow: ROWS[0],
+      },
+    ])
+  })
+
+  it('counts header rows toward the page budget: numPages grows with an expanded group, shrinks when collapsed', () => {
+    const groupedFull = groupData(ROWS, ['dept'])
+    const expanded = getVisibleRows(groupedFull, new Set())
+    const collapsed = getVisibleRows(groupedFull, new Set(['Eng', 'HR']))
+    expect(calcTotalPages(expanded.length, 2)).toBe(3) // 6 items (2 headers + 4 rows) / 2
+    expect(calcTotalPages(collapsed.length, 2)).toBe(1) // 2 header-only items
+  })
+})
+
+// ─── paginateVisibleItems ────────────────────────────────────────────────────
+
+describe('paginateVisibleItems', () => {
+  it("prepends a synthetic continuation header when a page's slice starts mid-group", () => {
+    const groupedFull = groupData(ROWS, ['dept'])
+    const visible = getVisibleRows(groupedFull, new Set())
+    const page2 = paginateVisibleItems(visible, 2, 2)
+    expect(page2).toEqual([
+      { kind: 'group', key: 'Eng' },
+      { kind: 'row', row: ROWS[2], groupKey: 'Eng' },
+      { kind: 'group', key: 'HR' },
+    ])
+  })
+
+  it('does not prepend anything when a page starts on a real header or ungrouped data', () => {
+    const groupedFull = groupData(ROWS, ['dept'])
+    const visible = getVisibleRows(groupedFull, new Set())
+    const page1 = paginateVisibleItems(visible, 1, 2)
+    expect(page1[0]).toEqual({ kind: 'group', key: 'Eng' })
+
+    const ungrouped = getVisibleRows(groupData(ROWS, []), new Set())
+    const ungroupedPage2 = paginateVisibleItems(ungrouped, 2, 2)
+    expect(ungroupedPage2).toEqual([
+      { kind: 'row', row: ROWS[2], groupKey: null },
+      { kind: 'row', row: ROWS[3], groupKey: null },
+    ])
+  })
+})
+
+// ─── mergePageSizeOptions ─────────────────────────────────────────────────────
+
+describe('mergePageSizeOptions', () => {
+  it('returns the base list unchanged when pageSize is already an option', () => {
+    expect(mergePageSizeOptions([10, 20, 50, 100], 20)).toEqual([10, 20, 50, 100])
+  })
+
+  it('inserts a custom pageSize in sorted order when absent from the base list', () => {
+    expect(mergePageSizeOptions([10, 20, 50, 100], 5)).toEqual([5, 10, 20, 50, 100])
+    expect(mergePageSizeOptions([10, 20, 50, 100], 30)).toEqual([10, 20, 30, 50, 100])
+    expect(mergePageSizeOptions([10, 20, 50, 100], 200)).toEqual([10, 20, 50, 100, 200])
   })
 })
 

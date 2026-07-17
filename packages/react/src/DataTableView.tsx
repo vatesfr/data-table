@@ -22,12 +22,11 @@ import {
   findDateTreeNode,
   selectDateRange,
   selectRange,
-  getVisibleRows,
   isGroupCollapsed,
   isSameVisibleItem,
   indexOfVisibleItem,
-  paginateData,
-  groupData,
+  paginateVisibleItems,
+  mergePageSizeOptions,
   type DateTreeNode,
   type ValueSort,
   type VisibleItem,
@@ -338,6 +337,7 @@ export function DataTableView<TRow extends object>({
     defaultGroupsCollapsed,
     processedData,
     groupedData,
+    visibleItems,
     activeColumns,
     orderedColumns,
     stringValueMap,
@@ -404,8 +404,8 @@ export function DataTableView<TRow extends object>({
   // sequence when they're actually interactive; group headers always do, since collapsing a
   // group is already a click away regardless of selectable/onRowClick.
   const rowNavEnabled = selectable || !!onRowClick
-  const visibleItems = getVisibleRows(groupedData, collapsedGroups, defaultGroupsCollapsed)
-  const navigableItems = visibleItems.filter((item) => item.kind === 'group' || rowNavEnabled)
+  const pageVisibleItems = paginateVisibleItems(visibleItems, page, pageSize)
+  const navigableItems = pageVisibleItems.filter((item) => item.kind === 'group' || rowNavEnabled)
   const effectiveFocusTarget =
     focusTarget && indexOfVisibleItem(navigableItems, focusTarget) !== -1
       ? focusTarget
@@ -420,15 +420,13 @@ export function DataTableView<TRow extends object>({
   }
 
   // Arrow-key/Ctrl+Home/Ctrl+End navigation can target an item that isn't on the current page —
-  // `visibleItems` only covers `groupedData`, which is built from the current page's slice. This
-  // recomputes the same pipeline (paginate → group → flatten-visible) for an arbitrary page, on
-  // demand, so a boundary key press can find the item it needs to jump to.
+  // `visibleItems` (from `table`) already covers the *full* filtered/grouped dataset, so jumping
+  // to an arbitrary page is just slicing it again (with the same continuation-header handling as
+  // the current page), no re-grouping needed.
   const visibleItemsForPage = (p: number): VisibleItem<TRow>[] =>
-    getVisibleRows(
-      groupData(paginateData(processedData, p, pageSize), groupBy, columns, L.emptyValue),
-      collapsedGroups,
-      defaultGroupsCollapsed,
-    ).filter((item) => item.kind === 'group' || rowNavEnabled)
+    paginateVisibleItems(visibleItems, p, pageSize).filter(
+      (item) => item.kind === 'group' || rowNavEnabled,
+    )
 
   // Changing `page` re-renders asynchronously, so an item on the new page can't be focused until
   // after that render commits — this records the target and a `useEffect` below picks it up.
@@ -1009,7 +1007,7 @@ export function DataTableView<TRow extends object>({
 
         <div style={S.stats}>
           {L.rowCount(processedData.length, data.length)}
-          {groupBy.length > 0 && L.groupCount(groupedData.length)}
+          {groupBy.length > 0 && L.groupCount(new Set(groupedData.map((g) => g.key)).size)}
         </div>
       </div>
 
@@ -1135,7 +1133,7 @@ export function DataTableView<TRow extends object>({
             </tr>
           </thead>
           <tbody>
-            {groupedData.map(({ key: gkey, keyParts, rows }) => {
+            {groupedData.map(({ key: gkey, keyParts, rows, continued, sampleRow }) => {
               const isCollapsed =
                 gkey !== null && isGroupCollapsed(collapsedGroups, gkey, defaultGroupsCollapsed)
               return [
@@ -1170,16 +1168,21 @@ export function DataTableView<TRow extends object>({
                     <td colSpan={activeColumns.length} style={S.groupTd}>
                       {groupBy.map((g, i) => {
                         const col = columns.find((c) => c.key === g)
-                        const raw = col ? getColumnValue(col, rows[0]) : undefined
+                        const raw = col ? getColumnValue(col, sampleRow!) : undefined
                         const value = Array.isArray(raw) ? keyParts[i] : raw
                         return (
                           <span key={g}>
                             {i > 0 && <span style={{ margin: '0 4px', opacity: 0.4 }}>›</span>}
                             <span style={{ marginRight: 4, opacity: 0.6 }}>{col?.label}:</span>
-                            {col ? formatValue(value, rows[0], col) : String(value ?? '')}
+                            {col ? formatValue(value, sampleRow!, col) : String(value ?? '')}
                           </span>
                         )
                       })}
+                      {continued && (
+                        <span style={{ marginLeft: 8, fontWeight: 400, opacity: 0.6 }}>
+                          {L.groupContinued}
+                        </span>
+                      )}
                       <span style={{ marginLeft: 10, fontWeight: 400, opacity: 0.6 }}>
                         {L.rowsInGroup(rows.length)}
                       </span>
@@ -1196,7 +1199,7 @@ export function DataTableView<TRow extends object>({
                         <td key={col.key} style={S.aggTd}>
                           {v !== undefined && v !== null
                             ? col.format
-                              ? col.format(v, rows[0])
+                              ? col.format(v, sampleRow!)
                               : String(v)
                             : null}
                         </td>
@@ -1301,7 +1304,7 @@ export function DataTableView<TRow extends object>({
             onChange={(e) => setPageSize(Number(e.target.value))}
             style={S.pageSelect}
           >
-            {[10, 20, 50, 100].map((n) => (
+            {mergePageSizeOptions([10, 20, 50, 100], pageSize).map((n) => (
               <option key={n} value={n}>
                 {n}
               </option>

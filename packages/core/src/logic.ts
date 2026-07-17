@@ -134,8 +134,14 @@ export function groupData<TRow extends object>(
   return Object.entries(groups).map(([key, { keyParts, rows }]) => ({ key, keyParts, rows }))
 }
 
-/** A single keyboard-navigable target in the table body: a group header row, or a data row. */
-export type VisibleItem<TRow> = { kind: 'group'; key: string } | { kind: 'row'; row: TRow }
+/**
+ * A single keyboard-navigable target in the table body: a group header row, or a data row.
+ * `groupKey` on a row item is the key of its enclosing group (`null` when ungrouped), set by
+ * `getVisibleRows` — `paginateVisibleGroups`/`paginateVisibleItems` use it to tell whether a
+ * page's leading rows belong to a group whose header rendered on an earlier page.
+ */
+export type VisibleItem<TRow> =
+  { kind: 'group'; key: string } | { kind: 'row'; row: TRow; groupKey?: string | null }
 
 /**
  * Flattens `groupData`'s result into the items actually rendered, in display order — a group
@@ -143,7 +149,9 @@ export type VisibleItem<TRow> = { kind: 'group'; key: string } | { kind: 'row'; 
  * its rows unless it's collapsed, the same condition each adapter's own render already applies.
  * This is the order used for keyboard arrow-key navigation: a collapsed group's rows are not
  * valid Up/Down targets, but its header always is, and expanding/collapsing a group changes what
- * else is reachable.
+ * else is reachable. Called with the *full* filtered/grouped data (not a page's slice) so that
+ * pagination — see `paginateVisibleGroups`/`paginateVisibleItems` — can budget page size across
+ * header and data rows together, instead of paginating data rows first and grouping afterward.
  */
 export function getVisibleRows<TRow extends object>(
   groups: GroupResult<TRow>[],
@@ -151,10 +159,10 @@ export function getVisibleRows<TRow extends object>(
   defaultCollapsed = false,
 ): VisibleItem<TRow>[] {
   return groups.flatMap(({ key, rows }): VisibleItem<TRow>[] => {
-    if (key === null) return rows.map((row) => ({ kind: 'row', row }))
+    if (key === null) return rows.map((row) => ({ kind: 'row', row, groupKey: null }))
     const rowItems: VisibleItem<TRow>[] = isGroupCollapsed(collapsedGroups, key, defaultCollapsed)
       ? []
-      : rows.map((row) => ({ kind: 'row', row }))
+      : rows.map((row) => ({ kind: 'row', row, groupKey: key }))
     return [{ kind: 'group', key }, ...rowItems]
   })
 }
@@ -575,6 +583,117 @@ export function paginateData<TRow extends object>(
 export function calcTotalPages(count: number, pageSize: number): number {
   if (pageSize <= 0) return 1
   return Math.max(1, Math.ceil(count / pageSize))
+}
+
+/**
+ * A `GroupResult` re-chunked for one page of `paginateVisibleGroups`'s output. `continued` marks
+ * a chunk whose header is a *repeat* — the group's real header rendered on an earlier page and
+ * this page picks its rows back up — so the UI can show it as e.g. "Engineering (cont'd)" instead
+ * of rendering headerless orphan rows. `sampleRow` is a representative row of the group (always
+ * present when `key` is non-null), independent of whether `rows` happens to be empty *on this
+ * page* — a header can legitimately land as the very last item of a page's budget with none of
+ * its own rows following until the next page, so header rendering (which needs some row to read
+ * the groupBy column's real value/format from) can't always rely on `rows[0]`.
+ */
+export interface PagedGroup<TRow extends object> extends GroupResult<TRow> {
+  continued: boolean
+  sampleRow: TRow | undefined
+}
+
+/**
+ * Re-chunks a page's slice of `visibleItems` (the *full*, unpaginated flattening from
+ * `getVisibleRows`) back into per-group chunks for rendering — undoing the flattening, scoped to
+ * one page. This is what lets a page's row budget (`pageSize`) count header rows alongside data
+ * rows: pagination happens once, over the whole flattened sequence, rather than the old
+ * paginate-data-rows-then-group-the-slice order (which let a page silently render `pageSize` data
+ * rows *plus* however many header rows landed on top of them).
+ *
+ * A collapsed group contributes exactly one item to `visibleItems` — its header, no rows — so it
+ * can never split across a page boundary; its `rows` here are backfilled from `groupedFull`
+ * instead of accumulated from the (empty) visible slice, since a collapsed group's rows never
+ * entered the paginated flow and have no "this page's portion" to fall back to. This is also just
+ * the more useful answer: collapsing a group is usually precisely so its aggregate/select-all
+ * reflect the *whole* group, not whatever fraction happens to share the current page. An expanded
+ * group's rows, by contrast, do consume page budget and may split across pages — a chunk that
+ * picks up mid-group (no header item at the start of this page's slice) is marked `continued` and
+ * still gets its `keyParts` from `groupedFull`, purely for the repeated-header label.
+ */
+export function paginateVisibleGroups<TRow extends object>(
+  groupedFull: GroupResult<TRow>[],
+  visibleItems: VisibleItem<TRow>[],
+  collapsedGroups: Set<string>,
+  defaultCollapsed: boolean,
+  page: number,
+  pageSize: number,
+): PagedGroup<TRow>[] {
+  const rowsByKey = new Map(groupedFull.filter((g) => g.key !== null).map((g) => [g.key!, g.rows]))
+  const keyPartsByKey = new Map(
+    groupedFull.filter((g) => g.key !== null).map((g) => [g.key!, g.keyParts]),
+  )
+  const pageItems = paginateData(visibleItems, page, pageSize)
+
+  const chunks: PagedGroup<TRow>[] = []
+  let current: PagedGroup<TRow> | null = null
+  for (const item of pageItems) {
+    if (item.kind === 'group') {
+      const collapsed = isGroupCollapsed(collapsedGroups, item.key, defaultCollapsed)
+      current = {
+        key: item.key,
+        keyParts: keyPartsByKey.get(item.key) ?? [],
+        rows: collapsed ? (rowsByKey.get(item.key) ?? []) : [],
+        continued: false,
+        sampleRow: rowsByKey.get(item.key)?.[0],
+      }
+      chunks.push(current)
+    } else {
+      const groupKey = item.groupKey ?? null
+      if (current === null || current.key !== groupKey) {
+        current = {
+          key: groupKey,
+          keyParts: groupKey !== null ? (keyPartsByKey.get(groupKey) ?? []) : [],
+          rows: [],
+          continued: groupKey !== null,
+          sampleRow: groupKey !== null ? rowsByKey.get(groupKey)?.[0] : item.row,
+        }
+        chunks.push(current)
+      }
+      current.rows.push(item.row)
+    }
+  }
+  return chunks
+}
+
+/**
+ * The page's flat navigable sequence for keyboard nav — like slicing `visibleItems` by page, but
+ * if the slice starts with row items whose group's header rendered on an earlier page (an
+ * expanded group split across the page boundary), a synthetic group item for that key is
+ * prepended so the repeated ("continued") header — a real, focusable row once rendered — is a
+ * valid Tab stop here too, matching `paginateVisibleGroups`'s own chunking.
+ */
+export function paginateVisibleItems<TRow extends object>(
+  visibleItems: VisibleItem<TRow>[],
+  page: number,
+  pageSize: number,
+): VisibleItem<TRow>[] {
+  const pageItems = paginateData(visibleItems, page, pageSize)
+  const first = pageItems[0]
+  if (first?.kind === 'row' && first.groupKey != null) {
+    return [{ kind: 'group', key: first.groupKey }, ...pageItems]
+  }
+  return pageItems
+}
+
+/**
+ * The "Rows per page" dropdown's option list, guaranteed to include `pageSize` itself — a plain
+ * `<select>` bound to a value absent from its own `<option>`s (e.g. `defaultPageSize: 5` against
+ * the default `[10, 20, 50, 100]` choices) silently shows the wrong option as selected, since the
+ * browser falls back to the first one rather than leaving nothing selected. Inserting the current
+ * value keeps the dropdown honest for any custom `defaultPageSize`/`setPageSize` call, not just
+ * the four defaults.
+ */
+export function mergePageSizeOptions(options: number[], pageSize: number): number[] {
+  if (options.includes(pageSize)) return options
+  return [...options, pageSize].sort((a, b) => a - b)
 }
 
 export function searchData<TRow extends object>(

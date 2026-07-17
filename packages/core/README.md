@@ -11,6 +11,7 @@ You don't need this package directly if you're using `@vates/data-table-react` o
 ```ts
 ColumnDefBase<TRow extends object>  // column definition (key, label, type, value, format, sortable, multiMode, …)
 GroupResult<TRow extends object>    // { key, keyParts, rows } — one entry per group from groupData
+PagedGroup<TRow extends object>     // GroupResult + { continued, sampleRow } — one page's chunk from paginateVisibleGroups
 SortEntry                           // { key: string; dir: 'asc' | 'desc' }
 RangeFilter                         // { min: string; max: string }
 ValueSort                           // { by: 'alpha' | 'count'; dir: 'asc' | 'desc' } — a filter checklist's value sort order
@@ -33,6 +34,9 @@ groupData(rows, groupBy, columns?, emptyLabel?) // group sorted rows; array-valu
 computeStringValues(data, columns, emptyLabel?) // build filter value lists; array values are flattened and deduped, empty arrays contribute emptyLabel
 paginateData(data, page, pageSize) // slice rows for the current page (pageSize 0 → all)
 calcTotalPages(count, pageSize) // total page count (pageSize 0 → 1)
+paginateVisibleGroups(groupedFull, visibleItems, collapsedGroups, defaultCollapsed, page, pageSize) // re-chunk a page's slice of visibleItems back into PagedGroup[] for rendering, counting header rows toward the page budget
+paginateVisibleItems(visibleItems, page, pageSize) // per-page slice of visibleItems for keyboard nav, with a synthetic continuation header prepended when the page starts mid-group
+mergePageSizeOptions(options, pageSize) // insert pageSize into a "rows per page" option list (sorted) if it's missing, so a custom page size still shows correctly in a <select>
 toggleSort(sorts, key) // cycle asc → desc → off
 toggleFilter(filters, key, value) // toggle a checklist value
 filterValuesBySearch(values, term) // narrow a checklist's values by a case-insensitive substring
