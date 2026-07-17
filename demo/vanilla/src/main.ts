@@ -276,6 +276,7 @@ const COLUMNS: ColumnDef<Employee>[] = [
     width: 100,
     value: (row) => new Date().getFullYear() - new Date(row.joined).getFullYear(),
     aggregate: 'avg',
+    format: (v) => Number(v).toLocaleString('en-US', { maximumFractionDigits: 1 }),
   },
   { key: 'status', label: 'Status', type: 'string', width: 90, groupable: true },
   // render returns a DOM node instead of a string, so it can build richer cells (bars, badges,

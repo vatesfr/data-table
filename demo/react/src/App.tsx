@@ -303,6 +303,7 @@ const COLUMNS: ColumnDef<Employee>[] = [
     width: 100,
     value: (row) => new Date().getFullYear() - new Date(row.joined).getFullYear(),
     aggregate: 'avg',
+    format: (v) => Number(v).toLocaleString('en-US', { maximumFractionDigits: 1 }),
   },
   // render + renderFilterLabel — badge consistent in cells and filter dropdown
   {
