@@ -8,7 +8,6 @@ import {
   paginateData,
   calcTotalPages,
   computeStringValues,
-  computeStringValueCounts,
   toggleSort as _toggleSort,
   toggleFilter as _toggleFilter,
   toggleFilterAll as _toggleFilterAll,
@@ -69,16 +68,6 @@ export function useTableState<TRow extends object>(
 
   const stringValueMap = computed(() =>
     computeStringValues(data.value, columns.value, L.value.emptyValue),
-  )
-
-  const stringValueCounts = computed(() =>
-    computeStringValueCounts(
-      data.value,
-      filters.value,
-      rangeFilters.value,
-      columns.value,
-      L.value.emptyValue,
-    ),
   )
 
   const processedData = computed(() =>
@@ -159,7 +148,6 @@ export function useTableState<TRow extends object>(
     activeColumns,
     orderedColumns,
     stringValueMap,
-    stringValueCounts,
     activeFilterCount,
     numPages,
     L,

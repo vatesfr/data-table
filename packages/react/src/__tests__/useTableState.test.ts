@@ -535,19 +535,9 @@ describe('useTableState — multi-value (array) columns', () => {
     expect(result.current.stringValueMap['tags']).toEqual(['Action', 'Adventure', 'RPG'])
   })
 
-  it('stringValueCounts tallies how many rows have each value', () => {
-    const { result } = renderHook(() => useTableState(GAMES, GAME_COLS))
-    expect(result.current.stringValueCounts['tags']?.get('Action')).toBe(2)
-    expect(result.current.stringValueCounts['tags']?.get('RPG')).toBe(1)
-  })
-
-  it("stringValueCounts for a column ignores that column's own active filter (faceted)", () => {
-    const { result } = renderHook(() => useTableState(GAMES, GAME_COLS))
-    act(() => {
-      result.current.toggleFilter('tags', 'RPG')
-    })
-    expect(result.current.stringValueCounts['tags']?.get('Action')).toBe(2)
-  })
+  // stringValueCounts (facet counts) moved out of useTableState into DataTableView — see
+  // DataTable.test.tsx's "filter dropdown" describe block for coverage of the rendered counts,
+  // and packages/core's logic.test.ts for the underlying computeStringValueCounts faceting logic.
 
   it('toggleFilter matches rows whose array contains the selected value', () => {
     const { result } = renderHook(() => useTableState(GAMES, GAME_COLS))

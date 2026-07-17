@@ -8,6 +8,7 @@ import {
 } from 'react'
 import {
   computeAggregate,
+  computeStringValueCounts,
   getColumnValue,
   filterValuesBySearch,
   filterValuesByCount,
@@ -342,7 +343,6 @@ export function DataTableView<TRow extends object>({
     activeColumns,
     orderedColumns,
     stringValueMap,
-    stringValueCounts,
     activeFilterCount,
     selection,
     selectedRows,
@@ -530,6 +530,18 @@ export function DataTableView<TRow extends object>({
       ? filterActiveCol
       : (filterableCols[0]?.key ?? null)
   const filterDetailCol = filterableCols.find((c) => c.key === filterActiveKey) ?? null
+  // The filter dropdown is master-detail — only filterDetailCol's checklist is ever rendered —
+  // so facet counts only need computing for that one column, not every filterable column (see
+  // computeStringValueCounts's targetKeys param). The React Compiler auto-memoizes this like
+  // everything else in the component — no manual useMemo needed.
+  const stringValueCounts = computeStringValueCounts(
+    data,
+    filters,
+    rangeFilters,
+    columns,
+    L.emptyValue,
+    filterActiveKey ? [filterActiveKey] : [],
+  )
   const valueSortFor = (key: string) => filterValueSort[key] ?? DEFAULT_VALUE_SORT
   const cycleFilterValueSort = (col: ColumnDef<TRow>) => {
     const current = valueSortFor(col.key)

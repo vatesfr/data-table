@@ -156,14 +156,28 @@ export function createDataTable<TRow extends object>(
   // navigation").
   let _navigableItems: VisibleItem<TRow>[] = []
 
+  // The filter dropdown is a master-detail layout — only one column's checklist is ever visible
+  // at a time — so facet counts only ever need computing for that one column, not every
+  // filterable column. `filterActiveCol` may be null or stale (a column that's since become
+  // non-filterable), so this mirrors the same fallback-to-first-filterable-column resolution
+  // used to pick which column's detail pane actually renders.
+  function resolveFilterActiveKey(filterableCols: ColumnDef<TRow>[]): string | null {
+    return filterActiveCol && filterableCols.some((c) => c.key === filterActiveCol)
+      ? filterActiveCol
+      : (filterableCols[0]?.key ?? null)
+  }
+
   function derive() {
     const stringValueMap = computeStringValues(data, columns, L.emptyValue)
+    const filterableCols = columns.filter((c) => c.filterable !== false)
+    const filterActiveKey = resolveFilterActiveKey(filterableCols)
     const stringValueCounts = computeStringValueCounts(
       data,
       filters,
       rangeFilters,
       columns,
       L.emptyValue,
+      filterActiveKey ? [filterActiveKey] : [],
     )
     _processedData = processData(
       searchData(data, searchQuery, columns),
@@ -366,10 +380,7 @@ export function createDataTable<TRow extends object>(
     const hasAgg = activeColumns.some((c) => c.aggregate !== undefined)
     const filterableCols = columns.filter((c) => c.filterable !== false)
     const groupableCols = columns.filter((c) => c.groupable === true)
-    const filterActiveKey =
-      filterActiveCol && filterableCols.some((c) => c.key === filterActiveCol)
-        ? filterActiveCol
-        : (filterableCols[0]?.key ?? null)
+    const filterActiveKey = resolveFilterActiveKey(filterableCols)
     const filterDetailCol = filterableCols.find((c) => c.key === filterActiveKey) ?? null
     _filterDetailValues =
       filterDetailCol && filterDetailCol.type !== 'number'

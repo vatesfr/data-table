@@ -2,6 +2,7 @@
 import { computed, ref, shallowRef, watch, useSlots, getCurrentInstance } from 'vue'
 import {
   computeAggregate,
+  computeStringValueCounts,
   getColumnValue,
   filterValuesBySearch,
   filterValuesByCount,
@@ -70,7 +71,6 @@ const {
   activeColumns,
   orderedColumns,
   stringValueMap,
-  stringValueCounts,
   activeFilterCount,
   page,
   pageSize,
@@ -322,6 +322,19 @@ const filterActiveKey = computed(
 )
 const filterDetailCol = computed(
   () => filterableCols.value.find((c) => c.key === filterActiveKey.value) ?? null,
+)
+// The filter dropdown is master-detail — only filterDetailCol's checklist is ever rendered —
+// so facet counts only need computing for that one column, not every filterable column (see
+// computeStringValueCounts's targetKeys param).
+const stringValueCounts = computed(() =>
+  computeStringValueCounts(
+    props.data,
+    filters.value,
+    rangeFilters.value,
+    props.columns,
+    L.value.emptyValue,
+    filterDetailCol.value ? [filterDetailCol.value.key] : [],
+  ),
 )
 function hasActiveColFilter(col: ColumnDef<TRow>): boolean {
   if (col.type === 'number') {
