@@ -8,7 +8,7 @@ import {
   filterValuesByCount,
   sortFilterValues,
   cycleValueSort,
-  toggleSortDir,
+  toggleSortDir as toggleValueSortDir,
   getValueSortIcon,
   getDateSortIcon,
   computeDateTree,
@@ -82,12 +82,19 @@ const {
   moveColumn,
   moveColumnBy,
   toggleSort,
+  removeSort,
+  toggleSortDir,
+  moveSortBy,
+  moveSort,
   toggleFilter,
   toggleFilterAll,
   setFilterValues,
   setRangeFilter,
   clearColumnFilter,
   toggleGroup,
+  removeGroup,
+  moveGroupBy,
+  moveGroup,
   toggleGroupCollapse,
   clearSorts,
   clearFilters,
@@ -355,7 +362,9 @@ function valueSortFor(key: string): ValueSort {
 function cycleFilterValueSort(col: ColumnDef<TRow>): void {
   const current = valueSortFor(col.key)
   const next =
-    col.type === 'date' ? { ...current, dir: toggleSortDir(current.dir) } : cycleValueSort(current)
+    col.type === 'date'
+      ? { ...current, dir: toggleValueSortDir(current.dir) }
+      : cycleValueSort(current)
   filterValueSort.value = { ...filterValueSort.value, [col.key]: next }
 }
 function filteredValuesFor(col: ColumnDef<TRow>): string[] {
@@ -527,6 +536,105 @@ function onColDragEnd(): void {
   dragColKey.value = null
   dragOverColKey.value = null
 }
+
+// Sort/Group dropdowns split into an "active" section (priority order, reorderable) and an
+// "add" section (everything else) — reordering only ever makes sense among active entries.
+const addableSortCols = computed(() => props.columns.filter((c) => getSortIndex(c.key) === null))
+const addableGroupCols = computed(() =>
+  groupableCols.value.filter((c) => !groupBy.value.includes(c.key)),
+)
+
+// Drag-and-drop reordering for the Sort dropdown's active entries — kept as its own independent
+// state (rather than reusing dragColKey/dragOverColKey above), mirroring how each dropdown gets
+// its own drag state instead of a shared one.
+const dragSortKey = ref<string | null>(null)
+const dragOverSortKey = ref<string | null>(null)
+function onSortDragStart(key: string): void {
+  dragSortKey.value = key
+}
+function onSortDragOver(key: string): void {
+  if (dragSortKey.value && dragSortKey.value !== key) dragOverSortKey.value = key
+}
+function onSortDrop(key: string): void {
+  if (dragSortKey.value && dragSortKey.value !== key) moveSort(dragSortKey.value, key)
+  dragSortKey.value = null
+  dragOverSortKey.value = null
+}
+function onSortDragEnd(): void {
+  dragSortKey.value = null
+  dragOverSortKey.value = null
+}
+// Alt+↑/↓ mirrors the drag gesture for keyboard-only reorder; Enter/Space mirrors the row's own
+// click (toggle direction) since a plain div gets no free keyboard activation the way a real
+// <button> would (unlike the add-list, which renders real buttons and needs no handler here).
+function onSortRowKeyDown(event: KeyboardEvent, key: string): void {
+  if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault()
+    toggleSortDir(key)
+  } else if (event.altKey && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {
+    event.preventDefault()
+    moveSortBy(key, event.key === 'ArrowUp' ? -1 : 1)
+  }
+}
+
+// Same as above, for the Group dropdown's active entries — a group entry has nothing to toggle
+// on click (no direction), so only Alt+↑/↓ reorder applies.
+const dragGroupKey = ref<string | null>(null)
+const dragOverGroupKey = ref<string | null>(null)
+function onGroupDragStart(key: string): void {
+  dragGroupKey.value = key
+}
+function onGroupDragOver(key: string): void {
+  if (dragGroupKey.value && dragGroupKey.value !== key) dragOverGroupKey.value = key
+}
+function onGroupDrop(key: string): void {
+  if (dragGroupKey.value && dragGroupKey.value !== key) moveGroup(dragGroupKey.value, key)
+  dragGroupKey.value = null
+  dragOverGroupKey.value = null
+}
+function onGroupDragEnd(): void {
+  dragGroupKey.value = null
+  dragOverGroupKey.value = null
+}
+function onGroupRowKeyDown(event: KeyboardEvent, key: string): void {
+  if (event.altKey && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {
+    event.preventDefault()
+    moveGroupBy(key, event.key === 'ArrowUp' ? -1 : 1)
+  }
+}
+
+// Drag-and-drop reordering for the Columns dropdown's rows — replaces the old ▲▼ buttons. The
+// row itself gets no tabindex: the checkbox inside is already a native Tab stop, so a second one
+// on the row would just be a redundant, visually-identical stop for the same rectangle.
+const dragColRowKey = ref<string | null>(null)
+const dragOverColRowKey = ref<string | null>(null)
+function onColRowDragStart(key: string): void {
+  dragColRowKey.value = key
+}
+function onColRowDragOver(key: string): void {
+  if (dragColRowKey.value && dragColRowKey.value !== key) dragOverColRowKey.value = key
+}
+function onColRowDrop(key: string): void {
+  if (dragColRowKey.value && dragColRowKey.value !== key) moveColumn(dragColRowKey.value, key)
+  dragColRowKey.value = null
+  dragOverColRowKey.value = null
+}
+function onColRowDragEnd(): void {
+  dragColRowKey.value = null
+  dragOverColRowKey.value = null
+}
+function onColRowKeyDown(event: KeyboardEvent, key: string): void {
+  if (event.altKey && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {
+    event.preventDefault()
+    moveColumnBy(key, event.key === 'ArrowUp' ? -1 : 1)
+  }
+}
+
+const searchInputRef = ref<HTMLInputElement | null>(null)
+function clearSearchQuery(): void {
+  setSearchQuery('')
+  searchInputRef.value?.focus()
+}
 </script>
 
 <template>
@@ -541,36 +649,28 @@ function onColDragEnd(): void {
           </template>
           <div class="dt__dd-section">{{ L.columnsSection }}</div>
           <div
-            v-for="(col, idx) in orderedColumns"
+            v-for="col in orderedColumns"
             :key="col.key"
-            class="dt__dd-item dt__dd-item--col"
+            class="dt__dd-item dt__dd-item--col dt__dd-item--colrow"
+            :class="{
+              'dt__dd-item--dragging': dragColRowKey === col.key,
+              'dt__dd-item--drag-over': dragOverColRowKey === col.key,
+            }"
+            draggable="true"
+            @dragstart="onColRowDragStart(col.key)"
+            @dragover.prevent="onColRowDragOver(col.key)"
+            @drop.prevent="onColRowDrop(col.key)"
+            @dragend="onColRowDragEnd"
           >
             <label class="dt__dd-item--clickable dt__flex1">
               <input
                 type="checkbox"
                 :checked="visibleCols.has(col.key)"
                 @change="toggleColVisibility(col.key)"
+                @keydown="onColRowKeyDown($event, col.key)"
               />
               {{ col.label }}
             </label>
-            <span class="dt__reorder-btns">
-              <button
-                type="button"
-                class="dt__reorder-btn"
-                :disabled="idx === 0"
-                @click="moveColumnBy(col.key, -1)"
-              >
-                ▲
-              </button>
-              <button
-                type="button"
-                class="dt__reorder-btn"
-                :disabled="idx === orderedColumns.length - 1"
-                @click="moveColumnBy(col.key, 1)"
-              >
-                ▼
-              </button>
-            </span>
           </div>
         </Dropdown>
 
@@ -582,25 +682,63 @@ function onColDragEnd(): void {
               <span v-if="sorts.length > 0" class="dt__chip">{{ sorts.length }}</span>
             </ToolbarBtn>
           </template>
-          <div class="dt__dd-section">{{ L.sortSection }}</div>
-          <div
-            v-for="col in columns"
-            :key="col.key"
-            class="dt__dd-item"
-            @click="toggleSort(col.key)"
-          >
-            <span class="dt__sort-idx">{{ getSortIndex(col.key) ?? '' }}</span>
-            <span class="dt__flex1">{{ col.label }}</span>
-            <span
-              :style="{
-                color: getSortIndex(col.key)
-                  ? 'var(--color-text-primary)'
-                  : 'var(--color-border-secondary)',
+          <template v-if="sorts.length > 0">
+            <div class="dt__dd-section">{{ L.activeSortsSection }}</div>
+            <!--
+              The whole row is the click target (toggles direction) and the drag source (reorder
+              priority); `×` stays a separate <button> (draggable="false" so starting a drag from
+              it doesn't also drag the row) since removing isn't something a row click/drag
+              should ever trigger. tabindex + @keydown give it Alt+↑/↓ reorder and
+              Enter/Space-to-toggle from the keyboard — a plain div gets no free keyboard
+              activation the way a real <button> would (unlike the add-list below).
+            -->
+            <div
+              v-for="(entry, i) in sorts"
+              :key="entry.key"
+              class="dt__dd-item dt__dd-item--col dt__dd-item--sortrow"
+              :class="{
+                'dt__dd-item--dragging': dragSortKey === entry.key,
+                'dt__dd-item--drag-over': dragOverSortKey === entry.key,
               }"
+              draggable="true"
+              tabindex="0"
+              @click="toggleSortDir(entry.key)"
+              @keydown="onSortRowKeyDown($event, entry.key)"
+              @dragstart="onSortDragStart(entry.key)"
+              @dragover.prevent="onSortDragOver(entry.key)"
+              @drop.prevent="onSortDrop(entry.key)"
+              @dragend="onSortDragEnd"
             >
-              {{ getSortIcon(col.key) }}
-            </span>
-          </div>
+              <span class="dt__sort-idx">{{ i + 1 }}</span>
+              <span class="dt__flex1">{{ findCol(entry.key)?.label ?? entry.key }}</span>
+              <span class="dt__sort-icon dt__sort-icon--active">{{ getSortIcon(entry.key) }}</span>
+              <button
+                type="button"
+                class="dt__item-remove"
+                draggable="false"
+                @click.stop="removeSort(entry.key)"
+              >
+                ×
+              </button>
+            </div>
+          </template>
+          <template v-if="addableSortCols.length > 0">
+            <div class="dt__dd-section">{{ L.sortSection }}</div>
+            <!--
+              A real <button> (not a div) so it's a native Tab stop and Enter/Space "click" it
+              for free — no manual tabindex/keydown wiring needed, unlike the active rows above
+              (which need custom keyboard handling anyway for Alt+↑/↓ reorder).
+            -->
+            <button
+              v-for="col in addableSortCols"
+              :key="col.key"
+              type="button"
+              class="dt__dd-item dt__dd-item--clickable"
+              @click="toggleSort(col.key)"
+            >
+              <span class="dt__flex1">{{ col.label }}</span>
+            </button>
+          </template>
           <div v-if="sorts.length > 0" class="dt__dd-footer">
             <button @click.stop="clearSorts">{{ L.clearSorts }}</button>
           </div>
@@ -616,16 +754,21 @@ function onColDragEnd(): void {
           </template>
           <div class="dt__filter-panel">
             <div class="dt__filter-cols">
-              <div
+              <!--
+                A real <button> (not a div) so it's a native Tab stop and Enter/Space "click" it
+                for free — same fix as the Sort/Group add-lists above; this had the identical gap.
+              -->
+              <button
                 v-for="col in filterableCols"
                 :key="col.key"
+                type="button"
                 class="dt__filter-col-item"
                 :class="{ 'dt__filter-col-item--active': col.key === filterActiveKey }"
                 @click="selectFilterCol(col.key)"
               >
                 <span>{{ col.label }}</span>
                 <span v-if="hasActiveColFilter(col)" class="dt__filter-col-dot" />
-              </div>
+              </button>
             </div>
             <div class="dt__filter-detail">
               <template v-if="filterDetailCol">
@@ -790,19 +933,53 @@ function onColDragEnd(): void {
               <span v-if="groupBy.length > 0" class="dt__chip">{{ groupBy.length }}</span>
             </ToolbarBtn>
           </template>
-          <div class="dt__dd-section">{{ L.groupSection }}</div>
-          <div
-            v-for="col in groupableCols"
-            :key="col.key"
-            class="dt__dd-item"
-            @click="toggleGroup(col.key)"
-          >
-            <span class="dt__sort-idx">{{
-              groupBy.includes(col.key) ? groupBy.indexOf(col.key) + 1 : ''
-            }}</span>
-            <span class="dt__flex1">{{ col.label }}</span>
-            <span v-if="groupBy.includes(col.key)">✓</span>
-          </div>
+          <template v-if="groupBy.length > 0">
+            <div class="dt__dd-section">{{ L.activeGroupsSection }}</div>
+            <!--
+              Same treatment as the Sort active rows, minus a click action — a group entry has
+              nothing to toggle (no direction), so the row is draggable/focusable purely for
+              reordering (drag, or Alt+↑/↓ when focused); `×` remove is the only button.
+            -->
+            <div
+              v-for="(key, i) in groupBy"
+              :key="key"
+              class="dt__dd-item dt__dd-item--col dt__dd-item--grouprow"
+              :class="{
+                'dt__dd-item--dragging': dragGroupKey === key,
+                'dt__dd-item--drag-over': dragOverGroupKey === key,
+              }"
+              draggable="true"
+              tabindex="0"
+              @keydown="onGroupRowKeyDown($event, key)"
+              @dragstart="onGroupDragStart(key)"
+              @dragover.prevent="onGroupDragOver(key)"
+              @drop.prevent="onGroupDrop(key)"
+              @dragend="onGroupDragEnd"
+            >
+              <span class="dt__sort-idx">{{ i + 1 }}</span>
+              <span class="dt__flex1">{{ findCol(key)?.label ?? key }}</span>
+              <button
+                type="button"
+                class="dt__item-remove"
+                draggable="false"
+                @click="removeGroup(key)"
+              >
+                ×
+              </button>
+            </div>
+          </template>
+          <template v-if="addableGroupCols.length > 0">
+            <div class="dt__dd-section">{{ L.groupSection }}</div>
+            <button
+              v-for="col in addableGroupCols"
+              :key="col.key"
+              type="button"
+              class="dt__dd-item dt__dd-item--clickable"
+              @click="toggleGroup(col.key)"
+            >
+              <span class="dt__flex1">{{ col.label }}</span>
+            </button>
+          </template>
           <div v-if="groupBy.length > 0" class="dt__dd-footer">
             <button @click.stop="clearGroups">{{ L.clearGroups }}</button>
           </div>
@@ -810,13 +987,26 @@ function onColDragEnd(): void {
       </div>
 
       <div class="dt__toolbar-search">
-        <input
-          type="text"
-          class="dt__search-input"
-          :placeholder="L.search"
-          :value="searchQuery"
-          @input="setSearchQuery(($event.target as HTMLInputElement).value)"
-        />
+        <span class="dt__search-wrap">
+          <input
+            ref="searchInputRef"
+            type="text"
+            class="dt__search-input"
+            :placeholder="L.search"
+            :value="searchQuery"
+            @input="setSearchQuery(($event.target as HTMLInputElement).value)"
+          />
+          <button
+            v-if="searchQuery"
+            type="button"
+            class="dt__search-clear"
+            :title="L.clearSearch"
+            :aria-label="L.clearSearch"
+            @click="clearSearchQuery"
+          >
+            ×
+          </button>
+        </span>
 
         <button v-if="hasActiveState" class="dt__clear-all" @click="clearAll">
           {{ L.clearAll }}
@@ -829,23 +1019,21 @@ function onColDragEnd(): void {
       </div>
     </div>
 
-    <!-- ── Active chips ── -->
-    <div v-if="hasActiveState" class="dt__chips">
-      <span v-for="(s, i) in sorts" :key="s.key" class="dt__chip">
-        {{ i + 1 }}. {{ columns.find((c) => c.key === s.key)?.label }}
-        {{ s.dir === 'asc' ? '↑' : '↓' }}
-        <span class="dt__chip-remove" @click="toggleSort(s.key)">×</span>
-      </span>
+    <!--
+      ── Active chips ──
+      Sort/group chips were dropped: the Sort/Group dropdowns now show the same active entries
+      with strictly more control (priority order, direction, remove) than a chip's bare × ever
+      did, so the chips were pure duplication. Filter chips stay — the Filter dropdown's toolbar
+      button only shows a column count, with no equivalent summary of which values are selected,
+      so the chip is still the only at-a-glance view of that state.
+    -->
+    <div v-if="activeFilterCount > 0" class="dt__chips">
       <template v-for="[key, vals] in Object.entries(filters)" :key="key">
         <span v-if="vals.size > 0" class="dt__chip dt__chip--info">
           {{ columns.find((c) => c.key === key)?.label }}: {{ summarizeFilterValues(vals) }}
           <span class="dt__chip-remove" @click="clearColumnFilter(key)">×</span>
         </span>
       </template>
-      <span v-for="(key, i) in groupBy" :key="key" class="dt__chip dt__chip--warning">
-        {{ L.groupLabel(i + 1) }}: {{ columns.find((c) => c.key === key)?.label }}
-        <span class="dt__chip-remove" @click="toggleGroup(key)">×</span>
-      </span>
     </div>
 
     <!-- ── Pagination ── -->
@@ -1073,17 +1261,39 @@ function onColDragEnd(): void {
   font-size: 12px;
   color: var(--color-text-secondary);
 }
+.dt__search-wrap {
+  position: relative;
+  display: inline-flex;
+  flex: 1;
+  min-width: 160px;
+  max-width: 280px;
+}
 .dt__search-input {
-  padding: 4px 8px;
+  padding: 4px 24px 4px 8px;
   font-size: 13px;
   border: 0.5px solid var(--color-border-secondary);
   border-radius: 6px;
   background: transparent;
   color: inherit;
   font-family: inherit;
-  flex: 1;
-  min-width: 160px;
-  max-width: 280px;
+  width: 100%;
+}
+.dt__search-clear {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px 4px;
+  font-size: 14px;
+  line-height: 1;
+  color: var(--color-text-tertiary);
+  font-family: inherit;
+}
+.dt__search-clear:hover {
+  color: var(--color-text-primary);
 }
 .dt__clear-all {
   padding: 5px 10px;
@@ -1112,29 +1322,59 @@ function onColDragEnd(): void {
   padding: 7px 14px;
   font-size: 13px;
   color: var(--color-text-primary);
+  /* Button reset — some dd-items render as <button> (add-lists) instead of <div>, for Tab
+     reachability + free Enter/Space activation. A no-op for the existing div/label usages. */
+  border: none;
+  background: none;
+  font-family: inherit;
+  text-align: left;
+  margin: 0;
+  width: 100%;
+  box-sizing: border-box;
 }
 .dt__dd-item--clickable {
   cursor: pointer;
 }
+.dt__dd-item--clickable:hover {
+  background: var(--color-background-secondary);
+}
 .dt__dd-item--col {
   justify-content: space-between;
 }
-.dt__reorder-btns {
-  display: flex;
-  gap: 2px;
+.dt__dd-item--sortrow {
+  cursor: pointer;
 }
-.dt__reorder-btn {
+.dt__dd-item--sortrow:hover {
+  background: var(--color-background-secondary);
+}
+.dt__dd-item--grouprow,
+.dt__dd-item--colrow {
+  cursor: grab;
+}
+.dt__dd-item--dragging {
+  opacity: 0.4;
+}
+.dt__dd-item--drag-over {
+  box-shadow: inset 0 2px 0 var(--color-text-primary);
+}
+.dt__item-remove {
   background: none;
   border: none;
   cursor: pointer;
   padding: 2px 4px;
-  font-size: 10px;
-  color: var(--color-text-secondary);
+  font-size: 13px;
+  color: var(--color-text-tertiary);
   line-height: 1;
 }
-.dt__reorder-btn:disabled {
-  opacity: 0.3;
-  cursor: default;
+.dt__item-remove:hover {
+  color: var(--color-text-primary);
+}
+.dt__sort-icon {
+  font-size: 15px;
+  color: var(--color-border-secondary);
+}
+.dt__sort-icon--active {
+  color: var(--color-text-primary);
 }
 .dt__filter-panel {
   display: flex;
@@ -1157,6 +1397,13 @@ function onColDragEnd(): void {
   font-size: 13px;
   cursor: pointer;
   color: var(--color-text-primary);
+  border: none;
+  background: none;
+  font-family: inherit;
+  text-align: left;
+  margin: 0;
+  width: 100%;
+  box-sizing: border-box;
 }
 .dt__filter-col-item:hover {
   background: var(--color-background-secondary);

@@ -16,6 +16,8 @@ import {
   getColumnValue,
   calcTotalPages,
   toggleSort as coreToggleSort,
+  moveSortBy as coreMoveSortBy,
+  reorderSort as coreReorderSort,
   toggleFilter as coreToggleFilter,
   toggleFilterAll as coreToggleFilterAll,
   setFilterValues as coreSetFilterValues,
@@ -139,6 +141,9 @@ export function createDataTable<TRow extends object>(
   let filterListRafPending = false
   let searchQuery = ''
   let draggedColKey: string | null = null
+  let draggedColRowKey: string | null = null
+  let draggedSortKey: string | null = null
+  let draggedGroupKey: string | null = null
   const viewListeners = new Set<(view: TableViewState) => void>()
 
   // render() builds one HTML string and assigns it via innerHTML in one shot, so a col.render()
@@ -502,28 +507,59 @@ export function createDataTable<TRow extends object>(
       `<button class="dt-btn${openDropdown === 'cols' ? ' dt-btn--active' : ''}" data-action="toggle-dd" data-dd="cols">${esc(L.columns)}</button>`,
       () => {
         let s = `<div class="dt-dd-section">${esc(L.columnsSection)}</div>`
-        for (let i = 0; i < orderedColumns.length; i++) {
-          const col = orderedColumns[i]
-          s += `<div class="dt-dd-item dt-dd-item--col">`
-          s += `<label class="dt-flex1"><input type="checkbox" data-action="toggle-col" data-key="${esc(col.key)}"${visibleCols.has(col.key) ? ' checked' : ''}> ${esc(col.label)}</label>`
-          s += `<span class="dt-reorder-btns">`
-          s += `<button type="button" class="dt-reorder-btn" data-action="move-col-up" data-key="${esc(col.key)}"${i === 0 ? ' disabled' : ''}>▲</button>`
-          s += `<button type="button" class="dt-reorder-btn" data-action="move-col-down" data-key="${esc(col.key)}"${i === orderedColumns.length - 1 ? ' disabled' : ''}>▼</button>`
-          s += `</span></div>`
+        for (const col of orderedColumns) {
+          // Draggable row (see handleColRowDragStart/Over/Drop/End) + Alt+↑/↓ when focus is
+          // anywhere inside it (see handleKeyDown) reorder columnOrder, replacing the old ▲▼
+          // buttons — same treatment as the Sort/Group active rows. Unlike those, the row itself
+          // gets no tabindex: the checkbox inside is already a native Tab stop, and giving the
+          // row its own tabindex too would just be a second, visually-identical stop for the same
+          // rectangle. The checkbox keeps its own native label-click/Space toggle regardless.
+          s += `<div class="dt-dd-item dt-dd-item--col dt-dd-item--colrow" draggable="true" data-col-row-key="${esc(col.key)}">`
+          s += `<label class="dt-flex1"><input type="checkbox" data-action="toggle-col" data-key="${esc(col.key)}" data-focus-key="colrow-${esc(col.key)}"${visibleCols.has(col.key) ? ' checked' : ''}> ${esc(col.label)}</label>`
+          s += `</div>`
         }
         return s
       },
     )
 
-    // Sort
+    // Sort — active entries (priority order, reorderable) above, remaining sortable columns to
+    // add below. Split into two sections because reordering only ever makes sense among active
+    // entries; interleaving them with inactive columns would make ▲▼ jump over rows with no
+    // visible effect.
     html += buildDd(
       openDropdown === 'sort',
       `<button class="dt-btn${sorts.length > 0 ? ' dt-btn--active' : ''}" data-action="toggle-dd" data-dd="sort">${esc(L.sort)}${sorts.length > 0 ? ` <span class="dt-chip">${sorts.length}</span>` : ''}</button>`,
       () => {
-        let s = `<div class="dt-dd-section">${esc(L.sortSection)}</div>`
-        for (const col of columns) {
-          const sortIdx = getSortIndex(sorts, col.key)
-          s += `<div class="dt-dd-item dt-dd-item--click" data-action="toggle-sort" data-key="${esc(col.key)}"><span class="dt-sort-idx">${sortIdx ?? ''}</span><span style="flex:1">${esc(col.label)}</span><span class="dt-sort-icon${sortIdx ? ' dt-sort-icon--active' : ''}">${getSortIcon(sorts, col.key)}</span></div>`
+        let s = ''
+        const addableCols = columns.filter((c) => getSortIndex(sorts, c.key) === null)
+        if (sorts.length > 0) {
+          s += `<div class="dt-dd-section">${esc(L.activeSortsSection)}</div>`
+          for (let i = 0; i < sorts.length; i++) {
+            const entry = sorts[i]
+            const col = columns.find((c) => c.key === entry.key)
+            // The whole row is the click target (toggles direction, same `toggle-sort-dir`
+            // action as before — just moved from a dedicated button onto the row itself) and the
+            // drag source (reorder priority) — see handleSortDragStart/Over/Drop below. `×` stays
+            // a separate <button> (draggable="false" so starting a drag from it doesn't also drag
+            // the row) since removing isn't something a row click or drag should ever trigger.
+            // tabindex/data-focus-key make it a normal tab stop that also supports Alt+↑/↓ reorder
+            // and Enter/Space-to-toggle from the keyboard — see handleKeyDown.
+            s += `<div class="dt-dd-item dt-dd-item--col dt-dd-item--sortrow" draggable="true" tabindex="0" data-action="toggle-sort-dir" data-key="${esc(entry.key)}" data-sort-key="${esc(entry.key)}" data-focus-key="sortrow-${esc(entry.key)}">`
+            s += `<span class="dt-sort-idx">${i + 1}</span>`
+            s += `<span class="dt-flex1">${esc(col?.label ?? entry.key)}</span>`
+            s += `<span class="dt-sort-icon dt-sort-icon--active">${getSortIcon(sorts, entry.key)}</span>`
+            s += `<button type="button" class="dt-item-remove" draggable="false" data-action="remove-sort" data-key="${esc(entry.key)}">×</button>`
+            s += `</div>`
+          }
+        }
+        if (addableCols.length > 0) {
+          s += `<div class="dt-dd-section">${esc(L.sortSection)}</div>`
+          for (const col of addableCols) {
+            // A real <button> (not a div) so it's a native Tab stop and Enter/Space "click" it
+            // for free — no manual tabindex/keydown wiring needed, unlike the active rows above
+            // (which need custom keyboard handling anyway for Alt+↑/↓ reorder).
+            s += `<button type="button" class="dt-dd-item dt-dd-item--click" data-action="toggle-sort" data-key="${esc(col.key)}"><span class="dt-flex1">${esc(col.label)}</span></button>`
+          }
         }
         if (sorts.length > 0) {
           s += `<div class="dt-dd-footer"><button class="dt-clear-btn" data-action="clear-sorts">${esc(L.clearSorts)}</button></div>`
@@ -546,7 +582,9 @@ export function createDataTable<TRow extends object>(
               col.type === 'number'
                 ? rf !== undefined && (rf.min !== '' || rf.max !== '')
                 : (filters[col.key]?.size ?? 0) > 0
-            s += `<div class="dt-filter-col-item${col.key === filterActiveKey ? ' dt-filter-col-item--active' : ''}" data-action="select-filter-col" data-key="${esc(col.key)}"><span>${esc(col.label)}</span>${hasActive ? '<span class="dt-filter-col-dot"></span>' : ''}</div>`
+            // A real <button> (not a div) so it's a native Tab stop and Enter/Space "click" it
+            // for free — same fix as the Sort/Group add-lists; this had the identical gap.
+            s += `<button type="button" class="dt-filter-col-item${col.key === filterActiveKey ? ' dt-filter-col-item--active' : ''}" data-action="select-filter-col" data-key="${esc(col.key)}"><span>${esc(col.label)}</span>${hasActive ? '<span class="dt-filter-col-dot"></span>' : ''}</button>`
           }
           s += `</div>`
           s += `<div class="dt-filter-detail">`
@@ -599,16 +637,34 @@ export function createDataTable<TRow extends object>(
       )
     }
 
-    // Group
+    // Group — same active/add split as Sort above. Unlike a sort entry, a group entry has
+    // nothing to toggle on click (no direction), so the row is draggable/focusable for
+    // reordering (drag, or Alt+↑/↓ when focused — see handleGroupDragStart/Over/Drop and
+    // handleKeyDown) but carries no click action of its own; `×` remove is the only button.
     if (groupableCols.length > 0) {
       html += buildDd(
         openDropdown === 'group',
         `<button class="dt-btn${groupBy.length > 0 ? ' dt-btn--active' : ''}" data-action="toggle-dd" data-dd="group">${esc(L.group)}${groupBy.length > 0 ? ` <span class="dt-chip">${groupBy.length}</span>` : ''}</button>`,
         () => {
-          let s = `<div class="dt-dd-section">${esc(L.groupSection)}</div>`
-          for (const col of groupableCols) {
-            const gIdx = groupBy.indexOf(col.key)
-            s += `<div class="dt-dd-item dt-dd-item--click" data-action="toggle-group" data-key="${esc(col.key)}"><span class="dt-sort-idx">${gIdx >= 0 ? gIdx + 1 : ''}</span><span style="flex:1">${esc(col.label)}</span>${groupBy.includes(col.key) ? '<span>✓</span>' : ''}</div>`
+          let s = ''
+          const addableCols = groupableCols.filter((c) => !groupBy.includes(c.key))
+          if (groupBy.length > 0) {
+            s += `<div class="dt-dd-section">${esc(L.activeGroupsSection)}</div>`
+            for (let i = 0; i < groupBy.length; i++) {
+              const key = groupBy[i]
+              const col = groupableCols.find((c) => c.key === key)
+              s += `<div class="dt-dd-item dt-dd-item--col dt-dd-item--grouprow" draggable="true" tabindex="0" data-group-key="${esc(key)}" data-focus-key="grouprow-${esc(key)}">`
+              s += `<span class="dt-sort-idx">${i + 1}</span>`
+              s += `<span class="dt-flex1">${esc(col?.label ?? key)}</span>`
+              s += `<button type="button" class="dt-item-remove" draggable="false" data-action="remove-group" data-key="${esc(key)}">×</button>`
+              s += `</div>`
+            }
+          }
+          if (addableCols.length > 0) {
+            s += `<div class="dt-dd-section">${esc(L.groupSection)}</div>`
+            for (const col of addableCols) {
+              s += `<button type="button" class="dt-dd-item dt-dd-item--click" data-action="toggle-group" data-key="${esc(col.key)}"><span class="dt-flex1">${esc(col.label)}</span></button>`
+            }
           }
           if (groupBy.length > 0) {
             s += `<div class="dt-dd-footer"><button class="dt-clear-btn" data-action="clear-groups">${esc(L.clearGroups)}</button></div>`
@@ -621,7 +677,12 @@ export function createDataTable<TRow extends object>(
     html += `</div>` // dt-toolbar-actions
 
     html += `<div class="dt-toolbar-search">`
+    html += `<span class="dt-search-wrap">`
     html += `<input type="text" class="dt-search-input" placeholder="${esc(L.search)}" value="${esc(searchQuery)}" data-action="search" data-focus-key="search">`
+    if (searchQuery !== '') {
+      html += `<button type="button" class="dt-search-clear" data-action="clear-search" title="${esc(L.clearSearch)}" aria-label="${esc(L.clearSearch)}">×</button>`
+    }
+    html += `</span>`
 
     if (hasActiveState) {
       html += `<button class="dt-btn" data-action="clear-all">${esc(L.clearAll)}</button>`
@@ -635,18 +696,16 @@ export function createDataTable<TRow extends object>(
     html += `</div>` // toolbar
 
     // --- Active chips ---
-    if (hasActiveState) {
+    // Sort and group chips were dropped: the Sort/Group dropdowns now show the same active
+    // entries with strictly more control (priority order, direction, remove) than a chip's bare
+    // × ever did, so the chips were pure duplication. Filter chips stay — the Filter dropdown's
+    // toolbar button only shows a column *count*, with no equivalent summary of which values are
+    // selected, so the chip is still the only at-a-glance view of that state.
+    if (activeFilterCount > 0) {
       html += `<div class="dt-chips">`
-      for (const s of sorts) {
-        html += `<span class="dt-chip">${sorts.indexOf(s) + 1}. ${esc(columns.find((c) => c.key === s.key)?.label ?? s.key)} ${s.dir === 'asc' ? '↑' : '↓'} <span class="dt-chip-x" data-action="remove-sort" data-key="${esc(s.key)}">×</span></span>`
-      }
       for (const [key, vals] of Object.entries(filters)) {
         if (!vals.size) continue
         html += `<span class="dt-chip dt-chip--filter">${esc(columns.find((c) => c.key === key)?.label ?? key)}: ${esc(summarizeFilterValues(vals))} <span class="dt-chip-x" data-action="clear-filter-key" data-key="${esc(key)}">×</span></span>`
-      }
-      for (let i = 0; i < groupBy.length; i++) {
-        const key = groupBy[i]
-        html += `<span class="dt-chip dt-chip--group">${esc(L.groupLabel(i + 1))}: ${esc(columns.find((c) => c.key === key)?.label ?? key)} <span class="dt-chip-x" data-action="remove-group" data-key="${esc(key)}">×</span></span>`
       }
       html += `</div>`
     }
@@ -921,19 +980,16 @@ export function createDataTable<TRow extends object>(
         sorts = sorts.filter((s) => s.key !== key)
         viewChanged = true
         break
+      case 'toggle-sort-dir':
+        sorts = sorts.map((s) => (s.key === key ? { ...s, dir: toggleSortDir(s.dir) } : s))
+        viewChanged = true
+        break
       case 'toggle-col': {
         const next = new Set(visibleCols)
         if (next.has(key)) {
           if (next.size > 1) next.delete(key)
         } else next.add(key)
         visibleCols = next
-        viewChanged = true
-        break
-      }
-      case 'move-col-up':
-      case 'move-col-down': {
-        const base = columnOrder.length ? columnOrder : columns.map((c) => c.key)
-        columnOrder = coreMoveColumnBy(base, key, action === 'move-col-up' ? -1 : 1)
         viewChanged = true
         break
       }
@@ -1038,6 +1094,11 @@ export function createDataTable<TRow extends object>(
         page = 1
         viewChanged = true
         break
+      case 'clear-search':
+        searchQuery = ''
+        page = 1
+        viewChanged = true
+        break
       case 'clear-all':
         sorts = []
         filters = {}
@@ -1104,6 +1165,13 @@ export function createDataTable<TRow extends object>(
     }
 
     render()
+
+    // The × button (not the input itself) had focus at click time, so render()'s own
+    // focus-restore (keyed on data-focus-key) has nothing to restore here — return focus to the
+    // search input directly so clearing doesn't strand focus on a now-hidden button.
+    if (action === 'clear-search') {
+      container.querySelector<HTMLInputElement>('[data-focus-key="search"]')?.focus()
+    }
 
     if (selectionChanged) {
       onSelectionChange?.(_processedData.filter((r) => selection.has(r)))
@@ -1193,6 +1261,70 @@ export function createDataTable<TRow extends object>(
   // checkbox) too, not just on the row element itself.
   function handleKeyDown(e: KeyboardEvent): void {
     const targetEl = e.target as HTMLElement
+
+    // Sort/Group dropdown active rows: a completely separate keyboard surface from the table's
+    // roving-tabindex row nav below (plain sequential tab stops, not a single-tab-stop-at-a-time
+    // model — there are at most a handful of active sorts/groups). Alt+↑/↓ mirrors the drag
+    // gesture (see handleSortDragStart/Over/Drop and handleGroupDrag*) for keyboard-only reorder;
+    // Enter/Space on a sort row mirrors its own click (toggle direction) since a plain
+    // tabindex="0" div gets no free keyboard activation the way a real <button> would. Group rows
+    // have no click action to mirror (nothing to toggle), so only reordering applies there.
+    // render()'s existing generic data-focus-key restore (see the bottom of render()) refocuses
+    // the row afterward, since both rows carry a `sortrow-`/`grouprow-` focus key already.
+    const sortRow = targetEl.closest<HTMLElement>('.dt-dd-item--sortrow[data-sort-key]')
+    if (sortRow) {
+      const key = sortRow.dataset.sortKey!
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault()
+        sorts = sorts.map((s) => (s.key === key ? { ...s, dir: toggleSortDir(s.dir) } : s))
+        render()
+        notifyViewChange()
+      } else if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+        e.preventDefault()
+        const next = coreMoveSortBy(sorts, key, e.key === 'ArrowUp' ? -1 : 1)
+        if (next !== sorts) {
+          sorts = next
+          render()
+          notifyViewChange()
+        }
+      }
+      return
+    }
+
+    const groupRow = targetEl.closest<HTMLElement>('.dt-dd-item--grouprow[data-group-key]')
+    if (groupRow) {
+      if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+        e.preventDefault()
+        const key = groupRow.dataset.groupKey!
+        const next = coreMoveColumnBy(groupBy, key, e.key === 'ArrowUp' ? -1 : 1)
+        if (next !== groupBy) {
+          groupBy = next
+          render()
+          notifyViewChange()
+        }
+      }
+      return
+    }
+
+    // Columns dropdown row: the row itself carries no tabindex (its checkbox is already the
+    // native Tab stop — see the markup comment above), so this matches via the checkbox as the
+    // actual keydown target, same closest()-from-descendant approach as sortRow/groupRow above.
+    const colRow = targetEl.closest<HTMLElement>('.dt-dd-item--colrow[data-col-row-key]')
+    if (colRow) {
+      if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+        e.preventDefault()
+        const key = colRow.dataset.colRowKey!
+        const base = columnOrder.length ? columnOrder : columns.map((c) => c.key)
+        const next = coreMoveColumnBy(base, key, e.key === 'ArrowUp' ? -1 : 1)
+        if (next !== base) {
+          columnOrder = next
+          render()
+          notifyViewChange()
+        }
+      }
+      return
+    }
+
     const rowTr = targetEl.closest<HTMLElement>('.dt-tr[data-proc-idx]')
     const groupTr = targetEl.closest<HTMLElement>('.dt-group-row[data-gkey]')
 
@@ -1343,6 +1475,166 @@ export function createDataTable<TRow extends object>(
     clearColDragClasses()
   }
 
+  // Drag-and-drop reordering for the Sort dropdown's active entries — same rationale and
+  // bypass-render()-until-drop approach as column header dragging above, just scoped to
+  // `.dt-dd-item--sortrow` and keyed by `data-sort-key` instead of `data-col-key`.
+  function clearSortDragClasses(): void {
+    for (const el of container.querySelectorAll<HTMLElement>(
+      '.dt-dd-item--sortrow[data-sort-key]',
+    )) {
+      el.classList.remove('dt-dd-item--dragging', 'dt-dd-item--drag-over')
+    }
+  }
+
+  function handleSortDragStart(e: DragEvent): void {
+    const row = (e.target as HTMLElement).closest<HTMLElement>(
+      '.dt-dd-item--sortrow[data-sort-key]',
+    )
+    if (!row) return
+    draggedSortKey = row.dataset.sortKey ?? null
+    row.classList.add('dt-dd-item--dragging')
+  }
+
+  function handleSortDragOver(e: DragEvent): void {
+    const row = (e.target as HTMLElement).closest<HTMLElement>(
+      '.dt-dd-item--sortrow[data-sort-key]',
+    )
+    if (!row || !draggedSortKey || row.dataset.sortKey === draggedSortKey) return
+    e.preventDefault()
+    for (const other of container.querySelectorAll<HTMLElement>(
+      '.dt-dd-item--sortrow[data-sort-key]',
+    )) {
+      other.classList.toggle('dt-dd-item--drag-over', other === row)
+    }
+  }
+
+  function handleSortDrop(e: DragEvent): void {
+    const row = (e.target as HTMLElement).closest<HTMLElement>(
+      '.dt-dd-item--sortrow[data-sort-key]',
+    )
+    const targetKey = row?.dataset.sortKey
+    if (!targetKey || !draggedSortKey) return
+    e.preventDefault()
+    if (targetKey !== draggedSortKey) {
+      sorts = coreReorderSort(sorts, draggedSortKey, targetKey)
+      render()
+      notifyViewChange()
+    }
+    draggedSortKey = null
+  }
+
+  function handleSortDragEnd(): void {
+    draggedSortKey = null
+    clearSortDragClasses()
+  }
+
+  // Same as above, for the Group dropdown's active entries — `groupBy` is already a plain
+  // `string[]`, so this reuses `coreReorderColumn` directly rather than needing its own primitive.
+  function clearGroupDragClasses(): void {
+    for (const el of container.querySelectorAll<HTMLElement>(
+      '.dt-dd-item--grouprow[data-group-key]',
+    )) {
+      el.classList.remove('dt-dd-item--dragging', 'dt-dd-item--drag-over')
+    }
+  }
+
+  function handleGroupDragStart(e: DragEvent): void {
+    const row = (e.target as HTMLElement).closest<HTMLElement>(
+      '.dt-dd-item--grouprow[data-group-key]',
+    )
+    if (!row) return
+    draggedGroupKey = row.dataset.groupKey ?? null
+    row.classList.add('dt-dd-item--dragging')
+  }
+
+  function handleGroupDragOver(e: DragEvent): void {
+    const row = (e.target as HTMLElement).closest<HTMLElement>(
+      '.dt-dd-item--grouprow[data-group-key]',
+    )
+    if (!row || !draggedGroupKey || row.dataset.groupKey === draggedGroupKey) return
+    e.preventDefault()
+    for (const other of container.querySelectorAll<HTMLElement>(
+      '.dt-dd-item--grouprow[data-group-key]',
+    )) {
+      other.classList.toggle('dt-dd-item--drag-over', other === row)
+    }
+  }
+
+  function handleGroupDrop(e: DragEvent): void {
+    const row = (e.target as HTMLElement).closest<HTMLElement>(
+      '.dt-dd-item--grouprow[data-group-key]',
+    )
+    const targetKey = row?.dataset.groupKey
+    if (!targetKey || !draggedGroupKey) return
+    e.preventDefault()
+    if (targetKey !== draggedGroupKey) {
+      groupBy = coreReorderColumn(groupBy, draggedGroupKey, targetKey)
+      render()
+      notifyViewChange()
+    }
+    draggedGroupKey = null
+  }
+
+  function handleGroupDragEnd(): void {
+    draggedGroupKey = null
+    clearGroupDragClasses()
+  }
+
+  // Drag-and-drop reordering for the Columns dropdown's rows — replaces the old ▲▼ buttons,
+  // same rationale as Sort/Group above. Kept as its own independent state/handlers (rather than
+  // reusing `draggedColKey`/the `<th>` handlers) even though both ultimately reorder the same
+  // `columnOrder`, mirroring how Sort/Group each got their own state instead of sharing one.
+  function clearColRowDragClasses(): void {
+    for (const el of container.querySelectorAll<HTMLElement>(
+      '.dt-dd-item--colrow[data-col-row-key]',
+    )) {
+      el.classList.remove('dt-dd-item--dragging', 'dt-dd-item--drag-over')
+    }
+  }
+
+  function handleColRowDragStart(e: DragEvent): void {
+    const row = (e.target as HTMLElement).closest<HTMLElement>(
+      '.dt-dd-item--colrow[data-col-row-key]',
+    )
+    if (!row) return
+    draggedColRowKey = row.dataset.colRowKey ?? null
+    row.classList.add('dt-dd-item--dragging')
+  }
+
+  function handleColRowDragOver(e: DragEvent): void {
+    const row = (e.target as HTMLElement).closest<HTMLElement>(
+      '.dt-dd-item--colrow[data-col-row-key]',
+    )
+    if (!row || !draggedColRowKey || row.dataset.colRowKey === draggedColRowKey) return
+    e.preventDefault()
+    for (const other of container.querySelectorAll<HTMLElement>(
+      '.dt-dd-item--colrow[data-col-row-key]',
+    )) {
+      other.classList.toggle('dt-dd-item--drag-over', other === row)
+    }
+  }
+
+  function handleColRowDrop(e: DragEvent): void {
+    const row = (e.target as HTMLElement).closest<HTMLElement>(
+      '.dt-dd-item--colrow[data-col-row-key]',
+    )
+    const targetKey = row?.dataset.colRowKey
+    if (!targetKey || !draggedColRowKey) return
+    e.preventDefault()
+    if (targetKey !== draggedColRowKey) {
+      const base = columnOrder.length ? columnOrder : columns.map((c) => c.key)
+      columnOrder = coreReorderColumn(base, draggedColRowKey, targetKey)
+      render()
+      notifyViewChange()
+    }
+    draggedColRowKey = null
+  }
+
+  function handleColRowDragEnd(): void {
+    draggedColRowKey = null
+    clearColRowDragClasses()
+  }
+
   function handleDocClick(e: MouseEvent): void {
     // composedPath() captures the dispatch-time path, so it stays correct even
     // after innerHTML re-renders detach the original target from the DOM.
@@ -1361,6 +1653,18 @@ export function createDataTable<TRow extends object>(
   container.addEventListener('dragover', handleColDragOver)
   container.addEventListener('drop', handleColDrop)
   container.addEventListener('dragend', handleColDragEnd)
+  container.addEventListener('dragstart', handleSortDragStart)
+  container.addEventListener('dragover', handleSortDragOver)
+  container.addEventListener('drop', handleSortDrop)
+  container.addEventListener('dragend', handleSortDragEnd)
+  container.addEventListener('dragstart', handleGroupDragStart)
+  container.addEventListener('dragover', handleGroupDragOver)
+  container.addEventListener('drop', handleGroupDrop)
+  container.addEventListener('dragend', handleGroupDragEnd)
+  container.addEventListener('dragstart', handleColRowDragStart)
+  container.addEventListener('dragover', handleColRowDragOver)
+  container.addEventListener('drop', handleColRowDrop)
+  container.addEventListener('dragend', handleColRowDragEnd)
   document.addEventListener('click', handleDocClick)
 
   render()
@@ -1394,6 +1698,18 @@ export function createDataTable<TRow extends object>(
       container.removeEventListener('dragover', handleColDragOver)
       container.removeEventListener('drop', handleColDrop)
       container.removeEventListener('dragend', handleColDragEnd)
+      container.removeEventListener('dragstart', handleSortDragStart)
+      container.removeEventListener('dragover', handleSortDragOver)
+      container.removeEventListener('drop', handleSortDrop)
+      container.removeEventListener('dragend', handleSortDragEnd)
+      container.removeEventListener('dragstart', handleGroupDragStart)
+      container.removeEventListener('dragover', handleGroupDragOver)
+      container.removeEventListener('drop', handleGroupDrop)
+      container.removeEventListener('dragend', handleGroupDragEnd)
+      container.removeEventListener('dragstart', handleColRowDragStart)
+      container.removeEventListener('dragover', handleColRowDragOver)
+      container.removeEventListener('drop', handleColRowDrop)
+      container.removeEventListener('dragend', handleColRowDragEnd)
       document.removeEventListener('click', handleDocClick)
       container.innerHTML = ''
     },

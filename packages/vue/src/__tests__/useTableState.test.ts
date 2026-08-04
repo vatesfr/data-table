@@ -191,6 +191,77 @@ describe('useTableState — column ordering', () => {
   })
 })
 
+describe('useTableState — sort remove/direction/reorder', () => {
+  it('removeSort clears a sort entry without cycling through direction', () => {
+    const { sorts, toggleSort, removeSort } = useTableState(ROWS, COLS)
+    toggleSort('score')
+    expect(sorts.value).toEqual([{ key: 'score', dir: 'asc' }])
+    removeSort('score')
+    expect(sorts.value).toEqual([])
+  })
+
+  it('toggleSortDir flips an existing entry in place without reordering', () => {
+    const { sorts, toggleSort, toggleSortDir } = useTableState(ROWS, COLS)
+    toggleSort('name')
+    toggleSort('score')
+    toggleSortDir('name')
+    expect(sorts.value).toEqual([
+      { key: 'name', dir: 'desc' },
+      { key: 'score', dir: 'asc' },
+    ])
+  })
+
+  it('moveSortBy reorders priority by swapping with a neighbor', () => {
+    const { sorts, toggleSort, moveSortBy } = useTableState(ROWS, COLS)
+    toggleSort('name')
+    toggleSort('score')
+    moveSortBy('score', -1)
+    expect(sorts.value.map((s) => s.key)).toEqual(['score', 'name'])
+  })
+
+  it('moveSort reorders by drag-and-drop semantics (insert before target)', () => {
+    const { sorts, toggleSort, moveSort } = useTableState(ROWS, COLS)
+    toggleSort('id')
+    toggleSort('name')
+    toggleSort('score')
+    moveSort('score', 'id')
+    expect(sorts.value.map((s) => s.key)).toEqual(['score', 'id', 'name'])
+  })
+})
+
+describe('useTableState — group remove/reorder', () => {
+  const GROUPABLE_COLS: ColumnDef<Row>[] = [
+    { key: 'id', label: 'ID', groupable: true },
+    { key: 'name', label: 'Name', groupable: true },
+    { key: 'score', label: 'Score', groupable: true },
+  ]
+
+  it('removeGroup clears a group entry', () => {
+    const { groupBy, toggleGroup, removeGroup } = useTableState(ROWS, GROUPABLE_COLS)
+    toggleGroup('name')
+    expect(groupBy.value).toEqual(['name'])
+    removeGroup('name')
+    expect(groupBy.value).toEqual([])
+  })
+
+  it('moveGroupBy reorders priority by swapping with a neighbor', () => {
+    const { groupBy, toggleGroup, moveGroupBy } = useTableState(ROWS, GROUPABLE_COLS)
+    toggleGroup('name')
+    toggleGroup('score')
+    moveGroupBy('score', -1)
+    expect(groupBy.value).toEqual(['score', 'name'])
+  })
+
+  it('moveGroup reorders by drag-and-drop semantics (insert before target)', () => {
+    const { groupBy, toggleGroup, moveGroup } = useTableState(ROWS, GROUPABLE_COLS)
+    toggleGroup('id')
+    toggleGroup('name')
+    toggleGroup('score')
+    moveGroup('score', 'id')
+    expect(groupBy.value).toEqual(['score', 'id', 'name'])
+  })
+})
+
 describe('useTableState — pagination', () => {
   it('setPage navigates between pages', () => {
     const { page, pagedData, setPage } = useTableState(ROWS, COLS, { defaultPageSize: 2 })

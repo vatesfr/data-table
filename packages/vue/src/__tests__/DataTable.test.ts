@@ -579,6 +579,278 @@ describe('DataTable — date filter tree', () => {
   })
 })
 
+describe('DataTable — search clear button', () => {
+  it('does not render a clear button when the search query is empty', () => {
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: COLS, rowKey: 'id' } })
+    expect(wrapper.find('.dt__search-clear').exists()).toBe(false)
+  })
+
+  it('renders and wires up a clear button once the search query is non-empty', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS, columns: COLS, rowKey: 'id' },
+      attachTo: document.body,
+    })
+    const input = wrapper.find('input.dt__search-input')
+    await input.setValue('ali')
+    expect((input.element as HTMLInputElement).value).toBe('ali')
+    await wrapper.find('.dt__search-clear').trigger('click')
+    expect((input.element as HTMLInputElement).value).toBe('')
+    expect(wrapper.find('.dt__search-clear').exists()).toBe(false)
+    expect(document.activeElement).toBe(input.element)
+    wrapper.unmount()
+  })
+})
+
+describe('DataTable — sort dropdown', () => {
+  const SORT_COLS: ColumnDef<Row>[] = [
+    { key: 'name', label: 'Name' },
+    { key: 'score', label: 'Score', type: 'number' },
+  ]
+
+  it('lists a not-yet-sorted column under the add section as a real button', async () => {
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: SORT_COLS, rowKey: 'id' } })
+    await wrapper
+      .findAll('button')
+      .find((b) => b.text() === 'Sort')!
+      .trigger('click')
+    const scoreItem = wrapper
+      .findAll('.dt__dd-item--clickable')
+      .find((el) => el.text() === 'Score')!
+    expect(scoreItem.element.tagName).toBe('BUTTON')
+  })
+
+  it('clicking an add-list column adds it ascending, and clicking the active row toggles direction', async () => {
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: SORT_COLS, rowKey: 'id' } })
+    await wrapper
+      .findAll('button')
+      .find((b) => b.text() === 'Sort')!
+      .trigger('click')
+    await wrapper
+      .findAll('.dt__dd-item--clickable')
+      .find((el) => el.text() === 'Score')!
+      .trigger('click')
+    let names = wrapper.findAll('tbody tr td:first-child').map((td) => td.text())
+    expect(names).toEqual(['Bob', 'Alice']) // 60, 90 — ascending
+
+    await wrapper.find('.dt__dd-item--sortrow').trigger('click')
+    names = wrapper.findAll('tbody tr td:first-child').map((td) => td.text())
+    expect(names).toEqual(['Alice', 'Bob']) // 90, 60 — descending
+  })
+
+  it('the × button removes the sort and moves the column back to the add section', async () => {
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: SORT_COLS, rowKey: 'id' } })
+    await wrapper
+      .findAll('button')
+      .find((b) => b.text() === 'Sort')!
+      .trigger('click')
+    await wrapper
+      .findAll('.dt__dd-item--clickable')
+      .find((el) => el.text() === 'Score')!
+      .trigger('click')
+    await wrapper.find('.dt__dd-item--sortrow .dt__item-remove').trigger('click')
+    expect(wrapper.find('.dt__dd-item--sortrow').exists()).toBe(false)
+    const names = wrapper.findAll('tbody tr td:first-child').map((td) => td.text())
+    expect(names).toEqual(['Alice', 'Bob']) // original order, no longer sorted
+  })
+
+  it('dragging an active sort row onto another reorders priority', async () => {
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: SORT_COLS, rowKey: 'id' } })
+    await wrapper
+      .findAll('button')
+      .find((b) => b.text() === 'Sort')!
+      .trigger('click')
+    await wrapper
+      .findAll('.dt__dd-item--clickable')
+      .find((el) => el.text() === 'Name')!
+      .trigger('click')
+    await wrapper
+      .findAll('.dt__dd-item--clickable')
+      .find((el) => el.text() === 'Score')!
+      .trigger('click')
+
+    const rows = wrapper.findAll('.dt__dd-item--sortrow')
+    await rows[1].trigger('dragstart')
+    await rows[0].trigger('dragover')
+    await rows[0].trigger('drop')
+    const after = wrapper.findAll('.dt__dd-item--sortrow')
+    expect(after[0].text()).toContain('Score')
+    expect(after[1].text()).toContain('Name')
+  })
+
+  it('Alt+ArrowUp on a focused active sort row reorders priority', async () => {
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: SORT_COLS, rowKey: 'id' } })
+    await wrapper
+      .findAll('button')
+      .find((b) => b.text() === 'Sort')!
+      .trigger('click')
+    await wrapper
+      .findAll('.dt__dd-item--clickable')
+      .find((el) => el.text() === 'Name')!
+      .trigger('click')
+    await wrapper
+      .findAll('.dt__dd-item--clickable')
+      .find((el) => el.text() === 'Score')!
+      .trigger('click')
+
+    const rows = wrapper.findAll('.dt__dd-item--sortrow')
+    await rows[1].trigger('keydown', { key: 'ArrowUp', altKey: true })
+    const after = wrapper.findAll('.dt__dd-item--sortrow')
+    expect(after[0].text()).toContain('Score')
+    expect(after[1].text()).toContain('Name')
+  })
+})
+
+describe('DataTable — group dropdown', () => {
+  const GROUP_COLS: ColumnDef<Row>[] = [
+    { key: 'name', label: 'Name', groupable: true },
+    { key: 'score', label: 'Score', type: 'number', groupable: true },
+  ]
+
+  it('lists a not-yet-grouped column under the add section as a real button', async () => {
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: GROUP_COLS, rowKey: 'id' } })
+    await wrapper
+      .findAll('button')
+      .find((b) => b.text() === 'Group')!
+      .trigger('click')
+    const scoreItem = wrapper
+      .findAll('.dt__dd-item--clickable')
+      .find((el) => el.text() === 'Score')!
+    expect(scoreItem.element.tagName).toBe('BUTTON')
+  })
+
+  it('the × button removes the group and moves the column back to the add section', async () => {
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: GROUP_COLS, rowKey: 'id' } })
+    await wrapper
+      .findAll('button')
+      .find((b) => b.text() === 'Group')!
+      .trigger('click')
+    await wrapper
+      .findAll('.dt__dd-item--clickable')
+      .find((el) => el.text() === 'Score')!
+      .trigger('click')
+    expect(wrapper.find('.dt__dd-item--grouprow').exists()).toBe(true)
+    await wrapper.find('.dt__dd-item--grouprow .dt__item-remove').trigger('click')
+    expect(wrapper.find('.dt__dd-item--grouprow').exists()).toBe(false)
+  })
+
+  it('dragging an active group row onto another reorders priority', async () => {
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: GROUP_COLS, rowKey: 'id' } })
+    await wrapper
+      .findAll('button')
+      .find((b) => b.text() === 'Group')!
+      .trigger('click')
+    await wrapper
+      .findAll('.dt__dd-item--clickable')
+      .find((el) => el.text() === 'Name')!
+      .trigger('click')
+    await wrapper
+      .findAll('.dt__dd-item--clickable')
+      .find((el) => el.text() === 'Score')!
+      .trigger('click')
+
+    const rows = wrapper.findAll('.dt__dd-item--grouprow')
+    await rows[1].trigger('dragstart')
+    await rows[0].trigger('dragover')
+    await rows[0].trigger('drop')
+    const after = wrapper.findAll('.dt__dd-item--grouprow')
+    expect(after[0].text()).toContain('Score')
+    expect(after[1].text()).toContain('Name')
+  })
+})
+
+describe('DataTable — columns dropdown', () => {
+  it('column rows are draggable and reorder headers on drop, with no ▲▼ buttons', async () => {
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: COLS, rowKey: 'id' } })
+    await wrapper
+      .findAll('button')
+      .find((b) => b.text() === 'Columns')!
+      .trigger('click')
+    const rows = wrapper.findAll('.dt__dd-item--colrow')
+    expect(rows).toHaveLength(COLS.length)
+    expect(wrapper.findAll('button').some((b) => b.text() === '▲')).toBe(false)
+
+    await rows[1].trigger('dragstart')
+    await rows[0].trigger('dragover')
+    await rows[0].trigger('drop')
+    const headers = wrapper.findAll('th').map((th) => th.text())
+    expect(headers[0]).toContain('Score')
+    expect(headers[1]).toContain('Name')
+  })
+
+  it('Alt+ArrowUp on a focused column checkbox reorders headers, click still toggles visibility', async () => {
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: COLS, rowKey: 'id' } })
+    await wrapper
+      .findAll('button')
+      .find((b) => b.text() === 'Columns')!
+      .trigger('click')
+    const checkboxes = wrapper.findAll('.dt__dd-item--colrow input[type="checkbox"]')
+    await checkboxes[1].trigger('keydown', { key: 'ArrowUp', altKey: true })
+    let headers = wrapper.findAll('th').map((th) => th.text())
+    expect(headers[0]).toContain('Score')
+
+    await checkboxes[0].setValue(false)
+    headers = wrapper.findAll('th').map((th) => th.text())
+    expect(headers.some((h) => h.includes('Name'))).toBe(false)
+  })
+})
+
+describe('DataTable — filter column selector keyboard access', () => {
+  const FILTER_COLS: ColumnDef<Row>[] = [
+    { key: 'name', label: 'Name', filterable: true },
+    { key: 'score', label: 'Score', type: 'number', filterable: true },
+  ]
+
+  it('renders each column selector as a real, focusable <button>', async () => {
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: FILTER_COLS, rowKey: 'id' } })
+    await wrapper
+      .findAll('button')
+      .find((b) => b.text() === 'Filter')!
+      .trigger('click')
+    const nameItem = wrapper
+      .findAll('.dt__filter-col-item')
+      .find((el) => el.text().includes('Name'))!
+    expect(nameItem.element.tagName).toBe('BUTTON')
+  })
+})
+
+describe('DataTable — active chips', () => {
+  it('does not render sort or group chips, but keeps filter chips', async () => {
+    const chipCols: ColumnDef<Row>[] = [
+      { key: 'name', label: 'Name', filterable: true, groupable: true },
+      { key: 'score', label: 'Score', type: 'number', groupable: true },
+    ]
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: chipCols, rowKey: 'id' } })
+    await wrapper
+      .findAll('button')
+      .find((b) => b.text() === 'Sort')!
+      .trigger('click')
+    await wrapper
+      .findAll('.dt__dd-item--clickable')
+      .find((el) => el.text() === 'Score')!
+      .trigger('click')
+    await wrapper
+      .findAll('button')
+      .find((b) => b.text() === 'Group')!
+      .trigger('click')
+    await wrapper
+      .findAll('.dt__dd-item--clickable')
+      .find((el) => el.text() === 'Name')!
+      .trigger('click')
+    await wrapper
+      .findAll('button')
+      .find((b) => b.text() === 'Filter')!
+      .trigger('click')
+    await wrapper
+      .findAll('input[type="checkbox"]')
+      .find((el) => el.element.closest('.dt__dd-item')?.textContent?.includes('Alice'))!
+      .trigger('click')
+
+    expect(wrapper.find('.dt__chips').text()).toContain('Name: Alice')
+    expect(wrapper.text()).not.toContain('Group 1:')
+    expect(wrapper.find('.dt__chips').text()).not.toContain('1. Score')
+  })
+})
+
 describe('DataTable — keyboard navigation', () => {
   const ROWS3: Row[] = [
     { id: 1, name: 'Alice', score: 90 },

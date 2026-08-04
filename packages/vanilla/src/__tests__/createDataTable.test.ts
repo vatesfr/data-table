@@ -276,10 +276,127 @@ describe('createDataTable', () => {
     expect(names).toEqual(['Alice', 'Clara', 'David', 'Bob']) // 90, 80, 70, 60
   })
 
-  it('active sort shows a chip', () => {
+  it('active sort shows a count badge on the Sort button, with no chips row (superseded by the dropdown)', () => {
     createDataTable(container, { data: ROWS, columns: COLS })
     click(container.querySelector<HTMLElement>('th[data-action="toggle-sort"][data-key="score"]')!)
-    expect(container.querySelector('.dt-chips')).not.toBeNull()
+    expect(
+      container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="sort"] .dt-chip')!
+        .textContent,
+    ).toBe('1')
+    expect(container.querySelector('.dt-chips')).toBeNull()
+  })
+
+  // --- sort dropdown (active/add split, direction, remove, reorder) ---
+
+  it('lists a not-yet-sorted column under the add section, clicking it adds it ascending', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="sort"]')!)
+    click(container.querySelector<HTMLElement>('[data-action="toggle-sort"][data-key="score"]')!)
+    expect(
+      container.querySelector('[data-action="toggle-sort-dir"][data-key="score"]'),
+    ).not.toBeNull()
+    const names = [...container.querySelectorAll('tbody tr td:nth-child(1)')].map((td) =>
+      td.textContent?.trim(),
+    )
+    expect(names).toEqual(['Bob', 'David', 'Clara', 'Alice']) // 60, 70, 80, 90 — ascending
+  })
+
+  it('the add-sort row is a real <button>, reachable by Tab and activatable with Enter/Space', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="sort"]')!)
+    const addRow = container.querySelector<HTMLButtonElement>(
+      '[data-action="toggle-sort"][data-key="score"]',
+    )!
+    expect(addRow.tagName).toBe('BUTTON')
+    expect(addRow.tabIndex).toBe(0)
+    // A native <button> fires its own click on Enter/Space with no listener of our own needed —
+    // dispatching a real click is enough to prove that (a keydown-only handler, like the active
+    // sort rows use, would need its own test; here the browser does the work).
+    click(addRow)
+    expect(
+      container.querySelector('[data-action="toggle-sort-dir"][data-key="score"]'),
+    ).not.toBeNull()
+  })
+
+  it('toggle-sort-dir flips an active sort between ascending and descending', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="sort"]')!)
+    click(container.querySelector<HTMLElement>('[data-action="toggle-sort"][data-key="score"]')!)
+    click(
+      container.querySelector<HTMLElement>('[data-action="toggle-sort-dir"][data-key="score"]')!,
+    )
+    const names = [...container.querySelectorAll('tbody tr td:nth-child(1)')].map((td) =>
+      td.textContent?.trim(),
+    )
+    expect(names).toEqual(['Alice', 'Clara', 'David', 'Bob']) // 90, 80, 70, 60 — descending
+  })
+
+  it('remove-sort clears the sort and moves the column back to the add section', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="sort"]')!)
+    click(container.querySelector<HTMLElement>('[data-action="toggle-sort"][data-key="score"]')!)
+    click(container.querySelector<HTMLElement>('[data-action="remove-sort"][data-key="score"]')!)
+    expect(container.querySelector('[data-action="toggle-sort-dir"][data-key="score"]')).toBeNull()
+    expect(container.querySelector('[data-action="toggle-sort"][data-key="score"]')).not.toBeNull()
+  })
+
+  it('active sort rows are draggable and reorder priority on drop', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="sort"]')!)
+    click(container.querySelector<HTMLElement>('[data-action="toggle-sort"][data-key="name"]')!)
+    click(container.querySelector<HTMLElement>('[data-action="toggle-sort"][data-key="score"]')!)
+    const nameRow = container.querySelector<HTMLElement>('[data-sort-key="name"]')!
+    const scoreRow = container.querySelector<HTMLElement>('[data-sort-key="score"]')!
+    expect(nameRow.getAttribute('draggable')).toBe('true')
+    scoreRow.dispatchEvent(dragEvt('dragstart'))
+    nameRow.dispatchEvent(dragEvt('dragover'))
+    nameRow.dispatchEvent(dragEvt('drop'))
+    const labels = [...container.querySelectorAll('.dt-dd-item--sortrow .dt-flex1')].map(
+      (el) => el.textContent,
+    )
+    expect(labels).toEqual(['Score', 'Name'])
+  })
+
+  it('Alt+ArrowUp/Alt+ArrowDown on a focused sort row reorders priority', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="sort"]')!)
+    click(container.querySelector<HTMLElement>('[data-action="toggle-sort"][data-key="name"]')!)
+    click(container.querySelector<HTMLElement>('[data-action="toggle-sort"][data-key="score"]')!)
+    const scoreRow = container.querySelector<HTMLElement>('[data-sort-key="score"]')!
+    scoreRow.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'ArrowUp', altKey: true, bubbles: true }),
+    )
+    const labels = [...container.querySelectorAll('.dt-dd-item--sortrow .dt-flex1')].map(
+      (el) => el.textContent,
+    )
+    expect(labels).toEqual(['Score', 'Name'])
+  })
+
+  it('Alt+ArrowUp on the first sort row is a no-op', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="sort"]')!)
+    click(container.querySelector<HTMLElement>('[data-action="toggle-sort"][data-key="name"]')!)
+    click(container.querySelector<HTMLElement>('[data-action="toggle-sort"][data-key="score"]')!)
+    const nameRow = container.querySelector<HTMLElement>('[data-sort-key="name"]')!
+    nameRow.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'ArrowUp', altKey: true, bubbles: true }),
+    )
+    const labels = [...container.querySelectorAll('.dt-dd-item--sortrow .dt-flex1')].map(
+      (el) => el.textContent,
+    )
+    expect(labels).toEqual(['Name', 'Score'])
+  })
+
+  it('Enter on a focused sort row toggles its direction, same as a click', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="sort"]')!)
+    click(container.querySelector<HTMLElement>('[data-action="toggle-sort"][data-key="score"]')!)
+    const scoreRow = container.querySelector<HTMLElement>('[data-sort-key="score"]')!
+    scoreRow.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+    const names = [...container.querySelectorAll('tbody tr td:nth-child(1)')].map((td) =>
+      td.textContent?.trim(),
+    )
+    expect(names).toEqual(['Alice', 'Clara', 'David', 'Bob']) // 90, 80, 70, 60 — descending
   })
 
   // --- scroll restore ---
@@ -323,27 +440,40 @@ describe('createDataTable', () => {
     expect(th.getAttribute('draggable')).toBe('true')
   })
 
-  it('moving a column up in the columns dropdown reorders headers', () => {
+  it('columns dropdown rows are draggable and reorder headers on drop', () => {
     createDataTable(container, { data: ROWS, columns: COLS })
     click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="cols"]')!)
-    click(container.querySelector<HTMLElement>('[data-action="move-col-up"][data-key="score"]')!)
+    const nameRow = container.querySelector<HTMLElement>('[data-col-row-key="name"]')!
+    const scoreRow = container.querySelector<HTMLElement>('[data-col-row-key="score"]')!
+    expect(scoreRow.getAttribute('draggable')).toBe('true')
+    scoreRow.dispatchEvent(dragEvt('dragstart'))
+    nameRow.dispatchEvent(dragEvt('dragover'))
+    nameRow.dispatchEvent(dragEvt('drop'))
     expect(colHeaders(container)).toEqual(['Score', 'Name', 'Dept'])
   })
 
-  it('moving a column down in the columns dropdown reorders headers', () => {
+  it('Alt+ArrowUp/Alt+ArrowDown on a focused column checkbox reorders headers', () => {
     createDataTable(container, { data: ROWS, columns: COLS })
     click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="cols"]')!)
-    click(container.querySelector<HTMLElement>('[data-action="move-col-down"][data-key="name"]')!)
-    expect(colHeaders(container)).toEqual(['Score', 'Name', 'Dept'])
-  })
-
-  it('the up button on the first column is disabled', () => {
-    createDataTable(container, { data: ROWS, columns: COLS })
-    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="cols"]')!)
-    const btn = container.querySelector<HTMLButtonElement>(
-      '[data-action="move-col-up"][data-key="name"]',
+    const scoreCheckbox = container.querySelector<HTMLElement>(
+      '[data-col-row-key="score"] input[type="checkbox"]',
     )!
-    expect(btn.disabled).toBe(true)
+    scoreCheckbox.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'ArrowUp', altKey: true, bubbles: true }),
+    )
+    expect(colHeaders(container)).toEqual(['Score', 'Name', 'Dept'])
+  })
+
+  it('Alt+ArrowUp on the first column row is a no-op', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="cols"]')!)
+    const nameCheckbox = container.querySelector<HTMLElement>(
+      '[data-col-row-key="name"] input[type="checkbox"]',
+    )!
+    nameCheckbox.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'ArrowUp', altKey: true, bubbles: true }),
+    )
+    expect(colHeaders(container)).toEqual(['Name', 'Score', 'Dept'])
   })
 
   it('dragging a header and dropping it on another reorders columns', () => {
@@ -384,6 +514,21 @@ describe('createDataTable', () => {
   })
 
   // --- checklist filter ---
+
+  it('the filter column-selector row is a real <button>, reachable by Tab and activatable with Enter/Space', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="filter"]')!)
+    const deptItem = container.querySelector<HTMLButtonElement>(
+      '[data-action="select-filter-col"][data-key="dept"]',
+    )!
+    expect(deptItem.tagName).toBe('BUTTON')
+    expect(deptItem.tabIndex).toBe(0)
+    click(deptItem)
+    const deptItemAfter = container.querySelector<HTMLButtonElement>(
+      '[data-action="select-filter-col"][data-key="dept"]',
+    )!
+    expect(deptItemAfter.className).toContain('dt-filter-col-item--active')
+  })
 
   it('checklist filter shows only matching rows', () => {
     createDataTable(container, { data: ROWS, columns: COLS })
@@ -1410,6 +1555,18 @@ describe('createDataTable', () => {
     expect(container.querySelector('.dt-group-row')).not.toBeNull()
   })
 
+  it('the add-group row is a real <button>, reachable by Tab and activatable with Enter/Space', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="group"]')!)
+    const addRow = container.querySelector<HTMLButtonElement>(
+      '[data-action="toggle-group"][data-key="dept"]',
+    )!
+    expect(addRow.tagName).toBe('BUTTON')
+    expect(addRow.tabIndex).toBe(0)
+    click(addRow)
+    expect(container.querySelector('.dt-group-row')).not.toBeNull()
+  })
+
   it('grouped column disappears from table headers', () => {
     createDataTable(container, { data: ROWS, columns: COLS })
     click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="group"]')!)
@@ -1440,6 +1597,88 @@ describe('createDataTable', () => {
     click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="group"]')!)
     click(container.querySelector<HTMLElement>('[data-action="toggle-group"][data-key="dept"]')!)
     expect(container.querySelectorAll('.dt-tr').length).toBeGreaterThan(0)
+  })
+
+  // --- group dropdown (active/add split, remove, reorder) ---
+
+  it('active group shows a count badge on the Group button, with no chips row (superseded by the dropdown)', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="group"]')!)
+    click(container.querySelector<HTMLElement>('[data-action="toggle-group"][data-key="dept"]')!)
+    expect(
+      container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="group"] .dt-chip')!
+        .textContent,
+    ).toBe('1')
+    expect(container.querySelector('.dt-chips')).toBeNull()
+  })
+
+  it('remove-group clears the group and moves the column back to the add section', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="group"]')!)
+    click(container.querySelector<HTMLElement>('[data-action="toggle-group"][data-key="dept"]')!)
+    click(container.querySelector<HTMLElement>('[data-action="remove-group"][data-key="dept"]')!)
+    expect(container.querySelector('[data-action="remove-group"][data-key="dept"]')).toBeNull()
+    expect(container.querySelector('[data-action="toggle-group"][data-key="dept"]')).not.toBeNull()
+    expect(colHeaders(container)).toContain('Dept')
+  })
+
+  it('active group rows are draggable and reorder priority on drop', () => {
+    const cols: ColumnDef<Row>[] = [
+      { key: 'name', label: 'Name', groupable: true },
+      { key: 'dept', label: 'Dept', groupable: true },
+    ]
+    createDataTable(container, { data: ROWS, columns: cols })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="group"]')!)
+    click(container.querySelector<HTMLElement>('[data-action="toggle-group"][data-key="name"]')!)
+    click(container.querySelector<HTMLElement>('[data-action="toggle-group"][data-key="dept"]')!)
+    const nameRow = container.querySelector<HTMLElement>('[data-group-key="name"]')!
+    const deptRow = container.querySelector<HTMLElement>('[data-group-key="dept"]')!
+    expect(nameRow.getAttribute('draggable')).toBe('true')
+    deptRow.dispatchEvent(dragEvt('dragstart'))
+    nameRow.dispatchEvent(dragEvt('dragover'))
+    nameRow.dispatchEvent(dragEvt('drop'))
+    const labels = [...container.querySelectorAll('.dt-dd-item--grouprow .dt-flex1')].map(
+      (el) => el.textContent,
+    )
+    expect(labels).toEqual(['Dept', 'Name'])
+  })
+
+  it('Alt+ArrowUp/Alt+ArrowDown on a focused group row reorders priority', () => {
+    const cols: ColumnDef<Row>[] = [
+      { key: 'name', label: 'Name', groupable: true },
+      { key: 'dept', label: 'Dept', groupable: true },
+    ]
+    createDataTable(container, { data: ROWS, columns: cols })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="group"]')!)
+    click(container.querySelector<HTMLElement>('[data-action="toggle-group"][data-key="name"]')!)
+    click(container.querySelector<HTMLElement>('[data-action="toggle-group"][data-key="dept"]')!)
+    const deptRow = container.querySelector<HTMLElement>('[data-group-key="dept"]')!
+    deptRow.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'ArrowUp', altKey: true, bubbles: true }),
+    )
+    const labels = [...container.querySelectorAll('.dt-dd-item--grouprow .dt-flex1')].map(
+      (el) => el.textContent,
+    )
+    expect(labels).toEqual(['Dept', 'Name'])
+  })
+
+  it('Alt+ArrowUp on the first group row is a no-op', () => {
+    const cols: ColumnDef<Row>[] = [
+      { key: 'name', label: 'Name', groupable: true },
+      { key: 'dept', label: 'Dept', groupable: true },
+    ]
+    createDataTable(container, { data: ROWS, columns: cols })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="group"]')!)
+    click(container.querySelector<HTMLElement>('[data-action="toggle-group"][data-key="name"]')!)
+    click(container.querySelector<HTMLElement>('[data-action="toggle-group"][data-key="dept"]')!)
+    const nameRow = container.querySelector<HTMLElement>('[data-group-key="name"]')!
+    nameRow.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'ArrowUp', altKey: true, bubbles: true }),
+    )
+    const labels = [...container.querySelectorAll('.dt-dd-item--grouprow .dt-flex1')].map(
+      (el) => el.textContent,
+    )
+    expect(labels).toEqual(['Name', 'Dept'])
   })
 
   // --- pagination with grouping ---
@@ -1506,6 +1745,35 @@ describe('createDataTable', () => {
     setInput(container.querySelector<HTMLInputElement>('[data-action="search"]')!, 'ali')
     click(container.querySelector<HTMLElement>('[data-action="clear-all"]')!)
     expect(container.querySelectorAll('tbody tr')).toHaveLength(4)
+  })
+
+  it('does not render a clear-search button when the search query is empty', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    expect(container.querySelector('[data-action="clear-search"]')).toBeNull()
+  })
+
+  it('renders a clear-search button once the search query is non-empty', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    setInput(container.querySelector<HTMLInputElement>('[data-action="search"]')!, 'ali')
+    expect(container.querySelector('[data-action="clear-search"]')).not.toBeNull()
+  })
+
+  it('clear-search resets only the search query, not other active state', () => {
+    const table = createDataTable(container, { data: ROWS, columns: COLS })
+    setInput(container.querySelector<HTMLInputElement>('[data-action="search"]')!, 'ali')
+    click(container.querySelector<HTMLElement>('th[data-action="toggle-sort"][data-key="score"]')!)
+    click(container.querySelector<HTMLElement>('[data-action="clear-search"]')!)
+    expect(container.querySelector<HTMLInputElement>('[data-action="search"]')!.value).toBe('')
+    expect(container.querySelectorAll('tbody tr')).toHaveLength(4)
+    expect(table.getViewState().sorts).toEqual([{ key: 'score', dir: 'asc' }])
+  })
+
+  it('clear-search returns focus to the search input', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    setInput(container.querySelector<HTMLInputElement>('[data-action="search"]')!, 'ali')
+    container.querySelector<HTMLElement>('[data-action="clear-search"]')!.focus()
+    click(container.querySelector<HTMLElement>('[data-action="clear-search"]')!)
+    expect(document.activeElement).toBe(container.querySelector('[data-action="search"]'))
   })
 
   // --- aggregate rows ---
