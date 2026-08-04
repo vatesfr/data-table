@@ -57,6 +57,18 @@ const S = {
     borderBottom: '0.5px solid var(--color-border-tertiary)',
     flexWrap: 'wrap',
   } as CSSProperties,
+  toolbarActions: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    flexWrap: 'wrap',
+  } as CSSProperties,
+  toolbarSearch: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    flexWrap: 'wrap',
+  } as CSSProperties,
   stats: {
     marginLeft: 'auto',
     fontSize: 12,
@@ -184,10 +196,15 @@ const S = {
     color: 'var(--color-text-secondary)',
     padding: '0 6px',
   } as CSSProperties,
+  rowsPerPageGroup: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 6,
+    marginLeft: 10,
+  } as CSSProperties,
   rowsPerPageLabel: {
     fontSize: 12,
     color: 'var(--color-text-secondary)',
-    marginLeft: 10,
   } as CSSProperties,
   pageSelect: {
     padding: '4px 6px',
@@ -207,7 +224,9 @@ const S = {
     background: 'transparent',
     color: 'inherit',
     fontFamily: 'inherit',
+    flex: 1,
     minWidth: 160,
+    maxWidth: 280,
   } as CSSProperties,
   aggRow: {
     fontSize: 12,
@@ -730,393 +749,402 @@ export function DataTableView<TRow extends object>({
   return (
     <div style={S.wrap}>
       <div style={S.toolbar}>
-        {/* Columns */}
-        <Dropdown
-          open={openColsDD}
-          setOpen={setOpenColsDD}
-          trigger={<ToolbarBtn active={openColsDD}>{L.columns}</ToolbarBtn>}
-        >
-          <div style={S.ddSection}>{L.columnsSection}</div>
-          {orderedColumns.map((col, idx) => (
-            <div key={col.key} style={{ ...S.ddItem, justifyContent: 'space-between' }}>
-              <label
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  flex: 1,
-                  cursor: 'pointer',
-                }}
-              >
-                <input
-                  type="checkbox"
-                  checked={visibleCols.has(col.key)}
-                  onChange={() => toggleColVisibility(col.key)}
-                  style={{ margin: 0 }}
-                />
-                {col.label}
-              </label>
-              <span style={{ display: 'flex', gap: 2 }}>
-                <button
-                  type="button"
-                  onClick={() => moveColumnBy(col.key, -1)}
-                  disabled={idx === 0}
-                  style={{ ...S.reorderBtn, ...(idx === 0 ? S.reorderBtnDisabled : {}) }}
-                >
-                  ▲
-                </button>
-                <button
-                  type="button"
-                  onClick={() => moveColumnBy(col.key, 1)}
-                  disabled={idx === orderedColumns.length - 1}
-                  style={{
-                    ...S.reorderBtn,
-                    ...(idx === orderedColumns.length - 1 ? S.reorderBtnDisabled : {}),
-                  }}
-                >
-                  ▼
-                </button>
-              </span>
-            </div>
-          ))}
-        </Dropdown>
-
-        {/* Sort */}
-        <Dropdown
-          open={openSortDD}
-          setOpen={setOpenSortDD}
-          trigger={
-            <ToolbarBtn active={sorts.length > 0}>
-              {L.sort}
-              {sorts.length > 0 && <span style={{ ...S.chip, marginLeft: 2 }}>{sorts.length}</span>}
-            </ToolbarBtn>
-          }
-        >
-          <div style={S.ddSection}>{L.sortSection}</div>
-          {columns.map((col) => {
-            const s = sorts.find((s) => s.key === col.key)
-            return (
-              <div key={col.key} style={S.ddItem} onClick={() => toggleSort(col.key)}>
-                <span
-                  style={{
-                    width: 18,
-                    fontSize: 11,
-                    color: 'var(--color-text-tertiary)',
-                    fontWeight: 500,
-                  }}
-                >
-                  {s ? sorts.indexOf(s) + 1 : ''}
-                </span>
-                <span style={{ flex: 1 }}>{col.label}</span>
-                <span
-                  style={{
-                    fontSize: 15,
-                    color: s ? 'var(--color-text-primary)' : 'var(--color-border-secondary)',
-                  }}
-                >
-                  {getSortIcon(col.key)}
-                </span>
-              </div>
-            )
-          })}
-          {sorts.length > 0 && (
-            <div style={{ padding: '4px 14px 6px' }}>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  clearSorts()
-                }}
-                style={S.clearBtn}
-              >
-                {L.clearSorts}
-              </button>
-            </div>
-          )}
-        </Dropdown>
-
-        {/* Filter */}
-        {filterableCols.length > 0 && (
+        <div style={S.toolbarActions}>
+          {/* Columns */}
           <Dropdown
-            open={openFilterDD}
-            setOpen={setOpenFilterDD}
-            trigger={
-              <ToolbarBtn active={activeFilterCount > 0}>
-                {L.filter}
-                {activeFilterCount > 0 && (
-                  <span style={{ ...S.chip, marginLeft: 2 }}>{activeFilterCount}</span>
-                )}
-              </ToolbarBtn>
-            }
+            open={openColsDD}
+            setOpen={setOpenColsDD}
+            trigger={<ToolbarBtn active={openColsDD}>{L.columns}</ToolbarBtn>}
           >
-            <div style={S.filterPanel}>
-              <div style={S.filterCols}>
-                {filterableCols.map((col) => {
-                  const rf = rangeFilters[col.key]
-                  const hasActive =
-                    col.type === 'number'
-                      ? rf !== undefined && (rf.min !== '' || rf.max !== '')
-                      : (filters[col.key]?.size ?? 0) > 0
-                  return (
-                    <div
-                      key={col.key}
-                      onClick={() => setFilterActiveCol(col.key)}
-                      style={{
-                        ...S.filterColItem,
-                        ...(col.key === filterActiveKey ? S.filterColItemActive : {}),
-                      }}
-                    >
-                      <span>{col.label}</span>
-                      {hasActive && <span style={S.filterColDot} />}
-                    </div>
-                  )
-                })}
-              </div>
-              <div style={S.filterDetail}>
-                {filterDetailCol &&
-                  (filterDetailCol.type === 'number' ? (
-                    <div style={{ padding: '4px 14px 8px' }}>
-                      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                        <input
-                          type="number"
-                          placeholder={L.min}
-                          value={rangeFilters[filterDetailCol.key]?.min ?? ''}
-                          onChange={(e) =>
-                            setRangeFilter(filterDetailCol.key, 'min', e.target.value)
-                          }
-                          style={S.rangeInput}
-                        />
-                        <span style={{ color: 'var(--color-text-tertiary)', fontSize: 12 }}>–</span>
-                        <input
-                          type="number"
-                          placeholder={L.max}
-                          value={rangeFilters[filterDetailCol.key]?.max ?? ''}
-                          onChange={(e) =>
-                            setRangeFilter(filterDetailCol.key, 'max', e.target.value)
-                          }
-                          style={S.rangeInput}
-                        />
-                      </div>
-                    </div>
-                  ) : (
-                    <>
-                      <div style={S.filterSearchRow}>
-                        {filterDetailValues.length > 0 && (
-                          <input
-                            ref={filterSelectAllRef}
-                            type="checkbox"
-                            checked={filterAllSelected}
-                            onChange={() =>
-                              toggleFilterAll(filterDetailCol.key, filterDetailValues)
-                            }
-                            title={L.selectAll}
-                            aria-label={L.selectAll}
-                            style={S.filterSelectAll}
-                          />
-                        )}
-                        <input
-                          type="text"
-                          placeholder={L.filterSearchPlaceholder}
-                          value={filterSearchTerms[filterDetailCol.key] ?? ''}
-                          onChange={(e) =>
-                            setFilterSearchTerms({
-                              ...filterSearchTerms,
-                              [filterDetailCol.key]: e.target.value,
-                            })
-                          }
-                          style={S.ddSearch}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => cycleFilterValueSort(filterDetailCol)}
-                          title={L.sortValues}
-                          aria-label={L.sortValues}
-                          style={S.valueSortBtn}
-                        >
-                          {filterDetailCol.type === 'date'
-                            ? getDateSortIcon(valueSortFor(filterDetailCol.key).dir)
-                            : getValueSortIcon(valueSortFor(filterDetailCol.key))}
-                        </button>
-                      </div>
-                      {filterDetailCol.type === 'date'
-                        ? renderDateTreeNodes(
-                            filterDetailTree,
-                            filterDetailCol.key,
-                            0,
-                            filterDetailCol.parseDate,
-                          )
-                        : (() => {
-                            // Virtualized: only the rows scrolled into view (+ overscan) are
-                            // ever mounted, regardless of how many thousands of distinct values
-                            // filterDetailValues holds — see computeVirtualRange/FILTER_LIST_*.
-                            // Select-all/shift-range above still operate on the full array, so
-                            // behavior is unaffected by how much of it is actually rendered.
-                            const { startIndex, endIndex, offsetY, totalHeight } =
-                              filterListVirtualRange
-                            return (
-                              <div
-                                ref={filterListRef}
-                                style={S.filterList}
-                                onScroll={() => {
-                                  if (!filterListRafPending.current) {
-                                    filterListRafPending.current = true
-                                    requestAnimationFrame(() => {
-                                      filterListRafPending.current = false
-                                      // Read the live scrollTop here (not a value captured back
-                                      // in the triggering onScroll call) — several scroll events
-                                      // can fire before this callback runs, and only the latest
-                                      // position matters.
-                                      if (filterListRef.current) {
-                                        setFilterListScrollTop(filterListRef.current.scrollTop)
-                                      }
-                                    })
-                                  }
-                                }}
-                              >
-                                <div style={{ height: totalHeight, position: 'relative' }}>
-                                  <div
-                                    style={{
-                                      position: 'absolute',
-                                      top: offsetY,
-                                      left: 0,
-                                      right: 0,
-                                    }}
-                                  >
-                                    {filterDetailValues.slice(startIndex, endIndex).map((v) => (
-                                      <label
-                                        key={v}
-                                        style={{
-                                          ...S.ddItem,
-                                          height: FILTER_LIST_ITEM_HEIGHT,
-                                          boxSizing: 'border-box',
-                                          cursor: 'pointer',
-                                        }}
-                                      >
-                                        <input
-                                          type="checkbox"
-                                          checked={filters[filterDetailCol.key]?.has(v) ?? false}
-                                          readOnly
-                                          onClick={(e) => {
-                                            const key = filterDetailCol.key
-                                            const anchor = filterSelectionAnchor[key]
-                                            if (e.shiftKey && anchor != null) {
-                                              const shouldSelect = !(filters[key]?.has(v) ?? false)
-                                              setFilterValues(
-                                                key,
-                                                selectRange(filterDetailValues, anchor, v),
-                                                shouldSelect,
-                                              )
-                                            } else {
-                                              toggleFilter(key, v)
-                                            }
-                                            setFilterSelectionAnchor({
-                                              ...filterSelectionAnchor,
-                                              [key]: v,
-                                            })
-                                          }}
-                                          style={{ margin: 0 }}
-                                        />
-                                        <span style={{ flex: 1 }}>
-                                          {filterDetailCol.renderFilterLabel
-                                            ? filterDetailCol.renderFilterLabel(v)
-                                            : v}
-                                        </span>
-                                        <span style={S.filterCount} aria-hidden="true">
-                                          {stringValueCounts[filterDetailCol.key]?.get(v) ?? 0}
-                                        </span>
-                                      </label>
-                                    ))}
-                                  </div>
-                                </div>
-                              </div>
-                            )
-                          })()}
-                    </>
-                  ))}
-              </div>
-            </div>
-            {activeFilterCount > 0 && (
-              <div style={{ padding: '4px 14px 8px' }}>
-                <button onClick={clearFilters} style={S.clearBtn}>
-                  {L.clearFilters}
-                </button>
-              </div>
-            )}
-          </Dropdown>
-        )}
-
-        {/* Group */}
-        {groupableCols.length > 0 && (
-          <Dropdown
-            open={openGroupDD}
-            setOpen={setOpenGroupDD}
-            trigger={
-              <ToolbarBtn active={groupBy.length > 0}>
-                {L.group}
-                {groupBy.length > 0 && (
-                  <span style={{ ...S.chip, marginLeft: 2 }}>{groupBy.length}</span>
-                )}
-              </ToolbarBtn>
-            }
-          >
-            <div style={S.ddSection}>{L.groupSection}</div>
-            {groupableCols.map((col) => (
-              <div key={col.key} style={S.ddItem} onClick={() => toggleGroup(col.key)}>
-                <span
+            <div style={S.ddSection}>{L.columnsSection}</div>
+            {orderedColumns.map((col, idx) => (
+              <div key={col.key} style={{ ...S.ddItem, justifyContent: 'space-between' }}>
+                <label
                   style={{
-                    width: 18,
-                    fontSize: 11,
-                    color: 'var(--color-text-tertiary)',
-                    fontWeight: 500,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    flex: 1,
+                    cursor: 'pointer',
                   }}
                 >
-                  {groupBy.includes(col.key) ? groupBy.indexOf(col.key) + 1 : ''}
+                  <input
+                    type="checkbox"
+                    checked={visibleCols.has(col.key)}
+                    onChange={() => toggleColVisibility(col.key)}
+                    style={{ margin: 0 }}
+                  />
+                  {col.label}
+                </label>
+                <span style={{ display: 'flex', gap: 2 }}>
+                  <button
+                    type="button"
+                    onClick={() => moveColumnBy(col.key, -1)}
+                    disabled={idx === 0}
+                    style={{ ...S.reorderBtn, ...(idx === 0 ? S.reorderBtnDisabled : {}) }}
+                  >
+                    ▲
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => moveColumnBy(col.key, 1)}
+                    disabled={idx === orderedColumns.length - 1}
+                    style={{
+                      ...S.reorderBtn,
+                      ...(idx === orderedColumns.length - 1 ? S.reorderBtnDisabled : {}),
+                    }}
+                  >
+                    ▼
+                  </button>
                 </span>
-                <span style={{ flex: 1 }}>{col.label}</span>
-                {groupBy.includes(col.key) && <span>✓</span>}
               </div>
             ))}
-            {groupBy.length > 0 && (
+          </Dropdown>
+
+          {/* Sort */}
+          <Dropdown
+            open={openSortDD}
+            setOpen={setOpenSortDD}
+            trigger={
+              <ToolbarBtn active={sorts.length > 0}>
+                {L.sort}
+                {sorts.length > 0 && (
+                  <span style={{ ...S.chip, marginLeft: 2 }}>{sorts.length}</span>
+                )}
+              </ToolbarBtn>
+            }
+          >
+            <div style={S.ddSection}>{L.sortSection}</div>
+            {columns.map((col) => {
+              const s = sorts.find((s) => s.key === col.key)
+              return (
+                <div key={col.key} style={S.ddItem} onClick={() => toggleSort(col.key)}>
+                  <span
+                    style={{
+                      width: 18,
+                      fontSize: 11,
+                      color: 'var(--color-text-tertiary)',
+                      fontWeight: 500,
+                    }}
+                  >
+                    {s ? sorts.indexOf(s) + 1 : ''}
+                  </span>
+                  <span style={{ flex: 1 }}>{col.label}</span>
+                  <span
+                    style={{
+                      fontSize: 15,
+                      color: s ? 'var(--color-text-primary)' : 'var(--color-border-secondary)',
+                    }}
+                  >
+                    {getSortIcon(col.key)}
+                  </span>
+                </div>
+              )
+            })}
+            {sorts.length > 0 && (
               <div style={{ padding: '4px 14px 6px' }}>
                 <button
                   onClick={(e) => {
                     e.stopPropagation()
-                    clearGroups()
+                    clearSorts()
                   }}
                   style={S.clearBtn}
                 >
-                  {L.clearGroups}
+                  {L.clearSorts}
                 </button>
               </div>
             )}
           </Dropdown>
-        )}
 
-        <input
-          type="text"
-          placeholder={L.search}
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          style={S.searchInput}
-        />
+          {/* Filter */}
+          {filterableCols.length > 0 && (
+            <Dropdown
+              open={openFilterDD}
+              setOpen={setOpenFilterDD}
+              trigger={
+                <ToolbarBtn active={activeFilterCount > 0}>
+                  {L.filter}
+                  {activeFilterCount > 0 && (
+                    <span style={{ ...S.chip, marginLeft: 2 }}>{activeFilterCount}</span>
+                  )}
+                </ToolbarBtn>
+              }
+            >
+              <div style={S.filterPanel}>
+                <div style={S.filterCols}>
+                  {filterableCols.map((col) => {
+                    const rf = rangeFilters[col.key]
+                    const hasActive =
+                      col.type === 'number'
+                        ? rf !== undefined && (rf.min !== '' || rf.max !== '')
+                        : (filters[col.key]?.size ?? 0) > 0
+                    return (
+                      <div
+                        key={col.key}
+                        onClick={() => setFilterActiveCol(col.key)}
+                        style={{
+                          ...S.filterColItem,
+                          ...(col.key === filterActiveKey ? S.filterColItemActive : {}),
+                        }}
+                      >
+                        <span>{col.label}</span>
+                        {hasActive && <span style={S.filterColDot} />}
+                      </div>
+                    )
+                  })}
+                </div>
+                <div style={S.filterDetail}>
+                  {filterDetailCol &&
+                    (filterDetailCol.type === 'number' ? (
+                      <div style={{ padding: '4px 14px 8px' }}>
+                        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                          <input
+                            type="number"
+                            placeholder={L.min}
+                            value={rangeFilters[filterDetailCol.key]?.min ?? ''}
+                            onChange={(e) =>
+                              setRangeFilter(filterDetailCol.key, 'min', e.target.value)
+                            }
+                            style={S.rangeInput}
+                          />
+                          <span style={{ color: 'var(--color-text-tertiary)', fontSize: 12 }}>
+                            –
+                          </span>
+                          <input
+                            type="number"
+                            placeholder={L.max}
+                            value={rangeFilters[filterDetailCol.key]?.max ?? ''}
+                            onChange={(e) =>
+                              setRangeFilter(filterDetailCol.key, 'max', e.target.value)
+                            }
+                            style={S.rangeInput}
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div style={S.filterSearchRow}>
+                          {filterDetailValues.length > 0 && (
+                            <input
+                              ref={filterSelectAllRef}
+                              type="checkbox"
+                              checked={filterAllSelected}
+                              onChange={() =>
+                                toggleFilterAll(filterDetailCol.key, filterDetailValues)
+                              }
+                              title={L.selectAll}
+                              aria-label={L.selectAll}
+                              style={S.filterSelectAll}
+                            />
+                          )}
+                          <input
+                            type="text"
+                            placeholder={L.filterSearchPlaceholder}
+                            value={filterSearchTerms[filterDetailCol.key] ?? ''}
+                            onChange={(e) =>
+                              setFilterSearchTerms({
+                                ...filterSearchTerms,
+                                [filterDetailCol.key]: e.target.value,
+                              })
+                            }
+                            style={S.ddSearch}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => cycleFilterValueSort(filterDetailCol)}
+                            title={L.sortValues}
+                            aria-label={L.sortValues}
+                            style={S.valueSortBtn}
+                          >
+                            {filterDetailCol.type === 'date'
+                              ? getDateSortIcon(valueSortFor(filterDetailCol.key).dir)
+                              : getValueSortIcon(valueSortFor(filterDetailCol.key))}
+                          </button>
+                        </div>
+                        {filterDetailCol.type === 'date'
+                          ? renderDateTreeNodes(
+                              filterDetailTree,
+                              filterDetailCol.key,
+                              0,
+                              filterDetailCol.parseDate,
+                            )
+                          : (() => {
+                              // Virtualized: only the rows scrolled into view (+ overscan) are
+                              // ever mounted, regardless of how many thousands of distinct values
+                              // filterDetailValues holds — see computeVirtualRange/FILTER_LIST_*.
+                              // Select-all/shift-range above still operate on the full array, so
+                              // behavior is unaffected by how much of it is actually rendered.
+                              const { startIndex, endIndex, offsetY, totalHeight } =
+                                filterListVirtualRange
+                              return (
+                                <div
+                                  ref={filterListRef}
+                                  style={S.filterList}
+                                  onScroll={() => {
+                                    if (!filterListRafPending.current) {
+                                      filterListRafPending.current = true
+                                      requestAnimationFrame(() => {
+                                        filterListRafPending.current = false
+                                        // Read the live scrollTop here (not a value captured back
+                                        // in the triggering onScroll call) — several scroll events
+                                        // can fire before this callback runs, and only the latest
+                                        // position matters.
+                                        if (filterListRef.current) {
+                                          setFilterListScrollTop(filterListRef.current.scrollTop)
+                                        }
+                                      })
+                                    }
+                                  }}
+                                >
+                                  <div style={{ height: totalHeight, position: 'relative' }}>
+                                    <div
+                                      style={{
+                                        position: 'absolute',
+                                        top: offsetY,
+                                        left: 0,
+                                        right: 0,
+                                      }}
+                                    >
+                                      {filterDetailValues.slice(startIndex, endIndex).map((v) => (
+                                        <label
+                                          key={v}
+                                          style={{
+                                            ...S.ddItem,
+                                            height: FILTER_LIST_ITEM_HEIGHT,
+                                            boxSizing: 'border-box',
+                                            cursor: 'pointer',
+                                          }}
+                                        >
+                                          <input
+                                            type="checkbox"
+                                            checked={filters[filterDetailCol.key]?.has(v) ?? false}
+                                            readOnly
+                                            onClick={(e) => {
+                                              const key = filterDetailCol.key
+                                              const anchor = filterSelectionAnchor[key]
+                                              if (e.shiftKey && anchor != null) {
+                                                const shouldSelect = !(
+                                                  filters[key]?.has(v) ?? false
+                                                )
+                                                setFilterValues(
+                                                  key,
+                                                  selectRange(filterDetailValues, anchor, v),
+                                                  shouldSelect,
+                                                )
+                                              } else {
+                                                toggleFilter(key, v)
+                                              }
+                                              setFilterSelectionAnchor({
+                                                ...filterSelectionAnchor,
+                                                [key]: v,
+                                              })
+                                            }}
+                                            style={{ margin: 0 }}
+                                          />
+                                          <span style={{ flex: 1 }}>
+                                            {filterDetailCol.renderFilterLabel
+                                              ? filterDetailCol.renderFilterLabel(v)
+                                              : v}
+                                          </span>
+                                          <span style={S.filterCount} aria-hidden="true">
+                                            {stringValueCounts[filterDetailCol.key]?.get(v) ?? 0}
+                                          </span>
+                                        </label>
+                                      ))}
+                                    </div>
+                                  </div>
+                                </div>
+                              )
+                            })()}
+                      </>
+                    ))}
+                </div>
+              </div>
+              {activeFilterCount > 0 && (
+                <div style={{ padding: '4px 14px 8px' }}>
+                  <button onClick={clearFilters} style={S.clearBtn}>
+                    {L.clearFilters}
+                  </button>
+                </div>
+              )}
+            </Dropdown>
+          )}
 
-        {hasActiveState && (
-          <button
-            onClick={clearAll}
-            style={{
-              marginLeft: 4,
-              padding: '5px 10px',
-              background: 'none',
-              border: '0.5px solid var(--color-border-secondary)',
-              borderRadius: 6,
-              fontSize: 12,
-              cursor: 'pointer',
-              color: 'var(--color-text-secondary)',
-              fontFamily: 'inherit',
-            }}
-          >
-            {L.clearAll}
-          </button>
-        )}
+          {/* Group */}
+          {groupableCols.length > 0 && (
+            <Dropdown
+              open={openGroupDD}
+              setOpen={setOpenGroupDD}
+              trigger={
+                <ToolbarBtn active={groupBy.length > 0}>
+                  {L.group}
+                  {groupBy.length > 0 && (
+                    <span style={{ ...S.chip, marginLeft: 2 }}>{groupBy.length}</span>
+                  )}
+                </ToolbarBtn>
+              }
+            >
+              <div style={S.ddSection}>{L.groupSection}</div>
+              {groupableCols.map((col) => (
+                <div key={col.key} style={S.ddItem} onClick={() => toggleGroup(col.key)}>
+                  <span
+                    style={{
+                      width: 18,
+                      fontSize: 11,
+                      color: 'var(--color-text-tertiary)',
+                      fontWeight: 500,
+                    }}
+                  >
+                    {groupBy.includes(col.key) ? groupBy.indexOf(col.key) + 1 : ''}
+                  </span>
+                  <span style={{ flex: 1 }}>{col.label}</span>
+                  {groupBy.includes(col.key) && <span>✓</span>}
+                </div>
+              ))}
+              {groupBy.length > 0 && (
+                <div style={{ padding: '4px 14px 6px' }}>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      clearGroups()
+                    }}
+                    style={S.clearBtn}
+                  >
+                    {L.clearGroups}
+                  </button>
+                </div>
+              )}
+            </Dropdown>
+          )}
+        </div>
+
+        <div style={S.toolbarSearch}>
+          <input
+            type="text"
+            placeholder={L.search}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={S.searchInput}
+          />
+
+          {hasActiveState && (
+            <button
+              onClick={clearAll}
+              style={{
+                padding: '5px 10px',
+                background: 'none',
+                border: '0.5px solid var(--color-border-secondary)',
+                borderRadius: 6,
+                fontSize: 12,
+                cursor: 'pointer',
+                color: 'var(--color-text-secondary)',
+                fontFamily: 'inherit',
+              }}
+            >
+              {L.clearAll}
+            </button>
+          )}
+        </div>
 
         <div style={S.stats}>
           {L.rowCount(processedData.length, data.length)}
@@ -1411,18 +1439,20 @@ export function DataTableView<TRow extends object>({
           >
             »
           </button>
-          <span style={S.rowsPerPageLabel}>{L.rowsPerPage}:</span>
-          <select
-            value={pageSize}
-            onChange={(e) => setPageSize(Number(e.target.value))}
-            style={S.pageSelect}
-          >
-            {mergePageSizeOptions([10, 20, 50, 100], pageSize).map((n) => (
-              <option key={n} value={n}>
-                {n}
-              </option>
-            ))}
-          </select>
+          <span style={S.rowsPerPageGroup}>
+            <span style={S.rowsPerPageLabel}>{L.rowsPerPage}:</span>
+            <select
+              value={pageSize}
+              onChange={(e) => setPageSize(Number(e.target.value))}
+              style={S.pageSelect}
+            >
+              {mergePageSizeOptions([10, 20, 50, 100], pageSize).map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
+          </span>
         </div>
       )}
     </div>

@@ -533,222 +533,228 @@ function onColDragEnd(): void {
   <div class="dt">
     <!-- ── Toolbar ── -->
     <div class="dt__toolbar">
-      <!-- Columns -->
-      <Dropdown>
-        <template #trigger="{ open }">
-          <ToolbarBtn :active="open">{{ L.columns }}</ToolbarBtn>
-        </template>
-        <div class="dt__dd-section">{{ L.columnsSection }}</div>
-        <div
-          v-for="(col, idx) in orderedColumns"
-          :key="col.key"
-          class="dt__dd-item dt__dd-item--col"
-        >
-          <label class="dt__dd-item--clickable dt__flex1">
-            <input
-              type="checkbox"
-              :checked="visibleCols.has(col.key)"
-              @change="toggleColVisibility(col.key)"
-            />
-            {{ col.label }}
-          </label>
-          <span class="dt__reorder-btns">
-            <button
-              type="button"
-              class="dt__reorder-btn"
-              :disabled="idx === 0"
-              @click="moveColumnBy(col.key, -1)"
-            >
-              ▲
-            </button>
-            <button
-              type="button"
-              class="dt__reorder-btn"
-              :disabled="idx === orderedColumns.length - 1"
-              @click="moveColumnBy(col.key, 1)"
-            >
-              ▼
-            </button>
-          </span>
-        </div>
-      </Dropdown>
-
-      <!-- Sort -->
-      <Dropdown>
-        <template #trigger="{ open }">
-          <ToolbarBtn :active="open || sorts.length > 0">
-            {{ L.sort }}
-            <span v-if="sorts.length > 0" class="dt__chip">{{ sorts.length }}</span>
-          </ToolbarBtn>
-        </template>
-        <div class="dt__dd-section">{{ L.sortSection }}</div>
-        <div v-for="col in columns" :key="col.key" class="dt__dd-item" @click="toggleSort(col.key)">
-          <span class="dt__sort-idx">{{ getSortIndex(col.key) ?? '' }}</span>
-          <span class="dt__flex1">{{ col.label }}</span>
-          <span
-            :style="{
-              color: getSortIndex(col.key)
-                ? 'var(--color-text-primary)'
-                : 'var(--color-border-secondary)',
-            }"
+      <div class="dt__toolbar-actions">
+        <!-- Columns -->
+        <Dropdown>
+          <template #trigger="{ open }">
+            <ToolbarBtn :active="open">{{ L.columns }}</ToolbarBtn>
+          </template>
+          <div class="dt__dd-section">{{ L.columnsSection }}</div>
+          <div
+            v-for="(col, idx) in orderedColumns"
+            :key="col.key"
+            class="dt__dd-item dt__dd-item--col"
           >
-            {{ getSortIcon(col.key) }}
-          </span>
-        </div>
-        <div v-if="sorts.length > 0" class="dt__dd-footer">
-          <button @click.stop="clearSorts">{{ L.clearSorts }}</button>
-        </div>
-      </Dropdown>
-
-      <!-- Filter -->
-      <Dropdown v-if="filterableCols.length > 0">
-        <template #trigger="{ open }">
-          <ToolbarBtn :active="open || activeFilterCount > 0">
-            {{ L.filter }}
-            <span v-if="activeFilterCount > 0" class="dt__chip">{{ activeFilterCount }}</span>
-          </ToolbarBtn>
-        </template>
-        <div class="dt__filter-panel">
-          <div class="dt__filter-cols">
-            <div
-              v-for="col in filterableCols"
-              :key="col.key"
-              class="dt__filter-col-item"
-              :class="{ 'dt__filter-col-item--active': col.key === filterActiveKey }"
-              @click="selectFilterCol(col.key)"
-            >
-              <span>{{ col.label }}</span>
-              <span v-if="hasActiveColFilter(col)" class="dt__filter-col-dot" />
-            </div>
+            <label class="dt__dd-item--clickable dt__flex1">
+              <input
+                type="checkbox"
+                :checked="visibleCols.has(col.key)"
+                @change="toggleColVisibility(col.key)"
+              />
+              {{ col.label }}
+            </label>
+            <span class="dt__reorder-btns">
+              <button
+                type="button"
+                class="dt__reorder-btn"
+                :disabled="idx === 0"
+                @click="moveColumnBy(col.key, -1)"
+              >
+                ▲
+              </button>
+              <button
+                type="button"
+                class="dt__reorder-btn"
+                :disabled="idx === orderedColumns.length - 1"
+                @click="moveColumnBy(col.key, 1)"
+              >
+                ▼
+              </button>
+            </span>
           </div>
-          <div class="dt__filter-detail">
-            <template v-if="filterDetailCol">
-              <div v-if="filterDetailCol.type === 'number'" class="dt__range">
-                <div class="dt__range-inputs">
-                  <input
-                    type="number"
-                    :placeholder="L.min"
-                    :value="rangeFilters[filterDetailCol.key]?.min ?? ''"
-                    @input="
-                      setRangeFilter(
-                        filterDetailCol.key,
-                        'min',
-                        ($event.target as HTMLInputElement).value,
-                      )
-                    "
-                    class="dt__range-input"
-                  />
-                  <span class="dt__range-sep">–</span>
-                  <input
-                    type="number"
-                    :placeholder="L.max"
-                    :value="rangeFilters[filterDetailCol.key]?.max ?? ''"
-                    @input="
-                      setRangeFilter(
-                        filterDetailCol.key,
-                        'max',
-                        ($event.target as HTMLInputElement).value,
-                      )
-                    "
-                    class="dt__range-input"
-                  />
-                </div>
+        </Dropdown>
+
+        <!-- Sort -->
+        <Dropdown>
+          <template #trigger="{ open }">
+            <ToolbarBtn :active="open || sorts.length > 0">
+              {{ L.sort }}
+              <span v-if="sorts.length > 0" class="dt__chip">{{ sorts.length }}</span>
+            </ToolbarBtn>
+          </template>
+          <div class="dt__dd-section">{{ L.sortSection }}</div>
+          <div
+            v-for="col in columns"
+            :key="col.key"
+            class="dt__dd-item"
+            @click="toggleSort(col.key)"
+          >
+            <span class="dt__sort-idx">{{ getSortIndex(col.key) ?? '' }}</span>
+            <span class="dt__flex1">{{ col.label }}</span>
+            <span
+              :style="{
+                color: getSortIndex(col.key)
+                  ? 'var(--color-text-primary)'
+                  : 'var(--color-border-secondary)',
+              }"
+            >
+              {{ getSortIcon(col.key) }}
+            </span>
+          </div>
+          <div v-if="sorts.length > 0" class="dt__dd-footer">
+            <button @click.stop="clearSorts">{{ L.clearSorts }}</button>
+          </div>
+        </Dropdown>
+
+        <!-- Filter -->
+        <Dropdown v-if="filterableCols.length > 0">
+          <template #trigger="{ open }">
+            <ToolbarBtn :active="open || activeFilterCount > 0">
+              {{ L.filter }}
+              <span v-if="activeFilterCount > 0" class="dt__chip">{{ activeFilterCount }}</span>
+            </ToolbarBtn>
+          </template>
+          <div class="dt__filter-panel">
+            <div class="dt__filter-cols">
+              <div
+                v-for="col in filterableCols"
+                :key="col.key"
+                class="dt__filter-col-item"
+                :class="{ 'dt__filter-col-item--active': col.key === filterActiveKey }"
+                @click="selectFilterCol(col.key)"
+              >
+                <span>{{ col.label }}</span>
+                <span v-if="hasActiveColFilter(col)" class="dt__filter-col-dot" />
               </div>
-              <template v-else>
-                <div class="dt__filter-search-row">
-                  <input
-                    v-if="filterDetailValues.length > 0"
-                    v-indeterminate="isFilterSomeSelected(filterDetailCol)"
-                    type="checkbox"
-                    class="dt__filter-select-all"
-                    :checked="isFilterAllSelected(filterDetailCol)"
-                    :title="L.selectAll"
-                    :aria-label="L.selectAll"
-                    @change="onToggleFilterAll(filterDetailCol)"
-                  />
-                  <input
-                    type="text"
-                    class="dt__dd-search"
-                    :placeholder="L.filterSearchPlaceholder"
-                    :value="filterSearchTerms[filterDetailCol.key] ?? ''"
-                    @input="
-                      setFilterSearchTerm(
-                        filterDetailCol.key,
-                        ($event.target as HTMLInputElement).value,
-                      )
-                    "
-                  />
-                  <button
-                    type="button"
-                    class="dt__value-sort-btn"
-                    :title="L.sortValues"
-                    :aria-label="L.sortValues"
-                    @click="cycleFilterValueSort(filterDetailCol)"
-                  >
-                    {{
-                      filterDetailCol.type === 'date'
-                        ? getDateSortIcon(valueSortFor(filterDetailCol.key).dir)
-                        : getValueSortIcon(valueSortFor(filterDetailCol.key))
-                    }}
-                  </button>
+            </div>
+            <div class="dt__filter-detail">
+              <template v-if="filterDetailCol">
+                <div v-if="filterDetailCol.type === 'number'" class="dt__range">
+                  <div class="dt__range-inputs">
+                    <input
+                      type="number"
+                      :placeholder="L.min"
+                      :value="rangeFilters[filterDetailCol.key]?.min ?? ''"
+                      @input="
+                        setRangeFilter(
+                          filterDetailCol.key,
+                          'min',
+                          ($event.target as HTMLInputElement).value,
+                        )
+                      "
+                      class="dt__range-input"
+                    />
+                    <span class="dt__range-sep">–</span>
+                    <input
+                      type="number"
+                      :placeholder="L.max"
+                      :value="rangeFilters[filterDetailCol.key]?.max ?? ''"
+                      @input="
+                        setRangeFilter(
+                          filterDetailCol.key,
+                          'max',
+                          ($event.target as HTMLInputElement).value,
+                        )
+                      "
+                      class="dt__range-input"
+                    />
+                  </div>
                 </div>
-                <DateTreeItem
-                  v-if="filterDetailCol.type === 'date'"
-                  :nodes="filterDetailTree"
-                  :depth="0"
-                  :selected="filters[filterDetailCol.key] ?? new Set()"
-                  :counts="stringValueCounts[filterDetailCol.key] ?? new Map()"
-                  :expanded="expandedDateNodes[filterDetailCol.key] ?? new Set()"
-                  :search-active="isDateSearchActive(filterDetailCol)"
-                  @toggle-node="(node, event) => onDateNodeClick(filterDetailCol!, node, event)"
-                  @toggle-expand="(path) => toggleDateNodeExpand(filterDetailCol!.key, path)"
-                />
-                <!--
+                <template v-else>
+                  <div class="dt__filter-search-row">
+                    <input
+                      v-if="filterDetailValues.length > 0"
+                      v-indeterminate="isFilterSomeSelected(filterDetailCol)"
+                      type="checkbox"
+                      class="dt__filter-select-all"
+                      :checked="isFilterAllSelected(filterDetailCol)"
+                      :title="L.selectAll"
+                      :aria-label="L.selectAll"
+                      @change="onToggleFilterAll(filterDetailCol)"
+                    />
+                    <input
+                      type="text"
+                      class="dt__dd-search"
+                      :placeholder="L.filterSearchPlaceholder"
+                      :value="filterSearchTerms[filterDetailCol.key] ?? ''"
+                      @input="
+                        setFilterSearchTerm(
+                          filterDetailCol.key,
+                          ($event.target as HTMLInputElement).value,
+                        )
+                      "
+                    />
+                    <button
+                      type="button"
+                      class="dt__value-sort-btn"
+                      :title="L.sortValues"
+                      :aria-label="L.sortValues"
+                      @click="cycleFilterValueSort(filterDetailCol)"
+                    >
+                      {{
+                        filterDetailCol.type === 'date'
+                          ? getDateSortIcon(valueSortFor(filterDetailCol.key).dir)
+                          : getValueSortIcon(valueSortFor(filterDetailCol.key))
+                      }}
+                    </button>
+                  </div>
+                  <DateTreeItem
+                    v-if="filterDetailCol.type === 'date'"
+                    :nodes="filterDetailTree"
+                    :depth="0"
+                    :selected="filters[filterDetailCol.key] ?? new Set()"
+                    :counts="stringValueCounts[filterDetailCol.key] ?? new Map()"
+                    :expanded="expandedDateNodes[filterDetailCol.key] ?? new Set()"
+                    :search-active="isDateSearchActive(filterDetailCol)"
+                    @toggle-node="(node, event) => onDateNodeClick(filterDetailCol!, node, event)"
+                    @toggle-expand="(path) => toggleDateNodeExpand(filterDetailCol!.key, path)"
+                  />
+                  <!--
                   Virtualized: only the rows scrolled into view (+ overscan) are ever mounted,
                   regardless of how many thousands of distinct values filterDetailValues holds —
                   see computeVirtualRange/FILTER_LIST_*. Select-all/shift-range above still
                   operate on the full filterDetailValues array, so behavior is unaffected by how
                   much of it is actually rendered.
                 -->
-                <template v-else>
-                  <div
-                    ref="filterListRef"
-                    class="dt__filter-list"
-                    :style="{ height: FILTER_LIST_VIEWPORT_HEIGHT + 'px' }"
-                    @scroll="onFilterListScroll"
-                  >
+                  <template v-else>
                     <div
-                      :style="{
-                        height: filterListVirtualRange.totalHeight + 'px',
-                        position: 'relative',
-                      }"
+                      ref="filterListRef"
+                      class="dt__filter-list"
+                      :style="{ height: FILTER_LIST_VIEWPORT_HEIGHT + 'px' }"
+                      @scroll="onFilterListScroll"
                     >
                       <div
                         :style="{
-                          position: 'absolute',
-                          top: filterListVirtualRange.offsetY + 'px',
-                          left: 0,
-                          right: 0,
+                          height: filterListVirtualRange.totalHeight + 'px',
+                          position: 'relative',
                         }"
                       >
-                        <label
-                          v-for="v in filterDetailValues.slice(
-                            filterListVirtualRange.startIndex,
-                            filterListVirtualRange.endIndex,
-                          )"
-                          :key="v"
-                          class="dt__dd-item dt__dd-item--clickable"
+                        <div
                           :style="{
-                            height: FILTER_LIST_ITEM_HEIGHT + 'px',
-                            boxSizing: 'border-box',
+                            position: 'absolute',
+                            top: filterListVirtualRange.offsetY + 'px',
+                            left: 0,
+                            right: 0,
                           }"
                         >
-                          <input
-                            type="checkbox"
-                            :checked="filters[filterDetailCol.key]?.has(v) ?? false"
-                            @click="onFilterValueClick(filterDetailCol, v, $event)"
-                          />
-                          <!--
+                          <label
+                            v-for="v in filterDetailValues.slice(
+                              filterListVirtualRange.startIndex,
+                              filterListVirtualRange.endIndex,
+                            )"
+                            :key="v"
+                            class="dt__dd-item dt__dd-item--clickable"
+                            :style="{
+                              height: FILTER_LIST_ITEM_HEIGHT + 'px',
+                              boxSizing: 'border-box',
+                            }"
+                          >
+                            <input
+                              type="checkbox"
+                              :checked="filters[filterDetailCol.key]?.has(v) ?? false"
+                              @click="onFilterValueClick(filterDetailCol, v, $event)"
+                            />
+                            <!--
                             Slot #filter-{key} — custom label in the filter dropdown.
                             Slot scope: { value: string }
                             Falls back to the raw string value.
@@ -756,61 +762,66 @@ function onColDragEnd(): void {
                             tree branch node's label (a year/month) has no single raw value to
                             pass through, and even a day leaf can bundle more than one raw value.
                           -->
-                          <span class="dt__flex1">
-                            <slot :name="`filter-${filterDetailCol.key}`" :value="v">{{ v }}</slot>
-                          </span>
-                          <span class="dt__filter-count">{{ countFor(filterDetailCol, v) }}</span>
-                        </label>
+                            <span class="dt__flex1">
+                              <slot :name="`filter-${filterDetailCol.key}`" :value="v">{{
+                                v
+                              }}</slot>
+                            </span>
+                            <span class="dt__filter-count">{{ countFor(filterDetailCol, v) }}</span>
+                          </label>
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  </template>
                 </template>
               </template>
-            </template>
+            </div>
           </div>
-        </div>
-        <div v-if="activeFilterCount > 0" class="dt__dd-footer">
-          <button @click="clearFilters">{{ L.clearFilters }}</button>
-        </div>
-      </Dropdown>
+          <div v-if="activeFilterCount > 0" class="dt__dd-footer">
+            <button @click="clearFilters">{{ L.clearFilters }}</button>
+          </div>
+        </Dropdown>
 
-      <!-- Group -->
-      <Dropdown v-if="groupableCols.length > 0">
-        <template #trigger="{ open }">
-          <ToolbarBtn :active="open || groupBy.length > 0">
-            {{ L.group }}
-            <span v-if="groupBy.length > 0" class="dt__chip">{{ groupBy.length }}</span>
-          </ToolbarBtn>
-        </template>
-        <div class="dt__dd-section">{{ L.groupSection }}</div>
-        <div
-          v-for="col in groupableCols"
-          :key="col.key"
-          class="dt__dd-item"
-          @click="toggleGroup(col.key)"
-        >
-          <span class="dt__sort-idx">{{
-            groupBy.includes(col.key) ? groupBy.indexOf(col.key) + 1 : ''
-          }}</span>
-          <span class="dt__flex1">{{ col.label }}</span>
-          <span v-if="groupBy.includes(col.key)">✓</span>
-        </div>
-        <div v-if="groupBy.length > 0" class="dt__dd-footer">
-          <button @click.stop="clearGroups">{{ L.clearGroups }}</button>
-        </div>
-      </Dropdown>
+        <!-- Group -->
+        <Dropdown v-if="groupableCols.length > 0">
+          <template #trigger="{ open }">
+            <ToolbarBtn :active="open || groupBy.length > 0">
+              {{ L.group }}
+              <span v-if="groupBy.length > 0" class="dt__chip">{{ groupBy.length }}</span>
+            </ToolbarBtn>
+          </template>
+          <div class="dt__dd-section">{{ L.groupSection }}</div>
+          <div
+            v-for="col in groupableCols"
+            :key="col.key"
+            class="dt__dd-item"
+            @click="toggleGroup(col.key)"
+          >
+            <span class="dt__sort-idx">{{
+              groupBy.includes(col.key) ? groupBy.indexOf(col.key) + 1 : ''
+            }}</span>
+            <span class="dt__flex1">{{ col.label }}</span>
+            <span v-if="groupBy.includes(col.key)">✓</span>
+          </div>
+          <div v-if="groupBy.length > 0" class="dt__dd-footer">
+            <button @click.stop="clearGroups">{{ L.clearGroups }}</button>
+          </div>
+        </Dropdown>
+      </div>
 
-      <input
-        type="text"
-        class="dt__search-input"
-        :placeholder="L.search"
-        :value="searchQuery"
-        @input="setSearchQuery(($event.target as HTMLInputElement).value)"
-      />
+      <div class="dt__toolbar-search">
+        <input
+          type="text"
+          class="dt__search-input"
+          :placeholder="L.search"
+          :value="searchQuery"
+          @input="setSearchQuery(($event.target as HTMLInputElement).value)"
+        />
 
-      <button v-if="hasActiveState" class="dt__clear-all" @click="clearAll">
-        {{ L.clearAll }}
-      </button>
+        <button v-if="hasActiveState" class="dt__clear-all" @click="clearAll">
+          {{ L.clearAll }}
+        </button>
+      </div>
 
       <div class="dt__stats">
         {{ L.rowCount(processedData.length, data.length) }}
@@ -848,14 +859,16 @@ function onColDragEnd(): void {
       <button class="dt__page-btn" :disabled="page >= numPages" @click="setPage(numPages)">
         »
       </button>
-      <span class="dt__rows-per-page-label">{{ L.rowsPerPage }}:</span>
-      <select
-        class="dt__page-select"
-        :value="pageSize"
-        @change="setPageSize(Number(($event.target as HTMLSelectElement).value))"
-      >
-        <option v-for="n in pageSizeOptions" :key="n" :value="n">{{ n }}</option>
-      </select>
+      <span class="dt__rows-per-page-group">
+        <span class="dt__rows-per-page-label">{{ L.rowsPerPage }}:</span>
+        <select
+          class="dt__page-select"
+          :value="pageSize"
+          @change="setPageSize(Number(($event.target as HTMLSelectElement).value))"
+        >
+          <option v-for="n in pageSizeOptions" :key="n" :value="n">{{ n }}</option>
+        </select>
+      </span>
     </div>
 
     <!-- ── Table ── -->
@@ -1043,6 +1056,18 @@ function onColDragEnd(): void {
   border-bottom: 0.5px solid var(--color-border-tertiary);
   flex-wrap: wrap;
 }
+.dt__toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.dt__toolbar-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
 .dt__stats {
   margin-left: auto;
   font-size: 12px;
@@ -1056,10 +1081,11 @@ function onColDragEnd(): void {
   background: transparent;
   color: inherit;
   font-family: inherit;
+  flex: 1;
   min-width: 160px;
+  max-width: 280px;
 }
 .dt__clear-all {
-  margin-left: 4px;
   padding: 5px 10px;
   background: none;
   border: 0.5px solid var(--color-border-secondary);
@@ -1304,10 +1330,15 @@ function onColDragEnd(): void {
   color: var(--color-text-secondary);
   padding: 0 6px;
 }
+.dt__rows-per-page-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 10px;
+}
 .dt__rows-per-page-label {
   font-size: 12px;
   color: var(--color-text-secondary);
-  margin-left: 10px;
 }
 .dt__page-select {
   padding: 4px 6px;

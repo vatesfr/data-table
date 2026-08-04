@@ -4,6 +4,8 @@ export const STYLES = `
 ${renderThemeCss()}
 .dt{font-family:inherit;font-size:14px;color:var(--color-text-primary,#1a1916)}
 .dt-toolbar{display:flex;align-items:center;gap:8px;padding:12px 0;border-bottom:0.5px solid var(--color-border-tertiary,#eeedea);flex-wrap:wrap}
+.dt-toolbar-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.dt-toolbar-search{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .dt-stats{margin-left:auto;font-size:12px;color:var(--color-text-secondary,#6b6a66)}
 .dt-btn{display:inline-flex;align-items:center;gap:4px;padding:5px 10px;background:none;border:0.5px solid var(--color-border-secondary,#dddcd8);border-radius:6px;font-size:13px;cursor:pointer;color:var(--color-text-primary,#1a1916);font-family:inherit;line-height:1}
 .dt-btn--active{background:var(--color-background-secondary,#f7f6f3)}
@@ -56,8 +58,9 @@ ${renderThemeCss()}
 .dt-page-btn:disabled{opacity:.35;cursor:default}
 .dt-page-info{font-size:12px;color:var(--color-text-secondary,#6b6a66);padding:0 6px}
 .dt-page-select{padding:4px 6px;font-size:12px;border:0.5px solid var(--color-border-secondary,#dddcd8);border-radius:4px;background:transparent;color:inherit;font-family:inherit;cursor:pointer}
-.dt-rows-per-page{font-size:12px;color:var(--color-text-secondary,#6b6a66);margin-left:10px}
-.dt-search-input{padding:4px 8px;font-size:13px;border:0.5px solid var(--color-border-secondary,#dddcd8);border-radius:6px;background:transparent;color:inherit;font-family:inherit;min-width:160px}
+.dt-rows-per-page-group{display:inline-flex;align-items:center;gap:6px;margin-left:10px}
+.dt-rows-per-page{font-size:12px;color:var(--color-text-secondary,#6b6a66)}
+.dt-search-input{padding:4px 8px;font-size:13px;border:0.5px solid var(--color-border-secondary,#dddcd8);border-radius:6px;background:transparent;color:inherit;font-family:inherit;flex:1;min-width:160px;max-width:280px}
 .dt-filter-panel{display:flex;min-width:460px;max-height:380px}
 .dt-filter-cols{width:150px;flex-shrink:0;overflow-y:auto;border-right:0.5px solid var(--color-border-tertiary,#eeedea);padding:4px 0}
 .dt-filter-col-item{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:7px 10px;font-size:13px;cursor:pointer;color:var(--color-text-primary,#1a1916)}

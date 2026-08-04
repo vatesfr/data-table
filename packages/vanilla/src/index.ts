@@ -494,6 +494,7 @@ export function createDataTable<TRow extends object>(
 
     // --- Toolbar ---
     html += `<div class="dt-toolbar">`
+    html += `<div class="dt-toolbar-actions">`
 
     // Columns
     html += buildDd(
@@ -617,11 +618,15 @@ export function createDataTable<TRow extends object>(
       )
     }
 
+    html += `</div>` // dt-toolbar-actions
+
+    html += `<div class="dt-toolbar-search">`
     html += `<input type="text" class="dt-search-input" placeholder="${esc(L.search)}" value="${esc(searchQuery)}" data-action="search" data-focus-key="search">`
 
     if (hasActiveState) {
-      html += `<button class="dt-btn" data-action="clear-all" style="margin-left:4px">${esc(L.clearAll)}</button>`
+      html += `<button class="dt-btn" data-action="clear-all">${esc(L.clearAll)}</button>`
     }
+    html += `</div>` // dt-toolbar-search
 
     // A group split across a page boundary contributes a second ("continued") chunk to
     // `_groupedData` — deduped by key here so it isn't double-counted.
@@ -754,12 +759,13 @@ export function createDataTable<TRow extends object>(
       html += `<span class="dt-page-info">${esc(L.pageOf(_clampedPage, _numPages))}</span>`
       html += `<button class="dt-page-btn" data-action="page-next"${_clampedPage >= _numPages ? ' disabled' : ''}>›</button>`
       html += `<button class="dt-page-btn" data-action="page-last"${_clampedPage >= _numPages ? ' disabled' : ''}>»</button>`
+      html += `<span class="dt-rows-per-page-group">`
       html += `<span class="dt-rows-per-page">${esc(L.rowsPerPage)}:</span>`
       html += `<select class="dt-page-select" data-action="set-page-size">`
       for (const n of mergePageSizeOptions([10, 20, 50, 100], pageSize)) {
         html += `<option value="${n}"${pageSize === n ? ' selected' : ''}>${n}</option>`
       }
-      html += `</select></div>`
+      html += `</select></span></div>`
     }
 
     html += `</div>` // .dt
