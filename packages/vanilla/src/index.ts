@@ -2,6 +2,7 @@ import {
   processData,
   searchData,
   groupData,
+  sortWithinGroups,
   computeStringValues,
   computeStringValueCounts,
   filterValuesBySearch,
@@ -204,7 +205,12 @@ export function createDataTable<TRow extends object>(
     )
     // Grouping runs over the *full* filtered/sorted data, not a page's slice — see the
     // `_visibleItems` comment above.
-    const groupedFull = groupData(_processedData, groupBy, columns, L.emptyValue)
+    const groupedFull = sortWithinGroups(
+      groupData(_processedData, groupBy, columns, L.emptyValue),
+      sorts,
+      groupBy,
+      columns,
+    )
     _visibleItems = getVisibleRows(groupedFull, collapsedGroups, defaultGroupsCollapsed)
     _numPages = calcTotalPages(_visibleItems.length, pageSize)
     _clampedPage = Math.min(page, Math.max(1, _numPages))

@@ -3,6 +3,7 @@ import {
   processData,
   searchData,
   groupData,
+  sortWithinGroups,
   getVisibleRows,
   paginateVisibleGroups,
   paginateVisibleItems,
@@ -454,6 +455,84 @@ describe('groupData', () => {
     const result = groupData(GAMES_WITH_EMPTY, ['tags'], [], 'N/A')
     expect(result.map((g) => g.key)).toContain('N/A')
     expect(result.find((g) => g.key === 'N/A')?.rows.map((r) => r.name)).toEqual(['Game D'])
+  })
+})
+
+// ─── sortWithinGroups ────────────────────────────────────────────────────────
+
+describe('sortWithinGroups', () => {
+  interface ScoredGame {
+    id: number
+    name: string
+    tags: string[]
+    score: number
+  }
+
+  const SCORED_GAMES: ScoredGame[] = [
+    { id: 1, name: 'Game A', tags: ['Action', 'RPG'], score: 90 },
+    { id: 2, name: 'Game B', tags: ['Action', 'Adventure'], score: 70 },
+    { id: 3, name: 'Game C', tags: ['RPG'], score: 80 },
+    { id: 4, name: 'Game D', tags: ['Action'], score: 60 },
+  ]
+
+  it("sorts rows within each group by the secondary key, ignoring the grouped multi-value column's own whole-array comparison (issue #12)", () => {
+    const groups = groupData(SCORED_GAMES, ['tags'])
+    const sorted = sortWithinGroups(
+      groups,
+      [
+        { key: 'tags', dir: 'asc' },
+        { key: 'score', dir: 'asc' },
+      ],
+      ['tags'],
+    )
+    expect(sorted.find((g) => g.key === 'Action')?.rows.map((r) => r.name)).toEqual([
+      'Game D',
+      'Game B',
+      'Game A',
+    ]) // 60, 70, 90
+  })
+
+  it('respects a descending direction on the remaining sort key', () => {
+    const groups = groupData(SCORED_GAMES, ['tags'])
+    const sorted = sortWithinGroups(groups, [{ key: 'score', dir: 'desc' }], ['tags'])
+    expect(sorted.find((g) => g.key === 'Action')?.rows.map((r) => r.name)).toEqual([
+      'Game A',
+      'Game B',
+      'Game D',
+    ]) // 90, 70, 60
+  })
+
+  it('reorders the groups themselves ascending by their own key when the sort key is the groupBy column (issue #12)', () => {
+    const groups = groupData(SCORED_GAMES, ['tags'])
+    const sorted = sortWithinGroups(groups, [{ key: 'tags', dir: 'asc' }], ['tags'])
+    expect(sorted.map((g) => g.key)).toEqual(['Action', 'Adventure', 'RPG'])
+  })
+
+  it('reorders the groups themselves descending when dir is desc', () => {
+    const groups = groupData(SCORED_GAMES, ['tags'])
+    const sorted = sortWithinGroups(groups, [{ key: 'tags', dir: 'desc' }], ['tags'])
+    expect(sorted.map((g) => g.key)).toEqual(['RPG', 'Adventure', 'Action'])
+  })
+
+  it('orders groups numerically, not lexicographically, for a type: number groupBy column', () => {
+    interface Tiered {
+      id: number
+      tier: number
+    }
+    const rows: Tiered[] = [
+      { id: 1, tier: 10 },
+      { id: 2, tier: 2 },
+      { id: 3, tier: 3 },
+    ]
+    const cols = [{ key: 'tier', label: 'Tier', type: 'number' as const }]
+    const groups = groupData(rows, ['tier'], cols)
+    const sorted = sortWithinGroups(groups, [{ key: 'tier', dir: 'asc' }], ['tier'], cols)
+    expect(sorted.map((g) => g.key)).toEqual(['2', '3', '10'])
+  })
+
+  it('returns the groups unchanged when sorts is empty', () => {
+    const groups = groupData(SCORED_GAMES, ['tags'])
+    expect(sortWithinGroups(groups, [], ['tags'])).toBe(groups)
   })
 })
 

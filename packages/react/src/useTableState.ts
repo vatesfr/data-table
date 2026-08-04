@@ -3,6 +3,7 @@ import {
   processData,
   searchData,
   groupData,
+  sortWithinGroups,
   getVisibleRows,
   paginateVisibleGroups,
   paginateData,
@@ -78,8 +79,14 @@ export function useTableState<TRow extends object>(
   // can budget page size across header rows and data rows together instead of paginating data
   // rows first and grouping whatever lands on that page afterward — see "Pagination" in the docs.
   const groupedFull = useMemo(
-    () => groupData(processedData, groupBy, columns, L.emptyValue),
-    [processedData, groupBy, columns, L.emptyValue],
+    () =>
+      sortWithinGroups(
+        groupData(processedData, groupBy, columns, L.emptyValue),
+        sorts,
+        groupBy,
+        columns,
+      ),
+    [processedData, groupBy, columns, L.emptyValue, sorts],
   )
 
   const visibleItems = useMemo(

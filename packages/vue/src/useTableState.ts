@@ -3,6 +3,7 @@ import {
   processData,
   searchData,
   groupData,
+  sortWithinGroups,
   getVisibleRows,
   paginateVisibleGroups,
   paginateData,
@@ -85,7 +86,12 @@ export function useTableState<TRow extends object>(
   // can budget page size across header rows and data rows together instead of paginating data
   // rows first and grouping whatever lands on that page afterward — see "Pagination" in the docs.
   const groupedFull = computed(() =>
-    groupData(processedData.value, groupBy.value, columns.value, L.value.emptyValue),
+    sortWithinGroups(
+      groupData(processedData.value, groupBy.value, columns.value, L.value.emptyValue),
+      sorts.value,
+      groupBy.value,
+      columns.value,
+    ),
   )
 
   const visibleItems = computed(() =>

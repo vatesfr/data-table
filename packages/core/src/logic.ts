@@ -48,6 +48,41 @@ function multiValues(value: unknown, emptyLabel = '(none)'): string[] {
   return value.length > 0 ? value.map((v) => String(v)) : [emptyLabel]
 }
 
+/**
+ * Sorts `rows` by `sorts`, shared by `processData`'s global sort and `sortWithinGroups`'
+ * per-bucket re-sort. Decorate-sort-undecorate: `getComparableValue` (esp. a `type: 'date'`
+ * column's `parseDate`) is pure per-row, but a comparator recomputes it for both sides on every
+ * comparison — O(n log n) calls instead of O(n). Precomputing once per row per sort key avoids
+ * re-parsing the same row's date string dozens of times during a large sort.
+ */
+function sortRows<TRow extends object>(
+  rows: TRow[],
+  sorts: SortEntry[],
+  colByKey: Map<string, ColumnDefBase<TRow>>,
+): TRow[] {
+  if (sorts.length === 0) return rows
+  const decorated = rows.map((row) => ({
+    row,
+    values: sorts.map(({ key }) => {
+      const col = colByKey.get(key)
+      return col ? getComparableValue(col, row) : asRecord(row)[key]
+    }),
+  }))
+  decorated.sort((a, b) => {
+    for (let i = 0; i < sorts.length; i++) {
+      const va = a.values[i]
+      const vb = b.values[i]
+      let cmp = 0
+      if (typeof va === 'number' && typeof vb === 'number' && !isNaN(va) && !isNaN(vb))
+        cmp = va - vb
+      else cmp = String(va ?? '').localeCompare(String(vb ?? ''))
+      if (cmp !== 0) return sorts[i].dir === 'asc' ? cmp : -cmp
+    }
+    return 0
+  })
+  return decorated.map((d) => d.row)
+}
+
 export function processData<TRow extends object>(
   data: TRow[],
   filters: Record<string, Set<string>>,
@@ -78,34 +113,7 @@ export function processData<TRow extends object>(
     if (range.max !== '') result = result.filter((r) => Number(rangeValue(r)) <= Number(range.max))
   }
 
-  if (sorts.length > 0) {
-    // Decorate-sort-undecorate: `getComparableValue` (esp. a `type: 'date'` column's
-    // parseDate) is pure per-row, but a comparator recomputes it for both sides on every
-    // comparison — O(n log n) calls instead of O(n). Precomputing once per row per sort key
-    // avoids re-parsing the same row's date string dozens of times during a large sort.
-    const decorated = result.map((row) => ({
-      row,
-      values: sorts.map(({ key }) => {
-        const col = colByKey.get(key)
-        return col ? getComparableValue(col, row) : asRecord(row)[key]
-      }),
-    }))
-    decorated.sort((a, b) => {
-      for (let i = 0; i < sorts.length; i++) {
-        const va = a.values[i]
-        const vb = b.values[i]
-        let cmp = 0
-        if (typeof va === 'number' && typeof vb === 'number' && !isNaN(va) && !isNaN(vb))
-          cmp = va - vb
-        else cmp = String(va ?? '').localeCompare(String(vb ?? ''))
-        if (cmp !== 0) return sorts[i].dir === 'asc' ? cmp : -cmp
-      }
-      return 0
-    })
-    result = decorated.map((d) => d.row)
-  }
-
-  return result
+  return sortRows(result, sorts, colByKey)
 }
 
 export interface GroupResult<TRow extends object> {
@@ -143,6 +151,80 @@ export function groupData<TRow extends object>(
     }
   }
   return Object.entries(groups).map(([key, { keyParts, rows }]) => ({ key, keyParts, rows }))
+}
+
+/** Same type-aware coercion as `getComparableValue`, applied to a group's own string `keyPart` instead of a row. */
+function comparableFromKeyPart<TRow extends object>(
+  col: ColumnDefBase<TRow> | undefined,
+  keyPart: string,
+): unknown {
+  if (col?.type === 'date') return (col.parseDate ?? defaultParseDate)(keyPart)
+  if (col?.type === 'number') return Number(keyPart)
+  return keyPart
+}
+
+/**
+ * Reorders `groups` and re-sorts each group's own rows, splitting `sorts` into the entries that
+ * match a groupBy column (which govern the order of the *groups themselves*) and the rest (which
+ * govern row order *within* each group).
+ *
+ * `groupData` fans a row into one bucket per individual value for a multi-value groupBy column
+ * (e.g. a row tagged `['Action', 'RPG']` lands in both the 'Action' and 'RPG' buckets), but
+ * `processData`'s sort runs *before* that fan-out, over the flat row list — so a multi-value
+ * column used as a sort key has no single per-row comparable value that matches any one bucket,
+ * and falls back to comparing the row's whole array (`String(array)`). That comparison is
+ * unrelated to either bucket a row lands in, and it determines *two* things downstream that both
+ * end up wrong: which order `groupData` first encounters each value in (and therefore which order
+ * the groups themselves come out in), and — since it rarely ties between two different rows — it
+ * also starves any secondary sort key from ever being reached for row order within a bucket.
+ *
+ * This fixes both from the one well-defined comparison a group actually has available: a group's
+ * own `keyParts[i]` is already the single value that group represents for `groupBy[i]` (not the
+ * whole array), so comparing *that* — type-aware, like a normal column sort — gives the groups
+ * array a well-defined order for free. A groupBy column's own sort entry is then dropped before
+ * re-sorting rows within a bucket, since every row in one of its buckets already shares that
+ * value (comparing it again would be a no-op at best, or reintroduce the same whole-array
+ * comparison at worst); the next sort key becomes the effective within-group row order instead —
+ * exactly as it already does for a single-value groupBy column, where the flat pre-sort happens
+ * to already put same-value rows adjacent to each other.
+ *
+ * Sorting a multi-value column that is *not* a groupBy column keeps `processData`'s incidental
+ * whole-array comparison, unchanged — there is no per-bucket context to resolve it against.
+ */
+export function sortWithinGroups<TRow extends object>(
+  groups: GroupResult<TRow>[],
+  sorts: SortEntry[],
+  groupBy: string[],
+  columns: ColumnDefBase<TRow>[] = [],
+): GroupResult<TRow>[] {
+  const colByKey = new Map<string, ColumnDefBase<TRow>>(columns.map((c) => [c.key, c]))
+  const groupSorts = sorts.filter((s) => groupBy.includes(s.key))
+  const withinGroupSorts = sorts.filter((s) => !groupBy.includes(s.key))
+
+  let result = groups
+  if (withinGroupSorts.length > 0) {
+    result = result.map((group) => ({
+      ...group,
+      rows: sortRows(group.rows, withinGroupSorts, colByKey),
+    }))
+  }
+  if (groupSorts.length > 0) {
+    result = [...result].sort((a, b) => {
+      for (const { key, dir } of groupSorts) {
+        const idx = groupBy.indexOf(key)
+        const col = colByKey.get(key)
+        const va = comparableFromKeyPart(col, a.keyParts[idx])
+        const vb = comparableFromKeyPart(col, b.keyParts[idx])
+        let cmp = 0
+        if (typeof va === 'number' && typeof vb === 'number' && !isNaN(va) && !isNaN(vb))
+          cmp = va - vb
+        else cmp = String(va ?? '').localeCompare(String(vb ?? ''))
+        if (cmp !== 0) return dir === 'asc' ? cmp : -cmp
+      }
+      return 0
+    })
+  }
+  return result
 }
 
 /**
