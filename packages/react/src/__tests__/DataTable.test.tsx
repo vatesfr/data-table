@@ -586,6 +586,239 @@ describe('DataTable — date filter tree', () => {
   })
 })
 
+describe('DataTable — search clear button', () => {
+  it('does not render a clear button when the search query is empty', () => {
+    const { queryByTitle } = render(<DataTable data={ROWS} columns={COLS} rowKey="id" />)
+    expect(queryByTitle('Clear search')).toBeNull()
+  })
+
+  it('renders and wires up a clear button once the search query is non-empty', () => {
+    const { getByPlaceholderText, getByTitle, queryByTitle } = render(
+      <DataTable data={ROWS} columns={COLS} rowKey="id" />,
+    )
+    const input = getByPlaceholderText('Search…') as HTMLInputElement
+    fireEvent.change(input, { target: { value: 'ali' } })
+    expect(input.value).toBe('ali')
+    fireEvent.click(getByTitle('Clear search'))
+    expect(input.value).toBe('')
+    expect(queryByTitle('Clear search')).toBeNull()
+  })
+})
+
+// Draggable dropdown rows (active sort/group/column entries) vs. the table's own draggable
+// <th> headers are told apart by tag — this excludes the headers so container-wide queries only
+// ever see the dropdown's own rows.
+function draggableRows(container: HTMLElement): HTMLElement[] {
+  return [...container.querySelectorAll<HTMLElement>('[draggable="true"]:not(th)')]
+}
+
+// Both the table header and the dropdown itself render a column's label as text, so "not inside
+// a <th>" is what isolates the dropdown's own copy — mirrors the existing filter-dropdown tests'
+// `.find((el) => el.closest('th') === null)` idiom above.
+function ddCopyOf(getAllByText: (text: string) => HTMLElement[], label: string): HTMLElement {
+  return getAllByText(label).find((el) => el.closest('th') === null)!
+}
+
+describe('DataTable — sort dropdown', () => {
+  const SORT_COLS: ColumnDef<Row>[] = [
+    { key: 'name', label: 'Name' },
+    { key: 'score', label: 'Score', type: 'number' },
+  ]
+
+  it('lists a not-yet-sorted column under the add section as a real button', () => {
+    const { getByText, getAllByText } = render(
+      <DataTable data={ROWS} columns={SORT_COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Sort'))
+    expect(ddCopyOf(getAllByText, 'Score').closest('button')).not.toBeNull()
+  })
+
+  it('clicking an add-list column adds it ascending, and clicking the active row toggles direction', () => {
+    const { getByText, getAllByText, container } = render(
+      <DataTable data={ROWS} columns={SORT_COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Sort'))
+    fireEvent.click(ddCopyOf(getAllByText, 'Score').closest('button')!)
+    let names = [...container.querySelectorAll('tbody tr td:first-child')].map(
+      (td) => td.textContent,
+    )
+    expect(names).toEqual(['Bob', 'Alice']) // 60, 90 — ascending
+
+    fireEvent.click(ddCopyOf(getAllByText, 'Score').closest('[draggable="true"]')!)
+    names = [...container.querySelectorAll('tbody tr td:first-child')].map((td) => td.textContent)
+    expect(names).toEqual(['Alice', 'Bob']) // 90, 60 — descending
+  })
+
+  it('the × button removes the sort and moves the column back to the add section', () => {
+    const { getByText, getAllByText, container } = render(
+      <DataTable data={ROWS} columns={SORT_COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Sort'))
+    fireEvent.click(ddCopyOf(getAllByText, 'Score').closest('button')!)
+    const activeRow = ddCopyOf(getAllByText, 'Score').closest('[draggable="true"]')!
+    const removeBtn = [...activeRow.querySelectorAll('button')].find((b) => b.textContent === '×')!
+    fireEvent.click(removeBtn)
+    expect(ddCopyOf(getAllByText, 'Score').closest('button')).not.toBeNull()
+    const names = [...container.querySelectorAll('tbody tr td:first-child')].map(
+      (td) => td.textContent,
+    )
+    expect(names).toEqual(['Alice', 'Bob']) // original order, no longer sorted
+  })
+
+  it('dragging an active sort row onto another reorders priority', () => {
+    const { getByText, getAllByText, container } = render(
+      <DataTable data={ROWS} columns={SORT_COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Sort'))
+    fireEvent.click(ddCopyOf(getAllByText, 'Name').closest('button')!)
+    fireEvent.click(ddCopyOf(getAllByText, 'Score').closest('button')!)
+
+    const [nameRow, scoreRow] = draggableRows(container)
+    fireEvent.dragStart(scoreRow)
+    fireEvent.dragOver(nameRow)
+    fireEvent.drop(nameRow)
+    const after = draggableRows(container)
+    expect(after[0].textContent).toContain('Score')
+    expect(after[1].textContent).toContain('Name')
+  })
+
+  it('Alt+ArrowUp on a focused active sort row reorders priority', () => {
+    const { getByText, getAllByText, container } = render(
+      <DataTable data={ROWS} columns={SORT_COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Sort'))
+    fireEvent.click(ddCopyOf(getAllByText, 'Name').closest('button')!)
+    fireEvent.click(ddCopyOf(getAllByText, 'Score').closest('button')!)
+
+    const scoreRow = draggableRows(container)[1]
+    fireEvent.keyDown(scoreRow, { key: 'ArrowUp', altKey: true })
+    const after = draggableRows(container)
+    expect(after[0].textContent).toContain('Score')
+    expect(after[1].textContent).toContain('Name')
+  })
+})
+
+describe('DataTable — group dropdown', () => {
+  const GROUP_COLS: ColumnDef<Row>[] = [
+    { key: 'name', label: 'Name', groupable: true },
+    { key: 'score', label: 'Score', type: 'number', groupable: true },
+  ]
+
+  it('lists a not-yet-grouped column under the add section as a real button', () => {
+    const { getByText, getAllByText } = render(
+      <DataTable data={ROWS} columns={GROUP_COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Group'))
+    expect(ddCopyOf(getAllByText, 'Score').closest('button')).not.toBeNull()
+  })
+
+  it('the × button removes the group and moves the column back to the add section', () => {
+    const { getByText, getAllByText, container } = render(
+      <DataTable data={ROWS} columns={GROUP_COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Group'))
+    fireEvent.click(ddCopyOf(getAllByText, 'Score').closest('button')!)
+    expect(container.querySelector('[draggable="true"]:not(th)')).not.toBeNull()
+    const activeRow = ddCopyOf(getAllByText, 'Score').closest('[draggable="true"]')!
+    const removeBtn = [...activeRow.querySelectorAll('button')].find((b) => b.textContent === '×')!
+    fireEvent.click(removeBtn)
+    expect(ddCopyOf(getAllByText, 'Score').closest('button')).not.toBeNull()
+  })
+
+  it('dragging an active group row onto another reorders priority', () => {
+    const { getByText, getAllByText, container } = render(
+      <DataTable data={ROWS} columns={GROUP_COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Group'))
+    fireEvent.click(ddCopyOf(getAllByText, 'Name').closest('button')!)
+    fireEvent.click(ddCopyOf(getAllByText, 'Score').closest('button')!)
+
+    const [nameRow, scoreRow] = draggableRows(container)
+    fireEvent.dragStart(scoreRow)
+    fireEvent.dragOver(nameRow)
+    fireEvent.drop(nameRow)
+    const after = draggableRows(container)
+    expect(after[0].textContent).toContain('Score')
+    expect(after[1].textContent).toContain('Name')
+  })
+})
+
+describe('DataTable — columns dropdown', () => {
+  it('column rows are draggable and reorder headers on drop, with no ▲▼ buttons', () => {
+    const { getByText, container } = render(<DataTable data={ROWS} columns={COLS} rowKey="id" />)
+    fireEvent.click(getByText('Columns'))
+    const rows = draggableRows(container)
+    expect(rows).toHaveLength(COLS.length)
+    expect([...container.querySelectorAll('button')].some((b) => b.textContent === '▲')).toBe(false)
+
+    const [nameRow, scoreRow] = rows
+    fireEvent.dragStart(scoreRow)
+    fireEvent.dragOver(nameRow)
+    fireEvent.drop(nameRow)
+    const headers = [...container.querySelectorAll('th')].map((th) => th.textContent)
+    expect(headers[0]).toContain('Score')
+    expect(headers[1]).toContain('Name')
+  })
+
+  it('Alt+ArrowUp on a focused column checkbox reorders headers, Space still toggles visibility', () => {
+    const { getByText, container } = render(<DataTable data={ROWS} columns={COLS} rowKey="id" />)
+    fireEvent.click(getByText('Columns'))
+    const checkboxes = [
+      ...container.querySelectorAll<HTMLInputElement>('[draggable] input[type="checkbox"]'),
+    ]
+    fireEvent.keyDown(checkboxes[1], { key: 'ArrowUp', altKey: true })
+    let headers = [...container.querySelectorAll('th')].map((th) => th.textContent)
+    expect(headers[0]).toContain('Score')
+
+    fireEvent.click(checkboxes[0])
+    headers = [...container.querySelectorAll('th')].map((th) => th.textContent)
+    expect(headers.some((h) => h?.includes('Name'))).toBe(false)
+  })
+})
+
+describe('DataTable — filter column selector keyboard access', () => {
+  const FILTER_COLS: ColumnDef<Row>[] = [
+    { key: 'name', label: 'Name', filterable: true },
+    { key: 'score', label: 'Score', type: 'number', filterable: true },
+  ]
+
+  it('renders each column selector as a real, focusable <button>', () => {
+    const { getByText, getAllByText } = render(
+      <DataTable data={ROWS} columns={FILTER_COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Filter'))
+    const nameItem = ddCopyOf(getAllByText, 'Name')
+    const btn = nameItem.closest('button')
+    expect(btn).not.toBeNull()
+    expect(btn!.tabIndex).toBe(0)
+  })
+})
+
+describe('DataTable — active chips', () => {
+  it('does not render sort or group chips, but keeps filter chips', () => {
+    const chipCols: ColumnDef<Row>[] = [
+      { key: 'name', label: 'Name', filterable: true, groupable: true },
+      { key: 'score', label: 'Score', type: 'number', groupable: true },
+    ]
+    const { getByText, getAllByText, getByLabelText, container } = render(
+      <DataTable data={ROWS} columns={chipCols} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Sort'))
+    fireEvent.click(ddCopyOf(getAllByText, 'Score').closest('button')!)
+    fireEvent.click(getByText('Group'))
+    fireEvent.click(ddCopyOf(getAllByText, 'Name').closest('button')!)
+    fireEvent.click(getByText('Filter'))
+    fireEvent.click(getByLabelText('Alice', { exact: false }))
+
+    // The filter chip (a distinct summary of *values*, not just a count) still renders...
+    expect(container.textContent).toContain('Name: Alice')
+    // ...but the old sort/group chip pills — now pure duplication of the dropdown's own detail —
+    // are gone. "Group 1:" was the old group chip's label prefix; "1. Score" the sort chip's.
+    expect(container.textContent).not.toContain('Group 1:')
+    expect(container.textContent).not.toContain('1. Score')
+  })
+})
+
 describe('DataTable — keyboard navigation', () => {
   const ROWS3: Row[] = [
     { id: 1, name: 'Alice', score: 90 },

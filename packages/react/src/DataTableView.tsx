@@ -14,7 +14,7 @@ import {
   filterValuesByCount,
   sortFilterValues,
   cycleValueSort,
-  toggleSortDir,
+  toggleSortDir as toggleValueSortDir,
   getValueSortIcon,
   getDateSortIcon,
   computeDateTree,
@@ -181,16 +181,26 @@ const S = {
     lineHeight: 1,
   } as CSSProperties,
   pageBtnDisabled: { opacity: 0.35, cursor: 'default' } as CSSProperties,
-  reorderBtn: {
+  itemRemove: {
     background: 'none',
     border: 'none',
     cursor: 'pointer',
     padding: '2px 4px',
-    fontSize: 10,
-    color: 'var(--color-text-secondary)',
+    fontSize: 13,
+    color: 'var(--color-text-tertiary)',
     lineHeight: 1,
   } as CSSProperties,
-  reorderBtnDisabled: { opacity: 0.3, cursor: 'default' } as CSSProperties,
+  // Button reset merged onto ddItem for rows rendered as <button> (add-lists, filter column
+  // selector) instead of <div> — needed for keyboard reachability (see those call sites).
+  ddItemButton: {
+    border: 'none',
+    background: 'none',
+    fontFamily: 'inherit',
+    textAlign: 'left',
+    margin: 0,
+    width: '100%',
+    boxSizing: 'border-box',
+  } as CSSProperties,
   pageInfo: {
     fontSize: 12,
     color: 'var(--color-text-secondary)',
@@ -216,17 +226,36 @@ const S = {
     fontFamily: 'inherit',
     cursor: 'pointer',
   } as CSSProperties,
+  searchWrap: {
+    position: 'relative',
+    display: 'inline-flex',
+    flex: 1,
+    minWidth: 160,
+    maxWidth: 280,
+  } as CSSProperties,
   searchInput: {
-    padding: '4px 8px',
+    padding: '4px 24px 4px 8px',
     fontSize: 13,
     border: '0.5px solid var(--color-border-secondary)',
     borderRadius: 6,
     background: 'transparent',
     color: 'inherit',
     fontFamily: 'inherit',
-    flex: 1,
-    minWidth: 160,
-    maxWidth: 280,
+    width: '100%',
+  } as CSSProperties,
+  searchClear: {
+    position: 'absolute',
+    right: 4,
+    top: '50%',
+    transform: 'translateY(-50%)',
+    background: 'none',
+    border: 'none',
+    cursor: 'pointer',
+    padding: '2px 4px',
+    fontSize: 14,
+    lineHeight: 1,
+    color: 'var(--color-text-tertiary)',
+    fontFamily: 'inherit',
   } as CSSProperties,
   aggRow: {
     fontSize: 12,
@@ -356,6 +385,16 @@ export function DataTableView<TRow extends object>({
   const rowRefs = useRef(new Map<TRow | string, HTMLTableRowElement>())
   const [dragColKey, setDragColKey] = useState<string | null>(null)
   const [dragOverColKey, setDragOverColKey] = useState<string | null>(null)
+  // Kept independent from dragColKey/dragOverColKey above (the <th> header drag state), even
+  // though both ultimately reorder columnOrder — mirrors vanilla giving each dropdown its own
+  // drag state instead of a shared one.
+  const [dragColRowKey, setDragColRowKey] = useState<string | null>(null)
+  const [dragOverColRowKey, setDragOverColRowKey] = useState<string | null>(null)
+  const [dragSortKey, setDragSortKey] = useState<string | null>(null)
+  const [dragOverSortKey, setDragOverSortKey] = useState<string | null>(null)
+  const [dragGroupKey, setDragGroupKey] = useState<string | null>(null)
+  const [dragOverGroupKey, setDragOverGroupKey] = useState<string | null>(null)
+  const searchInputRef = useRef<HTMLInputElement>(null)
   const [filterActiveCol, setFilterActiveCol] = useState<string | null>(null)
   const [filterSearchTerms, setFilterSearchTerms] = useState<Record<string, string>>({})
   const [filterSelectionAnchor, setFilterSelectionAnchor] = useState<Record<string, string>>({})
@@ -391,11 +430,18 @@ export function DataTableView<TRow extends object>({
     moveColumn,
     moveColumnBy,
     toggleSort,
+    removeSort,
+    toggleSortDir,
+    moveSortBy,
+    moveSort,
     toggleFilter,
     toggleFilterAll,
     setFilterValues,
     setRangeFilter,
     toggleGroup,
+    removeGroup,
+    moveGroupBy,
+    moveGroup,
     toggleGroupCollapse,
     clearColumnFilter,
     clearSorts,
@@ -561,6 +607,10 @@ export function DataTableView<TRow extends object>({
 
   const filterableCols = columns.filter((c) => c.filterable !== false)
   const groupableCols = columns.filter((c) => c.groupable === true)
+  // Sort/Group dropdowns split into an "active" section (priority order, reorderable) and an
+  // "add" section (everything else) — reordering only ever makes sense among active entries.
+  const addableSortCols = columns.filter((c) => getSortIndex(c.key) === null)
+  const addableGroupCols = groupableCols.filter((c) => !groupBy.includes(c.key))
   const filterActiveKey =
     filterActiveCol && filterableCols.some((c) => c.key === filterActiveCol)
       ? filterActiveCol
@@ -583,7 +633,7 @@ export function DataTableView<TRow extends object>({
     const current = valueSortFor(col.key)
     const next =
       col.type === 'date'
-        ? { ...current, dir: toggleSortDir(current.dir) }
+        ? { ...current, dir: toggleValueSortDir(current.dir) }
         : cycleValueSort(current)
     setFilterValueSort({ ...filterValueSort, [col.key]: next })
   }
@@ -757,8 +807,40 @@ export function DataTableView<TRow extends object>({
             trigger={<ToolbarBtn active={openColsDD}>{L.columns}</ToolbarBtn>}
           >
             <div style={S.ddSection}>{L.columnsSection}</div>
-            {orderedColumns.map((col, idx) => (
-              <div key={col.key} style={{ ...S.ddItem, justifyContent: 'space-between' }}>
+            {orderedColumns.map((col) => (
+              // Draggable (+ Alt+↑/↓ on the checkbox below) reorders columnOrder, replacing the
+              // old ▲▼ buttons — same treatment as the Sort/Group active rows. The row itself gets
+              // no tabIndex: the checkbox is already a native Tab stop, so a second one on the row
+              // would just be a redundant, visually-identical stop for the same rectangle.
+              <div
+                key={col.key}
+                draggable
+                onDragStart={() => setDragColRowKey(col.key)}
+                onDragOver={(e) => {
+                  e.preventDefault()
+                  if (dragColRowKey && dragColRowKey !== col.key) setDragOverColRowKey(col.key)
+                }}
+                onDrop={(e) => {
+                  e.preventDefault()
+                  if (dragColRowKey && dragColRowKey !== col.key) moveColumn(dragColRowKey, col.key)
+                  setDragColRowKey(null)
+                  setDragOverColRowKey(null)
+                }}
+                onDragEnd={() => {
+                  setDragColRowKey(null)
+                  setDragOverColRowKey(null)
+                }}
+                style={{
+                  ...S.ddItem,
+                  justifyContent: 'space-between',
+                  cursor: 'grab',
+                  opacity: dragColRowKey === col.key ? 0.4 : 1,
+                  boxShadow:
+                    dragOverColRowKey === col.key
+                      ? 'inset 0 2px 0 var(--color-text-primary)'
+                      : undefined,
+                }}
+              >
                 <label
                   style={{
                     display: 'flex',
@@ -772,31 +854,16 @@ export function DataTableView<TRow extends object>({
                     type="checkbox"
                     checked={visibleCols.has(col.key)}
                     onChange={() => toggleColVisibility(col.key)}
+                    onKeyDown={(e) => {
+                      if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+                        e.preventDefault()
+                        moveColumnBy(col.key, e.key === 'ArrowUp' ? -1 : 1)
+                      }
+                    }}
                     style={{ margin: 0 }}
                   />
                   {col.label}
                 </label>
-                <span style={{ display: 'flex', gap: 2 }}>
-                  <button
-                    type="button"
-                    onClick={() => moveColumnBy(col.key, -1)}
-                    disabled={idx === 0}
-                    style={{ ...S.reorderBtn, ...(idx === 0 ? S.reorderBtnDisabled : {}) }}
-                  >
-                    ▲
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => moveColumnBy(col.key, 1)}
-                    disabled={idx === orderedColumns.length - 1}
-                    style={{
-                      ...S.reorderBtn,
-                      ...(idx === orderedColumns.length - 1 ? S.reorderBtnDisabled : {}),
-                    }}
-                  >
-                    ▼
-                  </button>
-                </span>
               </div>
             ))}
           </Dropdown>
@@ -814,33 +881,107 @@ export function DataTableView<TRow extends object>({
               </ToolbarBtn>
             }
           >
-            <div style={S.ddSection}>{L.sortSection}</div>
-            {columns.map((col) => {
-              const s = sorts.find((s) => s.key === col.key)
-              return (
-                <div key={col.key} style={S.ddItem} onClick={() => toggleSort(col.key)}>
-                  <span
-                    style={{
-                      width: 18,
-                      fontSize: 11,
-                      color: 'var(--color-text-tertiary)',
-                      fontWeight: 500,
-                    }}
+            {sorts.length > 0 && (
+              <>
+                <div style={S.ddSection}>{L.activeSortsSection}</div>
+                {sorts.map((entry, i) => {
+                  const col = columns.find((c) => c.key === entry.key)
+                  return (
+                    // The whole row is the click target (toggles direction) and the drag source
+                    // (reorder priority); `×` stays a separate <button> (draggable=false so
+                    // starting a drag from it doesn't also drag the row) since removing isn't
+                    // something a row click/drag should ever trigger. tabIndex + onKeyDown give
+                    // it Alt+↑/↓ reorder and Enter/Space-to-toggle from the keyboard — a plain
+                    // div gets no free keyboard activation the way a real <button> would (unlike
+                    // the add-list below, which doesn't need custom keyboard handling).
+                    <div
+                      key={entry.key}
+                      draggable
+                      tabIndex={0}
+                      onDragStart={() => setDragSortKey(entry.key)}
+                      onDragOver={(e) => {
+                        e.preventDefault()
+                        if (dragSortKey && dragSortKey !== entry.key) setDragOverSortKey(entry.key)
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault()
+                        if (dragSortKey && dragSortKey !== entry.key)
+                          moveSort(dragSortKey, entry.key)
+                        setDragSortKey(null)
+                        setDragOverSortKey(null)
+                      }}
+                      onDragEnd={() => {
+                        setDragSortKey(null)
+                        setDragOverSortKey(null)
+                      }}
+                      onClick={() => toggleSortDir(entry.key)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          toggleSortDir(entry.key)
+                        } else if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+                          e.preventDefault()
+                          moveSortBy(entry.key, e.key === 'ArrowUp' ? -1 : 1)
+                        }
+                      }}
+                      style={{
+                        ...S.ddItem,
+                        justifyContent: 'space-between',
+                        opacity: dragSortKey === entry.key ? 0.4 : 1,
+                        boxShadow:
+                          dragOverSortKey === entry.key
+                            ? 'inset 0 2px 0 var(--color-text-primary)'
+                            : undefined,
+                      }}
+                    >
+                      <span
+                        style={{
+                          width: 18,
+                          fontSize: 11,
+                          color: 'var(--color-text-tertiary)',
+                          fontWeight: 500,
+                        }}
+                      >
+                        {i + 1}
+                      </span>
+                      <span style={{ flex: 1 }}>{col?.label ?? entry.key}</span>
+                      <span style={{ fontSize: 15, color: 'var(--color-text-primary)' }}>
+                        {getSortIcon(entry.key)}
+                      </span>
+                      <button
+                        type="button"
+                        draggable={false}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          removeSort(entry.key)
+                        }}
+                        style={S.itemRemove}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  )
+                })}
+              </>
+            )}
+            {addableSortCols.length > 0 && (
+              <>
+                <div style={S.ddSection}>{L.sortSection}</div>
+                {addableSortCols.map((col) => (
+                  // A real <button> (not a div) so it's a native Tab stop and Enter/Space
+                  // "click" it for free — no manual tabIndex/keydown wiring needed, unlike the
+                  // active rows above (which need custom keyboard handling anyway for Alt+↑/↓).
+                  <button
+                    key={col.key}
+                    type="button"
+                    onClick={() => toggleSort(col.key)}
+                    style={{ ...S.ddItem, ...S.ddItemButton }}
                   >
-                    {s ? sorts.indexOf(s) + 1 : ''}
-                  </span>
-                  <span style={{ flex: 1 }}>{col.label}</span>
-                  <span
-                    style={{
-                      fontSize: 15,
-                      color: s ? 'var(--color-text-primary)' : 'var(--color-border-secondary)',
-                    }}
-                  >
-                    {getSortIcon(col.key)}
-                  </span>
-                </div>
-              )
-            })}
+                    <span style={{ flex: 1 }}>{col.label}</span>
+                  </button>
+                ))}
+              </>
+            )}
             {sorts.length > 0 && (
               <div style={{ padding: '4px 14px 6px' }}>
                 <button
@@ -879,17 +1020,22 @@ export function DataTableView<TRow extends object>({
                         ? rf !== undefined && (rf.min !== '' || rf.max !== '')
                         : (filters[col.key]?.size ?? 0) > 0
                     return (
-                      <div
+                      // A real <button> (not a div) so it's a native Tab stop and Enter/Space
+                      // "click" it for free — same fix as the Sort/Group add-lists above; this
+                      // had the identical gap.
+                      <button
                         key={col.key}
+                        type="button"
                         onClick={() => setFilterActiveCol(col.key)}
                         style={{
                           ...S.filterColItem,
+                          ...S.ddItemButton,
                           ...(col.key === filterActiveKey ? S.filterColItemActive : {}),
                         }}
                       >
                         <span>{col.label}</span>
                         {hasActive && <span style={S.filterColDot} />}
-                      </div>
+                      </button>
                     )
                   })}
                 </div>
@@ -1084,23 +1230,91 @@ export function DataTableView<TRow extends object>({
                 </ToolbarBtn>
               }
             >
-              <div style={S.ddSection}>{L.groupSection}</div>
-              {groupableCols.map((col) => (
-                <div key={col.key} style={S.ddItem} onClick={() => toggleGroup(col.key)}>
-                  <span
-                    style={{
-                      width: 18,
-                      fontSize: 11,
-                      color: 'var(--color-text-tertiary)',
-                      fontWeight: 500,
-                    }}
-                  >
-                    {groupBy.includes(col.key) ? groupBy.indexOf(col.key) + 1 : ''}
-                  </span>
-                  <span style={{ flex: 1 }}>{col.label}</span>
-                  {groupBy.includes(col.key) && <span>✓</span>}
-                </div>
-              ))}
+              {groupBy.length > 0 && (
+                <>
+                  <div style={S.ddSection}>{L.activeGroupsSection}</div>
+                  {groupBy.map((key, i) => {
+                    const col = groupableCols.find((c) => c.key === key)
+                    return (
+                      // Same treatment as the Sort active rows, minus a click action — a group
+                      // entry has nothing to toggle (no direction), so the row is
+                      // draggable/focusable purely for reordering (drag, or Alt+↑/↓ when
+                      // focused); `×` remove is the only button.
+                      <div
+                        key={key}
+                        draggable
+                        tabIndex={0}
+                        onDragStart={() => setDragGroupKey(key)}
+                        onDragOver={(e) => {
+                          e.preventDefault()
+                          if (dragGroupKey && dragGroupKey !== key) setDragOverGroupKey(key)
+                        }}
+                        onDrop={(e) => {
+                          e.preventDefault()
+                          if (dragGroupKey && dragGroupKey !== key) moveGroup(dragGroupKey, key)
+                          setDragGroupKey(null)
+                          setDragOverGroupKey(null)
+                        }}
+                        onDragEnd={() => {
+                          setDragGroupKey(null)
+                          setDragOverGroupKey(null)
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+                            e.preventDefault()
+                            moveGroupBy(key, e.key === 'ArrowUp' ? -1 : 1)
+                          }
+                        }}
+                        style={{
+                          ...S.ddItem,
+                          justifyContent: 'space-between',
+                          cursor: 'grab',
+                          opacity: dragGroupKey === key ? 0.4 : 1,
+                          boxShadow:
+                            dragOverGroupKey === key
+                              ? 'inset 0 2px 0 var(--color-text-primary)'
+                              : undefined,
+                        }}
+                      >
+                        <span
+                          style={{
+                            width: 18,
+                            fontSize: 11,
+                            color: 'var(--color-text-tertiary)',
+                            fontWeight: 500,
+                          }}
+                        >
+                          {i + 1}
+                        </span>
+                        <span style={{ flex: 1 }}>{col?.label ?? key}</span>
+                        <button
+                          type="button"
+                          draggable={false}
+                          onClick={() => removeGroup(key)}
+                          style={S.itemRemove}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    )
+                  })}
+                </>
+              )}
+              {addableGroupCols.length > 0 && (
+                <>
+                  <div style={S.ddSection}>{L.groupSection}</div>
+                  {addableGroupCols.map((col) => (
+                    <button
+                      key={col.key}
+                      type="button"
+                      onClick={() => toggleGroup(col.key)}
+                      style={{ ...S.ddItem, ...S.ddItemButton }}
+                    >
+                      <span style={{ flex: 1 }}>{col.label}</span>
+                    </button>
+                  ))}
+                </>
+              )}
               {groupBy.length > 0 && (
                 <div style={{ padding: '4px 14px 6px' }}>
                   <button
@@ -1119,13 +1333,30 @@ export function DataTableView<TRow extends object>({
         </div>
 
         <div style={S.toolbarSearch}>
-          <input
-            type="text"
-            placeholder={L.search}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            style={S.searchInput}
-          />
+          <span style={S.searchWrap}>
+            <input
+              ref={searchInputRef}
+              type="text"
+              placeholder={L.search}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={S.searchInput}
+            />
+            {searchQuery !== '' && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchQuery('')
+                  searchInputRef.current?.focus()
+                }}
+                title={L.clearSearch}
+                aria-label={L.clearSearch}
+                style={S.searchClear}
+              >
+                ×
+              </button>
+            )}
+          </span>
 
           {hasActiveState && (
             <button
@@ -1152,17 +1383,14 @@ export function DataTableView<TRow extends object>({
         </div>
       </div>
 
-      {/* Active chips */}
-      {hasActiveState && (
+      {/* Active chips — sort/group chips were dropped: the Sort/Group dropdowns now show the
+          same active entries with strictly more control (priority order, direction, remove)
+          than a chip's bare × ever did, so the chips were pure duplication. Filter chips stay —
+          the Filter dropdown's toolbar button only shows a column count, with no equivalent
+          summary of which values are selected, so the chip is still the only at-a-glance view
+          of that state. */}
+      {activeFilterCount > 0 && (
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', padding: '8px 0 0' }}>
-          {sorts.map((s, i) => (
-            <span key={s.key} style={S.chip}>
-              {i + 1}. {columns.find((c) => c.key === s.key)?.label} {s.dir === 'asc' ? '↑' : '↓'}
-              <span onClick={() => toggleSort(s.key)} style={{ cursor: 'pointer', marginLeft: 2 }}>
-                ×
-              </span>
-            </span>
-          ))}
           {Object.entries(filters)
             .filter(([, v]) => v.size > 0)
             .map(([key, vals]) => (
@@ -1184,22 +1412,6 @@ export function DataTableView<TRow extends object>({
                 </span>
               </span>
             ))}
-          {groupBy.map((key, i) => (
-            <span
-              key={key}
-              style={{
-                ...S.chip,
-                background: 'var(--color-background-warning)',
-                color: 'var(--color-text-warning)',
-                border: '0.5px solid var(--color-border-warning)',
-              }}
-            >
-              {L.groupLabel(i + 1)}: {columns.find((c) => c.key === key)?.label}
-              <span onClick={() => toggleGroup(key)} style={{ cursor: 'pointer', marginLeft: 2 }}>
-                ×
-              </span>
-            </span>
-          ))}
         </div>
       )}
 

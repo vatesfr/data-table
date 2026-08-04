@@ -10,6 +10,9 @@ import {
   calcTotalPages,
   computeStringValues,
   toggleSort as _toggleSort,
+  moveSortBy as _moveSortBy,
+  reorderSort as _reorderSort,
+  toggleSortDir as _toggleSortDir,
   toggleFilter as _toggleFilter,
   toggleFilterAll as _toggleFilterAll,
   setFilterValues as _setFilterValues,
@@ -189,6 +192,14 @@ export function useTableState<TRow extends object>(
         _moveColumnBy(prev.length ? prev : columns.map((c) => c.key), key, delta),
       ),
     toggleSort: (key: string) => setSorts((prev) => _toggleSort(prev, key)),
+    removeSort: (key: string) => setSorts((prev) => prev.filter((s) => s.key !== key)),
+    toggleSortDir: (key: string) =>
+      setSorts((prev) =>
+        prev.map((s) => (s.key === key ? { ...s, dir: _toggleSortDir(s.dir) } : s)),
+      ),
+    moveSortBy: (key: string, delta: number) => setSorts((prev) => _moveSortBy(prev, key, delta)),
+    moveSort: (dragKey: string, targetKey: string) =>
+      setSorts((prev) => _reorderSort(prev, dragKey, targetKey)),
     toggleFilter: (key: string, value: string) => {
       setFilters((prev) => _toggleFilter(prev, key, value))
       setPageState(1)
@@ -209,6 +220,11 @@ export function useTableState<TRow extends object>(
       setPageState(1)
     },
     toggleGroup: (key: string) => setGroupBy((prev) => toggleGroupBy(prev, key)),
+    removeGroup: (key: string) => setGroupBy((prev) => prev.filter((k) => k !== key)),
+    moveGroupBy: (key: string, delta: number) =>
+      setGroupBy((prev) => _moveColumnBy(prev, key, delta)),
+    moveGroup: (dragKey: string, targetKey: string) =>
+      setGroupBy((prev) => _reorderColumn(prev, dragKey, targetKey)),
     toggleGroupCollapse: (key: string) => setCollapsedGroups((prev) => toggleCollapse(prev, key)),
     clearColumnFilter: (key: string) => {
       setFilters((prev) => ({ ...prev, [key]: new Set() }))

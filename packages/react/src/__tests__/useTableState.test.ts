@@ -243,6 +243,105 @@ describe('useTableState — column ordering', () => {
   })
 })
 
+describe('useTableState — sort remove/direction/reorder', () => {
+  it('removeSort clears a sort entry without cycling through direction', () => {
+    const { result } = renderHook(() => useTableState(ROWS, COLS))
+    act(() => {
+      result.current.toggleSort('score')
+    })
+    expect(result.current.sorts).toEqual([{ key: 'score', dir: 'asc' }])
+    act(() => {
+      result.current.removeSort('score')
+    })
+    expect(result.current.sorts).toEqual([])
+  })
+
+  it('toggleSortDir flips an existing entry in place without reordering', () => {
+    const { result } = renderHook(() => useTableState(ROWS, COLS))
+    act(() => {
+      result.current.toggleSort('name')
+      result.current.toggleSort('score')
+    })
+    act(() => {
+      result.current.toggleSortDir('name')
+    })
+    expect(result.current.sorts).toEqual([
+      { key: 'name', dir: 'desc' },
+      { key: 'score', dir: 'asc' },
+    ])
+  })
+
+  it('moveSortBy reorders priority by swapping with a neighbor', () => {
+    const { result } = renderHook(() => useTableState(ROWS, COLS))
+    act(() => {
+      result.current.toggleSort('name')
+      result.current.toggleSort('score')
+    })
+    act(() => {
+      result.current.moveSortBy('score', -1)
+    })
+    expect(result.current.sorts.map((s) => s.key)).toEqual(['score', 'name'])
+  })
+
+  it('moveSort reorders by drag-and-drop semantics (insert before target)', () => {
+    const { result } = renderHook(() => useTableState(ROWS, COLS))
+    act(() => {
+      result.current.toggleSort('id')
+      result.current.toggleSort('name')
+      result.current.toggleSort('score')
+    })
+    act(() => {
+      result.current.moveSort('score', 'id')
+    })
+    expect(result.current.sorts.map((s) => s.key)).toEqual(['score', 'id', 'name'])
+  })
+})
+
+describe('useTableState — group remove/reorder', () => {
+  const GROUPABLE_COLS: ColumnDef<Row>[] = [
+    { key: 'id', label: 'ID', groupable: true },
+    { key: 'name', label: 'Name', groupable: true },
+    { key: 'score', label: 'Score', groupable: true },
+  ]
+
+  it('removeGroup clears a group entry', () => {
+    const { result } = renderHook(() => useTableState(ROWS, GROUPABLE_COLS))
+    act(() => {
+      result.current.toggleGroup('name')
+    })
+    expect(result.current.groupBy).toEqual(['name'])
+    act(() => {
+      result.current.removeGroup('name')
+    })
+    expect(result.current.groupBy).toEqual([])
+  })
+
+  it('moveGroupBy reorders priority by swapping with a neighbor', () => {
+    const { result } = renderHook(() => useTableState(ROWS, GROUPABLE_COLS))
+    act(() => {
+      result.current.toggleGroup('name')
+      result.current.toggleGroup('score')
+    })
+    act(() => {
+      result.current.moveGroupBy('score', -1)
+    })
+    expect(result.current.groupBy).toEqual(['score', 'name'])
+  })
+
+  it('moveGroup reorders by drag-and-drop semantics (insert before target)', () => {
+    const { result } = renderHook(() => useTableState(ROWS, GROUPABLE_COLS))
+    act(() => {
+      result.current.toggleGroup('id')
+      result.current.toggleGroup('name')
+      result.current.toggleGroup('score')
+    })
+    act(() => {
+      result.current.moveGroup('score', 'id')
+    })
+    expect(result.current.groupBy).toEqual(['score', 'id', 'name'])
+  })
+})
+
 describe('useTableState — pagination', () => {
   it('setPage navigates between pages', () => {
     const { result } = renderHook(() => useTableState(ROWS, COLS, undefined, undefined, 2))

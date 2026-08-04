@@ -10,6 +10,9 @@ import {
   calcTotalPages,
   computeStringValues,
   toggleSort as _toggleSort,
+  moveSortBy as _moveSortBy,
+  reorderSort as _reorderSort,
+  toggleSortDir as _toggleSortDir,
   toggleFilter as _toggleFilter,
   toggleFilterAll as _toggleFilterAll,
   setFilterValues as _setFilterValues,
@@ -176,6 +179,20 @@ export function useTableState<TRow extends object>(
     toggleSort: (key: string) => {
       sorts.value = _toggleSort(sorts.value, key)
     },
+    removeSort: (key: string) => {
+      sorts.value = sorts.value.filter((s) => s.key !== key)
+    },
+    toggleSortDir: (key: string) => {
+      sorts.value = sorts.value.map((s) =>
+        s.key === key ? { ...s, dir: _toggleSortDir(s.dir) } : s,
+      )
+    },
+    moveSortBy: (key: string, delta: number) => {
+      sorts.value = _moveSortBy(sorts.value, key, delta)
+    },
+    moveSort: (dragKey: string, targetKey: string) => {
+      sorts.value = _reorderSort(sorts.value, dragKey, targetKey)
+    },
     toggleFilter: (key: string, value: string) => {
       filters.value = _toggleFilter(filters.value, key, value)
       page.value = 1
@@ -212,6 +229,15 @@ export function useTableState<TRow extends object>(
     },
     toggleGroup: (key: string) => {
       groupBy.value = toggleGroupBy(groupBy.value, key)
+    },
+    removeGroup: (key: string) => {
+      groupBy.value = groupBy.value.filter((k) => k !== key)
+    },
+    moveGroupBy: (key: string, delta: number) => {
+      groupBy.value = _moveColumnBy(groupBy.value, key, delta)
+    },
+    moveGroup: (dragKey: string, targetKey: string) => {
+      groupBy.value = _reorderColumn(groupBy.value, dragKey, targetKey)
     },
     toggleGroupCollapse: (key: string) => {
       collapsedGroups.value = toggleCollapse(collapsedGroups.value, key)

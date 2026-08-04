@@ -79,6 +79,8 @@ export interface DataTableLabels {
   columns: string
   columnsSection: string
   sort: string
+  /** Heading over the already-active sort entries (priority order) in the Sort dropdown */
+  activeSortsSection: string
   sortSection: string
   clearSorts: string
   filter: string
@@ -90,9 +92,13 @@ export interface DataTableLabels {
   max: string
   clearFilters: string
   group: string
+  /** Heading over the already-active group-by entries (priority order) in the Group dropdown */
+  activeGroupsSection: string
   groupSection: string
   clearGroups: string
   clearAll: string
+  /** Title/aria-label for the button that clears the search input */
+  clearSearch: string
   rowCount: (filtered: number, total: number) => string
   groupCount: (count: number) => string
   groupLabel: (index: number) => string
