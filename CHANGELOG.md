@@ -7,6 +7,17 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-08-04
+
+### Added
+
+- `ColumnDefBase.searchable` flag (defaults to `true`) excludes a column from global search — useful for a column whose underlying value isn't user-facing text (e.g. an image URL rendered via `render`)
+
+### Fixed
+
+- Vanilla: table scroll position no longer resets to the top on every re-render (sort, filter, page change, `setData`) — preserved the same way focus already was
+- Sorting and grouping by the same multi-value column (e.g. tags) now sorts correctly: a secondary sort key applies within each group instead of being starved by an incidental whole-array comparison, and the groups themselves are ordered by their own value instead of an arbitrary order
+
 ## [0.3.0] - 2026-08-04
 
 ### Added
