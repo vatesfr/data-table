@@ -98,7 +98,7 @@ Vue customization uses **scoped slots** instead of render props:
 
 `createDataTable` manages all state in a closure, re-renders via `innerHTML` on every state change, and uses **event delegation** (single `click`/`input`/`change` listener on the container). All interactive elements carry `data-action` attributes; the handler dispatches on those. Dropdowns open/close state is tracked in the closure (`openDropdown: string | null`) and re-rendered into the HTML on each update.
 
-Focus is saved/restored across re-renders (via `data-focus-key` attributes on range filter inputs and the search input) so typing doesn't lose cursor position.
+Focus is saved/restored across re-renders (via `data-focus-key` attributes on range filter inputs and the search input) so typing doesn't lose cursor position. The `.dt-table-wrap` scroll position is saved/restored the same way — read before `container.innerHTML = html` and reapplied after — so a scrolled table doesn't jump to the top on every state change (sort, filter, page, `setData`), which matters most for streaming/live-update data.
 
 Cell customization: `col.format(value, row) → string` for plain text (always HTML-escaped), or `col.render(value, row) → Node` for arbitrary DOM (images, links, badges — see GitHub issue #3) — `render` takes priority over `format` when both are set, mirroring React's `render`/`format` priority. `render` support is threaded through the single `formatStr(v, row, col)` helper, so it applies uniformly to data cells, group header values, and aggregate cells (same column-reuse pattern as React's `cellValue()`).
 

@@ -392,6 +392,13 @@ export function createDataTable<TRow extends object>(
     // post-render step (see the bottom of this function).
     const wasItemFocused = !!focused?.closest('.dt-tr[data-proc-idx], .dt-group-row[data-gkey]')
 
+    // The table wrap's scrollable element is destroyed and recreated by the innerHTML rebuild
+    // below, same as the filter list (see its own restore further down) — without this, a
+    // scrolled-down table jumps back to the top on every state change (setData, sort, filter,
+    // page change), which is disruptive for streaming/live-update data.
+    const tableWrapScrollTop =
+      container.querySelector<HTMLElement>('.dt-table-wrap')?.scrollTop ?? 0
+
     const {
       stringValueMap,
       stringValueCounts,
@@ -752,6 +759,9 @@ export function createDataTable<TRow extends object>(
     html += `</div>` // .dt
 
     container.innerHTML = html
+
+    const tableWrapEl = container.querySelector<HTMLElement>('.dt-table-wrap')
+    if (tableWrapEl) tableWrapEl.scrollTop = tableWrapScrollTop
 
     // The virtualized filter checklist's scrollable element is destroyed and recreated by the
     // innerHTML rebuild above (same reason focus needs restoring below) — the fresh element

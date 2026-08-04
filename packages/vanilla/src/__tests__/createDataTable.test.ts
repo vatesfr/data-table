@@ -282,6 +282,23 @@ describe('createDataTable', () => {
     expect(container.querySelector('.dt-chips')).not.toBeNull()
   })
 
+  // --- scroll restore ---
+
+  it('preserves table scroll position across a re-render triggered by a click', () => {
+    const table = createDataTable(container, { data: ROWS, columns: COLS })
+    container.querySelector<HTMLElement>('.dt-table-wrap')!.scrollTop = 42
+    click(container.querySelector<HTMLElement>('th[data-action="toggle-sort"][data-key="score"]')!)
+    expect(container.querySelector<HTMLElement>('.dt-table-wrap')!.scrollTop).toBe(42)
+    table.destroy()
+  })
+
+  it('preserves table scroll position across a re-render triggered by setData', () => {
+    const table = createDataTable(container, { data: ROWS, columns: COLS })
+    container.querySelector<HTMLElement>('.dt-table-wrap')!.scrollTop = 42
+    table.setData([...ROWS, { id: 5, name: 'Eve', score: 55, dept: 'Eng' }])
+    expect(container.querySelector<HTMLElement>('.dt-table-wrap')!.scrollTop).toBe(42)
+  })
+
   // --- column visibility ---
 
   it('toggling a column via the columns dropdown hides it', () => {
