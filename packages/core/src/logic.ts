@@ -254,11 +254,19 @@ export function computeStringValueCounts<TRow extends object>(
   return map
 }
 
-/** Narrows a checklist's values by a case-insensitive substring search term. */
+/** Lowercases and strips diacritics (e.g. "Öoo" -> "ooo") so search is accent-insensitive. */
+export function normalizeForSearch(s: string): string {
+  return s
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+}
+
+/** Narrows a checklist's values by a case- and diacritic-insensitive substring search term. */
 export function filterValuesBySearch(values: string[], term: string): string[] {
   if (!term) return values
-  const q = term.toLowerCase()
-  return values.filter((v) => v.toLowerCase().includes(q))
+  const q = normalizeForSearch(term)
+  return values.filter((v) => normalizeForSearch(v).includes(q))
 }
 
 /**
@@ -724,12 +732,12 @@ export function searchData<TRow extends object>(
   columns: ColumnDefBase<TRow>[],
 ): TRow[] {
   if (!query) return data
-  const q = query.toLowerCase()
+  const q = normalizeForSearch(query)
   return data.filter((row) =>
     columns.some((col) => {
       const v = getColumnValue(col, row)
       const s = col.format ? col.format(v, row) : v != null ? String(v) : ''
-      return s.toLowerCase().includes(q)
+      return normalizeForSearch(s).includes(q)
     }),
   )
 }

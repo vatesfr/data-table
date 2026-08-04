@@ -140,6 +140,13 @@ describe('searchData', () => {
     const result = searchData(ROWS, '110', cols)
     expect(result.map((r) => r.name)).toEqual(['Clara'])
   })
+
+  it('ignores diacritics on both the row value and the query', () => {
+    const cols = [{ key: 'name' as const, label: 'Name' }]
+    const rows = [{ name: 'Öoo' }, { name: 'Zoe' }]
+    expect(searchData(rows, 'ooo', cols).map((r) => r.name)).toEqual(['Öoo'])
+    expect(searchData(rows, 'ÖOO', cols).map((r) => r.name)).toEqual(['Öoo'])
+  })
 })
 
 // ─── computeAggregate ─────────────────────────────────────────────────────────
@@ -801,6 +808,10 @@ describe('filterValuesBySearch', () => {
 
   it('returns an empty array when nothing matches', () => {
     expect(filterValuesBySearch(VALUES, 'zzz')).toEqual([])
+  })
+
+  it('ignores diacritics on both the value and the term', () => {
+    expect(filterValuesBySearch(['Öoo', 'Zoe'], 'ooo')).toEqual(['Öoo'])
   })
 })
 
