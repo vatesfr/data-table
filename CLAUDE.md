@@ -188,7 +188,7 @@ Originally a flat list — one section header + checkbox list per string column,
 
 ### Global search
 
-`searchData(data, query, columns)` filters rows before `processData` runs — it matches any column's string value (using `col.format` when defined) case-insensitively against the query. Both adapters expose `searchQuery` state and a `setSearchQuery` action; `clearAll` resets it. The vanilla adapter restores focus on the search input across re-renders via `data-focus-key="search"`.
+`searchData(data, query, columns)` filters rows before `processData` runs — it matches any column's string value (using `col.format` when defined) case-insensitively against the query. Both adapters expose `searchQuery` state and a `setSearchQuery` action; `clearAll` resets it. The vanilla adapter restores focus on the search input across re-renders via `data-focus-key="search"`. `ColumnDefBase.searchable?: boolean` (default `true`) excludes a column from this match entirely — for a column whose underlying value isn't user-facing text (e.g. an image URL rendered via `render`), matching against it would surface rows on an accidental substring hit the user has no way to anticipate. Independent of `filterable`/`sortable`/`groupable`, which gate unrelated concerns.
 
 ### Computed columns
 

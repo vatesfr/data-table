@@ -735,6 +735,7 @@ export function searchData<TRow extends object>(
   const q = normalizeForSearch(query)
   return data.filter((row) =>
     columns.some((col) => {
+      if (col.searchable === false) return false
       const v = getColumnValue(col, row)
       const s = col.format ? col.format(v, row) : v != null ? String(v) : ''
       return normalizeForSearch(s).includes(q)

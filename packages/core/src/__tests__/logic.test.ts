@@ -147,6 +147,15 @@ describe('searchData', () => {
     expect(searchData(rows, 'ooo', cols).map((r) => r.name)).toEqual(['Öoo'])
     expect(searchData(rows, 'ÖOO', cols).map((r) => r.name)).toEqual(['Öoo'])
   })
+
+  it('excludes a column marked searchable: false', () => {
+    const cols = [
+      { key: 'name' as const, label: 'Name' },
+      { key: 'dept' as const, label: 'Dept', searchable: false },
+    ]
+    expect(searchData(ROWS, 'eng', cols)).toHaveLength(0)
+    expect(searchData(ROWS, 'ali', cols).map((r) => r.name)).toEqual(['Alice'])
+  })
 })
 
 // ─── computeAggregate ─────────────────────────────────────────────────────────

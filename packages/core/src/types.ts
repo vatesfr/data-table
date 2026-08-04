@@ -47,6 +47,8 @@ export interface ColumnDefBase<TRow extends object = Record<string, unknown>> {
   sortable?: boolean
   filterable?: boolean
   groupable?: boolean
+  /** Excludes this column from global search (`searchData`). Default: true. */
+  searchable?: boolean
   /** Aggregate function or built-in type shown in group header rows */
   aggregate?: AggregateType | ((rows: TRow[]) => unknown)
   /**
