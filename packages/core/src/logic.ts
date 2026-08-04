@@ -545,6 +545,28 @@ export function toggleSort(sorts: SortEntry[], key: string): SortEntry[] {
   return sorts.filter((s) => s.key !== key)
 }
 
+/** Swaps the sort entry for `key` with its neighbor `delta` positions away (e.g. -1/+1 for up/down buttons) — reorders sort priority without touching `dir`. */
+export function moveSortBy(sorts: SortEntry[], key: string, delta: number): SortEntry[] {
+  const idx = sorts.findIndex((s) => s.key === key)
+  const newIdx = idx + delta
+  if (idx === -1 || newIdx < 0 || newIdx >= sorts.length) return sorts
+  const next = [...sorts]
+  ;[next[idx], next[newIdx]] = [next[newIdx], next[idx]]
+  return next
+}
+
+/** Reorders `sorts` by moving the entry for `dragKey` to just before the entry for `targetKey` (drag-and-drop) — mirrors `reorderColumn`, but keyed by `.key` on `SortEntry` objects instead of plain strings. */
+export function reorderSort(sorts: SortEntry[], dragKey: string, targetKey: string): SortEntry[] {
+  if (dragKey === targetKey) return sorts
+  const dragged = sorts.find((s) => s.key === dragKey)
+  if (!dragged) return sorts
+  const next = sorts.filter((s) => s.key !== dragKey)
+  const targetIdx = next.findIndex((s) => s.key === targetKey)
+  if (targetIdx === -1) return sorts
+  next.splice(targetIdx, 0, dragged)
+  return next
+}
+
 export function toggleFilter(
   filters: Record<string, Set<string>>,
   key: string,

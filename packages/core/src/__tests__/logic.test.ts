@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+import type { SortEntry } from '../types'
 import {
   processData,
   searchData,
@@ -37,6 +38,8 @@ import {
   getOrderedColumns,
   reorderColumn,
   moveColumnBy,
+  moveSortBy,
+  reorderSort,
   sortFilterValues,
   cycleValueSort,
   toggleSortDir,
@@ -1555,6 +1558,93 @@ describe('moveColumnBy', () => {
 
   it('is a no-op when key is not present', () => {
     expect(moveColumnBy(['a', 'b', 'c'], 'ghost', 1)).toEqual(['a', 'b', 'c'])
+  })
+})
+
+// ─── moveSortBy ───────────────────────────────────────────────────────────────
+
+describe('moveSortBy', () => {
+  const sorts: SortEntry[] = [
+    { key: 'a', dir: 'asc' },
+    { key: 'b', dir: 'desc' },
+    { key: 'c', dir: 'asc' },
+  ]
+
+  it('swaps entry with the next neighbor when delta is +1', () => {
+    expect(moveSortBy(sorts, 'a', 1)).toEqual([
+      { key: 'b', dir: 'desc' },
+      { key: 'a', dir: 'asc' },
+      { key: 'c', dir: 'asc' },
+    ])
+  })
+
+  it('swaps entry with the previous neighbor when delta is -1', () => {
+    expect(moveSortBy(sorts, 'c', -1)).toEqual([
+      { key: 'a', dir: 'asc' },
+      { key: 'c', dir: 'asc' },
+      { key: 'b', dir: 'desc' },
+    ])
+  })
+
+  it('is a no-op when already at the start', () => {
+    expect(moveSortBy(sorts, 'a', -1)).toEqual(sorts)
+  })
+
+  it('is a no-op when already at the end', () => {
+    expect(moveSortBy(sorts, 'c', 1)).toEqual(sorts)
+  })
+
+  it('is a no-op when key is not present', () => {
+    expect(moveSortBy(sorts, 'ghost', 1)).toEqual(sorts)
+  })
+
+  it("preserves each entry's own dir while reordering", () => {
+    const result = moveSortBy(sorts, 'b', -1)
+    expect(result.find((s) => s.key === 'b')?.dir).toBe('desc')
+  })
+})
+
+// ─── reorderSort ──────────────────────────────────────────────────────────────
+
+describe('reorderSort', () => {
+  const sorts: SortEntry[] = [
+    { key: 'a', dir: 'asc' },
+    { key: 'b', dir: 'desc' },
+    { key: 'c', dir: 'asc' },
+  ]
+
+  it('moves dragKey to just before targetKey', () => {
+    expect(reorderSort(sorts, 'c', 'a')).toEqual([
+      { key: 'c', dir: 'asc' },
+      { key: 'a', dir: 'asc' },
+      { key: 'b', dir: 'desc' },
+    ])
+  })
+
+  it('moves dragKey later when targetKey is after it', () => {
+    expect(reorderSort(sorts, 'a', 'c')).toEqual([
+      { key: 'b', dir: 'desc' },
+      { key: 'a', dir: 'asc' },
+      { key: 'c', dir: 'asc' },
+    ])
+  })
+
+  it('is a no-op when dragKey equals targetKey', () => {
+    expect(reorderSort(sorts, 'b', 'b')).toEqual(sorts)
+  })
+
+  it('returns sorts unchanged when targetKey is not present', () => {
+    expect(reorderSort(sorts, 'a', 'ghost')).toEqual(sorts)
+  })
+
+  it('returns sorts unchanged when dragKey is not present', () => {
+    expect(reorderSort(sorts, 'ghost', 'a')).toEqual(sorts)
+  })
+
+  it("preserves each entry's own dir while reordering", () => {
+    const result = reorderSort(sorts, 'c', 'a')
+    expect(result.find((s) => s.key === 'c')?.dir).toBe('asc')
+    expect(result.find((s) => s.key === 'b')?.dir).toBe('desc')
   })
 })
 
