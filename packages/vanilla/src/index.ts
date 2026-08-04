@@ -849,6 +849,25 @@ export function createDataTable<TRow extends object>(
         }
       }
     }
+
+    // Clamp the open dropdown panel to the viewport — it's absolutely positioned off its
+    // trigger and would otherwise render partly or fully off-screen (e.g. the 460px-wide
+    // filter panel near the right edge). A translateX offset is used instead of flipping the
+    // anchor side (left:0 -> right:0) because the panel's overflow is relative to the viewport,
+    // not to the trigger — a trigger near the toolbar's left edge with a wide panel would just
+    // push it off the opposite (left) side if the anchor were flipped instead. The left check
+    // takes priority when the panel is wider than the viewport itself (rare, e.g. a 460px filter
+    // panel on a <480px screen): keeping the left edge on-screen beats keeping the right edge.
+    const openDd = container.querySelector<HTMLElement>('.dt-dd')
+    if (openDd) {
+      const rect = openDd.getBoundingClientRect()
+      const margin = 8
+      let dx = 0
+      if (rect.right > window.innerWidth - margin) dx = window.innerWidth - margin - rect.right
+      if (rect.left + dx < margin) dx = margin - rect.left
+      if (dx !== 0) openDd.style.transform = `translateX(${dx}px)`
+      if (rect.bottom > window.innerHeight - margin) openDd.classList.add('dt-dd--up')
+    }
   }
 
   // --- Event handlers ---
