@@ -7,9 +7,34 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-08-04
+
+### Added
+
+- Full keyboard navigation for table rows and group headers: a roving tabindex moves one row (or group header) at a time with arrow keys, crosses page boundaries at the edges, Home/End jump to the current page's ends (Ctrl/Cmd+Home/End jump across all pages), Space toggles selection (Shift+Arrow/Home/End extends the range), and Enter fires row click or toggles a group's collapsed state
+- `defaultGroupsCollapsed` option (defaults to `true`) — groups now start collapsed unless overridden
+- `ColumnDefBase.parseDate` override for `type: 'date'` columns, so a column can plug in its own date parser when `new Date(v)` guesses an ambiguous format wrong
+- Filter checklist virtualized (windowed rendering) — columns with thousands of distinct values no longer mount one row per value regardless of scroll position
+- `resetView` helper (React/Vue/vanilla) puts a table back to its construction-time defaults and clears any persisted localStorage/URL state in one call
+
+### Fixed
+
+- `type: 'date'` and numeric-string `type: 'number'` columns now sort chronologically/numerically instead of falling back to alphabetical string comparison
+- Pagination counts group header rows toward `pageSize`, so a page never renders more rows than configured; the "Rows per page" dropdown now shows the correct value even when `pageSize` isn't one of the hardcoded options
+- Vanilla: an open toolbar dropdown no longer stays visibly open after clicking a row
+- Visual hierarchy improved between the table header, group header rows, and the odd-row stripe (header gets a stronger anchor, group rows read as bold section dividers, stripes are more subtle)
+- Global search and the filter checklist search are now diacritic-insensitive (e.g. "ooo" matches "Öoo")
+
 ### Changed
 
 - Select-all checkboxes (header, group headers, filter checklist) now clear the selection when clicked in an indeterminate or fully-checked state, and only select all when nothing is selected — matching Gmail's convention instead of always escalating to select-all
+
+### Internal
+
+- Filter facet-count computation scoped to only the currently open column (was every filterable column on every change) — ~15-17x faster at 500k rows/7 columns; date-column sort now precomputes comparable values once instead of per comparison — ~4x faster
+- Added a Vitest benchmark suite (`npm run bench -w packages/core`) for core logic at 10k/100k/500k rows
+- Demo apps: added a 200k-row "Huge dataset" showcase section (realistic e-commerce data, two groupable columns), extended view persistence/sharing to every table, fixed a dark-mode button contrast bug and a GitHub Pages duplicate-React bundling bug
+- Bumped CI actions to v5 and the Vite toolchain to fix an esbuild vulnerability
 
 ## [0.2.0] - 2026-07-14
 
