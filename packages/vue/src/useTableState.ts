@@ -168,9 +168,9 @@ export function useTableState<TRow extends object>(
       } else next.add(key)
       visibleCols.value = next
     },
-    moveColumn: (dragKey: string, targetKey: string) => {
+    moveColumn: (dragKey: string, targetKey: string, after = false) => {
       const base = columnOrder.value.length ? columnOrder.value : columns.value.map((c) => c.key)
-      columnOrder.value = _reorderColumn(base, dragKey, targetKey)
+      columnOrder.value = _reorderColumn(base, dragKey, targetKey, after)
     },
     moveColumnBy: (key: string, delta: number) => {
       const base = columnOrder.value.length ? columnOrder.value : columns.value.map((c) => c.key)
@@ -190,8 +190,8 @@ export function useTableState<TRow extends object>(
     moveSortBy: (key: string, delta: number) => {
       sorts.value = _moveSortBy(sorts.value, key, delta)
     },
-    moveSort: (dragKey: string, targetKey: string) => {
-      sorts.value = _reorderSort(sorts.value, dragKey, targetKey)
+    moveSort: (dragKey: string, targetKey: string, after = false) => {
+      sorts.value = _reorderSort(sorts.value, dragKey, targetKey, after)
     },
     toggleFilter: (key: string, value: string) => {
       filters.value = _toggleFilter(filters.value, key, value)
@@ -236,8 +236,8 @@ export function useTableState<TRow extends object>(
     moveGroupBy: (key: string, delta: number) => {
       groupBy.value = _moveColumnBy(groupBy.value, key, delta)
     },
-    moveGroup: (dragKey: string, targetKey: string) => {
-      groupBy.value = _reorderColumn(groupBy.value, dragKey, targetKey)
+    moveGroup: (dragKey: string, targetKey: string, after = false) => {
+      groupBy.value = _reorderColumn(groupBy.value, dragKey, targetKey, after)
     },
     toggleGroupCollapse: (key: string) => {
       collapsedGroups.value = toggleCollapse(collapsedGroups.value, key)

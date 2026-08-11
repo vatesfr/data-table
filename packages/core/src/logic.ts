@@ -555,15 +555,26 @@ export function moveSortBy(sorts: SortEntry[], key: string, delta: number): Sort
   return next
 }
 
-/** Reorders `sorts` by moving the entry for `dragKey` to just before the entry for `targetKey` (drag-and-drop) — mirrors `reorderColumn`, but keyed by `.key` on `SortEntry` objects instead of plain strings. */
-export function reorderSort(sorts: SortEntry[], dragKey: string, targetKey: string): SortEntry[] {
+/**
+ * Reorders `sorts` by moving the entry for `dragKey` next to the entry for `targetKey`
+ * (drag-and-drop) — before it by default, or after it when `after` is true (needed to drop a
+ * dragged entry *past* `targetKey`, e.g. making it the new last entry by dropping after the
+ * previously-last one, which "insert before" alone can never express). Mirrors `reorderColumn`,
+ * but keyed by `.key` on `SortEntry` objects instead of plain strings.
+ */
+export function reorderSort(
+  sorts: SortEntry[],
+  dragKey: string,
+  targetKey: string,
+  after = false,
+): SortEntry[] {
   if (dragKey === targetKey) return sorts
   const dragged = sorts.find((s) => s.key === dragKey)
   if (!dragged) return sorts
   const next = sorts.filter((s) => s.key !== dragKey)
   const targetIdx = next.findIndex((s) => s.key === targetKey)
   if (targetIdx === -1) return sorts
-  next.splice(targetIdx, 0, dragged)
+  next.splice(after ? targetIdx + 1 : targetIdx, 0, dragged)
   return next
 }
 
@@ -653,13 +664,23 @@ export function getOrderedColumns<TRow extends object>(
   return [...ordered, ...columns.filter((c) => !orderedKeys.has(c.key))]
 }
 
-/** Reorders `order` by moving `dragKey` to just before `targetKey` (drag-and-drop). */
-export function reorderColumn(order: string[], dragKey: string, targetKey: string): string[] {
+/**
+ * Reorders `order` by moving `dragKey` next to `targetKey` (drag-and-drop) — before it by
+ * default, or after it when `after` is true (needed to drop `dragKey` *past* `targetKey`, e.g.
+ * making it the new last entry by dropping after the previously-last one, which "insert before"
+ * alone can never express).
+ */
+export function reorderColumn(
+  order: string[],
+  dragKey: string,
+  targetKey: string,
+  after = false,
+): string[] {
   if (dragKey === targetKey) return order
   const next = order.filter((k) => k !== dragKey)
   const targetIdx = next.indexOf(targetKey)
   if (targetIdx === -1) return order
-  next.splice(targetIdx, 0, dragKey)
+  next.splice(after ? targetIdx + 1 : targetIdx, 0, dragKey)
   return next
 }
 

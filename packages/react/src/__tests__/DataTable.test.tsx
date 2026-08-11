@@ -619,6 +619,14 @@ function ddCopyOf(getAllByText: (text: string) => HTMLElement[], label: string):
   return getAllByText(label).find((el) => el.closest('th') === null)!
 }
 
+// jsdom has no DragEvent constructor, so testing-library's fireEvent.dragOver/.drop fall back to
+// a plain Event whose EventInit silently drops unrecognized keys like clientY. A real MouseEvent
+// (which jsdom does support, clientY included) is needed for tests exercising the
+// before/after-target cursor-position math.
+function dragEvtAt(type: string, clientY: number): Event {
+  return new MouseEvent(type, { bubbles: true, cancelable: true, clientY })
+}
+
 describe('DataTable — sort dropdown', () => {
   const SORT_COLS: ColumnDef<Row>[] = [
     { key: 'name', label: 'Name' },
@@ -677,6 +685,60 @@ describe('DataTable — sort dropdown', () => {
     fireEvent.dragStart(scoreRow)
     fireEvent.dragOver(nameRow)
     fireEvent.drop(nameRow)
+    const after = draggableRows(container)
+    expect(after[0].textContent).toContain('Score')
+    expect(after[1].textContent).toContain('Name')
+  })
+
+  it('dropping past the last active sort row moves the dragged row to the end', () => {
+    const cols: ColumnDef<Row>[] = [...SORT_COLS, { key: 'id', label: 'Id', type: 'number' }]
+    const { getByText, getAllByText, container } = render(
+      <DataTable data={ROWS} columns={cols} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Sort'))
+    fireEvent.click(ddCopyOf(getAllByText, 'Name').closest('button')!)
+    fireEvent.click(ddCopyOf(getAllByText, 'Score').closest('button')!)
+    fireEvent.click(ddCopyOf(getAllByText, 'Id').closest('button')!)
+
+    const [nameRow, , idRow] = draggableRows(container)
+    // jsdom has no layout engine — getBoundingClientRect() returns all zeros unless stubbed.
+    idRow.getBoundingClientRect = () => ({ top: 20, bottom: 40, height: 20 }) as DOMRect
+    const clearBtn = getByText('× Clear sorts')
+
+    fireEvent.dragStart(nameRow)
+    // Pointer is well below the last active row (id), over dead space (the "Clear sorts"
+    // button) that carries no active-row identity of its own — this used to silently reject
+    // the drop entirely. jsdom has no DragEvent constructor, so fireEvent.dragOver/.drop fall
+    // back to a plain Event that drops any clientY passed in `init` — dispatching a real
+    // MouseEvent directly is what's needed to exercise the before/after cursor-position math.
+    fireEvent(clearBtn, dragEvtAt('dragover', 100))
+    fireEvent(clearBtn, dragEvtAt('drop', 100))
+
+    const after = draggableRows(container)
+    expect(after.map((r) => r.textContent)).toEqual([
+      expect.stringContaining('Score'),
+      expect.stringContaining('Id'),
+      expect.stringContaining('Name'),
+    ])
+  })
+
+  it('dropping on the bottom half of the last active sort row moves the dragged row after it', () => {
+    const { getByText, getAllByText, container } = render(
+      <DataTable data={ROWS} columns={SORT_COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Sort'))
+    fireEvent.click(ddCopyOf(getAllByText, 'Name').closest('button')!)
+    fireEvent.click(ddCopyOf(getAllByText, 'Score').closest('button')!)
+
+    const [nameRow, scoreRow] = draggableRows(container)
+    scoreRow.getBoundingClientRect = () => ({ top: 20, bottom: 40, height: 20 }) as DOMRect
+
+    fireEvent.dragStart(nameRow)
+    // clientY 35 falls in scoreRow's bottom half (30–40) — should insert name *after* score,
+    // not before it (which "insert before" alone could never express for the last row).
+    fireEvent(scoreRow, dragEvtAt('dragover', 35))
+    fireEvent(scoreRow, dragEvtAt('drop', 35))
+
     const after = draggableRows(container)
     expect(after[0].textContent).toContain('Score')
     expect(after[1].textContent).toContain('Name')

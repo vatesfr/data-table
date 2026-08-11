@@ -1475,14 +1475,43 @@ export function createDataTable<TRow extends object>(
     clearColDragClasses()
   }
 
-  // Drag-and-drop reordering for the Sort dropdown's active entries — same rationale and
-  // bypass-render()-until-drop approach as column header dragging above, just scoped to
-  // `.dt-dd-item--sortrow` and keyed by `data-sort-key` instead of `data-col-key`.
+  // Drag-and-drop reordering for the Sort/Group/Columns dropdown lists below. Resolves not just
+  // *which* row the cursor is over but whether the dragged item should land before or after it
+  // (cursor position within the row's own top/bottom half) — without this, dropping directly on
+  // a row could only ever insert *before* it, so the last row could never actually become
+  // non-last. When the cursor isn't over any row at all — the dead space below the last active
+  // row, or the "add" section/footer beneath it — it snaps to the nearest edge row instead of
+  // silently rejecting the drop (a plain `closest()` miss there would otherwise never call
+  // `preventDefault()`, and the browser treats that as "not a valid drop target").
+  function resolveDragRow(
+    e: DragEvent,
+    selector: string,
+  ): { row: HTMLElement; after: boolean } | null {
+    const rows = Array.from(container.querySelectorAll<HTMLElement>(selector))
+    if (rows.length === 0) return null
+    const hit = (e.target as HTMLElement).closest<HTMLElement>(selector)
+    if (hit) {
+      const rect = hit.getBoundingClientRect()
+      return { row: hit, after: e.clientY > rect.top + rect.height / 2 }
+    }
+    const first = rows[0]
+    const last = rows[rows.length - 1]
+    if (e.clientY <= first.getBoundingClientRect().top) return { row: first, after: false }
+    if (e.clientY >= last.getBoundingClientRect().bottom) return { row: last, after: true }
+    return null
+  }
+
+  // Same rationale and bypass-render()-until-drop approach as column header dragging above, just
+  // scoped to `.dt-dd-item--sortrow` and keyed by `data-sort-key` instead of `data-col-key`.
   function clearSortDragClasses(): void {
     for (const el of container.querySelectorAll<HTMLElement>(
       '.dt-dd-item--sortrow[data-sort-key]',
     )) {
-      el.classList.remove('dt-dd-item--dragging', 'dt-dd-item--drag-over')
+      el.classList.remove(
+        'dt-dd-item--dragging',
+        'dt-dd-item--drag-over',
+        'dt-dd-item--drag-over-after',
+      )
     }
   }
 
@@ -1496,27 +1525,26 @@ export function createDataTable<TRow extends object>(
   }
 
   function handleSortDragOver(e: DragEvent): void {
-    const row = (e.target as HTMLElement).closest<HTMLElement>(
-      '.dt-dd-item--sortrow[data-sort-key]',
-    )
-    if (!row || !draggedSortKey || row.dataset.sortKey === draggedSortKey) return
+    if (!draggedSortKey) return
+    const target = resolveDragRow(e, '.dt-dd-item--sortrow[data-sort-key]')
+    if (!target || target.row.dataset.sortKey === draggedSortKey) return
     e.preventDefault()
     for (const other of container.querySelectorAll<HTMLElement>(
       '.dt-dd-item--sortrow[data-sort-key]',
     )) {
-      other.classList.toggle('dt-dd-item--drag-over', other === row)
+      other.classList.toggle('dt-dd-item--drag-over', other === target.row && !target.after)
+      other.classList.toggle('dt-dd-item--drag-over-after', other === target.row && target.after)
     }
   }
 
   function handleSortDrop(e: DragEvent): void {
-    const row = (e.target as HTMLElement).closest<HTMLElement>(
-      '.dt-dd-item--sortrow[data-sort-key]',
-    )
-    const targetKey = row?.dataset.sortKey
-    if (!targetKey || !draggedSortKey) return
+    if (!draggedSortKey) return
+    const target = resolveDragRow(e, '.dt-dd-item--sortrow[data-sort-key]')
+    const targetKey = target?.row.dataset.sortKey
+    if (!targetKey) return
     e.preventDefault()
     if (targetKey !== draggedSortKey) {
-      sorts = coreReorderSort(sorts, draggedSortKey, targetKey)
+      sorts = coreReorderSort(sorts, draggedSortKey, targetKey, target?.after)
       render()
       notifyViewChange()
     }
@@ -1534,7 +1562,11 @@ export function createDataTable<TRow extends object>(
     for (const el of container.querySelectorAll<HTMLElement>(
       '.dt-dd-item--grouprow[data-group-key]',
     )) {
-      el.classList.remove('dt-dd-item--dragging', 'dt-dd-item--drag-over')
+      el.classList.remove(
+        'dt-dd-item--dragging',
+        'dt-dd-item--drag-over',
+        'dt-dd-item--drag-over-after',
+      )
     }
   }
 
@@ -1548,27 +1580,26 @@ export function createDataTable<TRow extends object>(
   }
 
   function handleGroupDragOver(e: DragEvent): void {
-    const row = (e.target as HTMLElement).closest<HTMLElement>(
-      '.dt-dd-item--grouprow[data-group-key]',
-    )
-    if (!row || !draggedGroupKey || row.dataset.groupKey === draggedGroupKey) return
+    if (!draggedGroupKey) return
+    const target = resolveDragRow(e, '.dt-dd-item--grouprow[data-group-key]')
+    if (!target || target.row.dataset.groupKey === draggedGroupKey) return
     e.preventDefault()
     for (const other of container.querySelectorAll<HTMLElement>(
       '.dt-dd-item--grouprow[data-group-key]',
     )) {
-      other.classList.toggle('dt-dd-item--drag-over', other === row)
+      other.classList.toggle('dt-dd-item--drag-over', other === target.row && !target.after)
+      other.classList.toggle('dt-dd-item--drag-over-after', other === target.row && target.after)
     }
   }
 
   function handleGroupDrop(e: DragEvent): void {
-    const row = (e.target as HTMLElement).closest<HTMLElement>(
-      '.dt-dd-item--grouprow[data-group-key]',
-    )
-    const targetKey = row?.dataset.groupKey
-    if (!targetKey || !draggedGroupKey) return
+    if (!draggedGroupKey) return
+    const target = resolveDragRow(e, '.dt-dd-item--grouprow[data-group-key]')
+    const targetKey = target?.row.dataset.groupKey
+    if (!targetKey) return
     e.preventDefault()
     if (targetKey !== draggedGroupKey) {
-      groupBy = coreReorderColumn(groupBy, draggedGroupKey, targetKey)
+      groupBy = coreReorderColumn(groupBy, draggedGroupKey, targetKey, target?.after)
       render()
       notifyViewChange()
     }
@@ -1588,7 +1619,11 @@ export function createDataTable<TRow extends object>(
     for (const el of container.querySelectorAll<HTMLElement>(
       '.dt-dd-item--colrow[data-col-row-key]',
     )) {
-      el.classList.remove('dt-dd-item--dragging', 'dt-dd-item--drag-over')
+      el.classList.remove(
+        'dt-dd-item--dragging',
+        'dt-dd-item--drag-over',
+        'dt-dd-item--drag-over-after',
+      )
     }
   }
 
@@ -1602,28 +1637,27 @@ export function createDataTable<TRow extends object>(
   }
 
   function handleColRowDragOver(e: DragEvent): void {
-    const row = (e.target as HTMLElement).closest<HTMLElement>(
-      '.dt-dd-item--colrow[data-col-row-key]',
-    )
-    if (!row || !draggedColRowKey || row.dataset.colRowKey === draggedColRowKey) return
+    if (!draggedColRowKey) return
+    const target = resolveDragRow(e, '.dt-dd-item--colrow[data-col-row-key]')
+    if (!target || target.row.dataset.colRowKey === draggedColRowKey) return
     e.preventDefault()
     for (const other of container.querySelectorAll<HTMLElement>(
       '.dt-dd-item--colrow[data-col-row-key]',
     )) {
-      other.classList.toggle('dt-dd-item--drag-over', other === row)
+      other.classList.toggle('dt-dd-item--drag-over', other === target.row && !target.after)
+      other.classList.toggle('dt-dd-item--drag-over-after', other === target.row && target.after)
     }
   }
 
   function handleColRowDrop(e: DragEvent): void {
-    const row = (e.target as HTMLElement).closest<HTMLElement>(
-      '.dt-dd-item--colrow[data-col-row-key]',
-    )
-    const targetKey = row?.dataset.colRowKey
-    if (!targetKey || !draggedColRowKey) return
+    if (!draggedColRowKey) return
+    const target = resolveDragRow(e, '.dt-dd-item--colrow[data-col-row-key]')
+    const targetKey = target?.row.dataset.colRowKey
+    if (!targetKey) return
     e.preventDefault()
     if (targetKey !== draggedColRowKey) {
       const base = columnOrder.length ? columnOrder : columns.map((c) => c.key)
-      columnOrder = coreReorderColumn(base, draggedColRowKey, targetKey)
+      columnOrder = coreReorderColumn(base, draggedColRowKey, targetKey, target?.after)
       render()
       notifyViewChange()
     }

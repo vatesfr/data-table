@@ -544,23 +544,67 @@ const addableGroupCols = computed(() =>
   groupableCols.value.filter((c) => !groupBy.value.includes(c.key)),
 )
 
+/**
+ * Resolves the drop target for the Sort/Group/Columns dropdown drag-and-drop lists below: the
+ * specific row under the cursor, and whether the dragged item should land before or after it.
+ * Cursor position within the hovered row's own bounds decides before/after (top half vs bottom
+ * half) so a row can be a valid "insert after" target too — including the *last* row, which
+ * "insert before" alone could never reach. When the cursor isn't directly over any row (e.g.
+ * past the last row, in the dead space below it, or over the dropdown's "add" section) it snaps
+ * to the nearest edge row instead, so there's no dead zone that silently rejects the drop. `e` is
+ * expected to be handled at the Dropdown panel level (`e.currentTarget` is the panel, not a
+ * row), so it can see every row via `attr`, a `data-*` attribute unique to that list's rows.
+ */
+function resolveDropdownDragRow(
+  e: DragEvent,
+  attr: string,
+): { key: string; after: boolean } | null {
+  const root = e.currentTarget as HTMLElement
+  const selector = `[${attr}]`
+  const rows = Array.from(root.querySelectorAll<HTMLElement>(selector))
+  if (rows.length === 0) return null
+  const readKey = (el: HTMLElement) => el.getAttribute(attr)!
+  const hit = (e.target as HTMLElement).closest<HTMLElement>(selector)
+  if (hit) {
+    const rect = hit.getBoundingClientRect()
+    return { key: readKey(hit), after: e.clientY > rect.top + rect.height / 2 }
+  }
+  const first = rows[0]
+  const last = rows[rows.length - 1]
+  if (e.clientY <= first.getBoundingClientRect().top) return { key: readKey(first), after: false }
+  if (e.clientY >= last.getBoundingClientRect().bottom) return { key: readKey(last), after: true }
+  return null
+}
+
 // Drag-and-drop reordering for the Sort dropdown's active entries — kept as its own independent
 // state (rather than reusing dragColKey/dragOverColKey above), mirroring how each dropdown gets
 // its own drag state instead of a shared one.
 const dragSortKey = ref<string | null>(null)
 const dragOverSortKey = ref<string | null>(null)
+const dragOverSortAfter = ref(false)
 function onSortDragStart(key: string): void {
   dragSortKey.value = key
 }
-function onSortDragOver(key: string): void {
-  if (dragSortKey.value && dragSortKey.value !== key) dragOverSortKey.value = key
-}
-function onSortDrop(key: string): void {
-  if (dragSortKey.value && dragSortKey.value !== key) moveSort(dragSortKey.value, key)
+function onSortDragEnd(): void {
   dragSortKey.value = null
   dragOverSortKey.value = null
 }
-function onSortDragEnd(): void {
+// @dragover/@drop for the whole active-sorts list — bound to the Dropdown panel (via its
+// forwarded $attrs) rather than per-row, so a drop past the last row still resolves.
+function onSortRowsDragOver(e: DragEvent): void {
+  if (!dragSortKey.value) return
+  const target = resolveDropdownDragRow(e, 'data-sort-key')
+  if (!target || target.key === dragSortKey.value) return
+  e.preventDefault()
+  dragOverSortKey.value = target.key
+  dragOverSortAfter.value = target.after
+}
+function onSortRowsDrop(e: DragEvent): void {
+  if (!dragSortKey.value) return
+  const target = resolveDropdownDragRow(e, 'data-sort-key')
+  if (!target) return
+  e.preventDefault()
+  if (target.key !== dragSortKey.value) moveSort(dragSortKey.value, target.key, target.after)
   dragSortKey.value = null
   dragOverSortKey.value = null
 }
@@ -581,18 +625,28 @@ function onSortRowKeyDown(event: KeyboardEvent, key: string): void {
 // on click (no direction), so only Alt+↑/↓ reorder applies.
 const dragGroupKey = ref<string | null>(null)
 const dragOverGroupKey = ref<string | null>(null)
+const dragOverGroupAfter = ref(false)
 function onGroupDragStart(key: string): void {
   dragGroupKey.value = key
 }
-function onGroupDragOver(key: string): void {
-  if (dragGroupKey.value && dragGroupKey.value !== key) dragOverGroupKey.value = key
-}
-function onGroupDrop(key: string): void {
-  if (dragGroupKey.value && dragGroupKey.value !== key) moveGroup(dragGroupKey.value, key)
+function onGroupDragEnd(): void {
   dragGroupKey.value = null
   dragOverGroupKey.value = null
 }
-function onGroupDragEnd(): void {
+function onGroupRowsDragOver(e: DragEvent): void {
+  if (!dragGroupKey.value) return
+  const target = resolveDropdownDragRow(e, 'data-group-key')
+  if (!target || target.key === dragGroupKey.value) return
+  e.preventDefault()
+  dragOverGroupKey.value = target.key
+  dragOverGroupAfter.value = target.after
+}
+function onGroupRowsDrop(e: DragEvent): void {
+  if (!dragGroupKey.value) return
+  const target = resolveDropdownDragRow(e, 'data-group-key')
+  if (!target) return
+  e.preventDefault()
+  if (target.key !== dragGroupKey.value) moveGroup(dragGroupKey.value, target.key, target.after)
   dragGroupKey.value = null
   dragOverGroupKey.value = null
 }
@@ -608,18 +662,28 @@ function onGroupRowKeyDown(event: KeyboardEvent, key: string): void {
 // on the row would just be a redundant, visually-identical stop for the same rectangle.
 const dragColRowKey = ref<string | null>(null)
 const dragOverColRowKey = ref<string | null>(null)
+const dragOverColRowAfter = ref(false)
 function onColRowDragStart(key: string): void {
   dragColRowKey.value = key
 }
-function onColRowDragOver(key: string): void {
-  if (dragColRowKey.value && dragColRowKey.value !== key) dragOverColRowKey.value = key
-}
-function onColRowDrop(key: string): void {
-  if (dragColRowKey.value && dragColRowKey.value !== key) moveColumn(dragColRowKey.value, key)
+function onColRowDragEnd(): void {
   dragColRowKey.value = null
   dragOverColRowKey.value = null
 }
-function onColRowDragEnd(): void {
+function onColRowsDragOver(e: DragEvent): void {
+  if (!dragColRowKey.value) return
+  const target = resolveDropdownDragRow(e, 'data-col-row-key')
+  if (!target || target.key === dragColRowKey.value) return
+  e.preventDefault()
+  dragOverColRowKey.value = target.key
+  dragOverColRowAfter.value = target.after
+}
+function onColRowsDrop(e: DragEvent): void {
+  if (!dragColRowKey.value) return
+  const target = resolveDropdownDragRow(e, 'data-col-row-key')
+  if (!target) return
+  e.preventDefault()
+  if (target.key !== dragColRowKey.value) moveColumn(dragColRowKey.value, target.key, target.after)
   dragColRowKey.value = null
   dragOverColRowKey.value = null
 }
@@ -643,23 +707,27 @@ function clearSearchQuery(): void {
     <div class="dt__toolbar">
       <div class="dt__toolbar-actions">
         <!-- Columns -->
-        <Dropdown>
+        <Dropdown @dragover="onColRowsDragOver" @drop="onColRowsDrop">
           <template #trigger="{ open }">
             <ToolbarBtn :active="open">{{ L.columns }}</ToolbarBtn>
           </template>
           <div class="dt__dd-section">{{ L.columnsSection }}</div>
+          <!--
+            @dragover/@drop are handled at the Dropdown panel level (see above), not per-row —
+            that's what lets a drop past the last row still resolve to a valid target.
+          -->
           <div
             v-for="col in orderedColumns"
             :key="col.key"
+            :data-col-row-key="col.key"
             class="dt__dd-item dt__dd-item--col dt__dd-item--colrow"
             :class="{
               'dt__dd-item--dragging': dragColRowKey === col.key,
-              'dt__dd-item--drag-over': dragOverColRowKey === col.key,
+              'dt__dd-item--drag-over': dragOverColRowKey === col.key && !dragOverColRowAfter,
+              'dt__dd-item--drag-over-after': dragOverColRowKey === col.key && dragOverColRowAfter,
             }"
             draggable="true"
             @dragstart="onColRowDragStart(col.key)"
-            @dragover.prevent="onColRowDragOver(col.key)"
-            @drop.prevent="onColRowDrop(col.key)"
             @dragend="onColRowDragEnd"
           >
             <label class="dt__dd-item--clickable dt__flex1">
@@ -675,7 +743,7 @@ function clearSearchQuery(): void {
         </Dropdown>
 
         <!-- Sort -->
-        <Dropdown>
+        <Dropdown @dragover="onSortRowsDragOver" @drop="onSortRowsDrop">
           <template #trigger="{ open }">
             <ToolbarBtn :active="open || sorts.length > 0">
               {{ L.sort }}
@@ -691,22 +759,24 @@ function clearSearchQuery(): void {
               should ever trigger. tabindex + @keydown give it Alt+↑/↓ reorder and
               Enter/Space-to-toggle from the keyboard — a plain div gets no free keyboard
               activation the way a real <button> would (unlike the add-list below).
+              @dragover/@drop are handled at the Dropdown panel level (see above), not per-row —
+              that's what lets a drop past the last row still resolve to a valid target.
             -->
             <div
               v-for="(entry, i) in sorts"
               :key="entry.key"
+              :data-sort-key="entry.key"
               class="dt__dd-item dt__dd-item--col dt__dd-item--sortrow"
               :class="{
                 'dt__dd-item--dragging': dragSortKey === entry.key,
-                'dt__dd-item--drag-over': dragOverSortKey === entry.key,
+                'dt__dd-item--drag-over': dragOverSortKey === entry.key && !dragOverSortAfter,
+                'dt__dd-item--drag-over-after': dragOverSortKey === entry.key && dragOverSortAfter,
               }"
               draggable="true"
               tabindex="0"
               @click="toggleSortDir(entry.key)"
               @keydown="onSortRowKeyDown($event, entry.key)"
               @dragstart="onSortDragStart(entry.key)"
-              @dragover.prevent="onSortDragOver(entry.key)"
-              @drop.prevent="onSortDrop(entry.key)"
               @dragend="onSortDragEnd"
             >
               <span class="dt__sort-idx">{{ i + 1 }}</span>
@@ -926,7 +996,11 @@ function clearSearchQuery(): void {
         </Dropdown>
 
         <!-- Group -->
-        <Dropdown v-if="groupableCols.length > 0">
+        <Dropdown
+          v-if="groupableCols.length > 0"
+          @dragover="onGroupRowsDragOver"
+          @drop="onGroupRowsDrop"
+        >
           <template #trigger="{ open }">
             <ToolbarBtn :active="open || groupBy.length > 0">
               {{ L.group }}
@@ -939,21 +1013,23 @@ function clearSearchQuery(): void {
               Same treatment as the Sort active rows, minus a click action — a group entry has
               nothing to toggle (no direction), so the row is draggable/focusable purely for
               reordering (drag, or Alt+↑/↓ when focused); `×` remove is the only button.
+              @dragover/@drop are handled at the Dropdown panel level (see above), not per-row —
+              that's what lets a drop past the last row still resolve to a valid target.
             -->
             <div
               v-for="(key, i) in groupBy"
               :key="key"
+              :data-group-key="key"
               class="dt__dd-item dt__dd-item--col dt__dd-item--grouprow"
               :class="{
                 'dt__dd-item--dragging': dragGroupKey === key,
-                'dt__dd-item--drag-over': dragOverGroupKey === key,
+                'dt__dd-item--drag-over': dragOverGroupKey === key && !dragOverGroupAfter,
+                'dt__dd-item--drag-over-after': dragOverGroupKey === key && dragOverGroupAfter,
               }"
               draggable="true"
               tabindex="0"
               @keydown="onGroupRowKeyDown($event, key)"
               @dragstart="onGroupDragStart(key)"
-              @dragover.prevent="onGroupDragOver(key)"
-              @drop.prevent="onGroupDrop(key)"
               @dragend="onGroupDragEnd"
             >
               <span class="dt__sort-idx">{{ i + 1 }}</span>
@@ -1356,6 +1432,9 @@ function clearSearchQuery(): void {
 }
 .dt__dd-item--drag-over {
   box-shadow: inset 0 2px 0 var(--color-text-primary);
+}
+.dt__dd-item--drag-over-after {
+  box-shadow: inset 0 -2px 0 var(--color-text-primary);
 }
 .dt__item-remove {
   background: none;

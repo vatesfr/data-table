@@ -677,6 +677,75 @@ describe('DataTable — sort dropdown', () => {
     expect(after[1].text()).toContain('Name')
   })
 
+  it('dropping past the last active sort row moves the dragged row to the end', async () => {
+    const cols: ColumnDef<Row>[] = [...SORT_COLS, { key: 'id', label: 'Id', type: 'number' }]
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: cols, rowKey: 'id' } })
+    await wrapper
+      .findAll('button')
+      .find((b) => b.text() === 'Sort')!
+      .trigger('click')
+    await wrapper
+      .findAll('.dt__dd-item--clickable')
+      .find((el) => el.text() === 'Name')!
+      .trigger('click')
+    await wrapper
+      .findAll('.dt__dd-item--clickable')
+      .find((el) => el.text() === 'Score')!
+      .trigger('click')
+    await wrapper
+      .findAll('.dt__dd-item--clickable')
+      .find((el) => el.text() === 'Id')!
+      .trigger('click')
+
+    const rows = wrapper.findAll('.dt__dd-item--sortrow')
+    // jsdom has no layout engine — getBoundingClientRect() returns all zeros unless stubbed.
+    rows[2].element.getBoundingClientRect = () => ({ top: 20, bottom: 40, height: 20 }) as DOMRect
+    const clearBtn = wrapper.findAll('button').find((b) => b.text() === '× Clear sorts')!
+
+    await rows[0].trigger('dragstart')
+    // Pointer is well below the last active row (id), over dead space (the "Clear sorts"
+    // button) that carries no active-row identity of its own — this used to silently reject
+    // the drop entirely.
+    await clearBtn.trigger('dragover', { clientY: 100 })
+    await clearBtn.trigger('drop', { clientY: 100 })
+
+    const after = wrapper.findAll('.dt__dd-item--sortrow')
+    expect(after.map((r) => r.text())).toEqual([
+      expect.stringContaining('Score'),
+      expect.stringContaining('Id'),
+      expect.stringContaining('Name'),
+    ])
+  })
+
+  it('dropping on the bottom half of the last active sort row moves the dragged row after it', async () => {
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: SORT_COLS, rowKey: 'id' } })
+    await wrapper
+      .findAll('button')
+      .find((b) => b.text() === 'Sort')!
+      .trigger('click')
+    await wrapper
+      .findAll('.dt__dd-item--clickable')
+      .find((el) => el.text() === 'Name')!
+      .trigger('click')
+    await wrapper
+      .findAll('.dt__dd-item--clickable')
+      .find((el) => el.text() === 'Score')!
+      .trigger('click')
+
+    const rows = wrapper.findAll('.dt__dd-item--sortrow')
+    rows[1].element.getBoundingClientRect = () => ({ top: 20, bottom: 40, height: 20 }) as DOMRect
+
+    await rows[0].trigger('dragstart')
+    // clientY 35 falls in scoreRow's bottom half (30–40) — should insert name *after* score,
+    // not before it (which "insert before" alone could never express for the last row).
+    await rows[1].trigger('dragover', { clientY: 35 })
+    await rows[1].trigger('drop', { clientY: 35 })
+
+    const after = wrapper.findAll('.dt__dd-item--sortrow')
+    expect(after[0].text()).toContain('Score')
+    expect(after[1].text()).toContain('Name')
+  })
+
   it('Alt+ArrowUp on a focused active sort row reorders priority', async () => {
     const wrapper = mount(DataTable, { props: { data: ROWS, columns: SORT_COLS, rowKey: 'id' } })
     await wrapper

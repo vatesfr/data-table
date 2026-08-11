@@ -65,6 +65,13 @@ function dragEvt(type: string): Event {
   return new Event(type, { bubbles: true, cancelable: true })
 }
 
+// Same as dragEvt, but carrying a clientY — needed for tests that exercise the
+// before/after-target resolution, which jsdom's layout-less getBoundingClientRect()
+// (all zeros by default) requires stubbing out per element alongside this.
+function dragEvtAt(type: string, clientY: number): Event {
+  return new MouseEvent(type, { bubbles: true, cancelable: true, clientY })
+}
+
 describe('createDataTable', () => {
   let container: HTMLDivElement
 
@@ -351,6 +358,51 @@ describe('createDataTable', () => {
     scoreRow.dispatchEvent(dragEvt('dragstart'))
     nameRow.dispatchEvent(dragEvt('dragover'))
     nameRow.dispatchEvent(dragEvt('drop'))
+    const labels = [...container.querySelectorAll('.dt-dd-item--sortrow .dt-flex1')].map(
+      (el) => el.textContent,
+    )
+    expect(labels).toEqual(['Score', 'Name'])
+  })
+
+  it('dropping past the last active sort row moves the dragged row to the end', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="sort"]')!)
+    click(container.querySelector<HTMLElement>('[data-action="toggle-sort"][data-key="name"]')!)
+    click(container.querySelector<HTMLElement>('[data-action="toggle-sort"][data-key="score"]')!)
+    click(container.querySelector<HTMLElement>('[data-action="toggle-sort"][data-key="dept"]')!)
+    const nameRow = container.querySelector<HTMLElement>('[data-sort-key="name"]')!
+    const deptRow = container.querySelector<HTMLElement>('[data-sort-key="dept"]')!
+    deptRow.getBoundingClientRect = () => ({ top: 20, bottom: 40, height: 20 }) as DOMRect
+    const footer = container.querySelector<HTMLElement>('[data-action="clear-sorts"]')!
+
+    nameRow.dispatchEvent(dragEvt('dragstart'))
+    // Pointer is well below the last active row (dept), over dead space (the footer's "Clear
+    // sorts" button) that carries no data-sort-key of its own — this used to silently reject
+    // the drop entirely.
+    footer.dispatchEvent(dragEvtAt('dragover', 100))
+    footer.dispatchEvent(dragEvtAt('drop', 100))
+
+    const labels = [...container.querySelectorAll('.dt-dd-item--sortrow .dt-flex1')].map(
+      (el) => el.textContent,
+    )
+    expect(labels).toEqual(['Score', 'Dept', 'Name'])
+  })
+
+  it('dropping on the bottom half of the last active sort row moves the dragged row after it', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="sort"]')!)
+    click(container.querySelector<HTMLElement>('[data-action="toggle-sort"][data-key="name"]')!)
+    click(container.querySelector<HTMLElement>('[data-action="toggle-sort"][data-key="score"]')!)
+    const nameRow = container.querySelector<HTMLElement>('[data-sort-key="name"]')!
+    const scoreRow = container.querySelector<HTMLElement>('[data-sort-key="score"]')!
+    scoreRow.getBoundingClientRect = () => ({ top: 20, bottom: 40, height: 20 }) as DOMRect
+
+    nameRow.dispatchEvent(dragEvt('dragstart'))
+    // clientY 35 falls in scoreRow's bottom half (30–40) — should insert name *after* score,
+    // not before it (which "insert before" alone could never express for the last row).
+    scoreRow.dispatchEvent(dragEvtAt('dragover', 35))
+    scoreRow.dispatchEvent(dragEvtAt('drop', 35))
+
     const labels = [...container.querySelectorAll('.dt-dd-item--sortrow .dt-flex1')].map(
       (el) => el.textContent,
     )

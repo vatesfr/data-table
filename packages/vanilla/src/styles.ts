@@ -24,6 +24,7 @@ ${renderThemeCss()}
 .dt-dd-item--colrow{cursor:grab}
 .dt-dd-item--dragging{opacity:.4}
 .dt-dd-item--drag-over{box-shadow:inset 0 2px 0 var(--color-text-primary,#1a1916)}
+.dt-dd-item--drag-over-after{box-shadow:inset 0 -2px 0 var(--color-text-primary,#1a1916)}
 .dt-flex1{flex:1}
 .dt-filter-count{font-size:12px;color:var(--color-text-tertiary,#9b9a96);flex-shrink:0}
 .dt-item-remove{background:none;border:none;cursor:pointer;padding:2px 4px;font-size:13px;color:var(--color-text-tertiary,#9b9a96);line-height:1;font-family:inherit}

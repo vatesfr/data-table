@@ -1,13 +1,18 @@
-import { useRef, useEffect, useLayoutEffect, type ReactNode } from 'react'
+import { useRef, useEffect, useLayoutEffect, type DragEvent, type ReactNode } from 'react'
 
 export interface DropdownProps {
   trigger: ReactNode
   children: ReactNode
   open: boolean
   setOpen: (open: boolean) => void
+  // Bound to the panel itself (not per-row) so a drag-and-drop reorder list inside can resolve
+  // a drop that lands past its last row / in unrelated dead space — see the Sort/Group/Columns
+  // dropdown drag handlers in DataTableView.tsx.
+  onDragOver?: (e: DragEvent<HTMLDivElement>) => void
+  onDrop?: (e: DragEvent<HTMLDivElement>) => void
 }
 
-export function Dropdown({ trigger, children, open, setOpen }: DropdownProps) {
+export function Dropdown({ trigger, children, open, setOpen, onDragOver, onDrop }: DropdownProps) {
   const ref = useRef<HTMLDivElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
 
@@ -49,6 +54,8 @@ export function Dropdown({ trigger, children, open, setOpen }: DropdownProps) {
       {open && (
         <div
           ref={panelRef}
+          onDragOver={onDragOver}
+          onDrop={onDrop}
           style={{
             position: 'absolute',
             top: '100%',

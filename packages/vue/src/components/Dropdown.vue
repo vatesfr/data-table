@@ -1,6 +1,13 @@
 <script setup lang="ts">
 import { ref, watch, onMounted, onUnmounted } from 'vue'
 
+// Listeners like @dragover/@drop passed to <Dropdown> are meant for the menu panel itself (so a
+// drag-and-drop reorder list inside can resolve a drop that lands past its last row / in
+// unrelated dead space — see the Sort/Group/Columns dropdown drag handlers in
+// DataTableView.vue), not the outer wrapper — inheritAttrs is off so `v-bind="$attrs"` below can
+// target them there explicitly instead of falling through to the template's actual root element.
+defineOptions({ inheritAttrs: false })
+
 const containerRef = ref<HTMLElement | null>(null)
 const menuRef = ref<HTMLElement | null>(null)
 const isOpen = ref(false)
@@ -53,7 +60,7 @@ watch(
       <!-- Pass open state to trigger so it can style itself -->
       <slot name="trigger" :open="isOpen" />
     </div>
-    <div v-if="isOpen" ref="menuRef" class="dropdown__menu">
+    <div v-if="isOpen" ref="menuRef" class="dropdown__menu" v-bind="$attrs">
       <slot />
     </div>
   </div>

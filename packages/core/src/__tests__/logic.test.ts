@@ -1535,6 +1535,14 @@ describe('reorderColumn', () => {
   it('returns order unchanged when targetKey is not present', () => {
     expect(reorderColumn(['a', 'b', 'c'], 'a', 'ghost')).toEqual(['a', 'b', 'c'])
   })
+
+  it('moves dragKey to just after targetKey when after is true', () => {
+    expect(reorderColumn(['a', 'b', 'c'], 'a', 'b', true)).toEqual(['b', 'a', 'c'])
+  })
+
+  it('can make dragKey the new last entry by dropping after the current last one', () => {
+    expect(reorderColumn(['a', 'b', 'c'], 'a', 'c', true)).toEqual(['b', 'c', 'a'])
+  })
 })
 
 // ─── moveColumnBy ─────────────────────────────────────────────────────────────
@@ -1645,6 +1653,22 @@ describe('reorderSort', () => {
     const result = reorderSort(sorts, 'c', 'a')
     expect(result.find((s) => s.key === 'c')?.dir).toBe('asc')
     expect(result.find((s) => s.key === 'b')?.dir).toBe('desc')
+  })
+
+  it('moves dragKey to just after targetKey when after is true', () => {
+    expect(reorderSort(sorts, 'a', 'b', true)).toEqual([
+      { key: 'b', dir: 'desc' },
+      { key: 'a', dir: 'asc' },
+      { key: 'c', dir: 'asc' },
+    ])
+  })
+
+  it('can make dragKey the new last entry by dropping after the current last one', () => {
+    expect(reorderSort(sorts, 'a', 'c', true)).toEqual([
+      { key: 'b', dir: 'desc' },
+      { key: 'c', dir: 'asc' },
+      { key: 'a', dir: 'asc' },
+    ])
   })
 })
 

@@ -3,6 +3,7 @@ import {
   useRef,
   useEffect,
   type CSSProperties,
+  type DragEvent,
   type KeyboardEvent,
   type ReactNode,
 } from 'react'
@@ -353,6 +354,38 @@ function asRecord(row: object): Record<string, unknown> {
   return row as Record<string, unknown>
 }
 
+/**
+ * Resolves the drop target for the Sort/Group/Columns dropdown drag-and-drop lists below: the
+ * specific row under the cursor, and whether the dragged item should land before or after it.
+ * Cursor position within the hovered row's own bounds decides before/after (top half vs bottom
+ * half) so a row can be a valid "insert after" target too — including the *last* row, which
+ * "insert before" alone could never reach. When the cursor isn't directly over any row (e.g.
+ * past the last row, in the dead space below it, or over the dropdown's "add" section) it snaps
+ * to the nearest edge row instead, so there's no dead zone that silently rejects the drop. `root`
+ * is the dropdown panel (`e.currentTarget` from a handler bound there, not per-row) so it can see
+ * every row via `attr`, a `data-*` attribute unique to that list's rows (e.g. `data-sort-key`).
+ */
+function resolveDropdownDragRow(
+  root: HTMLElement,
+  e: DragEvent<HTMLElement>,
+  attr: string,
+): { key: string; after: boolean } | null {
+  const selector = `[${attr}]`
+  const rows = Array.from(root.querySelectorAll<HTMLElement>(selector))
+  if (rows.length === 0) return null
+  const readKey = (el: HTMLElement) => el.getAttribute(attr)!
+  const hit = (e.target as HTMLElement).closest<HTMLElement>(selector)
+  if (hit) {
+    const rect = hit.getBoundingClientRect()
+    return { key: readKey(hit), after: e.clientY > rect.top + rect.height / 2 }
+  }
+  const first = rows[0]
+  const last = rows[rows.length - 1]
+  if (e.clientY <= first.getBoundingClientRect().top) return { key: readKey(first), after: false }
+  if (e.clientY >= last.getBoundingClientRect().bottom) return { key: readKey(last), after: true }
+  return null
+}
+
 const DEFAULT_VALUE_SORT: ValueSort = { by: 'alpha', dir: 'asc' }
 
 /**
@@ -390,10 +423,13 @@ export function DataTableView<TRow extends object>({
   // drag state instead of a shared one.
   const [dragColRowKey, setDragColRowKey] = useState<string | null>(null)
   const [dragOverColRowKey, setDragOverColRowKey] = useState<string | null>(null)
+  const [dragOverColRowAfter, setDragOverColRowAfter] = useState(false)
   const [dragSortKey, setDragSortKey] = useState<string | null>(null)
   const [dragOverSortKey, setDragOverSortKey] = useState<string | null>(null)
+  const [dragOverSortAfter, setDragOverSortAfter] = useState(false)
   const [dragGroupKey, setDragGroupKey] = useState<string | null>(null)
   const [dragOverGroupKey, setDragOverGroupKey] = useState<string | null>(null)
+  const [dragOverGroupAfter, setDragOverGroupAfter] = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const [filterActiveCol, setFilterActiveCol] = useState<string | null>(null)
   const [filterSearchTerms, setFilterSearchTerms] = useState<Record<string, string>>({})
@@ -805,6 +841,23 @@ export function DataTableView<TRow extends object>({
             open={openColsDD}
             setOpen={setOpenColsDD}
             trigger={<ToolbarBtn active={openColsDD}>{L.columns}</ToolbarBtn>}
+            onDragOver={(e) => {
+              if (!dragColRowKey) return
+              const target = resolveDropdownDragRow(e.currentTarget, e, 'data-col-row-key')
+              if (!target || target.key === dragColRowKey) return
+              e.preventDefault()
+              setDragOverColRowKey(target.key)
+              setDragOverColRowAfter(target.after)
+            }}
+            onDrop={(e) => {
+              if (!dragColRowKey) return
+              const target = resolveDropdownDragRow(e.currentTarget, e, 'data-col-row-key')
+              if (!target) return
+              e.preventDefault()
+              if (target.key !== dragColRowKey) moveColumn(dragColRowKey, target.key, target.after)
+              setDragColRowKey(null)
+              setDragOverColRowKey(null)
+            }}
           >
             <div style={S.ddSection}>{L.columnsSection}</div>
             {orderedColumns.map((col) => (
@@ -812,20 +865,13 @@ export function DataTableView<TRow extends object>({
               // old ▲▼ buttons — same treatment as the Sort/Group active rows. The row itself gets
               // no tabIndex: the checkbox is already a native Tab stop, so a second one on the row
               // would just be a redundant, visually-identical stop for the same rectangle.
+              // dragover/drop are handled at the Dropdown panel level (see above), not per-row —
+              // that's what lets a drop past the last row still resolve to a valid target.
               <div
                 key={col.key}
+                data-col-row-key={col.key}
                 draggable
                 onDragStart={() => setDragColRowKey(col.key)}
-                onDragOver={(e) => {
-                  e.preventDefault()
-                  if (dragColRowKey && dragColRowKey !== col.key) setDragOverColRowKey(col.key)
-                }}
-                onDrop={(e) => {
-                  e.preventDefault()
-                  if (dragColRowKey && dragColRowKey !== col.key) moveColumn(dragColRowKey, col.key)
-                  setDragColRowKey(null)
-                  setDragOverColRowKey(null)
-                }}
                 onDragEnd={() => {
                   setDragColRowKey(null)
                   setDragOverColRowKey(null)
@@ -837,7 +883,7 @@ export function DataTableView<TRow extends object>({
                   opacity: dragColRowKey === col.key ? 0.4 : 1,
                   boxShadow:
                     dragOverColRowKey === col.key
-                      ? 'inset 0 2px 0 var(--color-text-primary)'
+                      ? `inset 0 ${dragOverColRowAfter ? '-2px' : '2px'} 0 var(--color-text-primary)`
                       : undefined,
                 }}
               >
@@ -880,6 +926,23 @@ export function DataTableView<TRow extends object>({
                 )}
               </ToolbarBtn>
             }
+            onDragOver={(e) => {
+              if (!dragSortKey) return
+              const target = resolveDropdownDragRow(e.currentTarget, e, 'data-sort-key')
+              if (!target || target.key === dragSortKey) return
+              e.preventDefault()
+              setDragOverSortKey(target.key)
+              setDragOverSortAfter(target.after)
+            }}
+            onDrop={(e) => {
+              if (!dragSortKey) return
+              const target = resolveDropdownDragRow(e.currentTarget, e, 'data-sort-key')
+              if (!target) return
+              e.preventDefault()
+              if (target.key !== dragSortKey) moveSort(dragSortKey, target.key, target.after)
+              setDragSortKey(null)
+              setDragOverSortKey(null)
+            }}
           >
             {sorts.length > 0 && (
               <>
@@ -894,22 +957,15 @@ export function DataTableView<TRow extends object>({
                     // it Alt+↑/↓ reorder and Enter/Space-to-toggle from the keyboard — a plain
                     // div gets no free keyboard activation the way a real <button> would (unlike
                     // the add-list below, which doesn't need custom keyboard handling).
+                    // dragover/drop are handled at the Dropdown panel level (see above), not
+                    // per-row — that's what lets a drop past the last row still resolve to a
+                    // valid target.
                     <div
                       key={entry.key}
+                      data-sort-key={entry.key}
                       draggable
                       tabIndex={0}
                       onDragStart={() => setDragSortKey(entry.key)}
-                      onDragOver={(e) => {
-                        e.preventDefault()
-                        if (dragSortKey && dragSortKey !== entry.key) setDragOverSortKey(entry.key)
-                      }}
-                      onDrop={(e) => {
-                        e.preventDefault()
-                        if (dragSortKey && dragSortKey !== entry.key)
-                          moveSort(dragSortKey, entry.key)
-                        setDragSortKey(null)
-                        setDragOverSortKey(null)
-                      }}
                       onDragEnd={() => {
                         setDragSortKey(null)
                         setDragOverSortKey(null)
@@ -930,7 +986,7 @@ export function DataTableView<TRow extends object>({
                         opacity: dragSortKey === entry.key ? 0.4 : 1,
                         boxShadow:
                           dragOverSortKey === entry.key
-                            ? 'inset 0 2px 0 var(--color-text-primary)'
+                            ? `inset 0 ${dragOverSortAfter ? '-2px' : '2px'} 0 var(--color-text-primary)`
                             : undefined,
                       }}
                     >
@@ -1229,6 +1285,23 @@ export function DataTableView<TRow extends object>({
                   )}
                 </ToolbarBtn>
               }
+              onDragOver={(e) => {
+                if (!dragGroupKey) return
+                const target = resolveDropdownDragRow(e.currentTarget, e, 'data-group-key')
+                if (!target || target.key === dragGroupKey) return
+                e.preventDefault()
+                setDragOverGroupKey(target.key)
+                setDragOverGroupAfter(target.after)
+              }}
+              onDrop={(e) => {
+                if (!dragGroupKey) return
+                const target = resolveDropdownDragRow(e.currentTarget, e, 'data-group-key')
+                if (!target) return
+                e.preventDefault()
+                if (target.key !== dragGroupKey) moveGroup(dragGroupKey, target.key, target.after)
+                setDragGroupKey(null)
+                setDragOverGroupKey(null)
+              }}
             >
               {groupBy.length > 0 && (
                 <>
@@ -1239,22 +1312,15 @@ export function DataTableView<TRow extends object>({
                       // Same treatment as the Sort active rows, minus a click action — a group
                       // entry has nothing to toggle (no direction), so the row is
                       // draggable/focusable purely for reordering (drag, or Alt+↑/↓ when
-                      // focused); `×` remove is the only button.
+                      // focused); `×` remove is the only button. dragover/drop are handled at
+                      // the Dropdown panel level (see above), not per-row — that's what lets a
+                      // drop past the last row still resolve to a valid target.
                       <div
                         key={key}
+                        data-group-key={key}
                         draggable
                         tabIndex={0}
                         onDragStart={() => setDragGroupKey(key)}
-                        onDragOver={(e) => {
-                          e.preventDefault()
-                          if (dragGroupKey && dragGroupKey !== key) setDragOverGroupKey(key)
-                        }}
-                        onDrop={(e) => {
-                          e.preventDefault()
-                          if (dragGroupKey && dragGroupKey !== key) moveGroup(dragGroupKey, key)
-                          setDragGroupKey(null)
-                          setDragOverGroupKey(null)
-                        }}
                         onDragEnd={() => {
                           setDragGroupKey(null)
                           setDragOverGroupKey(null)
@@ -1272,7 +1338,7 @@ export function DataTableView<TRow extends object>({
                           opacity: dragGroupKey === key ? 0.4 : 1,
                           boxShadow:
                             dragOverGroupKey === key
-                              ? 'inset 0 2px 0 var(--color-text-primary)'
+                              ? `inset 0 ${dragOverGroupAfter ? '-2px' : '2px'} 0 var(--color-text-primary)`
                               : undefined,
                         }}
                       >

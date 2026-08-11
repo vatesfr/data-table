@@ -183,9 +183,9 @@ export function useTableState<TRow extends object>(
         } else next.add(key)
         return next
       }),
-    moveColumn: (dragKey: string, targetKey: string) =>
+    moveColumn: (dragKey: string, targetKey: string, after = false) =>
       setColumnOrder((prev) =>
-        _reorderColumn(prev.length ? prev : columns.map((c) => c.key), dragKey, targetKey),
+        _reorderColumn(prev.length ? prev : columns.map((c) => c.key), dragKey, targetKey, after),
       ),
     moveColumnBy: (key: string, delta: number) =>
       setColumnOrder((prev) =>
@@ -198,8 +198,8 @@ export function useTableState<TRow extends object>(
         prev.map((s) => (s.key === key ? { ...s, dir: _toggleSortDir(s.dir) } : s)),
       ),
     moveSortBy: (key: string, delta: number) => setSorts((prev) => _moveSortBy(prev, key, delta)),
-    moveSort: (dragKey: string, targetKey: string) =>
-      setSorts((prev) => _reorderSort(prev, dragKey, targetKey)),
+    moveSort: (dragKey: string, targetKey: string, after = false) =>
+      setSorts((prev) => _reorderSort(prev, dragKey, targetKey, after)),
     toggleFilter: (key: string, value: string) => {
       setFilters((prev) => _toggleFilter(prev, key, value))
       setPageState(1)
@@ -223,8 +223,8 @@ export function useTableState<TRow extends object>(
     removeGroup: (key: string) => setGroupBy((prev) => prev.filter((k) => k !== key)),
     moveGroupBy: (key: string, delta: number) =>
       setGroupBy((prev) => _moveColumnBy(prev, key, delta)),
-    moveGroup: (dragKey: string, targetKey: string) =>
-      setGroupBy((prev) => _reorderColumn(prev, dragKey, targetKey)),
+    moveGroup: (dragKey: string, targetKey: string, after = false) =>
+      setGroupBy((prev) => _reorderColumn(prev, dragKey, targetKey, after)),
     toggleGroupCollapse: (key: string) => setCollapsedGroups((prev) => toggleCollapse(prev, key)),
     clearColumnFilter: (key: string) => {
       setFilters((prev) => ({ ...prev, [key]: new Set() }))
