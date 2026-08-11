@@ -60,6 +60,14 @@ watch(
       <!-- Pass open state to trigger so it can style itself -->
       <slot name="trigger" :open="isOpen" />
     </div>
+    <!--
+      Rendered as a sibling of the trigger — inside the same outside-click boundary as the
+      trigger and panel (so clicking it doesn't spuriously close the dropdown via onMousedown
+      above), but outside the trigger's own @click toggle (so it never opens/closes the dropdown
+      itself). Used for the Sort/Group/Filter toolbar's adjoining × clear button (see
+      DataTableView.vue), visually merged into one pill with the trigger via shared CSS.
+    -->
+    <slot name="extra-trigger" />
     <div v-if="isOpen" ref="menuRef" class="dropdown__menu" v-bind="$attrs">
       <slot />
     </div>
@@ -69,7 +77,7 @@ watch(
 <style scoped>
 .dropdown {
   position: relative;
-  display: inline-block;
+  display: inline-flex;
 }
 .dropdown__menu {
   position: absolute;

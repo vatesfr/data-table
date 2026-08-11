@@ -528,7 +528,12 @@ export function createDataTable<TRow extends object>(
     // visible effect.
     html += buildDd(
       openDropdown === 'sort',
-      `<button class="dt-btn${sorts.length > 0 ? ' dt-btn--active' : ''}" data-action="toggle-dd" data-dd="sort">${esc(L.sort)}${sorts.length > 0 ? ` <span class="dt-chip">${sorts.length}</span>` : ''}</button>`,
+      // The × clear button is a sibling <button>, not nested inside the toggle button (a
+      // <button> can't contain another interactive element) — `.dt-btn-group` visually merges
+      // them into one pill, same idea as the search input + its own clear button, and replaces
+      // the dropdown's old footer "Clear sorts" row (removed below) with a one-click affordance
+      // that doesn't require opening the dropdown first.
+      `<span class="dt-btn-group"><button class="dt-btn${sorts.length > 0 ? ' dt-btn--active dt-btn--grouped' : ''}" data-action="toggle-dd" data-dd="sort">${esc(L.sort)}${sorts.length > 0 ? ` <span class="dt-chip">${sorts.length}</span>` : ''}</button>${sorts.length > 0 ? `<button type="button" class="dt-btn-clear" data-action="clear-sorts" title="${esc(L.clearSorts)}" aria-label="${esc(L.clearSorts)}">×</button>` : ''}</span>`,
       () => {
         let s = ''
         const addableCols = columns.filter((c) => getSortIndex(sorts, c.key) === null)
@@ -561,9 +566,6 @@ export function createDataTable<TRow extends object>(
             s += `<button type="button" class="dt-dd-item dt-dd-item--click" data-action="toggle-sort" data-key="${esc(col.key)}"><span class="dt-flex1">${esc(col.label)}</span></button>`
           }
         }
-        if (sorts.length > 0) {
-          s += `<div class="dt-dd-footer"><button class="dt-clear-btn" data-action="clear-sorts">${esc(L.clearSorts)}</button></div>`
-        }
         return s
       },
     )
@@ -572,7 +574,7 @@ export function createDataTable<TRow extends object>(
     if (filterableCols.length > 0) {
       html += buildDd(
         openDropdown === 'filter',
-        `<button class="dt-btn${activeFilterCount > 0 ? ' dt-btn--active' : ''}" data-action="toggle-dd" data-dd="filter">${esc(L.filter)}${activeFilterCount > 0 ? ` <span class="dt-chip">${activeFilterCount}</span>` : ''}</button>`,
+        `<span class="dt-btn-group"><button class="dt-btn${activeFilterCount > 0 ? ' dt-btn--active dt-btn--grouped' : ''}" data-action="toggle-dd" data-dd="filter">${esc(L.filter)}${activeFilterCount > 0 ? ` <span class="dt-chip">${activeFilterCount}</span>` : ''}</button>${activeFilterCount > 0 ? `<button type="button" class="dt-btn-clear" data-action="clear-filters" title="${esc(L.clearFilters)}" aria-label="${esc(L.clearFilters)}">×</button>` : ''}</span>`,
         () => {
           let s = `<div class="dt-filter-panel">`
           s += `<div class="dt-filter-cols">`
@@ -629,9 +631,6 @@ export function createDataTable<TRow extends object>(
           }
           s += `</div>` // dt-filter-detail
           s += `</div>` // dt-filter-panel
-          if (activeFilterCount > 0) {
-            s += `<div class="dt-dd-footer"><button class="dt-clear-btn" data-action="clear-filters">${esc(L.clearFilters)}</button></div>`
-          }
           return s
         },
       )
@@ -644,7 +643,7 @@ export function createDataTable<TRow extends object>(
     if (groupableCols.length > 0) {
       html += buildDd(
         openDropdown === 'group',
-        `<button class="dt-btn${groupBy.length > 0 ? ' dt-btn--active' : ''}" data-action="toggle-dd" data-dd="group">${esc(L.group)}${groupBy.length > 0 ? ` <span class="dt-chip">${groupBy.length}</span>` : ''}</button>`,
+        `<span class="dt-btn-group"><button class="dt-btn${groupBy.length > 0 ? ' dt-btn--active dt-btn--grouped' : ''}" data-action="toggle-dd" data-dd="group">${esc(L.group)}${groupBy.length > 0 ? ` <span class="dt-chip">${groupBy.length}</span>` : ''}</button>${groupBy.length > 0 ? `<button type="button" class="dt-btn-clear" data-action="clear-groups" title="${esc(L.clearGroups)}" aria-label="${esc(L.clearGroups)}">×</button>` : ''}</span>`,
         () => {
           let s = ''
           const addableCols = groupableCols.filter((c) => !groupBy.includes(c.key))
@@ -665,9 +664,6 @@ export function createDataTable<TRow extends object>(
             for (const col of addableCols) {
               s += `<button type="button" class="dt-dd-item dt-dd-item--click" data-action="toggle-group" data-key="${esc(col.key)}"><span class="dt-flex1">${esc(col.label)}</span></button>`
             }
-          }
-          if (groupBy.length > 0) {
-            s += `<div class="dt-dd-footer"><button class="dt-clear-btn" data-action="clear-groups">${esc(L.clearGroups)}</button></div>`
           }
           return s
         },

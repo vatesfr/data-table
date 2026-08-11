@@ -144,13 +144,21 @@ const S = {
     padding: '6px 12px',
     borderBottom: '1px solid var(--color-border-secondary)',
   } as CSSProperties,
-  clearBtn: {
-    fontSize: 12,
+  // Adjoining × button for the Sort/Group/Filter toolbar buttons — see Dropdown's `extraTrigger`
+  // and ToolbarBtn's `grouped` prop. Replaces the old in-panel "Clear sorts"/etc. footer rows
+  // with a one-click affordance that doesn't require opening the dropdown first.
+  btnClear: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    padding: '5px 8px',
     background: 'none',
-    border: 'none',
-    color: 'var(--color-text-secondary)',
+    border: '0.5px solid var(--color-border-secondary)',
+    borderRadius: '0 6px 6px 0',
+    fontSize: 14,
+    lineHeight: 1,
     cursor: 'pointer',
-    padding: 0,
+    color: 'var(--color-text-tertiary)',
+    fontFamily: 'inherit',
   } as CSSProperties,
   rangeInput: {
     width: 80,
@@ -919,12 +927,25 @@ export function DataTableView<TRow extends object>({
             open={openSortDD}
             setOpen={setOpenSortDD}
             trigger={
-              <ToolbarBtn active={sorts.length > 0}>
+              <ToolbarBtn active={sorts.length > 0} grouped={sorts.length > 0}>
                 {L.sort}
                 {sorts.length > 0 && (
                   <span style={{ ...S.chip, marginLeft: 2 }}>{sorts.length}</span>
                 )}
               </ToolbarBtn>
+            }
+            extraTrigger={
+              sorts.length > 0 && (
+                <button
+                  type="button"
+                  onClick={clearSorts}
+                  title={L.clearSorts}
+                  aria-label={L.clearSorts}
+                  style={S.btnClear}
+                >
+                  ×
+                </button>
+              )
             }
             onDragOver={(e) => {
               if (!dragSortKey) return
@@ -1038,19 +1059,6 @@ export function DataTableView<TRow extends object>({
                 ))}
               </>
             )}
-            {sorts.length > 0 && (
-              <div style={{ padding: '4px 14px 6px' }}>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    clearSorts()
-                  }}
-                  style={S.clearBtn}
-                >
-                  {L.clearSorts}
-                </button>
-              </div>
-            )}
           </Dropdown>
 
           {/* Filter */}
@@ -1059,12 +1067,25 @@ export function DataTableView<TRow extends object>({
               open={openFilterDD}
               setOpen={setOpenFilterDD}
               trigger={
-                <ToolbarBtn active={activeFilterCount > 0}>
+                <ToolbarBtn active={activeFilterCount > 0} grouped={activeFilterCount > 0}>
                   {L.filter}
                   {activeFilterCount > 0 && (
                     <span style={{ ...S.chip, marginLeft: 2 }}>{activeFilterCount}</span>
                   )}
                 </ToolbarBtn>
+              }
+              extraTrigger={
+                activeFilterCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={clearFilters}
+                    title={L.clearFilters}
+                    aria-label={L.clearFilters}
+                    style={S.btnClear}
+                  >
+                    ×
+                  </button>
+                )
               }
             >
               <div style={S.filterPanel}>
@@ -1262,13 +1283,6 @@ export function DataTableView<TRow extends object>({
                     ))}
                 </div>
               </div>
-              {activeFilterCount > 0 && (
-                <div style={{ padding: '4px 14px 8px' }}>
-                  <button onClick={clearFilters} style={S.clearBtn}>
-                    {L.clearFilters}
-                  </button>
-                </div>
-              )}
             </Dropdown>
           )}
 
@@ -1278,12 +1292,25 @@ export function DataTableView<TRow extends object>({
               open={openGroupDD}
               setOpen={setOpenGroupDD}
               trigger={
-                <ToolbarBtn active={groupBy.length > 0}>
+                <ToolbarBtn active={groupBy.length > 0} grouped={groupBy.length > 0}>
                   {L.group}
                   {groupBy.length > 0 && (
                     <span style={{ ...S.chip, marginLeft: 2 }}>{groupBy.length}</span>
                   )}
                 </ToolbarBtn>
+              }
+              extraTrigger={
+                groupBy.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={clearGroups}
+                    title={L.clearGroups}
+                    aria-label={L.clearGroups}
+                    style={S.btnClear}
+                  >
+                    ×
+                  </button>
+                )
               }
               onDragOver={(e) => {
                 if (!dragGroupKey) return
@@ -1380,19 +1407,6 @@ export function DataTableView<TRow extends object>({
                     </button>
                   ))}
                 </>
-              )}
-              {groupBy.length > 0 && (
-                <div style={{ padding: '4px 14px 6px' }}>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      clearGroups()
-                    }}
-                    style={S.clearBtn}
-                  >
-                    {L.clearGroups}
-                  </button>
-                </div>
               )}
             </Dropdown>
           )}

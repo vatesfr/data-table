@@ -213,6 +213,23 @@ describe('DataTable — filter dropdown', () => {
     expect((checklistCheckbox(wrapper, 'Bob').element as HTMLInputElement).checked).toBe(false)
   })
 
+  it('the Filter toolbar button has no clear-filters button until a filter is active', async () => {
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: FILTER_COLS, rowKey: 'id' } })
+    expect(wrapper.find('[title="× Clear filters"]').exists()).toBe(false)
+  })
+
+  it('the toolbar clear-filters button clears all filters without opening the dropdown', async () => {
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: FILTER_COLS, rowKey: 'id' } })
+    const filterToggle = () => wrapper.findAll('button').find((b) => b.text().startsWith('Filter'))!
+    await filterToggle().trigger('click')
+    await checklistCheckbox(wrapper, 'Alice').trigger('click')
+    await filterToggle().trigger('click') // close it
+
+    await wrapper.find('[title="× Clear filters"]').trigger('click')
+    expect(wrapper.find('.dropdown__menu').exists()).toBe(false) // still closed, not reopened
+    expect(wrapper.findAll('tbody tr')).toHaveLength(2)
+  })
+
   it('select-all checkbox only affects the search-narrowed values', async () => {
     const wrapper = mount(DataTable, { props: { data: ROWS, columns: FILTER_COLS, rowKey: 'id' } })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
@@ -653,6 +670,28 @@ describe('DataTable — sort dropdown', () => {
     expect(names).toEqual(['Alice', 'Bob']) // original order, no longer sorted
   })
 
+  it('the Sort toolbar button has no clear-sorts button until a sort is active', async () => {
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: SORT_COLS, rowKey: 'id' } })
+    expect(wrapper.find('[title="× Clear sorts"]').exists()).toBe(false)
+  })
+
+  it('the toolbar clear-sorts button clears all sorts without opening the dropdown', async () => {
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: SORT_COLS, rowKey: 'id' } })
+    const sortToggle = () => wrapper.findAll('button').find((b) => b.text().startsWith('Sort'))!
+    await sortToggle().trigger('click')
+    await wrapper
+      .findAll('.dt__dd-item--clickable')
+      .find((el) => el.text() === 'Score')!
+      .trigger('click')
+    await sortToggle().trigger('click') // close it
+
+    await wrapper.find('[title="× Clear sorts"]').trigger('click')
+    expect(wrapper.find('.dt__dd-item--sortrow').exists()).toBe(false)
+    expect(wrapper.find('.dropdown__menu').exists()).toBe(false) // still closed, not reopened
+    const names = wrapper.findAll('tbody tr td:first-child').map((td) => td.text())
+    expect(names).toEqual(['Alice', 'Bob']) // original order, no longer sorted
+  })
+
   it('dragging an active sort row onto another reorders priority', async () => {
     const wrapper = mount(DataTable, { props: { data: ROWS, columns: SORT_COLS, rowKey: 'id' } })
     await wrapper
@@ -700,14 +739,14 @@ describe('DataTable — sort dropdown', () => {
     const rows = wrapper.findAll('.dt__dd-item--sortrow')
     // jsdom has no layout engine — getBoundingClientRect() returns all zeros unless stubbed.
     rows[2].element.getBoundingClientRect = () => ({ top: 20, bottom: 40, height: 20 }) as DOMRect
-    const clearBtn = wrapper.findAll('button').find((b) => b.text() === '× Clear sorts')!
+    const panel = wrapper.find('.dropdown__menu')
 
     await rows[0].trigger('dragstart')
-    // Pointer is well below the last active row (id), over dead space (the "Clear sorts"
-    // button) that carries no active-row identity of its own — this used to silently reject
-    // the drop entirely.
-    await clearBtn.trigger('dragover', { clientY: 100 })
-    await clearBtn.trigger('drop', { clientY: 100 })
+    // Pointer is well below the last active row (id), over dead space (blank space in the
+    // dropdown panel below the last row) that carries no active-row identity of its own — this
+    // used to silently reject the drop entirely.
+    await panel.trigger('dragover', { clientY: 100 })
+    await panel.trigger('drop', { clientY: 100 })
 
     const after = wrapper.findAll('.dt__dd-item--sortrow')
     expect(after.map((r) => r.text())).toEqual([
@@ -800,6 +839,26 @@ describe('DataTable — group dropdown', () => {
     expect(wrapper.find('.dt__dd-item--grouprow').exists()).toBe(true)
     await wrapper.find('.dt__dd-item--grouprow .dt__item-remove').trigger('click')
     expect(wrapper.find('.dt__dd-item--grouprow').exists()).toBe(false)
+  })
+
+  it('the Group toolbar button has no clear-groups button until a group is active', async () => {
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: GROUP_COLS, rowKey: 'id' } })
+    expect(wrapper.find('[title="× Clear groups"]').exists()).toBe(false)
+  })
+
+  it('the toolbar clear-groups button clears all groups without opening the dropdown', async () => {
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: GROUP_COLS, rowKey: 'id' } })
+    const groupToggle = () => wrapper.findAll('button').find((b) => b.text().startsWith('Group'))!
+    await groupToggle().trigger('click')
+    await wrapper
+      .findAll('.dt__dd-item--clickable')
+      .find((el) => el.text() === 'Score')!
+      .trigger('click')
+    await groupToggle().trigger('click') // close it
+
+    await wrapper.find('[title="× Clear groups"]').trigger('click')
+    expect(wrapper.find('.dt__dd-item--grouprow').exists()).toBe(false)
+    expect(wrapper.find('.dropdown__menu').exists()).toBe(false) // still closed, not reopened
   })
 
   it('dragging an active group row onto another reorders priority', async () => {

@@ -132,6 +132,26 @@ describe('DataTable — filter dropdown', () => {
     expect((getByLabelText('Bob', { exact: false }) as HTMLInputElement).checked).toBe(false)
   })
 
+  it('the Filter toolbar button has no clear-filters button until a filter is active', () => {
+    const { queryByTitle } = render(<DataTable data={ROWS} columns={FILTER_COLS} rowKey="id" />)
+    expect(queryByTitle('× Clear filters')).toBeNull()
+  })
+
+  it('the toolbar clear-filters button clears all filters without opening the dropdown', () => {
+    const { getByLabelText, getByTitle, container, queryByLabelText } = render(
+      <DataTable data={ROWS} columns={FILTER_COLS} rowKey="id" />,
+    )
+    const filterToggle = () =>
+      [...container.querySelectorAll('button')].find((b) => b.textContent?.startsWith('Filter'))!
+    fireEvent.click(filterToggle())
+    fireEvent.click(getByLabelText('Alice', { exact: false }))
+    fireEvent.click(filterToggle()) // close it
+
+    fireEvent.click(getByTitle('× Clear filters'))
+    expect(queryByLabelText('Select all')).toBeNull() // still closed, not reopened by the click
+    expect(container.querySelectorAll('tbody tr')).toHaveLength(2)
+  })
+
   it('select-all checkbox only affects the search-narrowed values', () => {
     const { getByText, getAllByPlaceholderText, getByLabelText } = render(
       <DataTable data={ROWS} columns={FILTER_COLS} rowKey="id" />,
@@ -673,6 +693,29 @@ describe('DataTable — sort dropdown', () => {
     expect(names).toEqual(['Alice', 'Bob']) // original order, no longer sorted
   })
 
+  it('the Sort toolbar button has no clear-sorts button until a sort is active', () => {
+    const { queryByTitle } = render(<DataTable data={ROWS} columns={SORT_COLS} rowKey="id" />)
+    expect(queryByTitle('× Clear sorts')).toBeNull()
+  })
+
+  it('the toolbar clear-sorts button clears all sorts without opening the dropdown', () => {
+    const { getAllByText, getByTitle, container, queryByText } = render(
+      <DataTable data={ROWS} columns={SORT_COLS} rowKey="id" />,
+    )
+    const sortToggle = () =>
+      [...container.querySelectorAll('button')].find((b) => b.textContent?.startsWith('Sort'))!
+    fireEvent.click(sortToggle())
+    fireEvent.click(ddCopyOf(getAllByText, 'Score').closest('button')!)
+    fireEvent.click(sortToggle()) // close it
+
+    fireEvent.click(getByTitle('× Clear sorts'))
+    expect(queryByText('Active sorts')).toBeNull() // still closed, not reopened by the click
+    const names = [...container.querySelectorAll('tbody tr td:first-child')].map(
+      (td) => td.textContent,
+    )
+    expect(names).toEqual(['Alice', 'Bob']) // original order, no longer sorted
+  })
+
   it('dragging an active sort row onto another reorders priority', () => {
     const { getByText, getAllByText, container } = render(
       <DataTable data={ROWS} columns={SORT_COLS} rowKey="id" />,
@@ -703,16 +746,17 @@ describe('DataTable — sort dropdown', () => {
     const [nameRow, , idRow] = draggableRows(container)
     // jsdom has no layout engine — getBoundingClientRect() returns all zeros unless stubbed.
     idRow.getBoundingClientRect = () => ({ top: 20, bottom: 40, height: 20 }) as DOMRect
-    const clearBtn = getByText('× Clear sorts')
+    const panel = nameRow.parentElement! // the dropdown panel itself — a row's direct parent
 
     fireEvent.dragStart(nameRow)
-    // Pointer is well below the last active row (id), over dead space (the "Clear sorts"
-    // button) that carries no active-row identity of its own — this used to silently reject
-    // the drop entirely. jsdom has no DragEvent constructor, so fireEvent.dragOver/.drop fall
-    // back to a plain Event that drops any clientY passed in `init` — dispatching a real
-    // MouseEvent directly is what's needed to exercise the before/after cursor-position math.
-    fireEvent(clearBtn, dragEvtAt('dragover', 100))
-    fireEvent(clearBtn, dragEvtAt('drop', 100))
+    // Pointer is well below the last active row (id), over dead space (blank space in the
+    // dropdown panel below the last row) that carries no active-row identity of its own — this
+    // used to silently reject the drop entirely. jsdom has no DragEvent constructor, so
+    // fireEvent.dragOver/.drop fall back to a plain Event that drops any clientY passed in
+    // `init` — dispatching a real MouseEvent directly is what's needed to exercise the
+    // before/after cursor-position math.
+    fireEvent(panel, dragEvtAt('dragover', 100))
+    fireEvent(panel, dragEvtAt('drop', 100))
 
     const after = draggableRows(container)
     expect(after.map((r) => r.textContent)).toEqual([
@@ -785,6 +829,26 @@ describe('DataTable — group dropdown', () => {
     const removeBtn = [...activeRow.querySelectorAll('button')].find((b) => b.textContent === '×')!
     fireEvent.click(removeBtn)
     expect(ddCopyOf(getAllByText, 'Score').closest('button')).not.toBeNull()
+  })
+
+  it('the Group toolbar button has no clear-groups button until a group is active', () => {
+    const { queryByTitle } = render(<DataTable data={ROWS} columns={GROUP_COLS} rowKey="id" />)
+    expect(queryByTitle('× Clear groups')).toBeNull()
+  })
+
+  it('the toolbar clear-groups button clears all groups without opening the dropdown', () => {
+    const { getAllByText, getByTitle, container, queryByText } = render(
+      <DataTable data={ROWS} columns={GROUP_COLS} rowKey="id" />,
+    )
+    const groupToggle = () =>
+      [...container.querySelectorAll('button')].find((b) => b.textContent?.startsWith('Group'))!
+    fireEvent.click(groupToggle())
+    fireEvent.click(ddCopyOf(getAllByText, 'Score').closest('button')!)
+    fireEvent.click(groupToggle()) // close it
+
+    fireEvent.click(getByTitle('× Clear groups'))
+    expect(queryByText('Active groups')).toBeNull() // still closed, not reopened by the click
+    expect(container.querySelector('[draggable="true"]:not(th)')).toBeNull()
   })
 
   it('dragging an active group row onto another reorders priority', () => {

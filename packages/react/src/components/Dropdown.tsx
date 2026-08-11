@@ -10,9 +10,23 @@ export interface DropdownProps {
   // dropdown drag handlers in DataTableView.tsx.
   onDragOver?: (e: DragEvent<HTMLDivElement>) => void
   onDrop?: (e: DragEvent<HTMLDivElement>) => void
+  // Rendered as a sibling of the trigger — inside the same outside-click boundary as the trigger
+  // and panel (so clicking it doesn't spuriously close the dropdown via the "click outside"
+  // handler below), but outside the trigger's own onClick toggle (so it never opens/closes the
+  // dropdown itself). Used for the Sort/Group/Filter toolbar's adjoining × clear button (see
+  // DataTableView.tsx), visually merged into one pill with the trigger via shared CSS.
+  extraTrigger?: ReactNode
 }
 
-export function Dropdown({ trigger, children, open, setOpen, onDragOver, onDrop }: DropdownProps) {
+export function Dropdown({
+  trigger,
+  children,
+  open,
+  setOpen,
+  onDragOver,
+  onDrop,
+  extraTrigger,
+}: DropdownProps) {
   const ref = useRef<HTMLDivElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
 
@@ -49,8 +63,9 @@ export function Dropdown({ trigger, children, open, setOpen, onDragOver, onDrop 
   }, [open])
 
   return (
-    <div ref={ref} style={{ position: 'relative', display: 'inline-block' }}>
+    <div ref={ref} style={{ position: 'relative', display: 'inline-flex' }}>
       <div onClick={() => setOpen(!open)}>{trigger}</div>
+      {extraTrigger}
       {open && (
         <div
           ref={panelRef}

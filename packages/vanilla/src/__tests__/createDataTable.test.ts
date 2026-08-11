@@ -347,6 +347,25 @@ describe('createDataTable', () => {
     expect(container.querySelector('[data-action="toggle-sort"][data-key="score"]')).not.toBeNull()
   })
 
+  it('the Sort toolbar button has no clear-sorts button until a sort is active', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    expect(container.querySelector('[data-action="clear-sorts"]')).toBeNull()
+  })
+
+  it('clear-sorts on the toolbar clears all sorts without opening the dropdown', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="sort"]')!)
+    click(container.querySelector<HTMLElement>('[data-action="toggle-sort"][data-key="score"]')!)
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="sort"]')!) // close it
+
+    click(container.querySelector<HTMLElement>('[data-action="clear-sorts"]')!)
+    expect(container.querySelector('.dt-dd')).toBeNull() // still closed, not reopened by the click
+    const names = [...container.querySelectorAll('tbody tr td:nth-child(1)')].map((td) =>
+      td.textContent?.trim(),
+    )
+    expect(names).toEqual(['Alice', 'Bob', 'Clara', 'David']) // original order, no longer sorted
+  })
+
   it('active sort rows are draggable and reorder priority on drop', () => {
     createDataTable(container, { data: ROWS, columns: COLS })
     click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="sort"]')!)
@@ -373,14 +392,14 @@ describe('createDataTable', () => {
     const nameRow = container.querySelector<HTMLElement>('[data-sort-key="name"]')!
     const deptRow = container.querySelector<HTMLElement>('[data-sort-key="dept"]')!
     deptRow.getBoundingClientRect = () => ({ top: 20, bottom: 40, height: 20 }) as DOMRect
-    const footer = container.querySelector<HTMLElement>('[data-action="clear-sorts"]')!
+    const panel = container.querySelector<HTMLElement>('.dt-dd')!
 
     nameRow.dispatchEvent(dragEvt('dragstart'))
-    // Pointer is well below the last active row (dept), over dead space (the footer's "Clear
-    // sorts" button) that carries no data-sort-key of its own — this used to silently reject
-    // the drop entirely.
-    footer.dispatchEvent(dragEvtAt('dragover', 100))
-    footer.dispatchEvent(dragEvtAt('drop', 100))
+    // Pointer is well below the last active row (dept), over dead space (blank space in the
+    // dropdown panel below the last row) that carries no data-sort-key of its own — this used
+    // to silently reject the drop entirely.
+    panel.dispatchEvent(dragEvtAt('dragover', 100))
+    panel.dispatchEvent(dragEvtAt('drop', 100))
 
     const labels = [...container.querySelectorAll('.dt-dd-item--sortrow .dt-flex1')].map(
       (el) => el.textContent,
@@ -590,6 +609,24 @@ describe('createDataTable', () => {
     )
     expect(container.querySelectorAll('tbody tr')).toHaveLength(1)
     expect(container.innerHTML).toContain('Alice')
+  })
+
+  it('the Filter toolbar button has no clear-filters button until a filter is active', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    expect(container.querySelector('[data-action="clear-filters"]')).toBeNull()
+  })
+
+  it('clear-filters on the toolbar clears all filters without opening the dropdown', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="filter"]')!)
+    click(
+      container.querySelector<HTMLElement>('[data-action="toggle-filter"][data-value="Alice"]')!,
+    )
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="filter"]')!) // close it
+
+    click(container.querySelector<HTMLElement>('[data-action="clear-filters"]')!)
+    expect(container.querySelector('.dt-dd')).toBeNull() // still closed, not reopened by the click
+    expect(container.querySelectorAll('tbody tr')).toHaveLength(4)
   })
 
   it('checklist filter shows a row count next to each value', () => {
@@ -1671,6 +1708,22 @@ describe('createDataTable', () => {
     click(container.querySelector<HTMLElement>('[data-action="remove-group"][data-key="dept"]')!)
     expect(container.querySelector('[data-action="remove-group"][data-key="dept"]')).toBeNull()
     expect(container.querySelector('[data-action="toggle-group"][data-key="dept"]')).not.toBeNull()
+    expect(colHeaders(container)).toContain('Dept')
+  })
+
+  it('the Group toolbar button has no clear-groups button until a group is active', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    expect(container.querySelector('[data-action="clear-groups"]')).toBeNull()
+  })
+
+  it('clear-groups on the toolbar clears all groups without opening the dropdown', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="group"]')!)
+    click(container.querySelector<HTMLElement>('[data-action="toggle-group"][data-key="dept"]')!)
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="group"]')!) // close it
+
+    click(container.querySelector<HTMLElement>('[data-action="clear-groups"]')!)
+    expect(container.querySelector('.dt-dd')).toBeNull() // still closed, not reopened by the click
     expect(colHeaders(container)).toContain('Dept')
   })
 

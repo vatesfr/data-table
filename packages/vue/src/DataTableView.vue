@@ -745,10 +745,27 @@ function clearSearchQuery(): void {
         <!-- Sort -->
         <Dropdown @dragover="onSortRowsDragOver" @drop="onSortRowsDrop">
           <template #trigger="{ open }">
-            <ToolbarBtn :active="open || sorts.length > 0">
+            <ToolbarBtn :active="open || sorts.length > 0" :grouped="sorts.length > 0">
               {{ L.sort }}
               <span v-if="sorts.length > 0" class="dt__chip">{{ sorts.length }}</span>
             </ToolbarBtn>
+          </template>
+          <!--
+            Rendered next to (not inside) the toggle button — replaces the old in-panel
+            "Clear sorts" footer row (removed below) with a one-click affordance that doesn't
+            require opening the dropdown first. See Dropdown's `extra-trigger` slot.
+          -->
+          <template #extra-trigger>
+            <button
+              v-if="sorts.length > 0"
+              type="button"
+              class="dt__btn-clear"
+              :title="L.clearSorts"
+              :aria-label="L.clearSorts"
+              @click="clearSorts"
+            >
+              ×
+            </button>
           </template>
           <template v-if="sorts.length > 0">
             <div class="dt__dd-section">{{ L.activeSortsSection }}</div>
@@ -809,18 +826,27 @@ function clearSearchQuery(): void {
               <span class="dt__flex1">{{ col.label }}</span>
             </button>
           </template>
-          <div v-if="sorts.length > 0" class="dt__dd-footer">
-            <button @click.stop="clearSorts">{{ L.clearSorts }}</button>
-          </div>
         </Dropdown>
 
         <!-- Filter -->
         <Dropdown v-if="filterableCols.length > 0">
           <template #trigger="{ open }">
-            <ToolbarBtn :active="open || activeFilterCount > 0">
+            <ToolbarBtn :active="open || activeFilterCount > 0" :grouped="activeFilterCount > 0">
               {{ L.filter }}
               <span v-if="activeFilterCount > 0" class="dt__chip">{{ activeFilterCount }}</span>
             </ToolbarBtn>
+          </template>
+          <template #extra-trigger>
+            <button
+              v-if="activeFilterCount > 0"
+              type="button"
+              class="dt__btn-clear"
+              :title="L.clearFilters"
+              :aria-label="L.clearFilters"
+              @click="clearFilters"
+            >
+              ×
+            </button>
           </template>
           <div class="dt__filter-panel">
             <div class="dt__filter-cols">
@@ -990,9 +1016,6 @@ function clearSearchQuery(): void {
               </template>
             </div>
           </div>
-          <div v-if="activeFilterCount > 0" class="dt__dd-footer">
-            <button @click="clearFilters">{{ L.clearFilters }}</button>
-          </div>
         </Dropdown>
 
         <!-- Group -->
@@ -1002,10 +1025,22 @@ function clearSearchQuery(): void {
           @drop="onGroupRowsDrop"
         >
           <template #trigger="{ open }">
-            <ToolbarBtn :active="open || groupBy.length > 0">
+            <ToolbarBtn :active="open || groupBy.length > 0" :grouped="groupBy.length > 0">
               {{ L.group }}
               <span v-if="groupBy.length > 0" class="dt__chip">{{ groupBy.length }}</span>
             </ToolbarBtn>
+          </template>
+          <template #extra-trigger>
+            <button
+              v-if="groupBy.length > 0"
+              type="button"
+              class="dt__btn-clear"
+              :title="L.clearGroups"
+              :aria-label="L.clearGroups"
+              @click="clearGroups"
+            >
+              ×
+            </button>
           </template>
           <template v-if="groupBy.length > 0">
             <div class="dt__dd-section">{{ L.activeGroupsSection }}</div>
@@ -1056,9 +1091,6 @@ function clearSearchQuery(): void {
               <span class="dt__flex1">{{ col.label }}</span>
             </button>
           </template>
-          <div v-if="groupBy.length > 0" class="dt__dd-footer">
-            <button @click.stop="clearGroups">{{ L.clearGroups }}</button>
-          </div>
         </Dropdown>
       </div>
 
@@ -1371,6 +1403,26 @@ function clearSearchQuery(): void {
 .dt__search-clear:hover {
   color: var(--color-text-primary);
 }
+/* Adjoining × button for the Sort/Group/Filter toolbar buttons — see Dropdown's
+   `extra-trigger` slot and ToolbarBtn's `grouped` prop. Replaces the old in-panel "Clear
+   sorts"/etc. footer rows with a one-click affordance that doesn't require opening the
+   dropdown first. */
+.dt__btn-clear {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 8px;
+  background: none;
+  border: 0.5px solid var(--color-border-secondary);
+  border-radius: 0 6px 6px 0;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--color-text-tertiary);
+  font-family: inherit;
+}
+.dt__btn-clear:hover {
+  color: var(--color-text-primary);
+}
 .dt__clear-all {
   padding: 5px 10px;
   background: none;
@@ -1543,17 +1595,6 @@ function clearSearchQuery(): void {
   color: var(--color-text-secondary);
   font-family: inherit;
   white-space: nowrap;
-}
-.dt__dd-footer {
-  padding: 4px 14px 6px;
-}
-.dt__dd-footer button {
-  font-size: 12px;
-  background: none;
-  border: none;
-  color: var(--color-text-secondary);
-  cursor: pointer;
-  padding: 0;
 }
 .dt__sort-idx {
   width: 18px;
