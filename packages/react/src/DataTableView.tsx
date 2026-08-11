@@ -51,12 +51,8 @@ const S = {
     color: 'var(--color-text-primary)',
   } as CSSProperties,
   toolbar: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
     padding: '12px 0',
     borderBottom: '0.5px solid var(--color-border-tertiary)',
-    flexWrap: 'wrap',
   } as CSSProperties,
   toolbarActions: {
     display: 'flex',
@@ -64,16 +60,41 @@ const S = {
     gap: 8,
     flexWrap: 'wrap',
   } as CSSProperties,
-  toolbarSearch: {
+  // Separates the "shape" controls (Columns/Sort/Group — what's shown and in what order) from
+  // the "find" controls (Search/Filter — which rows are shown at all).
+  toolbarDivider: {
+    width: 1,
+    height: 22,
+    background: 'var(--color-border-secondary)',
+    flexShrink: 0,
+    margin: '0 2px',
+  } as CSSProperties,
+  clearAll: {
+    marginLeft: 'auto',
+    padding: '5px 10px',
+    background: 'none',
+    border: '0.5px solid var(--color-border-secondary)',
+    borderRadius: 6,
+    fontSize: 12,
+    cursor: 'pointer',
+    color: 'var(--color-text-secondary)',
+    fontFamily: 'inherit',
+  } as CSSProperties,
+  // Always rendered below the toolbar — see "Active state bar" at the render call site — so the
+  // stats text has one stable home instead of bouncing between "end of the toolbar row" and
+  // nowhere, and toggling a sort/filter/group never changes the toolbar's height.
+  activeBar: {
     display: 'flex',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
     flexWrap: 'wrap',
+    padding: '10px 0',
   } as CSSProperties,
   stats: {
     marginLeft: 'auto',
     fontSize: 12,
     color: 'var(--color-text-secondary)',
+    whiteSpace: 'nowrap',
   } as CSSProperties,
   tableWrap: {
     overflowX: 'auto',
@@ -131,6 +152,14 @@ const S = {
     borderRadius: 12,
     fontSize: 12,
     color: 'var(--color-text-secondary)',
+  } as CSSProperties,
+  // The one deliberate color accent in the active bar — filters already carried this "narrowing
+  // your view" meaning before sort/group chips existed, so they keep it; sort/group chips reuse
+  // the plain neutral `chip` above.
+  chipFilter: {
+    background: 'var(--color-background-info)',
+    color: 'var(--color-text-info)',
+    border: '0.5px solid var(--color-border-info)',
   } as CSSProperties,
   groupRow: {
     background: 'var(--color-background-secondary)',
@@ -929,9 +958,6 @@ export function DataTableView<TRow extends object>({
             trigger={
               <ToolbarBtn active={sorts.length > 0} grouped={sorts.length > 0}>
                 {L.sort}
-                {sorts.length > 0 && (
-                  <span style={{ ...S.chip, marginLeft: 2 }}>{sorts.length}</span>
-                )}
               </ToolbarBtn>
             }
             extraTrigger={
@@ -1061,6 +1087,159 @@ export function DataTableView<TRow extends object>({
             )}
           </Dropdown>
 
+          {/* Group — placed right after Sort (both "shape" the view — order/columns) rather than
+              after Filter, so the toolbar reads as two clusters: Columns/Sort/Group shape the
+              view, Search/Filter narrow it — see the divider below. */}
+          {groupableCols.length > 0 && (
+            <Dropdown
+              open={openGroupDD}
+              setOpen={setOpenGroupDD}
+              trigger={
+                <ToolbarBtn active={groupBy.length > 0} grouped={groupBy.length > 0}>
+                  {L.group}
+                </ToolbarBtn>
+              }
+              extraTrigger={
+                groupBy.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={clearGroups}
+                    title={L.clearGroups}
+                    aria-label={L.clearGroups}
+                    style={S.btnClear}
+                  >
+                    ×
+                  </button>
+                )
+              }
+              onDragOver={(e) => {
+                if (!dragGroupKey) return
+                const target = resolveDropdownDragRow(e.currentTarget, e, 'data-group-key')
+                if (!target || target.key === dragGroupKey) return
+                e.preventDefault()
+                setDragOverGroupKey(target.key)
+                setDragOverGroupAfter(target.after)
+              }}
+              onDrop={(e) => {
+                if (!dragGroupKey) return
+                const target = resolveDropdownDragRow(e.currentTarget, e, 'data-group-key')
+                if (!target) return
+                e.preventDefault()
+                if (target.key !== dragGroupKey) moveGroup(dragGroupKey, target.key, target.after)
+                setDragGroupKey(null)
+                setDragOverGroupKey(null)
+              }}
+            >
+              {groupBy.length > 0 && (
+                <>
+                  <div style={S.ddSection}>{L.activeGroupsSection}</div>
+                  {groupBy.map((key, i) => {
+                    const col = groupableCols.find((c) => c.key === key)
+                    return (
+                      // Same treatment as the Sort active rows, minus a click action — a group
+                      // entry has nothing to toggle (no direction), so the row is
+                      // draggable/focusable purely for reordering (drag, or Alt+↑/↓ when
+                      // focused); `×` remove is the only button. dragover/drop are handled at
+                      // the Dropdown panel level (see above), not per-row — that's what lets a
+                      // drop past the last row still resolve to a valid target.
+                      <div
+                        key={key}
+                        data-group-key={key}
+                        draggable
+                        tabIndex={0}
+                        onDragStart={() => setDragGroupKey(key)}
+                        onDragEnd={() => {
+                          setDragGroupKey(null)
+                          setDragOverGroupKey(null)
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+                            e.preventDefault()
+                            moveGroupBy(key, e.key === 'ArrowUp' ? -1 : 1)
+                          }
+                        }}
+                        style={{
+                          ...S.ddItem,
+                          justifyContent: 'space-between',
+                          cursor: 'grab',
+                          opacity: dragGroupKey === key ? 0.4 : 1,
+                          boxShadow:
+                            dragOverGroupKey === key
+                              ? `inset 0 ${dragOverGroupAfter ? '-2px' : '2px'} 0 var(--color-text-primary)`
+                              : undefined,
+                        }}
+                      >
+                        <span
+                          style={{
+                            width: 18,
+                            fontSize: 11,
+                            color: 'var(--color-text-tertiary)',
+                            fontWeight: 500,
+                          }}
+                        >
+                          {i + 1}
+                        </span>
+                        <span style={{ flex: 1 }}>{col?.label ?? key}</span>
+                        <button
+                          type="button"
+                          draggable={false}
+                          onClick={() => removeGroup(key)}
+                          style={S.itemRemove}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    )
+                  })}
+                </>
+              )}
+              {addableGroupCols.length > 0 && (
+                <>
+                  <div style={S.ddSection}>{L.groupSection}</div>
+                  {addableGroupCols.map((col) => (
+                    <button
+                      key={col.key}
+                      type="button"
+                      onClick={() => toggleGroup(col.key)}
+                      style={{ ...S.ddItem, ...S.ddItemButton }}
+                    >
+                      <span style={{ flex: 1 }}>{col.label}</span>
+                    </button>
+                  ))}
+                </>
+              )}
+            </Dropdown>
+          )}
+
+          {/* Divider between the "shape" controls above (Columns/Sort/Group) and the "find"
+              controls below (Search/Filter). */}
+          <span style={S.toolbarDivider} />
+
+          <span style={S.searchWrap}>
+            <input
+              ref={searchInputRef}
+              type="text"
+              placeholder={L.search}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={S.searchInput}
+            />
+            {searchQuery !== '' && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchQuery('')
+                  searchInputRef.current?.focus()
+                }}
+                title={L.clearSearch}
+                aria-label={L.clearSearch}
+                style={S.searchClear}
+              >
+                ×
+              </button>
+            )}
+          </span>
+
           {/* Filter */}
           {filterableCols.length > 0 && (
             <Dropdown
@@ -1069,9 +1248,6 @@ export function DataTableView<TRow extends object>({
               trigger={
                 <ToolbarBtn active={activeFilterCount > 0} grouped={activeFilterCount > 0}>
                   {L.filter}
-                  {activeFilterCount > 0 && (
-                    <span style={{ ...S.chip, marginLeft: 2 }}>{activeFilterCount}</span>
-                  )}
                 </ToolbarBtn>
               }
               extraTrigger={
@@ -1286,203 +1462,56 @@ export function DataTableView<TRow extends object>({
             </Dropdown>
           )}
 
-          {/* Group */}
-          {groupableCols.length > 0 && (
-            <Dropdown
-              open={openGroupDD}
-              setOpen={setOpenGroupDD}
-              trigger={
-                <ToolbarBtn active={groupBy.length > 0} grouped={groupBy.length > 0}>
-                  {L.group}
-                  {groupBy.length > 0 && (
-                    <span style={{ ...S.chip, marginLeft: 2 }}>{groupBy.length}</span>
-                  )}
-                </ToolbarBtn>
-              }
-              extraTrigger={
-                groupBy.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={clearGroups}
-                    title={L.clearGroups}
-                    aria-label={L.clearGroups}
-                    style={S.btnClear}
-                  >
-                    ×
-                  </button>
-                )
-              }
-              onDragOver={(e) => {
-                if (!dragGroupKey) return
-                const target = resolveDropdownDragRow(e.currentTarget, e, 'data-group-key')
-                if (!target || target.key === dragGroupKey) return
-                e.preventDefault()
-                setDragOverGroupKey(target.key)
-                setDragOverGroupAfter(target.after)
-              }}
-              onDrop={(e) => {
-                if (!dragGroupKey) return
-                const target = resolveDropdownDragRow(e.currentTarget, e, 'data-group-key')
-                if (!target) return
-                e.preventDefault()
-                if (target.key !== dragGroupKey) moveGroup(dragGroupKey, target.key, target.after)
-                setDragGroupKey(null)
-                setDragOverGroupKey(null)
-              }}
-            >
-              {groupBy.length > 0 && (
-                <>
-                  <div style={S.ddSection}>{L.activeGroupsSection}</div>
-                  {groupBy.map((key, i) => {
-                    const col = groupableCols.find((c) => c.key === key)
-                    return (
-                      // Same treatment as the Sort active rows, minus a click action — a group
-                      // entry has nothing to toggle (no direction), so the row is
-                      // draggable/focusable purely for reordering (drag, or Alt+↑/↓ when
-                      // focused); `×` remove is the only button. dragover/drop are handled at
-                      // the Dropdown panel level (see above), not per-row — that's what lets a
-                      // drop past the last row still resolve to a valid target.
-                      <div
-                        key={key}
-                        data-group-key={key}
-                        draggable
-                        tabIndex={0}
-                        onDragStart={() => setDragGroupKey(key)}
-                        onDragEnd={() => {
-                          setDragGroupKey(null)
-                          setDragOverGroupKey(null)
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
-                            e.preventDefault()
-                            moveGroupBy(key, e.key === 'ArrowUp' ? -1 : 1)
-                          }
-                        }}
-                        style={{
-                          ...S.ddItem,
-                          justifyContent: 'space-between',
-                          cursor: 'grab',
-                          opacity: dragGroupKey === key ? 0.4 : 1,
-                          boxShadow:
-                            dragOverGroupKey === key
-                              ? `inset 0 ${dragOverGroupAfter ? '-2px' : '2px'} 0 var(--color-text-primary)`
-                              : undefined,
-                        }}
-                      >
-                        <span
-                          style={{
-                            width: 18,
-                            fontSize: 11,
-                            color: 'var(--color-text-tertiary)',
-                            fontWeight: 500,
-                          }}
-                        >
-                          {i + 1}
-                        </span>
-                        <span style={{ flex: 1 }}>{col?.label ?? key}</span>
-                        <button
-                          type="button"
-                          draggable={false}
-                          onClick={() => removeGroup(key)}
-                          style={S.itemRemove}
-                        >
-                          ×
-                        </button>
-                      </div>
-                    )
-                  })}
-                </>
-              )}
-              {addableGroupCols.length > 0 && (
-                <>
-                  <div style={S.ddSection}>{L.groupSection}</div>
-                  {addableGroupCols.map((col) => (
-                    <button
-                      key={col.key}
-                      type="button"
-                      onClick={() => toggleGroup(col.key)}
-                      style={{ ...S.ddItem, ...S.ddItemButton }}
-                    >
-                      <span style={{ flex: 1 }}>{col.label}</span>
-                    </button>
-                  ))}
-                </>
-              )}
-            </Dropdown>
-          )}
-        </div>
-
-        <div style={S.toolbarSearch}>
-          <span style={S.searchWrap}>
-            <input
-              ref={searchInputRef}
-              type="text"
-              placeholder={L.search}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              style={S.searchInput}
-            />
-            {searchQuery !== '' && (
-              <button
-                type="button"
-                onClick={() => {
-                  setSearchQuery('')
-                  searchInputRef.current?.focus()
-                }}
-                title={L.clearSearch}
-                aria-label={L.clearSearch}
-                style={S.searchClear}
-              >
-                ×
-              </button>
-            )}
-          </span>
-
+          {/* "Clear all" sits alone at the far right of the actions row (marginLeft: 'auto', see
+              S.clearAll) — nothing else in the row needs to reflow when it mounts/unmounts,
+              unlike the old layout where it sat between search and the stats text. */}
           {hasActiveState && (
-            <button
-              onClick={clearAll}
-              style={{
-                padding: '5px 10px',
-                background: 'none',
-                border: '0.5px solid var(--color-border-secondary)',
-                borderRadius: 6,
-                fontSize: 12,
-                cursor: 'pointer',
-                color: 'var(--color-text-secondary)',
-                fontFamily: 'inherit',
-              }}
-            >
+            <button onClick={clearAll} style={S.clearAll}>
               {L.clearAll}
             </button>
           )}
         </div>
-
-        <div style={S.stats}>
-          {L.rowCount(processedData.length, data.length)}
-          {groupBy.length > 0 && L.groupCount(new Set(groupedData.map((g) => g.key)).size)}
-        </div>
       </div>
 
-      {/* Active chips — sort/group chips were dropped: the Sort/Group dropdowns now show the
-          same active entries with strictly more control (priority order, direction, remove)
-          than a chip's bare × ever did, so the chips were pure duplication. Filter chips stay —
-          the Filter dropdown's toolbar button only shows a column count, with no equivalent
-          summary of which values are selected, so the chip is still the only at-a-glance view
-          of that state. */}
-      {activeFilterCount > 0 && (
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', padding: '8px 0 0' }}>
-          {Object.entries(filters)
+      {/* Active state bar — always rendered (even with nothing active) rather than only
+          appearing once a filter is set — this gives the row-count stats a single stable home
+          instead of bouncing between "end of the toolbar row" and nowhere, and means toggling a
+          sort/filter/group never changes the toolbar's height. Shows one chip per active sort
+          entry, group column, and filter column — sort/group chips were previously only visible
+          as a bare count on their toolbar button (see above); giving them the same at-a-glance
+          chip treatment filters already had removes that asymmetry. Sort/group chips reuse the
+          plain neutral `S.chip` look (the same one the removed count badges used) — filter
+          chips keep their existing blue `S.chipFilter` tint, the one deliberate color accent in
+          this bar, since filters already carried that "this is narrowing your view" meaning
+          before this change. */}
+      <div style={S.activeBar}>
+        {sorts.map((entry) => {
+          const col = columns.find((c) => c.key === entry.key)
+          return (
+            <span key={entry.key} style={S.chip}>
+              {getSortIcon(entry.key)} {col?.label ?? entry.key}
+              <span onClick={() => removeSort(entry.key)} style={{ cursor: 'pointer' }}>
+                ×
+              </span>
+            </span>
+          )
+        })}
+        {groupBy.map((key) => {
+          const col = groupableCols.find((c) => c.key === key)
+          return (
+            <span key={key} style={S.chip}>
+              {col?.label ?? key}
+              <span onClick={() => removeGroup(key)} style={{ cursor: 'pointer' }}>
+                ×
+              </span>
+            </span>
+          )
+        })}
+        {activeFilterCount > 0 &&
+          Object.entries(filters)
             .filter(([, v]) => v.size > 0)
             .map(([key, vals]) => (
-              <span
-                key={key}
-                style={{
-                  ...S.chip,
-                  background: 'var(--color-background-info)',
-                  color: 'var(--color-text-info)',
-                  border: '0.5px solid var(--color-border-info)',
-                }}
-              >
+              <span key={key} style={{ ...S.chip, ...S.chipFilter }}>
                 {columns.find((c) => c.key === key)?.label}: {summarizeFilterValues(vals)}
                 <span
                   onClick={() => clearColumnFilter(key)}
@@ -1492,8 +1521,11 @@ export function DataTableView<TRow extends object>({
                 </span>
               </span>
             ))}
-        </div>
-      )}
+        <span style={S.stats}>
+          {L.rowCount(processedData.length, data.length)}
+          {groupBy.length > 0 && L.groupCount(new Set(groupedData.map((g) => g.key)).size)}
+        </span>
+      </div>
 
       {/* Table */}
       <div style={S.tableWrap}>

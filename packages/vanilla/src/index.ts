@@ -532,8 +532,10 @@ export function createDataTable<TRow extends object>(
       // <button> can't contain another interactive element) — `.dt-btn-group` visually merges
       // them into one pill, same idea as the search input + its own clear button, and replaces
       // the dropdown's old footer "Clear sorts" row (removed below) with a one-click affordance
-      // that doesn't require opening the dropdown first.
-      `<span class="dt-btn-group"><button class="dt-btn${sorts.length > 0 ? ' dt-btn--active dt-btn--grouped' : ''}" data-action="toggle-dd" data-dd="sort">${esc(L.sort)}${sorts.length > 0 ? ` <span class="dt-chip">${sorts.length}</span>` : ''}</button>${sorts.length > 0 ? `<button type="button" class="dt-btn-clear" data-action="clear-sorts" title="${esc(L.clearSorts)}" aria-label="${esc(L.clearSorts)}">×</button>` : ''}</span>`,
+      // that doesn't require opening the dropdown first. No count badge here — the active bar
+      // below (see "Active state bar") shows each active sort by name, so a bare number on the
+      // button would just be a second, less useful copy of the same fact.
+      `<span class="dt-btn-group"><button class="dt-btn${sorts.length > 0 ? ' dt-btn--active dt-btn--grouped' : ''}" data-action="toggle-dd" data-dd="sort">${esc(L.sort)}</button>${sorts.length > 0 ? `<button type="button" class="dt-btn-clear" data-action="clear-sorts" title="${esc(L.clearSorts)}" aria-label="${esc(L.clearSorts)}">×</button>` : ''}</span>`,
       () => {
         let s = ''
         const addableCols = columns.filter((c) => getSortIndex(sorts, c.key) === null)
@@ -570,11 +572,59 @@ export function createDataTable<TRow extends object>(
       },
     )
 
+    // Group — same active/add split as Sort above. Unlike a sort entry, a group entry has
+    // nothing to toggle on click (no direction), so the row is draggable/focusable for
+    // reordering (drag, or Alt+↑/↓ when focused — see handleGroupDragStart/Over/Drop and
+    // handleKeyDown) but carries no click action of its own; `×` remove is the only button.
+    // Placed right after Sort (both "shape" the view — order/columns) rather than after Filter,
+    // so the toolbar reads as two clusters: Columns/Sort/Group shape the view, Search/Filter
+    // narrow it — see the divider below.
+    if (groupableCols.length > 0) {
+      html += buildDd(
+        openDropdown === 'group',
+        `<span class="dt-btn-group"><button class="dt-btn${groupBy.length > 0 ? ' dt-btn--active dt-btn--grouped' : ''}" data-action="toggle-dd" data-dd="group">${esc(L.group)}</button>${groupBy.length > 0 ? `<button type="button" class="dt-btn-clear" data-action="clear-groups" title="${esc(L.clearGroups)}" aria-label="${esc(L.clearGroups)}">×</button>` : ''}</span>`,
+        () => {
+          let s = ''
+          const addableCols = groupableCols.filter((c) => !groupBy.includes(c.key))
+          if (groupBy.length > 0) {
+            s += `<div class="dt-dd-section">${esc(L.activeGroupsSection)}</div>`
+            for (let i = 0; i < groupBy.length; i++) {
+              const key = groupBy[i]
+              const col = groupableCols.find((c) => c.key === key)
+              s += `<div class="dt-dd-item dt-dd-item--col dt-dd-item--grouprow" draggable="true" tabindex="0" data-group-key="${esc(key)}" data-focus-key="grouprow-${esc(key)}">`
+              s += `<span class="dt-sort-idx">${i + 1}</span>`
+              s += `<span class="dt-flex1">${esc(col?.label ?? key)}</span>`
+              s += `<button type="button" class="dt-item-remove" draggable="false" data-action="remove-group" data-key="${esc(key)}">×</button>`
+              s += `</div>`
+            }
+          }
+          if (addableCols.length > 0) {
+            s += `<div class="dt-dd-section">${esc(L.groupSection)}</div>`
+            for (const col of addableCols) {
+              s += `<button type="button" class="dt-dd-item dt-dd-item--click" data-action="toggle-group" data-key="${esc(col.key)}"><span class="dt-flex1">${esc(col.label)}</span></button>`
+            }
+          }
+          return s
+        },
+      )
+    }
+
+    // Divider between the "shape" controls above (Columns/Sort/Group — what's shown and in what
+    // order) and the "find" controls below (Search/Filter — which rows are shown at all).
+    html += `<span class="dt-toolbar-divider"></span>`
+
+    html += `<span class="dt-search-wrap">`
+    html += `<input type="text" class="dt-search-input" placeholder="${esc(L.search)}" value="${esc(searchQuery)}" data-action="search" data-focus-key="search">`
+    if (searchQuery !== '') {
+      html += `<button type="button" class="dt-search-clear" data-action="clear-search" title="${esc(L.clearSearch)}" aria-label="${esc(L.clearSearch)}">×</button>`
+    }
+    html += `</span>`
+
     // Filter
     if (filterableCols.length > 0) {
       html += buildDd(
         openDropdown === 'filter',
-        `<span class="dt-btn-group"><button class="dt-btn${activeFilterCount > 0 ? ' dt-btn--active dt-btn--grouped' : ''}" data-action="toggle-dd" data-dd="filter">${esc(L.filter)}${activeFilterCount > 0 ? ` <span class="dt-chip">${activeFilterCount}</span>` : ''}</button>${activeFilterCount > 0 ? `<button type="button" class="dt-btn-clear" data-action="clear-filters" title="${esc(L.clearFilters)}" aria-label="${esc(L.clearFilters)}">×</button>` : ''}</span>`,
+        `<span class="dt-btn-group"><button class="dt-btn${activeFilterCount > 0 ? ' dt-btn--active dt-btn--grouped' : ''}" data-action="toggle-dd" data-dd="filter">${esc(L.filter)}</button>${activeFilterCount > 0 ? `<button type="button" class="dt-btn-clear" data-action="clear-filters" title="${esc(L.clearFilters)}" aria-label="${esc(L.clearFilters)}">×</button>` : ''}</span>`,
         () => {
           let s = `<div class="dt-filter-panel">`
           s += `<div class="dt-filter-cols">`
@@ -636,75 +686,47 @@ export function createDataTable<TRow extends object>(
       )
     }
 
-    // Group — same active/add split as Sort above. Unlike a sort entry, a group entry has
-    // nothing to toggle on click (no direction), so the row is draggable/focusable for
-    // reordering (drag, or Alt+↑/↓ when focused — see handleGroupDragStart/Over/Drop and
-    // handleKeyDown) but carries no click action of its own; `×` remove is the only button.
-    if (groupableCols.length > 0) {
-      html += buildDd(
-        openDropdown === 'group',
-        `<span class="dt-btn-group"><button class="dt-btn${groupBy.length > 0 ? ' dt-btn--active dt-btn--grouped' : ''}" data-action="toggle-dd" data-dd="group">${esc(L.group)}${groupBy.length > 0 ? ` <span class="dt-chip">${groupBy.length}</span>` : ''}</button>${groupBy.length > 0 ? `<button type="button" class="dt-btn-clear" data-action="clear-groups" title="${esc(L.clearGroups)}" aria-label="${esc(L.clearGroups)}">×</button>` : ''}</span>`,
-        () => {
-          let s = ''
-          const addableCols = groupableCols.filter((c) => !groupBy.includes(c.key))
-          if (groupBy.length > 0) {
-            s += `<div class="dt-dd-section">${esc(L.activeGroupsSection)}</div>`
-            for (let i = 0; i < groupBy.length; i++) {
-              const key = groupBy[i]
-              const col = groupableCols.find((c) => c.key === key)
-              s += `<div class="dt-dd-item dt-dd-item--col dt-dd-item--grouprow" draggable="true" tabindex="0" data-group-key="${esc(key)}" data-focus-key="grouprow-${esc(key)}">`
-              s += `<span class="dt-sort-idx">${i + 1}</span>`
-              s += `<span class="dt-flex1">${esc(col?.label ?? key)}</span>`
-              s += `<button type="button" class="dt-item-remove" draggable="false" data-action="remove-group" data-key="${esc(key)}">×</button>`
-              s += `</div>`
-            }
-          }
-          if (addableCols.length > 0) {
-            s += `<div class="dt-dd-section">${esc(L.groupSection)}</div>`
-            for (const col of addableCols) {
-              s += `<button type="button" class="dt-dd-item dt-dd-item--click" data-action="toggle-group" data-key="${esc(col.key)}"><span class="dt-flex1">${esc(col.label)}</span></button>`
-            }
-          }
-          return s
-        },
-      )
+    // "Clear all" sits alone at the far right of the actions row (margin-left:auto, see
+    // styles.ts) — nothing else in the row needs to reflow when it mounts/unmounts, unlike the
+    // old layout where it sat between search and the stats text.
+    if (hasActiveState) {
+      html += `<button class="dt-btn dt-clear-all" data-action="clear-all">${esc(L.clearAll)}</button>`
     }
 
     html += `</div>` // dt-toolbar-actions
+    html += `</div>` // dt-toolbar
 
-    html += `<div class="dt-toolbar-search">`
-    html += `<span class="dt-search-wrap">`
-    html += `<input type="text" class="dt-search-input" placeholder="${esc(L.search)}" value="${esc(searchQuery)}" data-action="search" data-focus-key="search">`
-    if (searchQuery !== '') {
-      html += `<button type="button" class="dt-search-clear" data-action="clear-search" title="${esc(L.clearSearch)}" aria-label="${esc(L.clearSearch)}">×</button>`
+    // --- Active state bar ---
+    // Always rendered (even with nothing active) rather than only appearing once a filter is set
+    // — this gives the row-count stats a single stable home instead of bouncing between "end of
+    // the toolbar row" and nowhere, and means toggling a sort/filter/group never changes the
+    // toolbar's height or shifts anything above it. Shows one chip per active sort entry, group
+    // column, and filter column — sort/group chips were previously only visible as a bare count
+    // on their toolbar button (see above); giving them the same at-a-glance chip treatment
+    // filters already had removes that asymmetry. Sort/group chips reuse the plain neutral
+    // `.dt-chip` look (the same one the removed count badges used) — filter chips keep their
+    // existing blue `.dt-chip--filter` tint, the one deliberate color accent in this bar, since
+    // filters already carried that "this is narrowing your view" meaning before this change.
+    html += `<div class="dt-active-bar">`
+    for (const entry of sorts) {
+      const col = columns.find((c) => c.key === entry.key)
+      html += `<span class="dt-chip">${getSortIcon(sorts, entry.key)} ${esc(col?.label ?? entry.key)} <span class="dt-chip-x" data-action="remove-sort" data-key="${esc(entry.key)}">×</span></span>`
     }
-    html += `</span>`
-
-    if (hasActiveState) {
-      html += `<button class="dt-btn" data-action="clear-all">${esc(L.clearAll)}</button>`
+    for (const key of groupBy) {
+      const col = groupableCols.find((c) => c.key === key)
+      html += `<span class="dt-chip">${esc(col?.label ?? key)} <span class="dt-chip-x" data-action="remove-group" data-key="${esc(key)}">×</span></span>`
     }
-    html += `</div>` // dt-toolbar-search
-
-    // A group split across a page boundary contributes a second ("continued") chunk to
-    // `_groupedData` — deduped by key here so it isn't double-counted.
-    const pageGroupCount = new Set(_groupedData.map((g) => g.key)).size
-    html += `<span class="dt-stats">${esc(L.rowCount(_processedData.length, data.length))}${groupBy.length > 0 ? esc(L.groupCount(pageGroupCount)) : ''}</span>`
-    html += `</div>` // toolbar
-
-    // --- Active chips ---
-    // Sort and group chips were dropped: the Sort/Group dropdowns now show the same active
-    // entries with strictly more control (priority order, direction, remove) than a chip's bare
-    // × ever did, so the chips were pure duplication. Filter chips stay — the Filter dropdown's
-    // toolbar button only shows a column *count*, with no equivalent summary of which values are
-    // selected, so the chip is still the only at-a-glance view of that state.
     if (activeFilterCount > 0) {
-      html += `<div class="dt-chips">`
       for (const [key, vals] of Object.entries(filters)) {
         if (!vals.size) continue
         html += `<span class="dt-chip dt-chip--filter">${esc(columns.find((c) => c.key === key)?.label ?? key)}: ${esc(summarizeFilterValues(vals))} <span class="dt-chip-x" data-action="clear-filter-key" data-key="${esc(key)}">×</span></span>`
       }
-      html += `</div>`
     }
+    // A group split across a page boundary contributes a second ("continued") chunk to
+    // `_groupedData` — deduped by key here so it isn't double-counted.
+    const pageGroupCount = new Set(_groupedData.map((g) => g.key)).size
+    html += `<span class="dt-stats">${esc(L.rowCount(_processedData.length, data.length))}${groupBy.length > 0 ? esc(L.groupCount(pageGroupCount)) : ''}</span>`
+    html += `</div>` // dt-active-bar
 
     // --- Table ---
     html += `<div class="dt-table-wrap"><table class="dt-table"><thead><tr>`

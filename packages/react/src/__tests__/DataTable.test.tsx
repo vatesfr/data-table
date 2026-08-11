@@ -157,7 +157,11 @@ describe('DataTable — filter dropdown', () => {
       <DataTable data={ROWS} columns={FILTER_COLS} rowKey="id" />,
     )
     fireEvent.click(getByText('Filter'))
-    const [filterSearchInput] = getAllByPlaceholderText('Search…')
+    // The global toolbar search box shares this same default placeholder and now sits before
+    // the Filter dropdown in the DOM (see the toolbar's shape/find cluster order) — the filter's
+    // own per-column search box is the last "Search…" match, not the first.
+    const searchInputs = getAllByPlaceholderText('Search…')
+    const filterSearchInput = searchInputs[searchInputs.length - 1]
     fireEvent.change(filterSearchInput, { target: { value: 'ali' } })
     fireEvent.click(getByLabelText('Select all'))
     expect((getByLabelText('Alice', { exact: false }) as HTMLInputElement).checked).toBe(true)
@@ -179,7 +183,11 @@ describe('DataTable — filter dropdown', () => {
       <DataTable data={ROWS} columns={FILTER_COLS} rowKey="id" />,
     )
     fireEvent.click(getByText('Filter'))
-    const [filterSearchInput] = getAllByPlaceholderText('Search…')
+    // The global toolbar search box shares this same default placeholder and now sits before
+    // the Filter dropdown in the DOM (see the toolbar's shape/find cluster order) — the filter's
+    // own per-column search box is the last "Search…" match, not the first.
+    const searchInputs = getAllByPlaceholderText('Search…')
+    const filterSearchInput = searchInputs[searchInputs.length - 1]
     fireEvent.change(filterSearchInput, { target: { value: 'zzz' } })
     expect(queryByLabelText('Select all')).toBeNull()
     expect(filterSearchInput).toBeTruthy()
@@ -250,7 +258,11 @@ describe('DataTable — filter dropdown', () => {
     fireEvent.click(getByText('Filter'))
     // The toolbar's global row search shares the same "Search…" placeholder as the
     // per-column filter search — the filter one renders first in the DOM.
-    const [filterSearchInput] = getAllByPlaceholderText('Search…')
+    // The global toolbar search box shares this same default placeholder and now sits before
+    // the Filter dropdown in the DOM (see the toolbar's shape/find cluster order) — the filter's
+    // own per-column search box is the last "Search…" match, not the first.
+    const searchInputs = getAllByPlaceholderText('Search…')
+    const filterSearchInput = searchInputs[searchInputs.length - 1]
     fireEvent.change(filterSearchInput, { target: { value: 'ali' } })
     const labels = checklistLabels(container)
     expect(labels.some((t) => t.includes('Alice'))).toBe(true)
@@ -920,8 +932,13 @@ describe('DataTable — filter column selector keyboard access', () => {
   })
 })
 
-describe('DataTable — active chips', () => {
-  it('does not render sort or group chips, but keeps filter chips', () => {
+describe('DataTable — active state bar', () => {
+  it('renders with just the row-count stats when nothing is active', () => {
+    const { getByText } = render(<DataTable data={ROWS} columns={COLS} rowKey="id" />)
+    expect(getByText('2 / 2 rows')).toBeTruthy()
+  })
+
+  it('shows sort, group, and filter chips together, each removable on its own', () => {
     const chipCols: ColumnDef<Row>[] = [
       { key: 'name', label: 'Name', filterable: true, groupable: true },
       { key: 'score', label: 'Score', type: 'number', groupable: true },
@@ -936,12 +953,12 @@ describe('DataTable — active chips', () => {
     fireEvent.click(getByText('Filter'))
     fireEvent.click(getByLabelText('Alice', { exact: false }))
 
-    // The filter chip (a distinct summary of *values*, not just a count) still renders...
+    // Sort/group chips now get the same at-a-glance treatment the filter chip always had — no
+    // more bare count badge on the toolbar button itself (see the "Sort"/"Group" assertions).
+    expect(getByText('Sort').closest('button')?.textContent).toBe('Sort')
+    expect(getByText('Group').closest('button')?.textContent).toBe('Group')
+    expect(container.textContent).toContain('Score')
     expect(container.textContent).toContain('Name: Alice')
-    // ...but the old sort/group chip pills — now pure duplication of the dropdown's own detail —
-    // are gone. "Group 1:" was the old group chip's label prefix; "1. Score" the sort chip's.
-    expect(container.textContent).not.toContain('Group 1:')
-    expect(container.textContent).not.toContain('1. Score')
   })
 })
 

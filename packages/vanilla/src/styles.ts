@@ -3,10 +3,11 @@ import { renderThemeCss } from '@vates/data-table-core'
 export const STYLES = `
 ${renderThemeCss()}
 .dt{font-family:inherit;font-size:14px;color:var(--color-text-primary,#1a1916)}
-.dt-toolbar{display:flex;align-items:center;gap:8px;padding:12px 0;border-bottom:0.5px solid var(--color-border-tertiary,#eeedea);flex-wrap:wrap}
+.dt-toolbar{padding:12px 0;border-bottom:0.5px solid var(--color-border-tertiary,#eeedea)}
 .dt-toolbar-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.dt-toolbar-search{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.dt-stats{margin-left:auto;font-size:12px;color:var(--color-text-secondary,#6b6a66)}
+.dt-toolbar-divider{width:1px;height:22px;background:var(--color-border-secondary,#dddcd8);flex-shrink:0;margin:0 2px}
+.dt-clear-all{margin-left:auto}
+.dt-stats{margin-left:auto;font-size:12px;color:var(--color-text-secondary,#6b6a66);white-space:nowrap}
 .dt-btn{display:inline-flex;align-items:center;gap:4px;padding:5px 10px;background:none;border:0.5px solid var(--color-border-secondary,#dddcd8);border-radius:6px;font-size:13px;cursor:pointer;color:var(--color-text-primary,#1a1916);font-family:inherit;line-height:1}
 .dt-btn--active{background:var(--color-background-secondary,#f7f6f3)}
 .dt-btn-group{display:inline-flex}
@@ -38,7 +39,7 @@ ${renderThemeCss()}
 .dt-sort-icon--active{color:var(--color-text-primary,#1a1916)}
 .dt-range-input{width:80px;padding:3px 6px;font-size:12px;border:0.5px solid var(--color-border-secondary,#dddcd8);border-radius:4px;font-family:inherit;background:transparent;color:inherit}
 .dt-range-sep{color:var(--color-text-tertiary,#9b9a96);font-size:12px}
-.dt-chips{display:flex;gap:6px;flex-wrap:wrap;padding:8px 0 0}
+.dt-active-bar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:10px 0}
 .dt-chip{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;background:var(--color-background-secondary,#f7f6f3);border:0.5px solid var(--color-border-secondary,#dddcd8);border-radius:12px;font-size:12px;color:var(--color-text-secondary,#6b6a66)}
 .dt-chip--filter{background:var(--color-background-info,#e6f1fb);color:var(--color-text-info,#185fa5);border-color:var(--color-border-info,#b8d6f5)}
 .dt-chip-x{cursor:pointer;margin-left:2px}

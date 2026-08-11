@@ -747,7 +747,6 @@ function clearSearchQuery(): void {
           <template #trigger="{ open }">
             <ToolbarBtn :active="open || sorts.length > 0" :grouped="sorts.length > 0">
               {{ L.sort }}
-              <span v-if="sorts.length > 0" class="dt__chip">{{ sorts.length }}</span>
             </ToolbarBtn>
           </template>
           <!--
@@ -828,12 +827,112 @@ function clearSearchQuery(): void {
           </template>
         </Dropdown>
 
+        <!-- Group — placed right after Sort (both "shape" the view — order/columns) rather than
+             after Filter, so the toolbar reads as two clusters: Columns/Sort/Group shape the
+             view, Search/Filter narrow it — see the divider below. -->
+        <Dropdown
+          v-if="groupableCols.length > 0"
+          @dragover="onGroupRowsDragOver"
+          @drop="onGroupRowsDrop"
+        >
+          <template #trigger="{ open }">
+            <ToolbarBtn :active="open || groupBy.length > 0" :grouped="groupBy.length > 0">
+              {{ L.group }}
+            </ToolbarBtn>
+          </template>
+          <template #extra-trigger>
+            <button
+              v-if="groupBy.length > 0"
+              type="button"
+              class="dt__btn-clear"
+              :title="L.clearGroups"
+              :aria-label="L.clearGroups"
+              @click="clearGroups"
+            >
+              ×
+            </button>
+          </template>
+          <template v-if="groupBy.length > 0">
+            <div class="dt__dd-section">{{ L.activeGroupsSection }}</div>
+            <!--
+              Same treatment as the Sort active rows, minus a click action — a group entry has
+              nothing to toggle (no direction), so the row is draggable/focusable purely for
+              reordering (drag, or Alt+↑/↓ when focused); `×` remove is the only button.
+              @dragover/@drop are handled at the Dropdown panel level (see above), not per-row —
+              that's what lets a drop past the last row still resolve to a valid target.
+            -->
+            <div
+              v-for="(key, i) in groupBy"
+              :key="key"
+              :data-group-key="key"
+              class="dt__dd-item dt__dd-item--col dt__dd-item--grouprow"
+              :class="{
+                'dt__dd-item--dragging': dragGroupKey === key,
+                'dt__dd-item--drag-over': dragOverGroupKey === key && !dragOverGroupAfter,
+                'dt__dd-item--drag-over-after': dragOverGroupKey === key && dragOverGroupAfter,
+              }"
+              draggable="true"
+              tabindex="0"
+              @keydown="onGroupRowKeyDown($event, key)"
+              @dragstart="onGroupDragStart(key)"
+              @dragend="onGroupDragEnd"
+            >
+              <span class="dt__sort-idx">{{ i + 1 }}</span>
+              <span class="dt__flex1">{{ findCol(key)?.label ?? key }}</span>
+              <button
+                type="button"
+                class="dt__item-remove"
+                draggable="false"
+                @click="removeGroup(key)"
+              >
+                ×
+              </button>
+            </div>
+          </template>
+          <template v-if="addableGroupCols.length > 0">
+            <div class="dt__dd-section">{{ L.groupSection }}</div>
+            <button
+              v-for="col in addableGroupCols"
+              :key="col.key"
+              type="button"
+              class="dt__dd-item dt__dd-item--clickable"
+              @click="toggleGroup(col.key)"
+            >
+              <span class="dt__flex1">{{ col.label }}</span>
+            </button>
+          </template>
+        </Dropdown>
+
+        <!-- Divider between the "shape" controls above (Columns/Sort/Group) and the "find"
+             controls below (Search/Filter). -->
+        <span class="dt__toolbar-divider" />
+
+        <span class="dt__search-wrap">
+          <input
+            ref="searchInputRef"
+            type="text"
+            class="dt__search-input"
+            :placeholder="L.search"
+            :value="searchQuery"
+            @input="setSearchQuery(($event.target as HTMLInputElement).value)"
+          />
+          <button
+            v-if="searchQuery"
+            type="button"
+            class="dt__search-clear"
+            :title="L.clearSearch"
+            :aria-label="L.clearSearch"
+            @click="clearSearchQuery"
+          >
+            ×
+          </button>
+        </span>
+
         <!-- Filter -->
         <Dropdown v-if="filterableCols.length > 0">
           <template #trigger="{ open }">
             <ToolbarBtn :active="open || activeFilterCount > 0" :grouped="activeFilterCount > 0">
               {{ L.filter }}
-              <span v-if="activeFilterCount > 0" class="dt__chip">{{ activeFilterCount }}</span>
             </ToolbarBtn>
           </template>
           <template #extra-trigger>
@@ -1018,130 +1117,49 @@ function clearSearchQuery(): void {
           </div>
         </Dropdown>
 
-        <!-- Group -->
-        <Dropdown
-          v-if="groupableCols.length > 0"
-          @dragover="onGroupRowsDragOver"
-          @drop="onGroupRowsDrop"
-        >
-          <template #trigger="{ open }">
-            <ToolbarBtn :active="open || groupBy.length > 0" :grouped="groupBy.length > 0">
-              {{ L.group }}
-              <span v-if="groupBy.length > 0" class="dt__chip">{{ groupBy.length }}</span>
-            </ToolbarBtn>
-          </template>
-          <template #extra-trigger>
-            <button
-              v-if="groupBy.length > 0"
-              type="button"
-              class="dt__btn-clear"
-              :title="L.clearGroups"
-              :aria-label="L.clearGroups"
-              @click="clearGroups"
-            >
-              ×
-            </button>
-          </template>
-          <template v-if="groupBy.length > 0">
-            <div class="dt__dd-section">{{ L.activeGroupsSection }}</div>
-            <!--
-              Same treatment as the Sort active rows, minus a click action — a group entry has
-              nothing to toggle (no direction), so the row is draggable/focusable purely for
-              reordering (drag, or Alt+↑/↓ when focused); `×` remove is the only button.
-              @dragover/@drop are handled at the Dropdown panel level (see above), not per-row —
-              that's what lets a drop past the last row still resolve to a valid target.
-            -->
-            <div
-              v-for="(key, i) in groupBy"
-              :key="key"
-              :data-group-key="key"
-              class="dt__dd-item dt__dd-item--col dt__dd-item--grouprow"
-              :class="{
-                'dt__dd-item--dragging': dragGroupKey === key,
-                'dt__dd-item--drag-over': dragOverGroupKey === key && !dragOverGroupAfter,
-                'dt__dd-item--drag-over-after': dragOverGroupKey === key && dragOverGroupAfter,
-              }"
-              draggable="true"
-              tabindex="0"
-              @keydown="onGroupRowKeyDown($event, key)"
-              @dragstart="onGroupDragStart(key)"
-              @dragend="onGroupDragEnd"
-            >
-              <span class="dt__sort-idx">{{ i + 1 }}</span>
-              <span class="dt__flex1">{{ findCol(key)?.label ?? key }}</span>
-              <button
-                type="button"
-                class="dt__item-remove"
-                draggable="false"
-                @click="removeGroup(key)"
-              >
-                ×
-              </button>
-            </div>
-          </template>
-          <template v-if="addableGroupCols.length > 0">
-            <div class="dt__dd-section">{{ L.groupSection }}</div>
-            <button
-              v-for="col in addableGroupCols"
-              :key="col.key"
-              type="button"
-              class="dt__dd-item dt__dd-item--clickable"
-              @click="toggleGroup(col.key)"
-            >
-              <span class="dt__flex1">{{ col.label }}</span>
-            </button>
-          </template>
-        </Dropdown>
-      </div>
-
-      <div class="dt__toolbar-search">
-        <span class="dt__search-wrap">
-          <input
-            ref="searchInputRef"
-            type="text"
-            class="dt__search-input"
-            :placeholder="L.search"
-            :value="searchQuery"
-            @input="setSearchQuery(($event.target as HTMLInputElement).value)"
-          />
-          <button
-            v-if="searchQuery"
-            type="button"
-            class="dt__search-clear"
-            :title="L.clearSearch"
-            :aria-label="L.clearSearch"
-            @click="clearSearchQuery"
-          >
-            ×
-          </button>
-        </span>
-
+        <!-- "Clear all" sits alone at the far right of the actions row (margin-left: auto, see
+             .dt__clear-all) — nothing else in the row needs to reflow when it mounts/unmounts,
+             unlike the old layout where it sat between search and the stats text. -->
         <button v-if="hasActiveState" class="dt__clear-all" @click="clearAll">
           {{ L.clearAll }}
         </button>
       </div>
-
-      <div class="dt__stats">
-        {{ L.rowCount(processedData.length, data.length) }}
-        <template v-if="groupBy.length > 0">{{ L.groupCount(pageGroupCount) }}</template>
-      </div>
     </div>
 
     <!--
-      ── Active chips ──
-      Sort/group chips were dropped: the Sort/Group dropdowns now show the same active entries
-      with strictly more control (priority order, direction, remove) than a chip's bare × ever
-      did, so the chips were pure duplication. Filter chips stay — the Filter dropdown's toolbar
-      button only shows a column count, with no equivalent summary of which values are selected,
-      so the chip is still the only at-a-glance view of that state.
+      ── Active state bar ──
+      Always rendered (even with nothing active) rather than only appearing once a filter is
+      set — this gives the row-count stats a single stable home instead of bouncing between "end
+      of the toolbar row" and nowhere, and means toggling a sort/filter/group never changes the
+      toolbar's height. Shows one chip per active sort entry, group column, and filter column —
+      sort/group chips were previously only visible as a bare count on their toolbar button (see
+      above); giving them the same at-a-glance chip treatment filters already had removes that
+      asymmetry. Sort/group chips reuse the plain neutral `.dt__chip` look (the same one the
+      removed count badges used) — filter chips keep their existing blue `.dt__chip--info` tint,
+      the one deliberate color accent in this bar, since filters already carried that "this is
+      narrowing your view" meaning before this change.
     -->
-    <div v-if="activeFilterCount > 0" class="dt__chips">
-      <template v-for="[key, vals] in Object.entries(filters)" :key="key">
-        <span v-if="vals.size > 0" class="dt__chip dt__chip--info">
-          {{ columns.find((c) => c.key === key)?.label }}: {{ summarizeFilterValues(vals) }}
-          <span class="dt__chip-remove" @click="clearColumnFilter(key)">×</span>
-        </span>
+    <div class="dt__active-bar">
+      <span v-for="entry in sorts" :key="entry.key" class="dt__chip">
+        {{ getSortIcon(entry.key) }} {{ findCol(entry.key)?.label ?? entry.key }}
+        <span class="dt__chip-remove" @click="removeSort(entry.key)">×</span>
+      </span>
+      <span v-for="key in groupBy" :key="key" class="dt__chip">
+        {{ findCol(key)?.label ?? key }}
+        <span class="dt__chip-remove" @click="removeGroup(key)">×</span>
+      </span>
+      <template v-if="activeFilterCount > 0">
+        <template v-for="[key, vals] in Object.entries(filters)" :key="key">
+          <span v-if="vals.size > 0" class="dt__chip dt__chip--info">
+            {{ columns.find((c) => c.key === key)?.label }}: {{ summarizeFilterValues(vals) }}
+            <span class="dt__chip-remove" @click="clearColumnFilter(key)">×</span>
+          </span>
+        </template>
       </template>
+      <span class="dt__stats">
+        {{ L.rowCount(processedData.length, data.length) }}
+        <template v-if="groupBy.length > 0">{{ L.groupCount(pageGroupCount) }}</template>
+      </span>
     </div>
 
     <!-- ── Pagination ── -->
@@ -1345,12 +1363,8 @@ function clearSearchQuery(): void {
 
 /* Toolbar */
 .dt__toolbar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
   padding: 12px 0;
   border-bottom: 0.5px solid var(--color-border-tertiary);
-  flex-wrap: wrap;
 }
 .dt__toolbar-actions {
   display: flex;
@@ -1358,16 +1372,30 @@ function clearSearchQuery(): void {
   gap: 8px;
   flex-wrap: wrap;
 }
-.dt__toolbar-search {
+/* Separates the "shape" controls (Columns/Sort/Group — what's shown and in what order) from
+   the "find" controls (Search/Filter — which rows are shown at all). */
+.dt__toolbar-divider {
+  width: 1px;
+  height: 22px;
+  background: var(--color-border-secondary);
+  flex-shrink: 0;
+  margin: 0 2px;
+}
+/* Always rendered below the toolbar — see the "Active state bar" comment in the template — so
+   the stats text has one stable home instead of bouncing between "end of the toolbar row" and
+   nowhere, and toggling a sort/filter/group never changes the toolbar's height. */
+.dt__active-bar {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   flex-wrap: wrap;
+  padding: 10px 0;
 }
 .dt__stats {
   margin-left: auto;
   font-size: 12px;
   color: var(--color-text-secondary);
+  white-space: nowrap;
 }
 .dt__search-wrap {
   position: relative;
@@ -1424,6 +1452,7 @@ function clearSearchQuery(): void {
   color: var(--color-text-primary);
 }
 .dt__clear-all {
+  margin-left: auto;
   padding: 5px 10px;
   background: none;
   border: 0.5px solid var(--color-border-secondary);
@@ -1636,12 +1665,6 @@ function clearSearchQuery(): void {
 }
 
 /* Chips */
-.dt__chips {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  padding: 8px 0 0;
-}
 .dt__chip {
   display: inline-flex;
   align-items: center;

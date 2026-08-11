@@ -262,6 +262,63 @@ describe('createDataTable', () => {
     expect(container.innerHTML).toBe('')
   })
 
+  // --- toolbar / active state bar ---
+
+  it('renders the active bar with just the row-count stats when nothing is active', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    const bar = container.querySelector<HTMLElement>('.dt-active-bar')!
+    expect(bar).not.toBeNull()
+    expect(bar.querySelector('.dt-chip')).toBeNull()
+    expect(bar.querySelector('.dt-stats')?.textContent).toContain('4 / 4 rows')
+  })
+
+  it('separates the shape controls (Columns/Sort/Group) from the find controls (Search/Filter) with a divider', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    const actions = container.querySelector<HTMLElement>('.dt-toolbar-actions')!
+    const children = [...actions.children]
+    const dividerIdx = children.findIndex((el) => el.classList.contains('dt-toolbar-divider'))
+    const searchIdx = children.findIndex((el) => el.querySelector('.dt-search-input'))
+    const groupIdx = children.findIndex((el) =>
+      el.querySelector('[data-action="toggle-dd"][data-dd="group"]'),
+    )
+    const filterIdx = children.findIndex((el) =>
+      el.querySelector('[data-action="toggle-dd"][data-dd="filter"]'),
+    )
+    expect(dividerIdx).toBeGreaterThan(-1)
+    expect(groupIdx).toBeLessThan(dividerIdx) // Group is a "shape" control, before the divider
+    expect(searchIdx).toBeGreaterThan(dividerIdx) // Search is a "find" control, after it
+    expect(filterIdx).toBeGreaterThan(dividerIdx)
+  })
+
+  it('shows sort, group, and filter chips together in the active bar, each removable on its own', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('th[data-action="toggle-sort"][data-key="score"]')!)
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="group"]')!)
+    click(container.querySelector<HTMLElement>('[data-action="toggle-group"][data-key="dept"]')!)
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="filter"]')!)
+    click(
+      container.querySelector<HTMLElement>('[data-action="toggle-filter"][data-value="Alice"]')!,
+    )
+
+    const chips = [...container.querySelectorAll<HTMLElement>('.dt-active-bar .dt-chip')]
+    expect(chips).toHaveLength(3)
+    expect(chips.some((c) => c.textContent?.includes('Score'))).toBe(true)
+    expect(
+      chips.some(
+        (c) => c.textContent?.includes('Dept') && !c.classList.contains('dt-chip--filter'),
+      ),
+    ).toBe(true)
+    expect(chips.some((c) => c.classList.contains('dt-chip--filter'))).toBe(true)
+  })
+
+  it('the "Clear all" button sits at the end of the toolbar actions row, not the search area', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('th[data-action="toggle-sort"][data-key="score"]')!)
+    const clearAll = container.querySelector<HTMLElement>('[data-action="clear-all"]')!
+    expect(clearAll.closest('.dt-toolbar-actions')).not.toBeNull()
+    expect(clearAll.classList.contains('dt-clear-all')).toBe(true)
+  })
+
   // --- sorting ---
 
   it('clicking a column header sorts rows ascending', () => {
@@ -283,14 +340,16 @@ describe('createDataTable', () => {
     expect(names).toEqual(['Alice', 'Clara', 'David', 'Bob']) // 90, 80, 70, 60
   })
 
-  it('active sort shows a count badge on the Sort button, with no chips row (superseded by the dropdown)', () => {
+  it('active sort has no count badge on the Sort button, but shows a chip in the active bar', () => {
     createDataTable(container, { data: ROWS, columns: COLS })
     click(container.querySelector<HTMLElement>('th[data-action="toggle-sort"][data-key="score"]')!)
     expect(
-      container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="sort"] .dt-chip')!
-        .textContent,
-    ).toBe('1')
-    expect(container.querySelector('.dt-chips')).toBeNull()
+      container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="sort"] .dt-chip'),
+    ).toBeNull()
+    const chip = container.querySelector<HTMLElement>('.dt-active-bar .dt-chip')!
+    expect(chip.textContent).toContain('Score')
+    click(chip.querySelector<HTMLElement>('[data-action="remove-sort"]')!)
+    expect(container.querySelector('.dt-active-bar .dt-chip')).toBeNull()
   })
 
   // --- sort dropdown (active/add split, direction, remove, reorder) ---
@@ -1690,15 +1749,17 @@ describe('createDataTable', () => {
 
   // --- group dropdown (active/add split, remove, reorder) ---
 
-  it('active group shows a count badge on the Group button, with no chips row (superseded by the dropdown)', () => {
+  it('active group has no count badge on the Group button, but shows a chip in the active bar', () => {
     createDataTable(container, { data: ROWS, columns: COLS })
     click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="group"]')!)
     click(container.querySelector<HTMLElement>('[data-action="toggle-group"][data-key="dept"]')!)
     expect(
-      container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="group"] .dt-chip')!
-        .textContent,
-    ).toBe('1')
-    expect(container.querySelector('.dt-chips')).toBeNull()
+      container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="group"] .dt-chip'),
+    ).toBeNull()
+    const chip = container.querySelector<HTMLElement>('.dt-active-bar .dt-chip')!
+    expect(chip.textContent).toContain('Dept')
+    click(chip.querySelector<HTMLElement>('[data-action="remove-group"]')!)
+    expect(container.querySelector('.dt-active-bar .dt-chip')).toBeNull()
   })
 
   it('remove-group clears the group and moves the column back to the add section', () => {

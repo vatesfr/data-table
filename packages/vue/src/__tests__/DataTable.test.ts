@@ -941,8 +941,15 @@ describe('DataTable — filter column selector keyboard access', () => {
   })
 })
 
-describe('DataTable — active chips', () => {
-  it('does not render sort or group chips, but keeps filter chips', async () => {
+describe('DataTable — active state bar', () => {
+  it('renders with just the row-count stats when nothing is active', () => {
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: COLS, rowKey: 'id' } })
+    expect(wrapper.find('.dt__active-bar').exists()).toBe(true)
+    expect(wrapper.find('.dt__active-bar .dt__chip').exists()).toBe(false)
+    expect(wrapper.find('.dt__stats').text()).toContain('2 / 2 rows')
+  })
+
+  it('shows sort, group, and filter chips together, each removable on its own', async () => {
     const chipCols: ColumnDef<Row>[] = [
       { key: 'name', label: 'Name', filterable: true, groupable: true },
       { key: 'score', label: 'Score', type: 'number', groupable: true },
@@ -958,7 +965,7 @@ describe('DataTable — active chips', () => {
       .trigger('click')
     await wrapper
       .findAll('button')
-      .find((b) => b.text() === 'Group')!
+      .find((b) => b.text().startsWith('Group'))!
       .trigger('click')
     await wrapper
       .findAll('.dt__dd-item--clickable')
@@ -966,16 +973,23 @@ describe('DataTable — active chips', () => {
       .trigger('click')
     await wrapper
       .findAll('button')
-      .find((b) => b.text() === 'Filter')!
+      .find((b) => b.text().startsWith('Filter'))!
       .trigger('click')
     await wrapper
       .findAll('input[type="checkbox"]')
       .find((el) => el.element.closest('.dt__dd-item')?.textContent?.includes('Alice'))!
       .trigger('click')
 
-    expect(wrapper.find('.dt__chips').text()).toContain('Name: Alice')
-    expect(wrapper.text()).not.toContain('Group 1:')
-    expect(wrapper.find('.dt__chips').text()).not.toContain('1. Score')
+    // Sort/group chips now get the same at-a-glance treatment the filter chip always had — no
+    // more bare count badge on the toolbar button itself.
+    expect(wrapper.findAll('button').find((b) => b.text() === 'Sort')).toBeTruthy()
+    const bar = wrapper.find('.dt__active-bar')
+    expect(bar.text()).toContain('Score')
+    expect(bar.text()).toContain('Name: Alice')
+
+    const scoreChip = bar.findAll('.dt__chip').find((c) => c.text().includes('Score'))!
+    await scoreChip.find('.dt__chip-remove').trigger('click')
+    expect(wrapper.find('.dt__active-bar').text()).not.toContain('Score')
   })
 })
 
