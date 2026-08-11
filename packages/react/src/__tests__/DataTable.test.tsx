@@ -134,7 +134,7 @@ describe('DataTable — filter dropdown', () => {
 
   it('the Filter toolbar button has no clear-filters button until a filter is active', () => {
     const { queryByTitle } = render(<DataTable data={ROWS} columns={FILTER_COLS} rowKey="id" />)
-    expect(queryByTitle('× Clear filters')).toBeNull()
+    expect(queryByTitle('Clear filters')).toBeNull()
   })
 
   it('the toolbar clear-filters button clears all filters without opening the dropdown', () => {
@@ -147,7 +147,7 @@ describe('DataTable — filter dropdown', () => {
     fireEvent.click(getByLabelText('Alice', { exact: false }))
     fireEvent.click(filterToggle()) // close it
 
-    fireEvent.click(getByTitle('× Clear filters'))
+    fireEvent.click(getByTitle('Clear filters'))
     expect(queryByLabelText('Select all')).toBeNull() // still closed, not reopened by the click
     expect(container.querySelectorAll('tbody tr')).toHaveLength(2)
   })
@@ -707,7 +707,7 @@ describe('DataTable — sort dropdown', () => {
 
   it('the Sort toolbar button has no clear-sorts button until a sort is active', () => {
     const { queryByTitle } = render(<DataTable data={ROWS} columns={SORT_COLS} rowKey="id" />)
-    expect(queryByTitle('× Clear sorts')).toBeNull()
+    expect(queryByTitle('Clear sorts')).toBeNull()
   })
 
   it('the toolbar clear-sorts button clears all sorts without opening the dropdown', () => {
@@ -720,7 +720,7 @@ describe('DataTable — sort dropdown', () => {
     fireEvent.click(ddCopyOf(getAllByText, 'Score').closest('button')!)
     fireEvent.click(sortToggle()) // close it
 
-    fireEvent.click(getByTitle('× Clear sorts'))
+    fireEvent.click(getByTitle('Clear sorts'))
     expect(queryByText('Active sorts')).toBeNull() // still closed, not reopened by the click
     const names = [...container.querySelectorAll('tbody tr td:first-child')].map(
       (td) => td.textContent,
@@ -845,7 +845,7 @@ describe('DataTable — group dropdown', () => {
 
   it('the Group toolbar button has no clear-groups button until a group is active', () => {
     const { queryByTitle } = render(<DataTable data={ROWS} columns={GROUP_COLS} rowKey="id" />)
-    expect(queryByTitle('× Clear groups')).toBeNull()
+    expect(queryByTitle('Clear groups')).toBeNull()
   })
 
   it('the toolbar clear-groups button clears all groups without opening the dropdown', () => {
@@ -858,7 +858,7 @@ describe('DataTable — group dropdown', () => {
     fireEvent.click(ddCopyOf(getAllByText, 'Score').closest('button')!)
     fireEvent.click(groupToggle()) // close it
 
-    fireEvent.click(getByTitle('× Clear groups'))
+    fireEvent.click(getByTitle('Clear groups'))
     expect(queryByText('Active groups')).toBeNull() // still closed, not reopened by the click
     expect(container.querySelector('[draggable="true"]:not(th)')).toBeNull()
   })

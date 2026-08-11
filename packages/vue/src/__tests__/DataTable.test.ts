@@ -215,7 +215,7 @@ describe('DataTable — filter dropdown', () => {
 
   it('the Filter toolbar button has no clear-filters button until a filter is active', async () => {
     const wrapper = mount(DataTable, { props: { data: ROWS, columns: FILTER_COLS, rowKey: 'id' } })
-    expect(wrapper.find('[title="× Clear filters"]').exists()).toBe(false)
+    expect(wrapper.find('[title="Clear filters"]').exists()).toBe(false)
   })
 
   it('the toolbar clear-filters button clears all filters without opening the dropdown', async () => {
@@ -225,7 +225,7 @@ describe('DataTable — filter dropdown', () => {
     await checklistCheckbox(wrapper, 'Alice').trigger('click')
     await filterToggle().trigger('click') // close it
 
-    await wrapper.find('[title="× Clear filters"]').trigger('click')
+    await wrapper.find('[title="Clear filters"]').trigger('click')
     expect(wrapper.find('.dropdown__menu').exists()).toBe(false) // still closed, not reopened
     expect(wrapper.findAll('tbody tr')).toHaveLength(2)
   })
@@ -672,7 +672,7 @@ describe('DataTable — sort dropdown', () => {
 
   it('the Sort toolbar button has no clear-sorts button until a sort is active', async () => {
     const wrapper = mount(DataTable, { props: { data: ROWS, columns: SORT_COLS, rowKey: 'id' } })
-    expect(wrapper.find('[title="× Clear sorts"]').exists()).toBe(false)
+    expect(wrapper.find('[title="Clear sorts"]').exists()).toBe(false)
   })
 
   it('the toolbar clear-sorts button clears all sorts without opening the dropdown', async () => {
@@ -685,7 +685,7 @@ describe('DataTable — sort dropdown', () => {
       .trigger('click')
     await sortToggle().trigger('click') // close it
 
-    await wrapper.find('[title="× Clear sorts"]').trigger('click')
+    await wrapper.find('[title="Clear sorts"]').trigger('click')
     expect(wrapper.find('.dt__dd-item--sortrow').exists()).toBe(false)
     expect(wrapper.find('.dropdown__menu').exists()).toBe(false) // still closed, not reopened
     const names = wrapper.findAll('tbody tr td:first-child').map((td) => td.text())
@@ -843,7 +843,7 @@ describe('DataTable — group dropdown', () => {
 
   it('the Group toolbar button has no clear-groups button until a group is active', async () => {
     const wrapper = mount(DataTable, { props: { data: ROWS, columns: GROUP_COLS, rowKey: 'id' } })
-    expect(wrapper.find('[title="× Clear groups"]').exists()).toBe(false)
+    expect(wrapper.find('[title="Clear groups"]').exists()).toBe(false)
   })
 
   it('the toolbar clear-groups button clears all groups without opening the dropdown', async () => {
@@ -856,7 +856,7 @@ describe('DataTable — group dropdown', () => {
       .trigger('click')
     await groupToggle().trigger('click') // close it
 
-    await wrapper.find('[title="× Clear groups"]').trigger('click')
+    await wrapper.find('[title="Clear groups"]').trigger('click')
     expect(wrapper.find('.dt__dd-item--grouprow').exists()).toBe(false)
     expect(wrapper.find('.dropdown__menu').exists()).toBe(false) // still closed, not reopened
   })
