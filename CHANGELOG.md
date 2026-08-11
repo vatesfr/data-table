@@ -7,6 +7,24 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-08-11
+
+### Added
+
+- Sort and Group toolbar dropdowns redesigned: an "Active" section lists current entries, each draggable or reorderable with Alt+ArrowUp/Alt+ArrowDown; a Sort entry's direction toggles by clicking (or Enter/Space) the row itself, and a single `×` removes it. An "add" section below lists the remaining columns as real, keyboard-reachable buttons
+- Columns panel rows get the same drag-and-drop + Alt+ArrowUp/Alt+ArrowDown reordering, replacing the old ▲▼ buttons
+- The search input gained an inline `×` button that clears just the query and returns focus to the input
+- `moveSortBy`/`reorderSort` core primitives, and `reorderColumn`/`reorderSort` gained an `after` param for drag-and-drop reordering
+- Toolbar reorganized into two clusters — Columns/Sort/Group ("shape" the view) and Search/Filter ("narrow" it) — separated by a divider, with "Clear all" pinned alone at the far right
+- An always-visible active state bar below the toolbar shows one removable chip per active sort entry, group column, and filter column, plus the row/group-count stats — replacing the old bare count badges on the Sort/Filter/Group toolbar buttons
+- Each Sort/Group/Filter toolbar button grew an adjoining `×` button (shown only when that state is non-empty) that clears it without opening the dropdown, replacing the dropdowns' old in-panel "Clear sorts"/"Clear groups"/"Clear filters" footer row
+
+### Fixed
+
+- Dropdown panels (Columns/Sort/Filter/Group) now clamp themselves to stay within the viewport instead of rendering partly or fully off-screen near an edge
+- Dragging a row to the very end of the Sort/Group/Columns dropdown lists now works — previously a drop past the last row, or onto its bottom half, was silently rejected or could only ever insert before it
+- Removed a redundant "× " prefix baked into the `clearSorts`/`clearGroups`/`clearFilters` labels, left over from when they were visible footer text rather than tooltip/aria-label-only text next to a button that already shows its own `×` glyph
+
 ## [0.4.0] - 2026-08-04
 
 ### Added
