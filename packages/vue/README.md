@@ -196,7 +196,7 @@ Listen to `@row-click` to react to a data row being clicked — it receives the 
 
 ▶ [Try it in the demo](https://vatesfr.github.io/data-table/vue/#full-table)
 
-Drag a column header to reorder it, or use the ▲▼ buttons next to each column in the Columns panel — both work out of the box, no extra props required. Order is tracked independently of visibility, so hiding and re-showing a column keeps its place. It's included in `getViewState()`/`setViewState()` (as `columnOrder`) for persistence and sharing.
+Drag a column header to reorder it, or drag a row (or press Alt+ArrowUp/Alt+ArrowDown on it) in the Columns panel — both work out of the box, no extra props required. Order is tracked independently of visibility, so hiding and re-showing a column keeps its place. It's included in `getViewState()`/`setViewState()` (as `columnOrder`) for persistence and sharing.
 
 ## `DataTable` props
 

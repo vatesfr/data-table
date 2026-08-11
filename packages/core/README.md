@@ -49,8 +49,10 @@ getDateSortIcon(dir) // compact icon for a date tree's sort direction, '↑' | '
 toggleGroupBy(groupBy, key) // add/remove a group key
 toggleCollapse(collapsed, key) // toggle a collapsed group
 getOrderedColumns(columns, order) // sort columns per an order array of keys; columns missing from order are appended at the end
-reorderColumn(order, dragKey, targetKey) // move dragKey to just before targetKey (drag-and-drop)
+reorderColumn(order, dragKey, targetKey, after = false) // move dragKey to just before targetKey (or just after, if after is true) (drag-and-drop)
 moveColumnBy(order, key, delta) // swap key with its neighbor delta positions away (e.g. -1/+1 for up/down buttons)
+moveSortBy(sorts, key, delta) // swap the sort entry for key with its neighbor delta positions away (e.g. -1/+1 for up/down buttons)
+reorderSort(sorts, dragKey, targetKey, after = false) // move the sort entry keyed dragKey to just before targetKey's (or just after, if after is true) (drag-and-drop)
 getSortIcon(sorts, key) // '↑' | '↓' | '↕'
 getSortIndex(sorts, key) // 1-based position or null
 countActiveFilters(filters, rangeFilters) // total active filter count
