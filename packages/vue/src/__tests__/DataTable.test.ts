@@ -884,6 +884,89 @@ describe('DataTable — group dropdown', () => {
     expect(after[0].text()).toContain('Score')
     expect(after[1].text()).toContain('Name')
   })
+
+  it('dropping past the last active group row moves the dragged row to the end', async () => {
+    const cols: ColumnDef<Row>[] = [
+      ...GROUP_COLS,
+      { key: 'id', label: 'Id', type: 'number', groupable: true },
+    ]
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: cols, rowKey: 'id' } })
+    await wrapper
+      .findAll('button')
+      .find((b) => b.text() === 'Group')!
+      .trigger('click')
+    await wrapper
+      .findAll('.dt__dd-item--clickable')
+      .find((el) => el.text() === 'Name')!
+      .trigger('click')
+    await wrapper
+      .findAll('.dt__dd-item--clickable')
+      .find((el) => el.text() === 'Score')!
+      .trigger('click')
+    await wrapper
+      .findAll('.dt__dd-item--clickable')
+      .find((el) => el.text() === 'Id')!
+      .trigger('click')
+
+    const rows = wrapper.findAll('.dt__dd-item--grouprow')
+    // jsdom has no layout engine — getBoundingClientRect() returns all zeros unless stubbed.
+    rows[2].element.getBoundingClientRect = () => ({ top: 20, bottom: 40, height: 20 }) as DOMRect
+    const panel = wrapper.find('.dropdown__menu')
+
+    await rows[0].trigger('dragstart')
+    // Pointer is well below the last active row (id), over dead space (blank space in the
+    // dropdown panel below the last row) that carries no active-row identity of its own — this
+    // used to silently reject the drop entirely.
+    await panel.trigger('dragover', { clientY: 100 })
+    await panel.trigger('drop', { clientY: 100 })
+
+    const after = wrapper.findAll('.dt__dd-item--grouprow')
+    expect(after.map((r) => r.text())).toEqual([
+      expect.stringContaining('Score'),
+      expect.stringContaining('Id'),
+      expect.stringContaining('Name'),
+    ])
+  })
+
+  it('dropping on the bottom half of the last active group row moves the dragged row after it', async () => {
+    const cols: ColumnDef<Row>[] = [
+      ...GROUP_COLS,
+      { key: 'id', label: 'Id', type: 'number', groupable: true },
+    ]
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: cols, rowKey: 'id' } })
+    await wrapper
+      .findAll('button')
+      .find((b) => b.text() === 'Group')!
+      .trigger('click')
+    await wrapper
+      .findAll('.dt__dd-item--clickable')
+      .find((el) => el.text() === 'Name')!
+      .trigger('click')
+    await wrapper
+      .findAll('.dt__dd-item--clickable')
+      .find((el) => el.text() === 'Score')!
+      .trigger('click')
+    await wrapper
+      .findAll('.dt__dd-item--clickable')
+      .find((el) => el.text() === 'Id')!
+      .trigger('click')
+
+    const rows = wrapper.findAll('.dt__dd-item--grouprow')
+    rows[2].element.getBoundingClientRect = () => ({ top: 20, bottom: 40, height: 20 }) as DOMRect
+
+    await rows[0].trigger('dragstart')
+    // clientY 35 falls in idRow's bottom half (30–40) — should insert name *after* id,
+    // not before it (which "insert before" alone could never express for the last row).
+    await rows[2].trigger('dragover', { clientY: 35 })
+    await rows[2].trigger('drop', { clientY: 35 })
+
+    const after = wrapper.findAll('.dt__dd-item--grouprow')
+    expect(after.map((r) => r.text())).toEqual([
+      expect.stringContaining('Score'),
+      expect.stringContaining('Id'),
+      expect.stringContaining('Name'),
+    ])
+  })
 })
 
 describe('DataTable — columns dropdown', () => {
@@ -919,6 +1002,50 @@ describe('DataTable — columns dropdown', () => {
     await checkboxes[0].setValue(false)
     headers = wrapper.findAll('th').map((th) => th.text())
     expect(headers.some((h) => h.includes('Name'))).toBe(false)
+  })
+
+  it('dropping past the last column row moves the dragged row to the end', async () => {
+    const cols: ColumnDef<Row>[] = [...COLS, { key: 'id', label: 'Id', type: 'number' }]
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: cols, rowKey: 'id' } })
+    await wrapper
+      .findAll('button')
+      .find((b) => b.text() === 'Columns')!
+      .trigger('click')
+    const rows = wrapper.findAll('.dt__dd-item--colrow')
+    // jsdom has no layout engine — getBoundingClientRect() returns all zeros unless stubbed.
+    rows[2].element.getBoundingClientRect = () => ({ top: 20, bottom: 40, height: 20 }) as DOMRect
+    const panel = wrapper.find('.dropdown__menu')
+
+    await rows[0].trigger('dragstart')
+    await panel.trigger('dragover', { clientY: 100 })
+    await panel.trigger('drop', { clientY: 100 })
+
+    const headers = wrapper.findAll('th').map((th) => th.text())
+    expect(headers[0]).toContain('Score')
+    expect(headers[1]).toContain('Id')
+    expect(headers[2]).toContain('Name')
+  })
+
+  it('dropping on the bottom half of the last column row moves the dragged row after it', async () => {
+    const cols: ColumnDef<Row>[] = [...COLS, { key: 'id', label: 'Id', type: 'number' }]
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: cols, rowKey: 'id' } })
+    await wrapper
+      .findAll('button')
+      .find((b) => b.text() === 'Columns')!
+      .trigger('click')
+    const rows = wrapper.findAll('.dt__dd-item--colrow')
+    rows[2].element.getBoundingClientRect = () => ({ top: 20, bottom: 40, height: 20 }) as DOMRect
+
+    await rows[0].trigger('dragstart')
+    // clientY 35 falls in idRow's bottom half (30–40) — should insert name *after* id,
+    // not before it (which "insert before" alone could never express for the last row).
+    await rows[2].trigger('dragover', { clientY: 35 })
+    await rows[2].trigger('drop', { clientY: 35 })
+
+    const headers = wrapper.findAll('th').map((th) => th.text())
+    expect(headers[0]).toContain('Score')
+    expect(headers[1]).toContain('Id')
+    expect(headers[2]).toContain('Name')
   })
 })
 

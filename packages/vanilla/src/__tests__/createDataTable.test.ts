@@ -606,6 +606,40 @@ describe('createDataTable', () => {
     expect(colHeaders(container)).toEqual(['Name', 'Score', 'Dept'])
   })
 
+  it('dropping past the last column row moves the dragged row to the end', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="cols"]')!)
+    const nameRow = container.querySelector<HTMLElement>('[data-col-row-key="name"]')!
+    const deptRow = container.querySelector<HTMLElement>('[data-col-row-key="dept"]')!
+    deptRow.getBoundingClientRect = () => ({ top: 20, bottom: 40, height: 20 }) as DOMRect
+    const panel = container.querySelector<HTMLElement>('.dt-dd')!
+
+    nameRow.dispatchEvent(dragEvt('dragstart'))
+    // Pointer is well below the last column row (dept), over dead space (blank space in the
+    // dropdown panel below the last row) that carries no data-col-row-key of its own — this
+    // used to silently reject the drop entirely.
+    panel.dispatchEvent(dragEvtAt('dragover', 100))
+    panel.dispatchEvent(dragEvtAt('drop', 100))
+
+    expect(colHeaders(container)).toEqual(['Score', 'Dept', 'Name'])
+  })
+
+  it('dropping on the bottom half of the last column row moves the dragged row after it', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="cols"]')!)
+    const nameRow = container.querySelector<HTMLElement>('[data-col-row-key="name"]')!
+    const deptRow = container.querySelector<HTMLElement>('[data-col-row-key="dept"]')!
+    deptRow.getBoundingClientRect = () => ({ top: 20, bottom: 40, height: 20 }) as DOMRect
+
+    nameRow.dispatchEvent(dragEvt('dragstart'))
+    // clientY 35 falls in deptRow's bottom half (30–40) — should insert name *after* dept,
+    // not before it (which "insert before" alone could never express for the last row).
+    deptRow.dispatchEvent(dragEvtAt('dragover', 35))
+    deptRow.dispatchEvent(dragEvtAt('drop', 35))
+
+    expect(colHeaders(container)).toEqual(['Score', 'Dept', 'Name'])
+  })
+
   it('dragging a header and dropping it on another reorders columns', () => {
     createDataTable(container, { data: ROWS, columns: COLS })
     const scoreTh = container.querySelector<HTMLElement>('th[data-col-key="score"]')!
@@ -1803,6 +1837,60 @@ describe('createDataTable', () => {
     deptRow.dispatchEvent(dragEvt('dragstart'))
     nameRow.dispatchEvent(dragEvt('dragover'))
     nameRow.dispatchEvent(dragEvt('drop'))
+    const labels = [...container.querySelectorAll('.dt-dd-item--grouprow .dt-flex1')].map(
+      (el) => el.textContent,
+    )
+    expect(labels).toEqual(['Dept', 'Name'])
+  })
+
+  it('dropping past the last active group row moves the dragged row to the end', () => {
+    const cols: ColumnDef<Row>[] = [
+      { key: 'name', label: 'Name', groupable: true },
+      { key: 'dept', label: 'Dept', groupable: true },
+      { key: 'score', label: 'Score', type: 'number', groupable: true },
+    ]
+    createDataTable(container, { data: ROWS, columns: cols })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="group"]')!)
+    click(container.querySelector<HTMLElement>('[data-action="toggle-group"][data-key="name"]')!)
+    click(container.querySelector<HTMLElement>('[data-action="toggle-group"][data-key="dept"]')!)
+    click(container.querySelector<HTMLElement>('[data-action="toggle-group"][data-key="score"]')!)
+    const nameRow = container.querySelector<HTMLElement>('[data-group-key="name"]')!
+    const scoreRow = container.querySelector<HTMLElement>('[data-group-key="score"]')!
+    scoreRow.getBoundingClientRect = () => ({ top: 20, bottom: 40, height: 20 }) as DOMRect
+    const panel = container.querySelector<HTMLElement>('.dt-dd')!
+
+    nameRow.dispatchEvent(dragEvt('dragstart'))
+    // Pointer is well below the last active row (score), over dead space (blank space in the
+    // dropdown panel below the last row) that carries no data-group-key of its own — this used
+    // to silently reject the drop entirely.
+    panel.dispatchEvent(dragEvtAt('dragover', 100))
+    panel.dispatchEvent(dragEvtAt('drop', 100))
+
+    const labels = [...container.querySelectorAll('.dt-dd-item--grouprow .dt-flex1')].map(
+      (el) => el.textContent,
+    )
+    expect(labels).toEqual(['Dept', 'Score', 'Name'])
+  })
+
+  it('dropping on the bottom half of the last active group row moves the dragged row after it', () => {
+    const cols: ColumnDef<Row>[] = [
+      { key: 'name', label: 'Name', groupable: true },
+      { key: 'dept', label: 'Dept', groupable: true },
+    ]
+    createDataTable(container, { data: ROWS, columns: cols })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="group"]')!)
+    click(container.querySelector<HTMLElement>('[data-action="toggle-group"][data-key="name"]')!)
+    click(container.querySelector<HTMLElement>('[data-action="toggle-group"][data-key="dept"]')!)
+    const nameRow = container.querySelector<HTMLElement>('[data-group-key="name"]')!
+    const deptRow = container.querySelector<HTMLElement>('[data-group-key="dept"]')!
+    deptRow.getBoundingClientRect = () => ({ top: 20, bottom: 40, height: 20 }) as DOMRect
+
+    nameRow.dispatchEvent(dragEvt('dragstart'))
+    // clientY 35 falls in deptRow's bottom half (30–40) — should insert name *after* dept,
+    // not before it (which "insert before" alone could never express for the last row).
+    deptRow.dispatchEvent(dragEvtAt('dragover', 35))
+    deptRow.dispatchEvent(dragEvtAt('drop', 35))
+
     const labels = [...container.querySelectorAll('.dt-dd-item--grouprow .dt-flex1')].map(
       (el) => el.textContent,
     )

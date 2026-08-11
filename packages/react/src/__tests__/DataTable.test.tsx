@@ -879,6 +879,66 @@ describe('DataTable — group dropdown', () => {
     expect(after[0].textContent).toContain('Score')
     expect(after[1].textContent).toContain('Name')
   })
+
+  it('dropping past the last active group row moves the dragged row to the end', () => {
+    const cols: ColumnDef<Row>[] = [
+      ...GROUP_COLS,
+      { key: 'id', label: 'Id', type: 'number', groupable: true },
+    ]
+    const { getByText, getAllByText, container } = render(
+      <DataTable data={ROWS} columns={cols} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Group'))
+    fireEvent.click(ddCopyOf(getAllByText, 'Name').closest('button')!)
+    fireEvent.click(ddCopyOf(getAllByText, 'Score').closest('button')!)
+    fireEvent.click(ddCopyOf(getAllByText, 'Id').closest('button')!)
+
+    const [nameRow, , idRow] = draggableRows(container)
+    // jsdom has no layout engine — getBoundingClientRect() returns all zeros unless stubbed.
+    idRow.getBoundingClientRect = () => ({ top: 20, bottom: 40, height: 20 }) as DOMRect
+    const panel = nameRow.parentElement! // the dropdown panel itself — a row's direct parent
+
+    fireEvent.dragStart(nameRow)
+    fireEvent(panel, dragEvtAt('dragover', 100))
+    fireEvent(panel, dragEvtAt('drop', 100))
+
+    const after = draggableRows(container)
+    expect(after.map((r) => r.textContent)).toEqual([
+      expect.stringContaining('Score'),
+      expect.stringContaining('Id'),
+      expect.stringContaining('Name'),
+    ])
+  })
+
+  it('dropping on the bottom half of the last active group row moves the dragged row after it', () => {
+    const cols: ColumnDef<Row>[] = [
+      ...GROUP_COLS,
+      { key: 'id', label: 'Id', type: 'number', groupable: true },
+    ]
+    const { getByText, getAllByText, container } = render(
+      <DataTable data={ROWS} columns={cols} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Group'))
+    fireEvent.click(ddCopyOf(getAllByText, 'Name').closest('button')!)
+    fireEvent.click(ddCopyOf(getAllByText, 'Score').closest('button')!)
+    fireEvent.click(ddCopyOf(getAllByText, 'Id').closest('button')!)
+
+    const [nameRow, , idRow] = draggableRows(container)
+    idRow.getBoundingClientRect = () => ({ top: 20, bottom: 40, height: 20 }) as DOMRect
+
+    fireEvent.dragStart(nameRow)
+    // clientY 35 falls in idRow's bottom half (30–40) — should insert name *after* id,
+    // not before it (which "insert before" alone could never express for the last row).
+    fireEvent(idRow, dragEvtAt('dragover', 35))
+    fireEvent(idRow, dragEvtAt('drop', 35))
+
+    const after = draggableRows(container)
+    expect(after.map((r) => r.textContent)).toEqual([
+      expect.stringContaining('Score'),
+      expect.stringContaining('Id'),
+      expect.stringContaining('Name'),
+    ])
+  })
 })
 
 describe('DataTable — columns dropdown', () => {
@@ -911,6 +971,46 @@ describe('DataTable — columns dropdown', () => {
     fireEvent.click(checkboxes[0])
     headers = [...container.querySelectorAll('th')].map((th) => th.textContent)
     expect(headers.some((h) => h?.includes('Name'))).toBe(false)
+  })
+
+  it('dropping past the last column row moves the dragged row to the end', () => {
+    const cols: ColumnDef<Row>[] = [...COLS, { key: 'id', label: 'Id', type: 'number' }]
+    const { getByText, container } = render(<DataTable data={ROWS} columns={cols} rowKey="id" />)
+    fireEvent.click(getByText('Columns'))
+    const rows = draggableRows(container)
+    const [nameRow, , idRow] = rows
+    // jsdom has no layout engine — getBoundingClientRect() returns all zeros unless stubbed.
+    idRow.getBoundingClientRect = () => ({ top: 20, bottom: 40, height: 20 }) as DOMRect
+    const panel = nameRow.parentElement! // the dropdown panel itself — a row's direct parent
+
+    fireEvent.dragStart(nameRow)
+    fireEvent(panel, dragEvtAt('dragover', 100))
+    fireEvent(panel, dragEvtAt('drop', 100))
+
+    const headers = [...container.querySelectorAll('th')].map((th) => th.textContent)
+    expect(headers[0]).toContain('Score')
+    expect(headers[1]).toContain('Id')
+    expect(headers[2]).toContain('Name')
+  })
+
+  it('dropping on the bottom half of the last column row moves the dragged row after it', () => {
+    const cols: ColumnDef<Row>[] = [...COLS, { key: 'id', label: 'Id', type: 'number' }]
+    const { getByText, container } = render(<DataTable data={ROWS} columns={cols} rowKey="id" />)
+    fireEvent.click(getByText('Columns'))
+    const rows = draggableRows(container)
+    const [nameRow, , idRow] = rows
+    idRow.getBoundingClientRect = () => ({ top: 20, bottom: 40, height: 20 }) as DOMRect
+
+    fireEvent.dragStart(nameRow)
+    // clientY 35 falls in idRow's bottom half (30–40) — should insert name *after* id,
+    // not before it (which "insert before" alone could never express for the last row).
+    fireEvent(idRow, dragEvtAt('dragover', 35))
+    fireEvent(idRow, dragEvtAt('drop', 35))
+
+    const headers = [...container.querySelectorAll('th')].map((th) => th.textContent)
+    expect(headers[0]).toContain('Score')
+    expect(headers[1]).toContain('Id')
+    expect(headers[2]).toContain('Name')
   })
 })
 

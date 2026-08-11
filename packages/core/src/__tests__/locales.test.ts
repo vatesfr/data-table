@@ -30,6 +30,15 @@ describe('LABELS_EN', () => {
   describe('moreValues', () => {
     it('formats the hidden count', () => expect(LABELS_EN.moreValues(12)).toBe('+12 more'))
   })
+  describe('static labels', () => {
+    it('activeSortsSection', () => expect(LABELS_EN.activeSortsSection).toBe('Active sorts'))
+    it('clearSorts has no leading "× "', () => expect(LABELS_EN.clearSorts).toBe('Clear sorts'))
+    it('activeGroupsSection', () => expect(LABELS_EN.activeGroupsSection).toBe('Active groups'))
+    it('clearGroups has no leading "× "', () => expect(LABELS_EN.clearGroups).toBe('Clear groups'))
+    it('clearFilters has no leading "× "', () =>
+      expect(LABELS_EN.clearFilters).toBe('Clear filters'))
+    it('clearSearch', () => expect(LABELS_EN.clearSearch).toBe('Clear search'))
+  })
 })
 
 // FR uses > 1 instead of !== 1: 0 total is singular (unlike EN where 0 is plural)
@@ -62,6 +71,17 @@ describe('LABELS_FR', () => {
   describe('moreValues', () => {
     it('formats the hidden count', () => expect(LABELS_FR.moreValues(12)).toBe('+12 de plus'))
   })
+  describe('static labels', () => {
+    it('activeSortsSection', () => expect(LABELS_FR.activeSortsSection).toBe('Tris actifs'))
+    it('clearSorts has no leading "× "', () =>
+      expect(LABELS_FR.clearSorts).toBe('Effacer les tris'))
+    it('activeGroupsSection', () => expect(LABELS_FR.activeGroupsSection).toBe('Groupes actifs'))
+    it('clearGroups has no leading "× "', () =>
+      expect(LABELS_FR.clearGroups).toBe('Effacer les groupes'))
+    it('clearFilters has no leading "× "', () =>
+      expect(LABELS_FR.clearFilters).toBe('Effacer les filtres'))
+    it('clearSearch', () => expect(LABELS_FR.clearSearch).toBe('Effacer la recherche'))
+  })
 })
 
 describe('LABELS_ES', () => {
@@ -92,6 +112,15 @@ describe('LABELS_ES', () => {
   })
   describe('moreValues', () => {
     it('formats the hidden count', () => expect(LABELS_ES.moreValues(12)).toBe('+12 más'))
+  })
+  describe('static labels', () => {
+    it('activeSortsSection', () => expect(LABELS_ES.activeSortsSection).toBe('Orden activo'))
+    it('clearSorts has no leading "× "', () => expect(LABELS_ES.clearSorts).toBe('Borrar orden'))
+    it('activeGroupsSection', () => expect(LABELS_ES.activeGroupsSection).toBe('Grupos activos'))
+    it('clearGroups has no leading "× "', () => expect(LABELS_ES.clearGroups).toBe('Borrar grupos'))
+    it('clearFilters has no leading "× "', () =>
+      expect(LABELS_ES.clearFilters).toBe('Borrar filtros'))
+    it('clearSearch', () => expect(LABELS_ES.clearSearch).toBe('Borrar búsqueda'))
   })
 })
 
@@ -124,6 +153,18 @@ describe('LABELS_DE', () => {
   describe('moreValues', () => {
     it('formats the hidden count', () => expect(LABELS_DE.moreValues(12)).toBe('+12 weitere'))
   })
+  describe('static labels', () => {
+    it('activeSortsSection', () => expect(LABELS_DE.activeSortsSection).toBe('Aktive Sortierungen'))
+    it('clearSorts has no leading "× "', () =>
+      expect(LABELS_DE.clearSorts).toBe('Sortierung löschen'))
+    it('activeGroupsSection', () =>
+      expect(LABELS_DE.activeGroupsSection).toBe('Aktive Gruppierungen'))
+    it('clearGroups has no leading "× "', () =>
+      expect(LABELS_DE.clearGroups).toBe('Gruppen löschen'))
+    it('clearFilters has no leading "× "', () =>
+      expect(LABELS_DE.clearFilters).toBe('Filter löschen'))
+    it('clearSearch', () => expect(LABELS_DE.clearSearch).toBe('Suche löschen'))
+  })
 })
 
 describe('LABELS_PT', () => {
@@ -154,5 +195,15 @@ describe('LABELS_PT', () => {
   })
   describe('moreValues', () => {
     it('formats the hidden count', () => expect(LABELS_PT.moreValues(12)).toBe('+12 mais'))
+  })
+  describe('static labels', () => {
+    it('activeSortsSection', () => expect(LABELS_PT.activeSortsSection).toBe('Ordenações ativas'))
+    it('clearSorts has no leading "× "', () =>
+      expect(LABELS_PT.clearSorts).toBe('Limpar ordenação'))
+    it('activeGroupsSection', () => expect(LABELS_PT.activeGroupsSection).toBe('Grupos ativos'))
+    it('clearGroups has no leading "× "', () => expect(LABELS_PT.clearGroups).toBe('Limpar grupos'))
+    it('clearFilters has no leading "× "', () =>
+      expect(LABELS_PT.clearFilters).toBe('Limpar filtros'))
+    it('clearSearch', () => expect(LABELS_PT.clearSearch).toBe('Limpar pesquisa'))
   })
 })
