@@ -4,6 +4,10 @@ import {
   syncViewToUrl,
   resetView,
   createScoreBar,
+  bucketNumericRange,
+  formatNumericRange,
+  bucketDatePart,
+  formatDatePart,
   LABELS_EN,
   LABELS_FR,
   LABELS_DE,
@@ -267,9 +271,25 @@ const COLUMNS: ColumnDef<Employee>[] = [
         maximumFractionDigits: 0,
       }),
     aggregate: 'sum',
+    // groupValue/groupFormat: a continuous column (near-unique per row) grouped by its exact
+    // value would create one group per row — bucketing into $20k ranges makes it groupable
+    // meaningfully. cell rendering/sort/filter above are untouched, still reading the real salary.
+    groupable: true,
+    groupValue: bucketNumericRange(20000),
+    groupFormat: formatNumericRange(20000, ' USD'),
   },
-  // type: 'date' gets a Year › Month › Day filter tree instead of a checklist/range
-  { key: 'joined', label: 'Joined', type: 'date', width: 100 },
+  // type: 'date' gets a Year › Month › Day filter tree instead of a checklist/range. Grouped by
+  // year (not the exact join date, which would be one group per row) via the same
+  // groupValue/groupFormat bucketing idea, applied to a timestamp instead of a number.
+  {
+    key: 'joined',
+    label: 'Joined',
+    type: 'date',
+    width: 100,
+    groupable: true,
+    groupValue: bucketDatePart('year'),
+    groupFormat: formatDatePart('year'),
+  },
   // computed column: value is a function, so there's no matching 'tenure' property on Employee —
   // sort/filter/group/aggregate all work off the function's return value just like a real column
   {
@@ -440,14 +460,16 @@ app.innerHTML = `
     <p style="font-size:14px;color:var(--color-text-secondary);margin-top:0;margin-bottom:4px">
       Every feature together: sort, filter, group, aggregate, column reordering, i18n, dark mode.
       Try dragging a column header, or grouping by Department — groups start collapsed by default
-      (<code>defaultGroupsCollapsed</code>).
+      (<code>defaultGroupsCollapsed</code>). Salary and Joined group into $20k ranges and years
+      instead of one group per row — see <code>groupValue</code>/<code>groupFormat</code>.
     </p>
     <p style="font-size:12px;color:var(--color-text-secondary);margin-top:0;margin-bottom:16px">
       📖 ${docLink('column-reordering', 'Column reordering')} ·
       ${docLink('multi-value-array-columns', 'Multi-value columns')} ·
       ${docLink('computed-columns', 'Computed columns')} ·
       ${docLink('cell-customization', 'Cell customization')} ·
-      ${docLink('aggregation', 'Aggregation')}
+      ${docLink('aggregation', 'Aggregation')} ·
+      ${docLink('grouped-columns', 'Bucketed grouping')}
     </p>
     ${renderViewControls('full')}
     <div id="table1"></div>

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createDataTable } from '../index'
+import { createDataTable, bucketNumericRange, formatNumericRange } from '../index'
 import type { ColumnDef } from '../types'
 
 interface Row {
@@ -231,6 +231,26 @@ describe('createDataTable', () => {
     click(groupItem)
     expect(container.querySelector('.dt-group-td b')?.textContent).toMatch(/^\[(Eng|HR)\]$/)
     expect(container.querySelector('.dt-agg-td em')?.textContent).toMatch(/^sum=\d+$/)
+  })
+
+  it('buckets a group by groupValue and renders the bucket label via groupFormat', () => {
+    const cols: ColumnDef<Row>[] = [
+      {
+        key: 'score',
+        label: 'Score',
+        type: 'number',
+        groupable: true,
+        groupValue: bucketNumericRange(20),
+        groupFormat: formatNumericRange(20, '%'),
+      },
+    ]
+    createDataTable(container, { data: ROWS, columns: cols })
+    click(container.querySelector<HTMLElement>('[data-dd="group"]')!)
+    click(container.querySelector<HTMLElement>('[data-action="toggle-group"]')!)
+    // scores 90, 60, 80, 70 -> buckets 80–100%, 60–80%, 80–100%, 60–80%
+    const headers = [...container.querySelectorAll('.dt-group-td')].map((td) => td.textContent)
+    expect(headers.some((h) => h?.includes('80–100%'))).toBe(true)
+    expect(headers.some((h) => h?.includes('60–80%'))).toBe(true)
   })
 
   // --- instance methods ---

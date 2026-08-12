@@ -507,11 +507,23 @@ function findCol(key: string): ColumnDef<TRow> | undefined {
   return props.columns.find((c) => c.key === key)
 }
 
-/** The value that defines a group for column `key` at groupBy index `i` — a single array item when the underlying value is an array, the raw value otherwise. */
-function groupValue(group: PagedGroup<TRow>, key: string, i: number): unknown {
+/** The raw value that defines a group for column `key` at groupBy index `i` — a single array item when the underlying value is an array, the raw value otherwise. Not used for a bucketed column (col.groupValue) — see groupBucketLabel below. */
+function groupRawValue(group: PagedGroup<TRow>, key: string, i: number): unknown {
   const col = findCol(key)
   const raw = col ? getColumnValue(col, group.sampleRow!) : undefined
   return Array.isArray(raw) ? group.keyParts[i] : raw
+}
+
+/**
+ * Label for a bucketed group column (col.groupValue set) — the group's own keyPart (the bucket
+ * key) rendered via col.groupFormat, not the sample row's real value/format. A bucket's
+ * representative row's real value (e.g. "47%") isn't the bucket it's displayed under
+ * ("40–50%"), so this bypasses the normal formatValue/#group-{key} slot pipeline entirely,
+ * same as React/vanilla.
+ */
+function groupBucketLabel(group: PagedGroup<TRow>, key: string, i: number): string {
+  const col = findCol(key)
+  return col?.groupFormat?.(group.keyParts[i]) ?? group.keyParts[i]
 }
 
 function hasSlot(name: string): boolean {
@@ -1260,19 +1272,29 @@ function clearSearchQuery(): void {
                   <span v-if="i > 0" class="dt__group-sep">›</span>
                   <span class="dt__group-key-label">{{ findCol(g)?.label }}:</span>
                   <!--
+                    A bucketed column (col.groupValue) has no single raw value the #group-{key}
+                    slot's scope could meaningfully carry — same reasoning the date filter tree
+                    skips its own per-value slot for branch nodes — so it bypasses the slot
+                    entirely and renders groupFormat's label directly.
+                  -->
+                  <template v-if="findCol(g)?.groupValue">{{
+                    groupBucketLabel(group, g, i)
+                  }}</template>
+                  <!--
                     Slot #group-{key} — custom rendering in the group header.
                     Slot scope: { value: unknown, row: TRow }
                     Falls back to format() or string coercion.
                   -->
                   <slot
+                    v-else
                     :name="`group-${g}`"
-                    :value="groupValue(group, g, i)"
+                    :value="groupRawValue(group, g, i)"
                     :row="group.sampleRow!"
                   >
                     {{
                       findCol(g)
-                        ? formatValue(groupValue(group, g, i), group.sampleRow!, findCol(g)!)
-                        : String(groupValue(group, g, i) ?? '')
+                        ? formatValue(groupRawValue(group, g, i), group.sampleRow!, findCol(g)!)
+                        : String(groupRawValue(group, g, i) ?? '')
                     }}
                   </slot>
                 </template>

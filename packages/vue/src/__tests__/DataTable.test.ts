@@ -81,6 +81,30 @@ describe('DataTable — aggregate row', () => {
   })
 })
 
+describe('DataTable — bucketed grouping (groupValue/groupFormat)', () => {
+  it("renders the bucket label from groupFormat instead of a sample row's raw value", async () => {
+    const cols: ColumnDef<Row>[] = [
+      { key: 'name', label: 'Name' },
+      {
+        key: 'score',
+        label: 'Score',
+        type: 'number',
+        groupable: true,
+        groupValue: (v) => Math.floor(Number(v) / 20) * 20,
+        groupFormat: (k) => `${k}–${Number(k) + 20}`,
+      },
+    ]
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: cols, rowKey: 'id' } })
+    const groupBtn = wrapper.findAll('button').find((b) => b.text() === 'Group')!
+    await groupBtn.trigger('click')
+    const scoreItem = wrapper.findAll('.dt__dd-item').find((el) => el.text().includes('Score'))!
+    await scoreItem.trigger('click')
+    // scores 90 and 60 bucket to 80 and 60 -> "80–100" and "60–80"
+    expect(wrapper.text()).toContain('80–100')
+    expect(wrapper.text()).toContain('60–80')
+  })
+})
+
 describe('DataTable — filter dropdown', () => {
   const FILTER_COLS: ColumnDef<Row>[] = [
     { key: 'name', label: 'Name', filterable: true },

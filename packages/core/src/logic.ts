@@ -141,7 +141,9 @@ export function groupData<TRow extends object>(
     let combos: string[][] = [[]]
     for (const g of groupBy) {
       const col = colByKey.get(g)
-      const values = multiValues(col ? getColumnValue(col, row) : asRecord(row)[g], emptyLabel)
+      const raw = col ? getColumnValue(col, row) : asRecord(row)[g]
+      const bucketed = col?.groupValue ? col.groupValue(raw, row) : raw
+      const values = multiValues(bucketed, emptyLabel)
       combos = combos.flatMap((combo) => values.map((v) => [...combo, v]))
     }
     for (const keyParts of combos) {
@@ -225,6 +227,66 @@ export function sortWithinGroups<TRow extends object>(
     })
   }
   return result
+}
+
+/**
+ * Ready-made `groupValue` bucketing function for a `type: 'number'` column: rounds a value down
+ * to the start of its `step`-wide range (e.g. `bucketNumericRange(10)(47) === 40`), so a
+ * continuous column (percentages, prices) groups into a handful of ranges instead of one group
+ * per distinct value. The returned number keeps `sortWithinGroups`' existing numeric comparison
+ * correct with no separate sort key needed; pair with `formatNumericRange` to render the range
+ * itself (e.g. `"40–50"`) instead of just its lower bound in the group header.
+ */
+export function bucketNumericRange(step: number): (value: unknown) => number {
+  return (value: unknown) => {
+    const n = Number(value)
+    return isNaN(n) ? NaN : Math.floor(n / step) * step
+  }
+}
+
+/** Formats a `bucketNumericRange(step)` key as `"<lower>–<upper><unit>"`, e.g. `"40–50%"`. */
+export function formatNumericRange(step: number, unit = ''): (keyPart: string) => string {
+  return (keyPart: string) => {
+    const n = Number(keyPart)
+    return isNaN(n) ? keyPart : `${n}–${n + step}${unit}`
+  }
+}
+
+/** Coarser granularity `bucketDatePart`/`formatDatePart` group a `type: 'date'` column by. */
+export type DatePart = 'year' | 'month' | 'day'
+
+/**
+ * Ready-made `groupValue` bucketing function for a `type: 'date'` column: truncates a value to
+ * the start of its enclosing year/month/day, returned as an ISO date string (`"2024-05-01"`) that
+ * the same `parseDate` (default or override, matching the column's own) parses back correctly —
+ * so `sortWithinGroups`' existing chronological comparison stays correct with no separate sort
+ * key needed. Pair with `formatDatePart` to render a human label (e.g. `"May 2024"`) instead of
+ * the raw ISO bucket key in the group header.
+ */
+export function bucketDatePart(
+  part: DatePart,
+  parseDate: (value: string) => number = defaultParseDate,
+): (value: unknown) => string {
+  return (value: unknown) => {
+    const t = parseDate(String(value))
+    if (isNaN(t)) return String(value)
+    const d = new Date(t)
+    const y = d.getFullYear()
+    const m = String(d.getMonth() + 1).padStart(2, '0')
+    const day = part === 'day' ? String(d.getDate()).padStart(2, '0') : '01'
+    return `${y}-${part === 'year' ? '01' : m}-${day}`
+  }
+}
+
+/** Formats a `bucketDatePart(part)` ISO key for display, e.g. `"2024-05-01"` -> `"May 2024"` for `'month'`. */
+export function formatDatePart(part: DatePart): (keyPart: string) => string {
+  return (keyPart: string) => {
+    const d = new Date(keyPart)
+    if (isNaN(d.getTime())) return keyPart
+    if (part === 'year') return String(d.getFullYear())
+    if (part === 'month') return d.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
+    return d.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })
+  }
 }
 
 /**

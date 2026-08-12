@@ -44,6 +44,10 @@ import {
   selectDateRange,
   computeVirtualRange,
   DEFAULT_LABELS,
+  bucketNumericRange,
+  formatNumericRange,
+  bucketDatePart,
+  formatDatePart,
   type SortEntry,
   type RangeFilter,
   type DataTableLabels,
@@ -63,6 +67,10 @@ export type { ViewStateApi, SyncViewToUrlOptions, ResetViewOptions } from './per
 export { createScoreBar } from './components/scoreBar'
 export type { ScoreBarOptions } from './components/scoreBar'
 export * from '@vates/data-table-core/locales'
+// Ready-made groupValue/groupFormat pairs for bucketing a continuous/high-cardinality column
+// (percentages, timestamps) into coarser groups — see `ColumnDefBase.groupValue` in the docs.
+export { bucketNumericRange, formatNumericRange, bucketDatePart, formatDatePart }
+export type { DatePart } from '@vates/data-table-core'
 
 // --- Styles ---
 
@@ -770,11 +778,19 @@ export function createDataTable<TRow extends object>(
         for (let gi = 0; gi < groupBy.length; gi++) {
           const gColKey = groupBy[gi]
           const gCol = columns.find((c) => c.key === gColKey)
-          const raw = gCol ? getColumnValue(gCol, sampleRow!) : undefined
-          const value = Array.isArray(raw) ? keyParts[gi] : raw
           if (gi > 0) html += `<span class="dt-group-sep"> › </span>`
           html += `<span class="dt-group-colname">${esc(gCol?.label ?? gColKey)}:</span> `
-          html += gCol ? formatStr(value, sampleRow!, gCol) : esc(String(value ?? ''))
+          // A bucketed group (see groupValue/groupFormat) has no single row whose real value
+          // *is* the group — the sample row's own value/format would show e.g. a raw "47%"
+          // instead of the "40–50%" bucket it landed in — so its label is rendered from the
+          // group's own keyPart via groupFormat instead of the normal cellValue/format pipeline.
+          if (gCol?.groupValue) {
+            html += esc(gCol.groupFormat ? gCol.groupFormat(keyParts[gi]) : keyParts[gi])
+          } else {
+            const raw = gCol ? getColumnValue(gCol, sampleRow!) : undefined
+            const value = Array.isArray(raw) ? keyParts[gi] : raw
+            html += gCol ? formatStr(value, sampleRow!, gCol) : esc(String(value ?? ''))
+          }
         }
         if (continued) html += ` <span class="dt-group-continued">${esc(L.groupContinued)}</span>`
         html += ` <span class="dt-group-count">${esc(L.rowsInGroup(rows.length))}</span></td></tr>`

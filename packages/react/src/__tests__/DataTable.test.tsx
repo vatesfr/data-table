@@ -1488,3 +1488,27 @@ describe('DataTable — computed columns', () => {
     expect(getByText('Fail')).toBeTruthy()
   })
 })
+
+describe('DataTable — bucketed grouping (groupValue/groupFormat)', () => {
+  it('renders the bucket label from groupFormat instead of a sample row’s raw value', () => {
+    const cols: ColumnDef<Row>[] = [
+      { key: 'name', label: 'Name' },
+      {
+        key: 'score',
+        label: 'Score',
+        type: 'number',
+        groupable: true,
+        groupValue: (v) => Math.floor(Number(v) / 20) * 20,
+        groupFormat: (k) => `${k}–${Number(k) + 20}`,
+      },
+    ]
+    const { getByText, getAllByText, container } = render(
+      <DataTable data={ROWS} columns={cols} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Group'))
+    fireEvent.click(getAllByText('Score').find((el) => el.closest('th') === null)!)
+    // scores 90 and 60 bucket to 80 and 60 -> "80–100" and "60–80"
+    expect(container.textContent).toContain('80–100')
+    expect(container.textContent).toContain('60–80')
+  })
+})

@@ -1633,13 +1633,23 @@ export function DataTableView<TRow extends object>({
                     <td colSpan={activeColumns.length} style={S.groupTd}>
                       {groupBy.map((g, i) => {
                         const col = columns.find((c) => c.key === g)
-                        const raw = col ? getColumnValue(col, sampleRow!) : undefined
-                        const value = Array.isArray(raw) ? keyParts[i] : raw
+                        // A bucketed group (see groupValue/groupFormat) has no single row whose
+                        // real value *is* the group — the sample row's own value/format would
+                        // show e.g. a raw "47%" instead of the "40–50%" bucket it landed in — so
+                        // its label renders from the group's own keyPart via groupFormat instead
+                        // of the normal cellValue/format pipeline.
+                        const label = col?.groupValue
+                          ? (col.groupFormat?.(keyParts[i]) ?? keyParts[i])
+                          : (() => {
+                              const raw = col ? getColumnValue(col, sampleRow!) : undefined
+                              const value = Array.isArray(raw) ? keyParts[i] : raw
+                              return col ? formatValue(value, sampleRow!, col) : String(value ?? '')
+                            })()
                         return (
                           <span key={g}>
                             {i > 0 && <span style={{ margin: '0 4px', opacity: 0.4 }}>›</span>}
                             <span style={{ marginRight: 4, opacity: 0.6 }}>{col?.label}:</span>
-                            {col ? formatValue(value, sampleRow!, col) : String(value ?? '')}
+                            {label}
                           </span>
                         )
                       })}

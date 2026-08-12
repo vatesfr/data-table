@@ -46,6 +46,10 @@ import {
   getValueSortIcon,
   getDateSortIcon,
   computeVirtualRange,
+  bucketNumericRange,
+  formatNumericRange,
+  bucketDatePart,
+  formatDatePart,
 } from '../logic'
 
 interface Row {
@@ -459,6 +463,35 @@ describe('groupData', () => {
     expect(result.map((g) => g.key)).toContain('N/A')
     expect(result.find((g) => g.key === 'N/A')?.rows.map((r) => r.name)).toEqual(['Game D'])
   })
+
+  it('buckets rows by groupValue instead of the exact raw value', () => {
+    const cols = [
+      {
+        key: 'salary',
+        label: 'Salary',
+        type: 'number' as const,
+        groupValue: bucketNumericRange(20000),
+      },
+    ]
+    const result = groupData(ROWS, ['salary'], cols)
+    // 90000, 60000, 110000, 70000 -> buckets 80000, 60000, 100000, 60000
+    expect(result.map((g) => g.key).sort()).toEqual(['100000', '60000', '80000'])
+    expect(result.find((g) => g.key === '60000')?.rows.map((r) => r.name)).toEqual(['Bob', 'David'])
+  })
+
+  it('leaves other columns ungrouped by exact value when only one groupBy column has groupValue', () => {
+    const cols = [
+      { key: 'dept', label: 'Dept' },
+      {
+        key: 'salary',
+        label: 'Salary',
+        type: 'number' as const,
+        groupValue: bucketNumericRange(50000),
+      },
+    ]
+    const result = groupData(ROWS, ['dept', 'salary'], cols)
+    expect(result.map((g) => g.key).sort()).toEqual(['Eng › 100000', 'Eng › 50000', 'HR › 50000'])
+  })
 })
 
 // ─── sortWithinGroups ────────────────────────────────────────────────────────
@@ -536,6 +569,94 @@ describe('sortWithinGroups', () => {
   it('returns the groups unchanged when sorts is empty', () => {
     const groups = groupData(SCORED_GAMES, ['tags'])
     expect(sortWithinGroups(groups, [], ['tags'])).toBe(groups)
+  })
+
+  it('orders bucketed groups (groupValue) numerically off the bucket key, not lexicographically', () => {
+    interface Priced {
+      id: number
+      price: number
+    }
+    // Unbucketed, these would sort '0','100','20' lexicographically (wrong order) if compared
+    // as plain strings — groupValue's bucket key still goes through the same type-aware
+    // comparison a normal type: 'number' groupBy column gets, so no separate sort key is needed.
+    const rows: Priced[] = [
+      { id: 1, price: 105 },
+      { id: 2, price: 5 },
+      { id: 3, price: 25 },
+    ]
+    const cols = [
+      {
+        key: 'price',
+        label: 'Price',
+        type: 'number' as const,
+        groupValue: bucketNumericRange(20),
+      },
+    ]
+    const groups = groupData(rows, ['price'], cols)
+    const sorted = sortWithinGroups(groups, [{ key: 'price', dir: 'asc' }], ['price'], cols)
+    expect(sorted.map((g) => g.key)).toEqual(['0', '20', '100'])
+  })
+})
+
+// ─── bucketNumericRange / formatNumericRange ─────────────────────────────────
+
+describe('bucketNumericRange', () => {
+  it('rounds down to the start of the step-wide range', () => {
+    const bucket = bucketNumericRange(10)
+    expect(bucket(47)).toBe(40)
+    expect(bucket(40)).toBe(40)
+    expect(bucket(0)).toBe(0)
+  })
+
+  it('returns NaN for a non-numeric value', () => {
+    expect(bucketNumericRange(10)('abc')).toBeNaN()
+  })
+})
+
+describe('formatNumericRange', () => {
+  it('formats a bucket key as "<lower>–<upper><unit>"', () => {
+    expect(formatNumericRange(10, '%')('40')).toBe('40–50%')
+    expect(formatNumericRange(10)('40')).toBe('40–50')
+  })
+
+  it('returns the raw key unchanged when it is not numeric', () => {
+    expect(formatNumericRange(10)('abc')).toBe('abc')
+  })
+})
+
+// ─── bucketDatePart / formatDatePart ──────────────────────────────────────────
+
+describe('bucketDatePart', () => {
+  it('truncates a date to the start of its month', () => {
+    expect(bucketDatePart('month')('2024-05-14')).toBe('2024-05-01')
+  })
+
+  it('truncates a date to the start of its year', () => {
+    expect(bucketDatePart('year')('2024-05-14')).toBe('2024-01-01')
+  })
+
+  it('keeps the full date for day granularity', () => {
+    expect(bucketDatePart('day')('2024-05-14')).toBe('2024-05-14')
+  })
+
+  it('returns the raw value unchanged when it does not parse as a date', () => {
+    expect(bucketDatePart('month')('not-a-date')).toBe('not-a-date')
+  })
+})
+
+describe('formatDatePart', () => {
+  it('formats a month bucket key as a human month/year label', () => {
+    expect(formatDatePart('month')('2024-05-01')).toBe(
+      new Date('2024-05-01').toLocaleDateString(undefined, { month: 'long', year: 'numeric' }),
+    )
+  })
+
+  it('formats a year bucket key as just the year', () => {
+    expect(formatDatePart('year')('2024-01-01')).toBe('2024')
+  })
+
+  it('returns the raw key unchanged when it does not parse as a date', () => {
+    expect(formatDatePart('month')('not-a-date')).toBe('not-a-date')
   })
 })
 

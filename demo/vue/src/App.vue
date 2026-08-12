@@ -8,6 +8,10 @@ import {
   usePersistedView,
   useUrlView,
   resetView,
+  bucketNumericRange,
+  formatNumericRange,
+  bucketDatePart,
+  formatDatePart,
   LABELS_EN,
   LABELS_FR,
   LABELS_DE,
@@ -293,9 +297,25 @@ const COLUMNS: ColumnDef<Employee>[] = [
         maximumFractionDigits: 0,
       }),
     aggregate: 'sum',
+    // groupValue/groupFormat: a continuous column (near-unique per row) grouped by its exact
+    // value would create one group per row — bucketing into $20k ranges makes it groupable
+    // meaningfully. cell rendering/sort/filter above are untouched, still reading the real salary.
+    groupable: true,
+    groupValue: bucketNumericRange(20000),
+    groupFormat: formatNumericRange(20000, ' USD'),
   },
-  // type: 'date' gets a Year › Month › Day filter tree instead of a checklist/range
-  { key: 'joined', label: 'Joined', type: 'date', width: 100 },
+  // type: 'date' gets a Year › Month › Day filter tree instead of a checklist/range. Grouped by
+  // year (not the exact join date, which would be one group per row) via the same
+  // groupValue/groupFormat bucketing idea, applied to a timestamp instead of a number.
+  {
+    key: 'joined',
+    label: 'Joined',
+    type: 'date',
+    width: 100,
+    groupable: true,
+    groupValue: bucketDatePart('year'),
+    groupFormat: formatDatePart('year'),
+  },
   // computed column: value is a function, so there's no matching 'tenure' property on Employee —
   // sort/filter/group/aggregate all work off the function's return value just like a real column
   {
@@ -620,7 +640,8 @@ function fmtSalary(n: number) {
     >
       Every feature together: sort, filter, group, aggregate, column reordering, i18n, dark mode.
       Try dragging a column header, or grouping by Department — groups start collapsed by default
-      (<code>default-groups-collapsed</code>).
+      (<code>default-groups-collapsed</code>). Salary and Joined group into $20k ranges and years
+      instead of one group per row — see <code>groupValue</code>/<code>groupFormat</code>.
     </p>
     <p
       style="
@@ -640,6 +661,8 @@ function fmtSalary(n: number) {
       <span v-html="docLink('custom-rendering', 'Custom rendering')" />
       ·
       <span v-html="docLink('aggregation', 'Aggregation')" />
+      ·
+      <span v-html="docLink('grouped-columns', 'Bucketed grouping')" />
     </p>
     <ViewControls @reset="resetView(fullTable, VIEW_KEYS.full)" />
     <DataTableView :table="fullTable" :data="SAMPLE_DATA" :columns="COLUMNS" row-key="id">

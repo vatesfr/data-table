@@ -139,6 +139,42 @@ const COLUMNS: ColumnDef<Employee>[] = [
 { key: 'employeeName', label: 'Name', value: (row) => row.name }
 ```
 
+## Grouped columns
+
+▶ [Try it in the demo](https://vatesfr.github.io/data-table/vue/#full-table)
+
+Set `groupable: true` on a column to make it available in the toolbar's Group dropdown; a grouped column disappears from the table header/cells and its rows are bucketed under a header row instead.
+
+```ts
+{ key: 'department', label: 'Department', groupable: true }
+```
+
+Grouping buckets rows by **exact value** by default — fine for low-cardinality columns (department, status), but a continuous or near-unique column (a percentage, a raw timestamp) would create one group per row. Set `groupValue` to bucket into coarser groups instead — it only affects grouping; sort/filter/aggregate/cell rendering keep reading the column's real value, untouched:
+
+```ts
+import { bucketNumericRange, formatNumericRange, bucketDatePart, formatDatePart } from '@vates/data-table-vue'
+
+{
+  key: 'salary',
+  label: 'Salary',
+  type: 'number',
+  groupable: true,
+  groupValue: bucketNumericRange(20000), // 47000 -> 40000 (the range's lower bound)
+  groupFormat: formatNumericRange(20000, ' USD'), // "40000–60000 USD" in the group header
+}
+
+{
+  key: 'joined',
+  label: 'Joined',
+  type: 'date',
+  groupable: true,
+  groupValue: bucketDatePart('year'), // any date -> "2019-01-01"
+  groupFormat: formatDatePart('year'), // "2019" in the group header
+}
+```
+
+`groupValue(value, row)` returns the bucket key — return a value whose type matches `col.type` (a number for `type: 'number'`, a `parseDate`-parseable string for `type: 'date'`) so groups still sort correctly, the same type-aware comparison a plain groupBy column already gets. `groupFormat(keyPart)` renders that bucket key for the group header (`bucketNumericRange`'s lower bound alone, e.g. `40000`, usually isn't fit to display on its own); omit it to show the raw bucket key. A bucketed column's group header bypasses the `#group-{key}` slot entirely (there's no single raw value the slot's scope could meaningfully carry) — `groupFormat` is the only display hook for it. `bucketDatePart`/`formatDatePart` accept `'year' | 'month' | 'day'` granularity.
+
 ## Aggregation
 
 ▶ [Try it in the demo](https://vatesfr.github.io/data-table/vue/#full-table)
@@ -233,6 +269,8 @@ interface ColumnDef<TRow extends object> {
   sortable?: boolean // default: true
   filterable?: boolean // default: true
   groupable?: boolean // default: false
+  groupValue?: (value: unknown, row: TRow) => unknown // bucket a groupBy value into a coarser group key; see Grouped columns
+  groupFormat?: (keyPart: string) => string // render a groupValue bucket key in the group header
   multiMode?: 'and' | 'or' // match mode for array-valued columns; default: 'or'
   aggregate?: 'sum' | 'count' | 'avg' | 'min' | 'max' | ((rows: TRow[]) => unknown) // see Aggregation
 }

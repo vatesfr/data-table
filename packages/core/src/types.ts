@@ -49,6 +49,26 @@ export interface ColumnDefBase<TRow extends object = Record<string, unknown>> {
   groupable?: boolean
   /** Excludes this column from global search (`searchData`). Default: true. */
   searchable?: boolean
+  /**
+   * Buckets a row's groupBy value into a coarser group key, for continuous/high-cardinality
+   * columns (percentages, timestamps) where grouping by the exact value would create one group
+   * per row. Only affects grouping — sort/filter/aggregate/cell rendering still read the column's
+   * real value via `value`/`getColumnValue`, unaffected by this. Return a value whose type
+   * matches `col.type` (a number for a `type: 'number'` column, a `parseDate`-parseable string
+   * for `type: 'date'`) so group ordering — driven by the same type-aware comparison a normal
+   * groupBy column already gets (see `sortWithinGroups`) — stays correct without a separate sort
+   * key; see `bucketNumericRange`/`bucketDatePart` for ready-made bucketing functions. The label
+   * shown in the group header for a bucket is controlled separately by `groupFormat`, since the
+   * raw bucketed value (e.g. a range's lower bound) usually isn't fit to display on its own.
+   */
+  groupValue?: (value: unknown, row: TRow) => unknown
+  /**
+   * Formats a bucketed group's key (see `groupValue`) for display in the group header — e.g.
+   * turning a percentage bucket's lower bound `40` into `"40–50%"`. Only used when `groupValue`
+   * is set; a plain (non-bucketed) groupBy column keeps rendering via the sample row's own
+   * `format`/cell value, unaffected. Falls back to the raw bucket key string when omitted.
+   */
+  groupFormat?: (keyPart: string) => string
   /** Aggregate function or built-in type shown in group header rows */
   aggregate?: AggregateType | ((rows: TRow[]) => unknown)
   /**
