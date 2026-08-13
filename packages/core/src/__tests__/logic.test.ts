@@ -26,6 +26,7 @@ import {
   paginateData,
   calcTotalPages,
   toggleSort,
+  setSort,
   toggleFilter,
   toggleFilterAll,
   setFilterValues,
@@ -1570,6 +1571,34 @@ describe('toggleSort', () => {
     const result = toggleSort(existing, 'name')
     expect(result).toHaveLength(2)
     expect(result[0].key).toBe('dept')
+  })
+})
+
+// ─── setSort ──────────────────────────────────────────────────────────────────
+
+describe('setSort', () => {
+  it('sets a fresh asc sort when nothing is sorted', () => {
+    expect(setSort([], 'name')).toEqual([{ key: 'name', dir: 'asc' }])
+  })
+
+  it('replaces a multi-sort with a fresh single asc sort', () => {
+    const existing = [
+      { key: 'dept', dir: 'asc' as const },
+      { key: 'name', dir: 'desc' as const },
+    ]
+    expect(setSort(existing, 'name')).toEqual([{ key: 'name', dir: 'asc' }])
+  })
+
+  it('replaces a different single sort with a fresh asc sort', () => {
+    expect(setSort([{ key: 'dept', dir: 'desc' }], 'name')).toEqual([{ key: 'name', dir: 'asc' }])
+  })
+
+  it('cycles asc to desc when key is already the sole sort', () => {
+    expect(setSort([{ key: 'name', dir: 'asc' }], 'name')).toEqual([{ key: 'name', dir: 'desc' }])
+  })
+
+  it('removes the sort when key is already the sole desc sort', () => {
+    expect(setSort([{ key: 'name', dir: 'desc' }], 'name')).toEqual([])
   })
 })
 

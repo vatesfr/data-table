@@ -18,6 +18,7 @@ import {
   getColumnValue,
   calcTotalPages,
   toggleSort as coreToggleSort,
+  setSort as coreSetSort,
   moveSortBy as coreMoveSortBy,
   reorderSort as coreReorderSort,
   toggleFilter as coreToggleFilter,
@@ -836,7 +837,7 @@ export function createDataTable<TRow extends object>(
     }
     for (const col of activeColumns) {
       const sortIdx = getSortIndex(sorts, col.key)
-      html += `<th class="dt-th" draggable="true" data-col-key="${esc(col.key)}"${col.width ? ` style="width:${col.width}px"` : ''} data-action="toggle-sort" data-key="${esc(col.key)}"><span class="dt-th-inner">${esc(col.label)} <span class="dt-sort-icon${sortIdx ? ' dt-sort-icon--active' : ''}">${sortIdx ? `${sortIdx}${getSortIcon(sorts, col.key)}` : '↕'}</span></span></th>`
+      html += `<th class="dt-th" draggable="true" data-col-key="${esc(col.key)}"${col.width ? ` style="width:${col.width}px"` : ''} data-action="header-sort" data-key="${esc(col.key)}"><span class="dt-th-inner">${esc(col.label)} <span class="dt-sort-icon${sortIdx ? ' dt-sort-icon--active' : ''}">${sortIdx ? `${sortIdx}${getSortIcon(sorts, col.key)}` : '↕'}</span></span></th>`
     }
     html += `</tr></thead><tbody>`
 
@@ -1127,6 +1128,14 @@ export function createDataTable<TRow extends object>(
         break
       case 'toggle-sort':
         sorts = coreToggleSort(sorts, key)
+        viewChanged = true
+        break
+      case 'header-sort':
+        // Plain click: sort by this column alone, discarding any other active sorts.
+        // Shift-click: append/cycle this column within the existing multi-sort list
+        // (same behavior as the Sort dropdown's own "add sort" entries) — the shift
+        // modifier is the escape hatch for building a multi-column sort from the header.
+        sorts = e.shiftKey ? coreToggleSort(sorts, key) : coreSetSort(sorts, key)
         viewChanged = true
         break
       case 'remove-sort':

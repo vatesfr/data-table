@@ -675,6 +675,16 @@ export function toggleSort(sorts: SortEntry[], key: string): SortEntry[] {
   return sorts.filter((s) => s.key !== key)
 }
 
+/**
+ * A plain (non-shift) header click: sort by `key` alone, discarding every other sort entry.
+ * If `key` is already the sole active sort, cycles its direction (asc → desc → none) the same
+ * way `toggleSort` would; otherwise starts fresh at asc, regardless of what was sorted before.
+ */
+export function setSort(sorts: SortEntry[], key: string): SortEntry[] {
+  if (sorts.length === 1 && sorts[0].key === key) return toggleSort(sorts, key)
+  return [{ key, dir: 'asc' }]
+}
+
 /** Swaps the sort entry for `key` with its neighbor `delta` positions away (e.g. -1/+1 for up/down buttons) — reorders sort priority without touching `dir`. */
 export function moveSortBy(sorts: SortEntry[], key: string, delta: number): SortEntry[] {
   const idx = sorts.findIndex((s) => s.key === key)

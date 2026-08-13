@@ -312,7 +312,7 @@ describe('createDataTable', () => {
 
   it('shows sort, group, and filter chips together in the active bar, each removable on its own', () => {
     createDataTable(container, { data: ROWS, columns: COLS })
-    click(container.querySelector<HTMLElement>('th[data-action="toggle-sort"][data-key="score"]')!)
+    click(container.querySelector<HTMLElement>('th[data-action="header-sort"][data-key="score"]')!)
     click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="group"]')!)
     click(container.querySelector<HTMLElement>('[data-action="toggle-group"][data-key="dept"]')!)
     click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="filter"]')!)
@@ -333,7 +333,7 @@ describe('createDataTable', () => {
 
   it('the "Clear all" button sits at the end of the toolbar actions row, not the search area', () => {
     createDataTable(container, { data: ROWS, columns: COLS })
-    click(container.querySelector<HTMLElement>('th[data-action="toggle-sort"][data-key="score"]')!)
+    click(container.querySelector<HTMLElement>('th[data-action="header-sort"][data-key="score"]')!)
     const clearAll = container.querySelector<HTMLElement>('[data-action="clear-all"]')!
     expect(clearAll.closest('.dt-toolbar-actions')).not.toBeNull()
     expect(clearAll.classList.contains('dt-clear-all')).toBe(true)
@@ -343,7 +343,7 @@ describe('createDataTable', () => {
 
   it('clicking a column header sorts rows ascending', () => {
     createDataTable(container, { data: ROWS, columns: COLS })
-    click(container.querySelector<HTMLElement>('th[data-action="toggle-sort"][data-key="score"]')!)
+    click(container.querySelector<HTMLElement>('th[data-action="header-sort"][data-key="score"]')!)
     const names = [...container.querySelectorAll('tbody tr td:nth-child(1)')].map((td) =>
       td.textContent?.trim(),
     )
@@ -352,17 +352,46 @@ describe('createDataTable', () => {
 
   it('clicking a sorted column reverses to descending', () => {
     createDataTable(container, { data: ROWS, columns: COLS })
-    click(container.querySelector<HTMLElement>('th[data-action="toggle-sort"][data-key="score"]')!)
-    click(container.querySelector<HTMLElement>('th[data-action="toggle-sort"][data-key="score"]')!)
+    click(container.querySelector<HTMLElement>('th[data-action="header-sort"][data-key="score"]')!)
+    click(container.querySelector<HTMLElement>('th[data-action="header-sort"][data-key="score"]')!)
     const names = [...container.querySelectorAll('tbody tr td:nth-child(1)')].map((td) =>
       td.textContent?.trim(),
     )
     expect(names).toEqual(['Alice', 'Clara', 'David', 'Bob']) // 90, 80, 70, 60
   })
 
+  it('clicking a third time clears the sort', () => {
+    const table = createDataTable(container, { data: ROWS, columns: COLS })
+    const scoreHeader = () =>
+      container.querySelector<HTMLElement>('th[data-action="header-sort"][data-key="score"]')!
+    click(scoreHeader())
+    click(scoreHeader())
+    click(scoreHeader())
+    expect(table.getViewState().sorts ?? []).toEqual([])
+  })
+
+  it('plain-clicking a different header replaces the sort instead of appending to it', () => {
+    const table = createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('th[data-action="header-sort"][data-key="name"]')!)
+    click(container.querySelector<HTMLElement>('th[data-action="header-sort"][data-key="score"]')!)
+    expect(table.getViewState().sorts).toEqual([{ key: 'score', dir: 'asc' }])
+  })
+
+  it('shift-clicking a header appends it to the existing sort instead of replacing it', () => {
+    const table = createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('th[data-action="header-sort"][data-key="name"]')!)
+    shiftClick(
+      container.querySelector<HTMLElement>('th[data-action="header-sort"][data-key="score"]')!,
+    )
+    expect(table.getViewState().sorts).toEqual([
+      { key: 'name', dir: 'asc' },
+      { key: 'score', dir: 'asc' },
+    ])
+  })
+
   it('active sort has no count badge on the Sort button, but shows a chip in the active bar', () => {
     createDataTable(container, { data: ROWS, columns: COLS })
-    click(container.querySelector<HTMLElement>('th[data-action="toggle-sort"][data-key="score"]')!)
+    click(container.querySelector<HTMLElement>('th[data-action="header-sort"][data-key="score"]')!)
     expect(
       container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="sort"] .dt-chip'),
     ).toBeNull()
@@ -554,7 +583,7 @@ describe('createDataTable', () => {
   it('preserves table scroll position across a re-render triggered by a click', () => {
     const table = createDataTable(container, { data: ROWS, columns: COLS })
     container.querySelector<HTMLElement>('.dt-table-wrap')!.scrollTop = 42
-    click(container.querySelector<HTMLElement>('th[data-action="toggle-sort"][data-key="score"]')!)
+    click(container.querySelector<HTMLElement>('th[data-action="header-sort"][data-key="score"]')!)
     expect(container.querySelector<HTMLElement>('.dt-table-wrap')!.scrollTop).toBe(42)
     table.destroy()
   })
@@ -2202,7 +2231,7 @@ describe('createDataTable', () => {
   it('clear-search resets only the search query, not other active state', () => {
     const table = createDataTable(container, { data: ROWS, columns: COLS })
     setInput(container.querySelector<HTMLInputElement>('[data-action="search"]')!, 'ali')
-    click(container.querySelector<HTMLElement>('th[data-action="toggle-sort"][data-key="score"]')!)
+    click(container.querySelector<HTMLElement>('th[data-action="header-sort"][data-key="score"]')!)
     click(container.querySelector<HTMLElement>('[data-action="clear-search"]')!)
     expect(container.querySelector<HTMLInputElement>('[data-action="search"]')!.value).toBe('')
     expect(container.querySelectorAll('tbody tr')).toHaveLength(4)
@@ -2386,7 +2415,7 @@ describe('createDataTable', () => {
 
   it('getViewState captures changes made through the UI', () => {
     const table = createDataTable(container, { data: ROWS, columns: COLS })
-    click(container.querySelector<HTMLElement>('th[data-action="toggle-sort"][data-key="score"]')!)
+    click(container.querySelector<HTMLElement>('th[data-action="header-sort"][data-key="score"]')!)
     click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="filter"]')!)
     click(
       container.querySelector<HTMLElement>('[data-action="toggle-filter"][data-value="Alice"]')!,
@@ -2401,7 +2430,7 @@ describe('createDataTable', () => {
     const table = createDataTable(container, { data: ROWS, columns: COLS, selectable: true })
     const cb = vi.fn()
     table.onViewChange(cb)
-    click(container.querySelector<HTMLElement>('th[data-action="toggle-sort"][data-key="score"]')!)
+    click(container.querySelector<HTMLElement>('th[data-action="header-sort"][data-key="score"]')!)
     expect(cb).toHaveBeenCalledTimes(1)
     expect(cb).toHaveBeenLastCalledWith({ sorts: [{ key: 'score', dir: 'asc' }] })
     click(
@@ -2415,7 +2444,7 @@ describe('createDataTable', () => {
     const cb = vi.fn()
     const unsubscribe = table.onViewChange(cb)
     unsubscribe()
-    click(container.querySelector<HTMLElement>('th[data-action="toggle-sort"][data-key="score"]')!)
+    click(container.querySelector<HTMLElement>('th[data-action="header-sort"][data-key="score"]')!)
     expect(cb).not.toHaveBeenCalled()
   })
 
@@ -2431,7 +2460,7 @@ describe('createDataTable', () => {
 
   it('setViewState resets fields absent from the given view', () => {
     const table = createDataTable(container, { data: ROWS, columns: COLS })
-    click(container.querySelector<HTMLElement>('th[data-action="toggle-sort"][data-key="score"]')!)
+    click(container.querySelector<HTMLElement>('th[data-action="header-sort"][data-key="score"]')!)
     table.setViewState({ page: 2 })
     expect(table.getViewState()).toEqual({ page: 2 })
   })
