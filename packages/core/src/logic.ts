@@ -49,11 +49,54 @@ function multiValues(value: unknown, emptyLabel = '(none)'): string[] {
 }
 
 /**
+ * Default value comparator: numeric when both sides are numbers, else lexicographic. Ignores
+ * `dir` (unused by every caller below) — it exists only so this is directly assignable wherever
+ * a `ColumnDefBase.compare` (which does take `dir`) is expected, e.g. as the fallback in
+ * `sortRows`'s `compareFns`.
+ */
+function defaultCompare(a: unknown, b: unknown, _dir?: SortDir): number {
+  if (typeof a === 'number' && typeof b === 'number' && !isNaN(a) && !isNaN(b)) return a - b
+  return String(a ?? '').localeCompare(String(b ?? ''))
+}
+
+/**
+ * Ready-made `ColumnDefBase.compare` for pinning a value — missing data, by default — to the end
+ * of the sort regardless of the active ascending/descending direction (see `compare`'s `dir`
+ * param doc for why this needs `dir` at all rather than being expressible as a plain comparator).
+ * `compare` orders any two non-pinned values (default: this module's own numeric-or-lexicographic
+ * fallback); `isMissing` decides which values get pinned (default: `v == null || v === ''`,
+ * covering both a real null/undefined raw value and the empty string a missing scalar
+ * stringifies to wherever grouping/the filter checklist need a string instead — see
+ * `multiValues`). Two pinned values compare as equal, falling through to the next sort key the
+ * same way a tied `compare` result would.
+ */
+export function compareMissingLast<T = unknown>(
+  compare: (a: T, b: T) => number = defaultCompare as (a: T, b: T) => number,
+  isMissing: (v: T) => boolean = (v) => v == null || v === '',
+): (a: T, b: T, dir: SortDir) => number {
+  return (a, b, dir) => {
+    const ma = isMissing(a)
+    const mb = isMissing(b)
+    if (ma && mb) return 0
+    if (ma || mb) {
+      const rel = ma ? 1 : -1 // a missing → wants a after b
+      return dir === 'asc' ? rel : -rel // pre-cancels the sort's own direction flip
+    }
+    return compare(a, b)
+  }
+}
+
+/**
  * Sorts `rows` by `sorts`, shared by `processData`'s global sort and `sortWithinGroups`'
  * per-bucket re-sort. Decorate-sort-undecorate: `getComparableValue` (esp. a `type: 'date'`
  * column's `parseDate`) is pure per-row, but a comparator recomputes it for both sides on every
  * comparison — O(n log n) calls instead of O(n). Precomputing once per row per sort key avoids
  * re-parsing the same row's date string dozens of times during a large sort.
+ *
+ * A column with a `compare` (see `ColumnDefBase.compare`) skips `getComparableValue`'s
+ * type coercion entirely — `compare` takes the raw column value on each side and is solely
+ * responsible for ordering it — and its own comparator (passed this sort key's `dir`) is used
+ * in place of the default numeric-or-lexicographic one.
  */
 function sortRows<TRow extends object>(
   rows: TRow[],
@@ -61,21 +104,18 @@ function sortRows<TRow extends object>(
   colByKey: Map<string, ColumnDefBase<TRow>>,
 ): TRow[] {
   if (sorts.length === 0) return rows
+  const compareFns = sorts.map(({ key }) => colByKey.get(key)?.compare ?? defaultCompare)
   const decorated = rows.map((row) => ({
     row,
     values: sorts.map(({ key }) => {
       const col = colByKey.get(key)
-      return col ? getComparableValue(col, row) : asRecord(row)[key]
+      if (!col) return asRecord(row)[key]
+      return col.compare ? getColumnValue(col, row) : getComparableValue(col, row)
     }),
   }))
   decorated.sort((a, b) => {
     for (let i = 0; i < sorts.length; i++) {
-      const va = a.values[i]
-      const vb = b.values[i]
-      let cmp = 0
-      if (typeof va === 'number' && typeof vb === 'number' && !isNaN(va) && !isNaN(vb))
-        cmp = va - vb
-      else cmp = String(va ?? '').localeCompare(String(vb ?? ''))
+      const cmp = compareFns[i](a.values[i], b.values[i], sorts[i].dir)
       if (cmp !== 0) return sorts[i].dir === 'asc' ? cmp : -cmp
     }
     return 0
@@ -232,12 +272,11 @@ export function sortWithinGroups<TRow extends object>(
       for (const { key, dir } of groupSorts) {
         const idx = groupBy.indexOf(key)
         const col = colByKey.get(key)
-        const va = comparableFromKeyPart(col, a.keyParts[idx])
-        const vb = comparableFromKeyPart(col, b.keyParts[idx])
-        let cmp = 0
-        if (typeof va === 'number' && typeof vb === 'number' && !isNaN(va) && !isNaN(vb))
-          cmp = va - vb
-        else cmp = String(va ?? '').localeCompare(String(vb ?? ''))
+        const ka = a.keyParts[idx]
+        const kb = b.keyParts[idx]
+        const va = col?.compare ? ka : comparableFromKeyPart(col, ka)
+        const vb = col?.compare ? kb : comparableFromKeyPart(col, kb)
+        const cmp = col?.compare ? col.compare(va, vb, dir) : defaultCompare(va, vb)
         if (cmp !== 0) return dir === 'asc' ? cmp : -cmp
       }
       return 0
@@ -369,7 +408,10 @@ export function computeStringValues<TRow extends object>(
     const values = [
       ...new Set(data.flatMap((r) => multiValues(getColumnValue(col, r), emptyLabel))),
     ]
-    map[col.key] = values.sort()
+    // No direction of its own here — a fixed 'asc' lets a compare like compareMissingLast()
+    // still pin its matching values last (compareMissingLast's non-pinned branch is direction-
+    // naive anyway, so 'asc' vs 'desc' would make no difference there).
+    map[col.key] = col.compare ? values.sort((a, b) => col.compare!(a, b, 'asc')) : values.sort()
   }
   return map
 }
@@ -498,18 +540,27 @@ export function filterValuesByRange(
  * Reorders a filter checklist's (already search/count-narrowed) values by alphabetical order
  * or by facet count (see `computeStringValueCounts`), ascending or descending. Default is
  * `{ by: 'alpha', dir: 'asc' }`, matching the order `computeStringValues` already produces.
+ *
+ * `compare` (the column's own `ColumnDefBase.compare`, when set) replaces `localeCompare` both
+ * for the `'alpha'` mode itself and as count-mode's tie-break — so a column with a custom order
+ * stays consistently ordered everywhere it's listed, not just alphabetically as a fallback.
+ * Passed `sort.dir` for the alpha-mode comparison (so a `compareMissingLast`-style `compare` can
+ * still pin values regardless of it), but a fixed `'asc'` for the count-mode tie-break, which —
+ * like `computeStringValueCounts`'s existing "tie-break alphabetically" behavior — is always
+ * ascending regardless of `sort.dir`, itself only ever governing the count comparison above it.
  */
 export function sortFilterValues(
   values: string[],
   counts: Map<string, number>,
   sort: ValueSort,
+  compare: (a: string, b: string, dir: SortDir) => number = (a, b) => a.localeCompare(b),
 ): string[] {
   return [...values].sort((a, b) => {
     if (sort.by === 'count') {
       const cmp = (counts.get(a) ?? 0) - (counts.get(b) ?? 0)
-      return (sort.dir === 'desc' ? -cmp : cmp) || a.localeCompare(b)
+      return (sort.dir === 'desc' ? -cmp : cmp) || compare(a, b, 'asc')
     }
-    const cmp = a.localeCompare(b)
+    const cmp = compare(a, b, sort.dir)
     return sort.dir === 'desc' ? -cmp : cmp
   })
 }

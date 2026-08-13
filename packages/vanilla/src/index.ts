@@ -52,6 +52,7 @@ import {
   formatNumericRange,
   bucketDatePart,
   formatDatePart,
+  compareMissingLast,
   type SortEntry,
   type RangeFilter,
   type DataTableLabels,
@@ -74,6 +75,9 @@ export * from '@vates/data-table-core/locales'
 // Ready-made groupValue/groupFormat pairs for bucketing a continuous/high-cardinality column
 // (percentages, timestamps) into coarser groups — see `ColumnDefBase.groupValue` in the docs.
 export { bucketNumericRange, formatNumericRange, bucketDatePart, formatDatePart }
+// Ready-made compare for pinning a value (missing data, by default) last regardless of sort
+// direction — see `ColumnDefBase.compare` in the docs.
+export { compareMissingLast }
 export type { DatePart } from '@vates/data-table-core'
 
 // --- Styles ---
@@ -522,6 +526,7 @@ export function createDataTable<TRow extends object>(
             ),
             stringValueCounts[filterDetailCol.key] ?? new Map(),
             valueSortFor(filterDetailCol.key),
+            filterDetailCol.compare,
           )
         : []
     _filterDetailTree =

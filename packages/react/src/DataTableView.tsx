@@ -920,6 +920,7 @@ export function DataTableView<TRow extends object>({
           ),
           stringValueCounts[filterDetailCol.key] ?? new Map(),
           valueSortFor(filterDetailCol.key),
+          filterDetailCol.compare,
         )
       : []
   const filterSelectedCount = filterDetailCol

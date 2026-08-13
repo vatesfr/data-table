@@ -8,6 +8,7 @@ import {
   formatNumericRange,
   bucketDatePart,
   formatDatePart,
+  compareMissingLast,
   LABELS_EN,
   LABELS_FR,
   LABELS_DE,
@@ -27,7 +28,7 @@ interface Employee {
   salary: number
   joined: string
   status: string
-  score: number
+  score: number | null // null: no performance review yet — compareMissingLast() keeps these last regardless of sort direction
   skills: string[]
 }
 
@@ -84,7 +85,7 @@ const SAMPLE_DATA: Employee[] = [
     salary: 62000,
     joined: '2023-04-05',
     status: 'Active',
-    score: 73,
+    score: null, // just joined, no review yet
     skills: ['JavaScript', 'React'],
   },
   {
@@ -172,7 +173,7 @@ const SAMPLE_DATA: Employee[] = [
     salary: 58000,
     joined: '2022-03-08',
     status: 'Active',
-    score: 76,
+    score: null, // no review yet
     skills: ['Recruiting', 'Sourcing'],
   },
   {
@@ -254,6 +255,18 @@ const SAMPLE_DATA: Employee[] = [
   },
 ]
 
+// 'tier' below is a computed column derived from 'score' (see "Computed columns") purely to
+// showcase `compare` — Bronze/Silver/Gold/Platinum has no natural alphabetical order ('Gold' <
+// 'Platinum' < 'Silver' alphabetically, nowhere close to the intended rank).
+const TIER_ORDER = ['Bronze', 'Silver', 'Gold', 'Platinum']
+function tierFor(score: number | null): string {
+  if (score == null) return ''
+  if (score >= 95) return 'Platinum'
+  if (score >= 85) return 'Gold'
+  if (score >= 75) return 'Silver'
+  return 'Bronze'
+}
+
 const COLUMNS: ColumnDef<Employee>[] = [
   { key: 'id', label: 'ID', type: 'number', width: 60, sortable: false, filterable: false },
   { key: 'name', label: 'Name', type: 'string', width: 160 },
@@ -304,13 +317,40 @@ const COLUMNS: ColumnDef<Employee>[] = [
   },
   { key: 'status', label: 'Status', type: 'string', width: 90, groupable: true },
   // render returns a DOM node instead of a string, so it can build richer cells (bars, badges,
-  // links) than format's escaped-string output allows
+  // links) than format's escaped-string output allows. compareMissingLast() (issue #15) keeps a
+  // not-yet-reviewed employee's row last in the Score sort regardless of direction — null
+  // naturally sorts first ascending / last descending otherwise, flipping depending on the
+  // toggle rather than staying put.
   {
     key: 'score',
     label: 'Score',
     type: 'number',
     width: 80,
-    render: (v) => createScoreBar(Number(v)),
+    compare: compareMissingLast(),
+    render: (v) => {
+      if (v == null) {
+        const span = document.createElement('span')
+        span.style.cssText = 'font-size:12px;color:var(--color-text-tertiary)'
+        span.textContent = 'No review yet'
+        return span
+      }
+      return createScoreBar(Number(v))
+    },
+  },
+  // computed column (value) + compare (issue #15): bucket a continuous score into an ordered
+  // enum and sort it by rank, not alphabetically — see TIER_ORDER above, wrapped in
+  // compareMissingLast() so a not-yet-reviewed employee's empty tier ('') still sorts last in
+  // both directions, same as the Score column above.
+  {
+    key: 'tier',
+    label: 'Tier',
+    value: (row) => tierFor(row.score),
+    compare: compareMissingLast(
+      (a, b) => TIER_ORDER.indexOf(String(a)) - TIER_ORDER.indexOf(String(b)),
+    ),
+    groupable: true,
+    width: 90,
+    format: (v) => (v ? String(v) : '—'),
   },
   // array-valued column: filter checklist lists individual skills, grouping fans a row into
   // one group per skill, and cells join the array with ', ' — all automatic, no flag needed
@@ -326,12 +366,13 @@ const DEFAULT_VISIBLE = [
   'tenure',
   'status',
   'score',
+  'tier',
   'skills',
 ]
 
 // Each secondary section only needs a couple of columns to make its point — a narrower
 // defaultVisibleColumns keeps each table visually distinct instead of repeating the same
-// 9-column table everywhere. The persisted table keeps more, since reordering needs several
+// 10-column table everywhere. The persisted table keeps more, since reordering needs several
 // columns to be meaningful.
 const SELECTION_VISIBLE = ['name', 'department', 'salary']
 const CLICK_VISIBLE = ['name', 'department', 'role']

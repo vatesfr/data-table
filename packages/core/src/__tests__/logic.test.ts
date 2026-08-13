@@ -54,6 +54,7 @@ import {
   formatNumericRange,
   bucketDatePart,
   formatDatePart,
+  compareMissingLast,
 } from '../logic'
 
 interface Row {
@@ -228,6 +229,52 @@ describe('computeAggregate', () => {
   })
 })
 
+// ─── compareMissingLast ────────────────────────────────────────────────────────
+
+describe('compareMissingLast', () => {
+  // compareMissingLast's return value is meant to be fed through the same "negate for desc"
+  // flip every sort call site already applies (dir === 'asc' ? cmp : -cmp) — it pre-cancels
+  // that upcoming flip for a missing value, so it isn't itself the final comparison result.
+  // applyDir mirrors that flip, the same way processData/sortWithinGroups/sortFilterValues do.
+  const applyDir = (cmp: number, dir: 'asc' | 'desc') => (dir === 'asc' ? cmp : -cmp)
+
+  it('pins null/undefined/empty-string values last, after the caller applies its own dir flip', () => {
+    const compare = compareMissingLast()
+    expect(applyDir(compare(null, 5, 'asc'), 'asc')).toBeGreaterThan(0)
+    expect(applyDir(compare(null, 5, 'desc'), 'desc')).toBeGreaterThan(0)
+    expect(applyDir(compare(5, undefined, 'asc'), 'asc')).toBeLessThan(0)
+    expect(applyDir(compare(5, undefined, 'desc'), 'desc')).toBeLessThan(0)
+    expect(applyDir(compare('', 'x', 'asc'), 'asc')).toBeGreaterThan(0)
+    expect(applyDir(compare('', 'x', 'desc'), 'desc')).toBeGreaterThan(0)
+  })
+
+  it('treats two missing values as equal', () => {
+    const compare = compareMissingLast()
+    expect(compare(null, undefined, 'asc')).toBe(0)
+    expect(compare('', '', 'desc')).toBe(0)
+  })
+
+  it('defers to the default numeric-or-lexicographic comparator for non-missing values', () => {
+    const compare = compareMissingLast()
+    expect(compare(1, 2, 'asc')).toBeLessThan(0)
+    expect(compare('b', 'a', 'asc')).toBeGreaterThan(0)
+  })
+
+  it('accepts a custom compare for the non-missing case', () => {
+    const compare = compareMissingLast((a, b) => Number(b) - Number(a))
+    expect(compare(1, 2, 'asc')).toBeGreaterThan(0) // inverted vs. the default
+  })
+
+  it('accepts a custom isMissing predicate', () => {
+    const compare = compareMissingLast(
+      (a, b) => Number(a) - Number(b),
+      (v) => v === -1,
+    )
+    expect(compare(-1, 5, 'asc')).toBeGreaterThan(0)
+    expect(compare(0, 5, 'asc')).toBeLessThan(0) // 0 isn't "missing" per the custom predicate
+  })
+})
+
 // ─── processData ─────────────────────────────────────────────────────────────
 
 describe('processData', () => {
@@ -290,6 +337,99 @@ describe('processData', () => {
     const cols = [{ key: 'salaryK', label: 'Salary (K)', value: (row: Row) => row.salary / 1000 }]
     const result = processData(ROWS, {}, {}, [{ key: 'salaryK', dir: 'asc' }], cols)
     expect(result.map((r) => r.name)).toEqual(['Bob', 'David', 'Alice', 'Clara'])
+  })
+
+  it('sorts using a column compare, not numerically or alphabetically (issue #15)', () => {
+    const TIER_ORDER = ['bronze', 'silver', 'gold']
+    interface Tiered {
+      id: number
+      tier: string
+    }
+    const rows: Tiered[] = [
+      { id: 1, tier: 'Gold' },
+      { id: 2, tier: 'Bronze' },
+      { id: 3, tier: 'Silver' },
+    ]
+    const cols = [
+      {
+        key: 'tier' as const,
+        label: 'Tier',
+        compare: (a: unknown, b: unknown) =>
+          TIER_ORDER.indexOf(String(a).toLowerCase()) - TIER_ORDER.indexOf(String(b).toLowerCase()),
+      },
+    ]
+    const result = processData(rows, {}, {}, [{ key: 'tier', dir: 'asc' }], cols)
+    expect(result.map((r) => r.tier)).toEqual(['Bronze', 'Silver', 'Gold'])
+  })
+
+  it('compare overrides type: number coercion when both are set', () => {
+    interface Tiered {
+      id: number
+      tier: number
+    }
+    const rows: Tiered[] = [
+      { id: 1, tier: 3 },
+      { id: 2, tier: 1 },
+      { id: 3, tier: 2 },
+    ]
+    // Deliberately inverted vs. the numeric value, so a passing test proves `compare` (not the
+    // `type: 'number'` coercion) drove the order.
+    const cols = [
+      {
+        key: 'tier' as const,
+        label: 'Tier',
+        type: 'number' as const,
+        compare: (a: unknown, b: unknown) => Number(b) - Number(a),
+      },
+    ]
+    const result = processData(rows, {}, {}, [{ key: 'tier', dir: 'asc' }], cols)
+    expect(result.map((r) => r.tier)).toEqual([3, 2, 1])
+  })
+
+  it('compare receives the active dir, letting compareMissingLast pin missing values last in both sort directions (issue #15)', () => {
+    interface Row2 {
+      id: number
+      score: number | null
+    }
+    const rows: Row2[] = [
+      { id: 1, score: null },
+      { id: 2, score: 30 },
+      { id: 3, score: 10 },
+      { id: 4, score: null },
+      { id: 5, score: 20 },
+    ]
+    const cols = [{ key: 'score' as const, label: 'Score', compare: compareMissingLast() }]
+
+    const asc = processData(rows, {}, {}, [{ key: 'score', dir: 'asc' }], cols)
+    expect(asc.map((r) => r.score)).toEqual([10, 20, 30, null, null])
+
+    const desc = processData(rows, {}, {}, [{ key: 'score', dir: 'desc' }], cols)
+    expect(desc.map((r) => r.score)).toEqual([30, 20, 10, null, null])
+  })
+
+  it('compareMissingLast falls through to the next sort key when both sides are missing', () => {
+    interface Row2 {
+      id: number
+      score: number | null
+      name: string
+    }
+    const rows: Row2[] = [
+      { id: 1, score: null, name: 'Zed' },
+      { id: 2, score: 10, name: 'Bob' },
+      { id: 3, score: null, name: 'Alice' },
+    ]
+    const cols = [{ key: 'score' as const, label: 'Score', compare: compareMissingLast() }]
+    const result = processData(
+      rows,
+      {},
+      {},
+      [
+        { key: 'score', dir: 'asc' },
+        { key: 'name', dir: 'asc' },
+      ],
+      cols,
+    )
+    expect(result.map((r) => r.name)).toEqual(['Bob', 'Alice', 'Zed'])
   })
 
   it('applies sort after filter', () => {
@@ -613,6 +753,56 @@ describe('sortWithinGroups', () => {
     const groups = groupData(rows, ['tier'], cols)
     const sorted = sortWithinGroups(groups, [{ key: 'tier', dir: 'asc' }], ['tier'], cols)
     expect(sorted.map((g) => g.key)).toEqual(['2', '3', '10'])
+  })
+
+  it('orders groups by a groupBy column compare, not numerically or lexicographically (issue #15)', () => {
+    const TIER_ORDER = ['bronze', 'silver', 'gold']
+    interface Tiered {
+      id: number
+      tier: string
+    }
+    const rows: Tiered[] = [
+      { id: 1, tier: 'Gold' },
+      { id: 2, tier: 'Bronze' },
+      { id: 3, tier: 'Silver' },
+    ]
+    const cols = [
+      {
+        key: 'tier',
+        label: 'Tier',
+        compare: (a: unknown, b: unknown) =>
+          TIER_ORDER.indexOf(String(a).toLowerCase()) - TIER_ORDER.indexOf(String(b).toLowerCase()),
+      },
+    ]
+    const groups = groupData(rows, ['tier'], cols)
+    const sorted = sortWithinGroups(groups, [{ key: 'tier', dir: 'asc' }], ['tier'], cols)
+    expect(sorted.map((g) => g.key)).toEqual(['Bronze', 'Silver', 'Gold'])
+  })
+
+  it('compareMissingLast pins a groupBy column\'s "(none)" group last in both directions (issue #15)', () => {
+    interface Tagged {
+      id: number
+      tags: string[]
+    }
+    const rows: Tagged[] = [
+      { id: 1, tags: ['RPG'] },
+      { id: 2, tags: [] },
+      { id: 3, tags: ['Action'] },
+    ]
+    const cols = [
+      {
+        key: 'tags',
+        label: 'Tags',
+        compare: compareMissingLast(undefined, (v: unknown) => v === '(none)'),
+      },
+    ]
+    const groups = groupData(rows, ['tags'], cols)
+
+    const asc = sortWithinGroups(groups, [{ key: 'tags', dir: 'asc' }], ['tags'], cols)
+    expect(asc.map((g) => g.key)).toEqual(['Action', 'RPG', '(none)'])
+
+    const desc = sortWithinGroups(groups, [{ key: 'tags', dir: 'desc' }], ['tags'], cols)
+    expect(desc.map((g) => g.key)).toEqual(['RPG', 'Action', '(none)'])
   })
 
   it('returns the groups unchanged when sorts is empty', () => {
@@ -981,6 +1171,28 @@ describe('computeStringValues', () => {
     const result = computeStringValues(games, cols)
     expect(result['released']).toEqual(['2021-01-02', '2023-05-14'])
   })
+
+  it('orders values by a column compare instead of alphabetically (issue #15)', () => {
+    const TIER_ORDER = ['bronze', 'silver', 'gold']
+    const cols = [
+      {
+        key: 'tier',
+        label: 'Tier',
+        compare: (a: unknown, b: unknown) =>
+          TIER_ORDER.indexOf(String(a).toLowerCase()) - TIER_ORDER.indexOf(String(b).toLowerCase()),
+      },
+    ]
+    const rows = [{ tier: 'Gold' }, { tier: 'Bronze' }, { tier: 'Silver' }]
+    const result = computeStringValues(rows, cols)
+    expect(result['tier']).toEqual(['Bronze', 'Silver', 'Gold'])
+  })
+
+  it('compareMissingLast pins the empty-string stand-in for a missing scalar at the end (issue #15)', () => {
+    const cols = [{ key: 'dept', label: 'Dept', compare: compareMissingLast() }]
+    const rows = [{ dept: 'Eng' }, { dept: '' }, { dept: 'HR' }]
+    const result = computeStringValues(rows, cols)
+    expect(result['dept']).toEqual(['Eng', 'HR', ''])
+  })
 })
 
 // ─── computeStringValueCounts ───────────────────────────────────────────────
@@ -1245,6 +1457,65 @@ describe('sortFilterValues', () => {
     const original = [...VALUES]
     sortFilterValues(VALUES, COUNTS, { by: 'alpha', dir: 'desc' })
     expect(VALUES).toEqual(original)
+  })
+
+  it('uses a custom compare in alpha mode instead of localeCompare (issue #15)', () => {
+    const tiers = ['Gold', 'Bronze', 'Silver']
+    const TIER_ORDER = ['bronze', 'silver', 'gold']
+    const compare = (a: string, b: string) =>
+      TIER_ORDER.indexOf(a.toLowerCase()) - TIER_ORDER.indexOf(b.toLowerCase())
+    expect(sortFilterValues(tiers, new Map(), { by: 'alpha', dir: 'asc' }, compare)).toEqual([
+      'Bronze',
+      'Silver',
+      'Gold',
+    ])
+  })
+
+  it('uses a custom compare as the count-mode tie-break instead of localeCompare (issue #15)', () => {
+    const tiers = ['Gold', 'Bronze', 'Silver']
+    const counts = new Map([
+      ['Gold', 1],
+      ['Bronze', 1],
+      ['Silver', 1],
+    ])
+    const TIER_ORDER = ['bronze', 'silver', 'gold']
+    const compare = (a: string, b: string) =>
+      TIER_ORDER.indexOf(a.toLowerCase()) - TIER_ORDER.indexOf(b.toLowerCase())
+    expect(sortFilterValues(tiers, counts, { by: 'count', dir: 'desc' }, compare)).toEqual([
+      'Bronze',
+      'Silver',
+      'Gold',
+    ])
+  })
+
+  it('compareMissingLast pins matching values last in alpha mode, in both directions (issue #15)', () => {
+    const values = ['Charlie', '', 'Alice']
+    const compare = compareMissingLast()
+    expect(sortFilterValues(values, COUNTS, { by: 'alpha', dir: 'asc' }, compare)).toEqual([
+      'Alice',
+      'Charlie',
+      '',
+    ])
+    expect(sortFilterValues(values, COUNTS, { by: 'alpha', dir: 'desc' }, compare)).toEqual([
+      'Charlie',
+      'Alice',
+      '',
+    ])
+  })
+
+  it('compareMissingLast pins matching values last as the count-mode tie-break too', () => {
+    const values = ['Charlie', '', 'Alice']
+    const counts = new Map([
+      ['Charlie', 1],
+      ['', 1],
+      ['Alice', 1],
+    ])
+    const compare = compareMissingLast()
+    expect(sortFilterValues(values, counts, { by: 'count', dir: 'desc' }, compare)).toEqual([
+      'Alice',
+      'Charlie',
+      '',
+    ])
   })
 })
 

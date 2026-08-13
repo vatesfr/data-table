@@ -35,6 +35,31 @@ export interface ColumnDefBase<TRow extends object = Record<string, unknown>> {
    * `DD/MM`) since `new Date(v)` guesses. Default: `(v) => new Date(v).getTime()`.
    */
   parseDate?: (value: string) => number
+  /**
+   * Custom ordering for columns whose natural order is neither numeric nor alphabetical (e.g.
+   * an enum/tier column: `Bronze < Silver < Gold`, not alphabetical). A plain
+   * `Array.prototype.sort`-style comparator over two already-resolved column values (whatever
+   * `value()`/`row[key]` produced for each side) — not full rows; see `sortWithinGroups` for why
+   * rows aren't available here. Overrides the default numeric-or-lexicographic comparison
+   * everywhere a column's values are ordered: row sort (`processData`, `sortWithinGroups`'
+   * group-order pass), the filter checklist's default order (`computeStringValues`), and its
+   * explicit alpha-mode sort toggle including count-mode's tie-break (`sortFilterValues`).
+   * Doesn't affect `groupValue`/`groupFormat` bucketing, which solves the equivalent problem for
+   * grouping instead. Takes priority over `type: 'number'`/`'date'` coercion when both are set.
+   *
+   * The 3rd `dir` argument is the active ascending/descending direction at that sort site (a
+   * fixed `'asc'` at the two checklist-ordering sites, which have no direction of their own —
+   * `computeStringValues`'s default order, and `sortFilterValues`'s count-mode tie-break).
+   * Ignore it for an ordinary comparator — every call site already flips the *return value*'s
+   * sign for a descending sort, the same way the default comparison does, so a direction-naive
+   * `(a, b) => …` behaves correctly with no extra work. It exists only for the rarer case of a
+   * value that must stay pinned to one end regardless of which direction is active (e.g. a
+   * missing value sorting last whether ascending or descending) — impossible to express as a
+   * plain `(a, b) => number` return, since that return gets sign-flipped for `desc` right along
+   * with everything else, flipping "always after" to "always before" the moment the direction is
+   * toggled. See `compareMissingLast` for a ready-made comparator built on this.
+   */
+  compare?: (a: unknown, b: unknown, dir: SortDir) => number
   width?: number
   /**
    * How to read this column's cell value from a row. Omitted: reads `row[key]`. Function:

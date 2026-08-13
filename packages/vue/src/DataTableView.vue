@@ -402,6 +402,7 @@ function filteredValuesFor(col: ColumnDef<TRow>): string[] {
     ),
     stringValueCounts.value[col.key] ?? new Map(),
     valueSortFor(col.key),
+    col.compare,
   )
 }
 function countFor(col: ColumnDef<TRow>, value: string): number {

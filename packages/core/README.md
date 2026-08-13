@@ -9,7 +9,7 @@ You don't need this package directly if you're using `@vates/data-table-react` o
 ### Types
 
 ```ts
-ColumnDefBase<TRow extends object>  // column definition (key, label, type, value, format, sortable, multiMode, …)
+ColumnDefBase<TRow extends object>  // column definition (key, label, type, value, format, sortable, compare, multiMode, …)
 GroupResult<TRow extends object>    // { key, keyParts, rows } — one entry per group from groupData
 PagedGroup<TRow extends object>     // GroupResult + { continued, sampleRow } — one page's chunk from paginateVisibleGroups
 SortEntry                           // { key: string; dir: 'asc' | 'desc' }
@@ -43,7 +43,8 @@ filterValuesBySearch(values, term) // narrow a checklist's values by a case-inse
 filterValuesByRange(values, range, parseDate?) // narrow a date column's checklist/tree values to those within range's bounds (filterValuesBySearch's sibling, for the range filter above a date tree)
 computeValueBounds(data, col) // a number/date column's actual min/max across data, for a range filter's slider bounds; null if no row has a parseable value
 toggleFilterAll(filters, key, values) // deselect all given values if any is selected, else select all of them
-sortFilterValues(values, counts, sort) // reorder a filter checklist's values by ValueSort (alphabetical or by facet count, asc/desc)
+sortFilterValues(values, counts, sort, compare?) // reorder a filter checklist's values by ValueSort (alphabetical or by facet count, asc/desc); compare mirrors the column's own ColumnDefBase.compare
+compareMissingLast(compare?, isMissing?) // ready-made ColumnDefBase.compare that pins a value (missing data, by default) last regardless of sort direction
 cycleValueSort(sort) // advance a ValueSort: alpha-asc → alpha-desc → count-desc → count-asc → alpha-asc
 toggleSortDir(dir) // flip 'asc' | 'desc' (used for the date tree's own asc/desc toggle)
 getValueSortIcon(sort) // compact icon for a ValueSort, e.g. 'ABC ↑' or '# ↓'

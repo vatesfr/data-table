@@ -11,6 +11,7 @@ import {
   formatNumericRange,
   bucketDatePart,
   formatDatePart,
+  compareMissingLast,
   LABELS_EN,
   LABELS_FR,
   LABELS_DE,
@@ -29,7 +30,7 @@ interface Employee {
   salary: number
   joined: string
   status: string
-  score: number
+  score: number | null // null: no performance review yet — compareMissingLast() keeps these last regardless of sort direction
   skills: string[]
 }
 
@@ -86,7 +87,7 @@ const SAMPLE_DATA: Employee[] = [
     salary: 62000,
     joined: '2023-04-05',
     status: 'Active',
-    score: 73,
+    score: null, // just joined, no review yet
     skills: ['JavaScript', 'React'],
   },
   {
@@ -174,7 +175,7 @@ const SAMPLE_DATA: Employee[] = [
     salary: 58000,
     joined: '2022-03-08',
     status: 'Active',
-    score: 76,
+    score: null, // no review yet
     skills: ['Recruiting', 'Sourcing'],
   },
   {
@@ -268,6 +269,24 @@ const STATUS_COLORS = {
   Inactive: { bg: '#FCEBEB', color: '#A32D2D' },
 }
 
+// 'tier' below is a computed column derived from 'score' (see "Computed columns") purely to
+// showcase `compare` — Bronze/Silver/Gold/Platinum has no natural alphabetical order ('Gold' <
+// 'Platinum' < 'Silver' alphabetically, nowhere close to the intended rank).
+const TIER_ORDER = ['Bronze', 'Silver', 'Gold', 'Platinum']
+function tierFor(score: number | null): string {
+  if (score == null) return ''
+  if (score >= 95) return 'Platinum'
+  if (score >= 85) return 'Gold'
+  if (score >= 75) return 'Silver'
+  return 'Bronze'
+}
+const TIER_COLORS = {
+  Platinum: { bg: '#EEEDFE', color: '#534AB7' },
+  Gold: { bg: '#FAEEDA', color: '#854F0B' },
+  Silver: { bg: '#E6F1FB', color: '#185FA5' },
+  Bronze: { bg: '#FBEAF0', color: '#993556' },
+}
+
 const COLUMNS: ColumnDef<Employee>[] = [
   // sortable: false + filterable: false — no sort/filter UI; hidden by default via defaultVisibleColumns
   { key: 'id', label: 'ID', type: 'number', width: 60, sortable: false, filterable: false },
@@ -338,13 +357,42 @@ const COLUMNS: ColumnDef<Employee>[] = [
     render: (v) => <Badge value={String(v)} colorMap={STATUS_COLORS} />,
     renderFilterLabel: (v) => <Badge value={v} colorMap={STATUS_COLORS} />,
   },
-  // render returns JSX — use render (not format) when the cell isn't plain text
+  // render returns JSX — use render (not format) when the cell isn't plain text.
+  // compareMissingLast() (issue #15) keeps a not-yet-reviewed employee's row last in the Score
+  // sort regardless of direction — null naturally sorts first ascending / last descending
+  // otherwise, flipping depending on the toggle rather than staying put.
   {
     key: 'score',
     label: 'Score',
     type: 'number',
     width: 80,
-    render: (v) => <ScoreBar value={Number(v)} />,
+    compare: compareMissingLast(),
+    render: (v) =>
+      v == null ? (
+        <span style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>No review yet</span>
+      ) : (
+        <ScoreBar value={Number(v)} />
+      ),
+  },
+  // computed column (value) + compare (issue #15): bucket a continuous score into an ordered
+  // enum and sort it by rank, not alphabetically — see TIER_ORDER above. compareMissingLast()
+  // wraps that tier ranking so a not-yet-reviewed employee's empty tier ('') still sorts last
+  // in both directions, same as the Score column above.
+  {
+    key: 'tier',
+    label: 'Tier',
+    value: (row) => tierFor(row.score),
+    compare: compareMissingLast(
+      (a, b) => TIER_ORDER.indexOf(String(a)) - TIER_ORDER.indexOf(String(b)),
+    ),
+    groupable: true,
+    width: 90,
+    render: (v) =>
+      v ? (
+        <Badge value={String(v)} colorMap={TIER_COLORS} />
+      ) : (
+        <span style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>—</span>
+      ),
   },
   // array-valued column: filter checklist lists individual skills, grouping fans a row into
   // one group per skill, and cells join the array with ', ' — all automatic, no flag needed
@@ -361,12 +409,13 @@ const DEFAULT_VISIBLE = [
   'tenure',
   'status',
   'score',
+  'tier',
   'skills',
 ]
 
 // Row selection/click only need a couple of columns to make their point — a narrower
 // defaultVisibleColumns keeps each section visually distinct instead of repeating the same
-// 9-column table. The persisted table keeps more, since reordering needs several columns to
+// 10-column table. The persisted table keeps more, since reordering needs several columns to
 // be meaningful.
 const SELECTION_VISIBLE = ['name', 'department', 'salary']
 const CLICK_VISIBLE = ['name', 'department', 'role']
@@ -520,7 +569,13 @@ function EmployeeCards() {
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: 13 }}>{fmtSalary(row.salary)}</span>
-              <ScoreBar value={row.score} />
+              {row.score == null ? (
+                <span style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>
+                  No review yet
+                </span>
+              ) : (
+                <ScoreBar value={row.score} />
+              )}
             </div>
           </div>
         ))}

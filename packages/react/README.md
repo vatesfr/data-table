@@ -123,6 +123,34 @@ const COLUMNS: ColumnDef<Employee>[] = [
 { key: 'employeeName', label: 'Name', value: (row) => row.name }
 ```
 
+## Custom sort order
+
+▶ [Try it in the demo](https://vatesfr.github.io/data-table/react/#full-table)
+
+`compare` overrides the default numeric-or-alphabetical comparison for a column whose natural order is neither, e.g. an enum/tier column:
+
+```tsx
+const TIER_ORDER = ['Bronze', 'Silver', 'Gold', 'Platinum']
+
+{
+  key: 'tier',
+  label: 'Tier',
+  compare: (a, b) => TIER_ORDER.indexOf(String(a)) - TIER_ORDER.indexOf(String(b)),
+}
+```
+
+It applies everywhere the column's values are ordered: row sort, group order (for a groupBy column), and the filter checklist's default and explicit ordering.
+
+`compare` also receives a 3rd `dir` argument (the active ascending/descending direction) — ignore it for an ordinary comparator like the one above, since every call site already flips the _return value_'s sign for a descending sort, the same way the default comparison does. It's there for the rarer case of a value that has to stay pinned to one end regardless of which direction is active, e.g. a missing value that should sort last whether ascending or descending — impossible to express as a plain `(a, b) => number` return, since that gets sign-flipped right along with everything else. `compareMissingLast` is a ready-made comparator for exactly this:
+
+```tsx
+import { compareMissingLast } from '@vates/data-table-react'
+
+{ key: 'score', label: 'Score', type: 'number', compare: compareMissingLast() } // null/undefined/'' always last, in both directions
+```
+
+Its default `isMissing` check is `(v) => v == null || v === ''`; pass your own `compare`/`isMissing` to `compareMissingLast(compare?, isMissing?)` to combine it with a custom order — e.g. `compareMissingLast((a, b) => TIER_ORDER.indexOf(String(a)) - TIER_ORDER.indexOf(String(b)))` sorts by tier rank with an empty tier always last.
+
 ## Grouped columns
 
 ▶ [Try it in the demo](https://vatesfr.github.io/data-table/react/#full-table)
@@ -240,6 +268,7 @@ interface ColumnDef<TRow extends object> {
   width?: number
   value?: (row: TRow) => unknown // compute the cell value from the whole row (also covers aliasing)
   format?: (value: unknown, row: TRow) => string
+  compare?: (a: unknown, b: unknown, dir: SortDir) => number // custom ordering for row sort, group order, and the filter checklist; see Custom sort order
   sortable?: boolean // default: true
   filterable?: boolean // default: true
   groupable?: boolean // default: false

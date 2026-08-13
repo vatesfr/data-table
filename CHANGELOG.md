@@ -7,6 +7,11 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Added
+
+- `ColumnDefBase.compare` — a custom `(a, b, dir) => number` comparator for a column whose natural order is neither numeric nor alphabetical (e.g. an enum/tier column). Applied everywhere a column's values are ordered: row sort, group order (for a groupBy column), and the filter checklist's default and explicit (`sortFilterValues`) ordering. The 3rd `dir` argument only matters for a value that must stay pinned to one end regardless of direction (impossible to express as a plain return value, since that gets sign-flipped for `desc` the same way the default comparison does) — ignore it for an ordinary comparator (#15)
+- `compareMissingLast(compare?, isMissing?)` (core, re-exported from all three adapters) — a ready-made `compare` built on the `dir` argument above, pinning a value (missing data, by default) last regardless of sort direction (#15)
+
 ## [0.6.0] - 2026-08-13
 
 ### Added
