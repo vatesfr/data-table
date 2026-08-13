@@ -389,6 +389,52 @@ describe('createDataTable', () => {
     ])
   })
 
+  it('a single sorted column shows only the direction arrow, no index number', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('th[data-action="header-sort"][data-key="score"]')!)
+    const icon = container.querySelector<HTMLElement>(
+      'th[data-action="header-sort"][data-key="score"] .dt-sort-icon',
+    )!
+    expect(icon.textContent).toBe('↑')
+  })
+
+  it('shows an index number on each header once more than one column is sorted', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('th[data-action="header-sort"][data-key="name"]')!)
+    shiftClick(
+      container.querySelector<HTMLElement>('th[data-action="header-sort"][data-key="score"]')!,
+    )
+    const nameIcon = container.querySelector<HTMLElement>(
+      'th[data-action="header-sort"][data-key="name"] .dt-sort-icon',
+    )!
+    const scoreIcon = container.querySelector<HTMLElement>(
+      'th[data-action="header-sort"][data-key="score"] .dt-sort-icon',
+    )!
+    expect(nameIcon.textContent).toBe('1↑')
+    expect(scoreIcon.textContent).toBe('2↑')
+  })
+
+  it('a sort on a grouped-out column is not numbered and does not shift visible headers’ numbers', () => {
+    const table = createDataTable(container, { data: ROWS, columns: COLS })
+    // dept is grouped, so it has no header of its own; its sort entry (used to order the groups)
+    // stays in `sorts` regardless. Append score's sort (shift-click) rather than a plain click,
+    // which would otherwise reset `sorts` to score alone and not exercise the case at all.
+    table.setViewState({ sorts: [{ key: 'dept', dir: 'asc' }], groupBy: ['dept'] })
+    shiftClick(
+      container.querySelector<HTMLElement>('th[data-action="header-sort"][data-key="score"]')!,
+    )
+    expect(table.getViewState().sorts).toEqual([
+      { key: 'dept', dir: 'asc' },
+      { key: 'score', dir: 'asc' },
+    ])
+    const scoreIcon = container.querySelector<HTMLElement>(
+      'th[data-action="header-sort"][data-key="score"] .dt-sort-icon',
+    )!
+    // Only one *visible* header is sorted (score) — dept's entry is invisible, so no number at
+    // all, not "2" (which would imply a missing "1" somewhere).
+    expect(scoreIcon.textContent).toBe('↑')
+  })
+
   it('active sort has no count badge on the Sort button, but shows a chip in the active bar', () => {
     createDataTable(container, { data: ROWS, columns: COLS })
     click(container.querySelector<HTMLElement>('th[data-action="header-sort"][data-key="score"]')!)

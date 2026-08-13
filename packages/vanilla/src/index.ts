@@ -835,9 +835,18 @@ export function createDataTable<TRow extends object>(
     if (groupBy.length > 0) {
       html += `<th class="dt-th dt-th--no-sort" style="width:28px"></th>`
     }
+    // Only `sorts` entries for a currently-rendered header count toward numbering — a groupBy
+    // column can have its own sort entry (used by `sortWithinGroups` to order the groups
+    // themselves), but it has no `<th>` of its own to attach a number to, and leaving it in would
+    // shift every later header's number by one for no visible reason.
+    const headerSorts = sorts.filter((s) => activeColumns.some((c) => c.key === s.key))
     for (const col of activeColumns) {
-      const sortIdx = getSortIndex(sorts, col.key)
-      html += `<th class="dt-th" draggable="true" data-col-key="${esc(col.key)}"${col.width ? ` style="width:${col.width}px"` : ''} data-action="header-sort" data-key="${esc(col.key)}"><span class="dt-th-inner">${esc(col.label)} <span class="dt-sort-icon${sortIdx ? ' dt-sort-icon--active' : ''}">${sortIdx ? `${sortIdx}${getSortIcon(sorts, col.key)}` : '↕'}</span></span></th>`
+      const isSorted = headerSorts.some((s) => s.key === col.key)
+      // A number is only useful to disambiguate priority when more than one visible header is
+      // sorted — with just one, "1↑" is noise next to a plain "↑".
+      const sortIdx = isSorted && headerSorts.length > 1 ? getSortIndex(headerSorts, col.key) : null
+      const icon = isSorted ? getSortIcon(headerSorts, col.key) : '↕'
+      html += `<th class="dt-th" draggable="true" data-col-key="${esc(col.key)}"${col.width ? ` style="width:${col.width}px"` : ''} data-action="header-sort" data-key="${esc(col.key)}"><span class="dt-th-inner">${esc(col.label)} <span class="dt-sort-icon${isSorted ? ' dt-sort-icon--active' : ''}">${sortIdx ? `${sortIdx}${icon}` : icon}</span></span></th>`
     }
     html += `</tr></thead><tbody>`
 
