@@ -389,6 +389,27 @@ describe('createDataTable', () => {
     ])
   })
 
+  it('shift-clicking an already-sorted column flips its direction in place, without removing it', () => {
+    const table = createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('th[data-action="header-sort"][data-key="name"]')!)
+    shiftClick(
+      container.querySelector<HTMLElement>('th[data-action="header-sort"][data-key="score"]')!,
+    )
+    const scoreHeader = () =>
+      container.querySelector<HTMLElement>('th[data-action="header-sort"][data-key="score"]')!
+    shiftClick(scoreHeader())
+    expect(table.getViewState().sorts).toEqual([
+      { key: 'name', dir: 'asc' },
+      { key: 'score', dir: 'desc' },
+    ])
+    // A third shift-click flips it back to asc rather than removing it from the stack.
+    shiftClick(scoreHeader())
+    expect(table.getViewState().sorts).toEqual([
+      { key: 'name', dir: 'asc' },
+      { key: 'score', dir: 'asc' },
+    ])
+  })
+
   it('a single sorted column shows only the direction arrow, no index number', () => {
     createDataTable(container, { data: ROWS, columns: COLS })
     click(container.querySelector<HTMLElement>('th[data-action="header-sort"][data-key="score"]')!)

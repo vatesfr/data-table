@@ -685,6 +685,20 @@ export function setSort(sorts: SortEntry[], key: string): SortEntry[] {
   return [{ key, dir: 'asc' }]
 }
 
+/**
+ * A shift-clicked header: add `key` to the existing multi-sort (ascending) if it isn't already
+ * part of it, or just flip its direction in place if it is. Deliberately never removes an entry —
+ * a shift-click's intent is "adjust the multi-sort", and cycling through "none" would both
+ * surprise someone who only meant to flip direction and, on the next shift-click, re-add the
+ * column at the *end* of the stack instead of restoring its original priority. Removing a column
+ * from the multi-sort has its own dedicated UI (a chip's × or the Sort dropdown's remove button).
+ */
+export function appendOrToggleSort(sorts: SortEntry[], key: string): SortEntry[] {
+  const existing = sorts.find((s) => s.key === key)
+  if (!existing) return [...sorts, { key, dir: 'asc' }]
+  return sorts.map((s) => (s.key === key ? { ...s, dir: toggleSortDir(s.dir) } : s))
+}
+
 /** Swaps the sort entry for `key` with its neighbor `delta` positions away (e.g. -1/+1 for up/down buttons) — reorders sort priority without touching `dir`. */
 export function moveSortBy(sorts: SortEntry[], key: string, delta: number): SortEntry[] {
   const idx = sorts.findIndex((s) => s.key === key)

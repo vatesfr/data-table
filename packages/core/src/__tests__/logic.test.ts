@@ -27,6 +27,7 @@ import {
   calcTotalPages,
   toggleSort,
   setSort,
+  appendOrToggleSort,
   toggleFilter,
   toggleFilterAll,
   setFilterValues,
@@ -1599,6 +1600,48 @@ describe('setSort', () => {
 
   it('removes the sort when key is already the sole desc sort', () => {
     expect(setSort([{ key: 'name', dir: 'desc' }], 'name')).toEqual([])
+  })
+})
+
+// ─── appendOrToggleSort ─────────────────────────────────────────────────────────
+
+describe('appendOrToggleSort', () => {
+  it('appends a fresh asc sort when key is not present', () => {
+    expect(appendOrToggleSort([], 'name')).toEqual([{ key: 'name', dir: 'asc' }])
+  })
+
+  it('appends without touching existing entries', () => {
+    const existing = [{ key: 'dept', dir: 'asc' as const }]
+    const result = appendOrToggleSort(existing, 'name')
+    expect(result).toEqual([
+      { key: 'dept', dir: 'asc' },
+      { key: 'name', dir: 'asc' },
+    ])
+  })
+
+  it('flips asc to desc in place when key is already present', () => {
+    const existing = [
+      { key: 'dept', dir: 'asc' as const },
+      { key: 'name', dir: 'asc' as const },
+    ]
+    expect(appendOrToggleSort(existing, 'name')).toEqual([
+      { key: 'dept', dir: 'asc' },
+      { key: 'name', dir: 'desc' },
+    ])
+  })
+
+  it('flips desc back to asc instead of removing the entry', () => {
+    expect(appendOrToggleSort([{ key: 'name', dir: 'desc' }], 'name')).toEqual([
+      { key: 'name', dir: 'asc' },
+    ])
+  })
+
+  it('never removes an entry, even after repeated calls', () => {
+    let sorts = appendOrToggleSort([], 'name')
+    sorts = appendOrToggleSort(sorts, 'name')
+    sorts = appendOrToggleSort(sorts, 'name')
+    expect(sorts).toHaveLength(1)
+    expect(sorts[0].key).toBe('name')
   })
 })
 

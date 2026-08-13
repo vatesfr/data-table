@@ -19,6 +19,7 @@ import {
   calcTotalPages,
   toggleSort as coreToggleSort,
   setSort as coreSetSort,
+  appendOrToggleSort as coreAppendOrToggleSort,
   moveSortBy as coreMoveSortBy,
   reorderSort as coreReorderSort,
   toggleFilter as coreToggleFilter,
@@ -1141,10 +1142,12 @@ export function createDataTable<TRow extends object>(
         break
       case 'header-sort':
         // Plain click: sort by this column alone, discarding any other active sorts.
-        // Shift-click: append/cycle this column within the existing multi-sort list
-        // (same behavior as the Sort dropdown's own "add sort" entries) — the shift
-        // modifier is the escape hatch for building a multi-column sort from the header.
-        sorts = e.shiftKey ? coreToggleSort(sorts, key) : coreSetSort(sorts, key)
+        // Shift-click: add this column to the existing multi-sort (or flip its direction if
+        // it's already in it) — the shift modifier is the escape hatch for building a
+        // multi-column sort from the header. Never removes an entry; that's the chip ×/
+        // dropdown's job, so a shift-click can't surprise-clear a sort someone just meant to
+        // flip, nor bump it to the end of the priority stack on the next shift-click.
+        sorts = e.shiftKey ? coreAppendOrToggleSort(sorts, key) : coreSetSort(sorts, key)
         viewChanged = true
         break
       case 'remove-sort':
