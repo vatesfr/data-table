@@ -981,6 +981,112 @@ describe('DataTable — sort dropdown', () => {
   })
 })
 
+function headerOf(wrapper: ReturnType<typeof mount>, label: string) {
+  return wrapper.findAll('th').find((th) => th.text().includes(label))!
+}
+
+describe('DataTable — header click sort', () => {
+  const SORT_COLS: ColumnDef<Row>[] = [
+    { key: 'name', label: 'Name' },
+    { key: 'score', label: 'Score', type: 'number' },
+  ]
+
+  it('clicking a header sorts ascending, clicking again reverses to descending', async () => {
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: SORT_COLS, rowKey: 'id' } })
+    await headerOf(wrapper, 'Score').trigger('click')
+    let names = wrapper.findAll('tbody tr td:first-child').map((td) => td.text())
+    expect(names).toEqual(['Bob', 'Alice']) // 60, 90 — ascending
+
+    await headerOf(wrapper, 'Score').trigger('click')
+    names = wrapper.findAll('tbody tr td:first-child').map((td) => td.text())
+    expect(names).toEqual(['Alice', 'Bob']) // 90, 60 — descending
+  })
+
+  it('clicking a third time clears the sort', async () => {
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: SORT_COLS, rowKey: 'id' } })
+    await headerOf(wrapper, 'Score').trigger('click')
+    await headerOf(wrapper, 'Score').trigger('click')
+    await headerOf(wrapper, 'Score').trigger('click')
+    const names = wrapper.findAll('tbody tr td:first-child').map((td) => td.text())
+    expect(names).toEqual(['Alice', 'Bob']) // original order, no longer sorted
+  })
+
+  it('plain-clicking a different header replaces the sort instead of appending to it', async () => {
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: SORT_COLS, rowKey: 'id' } })
+    await headerOf(wrapper, 'Name').trigger('click')
+    await headerOf(wrapper, 'Score').trigger('click')
+    // Only Score's arrow shows — Name is no longer sorted.
+    expect(headerOf(wrapper, 'Name').text()).not.toMatch(/[↑↓]/)
+    const names = wrapper.findAll('tbody tr td:first-child').map((td) => td.text())
+    expect(names).toEqual(['Bob', 'Alice']) // sorted by score alone, ascending
+  })
+
+  it('shift-clicking a header appends it to the existing sort instead of replacing it', async () => {
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: SORT_COLS, rowKey: 'id' } })
+    await headerOf(wrapper, 'Name').trigger('click')
+    await headerOf(wrapper, 'Score').trigger('click', { shiftKey: true })
+    expect(headerOf(wrapper, 'Name').text()).toMatch(/[↑↓]/)
+    expect(headerOf(wrapper, 'Score').text()).toMatch(/[↑↓]/)
+    const names = wrapper.findAll('tbody tr td:first-child').map((td) => td.text())
+    expect(names).toEqual(['Alice', 'Bob']) // sorted by name asc (score is only a tiebreaker)
+  })
+
+  it('shift-clicking an already-sorted column flips its direction in place, without removing it', async () => {
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: SORT_COLS, rowKey: 'id' } })
+    await headerOf(wrapper, 'Name').trigger('click')
+    await headerOf(wrapper, 'Score').trigger('click', { shiftKey: true })
+    await headerOf(wrapper, 'Score').trigger('click', { shiftKey: true })
+    expect(headerOf(wrapper, 'Score').text()).toContain('2↓')
+    // A third shift-click flips it back to asc rather than removing it from the stack.
+    await headerOf(wrapper, 'Score').trigger('click', { shiftKey: true })
+    expect(headerOf(wrapper, 'Score').text()).toContain('2↑')
+  })
+
+  it('a single sorted column shows only the direction arrow, no index number', async () => {
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: SORT_COLS, rowKey: 'id' } })
+    await headerOf(wrapper, 'Score').trigger('click')
+    expect(headerOf(wrapper, 'Score').text()).toContain('↑')
+    expect(headerOf(wrapper, 'Score').text()).not.toMatch(/\d/)
+  })
+
+  it('shows an index number on each header once more than one column is sorted', async () => {
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: SORT_COLS, rowKey: 'id' } })
+    await headerOf(wrapper, 'Name').trigger('click')
+    await headerOf(wrapper, 'Score').trigger('click', { shiftKey: true })
+    expect(headerOf(wrapper, 'Name').text()).toContain('1↑')
+    expect(headerOf(wrapper, 'Score').text()).toContain('2↑')
+  })
+
+  it('a sort on a grouped-out column is not numbered and does not shift visible headers’ numbers', async () => {
+    interface DeptRow extends Row {
+      dept: string
+    }
+    const cols: ColumnDef<DeptRow>[] = [
+      { key: 'name', label: 'Name' },
+      { key: 'score', label: 'Score', type: 'number' },
+      { key: 'dept', label: 'Dept', groupable: true },
+    ]
+    const rows: DeptRow[] = ROWS.map((r) => ({ ...r, dept: r.name === 'Alice' ? 'Eng' : 'HR' }))
+    const wrapper = mount(DataTable, { props: { data: rows, columns: cols, rowKey: 'id' } })
+    // Sort by dept while it still has a header, then group by it — its sort entry (used to order
+    // the groups) stays in `sorts`, but dept no longer has a header to show a number on.
+    await headerOf(wrapper, 'Dept').trigger('click')
+    await wrapper
+      .findAll('button')
+      .find((b) => b.text() === 'Group')!
+      .trigger('click')
+    await wrapper
+      .findAll('.dt__dd-item--clickable')
+      .find((el) => el.text() === 'Dept')!
+      .trigger('click')
+    await headerOf(wrapper, 'Score').trigger('click', { shiftKey: true })
+    // Only Score has a visible header, so no number — not "2", which would imply a missing "1".
+    expect(headerOf(wrapper, 'Score').text()).toContain('↑')
+    expect(headerOf(wrapper, 'Score').text()).not.toMatch(/\d/)
+    expect(wrapper.findAll('th').some((th) => th.text().includes('Dept'))).toBe(false) // header removed by grouping
+  })
+})
+
 describe('DataTable — group dropdown', () => {
   const GROUP_COLS: ColumnDef<Row>[] = [
     { key: 'name', label: 'Name', groupable: true },

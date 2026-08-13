@@ -32,6 +32,8 @@ import {
   paginateVisibleItems,
   mergePageSizeOptions,
   computeVirtualRange,
+  getSortIndex as getHeaderSortIndex,
+  getSortIcon as getHeaderSortIcon,
   type DateTreeNode,
   type ValueSort,
   type VisibleItem,
@@ -663,6 +665,8 @@ export function DataTableView<TRow extends object>({
     moveColumn,
     moveColumnBy,
     toggleSort,
+    setSort,
+    appendOrToggleSort,
     removeSort,
     toggleSortDir,
     moveSortBy,
@@ -1791,54 +1795,72 @@ export function DataTableView<TRow extends object>({
                 </th>
               )}
               {groupBy.length > 0 && <th style={{ ...S.th, width: 28, cursor: 'default' }} />}
-              {activeColumns.map((col) => {
-                const sortIdx = getSortIndex(col.key)
-                return (
-                  <th
-                    key={col.key}
-                    draggable
-                    onDragStart={() => setDragColKey(col.key)}
-                    onDragOver={(e) => {
-                      e.preventDefault()
-                      if (dragColKey && dragColKey !== col.key) setDragOverColKey(col.key)
-                    }}
-                    onDrop={(e) => {
-                      e.preventDefault()
-                      if (dragColKey && dragColKey !== col.key) moveColumn(dragColKey, col.key)
-                      setDragColKey(null)
-                      setDragOverColKey(null)
-                    }}
-                    onDragEnd={() => {
-                      setDragColKey(null)
-                      setDragOverColKey(null)
-                    }}
-                    style={{
-                      ...S.th,
-                      width: col.width,
-                      opacity: dragColKey === col.key ? 0.4 : 1,
-                      boxShadow:
-                        dragOverColKey === col.key
-                          ? 'inset 2px 0 0 var(--color-text-primary)'
-                          : undefined,
-                    }}
-                    onClick={() => toggleSort(col.key)}
-                  >
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                      {col.label}
-                      <span
-                        style={{
-                          fontSize: 10,
-                          color: sortIdx
-                            ? 'var(--color-text-primary)'
-                            : 'var(--color-border-secondary)',
-                        }}
-                      >
-                        {sortIdx ? `${sortIdx}${getSortIcon(col.key)}` : '↕'}
+              {/* Only sorts entries for a currently-rendered header count toward numbering — a
+                  groupBy column can have its own sort entry (sortWithinGroups uses it to order
+                  the groups themselves), but it has no header of its own to attach a number to,
+                  and leaving it in would shift every later header's number for no visible reason. */}
+              {(() => {
+                const headerSorts = sorts.filter((s) => activeColumns.some((c) => c.key === s.key))
+                return activeColumns.map((col) => {
+                  const isSorted = headerSorts.some((s) => s.key === col.key)
+                  // A number is only useful to disambiguate priority when more than one visible
+                  // header is sorted — with just one, "1↑" is noise next to a plain "↑".
+                  const sortIdx =
+                    isSorted && headerSorts.length > 1
+                      ? getHeaderSortIndex(headerSorts, col.key)
+                      : null
+                  const icon = isSorted ? getHeaderSortIcon(headerSorts, col.key) : '↕'
+                  return (
+                    <th
+                      key={col.key}
+                      draggable
+                      onDragStart={() => setDragColKey(col.key)}
+                      onDragOver={(e) => {
+                        e.preventDefault()
+                        if (dragColKey && dragColKey !== col.key) setDragOverColKey(col.key)
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault()
+                        if (dragColKey && dragColKey !== col.key) moveColumn(dragColKey, col.key)
+                        setDragColKey(null)
+                        setDragOverColKey(null)
+                      }}
+                      onDragEnd={() => {
+                        setDragColKey(null)
+                        setDragOverColKey(null)
+                      }}
+                      style={{
+                        ...S.th,
+                        width: col.width,
+                        opacity: dragColKey === col.key ? 0.4 : 1,
+                        boxShadow:
+                          dragOverColKey === col.key
+                            ? 'inset 2px 0 0 var(--color-text-primary)'
+                            : undefined,
+                      }}
+                      // Plain click: sort by this column alone, discarding other active sorts.
+                      // Shift-click: add this column to the multi-sort (or flip its direction if
+                      // it's already in it) — never removes, so it can't surprise-clear a sort or
+                      // bump a column to the end of the priority stack; that's the chip ×/dropdown's job.
+                      onClick={(e) => (e.shiftKey ? appendOrToggleSort(col.key) : setSort(col.key))}
+                    >
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                        {col.label}
+                        <span
+                          style={{
+                            fontSize: 10,
+                            color: isSorted
+                              ? 'var(--color-text-primary)'
+                              : 'var(--color-border-secondary)',
+                          }}
+                        >
+                          {sortIdx ? `${sortIdx}${icon}` : icon}
+                        </span>
                       </span>
-                    </span>
-                  </th>
-                )
-              })}
+                    </th>
+                  )
+                })
+              })()}
             </tr>
           </thead>
           <tbody>

@@ -24,6 +24,8 @@ import {
   paginateVisibleItems,
   mergePageSizeOptions,
   computeVirtualRange,
+  getSortIndex as getHeaderSortIndex,
+  getSortIcon as getHeaderSortIcon,
   type PagedGroup,
   type DateTreeNode,
   type ValueSort,
@@ -85,6 +87,8 @@ const {
   moveColumn,
   moveColumnBy,
   toggleSort,
+  setSort,
+  appendOrToggleSort,
   removeSort,
   toggleSortDir,
   moveSortBy,
@@ -601,6 +605,32 @@ function onColDrop(key: string): void {
 function onColDragEnd(): void {
   dragColKey.value = null
   dragOverColKey.value = null
+}
+
+// Only `sorts` entries for a currently-rendered header count toward numbering — a groupBy column
+// can have its own sort entry (sortWithinGroups uses it to order the groups themselves), but it
+// has no header of its own to attach a number to, and leaving it in would shift every later
+// header's number for no visible reason.
+const headerSorts = computed(() =>
+  sorts.value.filter((s) => activeColumns.value.some((c) => c.key === s.key)),
+)
+function isHeaderSorted(key: string): boolean {
+  return headerSorts.value.some((s) => s.key === key)
+}
+function headerSortLabel(key: string): string {
+  const icon = isHeaderSorted(key) ? getHeaderSortIcon(headerSorts.value, key) : '↕'
+  // A number is only useful to disambiguate priority when more than one visible header is
+  // sorted — with just one, "1↑" is noise next to a plain "↑".
+  if (!isHeaderSorted(key) || headerSorts.value.length <= 1) return icon
+  return `${getHeaderSortIndex(headerSorts.value, key)}${icon}`
+}
+// Plain click: sort by this column alone, discarding other active sorts. Shift-click: add this
+// column to the multi-sort (or flip its direction if it's already in it) — never removes, so it
+// can't surprise-clear a sort or bump a column to the end of the priority stack; that's the chip
+// ×/dropdown's job.
+function onHeaderSortClick(key: string, event: MouseEvent): void {
+  if (event.shiftKey) appendOrToggleSort(key)
+  else setSort(key)
 }
 
 // Sort/Group dropdowns split into an "active" section (priority order, reorderable) and an
@@ -1326,20 +1356,18 @@ function clearSearchQuery(): void {
               @dragover.prevent="onColDragOver(col.key)"
               @drop.prevent="onColDrop(col.key)"
               @dragend="onColDragEnd"
-              @click="toggleSort(col.key)"
+              @click="onHeaderSortClick(col.key, $event)"
             >
               {{ col.label }}
               <span
                 :style="{
                   fontSize: '10px',
-                  color: getSortIndex(col.key)
+                  color: isHeaderSorted(col.key)
                     ? 'var(--color-text-primary)'
                     : 'var(--color-border-secondary)',
                 }"
               >
-                {{
-                  getSortIndex(col.key) ? `${getSortIndex(col.key)}${getSortIcon(col.key)}` : '↕'
-                }}
+                {{ headerSortLabel(col.key) }}
               </span>
             </th>
           </tr>

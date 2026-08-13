@@ -60,7 +60,9 @@ describe('DataTableView', () => {
     // decoding a stored/URL view — not through any DataTableView UI interaction.
     table.setViewState({ sorts: [{ key: 'score', dir: 'asc' }] })
     await wrapper.vm.$nextTick()
-    expect(wrapper.text()).toContain('1↑')
+    // A single sorted column shows only the direction arrow, no index number.
+    expect(wrapper.text()).toContain('Score ↑')
+    expect(wrapper.text()).not.toContain('1↑')
     expect(table.getViewState()).toEqual({ sorts: [{ key: 'score', dir: 'asc' }] })
   })
 

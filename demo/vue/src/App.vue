@@ -641,7 +641,9 @@ function fmtSalary(n: number) {
       style="font-size: 14px; color: var(--color-text-secondary); margin-top: 0; margin-bottom: 4px"
     >
       Every feature together: sort, filter, group, aggregate, column reordering, i18n, dark mode.
-      Try dragging a column header, or grouping by Department — groups start collapsed by default
+      Click a column header to sort by it alone (replacing any other sort); shift-click to add it to
+      a multi-column sort instead — or use the Sort dropdown for finer control. Try dragging a
+      column header, or grouping by Department — groups start collapsed by default
       (<code>default-groups-collapsed</code>). Salary and Joined group into $20k ranges and years
       instead of one group per row — see <code>groupValue</code>/<code>groupFormat</code>.
     </p>

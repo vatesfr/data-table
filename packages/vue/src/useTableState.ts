@@ -10,6 +10,8 @@ import {
   calcTotalPages,
   computeStringValues,
   toggleSort as _toggleSort,
+  setSort as _setSort,
+  appendOrToggleSort as _appendOrToggleSort,
   moveSortBy as _moveSortBy,
   reorderSort as _reorderSort,
   toggleSortDir as _toggleSortDir,
@@ -178,6 +180,12 @@ export function useTableState<TRow extends object>(
     },
     toggleSort: (key: string) => {
       sorts.value = _toggleSort(sorts.value, key)
+    },
+    setSort: (key: string) => {
+      sorts.value = _setSort(sorts.value, key)
+    },
+    appendOrToggleSort: (key: string) => {
+      sorts.value = _appendOrToggleSort(sorts.value, key)
     },
     removeSort: (key: string) => {
       sorts.value = sorts.value.filter((s) => s.key !== key)

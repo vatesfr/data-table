@@ -53,7 +53,8 @@ describe('DataTableView', () => {
     act(() => {
       table!.setViewState({ sorts: [{ key: 'score', dir: 'asc' }] })
     })
-    expect(getAllByText('1↑').length).toBeGreaterThan(0)
+    // A single sorted column shows only the direction arrow, no index number.
+    expect(getAllByText('↑').length).toBeGreaterThan(0)
     expect(table!.getViewState()).toEqual({ sorts: [{ key: 'score', dir: 'asc' }] })
   })
 

@@ -965,6 +965,126 @@ describe('DataTable — sort dropdown', () => {
   })
 })
 
+// The table header and the dropdown's own copy of a column label share text, so pick the one
+// actually inside a <th> — the inverse of `ddCopyOf` above.
+function headerOf(getAllByText: (text: string) => HTMLElement[], label: string): HTMLElement {
+  return getAllByText(label)
+    .find((el) => el.closest('th') !== null)!
+    .closest('th')!
+}
+
+describe('DataTable — header click sort', () => {
+  const SORT_COLS: ColumnDef<Row>[] = [
+    { key: 'name', label: 'Name' },
+    { key: 'score', label: 'Score', type: 'number' },
+  ]
+
+  it('clicking a header sorts ascending, clicking again reverses to descending', () => {
+    const { getAllByText, container } = render(
+      <DataTable data={ROWS} columns={SORT_COLS} rowKey="id" />,
+    )
+    fireEvent.click(headerOf(getAllByText, 'Score'))
+    let names = [...container.querySelectorAll('tbody tr td:first-child')].map(
+      (td) => td.textContent,
+    )
+    expect(names).toEqual(['Bob', 'Alice']) // 60, 90 — ascending
+
+    fireEvent.click(headerOf(getAllByText, 'Score'))
+    names = [...container.querySelectorAll('tbody tr td:first-child')].map((td) => td.textContent)
+    expect(names).toEqual(['Alice', 'Bob']) // 90, 60 — descending
+  })
+
+  it('clicking a third time clears the sort', () => {
+    const { getAllByText, container } = render(
+      <DataTable data={ROWS} columns={SORT_COLS} rowKey="id" />,
+    )
+    fireEvent.click(headerOf(getAllByText, 'Score'))
+    fireEvent.click(headerOf(getAllByText, 'Score'))
+    fireEvent.click(headerOf(getAllByText, 'Score'))
+    const names = [...container.querySelectorAll('tbody tr td:first-child')].map(
+      (td) => td.textContent,
+    )
+    expect(names).toEqual(['Alice', 'Bob']) // original order, no longer sorted
+  })
+
+  it('plain-clicking a different header replaces the sort instead of appending to it', () => {
+    const { getAllByText, container } = render(
+      <DataTable data={ROWS} columns={SORT_COLS} rowKey="id" />,
+    )
+    fireEvent.click(headerOf(getAllByText, 'Name'))
+    fireEvent.click(headerOf(getAllByText, 'Score'))
+    // Only Score's arrow shows — Name is no longer sorted.
+    expect(headerOf(getAllByText, 'Name').textContent).not.toMatch(/[↑↓]/)
+    const names = [...container.querySelectorAll('tbody tr td:first-child')].map(
+      (td) => td.textContent,
+    )
+    expect(names).toEqual(['Bob', 'Alice']) // sorted by score alone, ascending
+  })
+
+  it('shift-clicking a header appends it to the existing sort instead of replacing it', () => {
+    const { getAllByText, container } = render(
+      <DataTable data={ROWS} columns={SORT_COLS} rowKey="id" />,
+    )
+    fireEvent.click(headerOf(getAllByText, 'Name'))
+    fireEvent.click(headerOf(getAllByText, 'Score'), { shiftKey: true })
+    expect(headerOf(getAllByText, 'Name').textContent).toMatch(/[↑↓]/)
+    expect(headerOf(getAllByText, 'Score').textContent).toMatch(/[↑↓]/)
+    const names = [...container.querySelectorAll('tbody tr td:first-child')].map(
+      (td) => td.textContent,
+    )
+    expect(names).toEqual(['Alice', 'Bob']) // sorted by name asc (score is only a tiebreaker)
+  })
+
+  it('shift-clicking an already-sorted column flips its direction in place, without removing it', () => {
+    const { getAllByText } = render(<DataTable data={ROWS} columns={SORT_COLS} rowKey="id" />)
+    fireEvent.click(headerOf(getAllByText, 'Name'))
+    fireEvent.click(headerOf(getAllByText, 'Score'), { shiftKey: true })
+    fireEvent.click(headerOf(getAllByText, 'Score'), { shiftKey: true })
+    expect(headerOf(getAllByText, 'Score').textContent).toContain('2↓')
+    // A third shift-click flips it back to asc rather than removing it from the stack.
+    fireEvent.click(headerOf(getAllByText, 'Score'), { shiftKey: true })
+    expect(headerOf(getAllByText, 'Score').textContent).toContain('2↑')
+  })
+
+  it('a single sorted column shows only the direction arrow, no index number', () => {
+    const { getAllByText } = render(<DataTable data={ROWS} columns={SORT_COLS} rowKey="id" />)
+    fireEvent.click(headerOf(getAllByText, 'Score'))
+    expect(headerOf(getAllByText, 'Score').textContent).toContain('↑')
+    expect(headerOf(getAllByText, 'Score').textContent).not.toMatch(/\d/)
+  })
+
+  it('shows an index number on each header once more than one column is sorted', () => {
+    const { getAllByText } = render(<DataTable data={ROWS} columns={SORT_COLS} rowKey="id" />)
+    fireEvent.click(headerOf(getAllByText, 'Name'))
+    fireEvent.click(headerOf(getAllByText, 'Score'), { shiftKey: true })
+    expect(headerOf(getAllByText, 'Name').textContent).toContain('1↑')
+    expect(headerOf(getAllByText, 'Score').textContent).toContain('2↑')
+  })
+
+  it('a sort on a grouped-out column is not numbered and does not shift visible headers’ numbers', () => {
+    interface DeptRow extends Row {
+      dept: string
+    }
+    const cols: ColumnDef<DeptRow>[] = [
+      { key: 'name', label: 'Name' },
+      { key: 'score', label: 'Score', type: 'number' },
+      { key: 'dept', label: 'Dept', groupable: true },
+    ]
+    const rows: DeptRow[] = ROWS.map((r) => ({ ...r, dept: r.name === 'Alice' ? 'Eng' : 'HR' }))
+    const { getByText, getAllByText } = render(<DataTable data={rows} columns={cols} rowKey="id" />)
+    // Sort by dept while it still has a header, then group by it — its sort entry (used to order
+    // the groups) stays in `sorts`, but dept no longer has a header to show a number on.
+    fireEvent.click(headerOf(getAllByText, 'Dept'))
+    fireEvent.click(getByText('Group'))
+    fireEvent.click(ddCopyOf(getAllByText, 'Dept').closest('button')!)
+    fireEvent.click(headerOf(getAllByText, 'Score'), { shiftKey: true })
+    // Only Score has a visible header, so no number — not "2", which would imply a missing "1".
+    expect(headerOf(getAllByText, 'Score').textContent).toContain('↑')
+    expect(headerOf(getAllByText, 'Score').textContent).not.toMatch(/\d/)
+    expect(getAllByText('Dept').every((el) => el.closest('th') === null)).toBe(true) // header removed by grouping
+  })
+})
+
 describe('DataTable — group dropdown', () => {
   const GROUP_COLS: ColumnDef<Row>[] = [
     { key: 'name', label: 'Name', groupable: true },
