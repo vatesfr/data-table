@@ -7,6 +7,19 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-08-13
+
+### Added
+
+- `ColumnDefBase.groupValue`/`groupFormat` let a column bucket into a coarser group key instead of grouping on its exact value — useful for a continuous or high-cardinality column (a percentage, price, or raw timestamp) where exact-value grouping puts every row in its own group. `bucketNumericRange`/`formatNumericRange` and `bucketDatePart`/`formatDatePart` (core, re-exported from all three adapters) are ready-made pairs for numeric-range and date-part bucketing
+- Numeric and date range filters gained a slider (two overlapping thumbs sharing one track) alongside their existing min/max inputs. For date columns, the range now also narrows the Year › Month › Day tree itself (and its facet counts), the same way the search box already does, instead of only being ANDed onto the final row set
+
+### Fixed
+
+- The filter checklist/date-tree now fills the detail pane's actual height instead of a hardcoded 260px, which used to leave dead space below a short checklist (vanilla) or let the date tree overflow past the panel onto the page entirely (all three adapters) whenever the column list was taller than the old default (#13, #14)
+- The filter column list's active-filter dot only checked `rangeFilters` for `type: 'number'`, so a date column's own range filter never lit it; unified to check the checklist size OR the range bounds for every column type
+- The active state bar never rendered a chip for a range filter at all; it now does, and the chip's `×` clears the range too
+
 ## [0.5.0] - 2026-08-11
 
 ### Added
