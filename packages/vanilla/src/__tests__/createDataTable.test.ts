@@ -2328,3 +2328,72 @@ describe('createDataTable — virtualized filter checklist', () => {
     expect(container.querySelector('.dt-stats')?.textContent).toContain('500 / 500 rows')
   })
 })
+
+describe('createDataTable — filter panel height correction (#13/#14)', () => {
+  let container: HTMLDivElement
+  let originalRect: () => DOMRect
+
+  beforeEach(() => {
+    container = document.createElement('div')
+    document.body.appendChild(container)
+    originalRect = HTMLElement.prototype.getBoundingClientRect
+  })
+
+  afterEach(() => {
+    container.remove()
+    HTMLElement.prototype.getBoundingClientRect = originalRect
+  })
+
+  // Stubs what the post-render correction pass reads: `.dt-filter-detail`'s bottom edge
+  // (stretched by `.dt-filter-cols`, per the flex row's cross-axis stretch) vs. the checklist/
+  // date-tree wrapper's own bottom edge — jsdom has no real layout engine, so without this both
+  // would report 0 regardless of any CSS, masking the gap the correction pass is meant to close.
+  function mockPanelHeight(detailBottom: number, viewportBottom: number): void {
+    HTMLElement.prototype.getBoundingClientRect = function (this: HTMLElement) {
+      if (this.classList.contains('dt-filter-detail')) return { bottom: detailBottom } as DOMRect
+      if (
+        this.classList.contains('dt-filter-list') ||
+        this.classList.contains('dt-date-tree-wrap')
+      ) {
+        return { bottom: viewportBottom } as DOMRect
+      }
+      return originalRect.call(this)
+    }
+  }
+
+  it('grows the checklist to fill the panel when the column list stretches it taller', () => {
+    mockPanelHeight(300, 260)
+    createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="filter"]')!)
+    const list = container.querySelector<HTMLElement>('.dt-filter-list')!
+    expect(list.style.height).toBe('300px')
+  })
+
+  it('leaves the checklist at the floor height when the panel has no extra room', () => {
+    mockPanelHeight(260, 260)
+    createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="filter"]')!)
+    const list = container.querySelector<HTMLElement>('.dt-filter-list')!
+    expect(list.style.height).toBe('260px')
+  })
+
+  it('bounds the date filter tree in a scrollable wrapper that grows the same way', () => {
+    interface GameRow {
+      id: number
+      name: string
+      released: string
+    }
+    const DATE_COLS: ColumnDef<GameRow>[] = [
+      { key: 'released', label: 'Released', type: 'date', filterable: true },
+    ]
+    const DATE_ROWS: GameRow[] = [
+      { id: 1, name: 'Game A', released: '2023-05-14' },
+      { id: 2, name: 'Game B', released: '2021-01-02' },
+    ]
+    mockPanelHeight(300, 260)
+    createDataTable(container, { data: DATE_ROWS, columns: DATE_COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="filter"]')!)
+    const wrap = container.querySelector<HTMLElement>('.dt-date-tree-wrap')!
+    expect(wrap.style.height).toBe('300px')
+  })
+})

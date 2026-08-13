@@ -103,7 +103,11 @@ const DEFAULT_VALUE_SORT: ValueSort = { by: 'alpha', dir: 'asc' }
 // must match the actual rendered height of a checklist row exactly, which is why each row gets
 // an explicit inline height below instead of relying on dt-dd-item's padding + line-height.
 const FILTER_LIST_ITEM_HEIGHT = 32
-const FILTER_LIST_VIEWPORT_HEIGHT = 260
+// Floor height for the filter dropdown's checklist/date-tree viewport, and its value before the
+// panel has been measured even once (first open). The *actual* height used is `_filterListHeight`
+// below, corrected post-render to whatever the panel really renders at — see the measurement
+// pass at the bottom of render(). GitHub issue #13.
+const FILTER_LIST_DEFAULT_HEIGHT = 260
 
 // --- Factory ---
 
@@ -172,6 +176,14 @@ export function createDataTable<TRow extends object>(
   // handleFilterListScroll) can rebuild just the checklist's rendered rows without re-running
   // the full derive()/render() pipeline.
   let _stringValueCounts: Record<string, Map<string, number>> = {}
+  // The filter dropdown checklist/date-tree's actual viewport height in px — starts at the
+  // floor default and is corrected after every render to whatever `.dt-filter-panel` really
+  // renders at (see the measurement pass at the bottom of render()), so a tall `.dt-filter-cols`
+  // list no longer leaves dead space below a checklist stuck at a hardcoded height. Persists
+  // across renders (unlike _filterDetailValues etc.) so the *next* render's initial HTML/
+  // computeVirtualRange call already uses a close-to-correct number instead of always starting
+  // from the floor and visibly correcting after the fact. GitHub issue #13.
+  let _filterListHeight = FILTER_LIST_DEFAULT_HEIGHT
   // Every item across the *full* filtered/grouped dataset (not just this page) in display order —
   // a group header for every group (even a collapsed one, so it stays reachable) plus its rows
   // unless it's collapsed. Grouping over the full dataset first, then paginating this flattened
@@ -374,7 +386,7 @@ export function createDataTable<TRow extends object>(
   function buildFilterListInnerHtml(col: ColumnDef<TRow>): string {
     const { startIndex, endIndex, offsetY, totalHeight } = computeVirtualRange(
       filterListScrollTop,
-      FILTER_LIST_VIEWPORT_HEIGHT,
+      _filterListHeight,
       FILTER_LIST_ITEM_HEIGHT,
       _filterDetailValues.length,
     )
@@ -674,14 +686,19 @@ export function createDataTable<TRow extends object>(
               s += `<button type="button" class="dt-value-sort-btn" data-action="toggle-value-sort" data-key="${esc(filterDetailCol.key)}" title="${esc(L.sortValues)}" aria-label="${esc(L.sortValues)}">${esc(sortIcon)}</button>`
               s += `</div>`
               if (filterDetailCol.type === 'date') {
+                // Bounded + scrollable, same as the checklist below (see _filterListHeight) —
+                // without this wrapper the tree has no height cap at all and bleeds past the
+                // panel onto the page once it's tall enough. GitHub issue #14.
+                s += `<div class="dt-date-tree-wrap" style="height:${_filterListHeight}px">`
                 s += renderDateTreeNodes(_filterDetailTree, filterDetailCol.key, 0)
+                s += `</div>`
               } else {
                 // Virtualized: only the rows scrolled into view (+ overscan) are ever mounted,
                 // regardless of how many thousands of distinct values _filterDetailValues holds
                 // — see computeVirtualRange/FILTER_LIST_*. Select-all/shift-range elsewhere
                 // still operate on the full _filterDetailValues array, so behavior is unaffected
                 // by how much of it is actually rendered.
-                s += `<div class="dt-filter-list" style="height:${FILTER_LIST_VIEWPORT_HEIGHT}px">`
+                s += `<div class="dt-filter-list" style="height:${_filterListHeight}px">`
                 s += buildFilterListInnerHtml(filterDetailCol)
                 s += `</div>`
               }
@@ -966,6 +983,35 @@ export function createDataTable<TRow extends object>(
       if (rect.left + dx < margin) dx = margin - rect.left
       if (dx !== 0) openDd.style.transform = `translateX(${dx}px)`
       if (rect.bottom > window.innerHeight - margin) openDd.classList.add('dt-dd--up')
+    }
+
+    // Correct the filter checklist/date-tree's viewport height to whatever `.dt-filter-panel`
+    // actually renders at, instead of the FILTER_LIST_DEFAULT_HEIGHT constant — `.dt-filter-cols`
+    // (the column list on the left) can stretch the panel taller than that default via flex
+    // cross-axis stretch, and without this the checklist/tree stays stuck at the old height,
+    // leaving dead space below it (#13) or, for the unbounded date tree, overflowing the panel
+    // entirely (#14). `.dt-filter-detail`'s own height is driven by the flex row's stretch, not
+    // by its content, so it can be taller than its children even before this correction — the
+    // gap between its bottom edge and the checklist/tree's bottom edge is exactly the dead space
+    // to close. Reset to the floor height *before* measuring (not just when growing) so a
+    // shrunk `.dt-filter-cols` — fewer filterable columns, a narrower viewport — lets the
+    // checklist/tree shrink back down too, rather than only ever growing once inflated.
+    const filterDetailEl = container.querySelector<HTMLElement>('.dt-filter-detail')
+    const filterViewportEl = container.querySelector<HTMLElement>(
+      '.dt-filter-list, .dt-date-tree-wrap',
+    )
+    if (filterDetailEl && filterViewportEl) {
+      filterViewportEl.style.height = `${FILTER_LIST_DEFAULT_HEIGHT}px`
+      const gap =
+        filterDetailEl.getBoundingClientRect().bottom -
+        filterViewportEl.getBoundingClientRect().bottom
+      _filterListHeight = Math.max(FILTER_LIST_DEFAULT_HEIGHT, FILTER_LIST_DEFAULT_HEIGHT + gap)
+      filterViewportEl.style.height = `${_filterListHeight}px`
+      // Only the checklist's rows depend on this number (via computeVirtualRange's viewport-
+      // height argument) — the date tree isn't virtualized, so resizing its wrapper is enough.
+      if (filterViewportEl.classList.contains('dt-filter-list') && filterDetailCol) {
+        filterViewportEl.innerHTML = buildFilterListInnerHtml(filterDetailCol)
+      }
     }
   }
 
