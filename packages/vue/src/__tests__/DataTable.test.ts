@@ -505,6 +505,20 @@ describe('DataTable — date filter tree', () => {
     expect(wrapper.text()).not.toContain('May')
   })
 
+  // Regression guard: the tree used to render with no wrapper at all — no height bound, no
+  // overflow — so an expanded tree could bleed past the filter panel onto the page instead of
+  // scrolling. It must now sit inside its own bounded, scrollable container.
+  it('bounds the date tree in a scrollable, flex-filling container', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: DATE_ROWS, columns: DATE_COLS, rowKey: 'id' },
+    })
+    const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
+    await filterBtn.trigger('click')
+    const wrap = wrapper.find('.dt__date-tree-wrap')
+    expect(wrap.exists()).toBe(true)
+    expect(wrap.text()).toContain('2023')
+  })
+
   it('expanding a year reveals its months, expanding a month reveals its days', async () => {
     const wrapper = mount(DataTable, {
       props: { data: DATE_ROWS, columns: DATE_COLS, rowKey: 'id' },

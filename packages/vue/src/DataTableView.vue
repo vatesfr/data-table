@@ -308,6 +308,12 @@ const DEFAULT_VALUE_SORT: ValueSort = { by: 'alpha', dir: 'asc' }
 // must match the actual rendered height of a checklist row exactly, which is why each row gets
 // an explicit inline height below instead of relying on dt__dd-item's padding + line-height.
 const FILTER_LIST_ITEM_HEIGHT = 32
+// The checklist itself no longer has a fixed height (see .dt__filter-list, which flex-fills
+// .dt__filter-detail instead) — this is now only the *assumed* viewport height fed to
+// computeVirtualRange's windowing math. Safe to leave un-measured: .dt__filter-panel's own
+// max-height:380px bounds how much taller the checklist can actually grow past this default,
+// well within computeVirtualRange's own overscan margin (see .dt__filter-list's CSS comment for
+// the full math).
 const FILTER_LIST_VIEWPORT_HEIGHT = 260
 
 const filterableCols = computed(() => props.columns.filter((c) => c.filterable !== false))
@@ -1048,17 +1054,18 @@ function clearSearchQuery(): void {
                       }}
                     </button>
                   </div>
-                  <DateTreeItem
-                    v-if="filterDetailCol.type === 'date'"
-                    :nodes="filterDetailTree"
-                    :depth="0"
-                    :selected="filters[filterDetailCol.key] ?? new Set()"
-                    :counts="stringValueCounts[filterDetailCol.key] ?? new Map()"
-                    :expanded="expandedDateNodes[filterDetailCol.key] ?? new Set()"
-                    :search-active="isDateSearchActive(filterDetailCol)"
-                    @toggle-node="(node, event) => onDateNodeClick(filterDetailCol!, node, event)"
-                    @toggle-expand="(path) => toggleDateNodeExpand(filterDetailCol!.key, path)"
-                  />
+                  <div v-if="filterDetailCol.type === 'date'" class="dt__date-tree-wrap">
+                    <DateTreeItem
+                      :nodes="filterDetailTree"
+                      :depth="0"
+                      :selected="filters[filterDetailCol.key] ?? new Set()"
+                      :counts="stringValueCounts[filterDetailCol.key] ?? new Map()"
+                      :expanded="expandedDateNodes[filterDetailCol.key] ?? new Set()"
+                      :search-active="isDateSearchActive(filterDetailCol)"
+                      @toggle-node="(node, event) => onDateNodeClick(filterDetailCol!, node, event)"
+                      @toggle-expand="(path) => toggleDateNodeExpand(filterDetailCol!.key, path)"
+                    />
+                  </div>
                   <!--
                   Virtualized: only the rows scrolled into view (+ overscan) are ever mounted,
                   regardless of how many thousands of distinct values filterDetailValues holds —
@@ -1067,12 +1074,7 @@ function clearSearchQuery(): void {
                   much of it is actually rendered.
                 -->
                   <template v-else>
-                    <div
-                      ref="filterListRef"
-                      class="dt__filter-list"
-                      :style="{ height: FILTER_LIST_VIEWPORT_HEIGHT + 'px' }"
-                      @scroll="onFilterListScroll"
-                    >
+                    <div ref="filterListRef" class="dt__filter-list" @scroll="onFilterListScroll">
                       <div
                         :style="{
                           height: filterListVirtualRange.totalHeight + 'px',
@@ -1562,6 +1564,9 @@ function clearSearchQuery(): void {
   display: flex;
   min-width: 460px;
   max-height: 380px;
+  /* Safety net for the date tree (see .dt__date-tree-wrap below) — without it, content that
+     outgrows max-height would bleed past the panel onto the page instead of being clipped. */
+  overflow: hidden;
 }
 .dt__filter-cols {
   width: 150px;
@@ -1601,16 +1606,39 @@ function clearSearchQuery(): void {
   background: var(--color-text-info);
   flex-shrink: 0;
 }
+/* A flex column (not just flex: 1) so the checklist/date-tree child below can flex: 1 to fill
+   whatever height .dt__filter-cols (the column list) ends up stretching this to via the row's
+   cross-axis stretch, instead of a hardcoded height leaving dead space below it once
+   .dt__filter-cols renders taller than that default (see .dt__filter-list/.dt__date-tree-wrap). */
 .dt__filter-detail {
+  display: flex;
+  flex-direction: column;
   flex: 1;
   padding: 6px 0;
   min-width: 220px;
 }
-/* Fixed height (bound inline from FILTER_LIST_VIEWPORT_HEIGHT) + itemHeight are what make the
-   windowed-rendering math in computeVirtualRange exact — a column with thousands of distinct
-   values only ever mounts the rows scrolled into view. The search row above stays outside this
-   element (in normal flow), so it never scrolls away. */
+/* flex: 1 (not a hardcoded height) lets this fill whatever room .dt__filter-detail actually has —
+   FILTER_LIST_VIEWPORT_HEIGHT remains only the *assumed* viewport height fed to
+   computeVirtualRange's windowing math, not this element's real rendered height. That's safe
+   even when they diverge: .dt__filter-panel's own max-height: 380px bounds how much taller this
+   can ever grow past the 260px default (~60-80px, given the search row/padding above it), well
+   inside the 5-row (160px) overscan on each side — so the virtualized window always has enough
+   pre-rendered rows to cover the actual visible box. min-height: 0 is required for a flex column
+   child to actually shrink/scroll instead of overflowing its container (the default flex
+   min-height: auto would let its content push .dt__filter-detail taller instead). The search row
+   above stays outside this element (in normal flow, flex-shrink: 0 below), so it never scrolls
+   away. */
 .dt__filter-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+/* Same reasoning as .dt__filter-list above, applied to the date tree — which has no
+   virtualization of its own, so this wrapper alone is what turns "overflow past the panel onto
+   the page" (no wrapper at all previously) into "fills available space, scrolls the rest". */
+.dt__date-tree-wrap {
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
 }
 .dt__filter-search-row {
@@ -1618,6 +1646,7 @@ function clearSearchQuery(): void {
   align-items: center;
   gap: 6px;
   margin: 2px 12px 6px;
+  flex-shrink: 0;
 }
 .dt__dd-search {
   display: block;

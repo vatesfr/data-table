@@ -319,8 +319,17 @@ describe('DataTable — virtualized filter checklist', () => {
   }))
 
   function scrollableList(container: HTMLElement): HTMLElement {
+    // The checklist fills its available height via `flex: 1` (see filterList in
+    // DataTableView.tsx) rather than a fixed inline height, so `.style.flex` alone can't
+    // disambiguate it from `.filterCols` (also `overflowY: 'auto'` — and jsdom's CSSOM reports a
+    // non-empty `.style.flex` for it too, derived from its own `flexShrink: 0`). Its structural
+    // signature is more reliable: the checklist's only child is the totalHeight spacer
+    // (`position: relative`) used by the windowing math, which `.filterCols` has no equivalent of.
     const el = [...container.querySelectorAll<HTMLElement>('div')].find(
-      (d) => d.style.overflowY === 'auto' && d.style.height,
+      (d) =>
+        d.style.overflowY === 'auto' &&
+        d.firstElementChild instanceof HTMLElement &&
+        d.firstElementChild.style.position === 'relative',
     )
     if (!el) throw new Error('virtualized checklist container not found')
     return el
@@ -511,6 +520,21 @@ describe('DataTable — date filter tree', () => {
     expect(getByText('2023')).toBeTruthy()
     expect(getByText('2021')).toBeTruthy()
     expect(queryByText('May')).toBeNull()
+  })
+
+  // Regression guard: the tree used to render with no wrapper at all — no height bound, no
+  // overflow — so an expanded tree could bleed past the filter panel onto the page instead of
+  // scrolling. It must now sit inside its own bounded, scrollable container (filterDateTreeWrap).
+  it('bounds the date tree in a scrollable, flex-filling container', () => {
+    const { getByText, container } = render(
+      <DataTable data={DATE_ROWS} columns={DATE_COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Filter'))
+    const yearNode = getByText('2023')
+    const wrap = [...container.querySelectorAll<HTMLElement>('div')].find(
+      (d) => d.style.overflowY === 'auto' && d.contains(yearNode),
+    )
+    expect(wrap).toBeTruthy()
   })
 
   it('expanding a year reveals its months, expanding a month reveals its days', () => {
