@@ -1107,6 +1107,106 @@ describe('createDataTable', () => {
     expect(container.querySelectorAll('tbody tr')).toHaveLength(2) // Bob (60) and David (70)
   })
 
+  it("renders a range slider with bounds matching the numeric column's actual min/max", () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="filter"]')!)
+    click(
+      container.querySelector<HTMLElement>('[data-action="select-filter-col"][data-key="score"]')!,
+    )
+    const thumbs = [...container.querySelectorAll<HTMLInputElement>('.dt-range-slider-thumb')]
+    expect(thumbs).toHaveLength(2)
+    expect(thumbs[0].min).toBe('60')
+    expect(thumbs[0].max).toBe('90')
+    expect(thumbs[0].value).toBe('60')
+    expect(thumbs[1].value).toBe('90')
+  })
+
+  it('dragging a slider thumb does not filter rows until the drag commits on "change"', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="filter"]')!)
+    click(
+      container.querySelector<HTMLElement>('[data-action="select-filter-col"][data-key="score"]')!,
+    )
+    const low = container.querySelectorAll<HTMLInputElement>('.dt-range-slider-thumb')[0]
+    low.value = '75'
+    low.dispatchEvent(new Event('input', { bubbles: true }))
+    expect(container.querySelectorAll('tbody tr')).toHaveLength(4) // not committed yet
+    low.dispatchEvent(new Event('change', { bubbles: true }))
+    expect(container.querySelectorAll('tbody tr')).toHaveLength(2) // Alice (90), Clara (80)
+  })
+
+  it('committing a slider drag also updates the plain min/max inputs, sorted low/high', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="filter"]')!)
+    click(
+      container.querySelector<HTMLElement>('[data-action="select-filter-col"][data-key="score"]')!,
+    )
+    // Drag the "high" thumb down past the middle — the actual min/max is Math.min/max of both
+    // live thumb values regardless of which thumb nominally moved.
+    const high = container.querySelectorAll<HTMLInputElement>('.dt-range-slider-thumb')[1]
+    high.value = '75'
+    high.dispatchEvent(new Event('input', { bubbles: true }))
+    high.dispatchEvent(new Event('change', { bubbles: true }))
+    const minInput = container.querySelector<HTMLInputElement>(
+      '[data-action="range-min"][data-key="score"]',
+    )!
+    const maxInput = container.querySelector<HTMLInputElement>(
+      '[data-action="range-max"][data-key="score"]',
+    )!
+    expect(minInput.value).toBe('60')
+    expect(maxInput.value).toBe('75')
+  })
+
+  it('updates the plain min/max inputs live while dragging, before the drag commits', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="filter"]')!)
+    click(
+      container.querySelector<HTMLElement>('[data-action="select-filter-col"][data-key="score"]')!,
+    )
+    const low = container.querySelectorAll<HTMLInputElement>('.dt-range-slider-thumb')[0]
+    low.value = '75'
+    low.dispatchEvent(new Event('input', { bubbles: true }))
+    const minInput = container.querySelector<HTMLInputElement>(
+      '[data-action="range-min"][data-key="score"]',
+    )!
+    expect(minInput.value).toBe('75') // live, before "change" ever fires
+  })
+
+  it('marks the column with a dot and an active-bar chip once a range filter is set', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="filter"]')!)
+    click(
+      container.querySelector<HTMLElement>('[data-action="select-filter-col"][data-key="score"]')!,
+    )
+    setInput(
+      container.querySelector<HTMLInputElement>('[data-action="range-min"][data-key="score"]')!,
+      '80',
+    )
+    const scoreColItem = container.querySelector<HTMLElement>(
+      '[data-action="select-filter-col"][data-key="score"]',
+    )!
+    expect(scoreColItem.querySelector('.dt-filter-col-dot')).toBeTruthy()
+    const chip = container.querySelector('.dt-chip--filter')!
+    expect(chip.textContent).toContain('Score')
+    expect(chip.textContent).toContain('80')
+  })
+
+  it("clicking a range filter's active-bar chip clears it and unfilters the rows", () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="filter"]')!)
+    click(
+      container.querySelector<HTMLElement>('[data-action="select-filter-col"][data-key="score"]')!,
+    )
+    setInput(
+      container.querySelector<HTMLInputElement>('[data-action="range-min"][data-key="score"]')!,
+      '80',
+    )
+    expect(container.querySelectorAll('tbody tr')).toHaveLength(2) // Alice (90), Clara (80)
+    click(container.querySelector<HTMLElement>('.dt-chip--filter .dt-chip-x')!)
+    expect(container.querySelector('.dt-chip--filter')).toBeNull()
+    expect(container.querySelectorAll('tbody tr')).toHaveLength(4)
+  })
+
   // --- date filter tree ---
 
   interface GameRow {
@@ -1243,6 +1343,73 @@ describe('createDataTable', () => {
     expect(container.innerHTML).toContain('Game C')
     expect(container.innerHTML).not.toContain('Game B')
     expect(container.innerHTML).not.toContain('Game D')
+  })
+
+  // --- date range filter ---
+
+  it('renders 2 native date inputs above the tree for a date column', () => {
+    createDataTable(container, { data: DATE_ROWS, columns: DATE_COLS })
+    openDateFilter()
+    const minInput = container.querySelector<HTMLInputElement>(
+      '[data-action="range-min"][data-key="released"]',
+    )!
+    const maxInput = container.querySelector<HTMLInputElement>(
+      '[data-action="range-max"][data-key="released"]',
+    )!
+    expect(minInput.type).toBe('date')
+    expect(maxInput.type).toBe('date')
+  })
+
+  it('a date range narrows the tree itself and filters rows, without needing a checkbox ticked', () => {
+    createDataTable(container, { data: DATE_ROWS, columns: DATE_COLS })
+    openDateFilter()
+    setInput(
+      container.querySelector<HTMLInputElement>('[data-action="range-min"][data-key="released"]')!,
+      '2022-01-01',
+    )
+    // The 2021 year (Game C) drops out of the tree entirely — narrowed like a search term, not
+    // merely ANDed onto the final result once a checkbox is ticked.
+    expect(container.innerHTML).not.toContain('2021')
+    expect(container.innerHTML).toContain('2023')
+    expect(container.querySelectorAll('tbody tr')).toHaveLength(2) // Game A, Game B (2023)
+  })
+
+  it("a date range slider has epoch-based bounds matching the column's actual min/max date", () => {
+    createDataTable(container, { data: DATE_ROWS, columns: DATE_COLS })
+    openDateFilter()
+    const thumbs = [...container.querySelectorAll<HTMLInputElement>('.dt-range-slider-thumb')]
+    expect(thumbs).toHaveLength(2)
+    expect(Number(thumbs[0].min)).toBe(new Date('2021-01-02').getTime())
+    expect(Number(thumbs[0].max)).toBe(new Date('2023-05-20').getTime())
+  })
+
+  it('marks the date column with a dot and an active-bar chip once a range filter is set, with no checkbox ticked', () => {
+    createDataTable(container, { data: DATE_ROWS, columns: DATE_COLS })
+    openDateFilter()
+    setInput(
+      container.querySelector<HTMLInputElement>('[data-action="range-min"][data-key="released"]')!,
+      '2022-01-01',
+    )
+    const releasedColItem = container.querySelector<HTMLElement>(
+      '[data-action="select-filter-col"][data-key="released"]',
+    )!
+    expect(releasedColItem.querySelector('.dt-filter-col-dot')).toBeTruthy()
+    const chip = container.querySelector('.dt-chip--filter')!
+    expect(chip.textContent).toContain('Released')
+    expect(chip.textContent).toContain('2022-01-01')
+  })
+
+  it("clicking a date range filter's active-bar chip clears it, restoring the full tree and rows", () => {
+    createDataTable(container, { data: DATE_ROWS, columns: DATE_COLS })
+    openDateFilter()
+    setInput(
+      container.querySelector<HTMLInputElement>('[data-action="range-min"][data-key="released"]')!,
+      '2022-01-01',
+    )
+    click(container.querySelector<HTMLElement>('.dt-chip--filter .dt-chip-x')!)
+    expect(container.querySelector('.dt-chip--filter')).toBeNull()
+    expect(container.innerHTML).toContain('2021')
+    expect(container.querySelectorAll('tbody tr')).toHaveLength(3)
   })
 
   // --- pagination ---

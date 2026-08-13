@@ -109,8 +109,25 @@ export function processData<TRow extends object>(
   for (const [key, range] of Object.entries(rangeFilters)) {
     const col = colByKey.get(key)
     const rangeValue = (r: TRow) => (col ? getColumnValue(col, r) : asRecord(r)[key])
-    if (range.min !== '') result = result.filter((r) => Number(rangeValue(r)) >= Number(range.min))
-    if (range.max !== '') result = result.filter((r) => Number(rangeValue(r)) <= Number(range.max))
+    if (col?.type === 'date') {
+      // Bounds come from the range filter's native <input type="date">s, always ISO
+      // `YYYY-MM-DD` — parsed with the default parser, not `col.parseDate`, since a column's
+      // custom parser is for its own raw value format, not this input's fixed ISO one.
+      const parseDate = col.parseDate ?? defaultParseDate
+      if (range.min !== '') {
+        const min = defaultParseDate(range.min)
+        result = result.filter((r) => parseDate(String(rangeValue(r))) >= min)
+      }
+      if (range.max !== '') {
+        const max = defaultParseDate(range.max)
+        result = result.filter((r) => parseDate(String(rangeValue(r))) <= max)
+      }
+    } else {
+      if (range.min !== '')
+        result = result.filter((r) => Number(rangeValue(r)) >= Number(range.min))
+      if (range.max !== '')
+        result = result.filter((r) => Number(rangeValue(r)) <= Number(range.max))
+    }
   }
 
   return sortRows(result, sorts, colByKey)
@@ -424,6 +441,57 @@ export function filterValuesByCount(
   selected: Set<string>,
 ): string[] {
   return values.filter((v) => selected.has(v) || (counts.get(v) ?? 0) > 0)
+}
+
+/**
+ * Numeric bounds of a column's actual values across `data` — the slider's own `min`/`max`, so it
+ * always spans exactly what's in the dataset. Deliberately computed from the full, unfiltered
+ * `data` rather than `processedData`, so the slider's own range doesn't shrink out from under a
+ * user who's mid-drag just because another filter narrowed the row set (the same "stable handles"
+ * reasoning `computeStringValueCounts` already applies to a column's own facet counts). `'date'`
+ * columns coerce via `parseDate` (default/override); everything else via `Number`. Returns `null`
+ * when no row has a parseable value (empty data, or every value is non-numeric/non-date) — the
+ * slider has nothing to bound, so callers should hide it rather than render a degenerate 0–0 range.
+ */
+export function computeValueBounds<TRow extends object>(
+  data: TRow[],
+  col: ColumnDefBase<TRow>,
+): { min: number; max: number } | null {
+  const parse =
+    col.type === 'date' ? (col.parseDate ?? defaultParseDate) : (v: unknown) => Number(v)
+  let min = Infinity
+  let max = -Infinity
+  for (const row of data) {
+    const t = parse(getColumnValue(col, row) as string)
+    if (isNaN(t)) continue
+    if (t < min) min = t
+    if (t > max) max = t
+  }
+  return min <= max ? { min, max } : null
+}
+
+/**
+ * Narrows a `type: 'date'` column's flat value list to those falling within `range`'s bounds —
+ * the date-tree equivalent of `filterValuesBySearch`, so the range filter excludes out-of-range
+ * dates from the tree itself instead of merely being ANDed onto the final row set once a checkbox
+ * is ticked. `values` are parsed with `parseDate` (default/override, matching the column's own);
+ * the bounds are always ISO `YYYY-MM-DD` from the range filter's native `<input type="date">`s,
+ * so they're parsed with the default parser regardless — see `processData`'s range-filter loop
+ * for the same distinction. A value that fails to parse is dropped whenever a bound is active —
+ * it isn't part of any chronological range in the first place, same reasoning as `selectDateRange`.
+ */
+export function filterValuesByRange(
+  values: string[],
+  range: RangeFilter | undefined,
+  parseDate: (value: string) => number = defaultParseDate,
+): string[] {
+  if (!range || (range.min === '' && range.max === '')) return values
+  const min = range.min !== '' ? defaultParseDate(range.min) : -Infinity
+  const max = range.max !== '' ? defaultParseDate(range.max) : Infinity
+  return values.filter((v) => {
+    const t = parseDate(v)
+    return !isNaN(t) && t >= min && t <= max
+  })
 }
 
 /**

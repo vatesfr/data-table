@@ -278,9 +278,10 @@ const COLUMNS: ColumnDef<Employee>[] = [
     groupValue: bucketNumericRange(20000),
     groupFormat: formatNumericRange(20000, ' USD'),
   },
-  // type: 'date' gets a Year › Month › Day filter tree instead of a checklist/range. Grouped by
-  // year (not the exact join date, which would be one group per row) via the same
-  // groupValue/groupFormat bucketing idea, applied to a timestamp instead of a number.
+  // type: 'date' gets a range filter (2 inputs + a slider) above a Year › Month › Day filter
+  // tree, instead of a plain checklist — the range narrows the tree itself. Grouped by year (not
+  // the exact join date, which would be one group per row) via the same groupValue/groupFormat
+  // bucketing idea, applied to a timestamp instead of a number.
   {
     key: 'joined',
     label: 'Joined',

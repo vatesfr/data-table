@@ -89,7 +89,7 @@ const COLUMNS: ColumnDef<Game>[] = [
 
 ▶ [Try it in the demo](https://vatesfr.github.io/data-table/react/#full-table)
 
-`type: 'date'` columns get a Year › Month › Day checkbox tree in the filter dropdown instead of a checklist or numeric range. Check a year or month to select every date under it in one click, or drill into individual days; the search box and per-value row counts work the same as for string columns. The same sort-order button toggles the tree's chronological order (ascending/descending) instead — there's no by-count order for a tree of grouped branches. Values that don't parse as dates are grouped under the `emptyValue` label rather than dropped.
+`type: 'date'` columns get a Year › Month › Day checkbox tree in the filter dropdown instead of a checklist, plus a range filter (2 date inputs + a slider) above it that narrows the tree itself — dates outside the range drop out of the tree, not just the final row set. Check a year or month to select every date under it in one click, or drill into individual days; the search box and per-value row counts work the same as for string columns. The same sort-order button toggles the tree's chronological order (ascending/descending) instead — there's no by-count order for a tree of grouped branches. Values that don't parse as dates are grouped under the `emptyValue` label rather than dropped.
 
 ```tsx
 { key: 'joined', label: 'Joined', type: 'date' }

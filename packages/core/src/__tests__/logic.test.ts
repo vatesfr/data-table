@@ -15,6 +15,8 @@ import {
   computeStringValueCounts,
   filterValuesBySearch,
   filterValuesByCount,
+  filterValuesByRange,
+  computeValueBounds,
   computeDateTree,
   getDateTreeNodeState,
   sumDateTreeNodeCount,
@@ -362,6 +364,51 @@ describe('processData', () => {
     ]
     const result = processData(rows, {}, {}, [{ key: 'd', dir: 'asc' }], cols)
     expect(result.map((r) => r.id)).toEqual([2, 1])
+  })
+
+  it('applies a date range min filter, parsed chronologically not as strings', () => {
+    const cols = [{ key: 'd' as const, label: 'Date', type: 'date' as const }]
+    const rows = [
+      { id: 1, d: '2020-01-01' },
+      { id: 2, d: '2020-06-15' },
+      { id: 3, d: '2021-03-10' },
+    ]
+    const result = processData(rows, {}, { d: { min: '2020-06-01', max: '' } }, [], cols)
+    expect(result.map((r) => r.id)).toEqual([2, 3])
+  })
+
+  it('applies a date range max filter', () => {
+    const cols = [{ key: 'd' as const, label: 'Date', type: 'date' as const }]
+    const rows = [
+      { id: 1, d: '2020-01-01' },
+      { id: 2, d: '2020-06-15' },
+      { id: 3, d: '2021-03-10' },
+    ]
+    const result = processData(rows, {}, { d: { min: '', max: '2020-06-15' } }, [], cols)
+    expect(result.map((r) => r.id)).toEqual([1, 2])
+  })
+
+  it("applies a date range using the column's own parseDate for row values, but the default ISO parser for the bounds themselves", () => {
+    const cols = [
+      {
+        key: 'd' as const,
+        label: 'Date',
+        type: 'date' as const,
+        // DD/MM/YYYY: default new Date(v) would misread these as MM/DD.
+        parseDate: (v: string) => {
+          const [d, m, y] = v.split('/').map(Number)
+          return new Date(y, m - 1, d).getTime()
+        },
+      },
+    ]
+    const rows = [
+      { id: 1, d: '20/05/2023' }, // 2023-05-20
+      { id: 2, d: '06/06/2023' }, // 2023-06-06
+    ]
+    // Bounds are always ISO (what a native <input type="date"> produces), never the column's own
+    // DD/MM/YYYY format.
+    const result = processData(rows, {}, { d: { min: '2023-06-01', max: '' } }, [], cols)
+    expect(result.map((r) => r.id)).toEqual([2])
   })
 
   it('sorts a type: "number" column numerically even when values are numeric strings', () => {
@@ -1051,6 +1098,94 @@ describe('filterValuesByCount', () => {
       'Action',
       'Adventure',
     ])
+  })
+})
+
+// ─── filterValuesByRange ────────────────────────────────────────────────────
+
+describe('filterValuesByRange', () => {
+  const VALUES = ['2020-01-01', '2020-06-15', '2021-03-10', 'not a date']
+
+  it('returns all values when no range is given', () => {
+    expect(filterValuesByRange(VALUES, undefined)).toEqual(VALUES)
+  })
+
+  it('returns all values when the range has no bounds set', () => {
+    expect(filterValuesByRange(VALUES, { min: '', max: '' })).toEqual(VALUES)
+  })
+
+  it('narrows to values on or after min, dropping unparseable values', () => {
+    expect(filterValuesByRange(VALUES, { min: '2020-06-01', max: '' })).toEqual([
+      '2020-06-15',
+      '2021-03-10',
+    ])
+  })
+
+  it('narrows to values on or before max, dropping unparseable values', () => {
+    expect(filterValuesByRange(VALUES, { min: '', max: '2020-06-15' })).toEqual([
+      '2020-01-01',
+      '2020-06-15',
+    ])
+  })
+
+  it('narrows by both bounds together', () => {
+    expect(filterValuesByRange(VALUES, { min: '2020-02-01', max: '2020-12-31' })).toEqual([
+      '2020-06-15',
+    ])
+  })
+
+  it('uses a custom parseDate for the values, but the default ISO parser for the bounds', () => {
+    const parseDate = (v: string) => {
+      const [d, m, y] = v.split('/').map(Number)
+      return new Date(y, m - 1, d).getTime()
+    }
+    // DD/MM/YYYY: default new Date(v) would misread these as MM/DD.
+    const values = ['20/05/2023', '06/06/2023']
+    expect(filterValuesByRange(values, { min: '2023-06-01', max: '' }, parseDate)).toEqual([
+      '06/06/2023',
+    ])
+  })
+})
+
+// ─── computeValueBounds ─────────────────────────────────────────────────────
+
+describe('computeValueBounds', () => {
+  it('returns the min/max of a number column', () => {
+    const col = { key: 'salary', label: 'Salary', type: 'number' as const }
+    expect(computeValueBounds(ROWS, col)).toEqual({ min: 60000, max: 110000 })
+  })
+
+  it('returns the min/max of a date column via parseDate', () => {
+    const col = { key: 'd', label: 'Date', type: 'date' as const }
+    const rows = [
+      { id: 1, d: '2020-06-15' },
+      { id: 2, d: '2019-01-01' },
+      { id: 3, d: '2021-03-10' },
+    ]
+    expect(computeValueBounds(rows, col)).toEqual({
+      min: new Date('2019-01-01').getTime(),
+      max: new Date('2021-03-10').getTime(),
+    })
+  })
+
+  it('ignores rows with an unparseable value', () => {
+    const col = { key: 'n', label: 'N', type: 'number' as const }
+    const rows = [
+      { id: 1, n: '10' },
+      { id: 2, n: 'not a number' },
+      { id: 3, n: '30' },
+    ]
+    expect(computeValueBounds(rows, col)).toEqual({ min: 10, max: 30 })
+  })
+
+  it('returns null when no row has a parseable value', () => {
+    const col = { key: 'n', label: 'N', type: 'number' as const }
+    expect(computeValueBounds([{ n: 'nope' }], col)).toBeNull()
+  })
+
+  it('returns null for an empty dataset', () => {
+    const col = { key: 'n', label: 'N', type: 'number' as const }
+    expect(computeValueBounds([], col)).toBeNull()
   })
 })
 

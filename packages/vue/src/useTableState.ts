@@ -217,7 +217,11 @@ export function useTableState<TRow extends object>(
       page.value = 1
     },
     clearColumnFilter: (key: string) => {
+      // Resets both filter shapes a column can have active — its checklist selection and its
+      // range filter — so this is a full per-column reset regardless of which kind (or both, for
+      // a date column) is actually active, not just whichever one happened to be checked first.
       filters.value = { ...filters.value, [key]: new Set() }
+      rangeFilters.value = { ...rangeFilters.value, [key]: { min: '', max: '' } }
       page.value = 1
     },
     setPage: (p: number) => {

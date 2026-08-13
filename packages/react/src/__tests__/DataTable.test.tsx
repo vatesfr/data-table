@@ -308,6 +308,69 @@ describe('DataTable — filter dropdown', () => {
     expect((getByLabelText('Clara', { exact: false }) as HTMLInputElement).checked).toBe(false)
     expect((getByLabelText('David', { exact: false }) as HTMLInputElement).checked).toBe(true)
   })
+
+  it("renders a range slider with bounds matching the numeric column's actual min/max", () => {
+    const { getByText, getAllByText, container } = render(
+      <DataTable data={ROWS} columns={FILTER_COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Filter'))
+    const scoreItem = getAllByText('Score').find((el) => el.closest('th') === null)!
+    fireEvent.click(scoreItem)
+    const thumbs = container.querySelectorAll<HTMLInputElement>('input[type="range"]')
+    expect(thumbs).toHaveLength(2)
+    expect(thumbs[0].min).toBe('60')
+    expect(thumbs[0].max).toBe('90')
+    expect(thumbs[0].value).toBe('60')
+    expect(thumbs[1].value).toBe('90')
+  })
+
+  it('dragging a slider thumb updates the plain min/max inputs and filters rows', () => {
+    const { getByText, getAllByText, getByPlaceholderText, container } = render(
+      <DataTable data={ROWS} columns={FILTER_COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Filter'))
+    const scoreItem = getAllByText('Score').find((el) => el.closest('th') === null)!
+    fireEvent.click(scoreItem)
+    const thumbs = container.querySelectorAll<HTMLInputElement>('input[type="range"]')
+    fireEvent.change(thumbs[0], { target: { value: '75' } })
+    expect((getByPlaceholderText('Min') as HTMLInputElement).value).toBe('75')
+    expect(container.querySelectorAll('tbody tr')).toHaveLength(1) // only Alice (90) remains
+  })
+
+  it('marks the column with a dot and an active-bar chip once a range filter is set', () => {
+    const { getByText, getAllByText, getByPlaceholderText, container } = render(
+      <DataTable data={ROWS} columns={FILTER_COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Filter'))
+    const scoreItem = getAllByText('Score').find((el) => el.closest('th') === null)!
+    fireEvent.click(scoreItem)
+    fireEvent.change(getByPlaceholderText('Min'), { target: { value: '80' } })
+    // The dot is a second <span> sibling of the label, rendered only when the column has an
+    // active filter — before this fix a range-only filter left the button with just the 1
+    // label span, even though the range itself was active.
+    expect(scoreItem.parentElement?.querySelectorAll('span')).toHaveLength(2)
+    const chip = [...container.querySelectorAll('span')].find((el) =>
+      el.textContent?.includes('Score: 80'),
+    )
+    expect(chip).toBeTruthy()
+  })
+
+  it("clicking a range filter's active-bar chip clears it and unfilters the rows", () => {
+    const { getByText, getAllByText, getByPlaceholderText, container } = render(
+      <DataTable data={ROWS} columns={FILTER_COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Filter'))
+    const scoreItem = getAllByText('Score').find((el) => el.closest('th') === null)!
+    fireEvent.click(scoreItem)
+    fireEvent.change(getByPlaceholderText('Min'), { target: { value: '80' } })
+    expect(container.querySelectorAll('tbody tr')).toHaveLength(1) // only Alice (90)
+    const chipX = [...container.querySelectorAll('span')]
+      .find((el) => el.textContent?.trim().startsWith('Score: 80'))!
+      .querySelector('span')!
+    fireEvent.click(chipX)
+    expect((getByPlaceholderText('Min') as HTMLInputElement).value).toBe('')
+    expect(container.querySelectorAll('tbody tr')).toHaveLength(2)
+  })
 })
 
 describe('DataTable — virtualized filter checklist', () => {
@@ -639,6 +702,68 @@ describe('DataTable — date filter tree', () => {
     expect(getByText('Game C')).toBeTruthy()
     expect(queryByText('Game B')).toBeNull()
     expect(queryByText('Game D')).toBeNull()
+  })
+
+  it('renders 2 native date inputs above the tree for a date column', () => {
+    const { getByText, getByLabelText } = render(
+      <DataTable data={DATE_ROWS} columns={DATE_COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Filter'))
+    expect((getByLabelText('Min') as HTMLInputElement).type).toBe('date')
+    expect((getByLabelText('Max') as HTMLInputElement).type).toBe('date')
+  })
+
+  it('a date range narrows the tree itself and filters rows, without needing a checkbox ticked', () => {
+    const { getByText, getByLabelText, queryByText, container } = render(
+      <DataTable data={DATE_ROWS} columns={DATE_COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Filter'))
+    fireEvent.change(getByLabelText('Min'), { target: { value: '2022-01-01' } })
+    // The 2021 year (Game C) drops out of the tree entirely — narrowed like a search term, not
+    // merely ANDed onto the final result once a checkbox is ticked.
+    expect(queryByText('2021')).toBeNull()
+    expect(getByText('2023')).toBeTruthy()
+    expect(container.querySelectorAll('tbody tr')).toHaveLength(2) // Game A, Game B
+  })
+
+  it("a date range slider has epoch-based bounds matching the column's actual min/max date", () => {
+    const { getByText, container } = render(
+      <DataTable data={DATE_ROWS} columns={DATE_COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Filter'))
+    const thumbs = container.querySelectorAll<HTMLInputElement>('input[type="range"]')
+    expect(thumbs).toHaveLength(2)
+    expect(Number(thumbs[0].min)).toBe(new Date('2021-01-02').getTime())
+    expect(Number(thumbs[0].max)).toBe(new Date('2023-05-20').getTime())
+  })
+
+  it('marks the date column with a dot and an active-bar chip once a range filter is set, with no checkbox ticked', () => {
+    const { getByText, getAllByText, getByLabelText, container } = render(
+      <DataTable data={DATE_ROWS} columns={DATE_COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Filter'))
+    fireEvent.change(getByLabelText('Min'), { target: { value: '2022-01-01' } })
+    const releasedItem = getAllByText('Released').find((el) => el.closest('th') === null)!
+    expect(releasedItem.parentElement?.querySelectorAll('span')).toHaveLength(2)
+    const chip = [...container.querySelectorAll('span')].find((el) =>
+      el.textContent?.includes('Released: 2022-01-01'),
+    )
+    expect(chip).toBeTruthy()
+  })
+
+  it("clicking a date range filter's active-bar chip clears it, restoring the full tree and rows", () => {
+    const { getByText, getByLabelText, queryByText, container } = render(
+      <DataTable data={DATE_ROWS} columns={DATE_COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Filter'))
+    fireEvent.change(getByLabelText('Min'), { target: { value: '2022-01-01' } })
+    expect(queryByText('2021')).toBeNull()
+    const chipX = [...container.querySelectorAll('span')]
+      .find((el) => el.textContent?.trim().startsWith('Released: 2022-01-01'))!
+      .querySelector('span')!
+    fireEvent.click(chipX)
+    expect(getByText('2021')).toBeTruthy()
+    expect(container.querySelectorAll('tbody tr')).toHaveLength(3)
   })
 })
 

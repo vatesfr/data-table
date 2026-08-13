@@ -227,7 +227,11 @@ export function useTableState<TRow extends object>(
       setGroupBy((prev) => _reorderColumn(prev, dragKey, targetKey, after)),
     toggleGroupCollapse: (key: string) => setCollapsedGroups((prev) => toggleCollapse(prev, key)),
     clearColumnFilter: (key: string) => {
+      // Resets both filter shapes a column can have active — its checklist selection and its
+      // range filter — so this is a full per-column reset regardless of which kind (or both, for
+      // a date column) is actually active, not just whichever one happened to be checked first.
       setFilters((prev) => ({ ...prev, [key]: new Set() }))
+      setRangeFilters((prev) => ({ ...prev, [key]: { min: '', max: '' } }))
       setPageState(1)
     },
     setPage: (p: number) => setPageState(Math.max(1, Math.min(p, numPages))),

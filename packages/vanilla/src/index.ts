@@ -7,6 +7,8 @@ import {
   computeStringValueCounts,
   filterValuesBySearch,
   filterValuesByCount,
+  filterValuesByRange,
+  computeValueBounds,
   sortFilterValues,
   cycleValueSort,
   toggleSortDir,
@@ -400,6 +402,43 @@ export function createDataTable<TRow extends object>(
     return s
   }
 
+  /**
+   * A "2 inputs + a slider" range control for a `number`/`date` column's filter detail pane —
+   * two overlapping native <input type="range"> thumbs sharing one visual track (styles.ts makes
+   * only the thumb itself a hit target, so grabbing either one works regardless of z-order) plus
+   * a colored fill between them. Bounds are the column's actual min/max across the full,
+   * unfiltered `data` (`computeValueBounds`), so they don't shift under a mid-drag user. Returns
+   * '' when the column has no parseable values at all (nothing to bound a slider to) — the plain
+   * min/max inputs above it keep working regardless.
+   *
+   * Both thumbs share one `data-action="range-slider"`: which one is nominally "low" vs "high"
+   * doesn't matter, since the actual min/max is always `Math.min`/`Math.max` of both live thumb
+   * values (see handleInput/handleChange) — the standard behavior for this two-native-inputs
+   * trick, and it means dragging one thumb past the other just swaps their visual roles rather
+   * than needing cross-clamping.
+   */
+  function buildRangeSlider(col: ColumnDef<TRow>, rf: RangeFilter | undefined): string {
+    const bounds = computeValueBounds(data, col)
+    if (!bounds || bounds.min >= bounds.max) return ''
+    const isDate = col.type === 'date'
+    const toNum = (v: string) => (isDate ? new Date(v).getTime() : Number(v))
+    const low = rf?.min ? toNum(rf.min) : bounds.min
+    const high = rf?.max ? toNum(rf.max) : bounds.max
+    const lo = Math.min(low, high)
+    const hi = Math.max(low, high)
+    const step = isDate ? String(24 * 60 * 60 * 1000) : 'any'
+    const pctLo = ((lo - bounds.min) / (bounds.max - bounds.min)) * 100
+    const pctHi = ((hi - bounds.min) / (bounds.max - bounds.min)) * 100
+    const key = esc(col.key)
+    let s = `<div class="dt-range-slider">`
+    s += `<div class="dt-range-slider-track"></div>`
+    s += `<div class="dt-range-slider-fill" style="left:${pctLo}%;right:${100 - pctHi}%"></div>`
+    s += `<input type="range" class="dt-range-slider-thumb" min="${bounds.min}" max="${bounds.max}" step="${step}" value="${lo}" data-action="range-slider" data-key="${key}" aria-label="${esc(L.min)}">`
+    s += `<input type="range" class="dt-range-slider-thumb" min="${bounds.min}" max="${bounds.max}" step="${step}" value="${hi}" data-action="range-slider" data-key="${key}" aria-label="${esc(L.max)}">`
+    s += `</div>`
+    return s
+  }
+
   const FILTER_CHIP_MAX = 3
   function summarizeFilterValues(vals: Set<string>): string {
     const arr = [...vals]
@@ -464,9 +503,17 @@ export function createDataTable<TRow extends object>(
       filterDetailCol && filterDetailCol.type !== 'number'
         ? sortFilterValues(
             filterValuesByCount(
-              filterValuesBySearch(
-                stringValueMap[filterDetailCol.key] ?? [],
-                filterSearchTerms[filterDetailCol.key] ?? '',
+              // Narrowed by the date range filter (if any) same as by search — a value outside
+              // the active range never becomes a tree leaf, rather than merely being ANDed onto
+              // the final row set once ticked. A no-op for string columns (they never populate
+              // rangeFilters).
+              filterValuesByRange(
+                filterValuesBySearch(
+                  stringValueMap[filterDetailCol.key] ?? [],
+                  filterSearchTerms[filterDetailCol.key] ?? '',
+                ),
+                rangeFilters[filterDetailCol.key],
+                filterDetailCol.parseDate,
               ),
               stringValueCounts[filterDetailCol.key] ?? new Map(),
               filters[filterDetailCol.key] ?? new Set(),
@@ -650,10 +697,12 @@ export function createDataTable<TRow extends object>(
           s += `<div class="dt-filter-cols">`
           for (const col of filterableCols) {
             const rf = rangeFilters[col.key]
+            // A date column can have both an active checklist selection (tree) *and* an active
+            // range filter above it at once — either one alone should light the dot, not just
+            // whichever one a plain type-based ternary happened to check.
             const hasActive =
-              col.type === 'number'
-                ? rf !== undefined && (rf.min !== '' || rf.max !== '')
-                : (filters[col.key]?.size ?? 0) > 0
+              (filters[col.key]?.size ?? 0) > 0 ||
+              (rf !== undefined && (rf.min !== '' || rf.max !== ''))
             // A real <button> (not a div) so it's a native Tab stop and Enter/Space "click" it
             // for free — same fix as the Sort/Group add-lists; this had the identical gap.
             s += `<button type="button" class="dt-filter-col-item${col.key === filterActiveKey ? ' dt-filter-col-item--active' : ''}" data-action="select-filter-col" data-key="${esc(col.key)}"><span>${esc(col.label)}</span>${hasActive ? '<span class="dt-filter-col-dot"></span>' : ''}</button>`
@@ -668,8 +717,24 @@ export function createDataTable<TRow extends object>(
               s += `<input type="number" class="dt-range-input" placeholder="${esc(L.min)}" value="${esc(rf?.min ?? '')}" data-action="range-min" data-key="${esc(filterDetailCol.key)}" data-focus-key="rmin-${esc(filterDetailCol.key)}">`
               s += `<span class="dt-range-sep">–</span>`
               s += `<input type="number" class="dt-range-input" placeholder="${esc(L.max)}" value="${esc(rf?.max ?? '')}" data-action="range-max" data-key="${esc(filterDetailCol.key)}" data-focus-key="rmax-${esc(filterDetailCol.key)}">`
-              s += `</div></div>`
+              s += `</div>`
+              s += buildRangeSlider(filterDetailCol, rf)
+              s += `</div>`
             } else {
+              if (filterDetailCol.type === 'date') {
+                // The range filter narrows the tree itself (see _filterDetailValues above), so it
+                // renders above the tree/search row — "runs before the tree", not just ANDed onto
+                // the final result once a checkbox is ticked.
+                const rf = rangeFilters[filterDetailCol.key]
+                s += `<div style="padding:4px 14px 8px">`
+                s += `<div style="display:flex;gap:6px;align-items:center">`
+                s += `<input type="date" class="dt-range-input" value="${esc(rf?.min ?? '')}" data-action="range-min" data-key="${esc(filterDetailCol.key)}" aria-label="${esc(L.min)}" data-focus-key="rmin-${esc(filterDetailCol.key)}">`
+                s += `<span class="dt-range-sep">–</span>`
+                s += `<input type="date" class="dt-range-input" value="${esc(rf?.max ?? '')}" data-action="range-max" data-key="${esc(filterDetailCol.key)}" aria-label="${esc(L.max)}" data-focus-key="rmax-${esc(filterDetailCol.key)}">`
+                s += `</div>`
+                s += buildRangeSlider(filterDetailCol, rf)
+                s += `</div>`
+              }
               const term = filterSearchTerms[filterDetailCol.key] ?? ''
               s += `<div class="dt-filter-search-row">`
               if (_filterDetailValues.length > 0) {
@@ -745,6 +810,14 @@ export function createDataTable<TRow extends object>(
       for (const [key, vals] of Object.entries(filters)) {
         if (!vals.size) continue
         html += `<span class="dt-chip dt-chip--filter">${esc(columns.find((c) => c.key === key)?.label ?? key)}: ${esc(summarizeFilterValues(vals))} <span class="dt-chip-x" data-action="clear-filter-key" data-key="${esc(key)}">×</span></span>`
+      }
+      // A range filter (number or date) didn't get a chip at all before — it's a distinct active
+      // filter from the checklist above, so it needs its own (a date column can have both active
+      // at once). Reuses clear-filter-key, which now resets rangeFilters too, so the × here is a
+      // full per-column reset regardless of which kind of filter is actually active.
+      for (const [key, rf] of Object.entries(rangeFilters)) {
+        if (rf.min === '' && rf.max === '') continue
+        html += `<span class="dt-chip dt-chip--filter">${esc(columns.find((c) => c.key === key)?.label ?? key)}: ${esc(rf.min)}–${esc(rf.max)} <span class="dt-chip-x" data-action="clear-filter-key" data-key="${esc(key)}">×</span></span>`
       }
     }
     // A group split across a page boundary contributes a second ("continued") chunk to
@@ -1171,6 +1244,7 @@ export function createDataTable<TRow extends object>(
         break
       case 'clear-filter-key':
         filters = { ...filters, [key]: new Set() }
+        rangeFilters = { ...rangeFilters, [key]: { min: '', max: '' } }
         page = 1
         viewChanged = true
         break
@@ -1278,6 +1352,40 @@ export function createDataTable<TRow extends object>(
       render()
       return
     }
+    if (action === 'range-slider') {
+      // Live drag feedback only — deliberately *not* a state write + render(). Rebuilding the
+      // whole panel via innerHTML mid-drag would destroy and recreate the thumb the user's mouse
+      // has pointer-captured, aborting the native drag (same reasoning column header drag-and-
+      // drop already avoids render() until `drop`). The actual value is committed on `change`
+      // (handleChange below), which only fires once the gesture ends. The plain min/max <input>s
+      // are patched the same imperative way (direct .value writes, not a render()) so the user
+      // sees the exact numbers/dates tracking the thumbs while dragging, without touching the
+      // slider's own DOM.
+      const wrap = target.closest<HTMLElement>('.dt-range-slider')
+      const fill = wrap?.querySelector<HTMLElement>('.dt-range-slider-fill')
+      const key = target.dataset.key ?? ''
+      const col = columns.find((c) => c.key === key)
+      if (!wrap || !fill || !col) return
+      const thumbs = wrap.querySelectorAll<HTMLInputElement>('.dt-range-slider-thumb')
+      const vals = Array.from(thumbs, (t) => Number(t.value))
+      const boundsMin = Number(thumbs[0]?.min ?? 0)
+      const boundsMax = Number(thumbs[0]?.max ?? 0)
+      const lo = Math.min(...vals)
+      const hi = Math.max(...vals)
+      fill.style.left = `${((lo - boundsMin) / (boundsMax - boundsMin)) * 100}%`
+      fill.style.right = `${100 - ((hi - boundsMin) / (boundsMax - boundsMin)) * 100}%`
+      const fmt = (n: number) =>
+        col.type === 'date' ? new Date(n).toISOString().slice(0, 10) : String(n)
+      const minInput = [
+        ...container.querySelectorAll<HTMLInputElement>('[data-action="range-min"]'),
+      ].find((el) => el.dataset.key === key)
+      const maxInput = [
+        ...container.querySelectorAll<HTMLInputElement>('[data-action="range-max"]'),
+      ].find((el) => el.dataset.key === key)
+      if (minInput) minInput.value = fmt(lo)
+      if (maxInput) maxInput.value = fmt(hi)
+      return
+    }
     if (action !== 'range-min' && action !== 'range-max') return
     const key = target.dataset.key ?? ''
     const field = action === 'range-min' ? 'min' : 'max'
@@ -1295,8 +1403,29 @@ export function createDataTable<TRow extends object>(
   }
 
   function handleChange(e: Event): void {
-    const target = e.target as HTMLSelectElement
-    if (target.dataset.action !== 'set-page-size') return
+    const target = e.target as HTMLInputElement | HTMLSelectElement
+    const action = target.dataset.action
+    if (action === 'range-slider') {
+      // The commit point for a slider drag (or a keyboard arrow press, or a click-to-jump on the
+      // track) — see handleInput's own range-slider branch for why this doesn't happen on every
+      // `input` tick instead.
+      const wrap = target.closest<HTMLElement>('.dt-range-slider')
+      const key = target.dataset.key ?? ''
+      const col = columns.find((c) => c.key === key)
+      if (!wrap || !col) return
+      const thumbs = wrap.querySelectorAll<HTMLInputElement>('.dt-range-slider-thumb')
+      const vals = Array.from(thumbs, (t) => Number(t.value))
+      const lo = Math.min(...vals)
+      const hi = Math.max(...vals)
+      const fmt = (n: number) =>
+        col.type === 'date' ? new Date(n).toISOString().slice(0, 10) : String(n)
+      rangeFilters = { ...rangeFilters, [key]: { min: fmt(lo), max: fmt(hi) } }
+      page = 1
+      render()
+      notifyViewChange()
+      return
+    }
+    if (action !== 'set-page-size') return
     pageSize = Number(target.value)
     page = 1
     render()

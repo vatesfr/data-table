@@ -311,6 +311,66 @@ describe('DataTable — filter dropdown', () => {
     expect(wrapper.find('.dt__filter-select-all').exists()).toBe(false)
     expect(wrapper.find('.dt__dd-search').exists()).toBe(true)
   })
+
+  it("renders a range slider with bounds matching the numeric column's actual min/max", async () => {
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: FILTER_COLS, rowKey: 'id' } })
+    const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
+    await filterBtn.trigger('click')
+    const scoreItem = wrapper
+      .findAll('.dt__filter-col-item')
+      .find((el) => el.text().includes('Score'))!
+    await scoreItem.trigger('click')
+    const thumbs = wrapper.findAll('.dt__range-slider-thumb')
+    expect(thumbs).toHaveLength(2)
+    expect((thumbs[0].element as HTMLInputElement).min).toBe('60')
+    expect((thumbs[0].element as HTMLInputElement).max).toBe('90')
+    expect((thumbs[0].element as HTMLInputElement).value).toBe('60')
+    expect((thumbs[1].element as HTMLInputElement).value).toBe('90')
+  })
+
+  it('dragging a slider thumb updates the plain min/max inputs and filters rows', async () => {
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: FILTER_COLS, rowKey: 'id' } })
+    const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
+    await filterBtn.trigger('click')
+    const scoreItem = wrapper
+      .findAll('.dt__filter-col-item')
+      .find((el) => el.text().includes('Score'))!
+    await scoreItem.trigger('click')
+    const low = wrapper.findAll('.dt__range-slider-thumb')[0]
+    await low.setValue('75')
+    expect((wrapper.find('input[placeholder="Min"]').element as HTMLInputElement).value).toBe('75')
+    expect(wrapper.findAll('tbody tr')).toHaveLength(1) // only Alice (90) remains
+  })
+
+  it('marks the column with a dot and an active-bar chip once a range filter is set', async () => {
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: FILTER_COLS, rowKey: 'id' } })
+    const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
+    await filterBtn.trigger('click')
+    const scoreItem = wrapper
+      .findAll('.dt__filter-col-item')
+      .find((el) => el.text().includes('Score'))!
+    await scoreItem.trigger('click')
+    await wrapper.find('input[placeholder="Min"]').setValue('80')
+    expect(scoreItem.find('.dt__filter-col-dot').exists()).toBe(true)
+    const chip = wrapper.findAll('.dt__chip--info').find((el) => el.text().includes('Score'))
+    expect(chip?.text()).toContain('80')
+  })
+
+  it("clicking a range filter's active-bar chip clears it and unfilters the rows", async () => {
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: FILTER_COLS, rowKey: 'id' } })
+    const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
+    await filterBtn.trigger('click')
+    const scoreItem = wrapper
+      .findAll('.dt__filter-col-item')
+      .find((el) => el.text().includes('Score'))!
+    await scoreItem.trigger('click')
+    await wrapper.find('input[placeholder="Min"]').setValue('80')
+    expect(wrapper.findAll('tbody tr')).toHaveLength(1) // only Alice (90) remains
+    const chip = wrapper.findAll('.dt__chip--info').find((el) => el.text().includes('Score'))!
+    await chip.find('.dt__chip-remove').trigger('click')
+    expect((wrapper.find('input[placeholder="Min"]').element as HTMLInputElement).value).toBe('')
+    expect(wrapper.findAll('tbody tr')).toHaveLength(2)
+  })
 })
 
 describe('DataTable — virtualized filter checklist', () => {
@@ -631,6 +691,81 @@ describe('DataTable — date filter tree', () => {
     expect(wrapper.text()).toContain('Game C')
     expect(wrapper.text()).not.toContain('Game B')
     expect(wrapper.text()).not.toContain('Game D')
+  })
+
+  it('renders 2 native date inputs above the tree for a date column', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: DATE_ROWS, columns: DATE_COLS, rowKey: 'id' },
+    })
+    const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
+    await filterBtn.trigger('click')
+    const dateInputs = wrapper.findAll('input[type="date"]')
+    expect(dateInputs).toHaveLength(2)
+  })
+
+  it('a date range narrows the tree itself and filters rows, without needing a checkbox ticked', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: DATE_ROWS, columns: DATE_COLS, rowKey: 'id' },
+    })
+    const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
+    await filterBtn.trigger('click')
+    await wrapper.findAll('input[type="date"]')[0].setValue('2022-01-01')
+    // The 2021 year (Game C) drops out of the tree entirely — narrowed like a search term, not
+    // merely ANDed onto the final result once a checkbox is ticked.
+    expect(wrapper.findAll('.dt__date-tree-item').some((el) => el.text().includes('2021'))).toBe(
+      false,
+    )
+    expect(wrapper.text()).toContain('2023')
+    expect(wrapper.findAll('tbody tr')).toHaveLength(2) // Game A, Game B
+  })
+
+  it("a date range slider has epoch-based bounds matching the column's actual min/max date", async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: DATE_ROWS, columns: DATE_COLS, rowKey: 'id' },
+    })
+    const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
+    await filterBtn.trigger('click')
+    const thumbs = wrapper.findAll('.dt__range-slider-thumb')
+    expect(thumbs).toHaveLength(2)
+    expect(Number((thumbs[0].element as HTMLInputElement).min)).toBe(
+      new Date('2021-01-02').getTime(),
+    )
+    expect(Number((thumbs[0].element as HTMLInputElement).max)).toBe(
+      new Date('2023-05-20').getTime(),
+    )
+  })
+
+  it('marks the date column with a dot and an active-bar chip once a range filter is set, with no checkbox ticked', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: DATE_ROWS, columns: DATE_COLS, rowKey: 'id' },
+    })
+    const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
+    await filterBtn.trigger('click')
+    await wrapper.findAll('input[type="date"]')[0].setValue('2022-01-01')
+    const releasedItem = wrapper
+      .findAll('.dt__filter-col-item')
+      .find((el) => el.text().includes('Released'))!
+    expect(releasedItem.find('.dt__filter-col-dot').exists()).toBe(true)
+    const chip = wrapper.findAll('.dt__chip--info').find((el) => el.text().includes('Released'))
+    expect(chip?.text()).toContain('2022-01-01')
+  })
+
+  it("clicking a date range filter's active-bar chip clears it, restoring the full tree and rows", async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: DATE_ROWS, columns: DATE_COLS, rowKey: 'id' },
+    })
+    const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
+    await filterBtn.trigger('click')
+    await wrapper.findAll('input[type="date"]')[0].setValue('2022-01-01')
+    expect(wrapper.findAll('.dt__date-tree-item').some((el) => el.text().includes('2021'))).toBe(
+      false,
+    )
+    const chip = wrapper.findAll('.dt__chip--info').find((el) => el.text().includes('Released'))!
+    await chip.find('.dt__chip-remove').trigger('click')
+    expect(wrapper.findAll('.dt__date-tree-item').some((el) => el.text().includes('2021'))).toBe(
+      true,
+    )
+    expect(wrapper.findAll('tbody tr')).toHaveLength(3)
   })
 })
 

@@ -13,6 +13,8 @@ import {
   getColumnValue,
   filterValuesBySearch,
   filterValuesByCount,
+  filterValuesByRange,
+  computeValueBounds,
   sortFilterValues,
   cycleValueSort,
   toggleSortDir as toggleValueSortDir,
@@ -458,6 +460,129 @@ function resolveDropdownDragRow(
   return null
 }
 
+const RANGE_SLIDER_STYLE_ATTR = 'data-dt-range-slider-styles'
+let rangeSliderStylesInjected = false
+
+/**
+ * Injects the CSS the range slider below needs — specifically `::-webkit-slider-thumb`/
+ * `::-moz-range-thumb`, which style pseudo-elements no inline `style` prop can reach. The rest
+ * of this package is styled entirely via inline styles (no stylesheet at all), so this is a
+ * deliberate, minimal exception scoped to just one class name — the same "inject once into
+ * <head>" precedent the vanilla adapter already uses for its whole stylesheet. Idempotent
+ * (checks for an existing tag first, guards a module-level flag against StrictMode's double
+ * effect-invoke) and a no-op outside a browser, so it's safe to call from an effect that also
+ * runs during SSR hydration.
+ */
+function ensureRangeSliderStyles(): void {
+  if (rangeSliderStylesInjected || typeof document === 'undefined') return
+  if (document.querySelector(`style[${RANGE_SLIDER_STYLE_ATTR}]`)) {
+    rangeSliderStylesInjected = true
+    return
+  }
+  const style = document.createElement('style')
+  style.setAttribute(RANGE_SLIDER_STYLE_ATTR, '')
+  style.textContent =
+    '.dt-react-range-thumb{-webkit-appearance:none;-moz-appearance:none;appearance:none;pointer-events:none}' +
+    '.dt-react-range-thumb::-webkit-slider-runnable-track{background:transparent}' +
+    '.dt-react-range-thumb::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;pointer-events:auto;width:14px;height:14px;margin-top:4px;border-radius:50%;background:var(--color-text-info);border:2px solid var(--color-background-primary);box-shadow:0 0 0 1px var(--color-border-info);cursor:pointer}' +
+    '.dt-react-range-thumb::-moz-range-track{background:transparent;border:none}' +
+    '.dt-react-range-thumb::-moz-range-thumb{pointer-events:auto;width:14px;height:14px;border-radius:50%;background:var(--color-text-info);border:2px solid var(--color-background-primary);box-shadow:0 0 0 1px var(--color-border-info);cursor:pointer}'
+  document.head.appendChild(style)
+  rangeSliderStylesInjected = true
+}
+
+/**
+ * The "2 inputs + a slider" range control's slider half — two overlapping native
+ * <input type="range"> thumbs sharing one visual track (only the thumb itself is a hit target,
+ * via ensureRangeSliderStyles above, so grabbing either one works regardless of z-order) plus a
+ * colored fill between them. `onChange` always receives already-sorted (low, high) — dragging
+ * one thumb past the other just swaps their visual roles on the next render rather than needing
+ * cross-clamping, the standard behavior for this two-native-inputs trick. Unlike the vanilla
+ * adapter's version, this fires on every `input` tick (not just on drag-end): React's reconciler
+ * keeps the same underlying DOM node across a state-driven re-render of a controlled input, so
+ * there's no "rebuild mid-drag aborts the native drag" risk here the way there is for vanilla's
+ * innerHTML-rebuilding render().
+ */
+function RangeSlider({
+  bounds,
+  low,
+  high,
+  step,
+  onChange,
+}: {
+  bounds: { min: number; max: number }
+  low: number
+  high: number
+  step: number | 'any'
+  onChange: (low: number, high: number) => void
+}) {
+  useEffect(() => {
+    ensureRangeSliderStyles()
+  }, [])
+  const handleThumb = (raw: number, other: number) =>
+    onChange(Math.min(raw, other), Math.max(raw, other))
+  const pctLo = ((low - bounds.min) / (bounds.max - bounds.min)) * 100
+  const pctHi = ((high - bounds.min) / (bounds.max - bounds.min)) * 100
+  const thumbStyle: CSSProperties = {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    width: '100%',
+    height: 22,
+    margin: 0,
+    background: 'none',
+  }
+  return (
+    <div style={{ position: 'relative', height: 22, margin: '8px 2px 2px' }}>
+      <div
+        style={{
+          position: 'absolute',
+          top: '50%',
+          left: 7,
+          right: 7,
+          height: 4,
+          marginTop: -2,
+          borderRadius: 2,
+          background: 'var(--color-border-secondary)',
+        }}
+      />
+      <div
+        style={{
+          position: 'absolute',
+          top: '50%',
+          height: 4,
+          marginTop: -2,
+          borderRadius: 2,
+          background: 'var(--color-text-info)',
+          left: `${pctLo}%`,
+          right: `${100 - pctHi}%`,
+        }}
+      />
+      <input
+        type="range"
+        className="dt-react-range-thumb"
+        min={bounds.min}
+        max={bounds.max}
+        step={step}
+        value={low}
+        onChange={(e) => handleThumb(Number(e.target.value), high)}
+        style={thumbStyle}
+      />
+      <input
+        type="range"
+        className="dt-react-range-thumb"
+        min={bounds.min}
+        max={bounds.max}
+        step={step}
+        value={high}
+        onChange={(e) => handleThumb(Number(e.target.value), low)}
+        style={thumbStyle}
+      />
+    </div>
+  )
+}
+
 const DEFAULT_VALUE_SORT: ValueSort = { by: 'alpha', dir: 'asc' }
 
 /**
@@ -736,6 +861,31 @@ export function DataTableView<TRow extends object>({
     L.emptyValue,
     filterActiveKey ? [filterActiveKey] : [],
   )
+  // Slider bounds are the column's actual min/max across the full, unfiltered `data` (not
+  // filtered/processed data) — see computeValueBounds — so they don't shift under a mid-drag
+  // user just because some other filter narrowed the row set.
+  const renderRangeSliderFor = (col: ColumnDef<TRow>) => {
+    const bounds = computeValueBounds(data, col)
+    if (!bounds || bounds.min >= bounds.max) return null
+    const rf = rangeFilters[col.key]
+    const isDate = col.type === 'date'
+    const toNum = (v: string) => (isDate ? new Date(v).getTime() : Number(v))
+    const fmt = (n: number) => (isDate ? new Date(n).toISOString().slice(0, 10) : String(n))
+    const low = rf?.min ? toNum(rf.min) : bounds.min
+    const high = rf?.max ? toNum(rf.max) : bounds.max
+    return (
+      <RangeSlider
+        bounds={bounds}
+        low={Math.min(low, high)}
+        high={Math.max(low, high)}
+        step={isDate ? 24 * 60 * 60 * 1000 : 'any'}
+        onChange={(lo, hi) => {
+          setRangeFilter(col.key, 'min', fmt(lo))
+          setRangeFilter(col.key, 'max', fmt(hi))
+        }}
+      />
+    )
+  }
   const valueSortFor = (key: string) => filterValueSort[key] ?? DEFAULT_VALUE_SORT
   const cycleFilterValueSort = (col: ColumnDef<TRow>) => {
     const current = valueSortFor(col.key)
@@ -749,9 +899,17 @@ export function DataTableView<TRow extends object>({
     filterDetailCol && filterDetailCol.type !== 'number'
       ? sortFilterValues(
           filterValuesByCount(
-            filterValuesBySearch(
-              stringValueMap[filterDetailCol.key] ?? [],
-              filterSearchTerms[filterDetailCol.key] ?? '',
+            // Narrowed by the date range filter (if any), same as by search — a value outside
+            // the active range never becomes a tree leaf, rather than merely being ANDed onto
+            // the final row set once ticked. A no-op for string columns (they never populate
+            // rangeFilters).
+            filterValuesByRange(
+              filterValuesBySearch(
+                stringValueMap[filterDetailCol.key] ?? [],
+                filterSearchTerms[filterDetailCol.key] ?? '',
+              ),
+              rangeFilters[filterDetailCol.key],
+              filterDetailCol.parseDate,
             ),
             stringValueCounts[filterDetailCol.key] ?? new Map(),
             filters[filterDetailCol.key] ?? new Set(),
@@ -1303,10 +1461,12 @@ export function DataTableView<TRow extends object>({
                 <div style={S.filterCols}>
                   {filterableCols.map((col) => {
                     const rf = rangeFilters[col.key]
+                    // A date column can have both an active checklist selection (tree) *and* an
+                    // active range filter above it at once — either one alone should light the
+                    // dot, not just whichever one a plain type-based ternary happened to check.
                     const hasActive =
-                      col.type === 'number'
-                        ? rf !== undefined && (rf.min !== '' || rf.max !== '')
-                        : (filters[col.key]?.size ?? 0) > 0
+                      (filters[col.key]?.size ?? 0) > 0 ||
+                      (rf !== undefined && (rf.min !== '' || rf.max !== ''))
                     return (
                       // A real <button> (not a div) so it's a native Tab stop and Enter/Space
                       // "click" it for free — same fix as the Sort/Group add-lists above; this
@@ -1354,9 +1514,38 @@ export function DataTableView<TRow extends object>({
                             style={S.rangeInput}
                           />
                         </div>
+                        {renderRangeSliderFor(filterDetailCol)}
                       </div>
                     ) : (
                       <>
+                        {filterDetailCol.type === 'date' && (
+                          <div style={{ padding: '4px 14px 8px' }}>
+                            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                              <input
+                                type="date"
+                                aria-label={L.min}
+                                value={rangeFilters[filterDetailCol.key]?.min ?? ''}
+                                onChange={(e) =>
+                                  setRangeFilter(filterDetailCol.key, 'min', e.target.value)
+                                }
+                                style={{ ...S.rangeInput, width: 118 }}
+                              />
+                              <span style={{ color: 'var(--color-text-tertiary)', fontSize: 12 }}>
+                                –
+                              </span>
+                              <input
+                                type="date"
+                                aria-label={L.max}
+                                value={rangeFilters[filterDetailCol.key]?.max ?? ''}
+                                onChange={(e) =>
+                                  setRangeFilter(filterDetailCol.key, 'max', e.target.value)
+                                }
+                                style={{ ...S.rangeInput, width: 118 }}
+                              />
+                            </div>
+                            {renderRangeSliderFor(filterDetailCol)}
+                          </div>
+                        )}
                         <div style={S.filterSearchRow}>
                           {filterDetailValues.length > 0 && (
                             <input
@@ -1550,6 +1739,24 @@ export function DataTableView<TRow extends object>({
             .map(([key, vals]) => (
               <span key={key} style={{ ...S.chip, ...S.chipFilter }}>
                 {columns.find((c) => c.key === key)?.label}: {summarizeFilterValues(vals)}
+                <span
+                  onClick={() => clearColumnFilter(key)}
+                  style={{ cursor: 'pointer', marginLeft: 2 }}
+                >
+                  ×
+                </span>
+              </span>
+            ))}
+        {activeFilterCount > 0 &&
+          // A range filter (number or date) didn't get a chip at all before — it's a distinct
+          // active filter from the checklist above, so it needs its own (a date column can have
+          // both active at once). Reuses clearColumnFilter, which now resets rangeFilters too, so
+          // the × here is a full per-column reset regardless of which kind is actually active.
+          Object.entries(rangeFilters)
+            .filter(([, rf]) => rf.min !== '' || rf.max !== '')
+            .map(([key, rf]) => (
+              <span key={`range-${key}`} style={{ ...S.chip, ...S.chipFilter }}>
+                {columns.find((c) => c.key === key)?.label}: {rf.min}–{rf.max}
                 <span
                   onClick={() => clearColumnFilter(key)}
                   style={{ cursor: 'pointer', marginLeft: 2 }}

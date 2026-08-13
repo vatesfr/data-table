@@ -40,6 +40,8 @@ mergePageSizeOptions(options, pageSize) // insert pageSize into a "rows per page
 toggleSort(sorts, key) // cycle asc → desc → off
 toggleFilter(filters, key, value) // toggle a checklist value
 filterValuesBySearch(values, term) // narrow a checklist's values by a case-insensitive substring
+filterValuesByRange(values, range, parseDate?) // narrow a date column's checklist/tree values to those within range's bounds (filterValuesBySearch's sibling, for the range filter above a date tree)
+computeValueBounds(data, col) // a number/date column's actual min/max across data, for a range filter's slider bounds; null if no row has a parseable value
 toggleFilterAll(filters, key, values) // deselect all given values if any is selected, else select all of them
 sortFilterValues(values, counts, sort) // reorder a filter checklist's values by ValueSort (alphabetical or by facet count, asc/desc)
 cycleValueSort(sort) // advance a ValueSort: alpha-asc → alpha-desc → count-desc → count-asc → alpha-asc

@@ -38,7 +38,16 @@ ${renderThemeCss()}
 .dt-sort-icon{font-size:15px;color:var(--color-border-secondary,#dddcd8)}
 .dt-sort-icon--active{color:var(--color-text-primary,#1a1916)}
 .dt-range-input{width:80px;padding:3px 6px;font-size:12px;border:0.5px solid var(--color-border-secondary,#dddcd8);border-radius:4px;font-family:inherit;background:transparent;color:inherit}
+.dt-range-input[type=date]{width:118px}
 .dt-range-sep{color:var(--color-text-tertiary,#9b9a96);font-size:12px}
+.dt-range-slider{position:relative;height:22px;margin:8px 2px 2px}
+.dt-range-slider-track{position:absolute;top:50%;left:7px;right:7px;height:4px;margin-top:-2px;border-radius:2px;background:var(--color-border-secondary,#dddcd8)}
+.dt-range-slider-fill{position:absolute;top:50%;height:4px;margin-top:-2px;border-radius:2px;background:var(--color-text-info,#185fa5)}
+.dt-range-slider-thumb{position:absolute;left:0;right:0;top:0;width:100%;height:22px;margin:0;padding:0;background:transparent;border:none;-webkit-appearance:none;-moz-appearance:none;appearance:none;pointer-events:none}
+.dt-range-slider-thumb::-webkit-slider-runnable-track{background:transparent}
+.dt-range-slider-thumb::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;pointer-events:auto;width:14px;height:14px;margin-top:4px;border-radius:50%;background:var(--color-text-info,#185fa5);border:2px solid var(--color-background-primary,#fff);box-shadow:0 0 0 1px var(--color-border-info,#b8d6f5);cursor:pointer}
+.dt-range-slider-thumb::-moz-range-track{background:transparent;border:none}
+.dt-range-slider-thumb::-moz-range-thumb{pointer-events:auto;width:14px;height:14px;border-radius:50%;background:var(--color-text-info,#185fa5);border:2px solid var(--color-background-primary,#fff);box-shadow:0 0 0 1px var(--color-border-info,#b8d6f5);cursor:pointer}
 .dt-active-bar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:10px 0}
 .dt-chip{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;background:var(--color-background-secondary,#f7f6f3);border:0.5px solid var(--color-border-secondary,#dddcd8);border-radius:12px;font-size:12px;color:var(--color-text-secondary,#6b6a66)}
 .dt-chip--filter{background:var(--color-background-info,#e6f1fb);color:var(--color-text-info,#185fa5);border-color:var(--color-border-info,#b8d6f5)}

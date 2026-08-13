@@ -6,6 +6,8 @@ import {
   getColumnValue,
   filterValuesBySearch,
   filterValuesByCount,
+  filterValuesByRange,
+  computeValueBounds,
   sortFilterValues,
   cycleValueSort,
   toggleSortDir as toggleValueSortDir,
@@ -31,6 +33,7 @@ import type { ColumnDef, DataTableViewProps } from './types'
 import Dropdown from './components/Dropdown.vue'
 import ToolbarBtn from './components/ToolbarBtn.vue'
 import DateTreeItem from './components/DateTreeItem.vue'
+import RangeSlider from './components/RangeSlider.vue'
 
 const props = withDefaults(defineProps<DataTableViewProps<TRow>>(), { rowKey: 'id' })
 
@@ -355,12 +358,15 @@ const stringValueCounts = computed(() =>
     filterDetailCol.value ? [filterDetailCol.value.key] : [],
   ),
 )
+// A date column can have both an active checklist selection (tree) *and* an active range filter
+// above it at once — either one alone should light the dot, not just whichever one a plain
+// type-based branch happened to check.
 function hasActiveColFilter(col: ColumnDef<TRow>): boolean {
-  if (col.type === 'number') {
-    const rf = rangeFilters.value[col.key]
-    return rf !== undefined && (rf.min !== '' || rf.max !== '')
-  }
-  return (filters.value[col.key]?.size ?? 0) > 0
+  const rf = rangeFilters.value[col.key]
+  return (
+    (filters.value[col.key]?.size ?? 0) > 0 ||
+    (rf !== undefined && (rf.min !== '' || rf.max !== ''))
+  )
 }
 function valueSortFor(key: string): ValueSort {
   return filterValueSort.value[key] ?? DEFAULT_VALUE_SORT
@@ -376,9 +382,16 @@ function cycleFilterValueSort(col: ColumnDef<TRow>): void {
 function filteredValuesFor(col: ColumnDef<TRow>): string[] {
   return sortFilterValues(
     filterValuesByCount(
-      filterValuesBySearch(
-        stringValueMap.value[col.key] ?? [],
-        filterSearchTerms.value[col.key] ?? '',
+      // Narrowed by the date range filter (if any), same as by search — a value outside the
+      // active range never becomes a tree leaf, rather than merely being ANDed onto the final
+      // row set once ticked. A no-op for string columns (they never populate rangeFilters).
+      filterValuesByRange(
+        filterValuesBySearch(
+          stringValueMap.value[col.key] ?? [],
+          filterSearchTerms.value[col.key] ?? '',
+        ),
+        rangeFilters.value[col.key],
+        col.parseDate,
       ),
       stringValueCounts.value[col.key] ?? new Map(),
       filters.value[col.key] ?? new Set(),
@@ -389,6 +402,41 @@ function filteredValuesFor(col: ColumnDef<TRow>): string[] {
 }
 function countFor(col: ColumnDef<TRow>, value: string): number {
   return stringValueCounts.value[col.key]?.get(value) ?? 0
+}
+// Slider bounds are the column's actual min/max across the full, unfiltered props.data (not
+// filtered/processed data) — see computeValueBounds — so they don't shift under a mid-drag user
+// just because some other filter narrowed the row set. null when the column has no parseable
+// values at all, or all its values are identical (nothing to bound a slider to) — callers hide
+// the slider in that case, the two plain min/max inputs above it keep working regardless.
+function rangeSliderFor(
+  col: ColumnDef<TRow>,
+): { min: number; max: number; low: number; high: number; step: number | 'any' } | null {
+  const bounds = computeValueBounds(props.data, col)
+  if (!bounds || bounds.min >= bounds.max) return null
+  const rf = rangeFilters.value[col.key]
+  const isDate = col.type === 'date'
+  const toNum = (v: string) => (isDate ? new Date(v).getTime() : Number(v))
+  const low = rf?.min ? toNum(rf.min) : bounds.min
+  const high = rf?.max ? toNum(rf.max) : bounds.max
+  return {
+    min: bounds.min,
+    max: bounds.max,
+    low: Math.min(low, high),
+    high: Math.max(low, high),
+    step: isDate ? 24 * 60 * 60 * 1000 : 'any',
+  }
+}
+// Single memoized source for filterDetailCol's own slider config, mirroring filterDetailValues
+// below — filterDetailCol changes identity whenever the active column switches, so this
+// recomputes exactly when needed and no more.
+const filterDetailSlider = computed(() =>
+  filterDetailCol.value ? rangeSliderFor(filterDetailCol.value) : null,
+)
+function onRangeSliderChange(col: ColumnDef<TRow>, low: number, high: number): void {
+  const isDate = col.type === 'date'
+  const fmt = (n: number) => (isDate ? new Date(n).toISOString().slice(0, 10) : String(n))
+  setRangeFilter(col.key, 'min', fmt(low))
+  setRangeFilter(col.key, 'max', fmt(high))
 }
 // Single memoized source for the checklist's rendered/sliced values — filteredValuesFor(col) is
 // a plain function re-run on every call, so computing it once here (rather than once for the
@@ -1015,8 +1063,49 @@ function clearSearchQuery(): void {
                       class="dt__range-input"
                     />
                   </div>
+                  <RangeSlider
+                    v-if="filterDetailSlider"
+                    v-bind="filterDetailSlider"
+                    @change="(lo, hi) => onRangeSliderChange(filterDetailCol!, lo, hi)"
+                  />
                 </div>
                 <template v-else>
+                  <div v-if="filterDetailCol.type === 'date'" class="dt__range">
+                    <div class="dt__range-inputs">
+                      <input
+                        type="date"
+                        :aria-label="L.min"
+                        :value="rangeFilters[filterDetailCol.key]?.min ?? ''"
+                        @input="
+                          setRangeFilter(
+                            filterDetailCol.key,
+                            'min',
+                            ($event.target as HTMLInputElement).value,
+                          )
+                        "
+                        class="dt__range-input dt__range-input--date"
+                      />
+                      <span class="dt__range-sep">–</span>
+                      <input
+                        type="date"
+                        :aria-label="L.max"
+                        :value="rangeFilters[filterDetailCol.key]?.max ?? ''"
+                        @input="
+                          setRangeFilter(
+                            filterDetailCol.key,
+                            'max',
+                            ($event.target as HTMLInputElement).value,
+                          )
+                        "
+                        class="dt__range-input dt__range-input--date"
+                      />
+                    </div>
+                    <RangeSlider
+                      v-if="filterDetailSlider"
+                      v-bind="filterDetailSlider"
+                      @change="(lo, hi) => onRangeSliderChange(filterDetailCol!, lo, hi)"
+                    />
+                  </div>
                   <div class="dt__filter-search-row">
                     <input
                       v-if="filterDetailValues.length > 0"
@@ -1166,6 +1255,16 @@ function clearSearchQuery(): void {
         <template v-for="[key, vals] in Object.entries(filters)" :key="key">
           <span v-if="vals.size > 0" class="dt__chip dt__chip--info">
             {{ columns.find((c) => c.key === key)?.label }}: {{ summarizeFilterValues(vals) }}
+            <span class="dt__chip-remove" @click="clearColumnFilter(key)">×</span>
+          </span>
+        </template>
+        <!-- A range filter (number or date) didn't get a chip at all before — it's a distinct
+             active filter from the checklist above, so it needs its own (a date column can have
+             both active at once). Reuses clearColumnFilter, which now resets rangeFilters too,
+             so the × here is a full per-column reset regardless of which kind is actually active. -->
+        <template v-for="[key, rf] in Object.entries(rangeFilters)" :key="`range-${key}`">
+          <span v-if="rf.min !== '' || rf.max !== ''" class="dt__chip dt__chip--info">
+            {{ columns.find((c) => c.key === key)?.label }}: {{ rf.min }}–{{ rf.max }}
             <span class="dt__chip-remove" @click="clearColumnFilter(key)">×</span>
           </span>
         </template>
@@ -1713,6 +1812,9 @@ function clearSearchQuery(): void {
   font-family: inherit;
   background: transparent;
   color: inherit;
+}
+.dt__range-input--date {
+  width: 118px;
 }
 
 /* Chips */
