@@ -271,3 +271,107 @@ describe('useTableState — search', () => {
     expect(result.current.processedData).toHaveLength(4)
   })
 })
+
+describe('useTableState — setSortDir', () => {
+  it('adds a new sort entry with the given direction', () => {
+    const { result } = renderHook(() => useTableState(ROWS, COLS))
+    act(() => {
+      result.current.setSortDir('name', 'asc')
+    })
+    expect(result.current.sorts).toEqual([{ key: 'name', dir: 'asc' }])
+    expect(result.current.processedData.map((r) => r.name)).toEqual([
+      'Alice',
+      'Bob',
+      'Clara',
+      'David',
+    ])
+  })
+
+  it('updates direction of an existing sort entry without duplicating it', () => {
+    const { result } = renderHook(() => useTableState(ROWS, COLS))
+    act(() => {
+      result.current.setSortDir('name', 'asc')
+    })
+    act(() => {
+      result.current.setSortDir('name', 'desc')
+    })
+    expect(result.current.sorts).toHaveLength(1)
+    expect(result.current.sorts[0]).toEqual({ key: 'name', dir: 'desc' })
+    expect(result.current.processedData.map((r) => r.name)).toEqual([
+      'David',
+      'Clara',
+      'Bob',
+      'Alice',
+    ])
+  })
+
+  it('preserves other sort entries when updating one', () => {
+    const { result } = renderHook(() => useTableState(ROWS, COLS))
+    act(() => {
+      result.current.setSortDir('name', 'asc')
+      result.current.setSortDir('score', 'desc')
+    })
+    act(() => {
+      result.current.setSortDir('name', 'desc')
+    })
+    expect(result.current.sorts).toHaveLength(2)
+    expect(result.current.sorts.find((s) => s.key === 'score')).toEqual({
+      key: 'score',
+      dir: 'desc',
+    })
+  })
+})
+
+describe('useTableState — clearColumnSort', () => {
+  it('removes a single column sort without affecting other columns', () => {
+    const { result } = renderHook(() => useTableState(ROWS, COLS))
+    act(() => {
+      result.current.setSortDir('name', 'asc')
+      result.current.setSortDir('score', 'desc')
+    })
+    act(() => {
+      result.current.clearColumnSort('name')
+    })
+    expect(result.current.sorts).toEqual([{ key: 'score', dir: 'desc' }])
+  })
+
+  it('is a no-op when the column has no active sort', () => {
+    const { result } = renderHook(() => useTableState(ROWS, COLS))
+    act(() => {
+      result.current.setSortDir('score', 'asc')
+    })
+    act(() => {
+      result.current.clearColumnSort('name')
+    })
+    expect(result.current.sorts).toHaveLength(1)
+  })
+})
+
+describe('useTableState — clearColumnFilter', () => {
+  it('clears both string filter and range filter for the same key', () => {
+    const { result } = renderHook(() => useTableState(ROWS, COLS))
+    act(() => {
+      result.current.toggleFilter('name', 'Alice')
+      result.current.setRangeFilter('score', 'min', '70')
+    })
+    act(() => {
+      result.current.clearColumnFilter('name')
+    })
+    expect(result.current.filters['name']?.size ?? 0).toBe(0)
+    // score range filter should be untouched
+    expect(result.current.rangeFilters['score']?.min).toBe('70')
+  })
+
+  it('clears range filter for a numeric column', () => {
+    const { result } = renderHook(() => useTableState(ROWS, COLS))
+    act(() => {
+      result.current.setRangeFilter('score', 'min', '70')
+      result.current.setRangeFilter('score', 'max', '90')
+    })
+    act(() => {
+      result.current.clearColumnFilter('score')
+    })
+    expect(result.current.rangeFilters['score']).toBeUndefined()
+    expect(result.current.processedData).toHaveLength(4)
+  })
+})

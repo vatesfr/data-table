@@ -121,6 +121,10 @@ export function useTableState<TRow extends object>(
     },
     toggleGroup: (key: string) => setGroupBy((prev) => toggleGroupBy(prev, key)),
     toggleGroupCollapse: (key: string) => setCollapsedGroups((prev) => toggleCollapse(prev, key)),
+    setColumnFilters: (key: string, values: Set<string>) => {
+      setFilters((prev) => ({ ...prev, [key]: values }))
+      setPageState(1)
+    },
     clearColumnFilter: (key: string) => {
       setFilters((prev) => ({ ...prev, [key]: new Set() }))
       setRangeFilters((prev) => {

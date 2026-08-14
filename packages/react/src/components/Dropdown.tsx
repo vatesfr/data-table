@@ -28,6 +28,13 @@ export function Dropdown({
   const triggerRef = useRef<HTMLDivElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
   const [rect, setRect] = useState<DOMRect | null>(null)
+  const [flipUp, setFlipUp] = useState(false)
+
+  // Keep a stable ref so event-handler effects don't need setOpen as a dep
+  const setOpenRef = useRef(setOpen)
+  useEffect(() => {
+    setOpenRef.current = setOpen
+  }, [setOpen])
 
   useLayoutEffect(() => {
     if (open && triggerRef.current) {
@@ -48,19 +55,39 @@ export function Dropdown({
     }
   }, [open])
 
+  // Measure panel after render and flip up if it would overflow the viewport bottom
+  useLayoutEffect(() => {
+    if (!open || !rect || !panelRef.current) {
+      setFlipUp(false)
+      return
+    }
+    const spaceBelow = window.innerHeight - rect.bottom - 4
+    setFlipUp(panelRef.current.offsetHeight > spaceBelow)
+  }, [open, rect])
+
   useEffect(() => {
+    if (!open) return
     const handler = (e: MouseEvent) => {
       const target = e.target as Node
       if (
         (!triggerRef.current || !triggerRef.current.contains(target)) &&
         (!panelRef.current || !panelRef.current.contains(target))
       ) {
-        setOpen(false)
+        setOpenRef.current(false)
       }
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
-  }, [setOpen])
+  }, [open])
+
+  useEffect(() => {
+    if (!open) return
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpenRef.current(false)
+    }
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
+  }, [open])
 
   const panel =
     open && rect
@@ -69,7 +96,9 @@ export function Dropdown({
             ref={panelRef}
             style={{
               position: 'fixed',
-              top: rect.bottom + 4,
+              ...(flipUp
+                ? { bottom: window.innerHeight - rect.top + 4 }
+                : { top: rect.bottom + 4 }),
               ...(align === 'right'
                 ? { right: window.innerWidth - rect.right }
                 : { left: rect.left }),
@@ -90,7 +119,7 @@ export function Dropdown({
 
   return (
     <div ref={triggerRef} style={{ position: 'relative', display: 'inline-block', ...wrapStyle }}>
-      <div onClick={() => setOpen(!open)}>{trigger}</div>
+      <div onClick={() => setOpenRef.current(!open)}>{trigger}</div>
       {panel}
     </div>
   )

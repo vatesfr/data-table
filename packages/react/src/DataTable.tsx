@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, type CSSProperties } from 'react'
+import { useState, useRef, useEffect, type CSSProperties, type ReactNode } from 'react'
 import { computeAggregate } from '@vates/flexi-table-core'
 import { useTableState } from './useTableState'
 import { Dropdown } from './components/Dropdown'
@@ -119,6 +119,11 @@ const S = {
     cursor: 'pointer',
     fontSize: 13,
     color: 'var(--color-text-primary)',
+    background: 'none',
+    border: 'none',
+    fontFamily: 'inherit',
+    textAlign: 'left' as const,
+    width: '100%',
   } as CSSProperties,
   ddSection: {
     padding: '6px 14px 2px',
@@ -224,10 +229,173 @@ const S = {
     padding: '4px 12px',
     borderBottom: '0.5px solid var(--color-border-tertiary)',
   } as CSSProperties,
+  sortRow: {
+    display: 'flex',
+    alignItems: 'center',
+    padding: '6px 14px',
+    gap: 6,
+  } as CSSProperties,
+  sortRowLabel: {
+    flex: 1,
+    fontSize: 11,
+    color: 'var(--color-text-tertiary)',
+    fontWeight: 500,
+    letterSpacing: '0.05em',
+    textTransform: 'uppercase' as const,
+  } as CSSProperties,
+  sortDirBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 28,
+    height: 22,
+    padding: '0 5px',
+    border: '0.5px solid var(--color-border-secondary)',
+    borderRadius: 4,
+    background: 'none',
+    cursor: 'pointer',
+    fontSize: 11,
+    fontWeight: 600,
+    color: 'var(--color-text-secondary)',
+    fontFamily: 'inherit',
+    gap: 2,
+  } as CSSProperties,
+  sortDirBtnActive: {
+    background: 'var(--color-background-info, #eff6ff)',
+    borderColor: 'var(--color-border-info, #3b82f6)',
+    color: 'var(--color-text-info, #2563eb)',
+  } as CSSProperties,
 }
 
 function asRecord(row: object): Record<string, unknown> {
   return row as Record<string, unknown>
+}
+
+interface SortRowProps {
+  currentDir: 'asc' | 'desc' | undefined
+  sortIdx: number | null
+  label: string
+  ascTitle: string
+  descTitle: string
+  onAsc: () => void
+  onDesc: () => void
+  onClear: () => void
+}
+
+function SortRow({
+  currentDir,
+  sortIdx,
+  label,
+  ascTitle,
+  descTitle,
+  onAsc,
+  onDesc,
+  onClear,
+}: SortRowProps) {
+  return (
+    <div style={S.sortRow}>
+      <span style={S.sortRowLabel}>{label}</span>
+      <button
+        style={{ ...S.sortDirBtn, ...(currentDir === 'asc' ? S.sortDirBtnActive : {}) }}
+        onClick={currentDir === 'asc' ? onClear : onAsc}
+        title={ascTitle}
+      >
+        {currentDir === 'asc' && sortIdx !== null ? sortIdx : ''}↑
+      </button>
+      <button
+        style={{ ...S.sortDirBtn, ...(currentDir === 'desc' ? S.sortDirBtnActive : {}) }}
+        onClick={currentDir === 'desc' ? onClear : onDesc}
+        title={descTitle}
+      >
+        {currentDir === 'desc' && sortIdx !== null ? sortIdx : ''}↓
+      </button>
+    </div>
+  )
+}
+
+interface StringFilterSectionProps {
+  values: string[]
+  activeFilters: Set<string> | undefined
+  renderFilterLabel?: (value: string) => ReactNode
+  onToggle: (value: string) => void
+  onBatchSet: (values: string[], selected: boolean) => void
+  searchPlaceholder: string
+  selectAllLabel: string
+  noResultsLabel: string
+}
+
+function StringFilterSection({
+  values,
+  activeFilters,
+  renderFilterLabel,
+  onToggle,
+  onBatchSet,
+  searchPlaceholder,
+  selectAllLabel,
+  noResultsLabel,
+}: StringFilterSectionProps) {
+  const [query, setQuery] = useState('')
+
+  const visible = query
+    ? values.filter((v) => v.toLowerCase().includes(query.toLowerCase()))
+    : values
+
+  const selectedInVisible = visible.filter((v) => activeFilters?.has(v))
+  const allSelected = visible.length > 0 && selectedInVisible.length === visible.length
+  const someSelected = selectedInVisible.length > 0 && !allSelected
+
+  return (
+    <>
+      <div style={{ padding: '4px 10px 2px' }}>
+        <input
+          type="text"
+          placeholder={searchPlaceholder}
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          style={S.searchInput}
+        />
+      </div>
+      <label
+        style={{
+          ...S.ddItem,
+          cursor: 'pointer',
+          fontSize: 12,
+          borderBottom: '0.5px solid var(--color-border-tertiary)',
+        }}
+      >
+        <input
+          type="checkbox"
+          checked={allSelected}
+          ref={(el) => {
+            if (el) el.indeterminate = someSelected
+          }}
+          onChange={() => onBatchSet(visible, !allSelected)}
+          style={{ margin: 0 }}
+        />
+        <span style={{ flex: 1 }}>{selectAllLabel}</span>
+        <span style={{ color: 'var(--color-text-tertiary)', fontSize: 11 }}>{visible.length}</span>
+      </label>
+      <div style={{ maxHeight: 180, overflowY: 'auto' }}>
+        {visible.length === 0 ? (
+          <div style={{ padding: '8px 14px', fontSize: 12, color: 'var(--color-text-tertiary)' }}>
+            {noResultsLabel}
+          </div>
+        ) : (
+          visible.map((v) => (
+            <label key={v} style={{ ...S.ddItem, cursor: 'pointer', fontSize: 12 }}>
+              <input
+                type="checkbox"
+                checked={activeFilters?.has(v) ?? false}
+                onChange={() => onToggle(v)}
+                style={{ margin: 0 }}
+              />
+              {renderFilterLabel ? renderFilterLabel(v) : v}
+            </label>
+          ))
+        )}
+      </div>
+    </>
+  )
 }
 
 export function DataTable<TRow extends object>({
@@ -240,8 +408,7 @@ export function DataTable<TRow extends object>({
   selectable,
   onSelectionChange,
 }: DataTableProps<TRow>) {
-  const [openColDD, setOpenColDD] = useState<string | null>(null)
-  const [openTableDD, setOpenTableDD] = useState(false)
+  const [openDD, setOpenDD] = useState<string | null>(null)
 
   const {
     visibleCols,
@@ -266,6 +433,7 @@ export function DataTable<TRow extends object>({
     setSortDir,
     clearColumnSort,
     toggleFilter,
+    setColumnFilters,
     setRangeFilter,
     toggleGroup,
     toggleGroupCollapse,
@@ -332,8 +500,8 @@ export function DataTable<TRow extends object>({
           {groupBy.length > 0 && ` · ${L.groupCount(groupedData.length)}`}
         </span>
         <Dropdown
-          open={openTableDD}
-          setOpen={setOpenTableDD}
+          open={openDD === 'table'}
+          setOpen={(v) => setOpenDD(v ? 'table' : null)}
           align="right"
           trigger={
             <button
@@ -378,7 +546,7 @@ export function DataTable<TRow extends object>({
                 <button
                   onClick={() => {
                     clearAll()
-                    setOpenTableDD(false)
+                    setOpenDD(null)
                   }}
                   style={S.clearBtn}
                 >
@@ -411,14 +579,18 @@ export function DataTable<TRow extends object>({
                 const sortIdx = getSortIndex(col.key)
                 const currentSort = sorts.find((s) => s.key === col.key)
                 const filtered = colHasFilter(col.key)
+                const isSortable = col.sortable !== false
                 const isFilterable = col.filterable !== false && col.type !== 'date'
                 const isNumeric = col.type === 'number'
+                const hasFilterValues = isNumeric || (stringValueMap[col.key]?.length ?? 0) > 0
+                const showFilter = isFilterable && hasFilterValues
+                const canHide = visibleCols.size > 1
 
                 return (
                   <th key={col.key} style={{ ...S.th, width: col.width }}>
                     <Dropdown
-                      open={openColDD === col.key}
-                      setOpen={(v) => setOpenColDD(v ? col.key : null)}
+                      open={openDD === `col:${col.key}`}
+                      setOpen={(v) => setOpenDD(v ? `col:${col.key}` : null)}
                       wrapStyle={{ display: 'block' }}
                       trigger={
                         <div style={S.thInner}>
@@ -441,74 +613,59 @@ export function DataTable<TRow extends object>({
                       }
                     >
                       {/* Sort */}
-                      <div style={S.ddSection}>Sort</div>
-                      <div
-                        style={{
-                          ...S.ddItem,
-                          background:
-                            currentSort?.dir === 'asc'
-                              ? 'var(--color-background-secondary)'
-                              : undefined,
-                        }}
-                        onClick={() => setSortDir(col.key, 'asc')}
-                      >
-                        <span
-                          style={{
-                            width: 18,
-                            fontSize: 11,
-                            color: 'var(--color-text-tertiary)',
-                            fontWeight: 500,
-                          }}
-                        >
-                          {currentSort?.dir === 'asc' ? sortIdx : ''}
-                        </span>
-                        <span style={{ flex: 1 }}>↑ Ascending</span>
-                        {currentSort?.dir === 'asc' && <span>✓</span>}
-                      </div>
-                      <div
-                        style={{
-                          ...S.ddItem,
-                          background:
-                            currentSort?.dir === 'desc'
-                              ? 'var(--color-background-secondary)'
-                              : undefined,
-                        }}
-                        onClick={() => setSortDir(col.key, 'desc')}
-                      >
-                        <span
-                          style={{
-                            width: 18,
-                            fontSize: 11,
-                            color: 'var(--color-text-tertiary)',
-                            fontWeight: 500,
-                          }}
-                        >
-                          {currentSort?.dir === 'desc' ? sortIdx : ''}
-                        </span>
-                        <span style={{ flex: 1 }}>↓ Descending</span>
-                        {currentSort?.dir === 'desc' && <span>✓</span>}
-                      </div>
-                      {currentSort && (
-                        <div style={{ padding: '2px 14px 6px' }}>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              clearColumnSort(col.key)
-                            }}
-                            style={S.clearBtn}
-                          >
-                            Clear sort
-                          </button>
-                        </div>
+                      {isSortable && (
+                        <SortRow
+                          currentDir={currentSort?.dir}
+                          sortIdx={sortIdx}
+                          label={L.sort}
+                          ascTitle={L.sortAscending}
+                          descTitle={L.sortDescending}
+                          onAsc={() => setSortDir(col.key, 'asc')}
+                          onDesc={() => setSortDir(col.key, 'desc')}
+                          onClear={() => clearColumnSort(col.key)}
+                        />
                       )}
 
+                      {/* Group by */}
+                      {col.groupable && (
+                        <>
+                          {isSortable && <div style={S.ddSep} />}
+                          <button
+                            style={S.ddItem}
+                            onClick={() => {
+                              toggleGroup(col.key)
+                              setOpenDD(null)
+                            }}
+                          >
+                            {L.convertToGroup}
+                          </button>
+                        </>
+                      )}
+
+                      {/* Hide column */}
+                      {(isSortable || col.groupable) && <div style={S.ddSep} />}
+                      <button
+                        style={{
+                          ...S.ddItem,
+                          color: 'var(--color-text-secondary)',
+                          ...(!canHide ? { opacity: 0.4, cursor: 'not-allowed' } : {}),
+                        }}
+                        disabled={!canHide}
+                        onClick={() => {
+                          toggleColVisibility(col.key)
+                          setOpenDD(null)
+                        }}
+                      >
+                        {L.hideColumn}
+                      </button>
+
                       {/* Filter */}
-                      {isFilterable && (
+                      {showFilter && (
                         <>
                           <div style={S.ddSep} />
+                          <div style={S.ddSection}>{L.filter}</div>
                           {isNumeric ? (
                             <div style={{ padding: '4px 14px 8px' }}>
-                              <div style={S.ddSection}>Filter</div>
                               <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                                 <input
                                   type="number"
@@ -516,7 +673,6 @@ export function DataTable<TRow extends object>({
                                   value={rangeFilters[col.key]?.min ?? ''}
                                   onChange={(e) => setRangeFilter(col.key, 'min', e.target.value)}
                                   style={S.rangeInput}
-                                  onClick={(e) => e.stopPropagation()}
                                 />
                                 <span style={{ color: 'var(--color-text-tertiary)', fontSize: 12 }}>
                                   –
@@ -527,74 +683,109 @@ export function DataTable<TRow extends object>({
                                   value={rangeFilters[col.key]?.max ?? ''}
                                   onChange={(e) => setRangeFilter(col.key, 'max', e.target.value)}
                                   style={S.rangeInput}
-                                  onClick={(e) => e.stopPropagation()}
                                 />
                               </div>
                             </div>
                           ) : (
-                            <div style={{ maxHeight: 200, overflowY: 'auto' }}>
-                              <div style={S.ddSection}>Filter</div>
-                              {(stringValueMap[col.key] ?? []).map((v) => (
-                                <label key={v} style={{ ...S.ddItem, cursor: 'pointer' }}>
-                                  <input
-                                    type="checkbox"
-                                    checked={filters[col.key]?.has(v) ?? false}
-                                    onChange={() => toggleFilter(col.key, v)}
-                                    style={{ margin: 0 }}
-                                  />
-                                  {col.renderFilterLabel ? col.renderFilterLabel(v) : v}
-                                </label>
-                              ))}
-                            </div>
+                            <StringFilterSection
+                              values={stringValueMap[col.key] ?? []}
+                              activeFilters={filters[col.key]}
+                              renderFilterLabel={col.renderFilterLabel}
+                              onToggle={(v) => toggleFilter(col.key, v)}
+                              onBatchSet={(vals, selected) => {
+                                const next = new Set(filters[col.key] ?? [])
+                                if (selected) vals.forEach((v) => next.add(v))
+                                else vals.forEach((v) => next.delete(v))
+                                setColumnFilters(col.key, next)
+                              }}
+                              searchPlaceholder={L.filterSearch}
+                              selectAllLabel={L.selectAll}
+                              noResultsLabel={L.noFilterResults}
+                            />
                           )}
                           {filtered && (
-                            <div style={{ padding: '2px 14px 6px' }}>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  clearColumnFilter(col.key)
-                                }}
-                                style={S.clearBtn}
-                              >
-                                Clear filter
+                            <div style={{ padding: '4px 14px 6px' }}>
+                              <button onClick={() => clearColumnFilter(col.key)} style={S.clearBtn}>
+                                {L.clearFilter}
                               </button>
                             </div>
                           )}
                         </>
                       )}
-
-                      {/* Group by */}
-                      {col.groupable && (
-                        <>
-                          <div style={S.ddSep} />
-                          <label style={{ ...S.ddItem, cursor: 'pointer' }}>
-                            <input
-                              type="checkbox"
-                              checked={groupBy.includes(col.key)}
-                              onChange={() => toggleGroup(col.key)}
-                              style={{ margin: 0 }}
-                            />
-                            {L.group}
-                          </label>
-                        </>
-                      )}
-
-                      {/* Hide column */}
-                      <div style={S.ddSep} />
-                      <div
-                        style={{ ...S.ddItem, color: 'var(--color-text-secondary)' }}
-                        onClick={() => {
-                          toggleColVisibility(col.key)
-                          setOpenColDD(null)
-                        }}
-                      >
-                        Hide column
-                      </div>
                     </Dropdown>
                   </th>
                 )
               })}
             </tr>
+            {groupBy.length > 0 && (
+              <tr>
+                {selectable && <th style={{ ...S.thNoSort, width: 36 }} />}
+                <th style={{ ...S.thNoSort, width: 28 }} />
+                <th colSpan={activeColumns.length} style={{ ...S.thNoSort, padding: '4px 12px' }}>
+                  {groupBy.map((g, i) => {
+                    const col = columns.find((c) => c.key === g)
+                    const currentSort = sorts.find((s) => s.key === g)
+                    const sortIdx = getSortIndex(g)
+                    return (
+                      <span
+                        key={g}
+                        style={{ display: 'inline-flex', alignItems: 'center' }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {i > 0 && <span style={{ margin: '0 8px', opacity: 0.4 }}>›</span>}
+                        <Dropdown
+                          open={openDD === `group:${g}`}
+                          setOpen={(v) => setOpenDD(v ? `group:${g}` : null)}
+                          trigger={
+                            <span
+                              style={{
+                                opacity: 0.8,
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 3,
+                                borderBottom: '1px dashed currentColor',
+                              }}
+                            >
+                              {col?.label ?? g}
+                              {sortIdx ? (
+                                <span style={{ fontSize: 10 }}>
+                                  {sortIdx}
+                                  {getSortIcon(g)}
+                                </span>
+                              ) : (
+                                <span style={{ fontSize: 10, opacity: 0.4 }}>▾</span>
+                              )}
+                            </span>
+                          }
+                        >
+                          <SortRow
+                            currentDir={currentSort?.dir}
+                            sortIdx={sortIdx}
+                            label={L.sort}
+                            ascTitle={L.sortAscending}
+                            descTitle={L.sortDescending}
+                            onAsc={() => setSortDir(g, 'asc')}
+                            onDesc={() => setSortDir(g, 'desc')}
+                            onClear={() => clearColumnSort(g)}
+                          />
+                          <div style={S.ddSep} />
+                          <button
+                            style={S.ddItem}
+                            onClick={() => {
+                              toggleGroup(g)
+                              setOpenDD(null)
+                            }}
+                          >
+                            {L.convertToColumn}
+                          </button>
+                        </Dropdown>
+                      </span>
+                    )
+                  })}
+                </th>
+              </tr>
+            )}
           </thead>
           <tbody>
             {groupedData.map(({ key: gkey, rows }) => {

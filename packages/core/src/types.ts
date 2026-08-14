@@ -32,7 +32,11 @@ export interface DataTableLabels {
   columnsSection: string
   sort: string
   sortSection: string
+  sortAscending: string
+  sortDescending: string
+  clearSort: string
   clearSorts: string
+  clearFilter: string
   filter: string
   numericRanges: string
   min: string
@@ -42,6 +46,12 @@ export interface DataTableLabels {
   groupSection: string
   clearGroups: string
   clearAll: string
+  hideColumn: string
+  convertToGroup: string
+  convertToColumn: string
+  filterSearch: string
+  selectAll: string
+  noFilterResults: string
   rowCount: (filtered: number, total: number) => string
   groupCount: (count: number) => string
   groupLabel: (index: number) => string
