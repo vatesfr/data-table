@@ -11,6 +11,8 @@ export interface TableViewState {
   columnOrder?: string[]
   sorts?: SortEntry[]
   filters?: Record<string, string[]>
+  /** "Not one of these values" filters for multi-value columns — see `cycleFilterValue`. */
+  excludeFilters?: Record<string, string[]>
   rangeFilters?: Record<string, RangeFilter>
   groupBy?: string[]
   collapsedGroups?: string[]
@@ -31,6 +33,7 @@ interface WireViewState {
   o?: string[]
   s?: WireSort[]
   f?: WireFilter[]
+  x?: WireFilter[]
   r?: WireRange[]
   g?: string[]
   c?: string[]
@@ -48,6 +51,11 @@ function toWire(view: TableViewState): WireViewState {
 
   const filterEntries = Object.entries(view.filters ?? {}).filter(([, vals]) => vals.length > 0)
   if (filterEntries.length) wire.f = filterEntries
+
+  const excludeFilterEntries = Object.entries(view.excludeFilters ?? {}).filter(
+    ([, vals]) => vals.length > 0,
+  )
+  if (excludeFilterEntries.length) wire.x = excludeFilterEntries
 
   const rangeEntries = Object.entries(view.rangeFilters ?? {})
     .filter(([, r]) => r.min !== '' || r.max !== '')
@@ -68,6 +76,7 @@ function fromWire(wire: WireViewState): TableViewState {
   if (wire.o) view.columnOrder = wire.o
   if (wire.s) view.sorts = wire.s.map(([key, dirFlag]) => ({ key, dir: dirFlag ? 'desc' : 'asc' }))
   if (wire.f) view.filters = Object.fromEntries(wire.f)
+  if (wire.x) view.excludeFilters = Object.fromEntries(wire.x)
   if (wire.r)
     view.rangeFilters = Object.fromEntries(wire.r.map(([key, min, max]) => [key, { min, max }]))
   if (wire.g) view.groupBy = wire.g

@@ -1483,6 +1483,151 @@ describe('createDataTable', () => {
     expect(container.querySelector('[data-action="filter-search"][data-key="name"]')).not.toBeNull()
   })
 
+  // --- exclude filters (tri-state checklist) ---
+
+  function tagCheckbox(value: string): HTMLInputElement {
+    return container.querySelector<HTMLInputElement>(
+      `[data-action="toggle-filter"][data-value="${value}"]`,
+    )!
+  }
+
+  it('a plain click cycles a value through neutral -> include -> exclude -> neutral', () => {
+    createDataTable(container, { data: GAMES, columns: GAME_COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="filter"]')!)
+
+    click(tagCheckbox('RPG'))
+    expect(tagCheckbox('RPG').checked).toBe(true)
+    expect(tagCheckbox('RPG').indeterminate).toBe(false)
+    expect([...container.querySelectorAll('tbody tr')].map((r) => r.textContent)).toEqual(
+      expect.arrayContaining([expect.stringContaining('Game A')]),
+    )
+
+    click(tagCheckbox('RPG'))
+    expect(tagCheckbox('RPG').checked).toBe(false)
+    expect(tagCheckbox('RPG').indeterminate).toBe(true)
+    expect(tagCheckbox('RPG').closest('label')?.classList.contains('dt-dd-item--exclude')).toBe(
+      true,
+    )
+    // Game A has RPG, so it's excluded now; Game B (Action, Adventure) remains.
+    const names = [...container.querySelectorAll('tbody tr td:first-child')].map(
+      (td) => td.textContent,
+    )
+    expect(names).toEqual(['Game B'])
+
+    click(tagCheckbox('RPG'))
+    expect(tagCheckbox('RPG').checked).toBe(false)
+    expect(tagCheckbox('RPG').indeterminate).toBe(false)
+    expect(
+      [...container.querySelectorAll('tbody tr td:first-child')].map((td) => td.textContent),
+    ).toEqual(['Game A', 'Game B'])
+  })
+
+  it('renders an exclude filter as its own chip in the active bar, distinct from an include chip', () => {
+    createDataTable(container, { data: GAMES, columns: GAME_COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="filter"]')!)
+    click(tagCheckbox('RPG'))
+    click(tagCheckbox('RPG')) // include -> exclude
+
+    const chip = container.querySelector<HTMLElement>('.dt-active-bar .dt-chip--exclude')
+    expect(chip).not.toBeNull()
+    expect(chip!.textContent).toContain('RPG')
+  })
+
+  it("the exclude chip's x clears only the exclusion", () => {
+    createDataTable(container, { data: GAMES, columns: GAME_COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="filter"]')!)
+    click(tagCheckbox('RPG'))
+    click(tagCheckbox('RPG')) // include -> exclude
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="filter"]')!) // close
+
+    click(container.querySelector<HTMLElement>('.dt-active-bar .dt-chip--exclude .dt-chip-x')!)
+    expect(container.querySelector('.dt-active-bar .dt-chip--exclude')).toBeNull()
+    expect(
+      [...container.querySelectorAll('tbody tr td:first-child')].map((td) => td.textContent),
+    ).toEqual(['Game A', 'Game B'])
+  })
+
+  it("clearing an include chip on a column doesn't clear that same column's exclude chip, and vice versa", () => {
+    createDataTable(container, { data: GAMES, columns: GAME_COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="filter"]')!)
+    click(tagCheckbox('Action')) // include Action
+    click(tagCheckbox('RPG'))
+    click(tagCheckbox('RPG')) // include -> exclude RPG
+
+    // Clearing the include chip must not touch the exclude chip.
+    const includeX = container.querySelector<HTMLElement>(
+      '.dt-active-bar .dt-chip--filter:not(.dt-chip--exclude) .dt-chip-x',
+    )!
+    click(includeX)
+    expect(
+      container.querySelector('.dt-active-bar .dt-chip--filter:not(.dt-chip--exclude)'),
+    ).toBeNull()
+    expect(container.querySelector('.dt-active-bar .dt-chip--exclude')).not.toBeNull()
+    // Clicking a chip's × is an "outside click" relative to the (now-closed) filter dropdown —
+    // reopen it to inspect the checklist's live checkbox state.
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="filter"]')!)
+    expect(tagCheckbox('RPG').indeterminate).toBe(true)
+
+    // Clearing the remaining exclude chip must not resurrect the just-cleared include state.
+    click(container.querySelector<HTMLElement>('.dt-active-bar .dt-chip--exclude .dt-chip-x')!)
+    expect(container.querySelector('.dt-active-bar .dt-chip')).toBeNull()
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="filter"]')!)
+    expect(tagCheckbox('Action').checked).toBe(false)
+  })
+
+  it('select-all moves listed values into the include set, clearing any that were excluded', () => {
+    createDataTable(container, { data: GAMES, columns: GAME_COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="filter"]')!)
+    click(tagCheckbox('RPG'))
+    click(tagCheckbox('RPG')) // include -> exclude
+
+    click(
+      container.querySelector<HTMLElement>('[data-action="toggle-filter-all"][data-key="tags"]')!,
+    )
+    expect(tagCheckbox('RPG').checked).toBe(true)
+    expect(tagCheckbox('RPG').indeterminate).toBe(false)
+  })
+
+  it("select-all's deselect branch only clears the include set, leaving an unrelated exclude untouched", () => {
+    createDataTable(container, { data: GAMES, columns: GAME_COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="filter"]')!)
+    click(tagCheckbox('Action')) // include Action
+    click(tagCheckbox('RPG'))
+    click(tagCheckbox('RPG')) // include -> exclude RPG
+
+    // Master checkbox is indeterminate (1 of 3 listed values included) — clicking it should
+    // deselect just that included value, not silently clear RPG's independent exclusion too.
+    const selectAll = container.querySelector<HTMLInputElement>(
+      '[data-action="toggle-filter-all"][data-key="tags"]',
+    )!
+    expect(selectAll.indeterminate).toBe(true)
+    click(selectAll)
+
+    expect(tagCheckbox('Action').checked).toBe(false)
+    expect(tagCheckbox('RPG').checked).toBe(false)
+    expect(tagCheckbox('RPG').indeterminate).toBe(true)
+    expect(
+      [...container.querySelectorAll('tbody tr td:first-child')].map((td) => td.textContent),
+    ).toEqual(['Game B'])
+  })
+
+  it('round-trips an exclude filter through getViewState/setViewState', () => {
+    const table = createDataTable(container, { data: GAMES, columns: GAME_COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="filter"]')!)
+    click(tagCheckbox('RPG'))
+    click(tagCheckbox('RPG')) // include -> exclude
+
+    const view = table.getViewState()
+    expect(view.excludeFilters).toEqual({ tags: ['RPG'] })
+
+    table.setViewState({})
+    expect(tagCheckbox('RPG').checked).toBe(false)
+    expect(tagCheckbox('RPG').indeterminate).toBe(false)
+
+    table.setViewState(view)
+    expect(tagCheckbox('RPG').indeterminate).toBe(true)
+  })
+
   // --- filter value sort ---
 
   function tagValues(): (string | undefined)[] {
