@@ -1,7 +1,5 @@
 export { default as DataTable } from './DataTable.vue'
 export { default as DataTableView } from './DataTableView.vue'
-export { default as Badge } from './components/Badge.vue'
-export { default as ScoreBar } from './components/ScoreBar.vue'
 export { useTableState } from './useTableState'
 export type { TableState } from './useTableState'
 export { usePersistedView, useUrlView, resetView } from './persistence'

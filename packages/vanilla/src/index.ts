@@ -71,8 +71,6 @@ export type { ColumnDef, DataTableOptions, DataTableInstance }
 export type { DataTableLabels, TableViewState } from '@vates/data-table-core'
 export { persistViewToLocalStorage, syncViewToUrl, resetView } from './persistence'
 export type { ViewStateApi, SyncViewToUrlOptions, ResetViewOptions } from './persistence'
-export { createScoreBar } from './components/scoreBar'
-export type { ScoreBarOptions } from './components/scoreBar'
 export * from '@vates/data-table-core/locales'
 // Ready-made groupValue/groupFormat pairs for bucketing a continuous/high-cardinality column
 // (percentages, timestamps) into coarser groups — see `ColumnDefBase.groupValue` in the docs.

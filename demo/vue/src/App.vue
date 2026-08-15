@@ -2,8 +2,6 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import {
   DataTableView,
-  Badge,
-  ScoreBar,
   useTableState,
   usePersistedView,
   useUrlView,
@@ -21,6 +19,8 @@ import {
   type ColumnDef,
   type DataTableLabels,
 } from '@vates/data-table-vue'
+import Badge from './components/Badge.vue'
+import ScoreBar from './components/ScoreBar.vue'
 import { HUGE_DATA, HUGE_COLUMNS, HUGE_ROW_COUNT } from './hugeData'
 import ViewControls from './ViewControls.vue'
 

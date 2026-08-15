@@ -1,6 +1,6 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { renderThemeCss } from '@vates/data-table-core'
+import { renderThemeCss } from '@vates/data-table-core/theme'
 import App from './App'
 
 // Defines the --color-* tokens DataTableView reads — see the "Theming" section in the README

@@ -1,8 +1,6 @@
 import { useState, useEffect, type ReactNode } from 'react'
 import {
   DataTableView,
-  Badge,
-  ScoreBar,
   useTableState,
   usePersistedView,
   useUrlView,
@@ -20,6 +18,8 @@ import {
   type ColumnDef,
   type DataTableLabels,
 } from '@vates/data-table-react'
+import { Badge } from './components/Badge'
+import { ScoreBar } from './components/ScoreBar'
 import { HUGE_DATA, HUGE_COLUMNS, HUGE_ROW_COUNT } from './hugeData'
 
 interface Employee {

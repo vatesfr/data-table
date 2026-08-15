@@ -3,7 +3,6 @@ import {
   persistViewToLocalStorage,
   syncViewToUrl,
   resetView,
-  createScoreBar,
   bucketNumericRange,
   formatNumericRange,
   bucketDatePart,
@@ -18,6 +17,7 @@ import {
   type DataTableLabels,
   type TableViewState,
 } from '@vates/data-table-vanilla'
+import { createScoreBar } from './components/scoreBar'
 import { HUGE_DATA, HUGE_COLUMNS, HUGE_ROW_COUNT } from './hugeData'
 
 interface Employee {

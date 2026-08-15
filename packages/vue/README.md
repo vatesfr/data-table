@@ -50,7 +50,7 @@ const COLUMNS: ColumnDef<Employee>[] = [
 
 ▶ [Try it in the demo](https://vatesfr.github.io/data-table/vue/#full-table)
 
-Use named scoped slots to customize how cells, filter labels, and group headers render.
+Use named scoped slots to customize how cells, filter labels, and group headers render. `Badge` below is your own component — this library ships no presentational components of its own, only the table logic/chrome.
 
 ```vue
 <DataTable :data="employees" :columns="COLUMNS" row-key="id">

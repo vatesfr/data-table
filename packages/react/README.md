@@ -42,7 +42,7 @@ export default function App() {
 
 ▶ [Try it in the demo](https://vatesfr.github.io/data-table/react/#full-table)
 
-Use the `render` prop on a column for custom cell content, and `renderFilterLabel` for custom filter checklist items.
+Use the `render` prop on a column for custom cell content, and `renderFilterLabel` for custom filter checklist items. `Badge` below is your own component — this library ships no presentational components of its own, only the table logic/chrome.
 
 ```tsx
 const COLUMNS: ColumnDef<Employee>[] = [
