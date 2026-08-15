@@ -25,6 +25,13 @@ export interface DataTableViewProps<TRow extends object = Record<string, unknown
   table: TableState<TRow>
   data: TRow[]
   columns: ColumnDef<TRow>[]
+  /**
+   * A row property to use as React's `key` for table rows (falls back to array index when
+   * omitted). Purely a rendering-identity hint — it is **not** used for selection, which is
+   * tracked by object identity instead (see `useTableState`'s `selection`/`toggleRowSelection`)
+   * and works correctly with no `rowKey` at all. Unlike most table libraries' "row key" prop,
+   * this one has no bearing on selection/sort/filter state.
+   */
   rowKey?: keyof TRow & string
   selectable?: boolean
   onSelectionChange?: (rows: TRow[]) => void

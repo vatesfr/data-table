@@ -304,7 +304,7 @@ Drag a column header to reorder it, or drag a row (or press Alt+ArrowUp/Alt+Arro
 | ------------------------ | ---------------------------------------- | ------- | -------------------------------------------- |
 | `data`                   | `TRow[]`                                 | —       | Row data                                     |
 | `columns`                | `ColumnDef<TRow>[]`                      | —       | Column definitions                           |
-| `rowKey`                 | `keyof TRow & string`                    | —       | Unique row identifier                        |
+| `rowKey`                 | `keyof TRow & string`                    | —       | DOM key only — not selection identity        |
 | `defaultVisibleColumns`  | `string[]`                               | all     | Initially visible column keys                |
 | `labels`                 | `Partial<DataTableLabels>`               | English | UI string overrides                          |
 | `defaultPageSize`        | `number`                                 | 0 (off) | Initial rows per page; 0 disables pagination |

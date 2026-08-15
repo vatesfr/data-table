@@ -10,6 +10,13 @@ export interface ColumnDef<
 export interface DataTableOptions<TRow extends object = Record<string, unknown>> {
   data: TRow[]
   columns: ColumnDef<TRow>[]
+  /**
+   * A row property used as a stable DOM key for table rows (falls back to array index when
+   * omitted). Purely a rendering-identity hint — it is **not** used for selection, which is
+   * tracked by object identity instead (see `DataTableInstance.getSelection`/the internal
+   * `toggleRowSelection` behavior) and works correctly with no `rowKey` at all. Unlike most table
+   * libraries' "row key" prop, this one has no bearing on selection/sort/filter state.
+   */
   rowKey?: keyof TRow & string
   defaultVisibleColumns?: string[]
   labels?: Partial<DataTableLabels>

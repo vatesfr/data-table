@@ -109,7 +109,7 @@ Since `render()` builds the whole table as one HTML string and assigns it via `i
 
 Selection lives in `useTableState` in both adapters. Key design notes:
 
-- Selection is tracked as `Set<TRow>` by **object identity** — no `rowKey` dependency. Row references must be stable (the same object in memory) across re-renders for selection to persist through sort/filter changes.
+- Selection is tracked as `Set<TRow>` by **object identity** — no `rowKey` dependency. Row references must be stable (the same object in memory) across re-renders for selection to persist through sort/filter changes. `rowKey`'s own JSDoc (all three adapters' `types.ts`) and each README's props table now spell this out explicitly — it's a rendering-identity hint only (React `key`/Vue `:key`/vanilla DOM key), not a selection identifier the way "row key" reads in most other table libraries (TanStack Table, AG Grid, MUI); this was previously undocumented and easy to assume otherwise.
 - React uses `useState<Set<TRow>>` (always assigns a new Set on mutation). Vue uses `shallowRef<Set<TRow>>` — `ref` would cause `UnwrapRefSimple<TRow>` type errors because Vue's deep-unwrap conflicts with generic constraints.
 - `selectedRows` is `processedData.filter(r => selection.has(r))` — rows removed by filtering disappear from `selectedRows` but stay in `selection` and reappear if the filter is cleared.
 - `toggleSelectAll(rows: TRow[])` takes an explicit row array — the caller decides what to pass (typically `processedData`, not just the current page). It deselects all if any are currently selected (so an indeterminate _or_ fully-checked state clears on click, matching Gmail's select-all-checkbox convention), and only selects all when none are selected.
