@@ -2498,6 +2498,19 @@ export function createDataTable<TRow extends object>(
       viewListeners.add(cb)
       return () => viewListeners.delete(cb)
     },
+    getSelection(): TRow[] {
+      return [...selection]
+    },
+    setSelection(rows: TRow[]): void {
+      selection = new Set(rows)
+      render()
+      onSelectionChange?.(_processedData.filter((r) => selection.has(r)))
+    },
+    clearSelection(): void {
+      selection = new Set()
+      render()
+      onSelectionChange?.([])
+    },
     destroy(): void {
       container.removeEventListener('click', handleClick)
       container.removeEventListener('input', handleInput)

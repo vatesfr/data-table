@@ -29,5 +29,15 @@ export interface DataTableInstance<TRow extends object = Record<string, unknown>
   setViewState(view: TableViewState): void
   /** Fires after any user action that changes the view (not selection). Returns an unsubscribe function. */
   onViewChange(cb: (view: TableViewState) => void): () => void
+  /**
+   * Current selection, by object identity (same model as React/Vue's `selection` — see the docs).
+   * Includes rows currently hidden by an active filter, unlike a filtered "selected and visible"
+   * view; there is no such filtered accessor here since vanilla exposes state only through methods.
+   */
+  getSelection(): TRow[]
+  /** Replaces the selection outright — e.g. to pre-select rows on load, or restore a prior selection. */
+  setSelection(rows: TRow[]): void
+  /** Empties the selection — e.g. to wire an external "Clear selection" button. */
+  clearSelection(): void
   destroy(): void
 }

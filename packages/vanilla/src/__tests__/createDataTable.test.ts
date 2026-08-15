@@ -2234,6 +2234,67 @@ describe('createDataTable', () => {
     expect(onChange).toHaveBeenLastCalledWith([ROWS[3]])
   })
 
+  // --- imperative selection API (getSelection/setSelection/clearSelection) ---
+
+  it('getSelection reflects clicks made through the UI', () => {
+    const table = createDataTable(container, { data: ROWS, columns: COLS, selectable: true })
+    click(
+      container.querySelector<HTMLElement>('[data-action="toggle-row-select"][data-proc-idx="0"]')!,
+    )
+    expect(table.getSelection()).toEqual([ROWS[0]])
+  })
+
+  it('setSelection pre-selects rows programmatically and updates the rendered checkboxes', () => {
+    const table = createDataTable(container, { data: ROWS, columns: COLS, selectable: true })
+    table.setSelection([ROWS[1]])
+    expect(table.getSelection()).toEqual([ROWS[1]])
+    const checkbox = container.querySelector<HTMLInputElement>(
+      '[data-action="toggle-row-select"][data-proc-idx="1"]',
+    )!
+    expect(checkbox.checked).toBe(true)
+  })
+
+  it('setSelection fires onSelectionChange', () => {
+    const onChange = vi.fn()
+    const table = createDataTable(container, {
+      data: ROWS,
+      columns: COLS,
+      selectable: true,
+      onSelectionChange: onChange,
+    })
+    table.setSelection([ROWS[0], ROWS[1]])
+    expect(onChange).toHaveBeenCalledWith([ROWS[0], ROWS[1]])
+  })
+
+  it('clearSelection empties the selection and fires onSelectionChange', () => {
+    const onChange = vi.fn()
+    const table = createDataTable(container, {
+      data: ROWS,
+      columns: COLS,
+      selectable: true,
+      onSelectionChange: onChange,
+    })
+    table.setSelection(ROWS)
+    table.clearSelection()
+    expect(table.getSelection()).toEqual([])
+    expect(onChange).toHaveBeenLastCalledWith([])
+    const checkbox = container.querySelector<HTMLInputElement>(
+      '[data-action="toggle-row-select"][data-proc-idx="0"]',
+    )!
+    expect(checkbox.checked).toBe(false)
+  })
+
+  it('getSelection keeps rows filtered out of view, mirroring React/Vue selection semantics', () => {
+    const table = createDataTable(container, { data: ROWS, columns: COLS, selectable: true })
+    table.setSelection([ROWS[0], ROWS[1]])
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="filter"]')!)
+    click(
+      container.querySelector<HTMLElement>('[data-action="toggle-filter"][data-value="Alice"]')!,
+    )
+    // Bob is filtered out of the visible rows but stays in the selection.
+    expect(table.getSelection()).toEqual([ROWS[0], ROWS[1]])
+  })
+
   // --- row click ---
 
   it('clicking a row calls onRowClick with that row', () => {

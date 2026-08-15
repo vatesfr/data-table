@@ -343,6 +343,9 @@ interface ColumnDef<TRow extends object> {
 | `getViewState()`                      | Returns a serializable snapshot of sort/filter/group/page/etc. (not selection)   |
 | `setViewState(view: TableViewState)`  | Applies a view snapshot; fields absent from it reset to default                  |
 | `onViewChange(cb)`                    | Subscribes to view changes (not selection-only); returns an unsubscribe function |
+| `getSelection()`                      | Current selection (by object identity), including rows hidden by a filter        |
+| `setSelection(rows: TRow[])`          | Replaces the selection outright — e.g. to pre-select rows on load                |
+| `clearSelection()`                    | Empties the selection — e.g. to wire an external "Clear selection" button        |
 | `destroy()`                           | Remove all event listeners and clear the container                               |
 
 ## View persistence & sharing
