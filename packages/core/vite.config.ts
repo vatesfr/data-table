@@ -9,6 +9,7 @@ export default defineConfig({
       entry: {
         index: resolve(__dirname, 'src/index.ts'),
         locales: resolve(__dirname, 'src/locales.ts'),
+        theme: resolve(__dirname, 'src/theme.ts'),
       },
       name: 'DataTableCore',
       formats: ['es', 'cjs'],

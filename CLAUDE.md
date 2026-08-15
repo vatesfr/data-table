@@ -64,6 +64,7 @@ All stateless logic lives here:
 - **`types.ts`** — shared interfaces: `ColumnDefBase<TRow>`, `AggregateType`, `SortEntry`, `RangeFilter`, `DataTableLabels`, `DEFAULT_LABELS` (English default strings)
 - **`logic.ts`** — pure functions: `getColumnValue`, `processData`, `searchData`, `groupData`, `sortWithinGroups`, `computeStringValues`, `computeStringValueCounts`, `computeAggregate`, `paginateData`, `calcTotalPages`, `toggleSort`, `setSort`, `appendOrToggleSort`, `toggleFilter`, `toggleGroupBy`, `toggleCollapse`, `getOrderedColumns`, `reorderColumn`, `moveColumnBy`, `getSortIcon`, `getSortIndex`, `countActiveFilters`
 - **`locales.ts`** — built-in locale objects: `LABELS_EN`, `LABELS_FR`, `LABELS_ES`, `LABELS_DE`, `LABELS_PT`
+- **`theme.ts`** — `LIGHT_THEME`/`DARK_THEME`/`renderThemeCss()`, consumed only by the vanilla adapter (see "Vanilla package"'s `styles.ts`) since React/Vue theme via inline styles/scoped CSS instead. Not re-exported from core's main `index.ts` barrel — React/Vue consumers importing `@vates/data-table-core` directly would otherwise see theme APIs with no relevance to them. Reachable via its own `@vates/data-table-core/theme` sub-path export, same pattern as `/locales`.
 
 The internal `asRecord(row: object): Record<string, unknown>` helper exists because the generic constraint is `TRow extends object` (not `Record<string, unknown>`) — TypeScript interfaces lack index signatures so the wider constraint is needed, and `asRecord` lets internal logic access arbitrary keys.
 
@@ -93,7 +94,7 @@ Vue customization uses **scoped slots** instead of render props:
 ### Vanilla package (`packages/vanilla`)
 
 - **`types.ts`** — `ColumnDef<TRow>` extends `ColumnDefBase<TRow>` with `render?: (value, row) => Node`
-- **`styles.ts`** — CSS string injected once into `<head>` via a `<style data-dt-styles>` tag on first `createDataTable` call
+- **`styles.ts`** — CSS string injected once into `<head>` via a `<style data-dt-styles>` tag on first `createDataTable` call; imports `renderThemeCss` from `@vates/data-table-core/theme` (not the main package entry — see "Core package")
 - **`index.ts`** — exports `createDataTable(container, options)` which returns `{ setData, setColumns, destroy }`
 
 `createDataTable` manages all state in a closure, re-renders via `innerHTML` on every state change, and uses **event delegation** (single `click`/`input`/`change` listener on the container). All interactive elements carry `data-action` attributes; the handler dispatches on those. Dropdowns open/close state is tracked in the closure (`openDropdown: string | null`) and re-rendered into the HTML on each update.
@@ -413,7 +414,7 @@ Given pagination, the DOM only ever renders `pageSize` rows regardless of datase
 
 Packages and demo apps resolve each other without a build step via:
 
-- **`tsconfig.json` `paths`** — maps `@vates/data-table-core` → `../core/src/index.ts` and `@vates/data-table-core/locales` → `../core/src/locales.ts` for type checking
-- **`vite.config.ts` `resolve.alias`** — maps `@vates/data-table-core` to the `packages/core/src` **directory** (not `index.ts`) so Vite's prefix substitution resolves both the bare import and the `/locales` sub-path correctly
+- **`tsconfig.json` `paths`** — maps `@vates/data-table-core` → `../core/src/index.ts`, `@vates/data-table-core/locales` → `../core/src/locales.ts`, and (vanilla only, the sole consumer) `@vates/data-table-core/theme` → `../core/src/theme.ts` for type checking
+- **`vite.config.ts` `resolve.alias`** — maps `@vates/data-table-core` to the `packages/core/src` **directory** (not `index.ts`) so Vite's prefix substitution resolves the bare import and any sub-path (`/locales`, `/theme`) correctly
 
 In production, `npm run build` must run `core` before `react`, `vue`, and `vanilla` since they import from its `dist/`.

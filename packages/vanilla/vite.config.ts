@@ -14,10 +14,11 @@ export default defineConfig({
       formats: ['es', 'umd'],
     },
     rollupOptions: {
-      external: ['@vates/data-table-core'],
+      external: ['@vates/data-table-core', '@vates/data-table-core/theme'],
       output: {
         globals: {
           '@vates/data-table-core': 'DataTableCore',
+          '@vates/data-table-core/theme': 'DataTableCore',
         },
       },
     },

@@ -38,6 +38,11 @@
       "import": "./dist/locales.js",
       "require": "./dist/locales.cjs",
       "types": "./dist/locales.d.ts"
+    },
+    "./theme": {
+      "import": "./dist/theme.js",
+      "require": "./dist/theme.cjs",
+      "types": "./dist/theme.d.ts"
     }
   },
   "files": [

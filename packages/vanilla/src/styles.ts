@@ -1,4 +1,4 @@
-import { renderThemeCss } from '@vates/data-table-core'
+import { renderThemeCss } from '@vates/data-table-core/theme'
 
 export const STYLES = `
 ${renderThemeCss()}
