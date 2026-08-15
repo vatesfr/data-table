@@ -62,7 +62,7 @@ demo/
 All stateless logic lives here:
 
 - **`types.ts`** — shared interfaces: `ColumnDefBase<TRow>`, `AggregateType`, `SortEntry`, `RangeFilter`, `DataTableLabels`, `DEFAULT_LABELS` (English default strings)
-- **`logic.ts`** — pure functions: `getColumnValue`, `processData`, `searchData`, `groupData`, `sortWithinGroups`, `computeStringValues`, `computeStringValueCounts`, `computeAggregate`, `paginateData`, `calcTotalPages`, `toggleSort`, `setSort`, `appendOrToggleSort`, `toggleFilter`, `toggleGroupBy`, `toggleCollapse`, `getOrderedColumns`, `reorderColumn`, `moveColumnBy`, `getSortIcon`, `getSortIndex`, `countActiveFilters`
+- **`logic.ts`** — pure functions: `getColumnValue`, `processData`, `searchData`, `groupData`, `sortWithinGroups`, `computeStringValues`, `computeStringValueCounts`, `computeAggregate`, `paginateData`, `calcTotalPages`, `toggleSort`, `setSort`, `appendOrToggleSort`, `cycleFilterValue`, `toggleGroupBy`, `toggleCollapse`, `getOrderedColumns`, `reorderColumn`, `moveColumnBy`, `getSortIcon`, `getSortIndex`, `countActiveFilters`
 - **`locales.ts`** — built-in locale objects: `LABELS_EN`, `LABELS_FR`, `LABELS_ES`, `LABELS_DE`, `LABELS_PT`
 - **`theme.ts`** — `LIGHT_THEME`/`DARK_THEME`/`renderThemeCss()`, consumed only by the vanilla adapter (see "Vanilla package"'s `styles.ts`) since React/Vue theme via inline styles/scoped CSS instead. Not re-exported from core's main `index.ts` barrel — React/Vue consumers importing `@vates/data-table-core` directly would otherwise see theme APIs with no relevance to them. Reachable via its own `@vates/data-table-core/theme` sub-path export, same pattern as `/locales`.
 

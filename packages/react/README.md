@@ -319,7 +319,7 @@ const {
   moveColumn, // (dragKey: string, targetKey: string) => void — drag-and-drop reordering
   moveColumnBy, // (key: string, delta: number) => void — swap with the neighbor delta positions away
   toggleSort,
-  toggleFilter,
+  cycleFilterValue,
   setRangeFilter,
   toggleGroup,
   toggleGroupCollapse,

@@ -60,14 +60,14 @@ describe('useTableState — row selection', () => {
   })
 
   it('selectedRows only reflects rows present in processedData', () => {
-    const { selectedRows, toggleRowSelection, toggleFilter, clearFilters } = useTableState(
+    const { selectedRows, toggleRowSelection, cycleFilterValue, clearFilters } = useTableState(
       ROWS,
       COLS,
     )
     toggleRowSelection(ROWS[0]) // Alice
     toggleRowSelection(ROWS[1]) // Bob
     // Filter down to Alice only — Bob disappears from selectedRows but stays in selection
-    toggleFilter('name', 'Alice')
+    cycleFilterValue('name', 'Alice')
     expect(selectedRows.value).toEqual([ROWS[0]])
     // Clearing the filter brings Bob back into selectedRows
     clearFilters()
@@ -410,10 +410,10 @@ describe('useTableState — pagination with grouping', () => {
 })
 
 describe('useTableState — filters reset page', () => {
-  it('toggleFilter resets page to 1', () => {
-    const { page, setPage, toggleFilter } = useTableState(ROWS, COLS, { defaultPageSize: 2 })
+  it('cycleFilterValue resets page to 1', () => {
+    const { page, setPage, cycleFilterValue } = useTableState(ROWS, COLS, { defaultPageSize: 2 })
     setPage(2)
-    toggleFilter('name', 'Alice')
+    cycleFilterValue('name', 'Alice')
     expect(page.value).toBe(1)
   })
 
@@ -455,8 +455,8 @@ describe('useTableState — toggleFilterAll', () => {
   })
 
   it('only affects the given values, leaving other selections for the same key untouched', () => {
-    const { filters, toggleFilter, toggleFilterAll } = useTableState(ROWS, COLS)
-    toggleFilter('name', 'Clara')
+    const { filters, cycleFilterValue, toggleFilterAll } = useTableState(ROWS, COLS)
+    cycleFilterValue('name', 'Clara')
     toggleFilterAll('name', ['Alice', 'Bob'])
     expect(filters.value['name']?.has('Clara')).toBe(true)
     expect(filters.value['name']?.has('Alice')).toBe(true)
@@ -502,9 +502,8 @@ describe('useTableState — toggleFilterAll and exclude filters', () => {
   })
 
   it("select-all's deselect branch leaves an unrelated exclusion untouched", () => {
-    const { filters, excludeFilters, toggleFilter, cycleFilterValue, toggleFilterAll } =
-      useTableState(ROWS, COLS)
-    toggleFilter('name', 'Bob') // include Bob
+    const { filters, excludeFilters, cycleFilterValue, toggleFilterAll } = useTableState(ROWS, COLS)
+    cycleFilterValue('name', 'Bob') // include Bob
     cycleFilterValue('name', 'Alice')
     cycleFilterValue('name', 'Alice') // include -> exclude Alice
     // 'Bob' is included (so this is the deselect branch); 'Alice' is excluded, not included.
@@ -516,9 +515,11 @@ describe('useTableState — toggleFilterAll and exclude filters', () => {
 
 describe('useTableState — clearColumnFilter kinds', () => {
   it('clearing the include kind leaves an exclude filter on the same column untouched', () => {
-    const { filters, excludeFilters, toggleFilter, cycleFilterValue, clearColumnFilter } =
-      useTableState(ROWS, COLS)
-    toggleFilter('name', 'Bob')
+    const { filters, excludeFilters, cycleFilterValue, clearColumnFilter } = useTableState(
+      ROWS,
+      COLS,
+    )
+    cycleFilterValue('name', 'Bob')
     cycleFilterValue('name', 'Alice')
     cycleFilterValue('name', 'Alice') // include -> exclude
     clearColumnFilter('name', 'include')
@@ -527,9 +528,11 @@ describe('useTableState — clearColumnFilter kinds', () => {
   })
 
   it('clearing the exclude kind leaves an include filter on the same column untouched', () => {
-    const { filters, excludeFilters, toggleFilter, cycleFilterValue, clearColumnFilter } =
-      useTableState(ROWS, COLS)
-    toggleFilter('name', 'Bob')
+    const { filters, excludeFilters, cycleFilterValue, clearColumnFilter } = useTableState(
+      ROWS,
+      COLS,
+    )
+    cycleFilterValue('name', 'Bob')
     cycleFilterValue('name', 'Alice')
     cycleFilterValue('name', 'Alice') // include -> exclude
     clearColumnFilter('name', 'exclude')
@@ -612,9 +615,9 @@ describe('useTableState — multi-value (array) columns', () => {
   // DataTable.test.ts's filter-dropdown coverage for the rendered counts, and packages/core's
   // logic.test.ts for the underlying computeStringValueCounts faceting logic.
 
-  it('toggleFilter matches rows whose array contains the selected value', () => {
-    const { processedData, toggleFilter } = useTableState(GAMES, GAME_COLS)
-    toggleFilter('tags', 'RPG')
+  it('cycleFilterValue matches rows whose array contains the selected value', () => {
+    const { processedData, cycleFilterValue } = useTableState(GAMES, GAME_COLS)
+    cycleFilterValue('tags', 'RPG')
     expect(processedData.value.map((g) => g.name)).toEqual(['Game A'])
   })
 
@@ -686,9 +689,9 @@ describe('useTableState — view state', () => {
   })
 
   it('getViewState captures changes made through actions', () => {
-    const { getViewState, toggleSort, toggleFilter, setPage } = useTableState(ROWS, COLS)
+    const { getViewState, toggleSort, cycleFilterValue, setPage } = useTableState(ROWS, COLS)
     toggleSort('score')
-    toggleFilter('name', 'Alice')
+    cycleFilterValue('name', 'Alice')
     setPage(1)
     expect(getViewState()).toEqual({
       sorts: [{ key: 'score', dir: 'asc' }],

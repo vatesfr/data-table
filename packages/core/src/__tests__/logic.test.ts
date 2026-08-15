@@ -28,7 +28,6 @@ import {
   toggleSort,
   setSort,
   appendOrToggleSort,
-  toggleFilter,
   toggleFilterAll,
   setFilterValues,
   cycleFilterValue,
@@ -2002,26 +2001,6 @@ describe('appendOrToggleSort', () => {
 
   it('appends a fresh desc sort when defaultDir is desc', () => {
     expect(appendOrToggleSort([], 'updatedAt', 'desc')).toEqual([{ key: 'updatedAt', dir: 'desc' }])
-  })
-})
-
-// ─── toggleFilter ─────────────────────────────────────────────────────────────
-
-describe('toggleFilter', () => {
-  it('adds a value when not present', () => {
-    const result = toggleFilter({}, 'dept', 'Eng')
-    expect(result['dept'].has('Eng')).toBe(true)
-  })
-
-  it('removes a value when already present', () => {
-    const result = toggleFilter({ dept: new Set(['Eng']) }, 'dept', 'Eng')
-    expect(result['dept'].has('Eng')).toBe(false)
-  })
-
-  it('preserves other keys', () => {
-    const initial = { name: new Set(['Alice']) }
-    const result = toggleFilter(initial, 'dept', 'Eng')
-    expect(result['name'].has('Alice')).toBe(true)
   })
 })
 

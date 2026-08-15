@@ -15,7 +15,6 @@ import {
   moveSortBy as _moveSortBy,
   reorderSort as _reorderSort,
   toggleSortDir as _toggleSortDir,
-  toggleFilter as _toggleFilter,
   toggleFilterAll as _toggleFilterAll,
   setFilterValues as _setFilterValues,
   cycleFilterValue as _cycleFilterValue,
@@ -213,10 +212,6 @@ export function useTableState<TRow extends object>(
     },
     moveSort: (dragKey: string, targetKey: string, after = false) => {
       sorts.value = _reorderSort(sorts.value, dragKey, targetKey, after)
-    },
-    toggleFilter: (key: string, value: string) => {
-      filters.value = _toggleFilter(filters.value, key, value)
-      page.value = 1
     },
     toggleFilterAll: (key: string, values: string[]) => {
       // The master checkbox's own checked/indeterminate state reflects `filters` only (no visual

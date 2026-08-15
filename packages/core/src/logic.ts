@@ -828,17 +828,6 @@ export function reorderSort(
   return next
 }
 
-export function toggleFilter(
-  filters: Record<string, Set<string>>,
-  key: string,
-  value: string,
-): Record<string, Set<string>> {
-  const next = new Set(filters[key] ?? [])
-  if (next.has(value)) next.delete(value)
-  else next.add(value)
-  return { ...filters, [key]: next }
-}
-
 /**
  * Deselects all `values` for `key` if any of them are currently selected (matching Gmail's
  * select-all-checkbox convention: an indeterminate or fully-checked state clears on click),

@@ -72,7 +72,7 @@ describe('useTableState — row selection', () => {
     })
     // Filter down to Alice only — Bob disappears from selectedRows but stays in selection
     act(() => {
-      result.current.toggleFilter('name', 'Alice')
+      result.current.cycleFilterValue('name', 'Alice')
     })
     expect(result.current.selectedRows).toEqual([ROWS[0]])
     // Clearing the filter brings Bob back into selectedRows
@@ -521,13 +521,13 @@ describe('useTableState — pagination with grouping', () => {
 })
 
 describe('useTableState — filters reset page', () => {
-  it('toggleFilter resets page to 1', () => {
+  it('cycleFilterValue resets page to 1', () => {
     const { result } = renderHook(() => useTableState(ROWS, COLS, undefined, undefined, 2))
     act(() => {
       result.current.setPage(2)
     })
     act(() => {
-      result.current.toggleFilter('name', 'Alice')
+      result.current.cycleFilterValue('name', 'Alice')
     })
     expect(result.current.page).toBe(1)
   })
@@ -579,7 +579,7 @@ describe('useTableState — toggleFilterAll', () => {
   it('only affects the given values, leaving other selections for the same key untouched', () => {
     const { result } = renderHook(() => useTableState(ROWS, COLS))
     act(() => {
-      result.current.toggleFilter('name', 'Clara')
+      result.current.cycleFilterValue('name', 'Clara')
       result.current.toggleFilterAll('name', ['Alice', 'Bob'])
     })
     expect(result.current.filters['name']?.has('Clara')).toBe(true)
@@ -639,7 +639,7 @@ describe('useTableState — toggleFilterAll and exclude filters', () => {
   it("select-all's deselect branch leaves an unrelated exclusion untouched", () => {
     const { result } = renderHook(() => useTableState(ROWS, COLS))
     act(() => {
-      result.current.toggleFilter('name', 'Bob') // include Bob
+      result.current.cycleFilterValue('name', 'Bob') // include Bob
       result.current.cycleFilterValue('name', 'Alice')
       result.current.cycleFilterValue('name', 'Alice') // include -> exclude Alice
     })
@@ -656,7 +656,7 @@ describe('useTableState — clearColumnFilter kinds', () => {
   it('clearing the include kind leaves an exclude filter on the same column untouched', () => {
     const { result } = renderHook(() => useTableState(ROWS, COLS))
     act(() => {
-      result.current.toggleFilter('name', 'Bob')
+      result.current.cycleFilterValue('name', 'Bob')
       result.current.cycleFilterValue('name', 'Alice')
       result.current.cycleFilterValue('name', 'Alice') // include -> exclude
     })
@@ -670,7 +670,7 @@ describe('useTableState — clearColumnFilter kinds', () => {
   it('clearing the exclude kind leaves an include filter on the same column untouched', () => {
     const { result } = renderHook(() => useTableState(ROWS, COLS))
     act(() => {
-      result.current.toggleFilter('name', 'Bob')
+      result.current.cycleFilterValue('name', 'Bob')
       result.current.cycleFilterValue('name', 'Alice')
       result.current.cycleFilterValue('name', 'Alice') // include -> exclude
     })
@@ -785,10 +785,10 @@ describe('useTableState — multi-value (array) columns', () => {
   // DataTable.test.tsx's "filter dropdown" describe block for coverage of the rendered counts,
   // and packages/core's logic.test.ts for the underlying computeStringValueCounts faceting logic.
 
-  it('toggleFilter matches rows whose array contains the selected value', () => {
+  it('cycleFilterValue matches rows whose array contains the selected value', () => {
     const { result } = renderHook(() => useTableState(GAMES, GAME_COLS))
     act(() => {
-      result.current.toggleFilter('tags', 'RPG')
+      result.current.cycleFilterValue('tags', 'RPG')
     })
     expect(result.current.processedData.map((g) => g.name)).toEqual(['Game A'])
   })
@@ -881,7 +881,7 @@ describe('useTableState — view state', () => {
     const { result } = renderHook(() => useTableState(ROWS, COLS))
     act(() => {
       result.current.toggleSort('score')
-      result.current.toggleFilter('name', 'Alice')
+      result.current.cycleFilterValue('name', 'Alice')
       result.current.setPage(1)
     })
     expect(result.current.getViewState()).toEqual({

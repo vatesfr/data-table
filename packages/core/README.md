@@ -38,7 +38,7 @@ paginateVisibleGroups(groupedFull, visibleItems, collapsedGroups, defaultCollaps
 paginateVisibleItems(visibleItems, page, pageSize) // per-page slice of visibleItems for keyboard nav, with a synthetic continuation header prepended when the page starts mid-group
 mergePageSizeOptions(options, pageSize) // insert pageSize into a "rows per page" option list (sorted) if it's missing, so a custom page size still shows correctly in a <select>
 toggleSort(sorts, key) // cycle asc → desc → off
-toggleFilter(filters, key, value) // toggle a checklist value
+cycleFilterValue(filters, excludeFilters, key, value) // cycle a checklist value neutral → include → exclude → neutral
 filterValuesBySearch(values, term) // narrow a checklist's values by a case-insensitive substring
 filterValuesByRange(values, range, parseDate?) // narrow a date column's checklist/tree values to those within range's bounds (filterValuesBySearch's sibling, for the range filter above a date tree)
 computeValueBounds(data, col) // a number/date column's actual min/max across data, for a range filter's slider bounds; null if no row has a parseable value
