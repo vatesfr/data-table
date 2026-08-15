@@ -420,7 +420,7 @@ function hasActiveColFilter(col: ColumnDef<TRow>): boolean {
   )
 }
 function valueSortFor(key: string): ValueSort {
-  return filterValueSort.value[key] ?? DEFAULT_VALUE_SORT
+  return filterValueSort.value[key] ?? findCol(key)?.defaultValueSort ?? DEFAULT_VALUE_SORT
 }
 function cycleFilterValueSort(col: ColumnDef<TRow>): void {
   const current = valueSortFor(col.key)

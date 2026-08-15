@@ -405,7 +405,11 @@ export function createDataTable<TRow extends object>(
   }
 
   function valueSortFor(key: string): ValueSort {
-    return filterValueSort[key] ?? DEFAULT_VALUE_SORT
+    return (
+      filterValueSort[key] ??
+      columns.find((c) => c.key === key)?.defaultValueSort ??
+      DEFAULT_VALUE_SORT
+    )
   }
 
   /**

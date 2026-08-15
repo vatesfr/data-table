@@ -377,7 +377,16 @@ const COLUMNS: ColumnDef<Employee>[] = [
   // The checklist is also where exclude filters live: click a value once to include it (only
   // rows with that skill), click again to exclude it (rows with that skill are dropped), click
   // a third time to clear it — try excluding "Leadership" to hide everyone who has it.
-  { key: 'skills', label: 'Skills', width: 180, groupable: true },
+  // defaultValueSort: a skill checklist reads better "most common first" than alphabetically —
+  // the sort-order toggle still cycles through all 4 states from here, this just picks where it
+  // starts.
+  {
+    key: 'skills',
+    label: 'Skills',
+    width: 180,
+    groupable: true,
+    defaultValueSort: { by: 'count', dir: 'desc' },
+  },
 ]
 
 // 'id' is hidden by default; users can toggle it back from the Columns menu

@@ -657,6 +657,26 @@ describe('DataTable — filter value sort', () => {
     expect(checklistValueOrder(container)).toEqual(['Action', 'Adventure', 'RPG'])
   })
 
+  it("starts at a column's defaultValueSort instead of alpha-ascending", () => {
+    const cols: ColumnDef<TagRow>[] = [
+      {
+        key: 'tags',
+        label: 'Tags',
+        filterable: true,
+        defaultValueSort: { by: 'alpha', dir: 'desc' },
+      },
+    ]
+    const { getByText, getByLabelText, container } = render(
+      <DataTable data={TAG_ROWS} columns={cols} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Filter'))
+    expect(checklistValueOrder(container)).toEqual(['RPG', 'Adventure', 'Action'])
+    // The cycle still advances through all 4 states from that starting point — alpha-desc's next
+    // state is count-desc.
+    fireEvent.click(getByLabelText('Sort values'))
+    expect(checklistValueOrder(container)).toEqual(['Action', 'Adventure', 'RPG'])
+  })
+
   it('toggles the date tree between chronologically ascending and descending', () => {
     interface GameRow {
       id: number

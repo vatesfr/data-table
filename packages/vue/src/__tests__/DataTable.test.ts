@@ -634,6 +634,24 @@ describe('DataTable — filter value sort', () => {
     expect(checklistValueOrder(wrapper)).toEqual(['Action', 'Adventure', 'RPG'])
   })
 
+  it("starts at a column's defaultValueSort instead of alpha-ascending", async () => {
+    const cols: ColumnDef<TagRow>[] = [
+      {
+        key: 'tags',
+        label: 'Tags',
+        filterable: true,
+        defaultValueSort: { by: 'alpha', dir: 'desc' },
+      },
+    ]
+    const wrapper = mount(DataTable, { props: { data: TAG_ROWS, columns: cols, rowKey: 'id' } })
+    await openTagsFilter(wrapper)
+    expect(checklistValueOrder(wrapper)).toEqual(['RPG', 'Adventure', 'Action'])
+    // The cycle still advances through all 4 states from that starting point — alpha-desc's next
+    // state is count-desc.
+    await wrapper.find('.dt__value-sort-btn').trigger('click')
+    expect(checklistValueOrder(wrapper)).toEqual(['Action', 'Adventure', 'RPG'])
+  })
+
   it('toggles the date tree between chronologically ascending and descending', async () => {
     interface GameRow {
       id: number

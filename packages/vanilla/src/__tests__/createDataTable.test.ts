@@ -1702,6 +1702,25 @@ describe('createDataTable', () => {
     expect(tagValues()).toEqual(['Action', 'Adventure', 'RPG'])
   })
 
+  it("starts at a column's defaultValueSort instead of alpha-ascending", () => {
+    const cols: ColumnDef<Game>[] = [
+      {
+        key: 'tags',
+        label: 'Tags',
+        filterable: true,
+        defaultValueSort: { by: 'alpha', dir: 'desc' },
+      },
+    ]
+    createDataTable(container, { data: GAMES, columns: cols })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="filter"]')!)
+    expect(tagValues()).toEqual(['RPG', 'Adventure', 'Action'])
+    // The cycle still advances through all 4 states from that starting point, not just toggling
+    // back to the plain default — alpha-desc's next state is count-desc.
+    clickValueSort('tags')
+    // Action=2, Adventure=1, RPG=1 (tie broken alphabetically)
+    expect(tagValues()).toEqual(['Action', 'Adventure', 'RPG'])
+  })
+
   it('date tree years are chronologically ascending by default', () => {
     createDataTable(container, { data: DATE_ROWS, columns: DATE_COLS })
     click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="filter"]')!)

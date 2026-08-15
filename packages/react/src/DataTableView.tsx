@@ -1051,7 +1051,10 @@ export function DataTableView<TRow extends object>({
     filterDetailCol && (filterDetailCol.type === 'number' || filterDetailCol.type === 'date')
       ? computeValueBounds(data, filterDetailCol)
       : null
-  const valueSortFor = (key: string) => filterValueSort[key] ?? DEFAULT_VALUE_SORT
+  const valueSortFor = (key: string) =>
+    filterValueSort[key] ??
+    columns.find((c) => c.key === key)?.defaultValueSort ??
+    DEFAULT_VALUE_SORT
   const cycleFilterValueSort = (col: ColumnDef<TRow>) => {
     const current = valueSortFor(col.key)
     const next =

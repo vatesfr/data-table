@@ -70,6 +70,16 @@ export interface ColumnDefBase<TRow extends object = Record<string, unknown>> {
    * comparator contract above.
    */
   defaultSortDir?: SortDir
+  /**
+   * The `ValueSort` a column's filter checklist (or date filter tree, which shares the same state
+   * — `by` just doesn't apply there) starts at before the user ever touches its sort-order toggle.
+   * Default: `{ by: 'alpha', dir: 'asc' }`. Useful for e.g. a high-cardinality tag/category column
+   * that reads better as "most common first" (`{ by: 'count', dir: 'desc' }`), or a date column
+   * whose tree should open most-recent-year-first (`{ by: 'alpha', dir: 'desc' }` — `by` ignored).
+   * Only changes the starting point; `cycleValueSort` still advances through all 4 states the same
+   * way regardless of where it started.
+   */
+  defaultValueSort?: ValueSort
   width?: number
   /**
    * How to read this column's cell value from a row. Omitted: reads `row[key]`. Function:
