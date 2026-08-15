@@ -22,9 +22,10 @@ import {
   appendOrToggleSort as coreAppendOrToggleSort,
   moveSortBy as coreMoveSortBy,
   reorderSort as coreReorderSort,
-  toggleFilter as coreToggleFilter,
   toggleFilterAll as coreToggleFilterAll,
   setFilterValues as coreSetFilterValues,
+  cycleFilterValue,
+  clearExcludeValues,
   selectRange,
   toggleGroupBy,
   toggleCollapse,
@@ -138,6 +139,10 @@ export function createDataTable<TRow extends object>(
 
   let sorts: SortEntry[] = []
   let filters: Record<string, Set<string>> = {}
+  // "Not one of these values" filters for multi-value columns — a separate Set per column, kept
+  // mutually exclusive with `filters` (a value is never in both at once) by `cycleFilterValue`/
+  // `clearExcludeValues`. See "Filter dropdown" (exclude filters) in the docs.
+  let excludeFilters: Record<string, Set<string>> = {}
   let rangeFilters: Record<string, RangeFilter> = {}
   let groupBy: string[] = []
   let collapsedGroups = new Set<string>()
@@ -233,6 +238,7 @@ export function createDataTable<TRow extends object>(
       columns,
       L.emptyValue,
       filterActiveKey ? [filterActiveKey] : [],
+      excludeFilters,
     )
     _processedData = processData(
       searchData(data, searchQuery, columns),
@@ -241,6 +247,7 @@ export function createDataTable<TRow extends object>(
       sorts,
       columns,
       L.emptyValue,
+      excludeFilters,
     )
     // Grouping runs over the *full* filtered/sorted data, not a page's slice — see the
     // `_visibleItems` comment above.
@@ -265,7 +272,7 @@ export function createDataTable<TRow extends object>(
     const activeColumns = orderedColumns.filter(
       (c) => visibleCols.has(c.key) && !groupBy.includes(c.key),
     )
-    const activeFilterCount = countActiveFilters(filters, rangeFilters)
+    const activeFilterCount = countActiveFilters(filters, rangeFilters, excludeFilters)
     const selectedRows = _processedData.filter((r) => selection.has(r))
     return {
       stringValueMap,
@@ -288,6 +295,9 @@ export function createDataTable<TRow extends object>(
     const filterEntries = Object.entries(filters).filter(([, v]) => v.size > 0)
     if (filterEntries.length)
       view.filters = Object.fromEntries(filterEntries.map(([k, v]) => [k, [...v]]))
+    const excludeFilterEntries = Object.entries(excludeFilters).filter(([, v]) => v.size > 0)
+    if (excludeFilterEntries.length)
+      view.excludeFilters = Object.fromEntries(excludeFilterEntries.map(([k, v]) => [k, [...v]]))
     const rangeEntries = Object.entries(rangeFilters).filter(
       ([, r]) => r.min !== '' || r.max !== '',
     )
@@ -309,6 +319,9 @@ export function createDataTable<TRow extends object>(
     sorts = view.sorts ?? []
     filters = Object.fromEntries(
       Object.entries(view.filters ?? {}).map(([k, v]) => [k, new Set(v)]),
+    )
+    excludeFilters = Object.fromEntries(
+      Object.entries(view.excludeFilters ?? {}).map(([k, v]) => [k, new Set(v)]),
     )
     rangeFilters = view.rangeFilters ?? {}
     groupBy = view.groupBy ?? []
@@ -408,7 +421,14 @@ export function createDataTable<TRow extends object>(
     s += `<div style="position:absolute;top:${offsetY}px;left:0;right:0">`
     for (const v of _filterDetailValues.slice(startIndex, endIndex)) {
       const count = _stringValueCounts[col.key]?.get(v) ?? 0
-      s += `<label class="dt-dd-item" style="height:${FILTER_LIST_ITEM_HEIGHT}px;box-sizing:border-box"><input type="checkbox" data-action="toggle-filter" data-key="${esc(col.key)}" data-value="${esc(v)}"${filters[col.key]?.has(v) ? ' checked' : ''}> <span class="dt-flex1">${esc(v)}</span><span class="dt-filter-count">${count}</span></label>`
+      const excluded = excludeFilters[col.key]?.has(v) ?? false
+      // Tri-state checkbox: unchecked (neutral) → checked (include) → indeterminate (exclude,
+      // rendered as a dash by every browser's native checkbox — a fitting "not this" glyph with
+      // no extra markup) → back to unchecked. `indeterminate` isn't settable via an HTML
+      // attribute, so `data-exclude` here just flags the node for the post-render fix-up pass
+      // (below `container.innerHTML = html`, and again in `handleFilterListScroll`'s own patch)
+      // that actually sets it, mirroring the date tree's own `data-indeterminate` convention.
+      s += `<label class="dt-dd-item${excluded ? ' dt-dd-item--exclude' : ''}" style="height:${FILTER_LIST_ITEM_HEIGHT}px;box-sizing:border-box"><input type="checkbox" data-action="toggle-filter" data-key="${esc(col.key)}" data-value="${esc(v)}"${excluded ? ' data-exclude' : ''}${filters[col.key]?.has(v) ? ' checked' : ''} title="${esc(excluded ? L.filterExcludedTitle : L.filterValueTitle)}"> <span class="dt-flex1">${esc(v)}</span><span class="dt-filter-count">${count}</span></label>`
     }
     s += `</div></div>`
     return s
@@ -769,6 +789,7 @@ export function createDataTable<TRow extends object>(
             // whichever one a plain type-based ternary happened to check.
             const hasActive =
               (filters[col.key]?.size ?? 0) > 0 ||
+              (excludeFilters[col.key]?.size ?? 0) > 0 ||
               (rf !== undefined && (rf.min !== '' || rf.max !== ''))
             // A real <button> (not a div) so it's a native Tab stop and Enter/Space "click" it
             // for free — same fix as the Sort/Group add-lists; this had the identical gap.
@@ -894,17 +915,29 @@ export function createDataTable<TRow extends object>(
       html += `<span class="dt-chip"><button type="button" class="dt-chip-body" data-action="open-group-entry" data-key="${esc(key)}">${esc(col?.label ?? key)}</button><button type="button" class="dt-chip-x" data-action="remove-group" data-key="${esc(key)}">×</button></span>`
     }
     if (activeFilterCount > 0) {
+      // Each chip's × clears only the state *that chip* represents (`data-kind`, read by the
+      // 'clear-filter-key' handler) — a column can carry an include set, an exclude set, and a
+      // range filter all at once (a date column, or any multi-value column with both an include
+      // and an exclude selection), and removing one shouldn't silently drop the others too.
       for (const [key, vals] of Object.entries(filters)) {
         if (!vals.size) continue
-        html += `<span class="dt-chip dt-chip--filter"><button type="button" class="dt-chip-body" data-action="open-filter-col" data-key="${esc(key)}">${esc(columns.find((c) => c.key === key)?.label ?? key)}: ${esc(summarizeFilterValues(vals))}</button><button type="button" class="dt-chip-x" data-action="clear-filter-key" data-key="${esc(key)}">×</button></span>`
+        html += `<span class="dt-chip dt-chip--filter"><button type="button" class="dt-chip-body" data-action="open-filter-col" data-key="${esc(key)}">${esc(columns.find((c) => c.key === key)?.label ?? key)}: ${esc(summarizeFilterValues(vals))}</button><button type="button" class="dt-chip-x" data-action="clear-filter-key" data-kind="include" data-key="${esc(key)}">×</button></span>`
+      }
+      // Exclude filters (see "Filter dropdown" exclude filters in the docs) get their own chip,
+      // distinguished by a "≠" prefix instead of a translated word — same reasoning the sort/
+      // value-sort icons already use symbols (↑/↓, ABC/#) rather than growing every locale file.
+      // `dt-chip--exclude` tints it apart from a plain include chip so the two read as opposite
+      // actions at a glance, not just different text.
+      for (const [key, vals] of Object.entries(excludeFilters)) {
+        if (!vals.size) continue
+        html += `<span class="dt-chip dt-chip--filter dt-chip--exclude"><button type="button" class="dt-chip-body" data-action="open-filter-col" data-key="${esc(key)}">${esc(columns.find((c) => c.key === key)?.label ?? key)}: ≠ ${esc(summarizeFilterValues(vals))}</button><button type="button" class="dt-chip-x" data-action="clear-filter-key" data-kind="exclude" data-key="${esc(key)}">×</button></span>`
       }
       // A range filter (number or date) didn't get a chip at all before — it's a distinct active
       // filter from the checklist above, so it needs its own (a date column can have both active
-      // at once). Reuses clear-filter-key, which now resets rangeFilters too, so the × here is a
-      // full per-column reset regardless of which kind of filter is actually active.
+      // at once).
       for (const [key, rf] of Object.entries(rangeFilters)) {
         if (rf.min === '' && rf.max === '') continue
-        html += `<span class="dt-chip dt-chip--filter"><button type="button" class="dt-chip-body" data-action="open-filter-col" data-key="${esc(key)}">${esc(columns.find((c) => c.key === key)?.label ?? key)}: ${esc(rf.min)}–${esc(rf.max)}</button><button type="button" class="dt-chip-x" data-action="clear-filter-key" data-key="${esc(key)}">×</button></span>`
+        html += `<span class="dt-chip dt-chip--filter"><button type="button" class="dt-chip-body" data-action="open-filter-col" data-key="${esc(key)}">${esc(columns.find((c) => c.key === key)?.label ?? key)}: ${esc(rf.min)}–${esc(rf.max)}</button><button type="button" class="dt-chip-x" data-action="clear-filter-key" data-kind="range" data-key="${esc(key)}">×</button></span>`
       }
     }
     // A group split across a page boundary contributes a second ("continued") chunk to
@@ -1102,6 +1135,11 @@ export function createDataTable<TRow extends object>(
     )) {
       cb.indeterminate = true
     }
+    for (const cb of container.querySelectorAll<HTMLInputElement>(
+      '[data-action="toggle-filter"][data-exclude]',
+    )) {
+      cb.indeterminate = true
+    }
 
     // Restore focus
     if (focusKey) {
@@ -1180,6 +1218,13 @@ export function createDataTable<TRow extends object>(
       // height argument) — the date tree isn't virtualized, so resizing its wrapper is enough.
       if (filterViewportEl.classList.contains('dt-filter-list') && filterDetailCol) {
         filterViewportEl.innerHTML = buildFilterListInnerHtml(filterDetailCol)
+        // This replaces the checklist rows the earlier indeterminate fix-up pass already applied
+        // to (see above), with fresh nodes that need the same fix-up again.
+        for (const cb of filterViewportEl.querySelectorAll<HTMLInputElement>(
+          '[data-action="toggle-filter"][data-exclude]',
+        )) {
+          cb.indeterminate = true
+        }
       }
     }
   }
@@ -1211,6 +1256,7 @@ export function createDataTable<TRow extends object>(
     const dd = actionEl.dataset.dd ?? ''
     const value = actionEl.dataset.value ?? ''
     const gkey = actionEl.dataset.gkey ?? ''
+    const kind = actionEl.dataset.kind ?? ''
     const path = actionEl.dataset.path ?? ''
     const procIdx = parseInt(actionEl.dataset.procIdx ?? '-1', 10)
 
@@ -1255,26 +1301,41 @@ export function createDataTable<TRow extends object>(
       case 'toggle-filter': {
         const anchor = filterSelectionAnchor[key]
         if (e.shiftKey && anchor != null) {
+          // Shift-range selection only ever moves values into/out of the include set — see
+          // "Filter dropdown" (exclude filters) in the docs for why exclude stays a single-click-
+          // only, cycle-one-value-at-a-time action. Clear the swept range from the exclude set
+          // too, so a value that was previously excluded doesn't end up in both sets at once.
           const shouldSelect = !(filters[key]?.has(value) ?? false)
-          filters = coreSetFilterValues(
-            filters,
-            key,
-            selectRange(_filterDetailValues, anchor, value),
-            shouldSelect,
-          )
+          const range = selectRange(_filterDetailValues, anchor, value)
+          filters = coreSetFilterValues(filters, key, range, shouldSelect)
+          if (shouldSelect) excludeFilters = clearExcludeValues(excludeFilters, key, range)
         } else {
-          filters = coreToggleFilter(filters, key, value)
+          const next = cycleFilterValue(filters, excludeFilters, key, value)
+          filters = next.filters
+          excludeFilters = next.excludeFilters
         }
         filterSelectionAnchor = { ...filterSelectionAnchor, [key]: value }
         page = 1
         viewChanged = true
         break
       }
-      case 'toggle-filter-all':
+      case 'toggle-filter-all': {
+        // The master checkbox's own checked/indeterminate state (see its render above) reflects
+        // `filters` only — it has no visual concept of exclusion at all — so only the "select all
+        // ON" branch should ever touch `excludeFilters`, and only because it must: every listed
+        // value is about to become included, and a value can't be in both sets at once (see
+        // `cycleFilterValue`). The "deselect all" branch must leave excludeFilters completely
+        // alone — it's clearing values the checkbox showed as selected, which by the same
+        // invariant can never include an already-excluded value, so an independently-excluded
+        // value (never counted as "selected" by this checkbox) must survive the click.
+        const willSelectAll = !_filterDetailValues.some((v) => filters[key]?.has(v))
         filters = coreToggleFilterAll(filters, key, _filterDetailValues)
+        if (willSelectAll)
+          excludeFilters = clearExcludeValues(excludeFilters, key, _filterDetailValues)
         page = 1
         viewChanged = true
         break
+      }
       case 'toggle-date-node': {
         const node = findDateTreeNode(_filterDetailTree, path)
         if (node) {
@@ -1346,6 +1407,7 @@ export function createDataTable<TRow extends object>(
         break
       case 'clear-filters':
         filters = {}
+        excludeFilters = {}
         rangeFilters = {}
         page = 1
         viewChanged = true
@@ -1356,8 +1418,12 @@ export function createDataTable<TRow extends object>(
         viewChanged = true
         break
       case 'clear-filter-key':
-        filters = { ...filters, [key]: new Set() }
-        rangeFilters = { ...rangeFilters, [key]: { min: '', max: '' } }
+        // A column can carry an include set, an exclude set, and a range filter all at once (see
+        // the active-bar chip loop above) — `data-kind` says which one *this* × represents, so
+        // clearing it doesn't also wipe unrelated state a user never asked to remove.
+        if (kind === 'exclude') excludeFilters = { ...excludeFilters, [key]: new Set() }
+        else if (kind === 'range') rangeFilters = { ...rangeFilters, [key]: { min: '', max: '' } }
+        else filters = { ...filters, [key]: new Set() }
         page = 1
         viewChanged = true
         break
@@ -1379,6 +1445,7 @@ export function createDataTable<TRow extends object>(
       case 'clear-all':
         sorts = []
         filters = {}
+        excludeFilters = {}
         rangeFilters = {}
         groupBy = []
         collapsedGroups = new Set()
@@ -1683,7 +1750,16 @@ export function createDataTable<TRow extends object>(
         const filterableCols = columns.filter((c) => c.filterable !== false)
         const filterActiveKey = resolveFilterActiveKey(filterableCols)
         const filterDetailCol = filterableCols.find((c) => c.key === filterActiveKey) ?? null
-        if (filterDetailCol) el.innerHTML = buildFilterListInnerHtml(filterDetailCol)
+        if (filterDetailCol) {
+          el.innerHTML = buildFilterListInnerHtml(filterDetailCol)
+          // Same indeterminate fix-up render() does below its own innerHTML assignment — this
+          // patch bypasses render() entirely (see above), so it needs its own copy.
+          for (const cb of el.querySelectorAll<HTMLInputElement>(
+            '[data-action="toggle-filter"][data-exclude]',
+          )) {
+            cb.indeterminate = true
+          }
+        }
       })
     }
   }
@@ -1817,6 +1893,13 @@ export function createDataTable<TRow extends object>(
                 filterListScrollTop = Math.max(0, newScrollTop)
                 checklistEl.scrollTop = filterListScrollTop
                 checklistEl.innerHTML = buildFilterListInnerHtml(filterDetailCol)
+                // Same indeterminate fix-up as the other buildFilterListInnerHtml patch sites —
+                // this rebuild has fresh nodes that need it applied again.
+                for (const cb of checklistEl.querySelectorAll<HTMLInputElement>(
+                  '[data-action="toggle-filter"][data-exclude]',
+                )) {
+                  cb.indeterminate = true
+                }
               }
               const targetValue = _filterDetailValues[targetIdx]
               for (const cb of checklistEl.querySelectorAll<HTMLInputElement>(

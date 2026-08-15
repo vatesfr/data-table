@@ -390,6 +390,136 @@ describe('DataTable — filter dropdown', () => {
   })
 })
 
+describe('DataTable — exclude filters (tri-state checklist)', () => {
+  interface Game {
+    id: number
+    name: string
+    tags: string[]
+  }
+  const GAME_COLS: ColumnDef<Game>[] = [
+    { key: 'name', label: 'Name', filterable: false },
+    { key: 'tags', label: 'Tags', filterable: true },
+  ]
+  const GAMES: Game[] = [
+    { id: 1, name: 'Game A', tags: ['Action', 'RPG'] },
+    { id: 2, name: 'Game B', tags: ['Action', 'Adventure'] },
+  ]
+
+  function names(container: HTMLElement): string[] {
+    return [...container.querySelectorAll('tbody tr td:first-child')].map(
+      (td) => td.textContent ?? '',
+    )
+  }
+
+  it('a plain click cycles a value through neutral -> include -> exclude -> neutral', () => {
+    const { getByText, getByLabelText, container } = render(
+      <DataTable data={GAMES} columns={GAME_COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Filter'))
+    const rpg = () => getByLabelText('RPG', { exact: false }) as HTMLInputElement
+
+    fireEvent.click(rpg())
+    expect(rpg().checked).toBe(true)
+    expect(rpg().indeterminate).toBe(false)
+    expect(names(container)).toEqual(['Game A'])
+
+    fireEvent.click(rpg())
+    expect(rpg().checked).toBe(false)
+    expect(rpg().indeterminate).toBe(true)
+    expect(names(container)).toEqual(['Game B']) // Game A has RPG, now excluded
+
+    fireEvent.click(rpg())
+    expect(rpg().checked).toBe(false)
+    expect(rpg().indeterminate).toBe(false)
+    expect(names(container)).toEqual(['Game A', 'Game B'])
+  })
+
+  it('renders an exclude filter as its own chip, distinct from an include chip', () => {
+    const { getByText, getByLabelText, container } = render(
+      <DataTable data={GAMES} columns={GAME_COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Filter'))
+    const rpg = () => getByLabelText('RPG', { exact: false }) as HTMLInputElement
+    fireEvent.click(rpg())
+    fireEvent.click(rpg()) // include -> exclude
+
+    // Chips (in the active bar) render "Tags: value list" as their button's own text — scoped
+    // this way to avoid matching a checklist row's own <span>{v}</span>, which just holds the
+    // bare value with no "Tags:" prefix (same convention the range-filter chip tests above use).
+    const chip = [...container.querySelectorAll('span')].find((el) =>
+      el.textContent?.trim().startsWith('Tags: ≠'),
+    )
+    expect(chip).toBeTruthy()
+    expect(chip!.textContent).toContain('RPG')
+  })
+
+  it("clearing an include chip on a column doesn't clear that same column's exclude chip, and vice versa", () => {
+    const { getByText, getByLabelText, container } = render(
+      <DataTable data={GAMES} columns={GAME_COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Filter'))
+    const action = () => getByLabelText('Action', { exact: false }) as HTMLInputElement
+    const rpg = () => getByLabelText('RPG', { exact: false }) as HTMLInputElement
+    fireEvent.click(action()) // include Action
+    fireEvent.click(rpg())
+    fireEvent.click(rpg()) // include -> exclude RPG
+
+    const includeChip = [...container.querySelectorAll('span')].find((el) =>
+      el.textContent?.trim().startsWith('Tags: Action'),
+    )!
+    const includeChipX = includeChip.querySelector('button:last-child')!
+    fireEvent.click(includeChipX)
+
+    expect(
+      [...container.querySelectorAll('span')].some((el) =>
+        el.textContent?.trim().startsWith('Tags: Action'),
+      ),
+    ).toBe(false)
+    expect(rpg().indeterminate).toBe(true) // exclude untouched
+
+    const excludeChip = [...container.querySelectorAll('span')].find((el) =>
+      el.textContent?.trim().startsWith('Tags: ≠'),
+    )!
+    const excludeChipX = excludeChip.querySelector('button:last-child')!
+    fireEvent.click(excludeChipX)
+    expect(action().checked).toBe(false) // include stays cleared, not resurrected
+  })
+
+  it('select-all moves listed values into the include set, clearing any that were excluded', () => {
+    const { getByText, getByLabelText } = render(
+      <DataTable data={GAMES} columns={GAME_COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Filter'))
+    const rpg = () => getByLabelText('RPG', { exact: false }) as HTMLInputElement
+    fireEvent.click(rpg())
+    fireEvent.click(rpg()) // include -> exclude
+
+    fireEvent.click(getByLabelText('Select all'))
+    expect(rpg().checked).toBe(true)
+    expect(rpg().indeterminate).toBe(false)
+  })
+
+  it("select-all's deselect branch only clears the include set, leaving an unrelated exclude untouched", () => {
+    const { getByText, getByLabelText, container } = render(
+      <DataTable data={GAMES} columns={GAME_COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Filter'))
+    const action = () => getByLabelText('Action', { exact: false }) as HTMLInputElement
+    const rpg = () => getByLabelText('RPG', { exact: false }) as HTMLInputElement
+    fireEvent.click(action()) // include Action
+    fireEvent.click(rpg())
+    fireEvent.click(rpg()) // include -> exclude RPG
+
+    expect((getByLabelText('Select all') as HTMLInputElement).indeterminate).toBe(true)
+    fireEvent.click(getByLabelText('Select all'))
+
+    expect(action().checked).toBe(false)
+    expect(rpg().checked).toBe(false)
+    expect(rpg().indeterminate).toBe(true)
+    expect(names(container)).toEqual(['Game B'])
+  })
+})
+
 describe('DataTable — virtualized filter checklist', () => {
   const MANY_COLS: ColumnDef<Row>[] = [{ key: 'name', label: 'Name', filterable: true }]
   const MANY_ROWS: Row[] = Array.from({ length: 500 }, (_, i) => ({

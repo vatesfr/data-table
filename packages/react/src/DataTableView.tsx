@@ -152,6 +152,11 @@ const S = {
     fontSize: 12,
     color: 'var(--color-text-tertiary)',
   } as CSSProperties,
+  // Applied to a checklist row's <label> when that value is excluded (see cycleFilterValue) —
+  // tints the label text to match the checkbox's own accentColor override at its call site.
+  filterValueExcluded: {
+    color: 'var(--color-text-danger)',
+  } as CSSProperties,
   // A chip is two sibling <button>s (chipBody + chipX below), not one inert <span> — a <button>
   // can't contain another interactive element, same reasoning already used for the toolbar's
   // grouped clear buttons (btnClear). `chip` itself carries no padding/background/border anymore;
@@ -196,6 +201,13 @@ const S = {
     background: 'var(--color-background-info)',
     color: 'var(--color-text-info)',
     border: '0.5px solid var(--color-border-info)',
+  } as CSSProperties,
+  // Exclude filters get their own tint, distinct from the plain include chipFilter above — same
+  // "≠" prefix + danger-tinted convention as vanilla's `.dt-chip--exclude`.
+  chipExclude: {
+    background: 'var(--color-background-danger)',
+    color: 'var(--color-text-danger)',
+    border: '0.5px solid var(--color-border-danger)',
   } as CSSProperties,
   groupRow: {
     background: 'var(--color-background-secondary)',
@@ -758,6 +770,7 @@ export function DataTableView<TRow extends object>({
     visibleCols,
     sorts,
     filters,
+    excludeFilters,
     rangeFilters,
     groupBy,
     collapsedGroups,
@@ -786,9 +799,10 @@ export function DataTableView<TRow extends object>({
     toggleSortDir,
     moveSortBy,
     moveSort,
-    toggleFilter,
     toggleFilterAll,
     setFilterValues,
+    cycleFilterValue,
+    clearExcludeValues,
     setRangeFilter,
     toggleGroup,
     removeGroup,
@@ -999,6 +1013,7 @@ export function DataTableView<TRow extends object>({
     columns,
     L.emptyValue,
     filterActiveKey ? [filterActiveKey] : [],
+    excludeFilters,
   )
   // Bounds are the column's actual min/max across the full, unfiltered `data` (not
   // filtered/processed data) — see computeValueBounds — so they don't shift under a mid-drag
@@ -1891,6 +1906,7 @@ export function DataTableView<TRow extends object>({
                     // dot, not just whichever one a plain type-based ternary happened to check.
                     const hasActive =
                       (filters[col.key]?.size ?? 0) > 0 ||
+                      (excludeFilters[col.key]?.size ?? 0) > 0 ||
                       (rf !== undefined && (rf.min !== '' || rf.max !== ''))
                     return (
                       // A real <button> (not a div) so it's a native Tab stop and Enter/Space
@@ -2098,52 +2114,82 @@ export function DataTableView<TRow extends object>({
                                       right: 0,
                                     }}
                                   >
-                                    {filterDetailValues.slice(startIndex, endIndex).map((v) => (
-                                      <label
-                                        key={v}
-                                        style={{
-                                          ...S.ddItem,
-                                          height: FILTER_LIST_ITEM_HEIGHT,
-                                          boxSizing: 'border-box',
-                                          cursor: 'pointer',
-                                        }}
-                                      >
-                                        <input
-                                          type="checkbox"
-                                          data-dd-value-row
-                                          data-value={v}
-                                          checked={filters[filterDetailCol.key]?.has(v) ?? false}
-                                          readOnly
-                                          onClick={(e) => {
-                                            const key = filterDetailCol.key
-                                            const anchor = filterSelectionAnchor[key]
-                                            if (e.shiftKey && anchor != null) {
-                                              const shouldSelect = !(filters[key]?.has(v) ?? false)
-                                              setFilterValues(
-                                                key,
-                                                selectRange(filterDetailValues, anchor, v),
-                                                shouldSelect,
-                                              )
-                                            } else {
-                                              toggleFilter(key, v)
-                                            }
-                                            setFilterSelectionAnchor({
-                                              ...filterSelectionAnchor,
-                                              [key]: v,
-                                            })
+                                    {filterDetailValues.slice(startIndex, endIndex).map((v) => {
+                                      const excluded =
+                                        excludeFilters[filterDetailCol.key]?.has(v) ?? false
+                                      return (
+                                        <label
+                                          key={v}
+                                          style={{
+                                            ...S.ddItem,
+                                            height: FILTER_LIST_ITEM_HEIGHT,
+                                            boxSizing: 'border-box',
+                                            cursor: 'pointer',
+                                            ...(excluded ? S.filterValueExcluded : null),
                                           }}
-                                          style={{ margin: 0 }}
-                                        />
-                                        <span style={{ flex: 1 }}>
-                                          {filterDetailCol.renderFilterLabel
-                                            ? filterDetailCol.renderFilterLabel(v)
-                                            : v}
-                                        </span>
-                                        <span style={S.filterCount} aria-hidden="true">
-                                          {stringValueCounts[filterDetailCol.key]?.get(v) ?? 0}
-                                        </span>
-                                      </label>
-                                    ))}
+                                        >
+                                          {/* Tri-state checkbox: unchecked (neutral) → checked
+                                            (include) → indeterminate (exclude, the browser's dash
+                                            glyph reused as the "not this" indicator) → back to
+                                            unchecked, via cycleFilterValue. `indeterminate` isn't a
+                                            prop React can set declaratively, so a callback ref sets
+                                            it imperatively, same pattern as the date tree's node
+                                            checkboxes above and the select-all checkboxes. */}
+                                          <input
+                                            type="checkbox"
+                                            data-dd-value-row
+                                            data-value={v}
+                                            checked={filters[filterDetailCol.key]?.has(v) ?? false}
+                                            readOnly
+                                            ref={(el) => {
+                                              if (el) el.indeterminate = excluded
+                                            }}
+                                            onClick={(e) => {
+                                              const key = filterDetailCol.key
+                                              const anchor = filterSelectionAnchor[key]
+                                              if (e.shiftKey && anchor != null) {
+                                                const shouldSelect = !(
+                                                  filters[key]?.has(v) ?? false
+                                                )
+                                                const range = selectRange(
+                                                  filterDetailValues,
+                                                  anchor,
+                                                  v,
+                                                )
+                                                setFilterValues(key, range, shouldSelect)
+                                                // Shift-range stays include-only (see the docs) — clear
+                                                // the swept range out of the exclude set too, so a
+                                                // previously-excluded value doesn't end up in both.
+                                                if (shouldSelect) clearExcludeValues(key, range)
+                                              } else {
+                                                cycleFilterValue(key, v)
+                                              }
+                                              setFilterSelectionAnchor({
+                                                ...filterSelectionAnchor,
+                                                [key]: v,
+                                              })
+                                            }}
+                                            title={
+                                              excluded ? L.filterExcludedTitle : L.filterValueTitle
+                                            }
+                                            style={{
+                                              margin: 0,
+                                              ...(excluded
+                                                ? { accentColor: 'var(--color-text-danger)' }
+                                                : null),
+                                            }}
+                                          />
+                                          <span style={{ flex: 1 }}>
+                                            {filterDetailCol.renderFilterLabel
+                                              ? filterDetailCol.renderFilterLabel(v)
+                                              : v}
+                                          </span>
+                                          <span style={S.filterCount} aria-hidden="true">
+                                            {stringValueCounts[filterDetailCol.key]?.get(v) ?? 0}
+                                          </span>
+                                        </label>
+                                      )
+                                    })}
                                   </div>
                                 </div>
                               </div>
@@ -2253,8 +2299,38 @@ export function DataTableView<TRow extends object>({
                 </button>
                 <button
                   type="button"
-                  onClick={() => clearColumnFilter(key)}
+                  onClick={() => clearColumnFilter(key, 'include')}
                   style={{ ...S.chipX, ...S.chipFilter }}
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+        {activeFilterCount > 0 &&
+          // Exclude filters (see cycleFilterValue in the docs) get their own chip, distinguished
+          // by a "≠" prefix instead of a translated word — same reasoning the sort/value-sort
+          // icons already use symbols (↑/↓, ABC/#) rather than growing every locale file.
+          // chipExclude tints it apart from a plain include chip so the two read as opposite
+          // actions at a glance, not just different text.
+          Object.entries(excludeFilters)
+            .filter(([, v]) => v.size > 0)
+            .map(([key, vals]) => (
+              <span key={`exclude-${key}`} style={S.chip}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFilterActiveCol(key)
+                    setOpenFilterDD(true)
+                    pendingFilterColFocusKey.current = key
+                  }}
+                  style={{ ...S.chipBody, ...S.chipExclude }}
+                >
+                  {columns.find((c) => c.key === key)?.label}: ≠ {summarizeFilterValues(vals)}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => clearColumnFilter(key, 'exclude')}
+                  style={{ ...S.chipX, ...S.chipExclude }}
                 >
                   ×
                 </button>
@@ -2263,8 +2339,7 @@ export function DataTableView<TRow extends object>({
         {activeFilterCount > 0 &&
           // A range filter (number or date) didn't get a chip at all before — it's a distinct
           // active filter from the checklist above, so it needs its own (a date column can have
-          // both active at once). Reuses clearColumnFilter, which now resets rangeFilters too, so
-          // the × here is a full per-column reset regardless of which kind is actually active.
+          // both active at once).
           Object.entries(rangeFilters)
             .filter(([, rf]) => rf.min !== '' || rf.max !== '')
             .map(([key, rf]) => (
@@ -2282,7 +2357,7 @@ export function DataTableView<TRow extends object>({
                 </button>
                 <button
                   type="button"
-                  onClick={() => clearColumnFilter(key)}
+                  onClick={() => clearColumnFilter(key, 'range')}
                   style={{ ...S.chipX, ...S.chipFilter }}
                 >
                   ×

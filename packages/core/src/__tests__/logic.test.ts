@@ -31,6 +31,8 @@ import {
   toggleFilter,
   toggleFilterAll,
   setFilterValues,
+  cycleFilterValue,
+  clearExcludeValues,
   selectRange,
   selectDateRange,
   toggleGroupBy,
@@ -463,6 +465,31 @@ describe('processData', () => {
   it('matches rows with an empty array against a custom emptyLabel', () => {
     const result = processData(GAMES_WITH_EMPTY, { tags: new Set(['N/A']) }, {}, [], [], 'N/A')
     expect(result.map((r) => r.name)).toEqual(['Game D'])
+  })
+
+  it('excludeFilters drops a row as soon as it has any excluded value', () => {
+    const result = processData(GAMES, {}, {}, [], [], '(none)', { tags: new Set(['RPG']) })
+    expect(result.map((r) => r.name)).toEqual(['Game B'])
+  })
+
+  it('excludeFilters composes with multiple excluded values as a NOR (row must have none of them)', () => {
+    const result = processData(GAMES, {}, {}, [], [], '(none)', {
+      tags: new Set(['RPG', 'Adventure']),
+    })
+    expect(result.map((r) => r.name)).toEqual([])
+  })
+
+  it('excludeFilters ignores col.multiMode (exclude is always "has none of", not "and"/"or")', () => {
+    const cols = [{ key: 'tags' as const, label: 'Tags', multiMode: 'and' as const }]
+    const result = processData(GAMES, {}, {}, [], cols, '(none)', { tags: new Set(['Action']) })
+    expect(result.map((r) => r.name)).toEqual(['Game C'])
+  })
+
+  it('composes include filters and excludeFilters together', () => {
+    const result = processData(GAMES, { tags: new Set(['Action']) }, {}, [], [], '(none)', {
+      tags: new Set(['Adventure']),
+    })
+    expect(result.map((r) => r.name)).toEqual(['Game A'])
   })
 
   it('sorts a date column chronologically, not as plain strings', () => {
@@ -1264,6 +1291,27 @@ describe('computeStringValueCounts', () => {
     expect(result['name']?.get('Bob')).toBeUndefined()
     expect(result['dept']).toBeUndefined()
   })
+
+  it("does not narrow a column's own counts by its own excludeFilters entry", () => {
+    const cols = [{ key: 'tags' as const, label: 'Tags' }]
+    const result = computeStringValueCounts(GAMES, {}, {}, cols, '(none)', undefined, {
+      tags: new Set(['RPG']),
+    })
+    expect(result['tags']?.get('RPG')).toBe(2)
+  })
+
+  it("narrows a column's counts by other columns' excludeFilters (faceted)", () => {
+    const cols = [
+      { key: 'name' as const, label: 'Name' },
+      { key: 'tags' as const, label: 'Tags' },
+    ]
+    // Excluding 'RPG' drops Game A and Game C, leaving only Game B for name counts.
+    const result = computeStringValueCounts(GAMES, {}, {}, cols, '(none)', ['name'], {
+      tags: new Set(['RPG']),
+    })
+    expect(result['name']?.get('Game B')).toBe(1)
+    expect(result['name']?.get('Game A')).toBeUndefined()
+  })
 })
 
 // ─── filterValuesBySearch ───────────────────────────────────────────────────
@@ -1999,6 +2047,87 @@ describe('setFilterValues', () => {
   })
 })
 
+// ─── cycleFilterValue ─────────────────────────────────────────────────────────
+
+describe('cycleFilterValue', () => {
+  it('cycles a neutral value to included', () => {
+    const { filters, excludeFilters } = cycleFilterValue({}, {}, 'tags', 'RPG')
+    expect(filters['tags'].has('RPG')).toBe(true)
+    expect(excludeFilters['tags']?.has('RPG') ?? false).toBe(false)
+  })
+
+  it('cycles an included value to excluded', () => {
+    const { filters, excludeFilters } = cycleFilterValue(
+      { tags: new Set(['RPG']) },
+      {},
+      'tags',
+      'RPG',
+    )
+    expect(filters['tags'].has('RPG')).toBe(false)
+    expect(excludeFilters['tags'].has('RPG')).toBe(true)
+  })
+
+  it('cycles an excluded value back to neutral', () => {
+    const { filters, excludeFilters } = cycleFilterValue(
+      {},
+      { tags: new Set(['RPG']) },
+      'tags',
+      'RPG',
+    )
+    expect(filters['tags']?.has('RPG') ?? false).toBe(false)
+    expect(excludeFilters['tags'].has('RPG')).toBe(false)
+  })
+
+  it('never leaves a value in both sets at once', () => {
+    let state = {
+      filters: {} as Record<string, Set<string>>,
+      excludeFilters: {} as Record<string, Set<string>>,
+    }
+    for (let i = 0; i < 3; i++)
+      state = cycleFilterValue(state.filters, state.excludeFilters, 'tags', 'RPG')
+    // after 3 cycles: neutral -> include -> exclude -> neutral
+    expect(state.filters['tags']?.has('RPG') ?? false).toBe(false)
+    expect(state.excludeFilters['tags']?.has('RPG') ?? false).toBe(false)
+  })
+
+  it('preserves other values already selected for the same key', () => {
+    const { filters } = cycleFilterValue({ tags: new Set(['Action']) }, {}, 'tags', 'RPG')
+    expect(filters['tags'].has('Action')).toBe(true)
+    expect(filters['tags'].has('RPG')).toBe(true)
+  })
+
+  it('preserves other keys', () => {
+    const { filters, excludeFilters } = cycleFilterValue(
+      { name: new Set(['Alice']) },
+      { dept: new Set(['HR']) },
+      'tags',
+      'RPG',
+    )
+    expect(filters['name'].has('Alice')).toBe(true)
+    expect(excludeFilters['dept'].has('HR')).toBe(true)
+  })
+})
+
+// ─── clearExcludeValues ───────────────────────────────────────────────────────
+
+describe('clearExcludeValues', () => {
+  it('removes the given values from the exclude set for key', () => {
+    const result = clearExcludeValues({ tags: new Set(['RPG', 'Action']) }, 'tags', ['RPG'])
+    expect([...result['tags']]).toEqual(['Action'])
+  })
+
+  it('is a no-op when the key has no exclude entry yet', () => {
+    const result = clearExcludeValues({}, 'tags', ['RPG'])
+    expect(result['tags'].size).toBe(0)
+  })
+
+  it('preserves other keys', () => {
+    const initial = { dept: new Set(['HR']) }
+    const result = clearExcludeValues(initial, 'tags', ['RPG'])
+    expect(result['dept'].has('HR')).toBe(true)
+  })
+})
+
 // ─── selectRange ──────────────────────────────────────────────────────────────
 
 describe('selectRange', () => {
@@ -2292,6 +2421,23 @@ describe('countActiveFilters', () => {
     const filters = { dept: new Set(['Eng']) }
     const range = { salary: { min: '50000', max: '' } }
     expect(countActiveFilters(filters, range)).toBe(2)
+  })
+
+  it('counts columns with a non-empty excludeFilters entry', () => {
+    const excludeFilters = { tags: new Set(['RPG']) }
+    expect(countActiveFilters({}, {}, excludeFilters)).toBe(1)
+  })
+
+  it('counts a column once even when both filters and excludeFilters are non-empty for it', () => {
+    const filters = { tags: new Set(['Action']) }
+    const excludeFilters = { tags: new Set(['RPG']) }
+    expect(countActiveFilters(filters, {}, excludeFilters)).toBe(1)
+  })
+
+  it('counts distinct columns across filters and excludeFilters separately', () => {
+    const filters = { dept: new Set(['Eng']) }
+    const excludeFilters = { tags: new Set(['RPG']) }
+    expect(countActiveFilters(filters, {}, excludeFilters)).toBe(2)
   })
 })
 

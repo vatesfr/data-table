@@ -535,6 +535,100 @@ describe('useTableState — toggleFilterAll', () => {
   })
 })
 
+describe('useTableState — cycleFilterValue (exclude filters)', () => {
+  it('cycles a value neutral -> include -> exclude -> neutral', () => {
+    const { result } = renderHook(() => useTableState(ROWS, COLS))
+    act(() => {
+      result.current.cycleFilterValue('name', 'Alice')
+    })
+    expect(result.current.filters['name']?.has('Alice')).toBe(true)
+    expect(result.current.excludeFilters['name']?.has('Alice') ?? false).toBe(false)
+
+    act(() => {
+      result.current.cycleFilterValue('name', 'Alice')
+    })
+    expect(result.current.filters['name']?.has('Alice')).toBe(false)
+    expect(result.current.excludeFilters['name']?.has('Alice')).toBe(true)
+    expect(result.current.processedData.map((r) => r.name)).not.toContain('Alice')
+
+    act(() => {
+      result.current.cycleFilterValue('name', 'Alice')
+    })
+    expect(result.current.filters['name']?.has('Alice') ?? false).toBe(false)
+    expect(result.current.excludeFilters['name']?.has('Alice') ?? false).toBe(false)
+    expect(result.current.processedData).toHaveLength(4)
+  })
+
+  it('activeFilterCount counts a column with an active exclude filter', () => {
+    const { result } = renderHook(() => useTableState(ROWS, COLS))
+    act(() => {
+      result.current.cycleFilterValue('name', 'Alice')
+      result.current.cycleFilterValue('name', 'Alice') // include -> exclude
+    })
+    expect(result.current.activeFilterCount).toBe(1)
+  })
+})
+
+describe('useTableState — toggleFilterAll and exclude filters', () => {
+  it("select-all's ON branch clears an existing exclusion on a listed value", () => {
+    const { result } = renderHook(() => useTableState(ROWS, COLS))
+    act(() => {
+      result.current.cycleFilterValue('name', 'Alice')
+      result.current.cycleFilterValue('name', 'Alice') // include -> exclude
+    })
+    act(() => {
+      result.current.toggleFilterAll('name', ['Alice', 'Bob'])
+    })
+    expect(result.current.filters['name']?.has('Alice')).toBe(true)
+    expect(result.current.excludeFilters['name']?.has('Alice') ?? false).toBe(false)
+  })
+
+  it("select-all's deselect branch leaves an unrelated exclusion untouched", () => {
+    const { result } = renderHook(() => useTableState(ROWS, COLS))
+    act(() => {
+      result.current.toggleFilter('name', 'Bob') // include Bob
+      result.current.cycleFilterValue('name', 'Alice')
+      result.current.cycleFilterValue('name', 'Alice') // include -> exclude Alice
+    })
+    act(() => {
+      // 'Bob' is included (so this is the deselect branch); 'Alice' is excluded, not included.
+      result.current.toggleFilterAll('name', ['Bob'])
+    })
+    expect(result.current.filters['name']?.has('Bob')).toBe(false)
+    expect(result.current.excludeFilters['name']?.has('Alice')).toBe(true)
+  })
+})
+
+describe('useTableState — clearColumnFilter kinds', () => {
+  it('clearing the include kind leaves an exclude filter on the same column untouched', () => {
+    const { result } = renderHook(() => useTableState(ROWS, COLS))
+    act(() => {
+      result.current.toggleFilter('name', 'Bob')
+      result.current.cycleFilterValue('name', 'Alice')
+      result.current.cycleFilterValue('name', 'Alice') // include -> exclude
+    })
+    act(() => {
+      result.current.clearColumnFilter('name', 'include')
+    })
+    expect(result.current.filters['name']?.size ?? 0).toBe(0)
+    expect(result.current.excludeFilters['name']?.has('Alice')).toBe(true)
+  })
+
+  it('clearing the exclude kind leaves an include filter on the same column untouched', () => {
+    const { result } = renderHook(() => useTableState(ROWS, COLS))
+    act(() => {
+      result.current.toggleFilter('name', 'Bob')
+      result.current.cycleFilterValue('name', 'Alice')
+      result.current.cycleFilterValue('name', 'Alice') // include -> exclude
+    })
+    act(() => {
+      result.current.clearColumnFilter('name', 'exclude')
+    })
+    expect(result.current.excludeFilters['name']?.size ?? 0).toBe(0)
+    expect(result.current.filters['name']?.has('Bob')).toBe(true)
+  })
+})
+
 describe('useTableState — setFilterValues', () => {
   it('adds the given values unconditionally when selected is true', () => {
     const { result } = renderHook(() => useTableState(ROWS, COLS))
@@ -741,6 +835,26 @@ describe('useTableState — view state', () => {
       sorts: [{ key: 'score', dir: 'asc' }],
       filters: { name: ['Alice'] },
     })
+  })
+
+  it('getViewState/setViewState round-trip an exclude filter', () => {
+    const { result } = renderHook(() => useTableState(ROWS, COLS))
+    act(() => {
+      result.current.cycleFilterValue('name', 'Alice')
+      result.current.cycleFilterValue('name', 'Alice') // include -> exclude
+    })
+    const view = result.current.getViewState()
+    expect(view.excludeFilters).toEqual({ name: ['Alice'] })
+
+    act(() => {
+      result.current.setViewState({})
+    })
+    expect(result.current.excludeFilters['name']?.size ?? 0).toBe(0)
+
+    act(() => {
+      result.current.setViewState(view)
+    })
+    expect(result.current.excludeFilters['name']?.has('Alice')).toBe(true)
   })
 
   it('setViewState applies a snapshot and getViewState round-trips it', () => {

@@ -130,6 +130,7 @@ export function processData<TRow extends object>(
   sorts: SortEntry[],
   columns: ColumnDefBase<TRow>[] = [],
   emptyLabel = '(none)',
+  excludeFilters: Record<string, Set<string>> = {},
 ): TRow[] {
   let result = [...data]
   const colByKey = new Map<string, ColumnDefBase<TRow>>(columns.map((c) => [c.key, c]))
@@ -143,6 +144,19 @@ export function processData<TRow extends object>(
       return mode === 'and'
         ? [...vals].every((v) => rowValues.includes(v))
         : [...vals].some((v) => rowValues.includes(v))
+    })
+  }
+
+  // Exclude filters are a separate set from `filters` (see `cycleFilterValue`) — a row is
+  // dropped as soon as it carries *any* excluded value, independent of `col.multiMode` (which
+  // only ever governs the include side): "not tagged Action" should exclude a row the moment
+  // Action shows up among its tags, regardless of how the column's include matches are combined.
+  for (const [key, vals] of Object.entries(excludeFilters)) {
+    if (vals.size === 0) continue
+    const col = colByKey.get(key)
+    result = result.filter((row) => {
+      const rowValues = multiValues(col ? getColumnValue(col, row) : asRecord(row)[key], emptyLabel)
+      return ![...vals].some((v) => rowValues.includes(v))
     })
   }
 
@@ -427,6 +441,10 @@ export function computeStringValues<TRow extends object>(
  * `[activeColumnKey]` to avoid the O(filterableColumns × rows) cost of computing counts for every
  * column when only one is ever read. `columns` must still be the *full* column list even when
  * narrowing via `targetKeys`, since it's also used to resolve each *other* filter's accessor.
+ *
+ * `excludeFilters` (see `cycleFilterValue`) is excluded from the facet baseline the same way as
+ * `filters` — a column's own exclude selections don't narrow its own counts, only every other
+ * column's include/exclude selections do.
  */
 export function computeStringValueCounts<TRow extends object>(
   data: TRow[],
@@ -435,6 +453,7 @@ export function computeStringValueCounts<TRow extends object>(
   columns: ColumnDefBase<TRow>[],
   emptyLabel = '(none)',
   targetKeys?: string[],
+  excludeFilters: Record<string, Set<string>> = {},
 ): Record<string, Map<string, number>> {
   const map: Record<string, Map<string, number>> = {}
   let cols = columns.filter((c) => c.type !== 'number' && c.filterable !== false)
@@ -445,7 +464,17 @@ export function computeStringValueCounts<TRow extends object>(
   for (const col of cols) {
     const otherFilters = { ...filters }
     delete otherFilters[col.key]
-    const rows = processData(data, otherFilters, rangeFilters, [], columns, emptyLabel)
+    const otherExcludeFilters = { ...excludeFilters }
+    delete otherExcludeFilters[col.key]
+    const rows = processData(
+      data,
+      otherFilters,
+      rangeFilters,
+      [],
+      columns,
+      emptyLabel,
+      otherExcludeFilters,
+    )
     const counts = new Map<string, number>()
     for (const row of rows) {
       for (const v of multiValues(getColumnValue(col, row), emptyLabel)) {
@@ -834,6 +863,62 @@ export function setFilterValues(
 }
 
 /**
+ * Cycles a single checklist value through neutral → include → exclude → neutral, backing "not
+ * one of these" filtering for multi-value columns (e.g. "doesn't have the Action tag") — plain
+ * `filters` alone can only ever narrow *down to* a set of values, never rule specific ones out.
+ * Kept as two separate `Set<string>` maps (`filters` for include, `excludeFilters` for exclude)
+ * rather than a single `Map<string, 'include'|'exclude'>` per value, so every existing
+ * include-only call site (`processData`'s default exclude-less overload, `computeStringValueCounts`,
+ * view-state persistence, `toggleFilterAll`/`setFilterValues`) keeps working unchanged against
+ * `filters` alone — only the few sites that need to know about exclusion at all take the second
+ * map as a new, optional/trailing parameter.
+ *
+ * A value is never present in both sets at once: moving it into one always removes it from the
+ * other, so `processData`'s two filter passes (include, then exclude) never fight over the same
+ * value.
+ */
+export function cycleFilterValue(
+  filters: Record<string, Set<string>>,
+  excludeFilters: Record<string, Set<string>>,
+  key: string,
+  value: string,
+): { filters: Record<string, Set<string>>; excludeFilters: Record<string, Set<string>> } {
+  const inc = filters[key] ?? new Set<string>()
+  const exc = excludeFilters[key] ?? new Set<string>()
+  const nextInc = new Set(inc)
+  const nextExc = new Set(exc)
+  if (inc.has(value)) {
+    nextInc.delete(value)
+    nextExc.add(value)
+  } else if (exc.has(value)) {
+    nextExc.delete(value)
+  } else {
+    nextInc.add(value)
+  }
+  return {
+    filters: { ...filters, [key]: nextInc },
+    excludeFilters: { ...excludeFilters, [key]: nextExc },
+  }
+}
+
+/**
+ * Removes `values` from the exclude set for `key`, keeping `cycleFilterValue`'s "never in both
+ * sets at once" invariant when a *batch* include action (select-all, shift-range select) moves
+ * values into `filters` via `toggleFilterAll`/`setFilterValues` — both of those stay include-only
+ * and unaware of `excludeFilters`, so a caller that also tracks exclusion calls this right
+ * alongside them rather than those two growing an extra parameter each.
+ */
+export function clearExcludeValues(
+  excludeFilters: Record<string, Set<string>>,
+  key: string,
+  values: string[],
+): Record<string, Set<string>> {
+  const next = new Set(excludeFilters[key] ?? [])
+  values.forEach((v) => next.delete(v))
+  return { ...excludeFilters, [key]: next }
+}
+
+/**
  * Returns the contiguous run of `items` between `anchor` and `target` (inclusive, in `items`'
  * order), for shift-click range selection over a rendered list. Falls back to `[target]` alone
  * if `anchor` isn't present in `items` — e.g. it scrolled out of the current page or got
@@ -1140,9 +1225,15 @@ export function computeVirtualRange(
 export function countActiveFilters(
   filters: Record<string, Set<string>>,
   rangeFilters: Record<string, RangeFilter>,
+  excludeFilters: Record<string, Set<string>> = {},
 ): number {
-  return (
-    Object.values(filters).filter((v) => v.size > 0).length +
-    Object.values(rangeFilters).filter((v) => v.min !== '' || v.max !== '').length
-  )
+  const keys = new Set([
+    ...Object.entries(filters)
+      .filter(([, v]) => v.size > 0)
+      .map(([k]) => k),
+    ...Object.entries(excludeFilters)
+      .filter(([, v]) => v.size > 0)
+      .map(([k]) => k),
+  ])
+  return keys.size + Object.values(rangeFilters).filter((v) => v.min !== '' || v.max !== '').length
 }

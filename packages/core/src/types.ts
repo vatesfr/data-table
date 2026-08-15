@@ -133,6 +133,10 @@ export interface DataTableLabels {
   selectAll: string
   /** Title/aria-label for the button that cycles a filter checklist's value sort order */
   sortValues: string
+  /** Tooltip on a filter checklist value in its neutral/included state, explaining the tri-state (include/exclude) cycle */
+  filterValueTitle: string
+  /** Tooltip on a filter checklist value that's currently excluded ("not this value") */
+  filterExcludedTitle: string
   min: string
   max: string
   clearFilters: string

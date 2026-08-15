@@ -65,6 +65,7 @@ const {
   visibleCols,
   sorts,
   filters,
+  excludeFilters,
   rangeFilters,
   groupBy,
   collapsedGroups,
@@ -93,9 +94,10 @@ const {
   toggleSortDir,
   moveSortBy,
   moveSort,
-  toggleFilter,
   toggleFilterAll,
   setFilterValues,
+  cycleFilterValue,
+  clearExcludeValues,
   setRangeFilter,
   clearColumnFilter,
   toggleGroup,
@@ -359,12 +361,27 @@ const filterSelectionAnchor = ref<Record<string, string>>({})
 const filterValueSort = ref<Record<string, ValueSort>>({})
 
 function onFilterValueClick(col: ColumnDef<TRow>, value: string, event: MouseEvent) {
+  // Unlike React (which force-syncs a controlled `checked` prop on every commit), Vue's plain
+  // `:checked` binding (no v-model) only rewrites the DOM property when the *bound value* itself
+  // changes between renders. The old boolean toggle always flipped `checked` on every click, so
+  // this never mattered — but cycleFilterValue's exclude→neutral transition changes `indeterminate`
+  // while `checked` stays `false` across both renders, so Vue would skip rewriting `.checked` and
+  // leave whatever the browser's own native click-toggle left in the DOM. preventDefault() stops
+  // that native toggle entirely, so the checkbox's visible state is exclusively driven by Vue's
+  // binding (matching what happens anyway, since the click handler already decides the new state
+  // itself rather than reading it back off the DOM).
+  event.preventDefault()
   const anchor = filterSelectionAnchor.value[col.key]
   if (event.shiftKey && anchor != null) {
     const shouldSelect = !(filters.value[col.key]?.has(value) ?? false)
-    setFilterValues(col.key, selectRange(filteredValuesFor(col), anchor, value), shouldSelect)
+    const range = selectRange(filteredValuesFor(col), anchor, value)
+    setFilterValues(col.key, range, shouldSelect)
+    // Shift-range selection stays include-only (see the docs) — clear the swept range out of the
+    // exclude set too, so a previously-excluded value doesn't end up in both.
+    if (shouldSelect) clearExcludeValues(col.key, range)
   } else {
-    toggleFilter(col.key, value)
+    // Cycles the value neutral → include → exclude → neutral — see `cycleFilterValue` in the docs.
+    cycleFilterValue(col.key, value)
   }
   filterSelectionAnchor.value = { ...filterSelectionAnchor.value, [col.key]: value }
 }
@@ -388,6 +405,7 @@ const stringValueCounts = computed(() =>
     props.columns,
     L.value.emptyValue,
     filterDetailCol.value ? [filterDetailCol.value.key] : [],
+    excludeFilters.value,
   ),
 )
 // A date column can have both an active checklist selection (tree) *and* an active range filter
@@ -397,6 +415,7 @@ function hasActiveColFilter(col: ColumnDef<TRow>): boolean {
   const rf = rangeFilters.value[col.key]
   return (
     (filters.value[col.key]?.size ?? 0) > 0 ||
+    (excludeFilters.value[col.key]?.size ?? 0) > 0 ||
     (rf !== undefined && (rf.min !== '' || rf.max !== ''))
   )
 }
@@ -1704,15 +1723,31 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                             )"
                             :key="v"
                             class="dt__dd-item dt__dd-item--clickable"
+                            :class="{
+                              'dt__dd-item--exclude': excludeFilters[filterDetailCol.key]?.has(v),
+                            }"
                             :style="{
                               height: FILTER_LIST_ITEM_HEIGHT + 'px',
                               boxSizing: 'border-box',
                             }"
                           >
+                            <!--
+                            Tri-state checkbox: unchecked (neutral) → checked (include) →
+                            indeterminate (exclude, the browser's dash glyph reused as the "not
+                            this" indicator) → back to unchecked, via onFilterValueClick's call to
+                            cycleFilterValue. v-indeterminate (see above) is what actually sets the
+                            DOM property, same as the select-all/group checkboxes.
+                          -->
                             <input
                               type="checkbox"
                               :data-value="v"
                               :checked="filters[filterDetailCol.key]?.has(v) ?? false"
+                              v-indeterminate="excludeFilters[filterDetailCol.key]?.has(v) ?? false"
+                              :title="
+                                excludeFilters[filterDetailCol.key]?.has(v)
+                                  ? L.filterExcludedTitle
+                                  : L.filterValueTitle
+                              "
                               @click="onFilterValueClick(filterDetailCol, v, $event)"
                             />
                             <!--
@@ -1792,19 +1827,45 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
             <button type="button" class="dt__chip-body" @click="onOpenFilterCol(key)">
               {{ columns.find((c) => c.key === key)?.label }}: {{ summarizeFilterValues(vals) }}
             </button>
-            <button type="button" class="dt__chip-remove" @click="clearColumnFilter(key)">×</button>
+            <button
+              type="button"
+              class="dt__chip-remove"
+              @click="clearColumnFilter(key, 'include')"
+            >
+              ×
+            </button>
+          </span>
+        </template>
+        <!-- Exclude filters (see cycleFilterValue in the docs) get their own chip, distinguished
+             by a "≠" prefix instead of a translated word — same reasoning the sort/value-sort
+             icons already use symbols (↑/↓, ABC/#) rather than growing every locale file.
+             dt__chip--danger tints it apart from a plain include chip so the two read as opposite
+             actions at a glance, not just different text. -->
+        <template v-for="[key, vals] in Object.entries(excludeFilters)" :key="`exclude-${key}`">
+          <span v-if="vals.size > 0" class="dt__chip dt__chip--danger">
+            <button type="button" class="dt__chip-body" @click="onOpenFilterCol(key)">
+              {{ columns.find((c) => c.key === key)?.label }}: ≠ {{ summarizeFilterValues(vals) }}
+            </button>
+            <button
+              type="button"
+              class="dt__chip-remove"
+              @click="clearColumnFilter(key, 'exclude')"
+            >
+              ×
+            </button>
           </span>
         </template>
         <!-- A range filter (number or date) didn't get a chip at all before — it's a distinct
              active filter from the checklist above, so it needs its own (a date column can have
-             both active at once). Reuses clearColumnFilter, which now resets rangeFilters too,
-             so the × here is a full per-column reset regardless of which kind is actually active. -->
+             both active at once). -->
         <template v-for="[key, rf] in Object.entries(rangeFilters)" :key="`range-${key}`">
           <span v-if="rf.min !== '' || rf.max !== ''" class="dt__chip dt__chip--info">
             <button type="button" class="dt__chip-body" @click="onOpenFilterCol(key)">
               {{ columns.find((c) => c.key === key)?.label }}: {{ rf.min }}–{{ rf.max }}
             </button>
-            <button type="button" class="dt__chip-remove" @click="clearColumnFilter(key)">×</button>
+            <button type="button" class="dt__chip-remove" @click="clearColumnFilter(key, 'range')">
+              ×
+            </button>
           </span>
         </template>
       </template>
@@ -2348,6 +2409,14 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
   color: var(--color-text-tertiary);
   flex-shrink: 0;
 }
+/* A checklist value cycled to "exclude" (see cycleFilterValue) — tints the row's text and the
+   checkbox's own accent-color to match. */
+.dt__dd-item--exclude {
+  color: var(--color-text-danger);
+}
+.dt__dd-item--exclude input[type='checkbox'] {
+  accent-color: var(--color-text-danger);
+}
 
 /* Range filter */
 .dt__range {
@@ -2411,6 +2480,14 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
   background: var(--color-background-warning);
   color: var(--color-text-warning);
   border-color: var(--color-border-warning);
+}
+/* Exclude filters (see cycleFilterValue in the docs) get their own tint, distinct from the plain
+   include .dt__chip--info above, so the two read as opposite actions at a glance. */
+.dt__chip--danger .dt__chip-body,
+.dt__chip--danger .dt__chip-remove {
+  background: var(--color-background-danger);
+  color: var(--color-text-danger);
+  border-color: var(--color-border-danger);
 }
 .dt__chip-remove {
   cursor: pointer;

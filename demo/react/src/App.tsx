@@ -395,7 +395,10 @@ const COLUMNS: ColumnDef<Employee>[] = [
       ),
   },
   // array-valued column: filter checklist lists individual skills, grouping fans a row into
-  // one group per skill, and cells join the array with ', ' — all automatic, no flag needed
+  // one group per skill, and cells join the array with ', ' — all automatic, no flag needed.
+  // The checklist is also where exclude filters live: click a value once to include it (only
+  // rows with that skill), click again to exclude it (rows with that skill are dropped), click
+  // a third time to clear it — try excluding "Leadership" to hide everyone who has it.
   { key: 'skills', label: 'Skills', width: 180, groupable: true },
 ]
 

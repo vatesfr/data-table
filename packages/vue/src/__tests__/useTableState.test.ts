@@ -425,6 +425,80 @@ describe('useTableState — toggleFilterAll', () => {
   })
 })
 
+describe('useTableState — cycleFilterValue (exclude filters)', () => {
+  it('cycles a value neutral -> include -> exclude -> neutral', () => {
+    const { filters, excludeFilters, cycleFilterValue, processedData } = useTableState(ROWS, COLS)
+
+    cycleFilterValue('name', 'Alice')
+    expect(filters.value['name']?.has('Alice')).toBe(true)
+    expect(excludeFilters.value['name']?.has('Alice') ?? false).toBe(false)
+
+    cycleFilterValue('name', 'Alice')
+    expect(filters.value['name']?.has('Alice')).toBe(false)
+    expect(excludeFilters.value['name']?.has('Alice')).toBe(true)
+    expect(processedData.value.map((r) => r.name)).not.toContain('Alice')
+
+    cycleFilterValue('name', 'Alice')
+    expect(filters.value['name']?.has('Alice') ?? false).toBe(false)
+    expect(excludeFilters.value['name']?.has('Alice') ?? false).toBe(false)
+    expect(processedData.value).toHaveLength(4)
+  })
+
+  it('activeFilterCount counts a column with an active exclude filter', () => {
+    const { activeFilterCount, cycleFilterValue } = useTableState(ROWS, COLS)
+    cycleFilterValue('name', 'Alice')
+    cycleFilterValue('name', 'Alice') // include -> exclude
+    expect(activeFilterCount.value).toBe(1)
+  })
+})
+
+describe('useTableState — toggleFilterAll and exclude filters', () => {
+  it("select-all's ON branch clears an existing exclusion on a listed value", () => {
+    const { filters, excludeFilters, cycleFilterValue, toggleFilterAll } = useTableState(ROWS, COLS)
+    cycleFilterValue('name', 'Alice')
+    cycleFilterValue('name', 'Alice') // include -> exclude
+    toggleFilterAll('name', ['Alice', 'Bob'])
+    expect(filters.value['name']?.has('Alice')).toBe(true)
+    expect(excludeFilters.value['name']?.has('Alice') ?? false).toBe(false)
+  })
+
+  it("select-all's deselect branch leaves an unrelated exclusion untouched", () => {
+    const { filters, excludeFilters, toggleFilter, cycleFilterValue, toggleFilterAll } =
+      useTableState(ROWS, COLS)
+    toggleFilter('name', 'Bob') // include Bob
+    cycleFilterValue('name', 'Alice')
+    cycleFilterValue('name', 'Alice') // include -> exclude Alice
+    // 'Bob' is included (so this is the deselect branch); 'Alice' is excluded, not included.
+    toggleFilterAll('name', ['Bob'])
+    expect(filters.value['name']?.has('Bob')).toBe(false)
+    expect(excludeFilters.value['name']?.has('Alice')).toBe(true)
+  })
+})
+
+describe('useTableState — clearColumnFilter kinds', () => {
+  it('clearing the include kind leaves an exclude filter on the same column untouched', () => {
+    const { filters, excludeFilters, toggleFilter, cycleFilterValue, clearColumnFilter } =
+      useTableState(ROWS, COLS)
+    toggleFilter('name', 'Bob')
+    cycleFilterValue('name', 'Alice')
+    cycleFilterValue('name', 'Alice') // include -> exclude
+    clearColumnFilter('name', 'include')
+    expect(filters.value['name']?.size ?? 0).toBe(0)
+    expect(excludeFilters.value['name']?.has('Alice')).toBe(true)
+  })
+
+  it('clearing the exclude kind leaves an include filter on the same column untouched', () => {
+    const { filters, excludeFilters, toggleFilter, cycleFilterValue, clearColumnFilter } =
+      useTableState(ROWS, COLS)
+    toggleFilter('name', 'Bob')
+    cycleFilterValue('name', 'Alice')
+    cycleFilterValue('name', 'Alice') // include -> exclude
+    clearColumnFilter('name', 'exclude')
+    expect(excludeFilters.value['name']?.size ?? 0).toBe(0)
+    expect(filters.value['name']?.has('Bob')).toBe(true)
+  })
+})
+
 describe('useTableState — setFilterValues', () => {
   it('adds the given values unconditionally when selected is true', () => {
     const { filters, setFilterValues } = useTableState(ROWS, COLS)
@@ -581,6 +655,23 @@ describe('useTableState — view state', () => {
       sorts: [{ key: 'score', dir: 'asc' }],
       filters: { name: ['Alice'] },
     })
+  })
+
+  it('getViewState/setViewState round-trip an exclude filter', () => {
+    const { getViewState, setViewState, excludeFilters, cycleFilterValue } = useTableState(
+      ROWS,
+      COLS,
+    )
+    cycleFilterValue('name', 'Alice')
+    cycleFilterValue('name', 'Alice') // include -> exclude
+    const view = getViewState()
+    expect(view.excludeFilters).toEqual({ name: ['Alice'] })
+
+    setViewState({})
+    expect(excludeFilters.value['name']?.size ?? 0).toBe(0)
+
+    setViewState(view)
+    expect(excludeFilters.value['name']?.has('Alice')).toBe(true)
   })
 
   it('setViewState applies a snapshot and getViewState round-trips it', () => {

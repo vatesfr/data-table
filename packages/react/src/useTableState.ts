@@ -18,6 +18,8 @@ import {
   toggleFilter as _toggleFilter,
   toggleFilterAll as _toggleFilterAll,
   setFilterValues as _setFilterValues,
+  cycleFilterValue as _cycleFilterValue,
+  clearExcludeValues as _clearExcludeValues,
   selectRange,
   toggleGroupBy,
   toggleCollapse,
@@ -52,7 +54,18 @@ export function useTableState<TRow extends object>(
   )
   const [columnOrder, setColumnOrder] = useState<string[]>([])
   const [sorts, setSorts] = useState<SortEntry[]>([])
-  const [filters, setFilters] = useState<Record<string, Set<string>>>({})
+  // `filters` (include) and `excludeFilters` — "not one of these values" for multi-value columns,
+  // see `cycleFilterValue` — are combined into one state atom rather than two separate `useState`
+  // calls: several actions (`cycleFilterValue`, the exclude-aware branch of `toggleFilterAll`)
+  // need to read *both* current values together to decide the next state, and two independent
+  // setters read from render-time closures — two such actions called synchronously before a
+  // re-render (e.g. back-to-back in the same event handler) would each see the same stale pair.
+  // One state atom means one updater always sees the latest committed value of both.
+  const [filterState, setFilterState] = useState<{
+    filters: Record<string, Set<string>>
+    excludeFilters: Record<string, Set<string>>
+  }>({ filters: {}, excludeFilters: {} })
+  const { filters, excludeFilters } = filterState
   const [rangeFilters, setRangeFilters] = useState<Record<string, RangeFilter>>({})
   const [groupBy, setGroupBy] = useState<string[]>([])
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set())
@@ -76,8 +89,9 @@ export function useTableState<TRow extends object>(
         sorts,
         columns,
         L.emptyValue,
+        excludeFilters,
       ),
-    [data, searchQuery, columns, filters, rangeFilters, sorts, L.emptyValue],
+    [data, searchQuery, columns, filters, rangeFilters, sorts, L.emptyValue, excludeFilters],
   )
 
   // Grouping runs over the *full* filtered/sorted data, not a page's slice, so pagination (below)
@@ -141,8 +155,8 @@ export function useTableState<TRow extends object>(
   )
 
   const activeFilterCount = useMemo(
-    () => countActiveFilters(filters, rangeFilters),
-    [filters, rangeFilters],
+    () => countActiveFilters(filters, rangeFilters, excludeFilters),
+    [filters, rangeFilters, excludeFilters],
   )
 
   const selectedRows = useMemo(
@@ -157,6 +171,7 @@ export function useTableState<TRow extends object>(
     columnOrder,
     sorts,
     filters,
+    excludeFilters,
     rangeFilters,
     groupBy,
     collapsedGroups,
@@ -205,16 +220,48 @@ export function useTableState<TRow extends object>(
     moveSort: (dragKey: string, targetKey: string, after = false) =>
       setSorts((prev) => _reorderSort(prev, dragKey, targetKey, after)),
     toggleFilter: (key: string, value: string) => {
-      setFilters((prev) => _toggleFilter(prev, key, value))
+      setFilterState((prev) => ({ ...prev, filters: _toggleFilter(prev.filters, key, value) }))
       setPageState(1)
     },
     toggleFilterAll: (key: string, values: string[]) => {
-      setFilters((prev) => _toggleFilterAll(prev, key, values))
+      // The master checkbox's own checked/indeterminate state reflects `filters` only (no visual
+      // concept of exclusion) — so only the "select all ON" branch should ever touch
+      // `excludeFilters`, and only because it must: every listed value is about to become
+      // included, and a value can't be in both sets at once (see `cycleFilterValue`). The
+      // "deselect all" branch leaves `excludeFilters` completely alone — it only clears values
+      // the checkbox showed as selected, which by that same invariant can never include an
+      // already-excluded value.
+      setFilterState((prev) => {
+        const willSelectAll = !values.some((v) => prev.filters[key]?.has(v))
+        return {
+          filters: _toggleFilterAll(prev.filters, key, values),
+          excludeFilters: willSelectAll
+            ? _clearExcludeValues(prev.excludeFilters, key, values)
+            : prev.excludeFilters,
+        }
+      })
       setPageState(1)
     },
     setFilterValues: (key: string, values: string[], selected: boolean) => {
-      setFilters((prev) => _setFilterValues(prev, key, values, selected))
+      setFilterState((prev) => ({
+        ...prev,
+        filters: _setFilterValues(prev.filters, key, values, selected),
+      }))
       setPageState(1)
+    },
+    // Cycles a single checklist value neutral → include → exclude → neutral (see
+    // `cycleFilterValue`). Shift-range selection (`setFilterValues` above) stays include-only by
+    // design — see the docs — so a caller extending a range that should also clear a swept
+    // value's exclusion calls `clearExcludeValues` alongside it, same as `toggleFilterAll` above.
+    cycleFilterValue: (key: string, value: string) => {
+      setFilterState((prev) => _cycleFilterValue(prev.filters, prev.excludeFilters, key, value))
+      setPageState(1)
+    },
+    clearExcludeValues: (key: string, values: string[]) => {
+      setFilterState((prev) => ({
+        ...prev,
+        excludeFilters: _clearExcludeValues(prev.excludeFilters, key, values),
+      }))
     },
     setRangeFilter: (key: string, field: 'min' | 'max', value: string) => {
       setRangeFilters((prev) => ({
@@ -230,12 +277,23 @@ export function useTableState<TRow extends object>(
     moveGroup: (dragKey: string, targetKey: string, after = false) =>
       setGroupBy((prev) => _reorderColumn(prev, dragKey, targetKey, after)),
     toggleGroupCollapse: (key: string) => setCollapsedGroups((prev) => toggleCollapse(prev, key)),
-    clearColumnFilter: (key: string) => {
-      // Resets both filter shapes a column can have active — its checklist selection and its
-      // range filter — so this is a full per-column reset regardless of which kind (or both, for
-      // a date column) is actually active, not just whichever one happened to be checked first.
-      setFilters((prev) => ({ ...prev, [key]: new Set() }))
-      setRangeFilters((prev) => ({ ...prev, [key]: { min: '', max: '' } }))
+    // A column can carry an include set, an exclude set, and a range filter all at once (a date
+    // column, or any multi-value column with both an include and an exclude selection) — `kind`
+    // says which one to clear, so removing one doesn't silently drop the others too. This used to
+    // be a single unconditional "full per-column reset" (clearing every kind together), which read
+    // as an acceptable simplification back when a column could carry at most an include set *or*
+    // a range filter as alternatives — but once include/exclude became two states a column can
+    // hold at once, that stopped reading as a reset and started reading as a bug: removing one
+    // active-bar chip silently cleared a sibling chip on the same column too.
+    clearColumnFilter: (key: string, kind: 'include' | 'exclude' | 'range' = 'include') => {
+      if (kind === 'exclude')
+        setFilterState((prev) => ({
+          ...prev,
+          excludeFilters: { ...prev.excludeFilters, [key]: new Set() },
+        }))
+      else if (kind === 'range')
+        setRangeFilters((prev) => ({ ...prev, [key]: { min: '', max: '' } }))
+      else setFilterState((prev) => ({ ...prev, filters: { ...prev.filters, [key]: new Set() } }))
       setPageState(1)
     },
     setPage: (p: number) => setPageState(Math.max(1, Math.min(p, numPages))),
@@ -245,7 +303,7 @@ export function useTableState<TRow extends object>(
     },
     clearSorts: () => setSorts([]),
     clearFilters: () => {
-      setFilters({})
+      setFilterState({ filters: {}, excludeFilters: {} })
       setRangeFilters({})
       setPageState(1)
     },
@@ -259,7 +317,7 @@ export function useTableState<TRow extends object>(
     },
     clearAll: () => {
       setSorts([])
-      setFilters({})
+      setFilterState({ filters: {}, excludeFilters: {} })
       setRangeFilters({})
       setGroupBy([])
       setCollapsedGroups(new Set())
@@ -308,6 +366,9 @@ export function useTableState<TRow extends object>(
       const filterEntries = Object.entries(filters).filter(([, v]) => v.size > 0)
       if (filterEntries.length)
         view.filters = Object.fromEntries(filterEntries.map(([k, v]) => [k, [...v]]))
+      const excludeFilterEntries = Object.entries(excludeFilters).filter(([, v]) => v.size > 0)
+      if (excludeFilterEntries.length)
+        view.excludeFilters = Object.fromEntries(excludeFilterEntries.map(([k, v]) => [k, [...v]]))
       const rangeEntries = Object.entries(rangeFilters).filter(
         ([, r]) => r.min !== '' || r.max !== '',
       )
@@ -328,9 +389,14 @@ export function useTableState<TRow extends object>(
       )
       setColumnOrder(view.columnOrder?.filter((k) => columns.some((c) => c.key === k)) ?? [])
       setSorts(view.sorts ?? [])
-      setFilters(
-        Object.fromEntries(Object.entries(view.filters ?? {}).map(([k, v]) => [k, new Set(v)])),
-      )
+      setFilterState({
+        filters: Object.fromEntries(
+          Object.entries(view.filters ?? {}).map(([k, v]) => [k, new Set(v)]),
+        ),
+        excludeFilters: Object.fromEntries(
+          Object.entries(view.excludeFilters ?? {}).map(([k, v]) => [k, new Set(v)]),
+        ),
+      })
       setRangeFilters(view.rangeFilters ?? {})
       setGroupBy(view.groupBy ?? [])
       setCollapsedGroups(new Set(view.collapsedGroups ?? []))
