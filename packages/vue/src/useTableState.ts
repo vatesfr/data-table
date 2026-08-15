@@ -18,6 +18,8 @@ import {
   toggleFilter as _toggleFilter,
   toggleFilterAll as _toggleFilterAll,
   setFilterValues as _setFilterValues,
+  cycleFilterValue as _cycleFilterValue,
+  clearExcludeValues as _clearExcludeValues,
   selectRange,
   toggleGroupBy,
   toggleCollapse,
@@ -63,6 +65,10 @@ export function useTableState<TRow extends object>(
   const columnOrder = ref<string[]>([])
   const sorts = ref<SortEntry[]>([])
   const filters = ref<Record<string, Set<string>>>({})
+  // "Not one of these values" filters for multi-value columns — see `cycleFilterValue`. Kept as
+  // a separate Set per column, mutually exclusive with `filters` (a value is never in both at
+  // once) by `cycleFilterValue`/`clearExcludeValues`.
+  const excludeFilters = ref<Record<string, Set<string>>>({})
   const rangeFilters = ref<Record<string, RangeFilter>>({})
   const groupBy = ref<string[]>([])
   const collapsedGroups = ref<Set<string>>(new Set())
@@ -84,6 +90,7 @@ export function useTableState<TRow extends object>(
       sorts.value,
       columns.value,
       L.value.emptyValue,
+      excludeFilters.value,
     ),
   )
 
@@ -132,7 +139,9 @@ export function useTableState<TRow extends object>(
 
   const orderedColumns = computed(() => getOrderedColumns(columns.value, columnOrder.value))
 
-  const activeFilterCount = computed(() => countActiveFilters(filters.value, rangeFilters.value))
+  const activeFilterCount = computed(() =>
+    countActiveFilters(filters.value, rangeFilters.value, excludeFilters.value),
+  )
 
   const selectedRows = computed(() => processedData.value.filter((r) => selection.value.has(r)))
 
@@ -143,6 +152,7 @@ export function useTableState<TRow extends object>(
     columnOrder,
     sorts,
     filters,
+    excludeFilters,
     rangeFilters,
     groupBy,
     collapsedGroups,
@@ -206,12 +216,35 @@ export function useTableState<TRow extends object>(
       page.value = 1
     },
     toggleFilterAll: (key: string, values: string[]) => {
+      // The master checkbox's own checked/indeterminate state reflects `filters` only (no visual
+      // concept of exclusion) — so only the "select all ON" branch should ever touch
+      // `excludeFilters`, and only because it must: every listed value is about to become
+      // included, and a value can't be in both sets at once (see `cycleFilterValue`). The
+      // "deselect all" branch leaves `excludeFilters` completely alone — it only clears values
+      // the checkbox showed as selected, which by that same invariant can never include an
+      // already-excluded value.
+      const willSelectAll = !values.some((v) => filters.value[key]?.has(v))
       filters.value = _toggleFilterAll(filters.value, key, values)
+      if (willSelectAll)
+        excludeFilters.value = _clearExcludeValues(excludeFilters.value, key, values)
       page.value = 1
     },
     setFilterValues: (key: string, values: string[], selected: boolean) => {
       filters.value = _setFilterValues(filters.value, key, values, selected)
       page.value = 1
+    },
+    // Cycles a single checklist value neutral → include → exclude → neutral (see
+    // `cycleFilterValue`). Shift-range selection (`setFilterValues` above) stays include-only by
+    // design — see the docs — so a caller extending a range that should also clear a swept
+    // value's exclusion calls `clearExcludeValues` alongside it, same as `toggleFilterAll` above.
+    cycleFilterValue: (key: string, value: string) => {
+      const next = _cycleFilterValue(filters.value, excludeFilters.value, key, value)
+      filters.value = next.filters
+      excludeFilters.value = next.excludeFilters
+      page.value = 1
+    },
+    clearExcludeValues: (key: string, values: string[]) => {
+      excludeFilters.value = _clearExcludeValues(excludeFilters.value, key, values)
     },
     setRangeFilter: (key: string, field: 'min' | 'max', value: string) => {
       rangeFilters.value = {
@@ -224,12 +257,19 @@ export function useTableState<TRow extends object>(
       }
       page.value = 1
     },
-    clearColumnFilter: (key: string) => {
-      // Resets both filter shapes a column can have active — its checklist selection and its
-      // range filter — so this is a full per-column reset regardless of which kind (or both, for
-      // a date column) is actually active, not just whichever one happened to be checked first.
-      filters.value = { ...filters.value, [key]: new Set() }
-      rangeFilters.value = { ...rangeFilters.value, [key]: { min: '', max: '' } }
+    // A column can carry an include set, an exclude set, and a range filter all at once (a date
+    // column, or any multi-value column with both an include and an exclude selection) — `kind`
+    // says which one to clear, so removing one doesn't silently drop the others too. This used to
+    // be a single unconditional "full per-column reset" (clearing every kind together), which read
+    // as an acceptable simplification back when a column could carry at most an include set *or*
+    // a range filter as alternatives — but once include/exclude became two states a column can
+    // hold at once, that stopped reading as a reset and started reading as a bug: removing one
+    // active-bar chip silently cleared a sibling chip on the same column too.
+    clearColumnFilter: (key: string, kind: 'include' | 'exclude' | 'range' = 'include') => {
+      if (kind === 'exclude') excludeFilters.value = { ...excludeFilters.value, [key]: new Set() }
+      else if (kind === 'range')
+        rangeFilters.value = { ...rangeFilters.value, [key]: { min: '', max: '' } }
+      else filters.value = { ...filters.value, [key]: new Set() }
       page.value = 1
     },
     setPage: (p: number) => {
@@ -259,6 +299,7 @@ export function useTableState<TRow extends object>(
     },
     clearFilters: () => {
       filters.value = {}
+      excludeFilters.value = {}
       rangeFilters.value = {}
       page.value = 1
     },
@@ -273,6 +314,7 @@ export function useTableState<TRow extends object>(
     clearAll: () => {
       sorts.value = []
       filters.value = {}
+      excludeFilters.value = {}
       rangeFilters.value = {}
       groupBy.value = []
       collapsedGroups.value = new Set()
@@ -318,6 +360,11 @@ export function useTableState<TRow extends object>(
       const filterEntries = Object.entries(filters.value).filter(([, v]) => v.size > 0)
       if (filterEntries.length)
         view.filters = Object.fromEntries(filterEntries.map(([k, v]) => [k, [...v]]))
+      const excludeFilterEntries = Object.entries(excludeFilters.value).filter(
+        ([, v]) => v.size > 0,
+      )
+      if (excludeFilterEntries.length)
+        view.excludeFilters = Object.fromEntries(excludeFilterEntries.map(([k, v]) => [k, [...v]]))
       const rangeEntries = Object.entries(rangeFilters.value).filter(
         ([, r]) => r.min !== '' || r.max !== '',
       )
@@ -339,6 +386,9 @@ export function useTableState<TRow extends object>(
       sorts.value = view.sorts ?? []
       filters.value = Object.fromEntries(
         Object.entries(view.filters ?? {}).map(([k, v]) => [k, new Set(v)]),
+      )
+      excludeFilters.value = Object.fromEntries(
+        Object.entries(view.excludeFilters ?? {}).map(([k, v]) => [k, new Set(v)]),
       )
       rangeFilters.value = view.rangeFilters ?? {}
       groupBy.value = view.groupBy ?? []
