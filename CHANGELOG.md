@@ -7,6 +7,34 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-08-15
+
+### Added
+
+- Columns/Sort/Group/Filter dropdowns gained a search box to narrow long column lists, roving Up/Down/Home/End keyboard navigation in visual order, Escape-to-clear-then-close, and focus-follows-open. The Filter dropdown's left column pane and right detail pane are now keyboard-navigable together (Left/Right crosses between them), and its column list behaves like a listbox (focus alone selects, no separate activation step)
+- Active-bar chips (sort/group/filter) are now actionable, not just removable: a sort chip toggles direction in place, a group chip opens the Group dropdown focused on that entry, and a filter chip opens the Filter dropdown focused on that column
+- Numeric/date range filter's min/max inputs now default to the column's actual data bounds instead of sitting blank, matching the adjacent slider's own default
+- Exclude filters: a checklist value for a multi-value column (tags) can now mean "rows without this", not just "rows with this" — click cycles a value neutral → include → exclude → neutral, rendered as a native tri-state checkbox. `TableViewState.excludeFilters` persists/shares alongside `filters`
+- `ColumnDefBase.defaultSortDir` — a column can opt into descending as the starting direction for a fresh sort (e.g. a "last modified" date or a score column), instead of always starting ascending
+- `ColumnDefBase.defaultValueSort` — a column's filter checklist/date-tree can default to a sort order other than alpha-ascending (e.g. most-common-first for a tag column, most-recent-first for a date column's tree)
+- Vanilla: `DataTableInstance.getSelection()`/`setSelection()`/`clearSelection()` give imperative access to selection, matching what React/Vue already exposed reactively via `table.selection`/`table.clearSelection()`
+
+### Fixed
+
+- `calcTotalPages`/`paginateData` (core) now guard against a non-finite `page`/`pageSize` (e.g. an unvalidated input forwarded to `setPageSize`), which previously collapsed the table to a silently empty page instead of falling back sanely; React/Vue's `setPage`/`setPageSize` also now no-op on non-finite input rather than storing it
+- `@vates/data-table-core`'s main entry no longer re-exports vanilla-only theme internals (`LIGHT_THEME`/`DARK_THEME`/`renderThemeCss`) that had no relevance to React/Vue consumers — still reachable via the `@vates/data-table-core/theme` sub-path, same pattern as `/locales`
+
+### Removed
+
+- **BREAKING:** `Badge`/`ScoreBar` (React/Vue) and `createScoreBar`/`ScoreBarOptions` (vanilla) are no longer exported from the published packages — they were demo-only presentational components with no theming/accessibility contract. Copy the component from `demo/*/src/components` if you were using it
+- **BREAKING:** `toggleFilter` (core export, and `TableState.toggleFilter` in React/Vue) is removed — it was dead in every adapter's own UI code and unsafe to call directly (it never kept the `excludeFilters` invariant in sync). Use `cycleFilterValue` instead
+
+### Changed
+
+- **BREAKING:** `useTableState` in `@vates/data-table-react` now takes a 3rd `options` object (`{ defaultVisibleColumns?, labels?, defaultPageSize?, defaultGroupsCollapsed? }`) instead of 4 trailing positional parameters, matching Vue's existing shape. Replace `useTableState(data, columns, visible, labels, pageSize, collapsed)` with `useTableState(data, columns, { defaultVisibleColumns: visible, labels, defaultPageSize: pageSize, defaultGroupsCollapsed: collapsed })`
+- **BREAKING:** core's `setSort` export (and `TableState.setSort` in React/Vue) is renamed `replaceSort` for clarity, since `setSort`/`toggleSort`/`appendOrToggleSort` sounded like near-synonyms despite very different effects. Same signature and behavior, pure rename
+- `rowKey` (React/Vue/vanilla) is now documented as a rendering-identity hint only (React `key`/Vue `:key`/vanilla DOM key), not a selection identifier — selection has always been tracked by object identity regardless of `rowKey`. Docs only, no behavior change
+
 ## [0.7.0] - 2026-08-14
 
 ### Added
