@@ -364,9 +364,12 @@ describe('DataTable — filter dropdown', () => {
     fireEvent.click(scoreItem)
     fireEvent.change(getByPlaceholderText('Min'), { target: { value: '80' } })
     expect(container.querySelectorAll('tbody tr')).toHaveLength(1) // only Alice (90)
+    // The × is now a real <button> (a sibling of the chip's own body button, not nested inside
+    // it — a <button> can't contain another interactive element) — see "Active-bar chip click
+    // actions".
     const chipX = [...container.querySelectorAll('span')]
       .find((el) => el.textContent?.trim().startsWith('Score: 80'))!
-      .querySelector('span')!
+      .querySelector('button:last-child')!
     fireEvent.click(chipX)
     expect((getByPlaceholderText('Min') as HTMLInputElement).value).toBe('')
     expect(container.querySelectorAll('tbody tr')).toHaveLength(2)
@@ -758,9 +761,11 @@ describe('DataTable — date filter tree', () => {
     fireEvent.click(getByText('Filter'))
     fireEvent.change(getByLabelText('Min'), { target: { value: '2022-01-01' } })
     expect(queryByText('2021')).toBeNull()
+    // The × is now a real <button>, a sibling of the chip's own body button — see
+    // "Active-bar chip click actions".
     const chipX = [...container.querySelectorAll('span')]
       .find((el) => el.textContent?.trim().startsWith('Released: 2022-01-01'))!
-      .querySelector('span')!
+      .querySelector('button:last-child')!
     fireEvent.click(chipX)
     expect(getByText('2021')).toBeTruthy()
     expect(container.querySelectorAll('tbody tr')).toHaveLength(3)

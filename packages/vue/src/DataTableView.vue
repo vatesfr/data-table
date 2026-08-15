@@ -1,5 +1,5 @@
 <script setup lang="ts" generic="TRow extends object">
-import { computed, ref, shallowRef, watch, useSlots, getCurrentInstance } from 'vue'
+import { computed, ref, shallowRef, watch, nextTick, useSlots, getCurrentInstance } from 'vue'
 import {
   computeAggregate,
   computeStringValueCounts,
@@ -325,6 +325,34 @@ const FILTER_LIST_VIEWPORT_HEIGHT = 260
 
 const filterableCols = computed(() => props.columns.filter((c) => c.filterable !== false))
 const groupableCols = computed(() => props.columns.filter((c) => c.groupable === true))
+// Narrows the *column list* itself in the Columns/Sort/Group dropdowns and the Filter dropdown's
+// left column pane — a completely separate concern from `filterSearchTerms` below, which narrows
+// one column's *values* in the Filter dropdown's right detail pane. Keyed by dropdown id
+// ('cols'/'sort'/'group'/'filter'), same category of ephemeral UI state as `filterActiveCol`.
+const ddSearchTerms = ref<Record<string, string>>({})
+function ddSearchTerm(dd: string): string {
+  return ddSearchTerms.value[dd] ?? ''
+}
+function setDdSearchTerm(dd: string, term: string): void {
+  ddSearchTerms.value = { ...ddSearchTerms.value, [dd]: term }
+}
+// The Columns dropdown keeps `orderedColumns`'s real table/drag order unchanged — it doubles as
+// the drag-to-reorder surface, so alphabetizing would conflict with that order's own meaning.
+const searchedOrderedColumns = computed(() => {
+  const term = ddSearchTerm('cols').trim().toLowerCase()
+  return term
+    ? orderedColumns.value.filter((c) => c.label.toLowerCase().includes(term))
+    : orderedColumns.value
+})
+// The Filter dropdown's left column pane has no reorder concept of its own, so — like Sort/Group's
+// addable lists below — it's alphabetized to make a long list easier to scan.
+const searchedFilterableCols = computed(() => {
+  const term = ddSearchTerm('filter').trim().toLowerCase()
+  const list = term
+    ? filterableCols.value.filter((c) => c.label.toLowerCase().includes(term))
+    : filterableCols.value
+  return list.slice().sort((a, b) => a.label.localeCompare(b.label))
+})
 const filterActiveCol = ref<string | null>(null)
 const filterSearchTerms = ref<Record<string, string>>({})
 const filterSelectionAnchor = ref<Record<string, string>>({})
@@ -481,6 +509,34 @@ const filterListVirtualRange = computed(() =>
 )
 function selectFilterCol(key: string): void {
   filterActiveCol.value = key
+}
+// The left column pane behaves like a listbox/radiogroup rather than needing a separate
+// Enter/Space "activate" step — moving focus onto a column button by *any* means (Tab, the
+// arrow-key nav below, or a click, which focuses the button natively before its own @click even
+// runs) immediately shows that column's detail pane. Unlike vanilla (which has to explicitly
+// re-render + refocus a brand-new DOM node on every switch, since its whole panel is rebuilt via
+// innerHTML), Vue's reconciliation keeps this same button element in place across the reactive
+// update, so no refocus step is needed here at all.
+function onFilterColFocus(key: string): void {
+  if (key === filterActiveKey.value) return
+  filterActiveCol.value = key
+}
+const filterColRefs = new Map<string, HTMLElement>()
+function setFilterColRef(key: string, el: Element | null): void {
+  if (el) filterColRefs.set(key, el as HTMLElement)
+  else filterColRefs.delete(key)
+}
+// Active-bar filter chip body (see "Active-bar chip click actions"): opens the Filter dropdown
+// straight to that column's detail pane, instead of requiring the dropdown to be reopened and the
+// column re-found in the left list. `filterActiveCol` is set directly here (rather than relying
+// solely on `onFilterColFocus`'s focus-follows-selection) so the right pane already shows the
+// right thing on the very first render, before focus even lands on the button.
+async function onOpenFilterCol(key: string): Promise<void> {
+  filterDropdownRef.value?.open()
+  filterActiveCol.value = key
+  filterListScrollTop.value = 0
+  await nextTick()
+  filterColRefs.get(key)?.focus()
 }
 function setFilterSearchTerm(key: string, term: string): void {
   filterSearchTerms.value = { ...filterSearchTerms.value, [key]: term }
@@ -640,6 +696,84 @@ const addableSortCols = computed(() => props.columns.filter((c) => getSortIndex(
 const addableGroupCols = computed(() =>
   groupableCols.value.filter((c) => !groupBy.value.includes(c.key)),
 )
+// Search narrows each addable list only — the active-entries section above keeps its own
+// priority order and is never hidden by a search term, since it's a short, already-visible list
+// with its own remove/reorder controls. The addable list itself carries no ordering meaning (none
+// of these are sorted/grouped yet), so it's alphabetized instead of raw column-definition order.
+const searchedAddableSortCols = computed(() => {
+  const term = ddSearchTerm('sort').trim().toLowerCase()
+  const list = term
+    ? addableSortCols.value.filter((c) => c.label.toLowerCase().includes(term))
+    : addableSortCols.value
+  return list.slice().sort((a, b) => a.label.localeCompare(b.label))
+})
+const searchedAddableGroupCols = computed(() => {
+  const term = ddSearchTerm('group').trim().toLowerCase()
+  const list = term
+    ? addableGroupCols.value.filter((c) => c.label.toLowerCase().includes(term))
+    : addableGroupCols.value
+  return list.slice().sort((a, b) => a.label.localeCompare(b.label))
+})
+
+// Activating an addable Sort/Group column (or removing an active one) moves its row into a
+// *different* v-for list — Vue's keyed reconciliation can't preserve focus across that (the
+// element that had focus is genuinely removed, a structurally new one takes its place elsewhere),
+// so each side is refocused explicitly via a ref map, mirroring vanilla's identical fix.
+const sortRowRefs = new Map<string, HTMLElement>()
+const addableSortRefs = new Map<string, HTMLElement>()
+function setSortRowRef(key: string, el: Element | null): void {
+  if (el) sortRowRefs.set(key, el as HTMLElement)
+  else sortRowRefs.delete(key)
+}
+function setAddableSortRef(key: string, el: Element | null): void {
+  if (el) addableSortRefs.set(key, el as HTMLElement)
+  else addableSortRefs.delete(key)
+}
+async function onAddSort(key: string): Promise<void> {
+  toggleSort(key)
+  await nextTick()
+  sortRowRefs.get(key)?.focus()
+}
+async function onRemoveSortClick(key: string): Promise<void> {
+  removeSort(key)
+  await nextTick()
+  addableSortRefs.get(key)?.focus()
+}
+
+const groupRowRefs = new Map<string, HTMLElement>()
+const addableGroupRefs = new Map<string, HTMLElement>()
+function setGroupRowRef(key: string, el: Element | null): void {
+  if (el) groupRowRefs.set(key, el as HTMLElement)
+  else groupRowRefs.delete(key)
+}
+function setAddableGroupRef(key: string, el: Element | null): void {
+  if (el) addableGroupRefs.set(key, el as HTMLElement)
+  else addableGroupRefs.delete(key)
+}
+async function onAddGroup(key: string): Promise<void> {
+  toggleGroup(key)
+  await nextTick()
+  groupRowRefs.get(key)?.focus()
+}
+async function onRemoveGroupClick(key: string): Promise<void> {
+  removeGroup(key)
+  await nextTick()
+  addableGroupRefs.get(key)?.focus()
+}
+
+// Active-bar group chip body (see "Active-bar chip click actions"): opens the Group dropdown and
+// focuses that entry's row. There's no single obvious inline toggle for a group entry the way
+// direction is for a sort chip (the sort chip's body just calls toggleSortDir directly in the
+// template — Vue's keyed reconciliation keeps that same <button> in place across the re-render,
+// so it needs no explicit refocus at all, unlike this one), so opening the dropdown straight to
+// it is the most useful available action. `groupDropdownRef` is read from plain script here (not
+// a template expression), so — unlike the inline `@keydown` handlers wired directly in the
+// template — `.value` is needed (see the comment on onDropdownKeydown's own `dropdown` param).
+async function onOpenGroupEntry(key: string): Promise<void> {
+  groupDropdownRef.value?.open()
+  await nextTick()
+  groupRowRefs.get(key)?.focus()
+}
 
 /**
  * Resolves the drop target for the Sort/Group/Columns dropdown drag-and-drop lists below: the
@@ -796,6 +930,244 @@ function clearSearchQuery(): void {
   setSearchQuery('')
   searchInputRef.value?.focus()
 }
+
+// ── Dropdown column search + keyboard navigation ──
+// Refs to each dropdown's own component instance, so Escape (see onDropdownKeydown below) can
+// close it and refocus its trigger button without hoisting `isOpen` out of Dropdown.vue itself.
+const colsDropdownRef = ref<InstanceType<typeof Dropdown> | null>(null)
+const sortDropdownRef = ref<InstanceType<typeof Dropdown> | null>(null)
+const groupDropdownRef = ref<InstanceType<typeof Dropdown> | null>(null)
+const filterDropdownRef = ref<InstanceType<typeof Dropdown> | null>(null)
+
+// The row-list selector shared by the Columns/Sort/Group dropdowns and the Filter dropdown's own
+// left column pane. `button.dt__dd-item--clickable` (not just `.dt__dd-item--clickable`) is
+// deliberately tag-scoped — that class is also used by the Columns row's inner <label> and by the
+// Filter value-checklist's row <label>s, both of which must NOT be swept up here: the Columns
+// checkbox is already reached via `.dt__dd-item--colrow`'s own descendant lookup below, and the
+// checklist has its own separate, differently-scoped nav in onFilterDropdownKeydown.
+const DD_ROW_SELECTOR =
+  '.dt__dd-item--colrow, .dt__dd-item--sortrow, .dt__dd-item--grouprow, button.dt__dd-item--clickable, .dt__filter-col-item'
+
+/**
+ * Roving Up/Down/Home/End across a dropdown row list (search input + rows), in actual DOM/visual
+ * order — not the search input pinned to the front, which would misorder Sort/Group (whose
+ * active-entries section renders *above* the search box: active → search → addable, not
+ * "search → active → addable"). Returns whether it handled (and preventDefault'd) the key.
+ */
+function handleRovingListKeydown(event: KeyboardEvent, root: HTMLElement): boolean {
+  if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return false
+  const navEls = Array.from(
+    root.querySelectorAll<HTMLElement>(`input[data-dd-search], ${DD_ROW_SELECTOR}`),
+  )
+  // Each element's own focusable target: the search input, a real <button>, or an explicit
+  // tabindex="0" div is used directly (sortrow/grouprow/add-buttons/filter-col buttons); a colrow
+  // div has neither (its checkbox is the actual Tab stop) so its first focusable descendant is
+  // used instead.
+  const all = navEls
+    .map((el) =>
+      el.matches('input, button, [tabindex]')
+        ? el
+        : el.querySelector<HTMLElement>('input, button, [tabindex]'),
+    )
+    .filter((el): el is HTMLElement => el !== null)
+  const rows = all.filter((el) => !el.hasAttribute('data-dd-search'))
+  const active = document.activeElement as HTMLElement | null
+  if (!active || all.indexOf(active) === -1) return false
+  let target: HTMLElement | undefined
+  if (event.key === 'Home' || event.key === 'End') {
+    if (rows.length === 0) return false
+    target = event.key === 'Home' ? rows[0] : rows[rows.length - 1]
+  } else {
+    const idx = all.indexOf(active)
+    const nextIdx = event.key === 'ArrowDown' ? idx + 1 : idx - 1
+    if (nextIdx < 0 || nextIdx >= all.length) return false
+    target = all[nextIdx]
+  }
+  event.preventDefault()
+  // If `target` is a `.dt__filter-col-item`, focusing it fires `onFilterColFocus` (bound in the
+  // template), which is what actually shows its detail pane — see the comment there.
+  target.focus()
+  return true
+}
+
+/**
+ * Escape (clear a non-empty column-search term first, then close on a second press) + the roving
+ * row-list nav above, shared by the Columns/Sort/Group dropdowns' panels and — via
+ * onFilterDropdownKeydown below — the Filter dropdown's own left column pane.
+ */
+function onDropdownKeydown(
+  dd: string,
+  // Note: no `.value` here — this is called from an inline template handler
+  // (`(e) => onDropdownKeydown('cols', colsDropdownRef, e)`), and Vue's <script setup> template
+  // compiler auto-unwraps a top-level ref referenced in the template, so what actually arrives
+  // here is already the Dropdown instance (or null), not the Ref wrapper around it.
+  dropdown: InstanceType<typeof Dropdown> | null,
+  event: KeyboardEvent,
+): void {
+  if (event.altKey) return
+  const menu = event.currentTarget as HTMLElement
+  if (event.key === 'Escape') {
+    event.preventDefault()
+    if (ddSearchTerm(dd) !== '') {
+      setDdSearchTerm(dd, '')
+      return
+    }
+    if (dd === 'filter' && filterDetailCol.value) {
+      const valueSearchTerm = filterSearchTerms.value[filterDetailCol.value.key] ?? ''
+      if (valueSearchTerm !== '') {
+        setFilterSearchTerm(filterDetailCol.value.key, '')
+        return
+      }
+    }
+    dropdown?.close()
+    dropdown?.focusTrigger()
+    return
+  }
+  // The Filter dropdown's left pane lives inside a bigger panel that also contains the right
+  // detail pane — scope the row query to just `.dt__filter-cols` so `DD_ROW_SELECTOR` (which
+  // includes `.dt__filter-col-item`) can't also sweep up anything from the right pane.
+  const root =
+    dd === 'filter' ? (menu.querySelector<HTMLElement>('.dt__filter-cols') ?? menu) : menu
+  handleRovingListKeydown(event, root)
+}
+
+const FILTER_LIST_VIRTUAL_ITEM_HEIGHT = FILTER_LIST_ITEM_HEIGHT
+
+/**
+ * Filter dropdown only: Left/Right crosses between the left column pane and the right detail
+ * pane, and the right pane's own rows (value checklist / date tree) get the same Up/Down/Home/End
+ * nav as every other dropdown's row list. Falls through to onDropdownKeydown (Escape + the left
+ * pane's own roving nav) for everything this doesn't handle itself.
+ */
+async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
+  if (!event.altKey) {
+    const targetEl = event.target as HTMLElement
+    const filterColBtn = targetEl.closest<HTMLElement>('.dt__filter-col-item')
+    const filterDetail = targetEl.closest<HTMLElement>('.dt__filter-detail')
+
+    if (filterColBtn && event.key === 'ArrowRight') {
+      event.preventDefault()
+      const menu = event.currentTarget as HTMLElement
+      menu
+        .querySelector<HTMLElement>('.dt__filter-detail input, .dt__filter-detail button')
+        ?.focus()
+      return
+    }
+
+    if (filterDetail && event.key === 'ArrowLeft') {
+      const active = document.activeElement
+      // Never hijack Left on an actual text/value-editing control — the value-search box, the
+      // numeric/date range inputs, or a range-slider thumb (all <input> types other than
+      // checkbox) — which all need their native cursor/value behavior. Every other control here
+      // (checklist/date-tree checkboxes, select-all, the sort-order button) has no use for a bare
+      // Left, so it's free to reuse.
+      const isEditable = active instanceof HTMLInputElement && active.type !== 'checkbox'
+      if (!isEditable) {
+        event.preventDefault()
+        const menu = event.currentTarget as HTMLElement
+        menu.querySelector<HTMLElement>('.dt__filter-col-item--active')?.focus()
+        return
+      }
+    }
+
+    if (filterDetail && ['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
+      // Only the value-search box joins the vertical Up/Down chain, mirroring every other
+      // dropdown's "search input, then rows" pattern — the select-all checkbox and sort-order
+      // button sit beside it on the *same* row (.dt__filter-search-row), not above the rows, so
+      // stepping through all three before reaching the list wouldn't visually correspond to
+      // "down". They stay reachable via Tab/click as before.
+      const headerControls = Array.from(
+        filterDetail.querySelectorAll<HTMLElement>('input.dt__dd-search'),
+      )
+      const rowInputs = Array.from(
+        filterDetail.querySelectorAll<HTMLInputElement>(
+          '.dt__dd-item input[type="checkbox"], .dt__date-tree-item input[type="checkbox"]',
+        ),
+      )
+      const focusables = [...headerControls, ...rowInputs]
+      const active = document.activeElement as HTMLElement | null
+      if (!active || focusables.indexOf(active) === -1) return
+
+      // The flat checklist is virtualized — only a scrolled-into-view window of rows actually
+      // exists in the DOM at any moment (see filterListVirtualRange), so crossing out of that
+      // window (or Home/End, which must reach the *logical* first/last value, not just whatever's
+      // currently rendered) needs to adjust the scroll state first. Unlike vanilla (which has to
+      // manually patch the checklist's innerHTML in the same step, since nothing there is
+      // reactive), this just writes filterListScrollTop and awaits Vue's own reactive re-render —
+      // the `v-for`/computeVirtualRange slice picks up the new window on its own.
+      const checklistEl = filterDetail.querySelector<HTMLElement>('.dt__filter-list')
+      if (checklistEl && filterDetailCol.value) {
+        const values = filterDetailValues.value
+        const activeValue =
+          active instanceof HTMLInputElement && rowInputs.includes(active)
+            ? active.dataset.value
+            : undefined
+        let targetIdx: number | null = null
+        if (event.key === 'Home') targetIdx = 0
+        else if (event.key === 'End') targetIdx = values.length - 1
+        else if (activeValue !== undefined) {
+          const curIdx = values.indexOf(activeValue)
+          targetIdx = event.key === 'ArrowDown' ? curIdx + 1 : curIdx - 1
+        }
+        if (targetIdx !== null) {
+          // Falls through to the plain header-control nav below in two cases: moving Up out of
+          // the checklist's very first row (there's no row above it — the previous stop is a
+          // header control instead), and Home/End on an empty list.
+          const fallsThrough = targetIdx < 0 && event.key === 'ArrowUp' && activeValue !== undefined
+          if (!fallsThrough) {
+            if (targetIdx < 0 || targetIdx >= values.length) {
+              event.preventDefault()
+              return
+            }
+            event.preventDefault()
+            const rowTop = targetIdx * FILTER_LIST_VIRTUAL_ITEM_HEIGHT
+            let newScrollTop = filterListScrollTop.value
+            if (rowTop < newScrollTop) newScrollTop = rowTop
+            else if (
+              rowTop + FILTER_LIST_VIRTUAL_ITEM_HEIGHT >
+              newScrollTop + FILTER_LIST_VIEWPORT_HEIGHT
+            ) {
+              newScrollTop = rowTop + FILTER_LIST_VIRTUAL_ITEM_HEIGHT - FILTER_LIST_VIEWPORT_HEIGHT
+            }
+            newScrollTop = Math.max(0, newScrollTop)
+            filterListScrollTop.value = newScrollTop
+            if (filterListRef.value) filterListRef.value.scrollTop = newScrollTop
+            const targetValue = values[targetIdx]
+            await nextTick()
+            for (const cb of checklistEl.querySelectorAll<HTMLInputElement>(
+              'input[type="checkbox"]',
+            )) {
+              if (cb.dataset.value === targetValue) {
+                cb.focus()
+                break
+              }
+            }
+            return
+          }
+        }
+      }
+
+      // Plain DOM-order nav: the header control (value-search), date-tree rows, and — via the
+      // fallthrough above — moving out of the checklist's first row back into the header control.
+      if (event.key === 'Home' || event.key === 'End') {
+        if (rowInputs.length === 0) return
+        event.preventDefault()
+        ;(event.key === 'Home' ? rowInputs[0] : rowInputs[rowInputs.length - 1]).focus()
+        return
+      }
+      const idx = focusables.indexOf(active)
+      const nextIdx = event.key === 'ArrowDown' ? idx + 1 : idx - 1
+      if (nextIdx < 0 || nextIdx >= focusables.length) return
+      event.preventDefault()
+      focusables[nextIdx].focus()
+      return
+    }
+  }
+  // Called from plain script (not a template expression), so — unlike the inline template
+  // handlers wired to onDropdownKeydown directly (`(e) => onDropdownKeydown('cols', ...)`, where
+  // Vue's <script setup> auto-unwrap already resolves the ref) — `.value` is needed here.
+  onDropdownKeydown('filter', filterDropdownRef.value, event)
+}
 </script>
 
 <template>
@@ -804,17 +1176,38 @@ function clearSearchQuery(): void {
     <div class="dt__toolbar">
       <div class="dt__toolbar-actions">
         <!-- Columns -->
-        <Dropdown @dragover="onColRowsDragOver" @drop="onColRowsDrop">
+        <Dropdown
+          ref="colsDropdownRef"
+          @dragover="onColRowsDragOver"
+          @drop="onColRowsDrop"
+          @keydown="(e: KeyboardEvent) => onDropdownKeydown('cols', colsDropdownRef, e)"
+        >
           <template #trigger="{ open }">
             <ToolbarBtn :active="open">{{ L.columns }}</ToolbarBtn>
           </template>
+          <!--
+            Search box narrows the list below by label — see `ddSearchTerms`. Ordering itself is
+            left untouched (still `orderedColumns`, i.e. real table column order): this list also
+            doubles as the drag-to-reorder surface, so its order carries meaning no
+            alphabetization should disturb.
+          -->
+          <div class="dt__dd-search-row">
+            <input
+              type="text"
+              class="dt__dd-search"
+              data-dd-search
+              :placeholder="L.filterSearchPlaceholder"
+              :value="ddSearchTerm('cols')"
+              @input="setDdSearchTerm('cols', ($event.target as HTMLInputElement).value)"
+            />
+          </div>
           <div class="dt__dd-section">{{ L.columnsSection }}</div>
           <!--
             @dragover/@drop are handled at the Dropdown panel level (see above), not per-row —
             that's what lets a drop past the last row still resolve to a valid target.
           -->
           <div
-            v-for="col in orderedColumns"
+            v-for="col in searchedOrderedColumns"
             :key="col.key"
             :data-col-row-key="col.key"
             class="dt__dd-item dt__dd-item--col dt__dd-item--colrow"
@@ -840,7 +1233,12 @@ function clearSearchQuery(): void {
         </Dropdown>
 
         <!-- Sort -->
-        <Dropdown @dragover="onSortRowsDragOver" @drop="onSortRowsDrop">
+        <Dropdown
+          ref="sortDropdownRef"
+          @dragover="onSortRowsDragOver"
+          @drop="onSortRowsDrop"
+          @keydown="(e: KeyboardEvent) => onDropdownKeydown('sort', sortDropdownRef, e)"
+        >
           <template #trigger="{ open }">
             <ToolbarBtn :active="open || sorts.length > 0" :grouped="sorts.length > 0">
               {{ L.sort }}
@@ -878,6 +1276,7 @@ function clearSearchQuery(): void {
             <div
               v-for="(entry, i) in sorts"
               :key="entry.key"
+              :ref="(el) => setSortRowRef(entry.key, el as Element | null)"
               :data-sort-key="entry.key"
               class="dt__dd-item dt__dd-item--col dt__dd-item--sortrow"
               :class="{
@@ -899,13 +1298,29 @@ function clearSearchQuery(): void {
                 type="button"
                 class="dt__item-remove"
                 draggable="false"
-                @click.stop="removeSort(entry.key)"
+                @click.stop="onRemoveSortClick(entry.key)"
               >
                 ×
               </button>
             </div>
           </template>
           <template v-if="addableSortCols.length > 0">
+            <!--
+              Search box narrows this "add" list only — the active-sorts section above keeps its
+              own priority order and is never hidden by it. The add list itself carries no
+              ordering meaning (none of these are sorted yet), so it's alphabetized by label
+              instead of raw column-definition order, to make scanning a long list easier.
+            -->
+            <div class="dt__dd-search-row">
+              <input
+                type="text"
+                class="dt__dd-search"
+                data-dd-search
+                :placeholder="L.filterSearchPlaceholder"
+                :value="ddSearchTerm('sort')"
+                @input="setDdSearchTerm('sort', ($event.target as HTMLInputElement).value)"
+              />
+            </div>
             <div class="dt__dd-section">{{ L.sortSection }}</div>
             <!--
               A real <button> (not a div) so it's a native Tab stop and Enter/Space "click" it
@@ -913,11 +1328,12 @@ function clearSearchQuery(): void {
               (which need custom keyboard handling anyway for Alt+↑/↓ reorder).
             -->
             <button
-              v-for="col in addableSortCols"
+              v-for="col in searchedAddableSortCols"
               :key="col.key"
+              :ref="(el) => setAddableSortRef(col.key, el as Element | null)"
               type="button"
               class="dt__dd-item dt__dd-item--clickable"
-              @click="toggleSort(col.key)"
+              @click="onAddSort(col.key)"
             >
               <span class="dt__flex1">{{ col.label }}</span>
             </button>
@@ -929,8 +1345,10 @@ function clearSearchQuery(): void {
              view, Search/Filter narrow it — see the divider below. -->
         <Dropdown
           v-if="groupableCols.length > 0"
+          ref="groupDropdownRef"
           @dragover="onGroupRowsDragOver"
           @drop="onGroupRowsDrop"
+          @keydown="(e: KeyboardEvent) => onDropdownKeydown('group', groupDropdownRef, e)"
         >
           <template #trigger="{ open }">
             <ToolbarBtn :active="open || groupBy.length > 0" :grouped="groupBy.length > 0">
@@ -961,6 +1379,7 @@ function clearSearchQuery(): void {
             <div
               v-for="(key, i) in groupBy"
               :key="key"
+              :ref="(el) => setGroupRowRef(key, el as Element | null)"
               :data-group-key="key"
               class="dt__dd-item dt__dd-item--col dt__dd-item--grouprow"
               :class="{
@@ -980,20 +1399,32 @@ function clearSearchQuery(): void {
                 type="button"
                 class="dt__item-remove"
                 draggable="false"
-                @click="removeGroup(key)"
+                @click="onRemoveGroupClick(key)"
               >
                 ×
               </button>
             </div>
           </template>
           <template v-if="addableGroupCols.length > 0">
+            <!-- Same search + alphabetize treatment as Sort's add list above, for the same reason. -->
+            <div class="dt__dd-search-row">
+              <input
+                type="text"
+                class="dt__dd-search"
+                data-dd-search
+                :placeholder="L.filterSearchPlaceholder"
+                :value="ddSearchTerm('group')"
+                @input="setDdSearchTerm('group', ($event.target as HTMLInputElement).value)"
+              />
+            </div>
             <div class="dt__dd-section">{{ L.groupSection }}</div>
             <button
-              v-for="col in addableGroupCols"
+              v-for="col in searchedAddableGroupCols"
               :key="col.key"
+              :ref="(el) => setAddableGroupRef(col.key, el as Element | null)"
               type="button"
               class="dt__dd-item dt__dd-item--clickable"
-              @click="toggleGroup(col.key)"
+              @click="onAddGroup(col.key)"
             >
               <span class="dt__flex1">{{ col.label }}</span>
             </button>
@@ -1026,7 +1457,11 @@ function clearSearchQuery(): void {
         </span>
 
         <!-- Filter -->
-        <Dropdown v-if="filterableCols.length > 0">
+        <Dropdown
+          v-if="filterableCols.length > 0"
+          ref="filterDropdownRef"
+          @keydown="onFilterDropdownKeydown"
+        >
           <template #trigger="{ open }">
             <ToolbarBtn :active="open || activeFilterCount > 0" :grouped="activeFilterCount > 0">
               {{ L.filter }}
@@ -1047,15 +1482,36 @@ function clearSearchQuery(): void {
           <div class="dt__filter-panel">
             <div class="dt__filter-cols">
               <!--
+                Search box (sticky within this scrollable pane, see styles below) narrows the
+                column list itself — separate from `filterSearchTerms`, which narrows the
+                *values* shown in the right-hand detail pane. No inherent order to preserve here
+                (unlike the Columns dropdown, this list isn't reorderable), so it's alphabetized
+                by label rather than raw column-definition order.
+              -->
+              <input
+                type="text"
+                class="dt__dd-search dt__filter-cols-search"
+                data-dd-search
+                :placeholder="L.filterSearchPlaceholder"
+                :value="ddSearchTerm('filter')"
+                @input="setDdSearchTerm('filter', ($event.target as HTMLInputElement).value)"
+              />
+              <!--
                 A real <button> (not a div) so it's a native Tab stop and Enter/Space "click" it
                 for free — same fix as the Sort/Group add-lists above; this had the identical gap.
+                @focus is what actually drives the detail pane (see onFilterColFocus) — a
+                listbox/radiogroup-style "focus follows selection" so arrowing/Tabbing here needs
+                no separate Enter/Space "activate" step; @click stays wired too (harmlessly
+                redundant, since focusing a button on click already fires @focus first).
               -->
               <button
-                v-for="col in filterableCols"
+                v-for="col in searchedFilterableCols"
                 :key="col.key"
+                :ref="(el) => setFilterColRef(col.key, el as Element | null)"
                 type="button"
                 class="dt__filter-col-item"
                 :class="{ 'dt__filter-col-item--active': col.key === filterActiveKey }"
+                @focus="onFilterColFocus(col.key)"
                 @click="selectFilterCol(col.key)"
               >
                 <span>{{ col.label }}</span>
@@ -1223,6 +1679,7 @@ function clearSearchQuery(): void {
                           >
                             <input
                               type="checkbox"
+                              :data-value="v"
                               :checked="filters[filterDetailCol.key]?.has(v) ?? false"
                               @click="onFilterValueClick(filterDetailCol, v, $event)"
                             />
@@ -1273,20 +1730,37 @@ function clearSearchQuery(): void {
       the one deliberate color accent in this bar, since filters already carried that "this is
       narrowing your view" meaning before this change.
     -->
+    <!--
+      Each chip's body is now a real, focusable <button> (a sibling of its × remove button, not
+      nested inside it — a <button> can't contain another interactive element, the same reasoning
+      already used for the toolbar's grouped clear buttons) rather than a plain, inert <span>:
+      clicking (or Enter/Space-activating) it does something specific to that chip's own kind of
+      active state, so tweaking an already-active sort/group/filter no longer requires reopening
+      its dropdown and re-navigating to the same entry — see "Active-bar chip click actions".
+      Sort's body toggles direction in place (no dropdown needed for the single most common
+      tweak); Group's/Filter's open their dropdown straight to that entry/column, since neither
+      has an equally obvious single inline toggle the way direction is for sort.
+    -->
     <div class="dt__active-bar">
       <span v-for="entry in sorts" :key="entry.key" class="dt__chip">
-        {{ getSortIcon(entry.key) }} {{ findCol(entry.key)?.label ?? entry.key }}
-        <span class="dt__chip-remove" @click="removeSort(entry.key)">×</span>
+        <button type="button" class="dt__chip-body" @click="toggleSortDir(entry.key)">
+          {{ getSortIcon(entry.key) }} {{ findCol(entry.key)?.label ?? entry.key }}
+        </button>
+        <button type="button" class="dt__chip-remove" @click="removeSort(entry.key)">×</button>
       </span>
       <span v-for="key in groupBy" :key="key" class="dt__chip">
-        {{ findCol(key)?.label ?? key }}
-        <span class="dt__chip-remove" @click="removeGroup(key)">×</span>
+        <button type="button" class="dt__chip-body" @click="onOpenGroupEntry(key)">
+          {{ findCol(key)?.label ?? key }}
+        </button>
+        <button type="button" class="dt__chip-remove" @click="removeGroup(key)">×</button>
       </span>
       <template v-if="activeFilterCount > 0">
         <template v-for="[key, vals] in Object.entries(filters)" :key="key">
           <span v-if="vals.size > 0" class="dt__chip dt__chip--info">
-            {{ columns.find((c) => c.key === key)?.label }}: {{ summarizeFilterValues(vals) }}
-            <span class="dt__chip-remove" @click="clearColumnFilter(key)">×</span>
+            <button type="button" class="dt__chip-body" @click="onOpenFilterCol(key)">
+              {{ columns.find((c) => c.key === key)?.label }}: {{ summarizeFilterValues(vals) }}
+            </button>
+            <button type="button" class="dt__chip-remove" @click="clearColumnFilter(key)">×</button>
           </span>
         </template>
         <!-- A range filter (number or date) didn't get a chip at all before — it's a distinct
@@ -1295,8 +1769,10 @@ function clearSearchQuery(): void {
              so the × here is a full per-column reset regardless of which kind is actually active. -->
         <template v-for="[key, rf] in Object.entries(rangeFilters)" :key="`range-${key}`">
           <span v-if="rf.min !== '' || rf.max !== ''" class="dt__chip dt__chip--info">
-            {{ columns.find((c) => c.key === key)?.label }}: {{ rf.min }}–{{ rf.max }}
-            <span class="dt__chip-remove" @click="clearColumnFilter(key)">×</span>
+            <button type="button" class="dt__chip-body" @click="onOpenFilterCol(key)">
+              {{ columns.find((c) => c.key === key)?.label }}: {{ rf.min }}–{{ rf.max }}
+            </button>
+            <button type="button" class="dt__chip-remove" @click="clearColumnFilter(key)">×</button>
           </span>
         </template>
       </template>
@@ -1788,6 +2264,28 @@ function clearSearchQuery(): void {
   font-family: inherit;
   box-sizing: border-box;
 }
+/* Wraps the Columns/Sort/Group dropdowns' own column-search box — sticky within the dropdown
+   panel's own scroll (see .dropdown__menu's max-height/overflow-y in Dropdown.vue) so it stays
+   pinned at the top instead of scrolling away with the rest of the list. */
+.dt__dd-search-row {
+  position: sticky;
+  top: 0;
+  display: flex;
+  background: var(--color-background-primary);
+  padding: 6px 12px;
+  z-index: 1;
+}
+/* Same idea as .dt__dd-search-row above, but sticky within .dt__filter-cols's own scroll instead
+   (the Filter dropdown's left pane doesn't have a dedicated wrapper row the way the others do). */
+.dt__filter-cols-search {
+  position: sticky;
+  top: 0;
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 4px;
+  background: var(--color-background-primary);
+}
 .dt__filter-select-all {
   flex-shrink: 0;
   margin: 0;
@@ -1846,31 +2344,55 @@ function clearSearchQuery(): void {
   width: 118px;
 }
 
-/* Chips */
+/* Chips — .dt__chip is just a flex wrapper now; the actual padding/background/border live on
+   .dt__chip-body/.dt__chip-remove individually (each keeping only its own outer corner rounded,
+   sharing a border between them — mirroring .dt__btn-clear's grouped-button seam) so the pair
+   still reads as one pill while both halves are independently clickable/focusable buttons. */
 .dt__chip {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 2px 8px;
+  font-size: 12px;
+}
+.dt__chip-body {
   background: var(--color-background-secondary);
   border: 0.5px solid var(--color-border-secondary);
-  border-radius: 12px;
+  border-right: none;
+  border-radius: 12px 0 0 12px;
+  padding: 2px 4px 2px 8px;
   font-size: 12px;
   color: var(--color-text-secondary);
+  font-family: inherit;
+  cursor: pointer;
+  line-height: 1.4;
 }
-.dt__chip--info {
+.dt__chip-body:hover {
+  background: var(--color-background-tertiary);
+}
+.dt__chip--info .dt__chip-body,
+.dt__chip--info .dt__chip-remove {
   background: var(--color-background-info);
   color: var(--color-text-info);
   border-color: var(--color-border-info);
 }
-.dt__chip--warning {
+.dt__chip--warning .dt__chip-body,
+.dt__chip--warning .dt__chip-remove {
   background: var(--color-background-warning);
   color: var(--color-text-warning);
   border-color: var(--color-border-warning);
 }
 .dt__chip-remove {
   cursor: pointer;
-  margin-left: 2px;
+  background: var(--color-background-secondary);
+  border: 0.5px solid var(--color-border-secondary);
+  border-radius: 0 12px 12px 0;
+  padding: 2px 8px 2px 2px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  font-family: inherit;
+  line-height: 1.4;
+}
+.dt__chip-remove:hover {
+  color: var(--color-text-primary);
 }
 
 /* Pagination */

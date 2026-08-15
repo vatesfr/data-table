@@ -15,8 +15,10 @@ ${renderThemeCss()}
 .dt-btn-clear{display:inline-flex;align-items:center;padding:5px 8px;background:none;border:0.5px solid var(--color-border-secondary,#dddcd8);border-radius:0 6px 6px 0;font-size:14px;line-height:1;cursor:pointer;color:var(--color-text-tertiary,#9b9a96);font-family:inherit}
 .dt-btn-clear:hover{color:var(--color-text-primary,#1a1916)}
 .dt-dd-wrap{position:relative}
-.dt-dd{position:absolute;top:calc(100% + 4px);left:0;z-index:100;background:var(--color-background-primary,#fff);border:0.5px solid var(--color-border-secondary,#dddcd8);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.1);min-width:180px}
+.dt-dd{position:absolute;top:calc(100% + 4px);left:0;z-index:100;background:var(--color-background-primary,#fff);border:0.5px solid var(--color-border-secondary,#dddcd8);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.1);min-width:180px;max-height:420px;overflow-y:auto}
 .dt-dd--up{top:auto;bottom:calc(100% + 4px)}
+.dt-dd-search-row{position:sticky;top:0;display:flex;background:var(--color-background-primary,#fff);padding:6px 12px;z-index:1}
+.dt-filter-cols-search{position:sticky;top:0;display:block;width:100%;box-sizing:border-box;margin-bottom:4px;background:var(--color-background-primary,#fff)}
 .dt-dd-section{padding:6px 14px 2px;font-size:11px;color:var(--color-text-tertiary,#9b9a96);font-weight:500;letter-spacing:.05em;text-transform:uppercase;white-space:nowrap}
 .dt-dd-sublabel{font-size:12px;margin-bottom:4px;color:var(--color-text-secondary,#6b6a66)}
 .dt-dd-item{display:flex;align-items:center;gap:8px;padding:7px 14px;font-size:13px;color:var(--color-text-primary,#1a1916);cursor:default;border:none;background:none;font-family:inherit;text-align:left;margin:0;width:100%;box-sizing:border-box}
@@ -49,9 +51,12 @@ ${renderThemeCss()}
 .dt-range-slider-thumb::-moz-range-track{background:transparent;border:none}
 .dt-range-slider-thumb::-moz-range-thumb{pointer-events:auto;width:14px;height:14px;border-radius:50%;background:var(--color-text-info,#185fa5);border:2px solid var(--color-background-primary,#fff);box-shadow:0 0 0 1px var(--color-border-info,#b8d6f5);cursor:pointer}
 .dt-active-bar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:10px 0}
-.dt-chip{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;background:var(--color-background-secondary,#f7f6f3);border:0.5px solid var(--color-border-secondary,#dddcd8);border-radius:12px;font-size:12px;color:var(--color-text-secondary,#6b6a66)}
-.dt-chip--filter{background:var(--color-background-info,#e6f1fb);color:var(--color-text-info,#185fa5);border-color:var(--color-border-info,#b8d6f5)}
-.dt-chip-x{cursor:pointer;margin-left:2px}
+.dt-chip{display:inline-flex;align-items:center;font-size:12px}
+.dt-chip-body{background:var(--color-background-secondary,#f7f6f3);border:0.5px solid var(--color-border-secondary,#dddcd8);border-right:none;border-radius:12px 0 0 12px;padding:2px 4px 2px 8px;font-size:12px;color:var(--color-text-secondary,#6b6a66);font-family:inherit;cursor:pointer;line-height:1.4}
+.dt-chip-body:hover{background:var(--color-background-tertiary,#f1efe9)}
+.dt-chip-x{cursor:pointer;background:var(--color-background-secondary,#f7f6f3);border:0.5px solid var(--color-border-secondary,#dddcd8);border-radius:0 12px 12px 0;padding:2px 8px 2px 2px;font-size:12px;color:var(--color-text-secondary,#6b6a66);font-family:inherit;line-height:1.4}
+.dt-chip-x:hover{color:var(--color-text-primary,#1a1916)}
+.dt-chip--filter .dt-chip-body,.dt-chip--filter .dt-chip-x{background:var(--color-background-info,#e6f1fb);color:var(--color-text-info,#185fa5);border-color:var(--color-border-info,#b8d6f5)}
 .dt-table-wrap{overflow-x:auto;border:0.5px solid var(--color-border-tertiary,#eeedea);border-radius:8px;margin-top:12px}
 .dt-table{width:100%;border-collapse:collapse;font-size:13px}
 .dt-th{padding:8px 12px;text-align:left;font-weight:500;font-size:12px;background:var(--color-background-tertiary,#eae9e5);color:var(--color-text-secondary,#6b6a66);border-bottom:1px solid var(--color-border-secondary,#dddcd8);white-space:nowrap;user-select:none;cursor:pointer}

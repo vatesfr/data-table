@@ -331,6 +331,67 @@ describe('createDataTable', () => {
     expect(chips.some((c) => c.classList.contains('dt-chip--filter'))).toBe(true)
   })
 
+  // --- active-bar chip actions ---
+
+  it('clicking a sort chip toggles its direction in place, keeping focus on the chip', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('th[data-action="header-sort"][data-key="score"]')!)
+    const namesAsc = [...container.querySelectorAll('tbody tr td:nth-child(1)')].map((td) =>
+      td.textContent?.trim(),
+    )
+    expect(namesAsc).toEqual(['Bob', 'David', 'Clara', 'Alice']) // 60, 70, 80, 90 — ascending
+    const chipBody = container.querySelector<HTMLElement>(
+      '.dt-active-bar .dt-chip-body[data-action="toggle-sort-dir"][data-key="score"]',
+    )!
+    chipBody.focus()
+    click(chipBody)
+    const namesDesc = [...container.querySelectorAll('tbody tr td:nth-child(1)')].map((td) =>
+      td.textContent?.trim(),
+    )
+    expect(namesDesc).toEqual(['Alice', 'Clara', 'David', 'Bob']) // now descending
+    expect(document.activeElement).toBe(
+      container.querySelector('[data-action="toggle-sort-dir"][data-key="score"]'),
+    )
+  })
+
+  it('clicking a group chip opens the Group dropdown, focused on that entry', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="group"]')!)
+    click(container.querySelector<HTMLElement>('[data-action="toggle-group"][data-key="dept"]')!)
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="group"]')!) // close
+
+    const chipBody = container.querySelector<HTMLElement>(
+      '.dt-active-bar .dt-chip-body[data-action="open-group-entry"][data-key="dept"]',
+    )!
+    click(chipBody)
+    expect(container.querySelector('.dt-dd')).not.toBeNull()
+    expect(document.activeElement).toBe(container.querySelector('[data-group-key="dept"]'))
+  })
+
+  it("clicking a filter chip opens the Filter dropdown, focused on that column's detail pane", () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="filter"]')!)
+    click(
+      container.querySelector<HTMLElement>('[data-action="select-filter-col"][data-key="score"]')!,
+    )
+    const rangeMin = container.querySelector<HTMLInputElement>(
+      '[data-action="range-min"][data-key="score"]',
+    )!
+    setInput(rangeMin, '70')
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="filter"]')!) // close
+
+    const chipBody = container.querySelector<HTMLElement>(
+      '.dt-active-bar .dt-chip-body[data-action="open-filter-col"][data-key="score"]',
+    )!
+    click(chipBody)
+    expect(container.querySelector('.dt-dd')).not.toBeNull()
+    expect(document.activeElement).toBe(
+      container.querySelector('[data-action="select-filter-col"][data-key="score"]'),
+    )
+    // The right pane shows score's (numeric) range controls immediately, not name's checklist.
+    expect(container.querySelector('.dt-range-input')).not.toBeNull()
+  })
+
   it('the "Clear all" button sits at the end of the toolbar actions row, not the search area', () => {
     createDataTable(container, { data: ROWS, columns: COLS })
     click(container.querySelector<HTMLElement>('th[data-action="header-sort"][data-key="score"]')!)
@@ -791,6 +852,327 @@ describe('createDataTable', () => {
     expect(colHeaders(container)).toEqual(['Name', 'Score', 'Dept'])
     table.setViewState(view)
     expect(colHeaders(container)).toEqual(['Score', 'Name', 'Dept'])
+  })
+
+  // --- dropdown column search ---
+
+  it('the columns dropdown search box narrows the column list by label', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="cols"]')!)
+    const search = container.querySelector<HTMLInputElement>(
+      '[data-action="dd-search"][data-dd="cols"]',
+    )!
+    setInput(search, 'sc')
+    const rows = [...container.querySelectorAll('.dt-dd-item--colrow')].map((el) =>
+      el.querySelector('label')!.textContent?.trim(),
+    )
+    expect(rows).toEqual(['Score'])
+  })
+
+  it('the sort dropdown search box narrows only the addable list, alphabetized, leaving active sorts untouched', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="sort"]')!)
+    click(container.querySelector<HTMLElement>('[data-action="toggle-sort"][data-key="dept"]')!)
+    const addable = [...container.querySelectorAll('.dt-dd-item--click .dt-flex1')].map(
+      (el) => el.textContent,
+    )
+    // Name/Score, alphabetized — dept is already active and excluded from this list.
+    expect(addable).toEqual(['Name', 'Score'])
+    const search = container.querySelector<HTMLInputElement>(
+      '[data-action="dd-search"][data-dd="sort"]',
+    )!
+    setInput(search, 'sco')
+    expect(
+      [...container.querySelectorAll('.dt-dd-item--click .dt-flex1')].map((el) => el.textContent),
+    ).toEqual(['Score'])
+    // The active-sorts section (dept) stays visible regardless of the search term.
+    expect(container.querySelector('.dt-dd-item--sortrow')).not.toBeNull()
+  })
+
+  it('ArrowDown moves through Sort dropdown rows in visible order: active row, then search box, then addable rows', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="sort"]')!)
+    click(container.querySelector<HTMLElement>('[data-action="toggle-sort"][data-key="dept"]')!)
+    const deptRow = container.querySelector<HTMLElement>('[data-sort-key="dept"]')!
+    deptRow.focus()
+    deptRow.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }),
+    )
+    const search = container.querySelector<HTMLInputElement>(
+      '[data-action="dd-search"][data-dd="sort"]',
+    )!
+    expect(document.activeElement).toBe(search)
+    search.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }),
+    )
+    expect(document.activeElement).toBe(
+      container.querySelector('[data-action="toggle-sort"][data-key="name"]'),
+    )
+  })
+
+  it('activating an addable column in the Sort dropdown keeps focus on its new active row', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="sort"]')!)
+    const nameBtn = container.querySelector<HTMLElement>(
+      '[data-action="toggle-sort"][data-key="name"]',
+    )!
+    nameBtn.focus()
+    click(nameBtn)
+    expect(document.activeElement).toBe(container.querySelector('[data-sort-key="name"]'))
+  })
+
+  it('removing an active Sort column returns focus to its addable button', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="sort"]')!)
+    click(container.querySelector<HTMLElement>('[data-action="toggle-sort"][data-key="name"]')!)
+    const removeBtn = container.querySelector<HTMLElement>(
+      '[data-action="remove-sort"][data-key="name"]',
+    )!
+    removeBtn.focus()
+    click(removeBtn)
+    expect(document.activeElement).toBe(
+      container.querySelector('[data-action="toggle-sort"][data-key="name"]'),
+    )
+  })
+
+  it('activating/removing an active Group column keeps focus, same as Sort', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="group"]')!)
+    const deptBtn = container.querySelector<HTMLElement>(
+      '[data-action="toggle-group"][data-key="dept"]',
+    )!
+    deptBtn.focus()
+    click(deptBtn)
+    expect(document.activeElement).toBe(container.querySelector('[data-group-key="dept"]'))
+    const removeBtn = container.querySelector<HTMLElement>(
+      '[data-action="remove-group"][data-key="dept"]',
+    )!
+    removeBtn.focus()
+    click(removeBtn)
+    expect(document.activeElement).toBe(
+      container.querySelector('[data-action="toggle-group"][data-key="dept"]'),
+    )
+  })
+
+  it('the group dropdown search box narrows the addable list', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="group"]')!)
+    const search = container.querySelector<HTMLInputElement>(
+      '[data-action="dd-search"][data-dd="group"]',
+    )!
+    setInput(search, 'xyz')
+    expect(container.querySelectorAll('.dt-dd-item--click').length).toBe(0)
+  })
+
+  it('the filter dropdown search box narrows the left column pane, alphabetized', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="filter"]')!)
+    const labelsBefore = [
+      ...container.querySelectorAll('.dt-filter-col-item span:first-child'),
+    ].map((el) => el.textContent)
+    expect(labelsBefore).toEqual(['Dept', 'Name', 'Score']) // already alphabetical here
+    const search = container.querySelector<HTMLInputElement>(
+      '[data-action="dd-search"][data-dd="filter"]',
+    )!
+    setInput(search, 'sc')
+    expect(
+      [...container.querySelectorAll('.dt-filter-col-item span:first-child')].map(
+        (el) => el.textContent,
+      ),
+    ).toEqual(['Score'])
+  })
+
+  // --- dropdown keyboard navigation ---
+
+  it('ArrowDown/ArrowUp move focus between rows in an open dropdown', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="cols"]')!)
+    const search = container.querySelector<HTMLInputElement>(
+      '[data-action="dd-search"][data-dd="cols"]',
+    )!
+    const nameCheckbox = container.querySelector<HTMLElement>(
+      '[data-col-row-key="name"] input[type="checkbox"]',
+    )!
+    search.focus()
+    search.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }))
+    expect(document.activeElement).toBe(nameCheckbox)
+    const scoreCheckbox = container.querySelector<HTMLElement>(
+      '[data-col-row-key="score"] input[type="checkbox"]',
+    )!
+    nameCheckbox.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }))
+    expect(document.activeElement).toBe(scoreCheckbox)
+    scoreCheckbox.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }))
+    expect(document.activeElement).toBe(nameCheckbox)
+  })
+
+  it('ArrowUp on the first row is a no-op (stays put, no wrap)', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="cols"]')!)
+    const search = container.querySelector<HTMLInputElement>(
+      '[data-action="dd-search"][data-dd="cols"]',
+    )!
+    search.focus()
+    search.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }))
+    expect(document.activeElement).toBe(search)
+  })
+
+  it('Home/End jump to the first/last row, skipping the search box', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="cols"]')!)
+    const nameCheckbox = container.querySelector<HTMLElement>(
+      '[data-col-row-key="name"] input[type="checkbox"]',
+    )!
+    const deptCheckbox = container.querySelector<HTMLElement>(
+      '[data-col-row-key="dept"] input[type="checkbox"]',
+    )!
+    nameCheckbox.focus()
+    nameCheckbox.dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true }))
+    expect(document.activeElement).toBe(deptCheckbox)
+    deptCheckbox.dispatchEvent(new KeyboardEvent('keydown', { key: 'Home', bubbles: true }))
+    expect(document.activeElement).toBe(nameCheckbox)
+  })
+
+  it('Escape clears a non-empty dropdown search term before closing the dropdown', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="cols"]')!)
+    const search = container.querySelector<HTMLInputElement>(
+      '[data-action="dd-search"][data-dd="cols"]',
+    )!
+    setInput(search, 'sc')
+    // setInput's own render() replaced the input node above — re-query the live one before
+    // dispatching Escape on it (a detached node's event never reaches the container listener).
+    const searchAfter = container.querySelector<HTMLInputElement>(
+      '[data-action="dd-search"][data-dd="cols"]',
+    )!
+    searchAfter.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }),
+    )
+    expect(
+      container.querySelector<HTMLInputElement>('[data-action="dd-search"][data-dd="cols"]')!.value,
+    ).toBe('')
+    // Dropdown is still open — a second Escape (nothing left to clear) closes it.
+    expect(container.querySelector('.dt-dd')).not.toBeNull()
+    container
+      .querySelector<HTMLInputElement>('[data-action="dd-search"][data-dd="cols"]')!
+      .dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }),
+      )
+    expect(container.querySelector('.dt-dd')).toBeNull()
+  })
+
+  it('Escape closes the dropdown immediately when its search term is already empty, refocusing the toggle button', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    const toggle = container.querySelector<HTMLElement>(
+      '[data-action="toggle-dd"][data-dd="cols"]',
+    )!
+    click(toggle)
+    const nameCheckbox = container.querySelector<HTMLElement>(
+      '[data-col-row-key="name"] input[type="checkbox"]',
+    )!
+    nameCheckbox.focus()
+    nameCheckbox.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }),
+    )
+    expect(container.querySelector('.dt-dd')).toBeNull()
+    expect(document.activeElement).toBe(
+      container.querySelector('[data-action="toggle-dd"][data-dd="cols"]'),
+    )
+  })
+
+  // --- dropdown focus-on-open ---
+
+  it('opening a dropdown focuses its search box', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="cols"]')!)
+    expect(document.activeElement).toBe(
+      container.querySelector('[data-action="dd-search"][data-dd="cols"]'),
+    )
+  })
+
+  it('opening a dropdown with no search box (nothing left to add) focuses the first active row', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    // Sort every column, so the Sort dropdown has an active section but no addable one (and
+    // therefore no search box).
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="sort"]')!)
+    click(container.querySelector<HTMLElement>('[data-action="toggle-sort"][data-key="name"]')!)
+    click(container.querySelector<HTMLElement>('[data-action="toggle-sort"][data-key="score"]')!)
+    click(container.querySelector<HTMLElement>('[data-action="toggle-sort"][data-key="dept"]')!)
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="sort"]')!) // close
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="sort"]')!) // reopen
+    expect(document.activeElement).toBe(container.querySelector('.dt-dd-item--sortrow'))
+  })
+
+  // --- filter dropdown: left/right pane navigation ---
+
+  it('ArrowRight on the left column list enters the right detail pane', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="filter"]')!)
+    const nameBtn = container.querySelector<HTMLElement>(
+      '[data-action="select-filter-col"][data-key="name"]',
+    )!
+    nameBtn.focus()
+    nameBtn.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true }),
+    )
+    expect(container.querySelector('.dt-filter-detail')!.contains(document.activeElement)).toBe(
+      true,
+    )
+  })
+
+  it('ArrowLeft from a checklist row returns focus to the active column button', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="filter"]')!)
+    const row = container.querySelector<HTMLInputElement>(
+      '.dt-filter-list input[data-action="toggle-filter"]',
+    )!
+    row.focus()
+    row.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true, cancelable: true }),
+    )
+    expect(document.activeElement).toBe(container.querySelector('.dt-filter-col-item--active'))
+  })
+
+  it('ArrowLeft does not hijack cursor movement in the value-search text box', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="filter"]')!)
+    const search = container.querySelector<HTMLInputElement>('[data-action="filter-search"]')!
+    search.focus()
+    search.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true, cancelable: true }),
+    )
+    expect(document.activeElement).toBe(search)
+  })
+
+  it('focusing a different column in the left pane updates the right pane immediately, with no Enter/Space needed', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="filter"]')!)
+    expect(container.querySelector('.dt-range-input')).toBeNull() // 'name' (string) starts active
+    const scoreBtn = container.querySelector<HTMLElement>(
+      '[data-action="select-filter-col"][data-key="score"]',
+    )!
+    scoreBtn.focus() // simulates arriving via Tab/arrow-key, not a click or Enter/Space activation
+    expect(container.querySelector('.dt-range-input')).not.toBeNull() // score (number) now active
+    expect(document.activeElement).toBe(
+      container.querySelector('[data-action="select-filter-col"][data-key="score"]'),
+    )
+  })
+
+  it('ArrowDown/ArrowUp move between checklist rows in the filter detail pane', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="filter"]')!)
+    const search = container.querySelector<HTMLInputElement>('[data-action="filter-search"]')!
+    search.focus()
+    search.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }),
+    )
+    const firstRow = container.querySelector<HTMLInputElement>(
+      '.dt-filter-list input[data-action="toggle-filter"]',
+    )!
+    expect(document.activeElement).toBe(firstRow)
+    firstRow.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true, cancelable: true }),
+    )
+    expect(document.activeElement).toBe(search)
   })
 
   // --- checklist filter ---
@@ -2589,6 +2971,40 @@ describe('createDataTable — virtualized filter checklist', () => {
     click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="filter"]')!)
     click(container.querySelector<HTMLElement>('[data-action="toggle-filter-all"]')!)
     expect(container.querySelector('.dt-stats')?.textContent).toContain('500 / 500 rows')
+  })
+
+  it('End on the checklist jumps to the logical last value, scrolling the virtualized window into place', () => {
+    createDataTable(container, { data: MANY_ROWS, columns: MANY_COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="filter"]')!)
+    const firstRow = container.querySelector<HTMLInputElement>(
+      '.dt-filter-list input[data-value="Value 0000"]',
+    )!
+    firstRow.focus()
+    firstRow.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'End', bubbles: true, cancelable: true }),
+    )
+    const active = document.activeElement as HTMLInputElement
+    expect(active.dataset.value).toBe('Value 0499')
+  })
+
+  it('Home on the checklist jumps back to the logical first value', async () => {
+    createDataTable(container, { data: MANY_ROWS, columns: MANY_COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="filter"]')!)
+    const list = container.querySelector<HTMLElement>('.dt-filter-list')!
+    Object.defineProperty(list, 'scrollTop', { value: 32 * 200, writable: true })
+    list.dispatchEvent(new Event('scroll'))
+    // scrollTop updates are throttled via requestAnimationFrame before the patch lands.
+    await new Promise((resolve) => requestAnimationFrame(resolve))
+    await new Promise((resolve) => requestAnimationFrame(resolve))
+    const someRow = container.querySelector<HTMLInputElement>(
+      '.dt-filter-list input[data-value="Value 0200"]',
+    )!
+    someRow.focus()
+    someRow.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Home', bubbles: true, cancelable: true }),
+    )
+    const active = document.activeElement as HTMLInputElement
+    expect(active.dataset.value).toBe('Value 0000')
   })
 })
 

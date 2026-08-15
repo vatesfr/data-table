@@ -10,11 +10,32 @@ defineOptions({ inheritAttrs: false })
 
 const containerRef = ref<HTMLElement | null>(null)
 const menuRef = ref<HTMLElement | null>(null)
+// The trigger content is caller-provided via the #trigger slot, so this wraps it just to give
+// `focusTrigger` (see defineExpose below) something to query into after Escape closes the menu.
+const triggerWrapRef = ref<HTMLElement | null>(null)
 const isOpen = ref(false)
 
 function toggle() {
   isOpen.value = !isOpen.value
 }
+
+// Exposed so a consumer's own keydown handler (see DataTableView.vue's Escape handling — clear a
+// non-empty search term first, close the dropdown on a second press) can close this dropdown and
+// return focus to its trigger without needing to hoist `isOpen` itself into the parent. `open` is
+// used the same way by the active-bar chips (see "Active-bar chip click actions") — a Group/Filter
+// chip's body opens straight to that entry/column rather than requiring the dropdown to be
+// reopened and re-navigated by hand.
+defineExpose({
+  open: () => {
+    isOpen.value = true
+  },
+  close: () => {
+    isOpen.value = false
+  },
+  focusTrigger: () => {
+    triggerWrapRef.value?.querySelector<HTMLElement>('button, [tabindex]')?.focus()
+  },
+})
 
 function onMousedown(e: MouseEvent) {
   if (containerRef.value && !containerRef.value.contains(e.target as Node)) {
@@ -49,6 +70,18 @@ watch(
       menu.style.bottom = '100%'
       menu.style.marginBottom = '4px'
     }
+    // Focus follows open, rather than leaving it on the trigger button — otherwise every open
+    // still needs an extra Tab press before typing into a search box or using arrow-key nav does
+    // anything. `[data-dd-search]` is a generic marker a consumer puts on whichever input should
+    // be the default entry point, checked *ahead of* plain DOM order — deliberately, since e.g.
+    // the Sort/Group dropdowns render their active-entries section *above* the search box, but
+    // the search box is still the intended first stop. Falling back to the first focusable
+    // descendant covers a dropdown with no search box at all (e.g. Sort when every column is
+    // already sorted, so there's no addable section to search).
+    const focusTarget =
+      menu.querySelector<HTMLElement>('[data-dd-search]') ??
+      menu.querySelector<HTMLElement>('button, input, [tabindex]:not([tabindex="-1"])')
+    focusTarget?.focus()
   },
   { flush: 'post' },
 )
@@ -56,7 +89,7 @@ watch(
 
 <template>
   <div ref="containerRef" class="dropdown">
-    <div @click="toggle">
+    <div ref="triggerWrapRef" @click="toggle">
       <!-- Pass open state to trigger so it can style itself -->
       <slot name="trigger" :open="isOpen" />
     </div>
@@ -91,5 +124,10 @@ watch(
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
   min-width: 220px;
   padding: 4px 0;
+  /* Previously unbounded — a table with many columns could render a dropdown taller than the
+     viewport with no way to scroll it. .dt__filter-panel's own max-height: 380px stays comfortably
+     under this, so it never needs this outer scrollbar too. */
+  max-height: 420px;
+  overflow-y: auto;
 }
 </style>

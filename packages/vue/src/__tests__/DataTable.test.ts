@@ -204,7 +204,7 @@ describe('DataTable — filter dropdown', () => {
     const wrapper = mount(DataTable, { props: { data: ROWS, columns: FILTER_COLS, rowKey: 'id' } })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
-    await wrapper.find('.dt__dd-search').setValue('ali')
+    await valueSearchInput(wrapper).setValue('ali')
     const labels = wrapper.findAll('.dt__dd-item').map((el) => el.text())
     expect(labels.some((t) => t.includes('Alice'))).toBe(true)
     expect(labels.some((t) => t.includes('Bob'))).toBe(false)
@@ -215,6 +215,14 @@ describe('DataTable — filter dropdown', () => {
       .findAll('.dt__dd-item')
       .find((el) => el.text().startsWith(value))!
       .find('input[type="checkbox"]')
+  }
+
+  // The Filter dropdown's own value-search box shares the `.dt__dd-search` class with the left
+  // column pane's newer column-search box (see "Dropdown column search and keyboard navigation")
+  // — the column-search box renders first in DOM order, so grab the *last* match, not the first.
+  function valueSearchInput(wrapper: ReturnType<typeof mount>) {
+    const all = wrapper.findAll('.dt__dd-search')
+    return all[all.length - 1]
   }
 
   it('select-all checkbox selects every currently listed value', async () => {
@@ -258,10 +266,10 @@ describe('DataTable — filter dropdown', () => {
     const wrapper = mount(DataTable, { props: { data: ROWS, columns: FILTER_COLS, rowKey: 'id' } })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
-    await wrapper.find('.dt__dd-search').setValue('ali')
+    await valueSearchInput(wrapper).setValue('ali')
     await wrapper.find('.dt__filter-select-all').trigger('change')
     expect((checklistCheckbox(wrapper, 'Alice').element as HTMLInputElement).checked).toBe(true)
-    await wrapper.find('.dt__dd-search').setValue('')
+    await valueSearchInput(wrapper).setValue('')
     expect((checklistCheckbox(wrapper, 'Bob').element as HTMLInputElement).checked).toBe(false)
   })
 
@@ -307,7 +315,7 @@ describe('DataTable — filter dropdown', () => {
     const wrapper = mount(DataTable, { props: { data: ROWS, columns: FILTER_COLS, rowKey: 'id' } })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
-    await wrapper.find('.dt__dd-search').setValue('zzz')
+    await valueSearchInput(wrapper).setValue('zzz')
     expect(wrapper.find('.dt__filter-select-all').exists()).toBe(false)
     expect(wrapper.find('.dt__dd-search').exists()).toBe(true)
   })
@@ -1906,5 +1914,343 @@ describe('DataTable — computed columns', () => {
     })
     expect(wrapper.text()).toContain('Pass')
     expect(wrapper.text()).toContain('Fail')
+  })
+})
+
+describe('DataTable — dropdown column search and keyboard navigation', () => {
+  const THREE_COLS: ColumnDef<Row>[] = [
+    { key: 'name', label: 'Name', filterable: true, groupable: true },
+    { key: 'score', label: 'Score', type: 'number', filterable: true, groupable: true },
+    { key: 'id', label: 'Id', type: 'number', groupable: true },
+  ]
+
+  function openDd(wrapper: ReturnType<typeof mount>, label: string) {
+    return wrapper
+      .findAll('button')
+      .find((b) => b.text() === label)!
+      .trigger('click')
+  }
+  function ddSearchInput(wrapper: ReturnType<typeof mount>) {
+    return wrapper.find('.dropdown__menu input.dt__dd-search')
+  }
+
+  it('the columns dropdown search box narrows the column list by label', async () => {
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: THREE_COLS, rowKey: 'id' } })
+    await openDd(wrapper, 'Columns')
+    await ddSearchInput(wrapper).setValue('sc')
+    const rows = wrapper.findAll('.dt__dd-item--colrow').map((r) => r.text())
+    expect(rows).toEqual([expect.stringContaining('Score')])
+  })
+
+  it('the sort dropdown search box narrows only the addable list, alphabetized, leaving active sorts untouched', async () => {
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: THREE_COLS, rowKey: 'id' } })
+    await openDd(wrapper, 'Sort')
+    await wrapper
+      .findAll('button.dt__dd-item--clickable')
+      .find((el) => el.text() === 'Id')!
+      .trigger('click')
+    const addable = wrapper.findAll('button.dt__dd-item--clickable').map((el) => el.text())
+    expect(addable).toEqual(['Name', 'Score']) // alphabetized, Id excluded (already active)
+    await ddSearchInput(wrapper).setValue('sco')
+    expect(wrapper.findAll('button.dt__dd-item--clickable').map((el) => el.text())).toEqual([
+      'Score',
+    ])
+    // The active-sorts section (Id) stays visible regardless of the search term.
+    expect(wrapper.find('.dt__dd-item--sortrow').exists()).toBe(true)
+  })
+
+  it('the group dropdown search box narrows the addable list', async () => {
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: THREE_COLS, rowKey: 'id' } })
+    await openDd(wrapper, 'Group')
+    await ddSearchInput(wrapper).setValue('xyz')
+    expect(wrapper.findAll('button.dt__dd-item--clickable')).toHaveLength(0)
+  })
+
+  it('the filter dropdown search box narrows the left column pane, alphabetized', async () => {
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: THREE_COLS, rowKey: 'id' } })
+    await openDd(wrapper, 'Filter')
+    expect(wrapper.findAll('.dt__filter-col-item span:first-child').map((s) => s.text())).toEqual(
+      ['Id', 'Name', 'Score'], // filterable defaults to true, so Id is included, alphabetized
+    )
+    await ddSearchInput(wrapper).setValue('sc')
+    expect(wrapper.findAll('.dt__filter-col-item span:first-child').map((s) => s.text())).toEqual([
+      'Score',
+    ])
+  })
+
+  it('opening a dropdown focuses its search box', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS, columns: THREE_COLS, rowKey: 'id' },
+      attachTo: document.body,
+    })
+    await openDd(wrapper, 'Columns')
+    expect(document.activeElement).toBe(ddSearchInput(wrapper).element)
+  })
+
+  it('opening a dropdown with no search box (nothing left to add) focuses the first active row', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS, columns: THREE_COLS, rowKey: 'id' },
+      attachTo: document.body,
+    })
+    await openDd(wrapper, 'Sort')
+    for (const label of ['Name', 'Score', 'Id']) {
+      await wrapper
+        .findAll('button.dt__dd-item--clickable')
+        .find((el) => el.text() === label)!
+        .trigger('click')
+    }
+    await openDd(wrapper, 'Sort') // close
+    await openDd(wrapper, 'Sort') // reopen
+    expect(document.activeElement).toBe(wrapper.find('.dt__dd-item--sortrow').element)
+  })
+
+  it('ArrowDown moves through Sort dropdown rows in visible order: active row, then search box, then addable rows', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS, columns: THREE_COLS, rowKey: 'id' },
+      attachTo: document.body,
+    })
+    await openDd(wrapper, 'Sort')
+    await wrapper
+      .findAll('button.dt__dd-item--clickable')
+      .find((el) => el.text() === 'Id')!
+      .trigger('click')
+    const idRow = wrapper.find('.dt__dd-item--sortrow')
+    ;(idRow.element as HTMLElement).focus()
+    await idRow.trigger('keydown', { key: 'ArrowDown' })
+    expect(document.activeElement).toBe(ddSearchInput(wrapper).element)
+    await ddSearchInput(wrapper).trigger('keydown', { key: 'ArrowDown' })
+    expect(document.activeElement).toBe(
+      wrapper.findAll('button.dt__dd-item--clickable').find((el) => el.text() === 'Name')!.element,
+    )
+  })
+
+  it('ArrowUp on the first row is a no-op (stays put, no wrap)', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS, columns: THREE_COLS, rowKey: 'id' },
+      attachTo: document.body,
+    })
+    await openDd(wrapper, 'Columns')
+    const search = ddSearchInput(wrapper)
+    await search.trigger('keydown', { key: 'ArrowUp' })
+    expect(document.activeElement).toBe(search.element)
+  })
+
+  it('Home/End jump to the first/last row, skipping the search box', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS, columns: THREE_COLS, rowKey: 'id' },
+      attachTo: document.body,
+    })
+    await openDd(wrapper, 'Columns')
+    const rows = () => wrapper.findAll('.dt__dd-item--colrow input[type="checkbox"]')
+    ;(rows()[0].element as HTMLElement).focus()
+    await rows()[0].trigger('keydown', { key: 'End' })
+    expect(document.activeElement).toBe(rows()[2].element)
+    await rows()[2].trigger('keydown', { key: 'Home' })
+    expect(document.activeElement).toBe(rows()[0].element)
+  })
+
+  it('Escape clears a non-empty dropdown search term before closing the dropdown', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS, columns: THREE_COLS, rowKey: 'id' },
+      attachTo: document.body,
+    })
+    await openDd(wrapper, 'Columns')
+    await ddSearchInput(wrapper).setValue('sc')
+    await ddSearchInput(wrapper).trigger('keydown', { key: 'Escape' })
+    expect((ddSearchInput(wrapper).element as HTMLInputElement).value).toBe('')
+    expect(wrapper.find('.dropdown__menu').exists()).toBe(true) // still open
+    await ddSearchInput(wrapper).trigger('keydown', { key: 'Escape' })
+    expect(wrapper.find('.dropdown__menu').exists()).toBe(false)
+    expect(document.activeElement).toBe(
+      wrapper.findAll('button').find((b) => b.text() === 'Columns')!.element,
+    )
+  })
+
+  it('activating an addable column in the Sort dropdown keeps focus on its new active row', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS, columns: THREE_COLS, rowKey: 'id' },
+      attachTo: document.body,
+    })
+    await openDd(wrapper, 'Sort')
+    const nameBtn = wrapper
+      .findAll('button.dt__dd-item--clickable')
+      .find((el) => el.text() === 'Name')!
+    await nameBtn.trigger('click')
+    expect(document.activeElement).toBe(wrapper.find('.dt__dd-item--sortrow').element)
+  })
+
+  it('removing an active Sort column returns focus to its addable button', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS, columns: THREE_COLS, rowKey: 'id' },
+      attachTo: document.body,
+    })
+    await openDd(wrapper, 'Sort')
+    await wrapper
+      .findAll('button.dt__dd-item--clickable')
+      .find((el) => el.text() === 'Name')!
+      .trigger('click')
+    await wrapper.find('.dt__item-remove').trigger('click')
+    expect(document.activeElement).toBe(
+      wrapper.findAll('button.dt__dd-item--clickable').find((el) => el.text() === 'Name')!.element,
+    )
+  })
+
+  it('activating/removing an active Group column keeps focus, same as Sort', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS, columns: THREE_COLS, rowKey: 'id' },
+      attachTo: document.body,
+    })
+    await openDd(wrapper, 'Group')
+    const idBtn = wrapper.findAll('button.dt__dd-item--clickable').find((el) => el.text() === 'Id')!
+    await idBtn.trigger('click')
+    expect(document.activeElement).toBe(wrapper.find('.dt__dd-item--grouprow').element)
+    await wrapper.find('.dt__item-remove').trigger('click')
+    expect(document.activeElement).toBe(
+      wrapper.findAll('button.dt__dd-item--clickable').find((el) => el.text() === 'Id')!.element,
+    )
+  })
+
+  it('ArrowRight on the left column list enters the right detail pane', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS, columns: THREE_COLS, rowKey: 'id' },
+      attachTo: document.body,
+    })
+    await openDd(wrapper, 'Filter')
+    const nameBtn = wrapper
+      .findAll('.dt__filter-col-item')
+      .find((el) => el.text().startsWith('Name'))!
+    ;(nameBtn.element as HTMLElement).focus()
+    await nameBtn.trigger('keydown', { key: 'ArrowRight' })
+    expect(wrapper.find('.dt__filter-detail').element.contains(document.activeElement)).toBe(true)
+  })
+
+  it('ArrowLeft from a checklist row returns focus to the active column button', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS, columns: THREE_COLS, rowKey: 'id' },
+      attachTo: document.body,
+    })
+    await openDd(wrapper, 'Filter')
+    const row = wrapper.find('.dt__filter-list input[type="checkbox"]')
+    ;(row.element as HTMLElement).focus()
+    await row.trigger('keydown', { key: 'ArrowLeft' })
+    expect(document.activeElement).toBe(wrapper.find('.dt__filter-col-item--active').element)
+  })
+
+  it('ArrowLeft does not hijack cursor movement in the value-search text box', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS, columns: THREE_COLS, rowKey: 'id' },
+      attachTo: document.body,
+    })
+    await openDd(wrapper, 'Filter')
+    const search = wrapper.find('.dt__filter-detail input.dt__dd-search')
+    ;(search.element as HTMLElement).focus()
+    await search.trigger('keydown', { key: 'ArrowLeft' })
+    expect(document.activeElement).toBe(search.element)
+  })
+
+  it('ArrowDown/ArrowUp move between checklist rows in the filter detail pane', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS, columns: THREE_COLS, rowKey: 'id' },
+      attachTo: document.body,
+    })
+    await openDd(wrapper, 'Filter')
+    const search = wrapper.find('.dt__filter-detail input.dt__dd-search')
+    ;(search.element as HTMLElement).focus()
+    await search.trigger('keydown', { key: 'ArrowDown' })
+    const firstRow = wrapper.find('.dt__filter-list input[type="checkbox"]')
+    expect(document.activeElement).toBe(firstRow.element)
+    await firstRow.trigger('keydown', { key: 'ArrowUp' })
+    expect(document.activeElement).toBe(search.element)
+  })
+
+  it('focusing a different column in the left pane updates the right pane immediately, with no Enter/Space needed', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS, columns: THREE_COLS, rowKey: 'id' },
+      attachTo: document.body,
+    })
+    await openDd(wrapper, 'Filter')
+    expect(wrapper.find('.dt__range-input').exists()).toBe(false) // 'Name' (string) starts active
+    const scoreBtn = wrapper
+      .findAll('.dt__filter-col-item')
+      .find((el) => el.text().startsWith('Score'))!
+    ;(scoreBtn.element as HTMLElement).focus() // simulates Tab arrival, not a click/Enter/Space
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.dt__range-input').exists()).toBe(true) // 'Score' (number) now active
+  })
+})
+
+describe('DataTable — active-bar chip click actions', () => {
+  const THREE_COLS: ColumnDef<Row>[] = [
+    { key: 'name', label: 'Name', filterable: true, groupable: true },
+    { key: 'score', label: 'Score', type: 'number', filterable: true, groupable: true },
+    { key: 'id', label: 'Id', type: 'number', groupable: true },
+  ]
+  function openDd(wrapper: ReturnType<typeof mount>, label: string) {
+    return wrapper
+      .findAll('button')
+      .find((b) => b.text() === label)!
+      .trigger('click')
+  }
+
+  it("clicking a sort chip body toggles that column's direction and keeps focus on it", async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS, columns: THREE_COLS, rowKey: 'id' },
+      attachTo: document.body,
+    })
+    await openDd(wrapper, 'Sort')
+    await wrapper
+      .findAll('button.dt__dd-item--clickable')
+      .find((el) => el.text() === 'Name')!
+      .trigger('click')
+    await openDd(wrapper, 'Sort') // close
+
+    const chipBody = wrapper.find('.dt__chip .dt__chip-body')
+    expect(chipBody.text()).toContain('↑')
+    ;(chipBody.element as HTMLElement).focus()
+    await chipBody.trigger('click')
+    expect(wrapper.find('.dt__chip .dt__chip-body').text()).toContain('↓')
+    expect(document.activeElement).toBe(wrapper.find('.dt__chip .dt__chip-body').element)
+  })
+
+  it('clicking a group chip body opens the Group dropdown focused on that entry', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS, columns: THREE_COLS, rowKey: 'id' },
+      attachTo: document.body,
+    })
+    await openDd(wrapper, 'Group')
+    await wrapper
+      .findAll('button.dt__dd-item--clickable')
+      .find((el) => el.text() === 'Name')!
+      .trigger('click')
+    await openDd(wrapper, 'Group') // close
+
+    expect(wrapper.find('.dropdown__menu').exists()).toBe(false)
+    const chipBody = wrapper.find('.dt__chip .dt__chip-body')
+    await chipBody.trigger('click')
+    expect(wrapper.find('.dropdown__menu').exists()).toBe(true)
+    expect(document.activeElement).toBe(wrapper.find('.dt__dd-item--grouprow').element)
+  })
+
+  it("clicking a filter chip body opens the Filter dropdown focused on that column's detail pane", async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS, columns: THREE_COLS, rowKey: 'id' },
+      attachTo: document.body,
+    })
+    await openDd(wrapper, 'Filter')
+    const nameRow = wrapper.findAll('.dt__dd-item').find((el) => el.text().startsWith('Alice'))!
+    await nameRow.find('input[type="checkbox"]').trigger('click')
+    await openDd(wrapper, 'Filter') // close
+
+    expect(wrapper.find('.dropdown__menu').exists()).toBe(false)
+    const chipBody = wrapper.find('.dt__chip--info .dt__chip-body')
+    expect(chipBody.text()).toContain('Alice')
+    await chipBody.trigger('click')
+    expect(wrapper.find('.dropdown__menu').exists()).toBe(true)
+    // Detail pane already shows Name's checklist (not Score's range inputs) on the very first
+    // render, and the Name column button in the left pane is focused.
+    expect(wrapper.find('.dt__range-input').exists()).toBe(false)
+    expect(document.activeElement).toBe(
+      wrapper.findAll('.dt__filter-col-item').find((el) => el.text().startsWith('Name'))!.element,
+    )
   })
 })

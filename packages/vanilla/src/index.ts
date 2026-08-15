@@ -151,6 +151,12 @@ export function createDataTable<TRow extends object>(
   let openDropdown: string | null = null
   let filterActiveCol: string | null = null
   let filterSearchTerms: Record<string, string> = {}
+  // Narrows the *column list* itself in the Columns/Sort/Group dropdowns and the Filter
+  // dropdown's left column pane — a completely separate concern from `filterSearchTerms` above,
+  // which narrows one column's *values* in the Filter dropdown's right detail pane. Keyed by
+  // dropdown id ('cols'/'sort'/'group'/'filter'), same category of ephemeral UI state as
+  // `filterActiveCol`/`filterSearchTerms` — never touches `TableViewState`.
+  let ddSearchTerms: Record<string, string> = {}
   let filterSelectionAnchor: Record<string, string> = {}
   let filterValueSort: Record<string, ValueSort> = {}
   let expandedDateNodes: Record<string, Set<string>> = {}
@@ -580,8 +586,17 @@ export function createDataTable<TRow extends object>(
       openDropdown === 'cols',
       `<button class="dt-btn${openDropdown === 'cols' ? ' dt-btn--active' : ''}" data-action="toggle-dd" data-dd="cols">${esc(L.columns)}</button>`,
       () => {
-        let s = `<div class="dt-dd-section">${esc(L.columnsSection)}</div>`
-        for (const col of orderedColumns) {
+        // Search box narrows the list below by label — see `ddSearchTerms`. Ordering itself is
+        // left untouched (still `orderedColumns`, i.e. real table column order): this list also
+        // doubles as the drag-to-reorder surface, so its order carries meaning no alphabetization
+        // should disturb.
+        let s = `<div class="dt-dd-search-row"><input type="text" class="dt-dd-search" placeholder="${esc(L.filterSearchPlaceholder)}" value="${esc(ddSearchTerms.cols ?? '')}" data-action="dd-search" data-dd="cols" data-focus-key="ddsearch-cols"></div>`
+        const term = (ddSearchTerms.cols ?? '').trim().toLowerCase()
+        const searched = term
+          ? orderedColumns.filter((c) => c.label.toLowerCase().includes(term))
+          : orderedColumns
+        s += `<div class="dt-dd-section">${esc(L.columnsSection)}</div>`
+        for (const col of searched) {
           // Draggable row (see handleColRowDragStart/Over/Drop/End) + Alt+↑/↓ when focus is
           // anywhere inside it (see handleKeyDown) reorder columnOrder, replacing the old ▲▼
           // buttons — same treatment as the Sort/Group active rows. Unlike those, the row itself
@@ -634,8 +649,20 @@ export function createDataTable<TRow extends object>(
           }
         }
         if (addableCols.length > 0) {
+          // Search box narrows this "add" list only — the active-sorts section above keeps its
+          // own priority order and is never hidden by it, since it's a short, already-visible
+          // list with its own remove/reorder controls. The add list itself carries no ordering
+          // meaning (none of these are sorted yet), so it's alphabetized by label instead of
+          // raw column-definition order, to make scanning a long list easier.
+          s += `<div class="dt-dd-search-row"><input type="text" class="dt-dd-search" placeholder="${esc(L.filterSearchPlaceholder)}" value="${esc(ddSearchTerms.sort ?? '')}" data-action="dd-search" data-dd="sort" data-focus-key="ddsearch-sort"></div>`
+          const term = (ddSearchTerms.sort ?? '').trim().toLowerCase()
+          const searched = (
+            term ? addableCols.filter((c) => c.label.toLowerCase().includes(term)) : addableCols
+          )
+            .slice()
+            .sort((a, b) => a.label.localeCompare(b.label))
           s += `<div class="dt-dd-section">${esc(L.sortSection)}</div>`
-          for (const col of addableCols) {
+          for (const col of searched) {
             // A real <button> (not a div) so it's a native Tab stop and Enter/Space "click" it
             // for free — no manual tabindex/keydown wiring needed, unlike the active rows above
             // (which need custom keyboard handling anyway for Alt+↑/↓ reorder).
@@ -673,8 +700,16 @@ export function createDataTable<TRow extends object>(
             }
           }
           if (addableCols.length > 0) {
+            // Same search + alphabetize treatment as Sort's add list above, for the same reason.
+            s += `<div class="dt-dd-search-row"><input type="text" class="dt-dd-search" placeholder="${esc(L.filterSearchPlaceholder)}" value="${esc(ddSearchTerms.group ?? '')}" data-action="dd-search" data-dd="group" data-focus-key="ddsearch-group"></div>`
+            const term = (ddSearchTerms.group ?? '').trim().toLowerCase()
+            const searched = (
+              term ? addableCols.filter((c) => c.label.toLowerCase().includes(term)) : addableCols
+            )
+              .slice()
+              .sort((a, b) => a.label.localeCompare(b.label))
             s += `<div class="dt-dd-section">${esc(L.groupSection)}</div>`
-            for (const col of addableCols) {
+            for (const col of searched) {
               s += `<button type="button" class="dt-dd-item dt-dd-item--click" data-action="toggle-group" data-key="${esc(col.key)}"><span class="dt-flex1">${esc(col.label)}</span></button>`
             }
           }
@@ -702,7 +737,21 @@ export function createDataTable<TRow extends object>(
         () => {
           let s = `<div class="dt-filter-panel">`
           s += `<div class="dt-filter-cols">`
-          for (const col of filterableCols) {
+          // Search box (sticky within this scrollable pane, see styles.ts) narrows the column
+          // list itself — separate from `filterSearchTerms`, which narrows the *values* shown in
+          // the right-hand detail pane for whichever column is currently selected. No inherent
+          // order to preserve here (unlike the Columns dropdown, this list isn't reorderable), so
+          // it's alphabetized by label rather than raw column-definition order.
+          s += `<input type="text" class="dt-dd-search dt-filter-cols-search" placeholder="${esc(L.filterSearchPlaceholder)}" value="${esc(ddSearchTerms.filter ?? '')}" data-action="dd-search" data-dd="filter" data-focus-key="ddsearch-filter">`
+          const ddTerm = (ddSearchTerms.filter ?? '').trim().toLowerCase()
+          const searchedFilterCols = (
+            ddTerm
+              ? filterableCols.filter((c) => c.label.toLowerCase().includes(ddTerm))
+              : filterableCols
+          )
+            .slice()
+            .sort((a, b) => a.label.localeCompare(b.label))
+          for (const col of searchedFilterCols) {
             const rf = rangeFilters[col.key]
             // A date column can have both an active checklist selection (tree) *and* an active
             // range filter above it at once — either one alone should light the dot, not just
@@ -804,19 +853,28 @@ export function createDataTable<TRow extends object>(
     // `.dt-chip` look (the same one the removed count badges used) — filter chips keep their
     // existing blue `.dt-chip--filter` tint, the one deliberate color accent in this bar, since
     // filters already carried that "this is narrowing your view" meaning before this change.
+    // Each chip's body is now a real <button> (a sibling of the × button, not nested inside it —
+    // a <button> can't contain another interactive element, same reasoning as the toolbar's
+    // grouped clear buttons) instead of a plain, inert <span>: clicking (or Enter/Space-
+    // activating) it does something specific to that chip's own kind of active state, rather than
+    // requiring the dropdown to be reopened and re-navigated to make the same change. Sort's body
+    // toggles direction in place via the existing `toggle-sort-dir` action (no dropdown needed for
+    // the single most common tweak); Group's and Filter's open their dropdown straight to that
+    // entry/column (`open-group-entry`/`open-filter-col`), since neither has an equally obvious
+    // single inline toggle the way direction is for sort.
     html += `<div class="dt-active-bar">`
     for (const entry of sorts) {
       const col = columns.find((c) => c.key === entry.key)
-      html += `<span class="dt-chip">${getSortIcon(sorts, entry.key)} ${esc(col?.label ?? entry.key)} <span class="dt-chip-x" data-action="remove-sort" data-key="${esc(entry.key)}">×</span></span>`
+      html += `<span class="dt-chip"><button type="button" class="dt-chip-body" data-action="toggle-sort-dir" data-key="${esc(entry.key)}" data-focus-key="chip-sort-${esc(entry.key)}">${getSortIcon(sorts, entry.key)} ${esc(col?.label ?? entry.key)}</button><button type="button" class="dt-chip-x" data-action="remove-sort" data-key="${esc(entry.key)}">×</button></span>`
     }
     for (const key of groupBy) {
       const col = groupableCols.find((c) => c.key === key)
-      html += `<span class="dt-chip">${esc(col?.label ?? key)} <span class="dt-chip-x" data-action="remove-group" data-key="${esc(key)}">×</span></span>`
+      html += `<span class="dt-chip"><button type="button" class="dt-chip-body" data-action="open-group-entry" data-key="${esc(key)}">${esc(col?.label ?? key)}</button><button type="button" class="dt-chip-x" data-action="remove-group" data-key="${esc(key)}">×</button></span>`
     }
     if (activeFilterCount > 0) {
       for (const [key, vals] of Object.entries(filters)) {
         if (!vals.size) continue
-        html += `<span class="dt-chip dt-chip--filter">${esc(columns.find((c) => c.key === key)?.label ?? key)}: ${esc(summarizeFilterValues(vals))} <span class="dt-chip-x" data-action="clear-filter-key" data-key="${esc(key)}">×</span></span>`
+        html += `<span class="dt-chip dt-chip--filter"><button type="button" class="dt-chip-body" data-action="open-filter-col" data-key="${esc(key)}">${esc(columns.find((c) => c.key === key)?.label ?? key)}: ${esc(summarizeFilterValues(vals))}</button><button type="button" class="dt-chip-x" data-action="clear-filter-key" data-key="${esc(key)}">×</button></span>`
       }
       // A range filter (number or date) didn't get a chip at all before — it's a distinct active
       // filter from the checklist above, so it needs its own (a date column can have both active
@@ -824,7 +882,7 @@ export function createDataTable<TRow extends object>(
       // full per-column reset regardless of which kind of filter is actually active.
       for (const [key, rf] of Object.entries(rangeFilters)) {
         if (rf.min === '' && rf.max === '') continue
-        html += `<span class="dt-chip dt-chip--filter">${esc(columns.find((c) => c.key === key)?.label ?? key)}: ${esc(rf.min)}–${esc(rf.max)} <span class="dt-chip-x" data-action="clear-filter-key" data-key="${esc(key)}">×</span></span>`
+        html += `<span class="dt-chip dt-chip--filter"><button type="button" class="dt-chip-body" data-action="open-filter-col" data-key="${esc(key)}">${esc(columns.find((c) => c.key === key)?.label ?? key)}: ${esc(rf.min)}–${esc(rf.max)}</button><button type="button" class="dt-chip-x" data-action="clear-filter-key" data-key="${esc(key)}">×</button></span>`
       }
     }
     // A group split across a page boundary contributes a second ("continued") chunk to
@@ -1247,6 +1305,13 @@ export function createDataTable<TRow extends object>(
         groupBy = groupBy.filter((k) => k !== key)
         viewChanged = true
         break
+      case 'open-group-entry':
+        // Active-bar group chip body: opens the Group dropdown straight to that entry — there's
+        // no single obvious inline action for a group chip the way `toggle-sort-dir` is for a
+        // sort chip, so this just gets you to the entry ready to reorder/remove. Focus is
+        // restored to the entry's row after render() below (see the post-render fixups).
+        openDropdown = 'group'
+        break
       case 'toggle-group-collapse':
         if (!target.closest('[data-no-collapse]')) {
           collapsedGroups = toggleCollapse(collapsedGroups, gkey)
@@ -1273,6 +1338,16 @@ export function createDataTable<TRow extends object>(
         rangeFilters = { ...rangeFilters, [key]: { min: '', max: '' } }
         page = 1
         viewChanged = true
+        break
+      case 'open-filter-col':
+        // Active-bar filter chip body: opens the Filter dropdown straight to that column's detail
+        // pane, instead of making you reopen the dropdown and re-find the column in the left list
+        // to tweak a filter you already have active. Setting `filterActiveCol` here (rather than
+        // relying solely on `handleFilterColFocus`'s focus-follows-selection) means the right pane
+        // is already correct in the very first render, before focus even lands on the button.
+        openDropdown = 'filter'
+        filterActiveCol = key
+        filterListScrollTop = 0
         break
       case 'clear-search':
         searchQuery = ''
@@ -1352,6 +1427,70 @@ export function createDataTable<TRow extends object>(
     if (action === 'clear-search') {
       container.querySelector<HTMLInputElement>('[data-focus-key="search"]')?.focus()
     }
+    // Opening a dropdown should hand it focus immediately, rather than leaving it on the toggle
+    // button — otherwise every open still needs an extra Tab press before any of the new
+    // Up/Down/Home/End/Escape nav (or plain typing into the search box) does anything.
+    // `openDropdown === dd` (rather than just `action === 'toggle-dd'`) is what distinguishes an
+    // *open* from a close — the same click toggles both, see the case above.
+    if (action === 'toggle-dd' && openDropdown === dd) {
+      focusFirstInDropdown(dd)
+    }
+    // Activating an addable Sort/Group column (or removing an active one) moves its row between
+    // the active and addable sections, which — since every render() rebuilds the whole panel via
+    // innerHTML — destroys whichever button/row had focus at click time and drops focus to
+    // <body>. The addable buttons carry no `data-focus-key` of their own (only the active
+    // sortrow/grouprow divs and the search inputs do — see render()'s generic focus-key restore
+    // at the top of this function), so that generic mechanism has nothing to restore here; this
+    // explicitly refocuses whichever element the column landed on instead, on both sides of
+    // the toggle (adding *and* removing) so a repeated add/remove doesn't strand focus.
+    if (action === 'toggle-sort') {
+      for (const el of container.querySelectorAll<HTMLElement>('[data-focus-key]')) {
+        if (el.dataset.focusKey === `sortrow-${key}`) {
+          el.focus()
+          break
+        }
+      }
+    }
+    if (action === 'remove-sort') {
+      for (const el of container.querySelectorAll<HTMLElement>('[data-action="toggle-sort"]')) {
+        if (el.dataset.key === key) {
+          el.focus()
+          break
+        }
+      }
+    }
+    if (action === 'toggle-group') {
+      for (const el of container.querySelectorAll<HTMLElement>('[data-focus-key]')) {
+        if (el.dataset.focusKey === `grouprow-${key}`) {
+          el.focus()
+          break
+        }
+      }
+    }
+    if (action === 'remove-group') {
+      for (const el of container.querySelectorAll<HTMLElement>('[data-action="toggle-group"]')) {
+        if (el.dataset.key === key) {
+          el.focus()
+          break
+        }
+      }
+    }
+    if (action === 'open-group-entry') {
+      for (const el of container.querySelectorAll<HTMLElement>('[data-focus-key]')) {
+        if (el.dataset.focusKey === `grouprow-${key}`) {
+          el.focus()
+          break
+        }
+      }
+    }
+    if (action === 'open-filter-col') {
+      for (const el of container.querySelectorAll<HTMLElement>('.dt-filter-col-item')) {
+        if (el.dataset.key === key) {
+          el.focus()
+          break
+        }
+      }
+    }
 
     if (selectionChanged) {
       onSelectionChange?.(_processedData.filter((r) => selection.has(r)))
@@ -1375,6 +1514,12 @@ export function createDataTable<TRow extends object>(
       const key = target.dataset.key ?? ''
       filterSearchTerms = { ...filterSearchTerms, [key]: target.value }
       filterListScrollTop = 0
+      render()
+      return
+    }
+    if (action === 'dd-search') {
+      const dd = target.dataset.dd ?? ''
+      ddSearchTerms = { ...ddSearchTerms, [dd]: target.value }
       render()
       return
     }
@@ -1458,6 +1603,37 @@ export function createDataTable<TRow extends object>(
     notifyViewChange()
   }
 
+  // The Filter dropdown's left column list behaves like a listbox/radiogroup rather than a plain
+  // list of buttons each needing its own explicit "activate" — whichever column pane is focused
+  // is the one shown, with no separate Enter/Space/click step required beyond just getting there.
+  // `focusin` (unlike `focus`) bubbles, so a single delegated listener on the container covers
+  // every way focus can land on a `.dt-filter-col-item`: a mouse click (which focuses the button
+  // natively before the click handler's own `select-filter-col` case runs — this just gets there
+  // first), Tab/Shift+Tab, and the arrow-key nav in handleKeyDown (which, for this row type, only
+  // ever calls a plain `.focus()` and relies entirely on this listener to do the actual work).
+  // Guarded by comparing against the *resolved* active key (falling back to the first filterable
+  // column the same way the render side does) rather than the raw `filterActiveCol`, so focusing
+  // the already-effectively-active column on initial mount doesn't trigger a pointless re-render;
+  // that same guard is also what stops this from looping — `render()` below re-renders and moves
+  // focus to the equivalent new node, which fires another `focusin`, but by then `filterActiveCol`
+  // already matches so the second call is a no-op.
+  function handleFilterColFocus(e: FocusEvent): void {
+    const btn = (e.target as HTMLElement).closest<HTMLElement>('.dt-filter-col-item')
+    if (!btn) return
+    const key = btn.dataset.key ?? ''
+    const filterableCols = columns.filter((c) => c.filterable !== false)
+    if (key === resolveFilterActiveKey(filterableCols)) return
+    filterActiveCol = key
+    filterListScrollTop = 0
+    render()
+    for (const el of container.querySelectorAll<HTMLElement>('.dt-filter-col-item')) {
+      if (el.dataset.key === key) {
+        el.focus()
+        break
+      }
+    }
+  }
+
   // The filter dropdown's virtualized checklist (see FILTER_LIST_* / computeVirtualRange) needs
   // to know its scroll position to know which rows to render — but native `scroll` events don't
   // bubble, so this can't join the click/input/change delegation above. Capture-phase listeners
@@ -1494,8 +1670,257 @@ export function createDataTable<TRow extends object>(
   // Roving-tabindex row navigation — see "Keyboard navigation". Delegated like click/input, but
   // on a separate listener since it must act on keys bubbling from inside a row (e.g. its
   // checkbox) too, not just on the row element itself.
+  // Focuses whichever element should be the first Tab/arrow-key stop right after a dropdown
+  // opens: its own search box when it has one, else the first row-like control (a Sort/Group
+  // dropdown with nothing left to add renders no search box — see the render()-side comment on
+  // `ddSearchTerms` — so it falls back to the first *active* row instead).
+  function focusFirstInDropdown(dd: string): void {
+    const panel = container.querySelector<HTMLElement>('.dt-dd')
+    if (!panel) return
+    const search = panel.querySelector<HTMLElement>(
+      `input[data-action="dd-search"][data-dd="${dd}"]`,
+    )
+    if (search) {
+      search.focus()
+      return
+    }
+    const firstRow = panel.querySelector<HTMLElement>(
+      '.dt-dd-item--colrow input, .dt-dd-item--sortrow, .dt-dd-item--grouprow, .dt-dd-item--click, .dt-filter-col-item',
+    )
+    firstRow?.focus()
+  }
+
   function handleKeyDown(e: KeyboardEvent): void {
     const targetEl = e.target as HTMLElement
+
+    // Filter dropdown: Left/Right switches between the left column pane and the right detail
+    // pane, and the right pane's own rows (value checklist / date tree, plus the search/select-
+    // all/sort-value controls above them) get the same Up/Down/Home/End nav as every other
+    // dropdown's row list — this has to run *before* the generic ddPanel block below, which
+    // otherwise `return`s on an unrecognized `active` element (a right-pane row isn't part of its
+    // own row selector) before ever reaching this.
+    if (!e.altKey) {
+      const filterColBtn = targetEl.closest<HTMLElement>('.dt-filter-col-item')
+      const filterDetail = targetEl.closest<HTMLElement>('.dt-filter-detail')
+
+      if (filterColBtn && e.key === 'ArrowRight') {
+        e.preventDefault()
+        container
+          .querySelector<HTMLElement>('.dt-filter-detail input, .dt-filter-detail button')
+          ?.focus()
+        return
+      }
+
+      if (filterDetail && e.key === 'ArrowLeft') {
+        const active = document.activeElement
+        // Never hijack Left on an actual text/value-editing control — the value-search box, the
+        // numeric/date range inputs, or a range-slider thumb — which all need their native
+        // cursor/value behavior. Everything else in this pane (checklist/date-tree checkboxes,
+        // select-all, the sort-order button) has no use for a bare Left, so it's free to reuse.
+        const isEditable =
+          active instanceof HTMLInputElement &&
+          (active.dataset.action === 'filter-search' ||
+            active.dataset.action === 'range-min' ||
+            active.dataset.action === 'range-max' ||
+            active.dataset.action === 'range-slider')
+        if (!isEditable) {
+          e.preventDefault()
+          container.querySelector<HTMLElement>('.dt-filter-col-item--active')?.focus()
+          return
+        }
+      }
+
+      if (
+        filterDetail &&
+        (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Home' || e.key === 'End')
+      ) {
+        // Only the value-search box joins the vertical Up/Down chain, mirroring every other
+        // dropdown's "search input, then rows" pattern — the select-all checkbox and sort-order
+        // button sit beside it on the *same* row (`.dt-filter-search-row`), not above the rows, so
+        // stepping Down/Up through all three before reaching the list would move focus somewhere
+        // that doesn't visually correspond to "down". They stay reachable via Tab/click as before.
+        const headerControls = [
+          filterDetail.querySelector<HTMLElement>('input[data-action="filter-search"]'),
+        ].filter((el): el is HTMLElement => el !== null)
+        const rowInputs = Array.from(
+          filterDetail.querySelectorAll<HTMLInputElement>(
+            '.dt-dd-item input[data-action="toggle-filter"], .dt-date-tree-item input[data-action="toggle-date-node"]',
+          ),
+        )
+        const focusables = [...headerControls, ...rowInputs]
+        const active = document.activeElement as HTMLElement | null
+        if (!active || focusables.indexOf(active) === -1) return
+
+        // The flat checklist is virtualized (see computeVirtualRange/_filterListHeight) — only a
+        // scrolled-into-view window of rows actually exists in the DOM at any moment, so crossing
+        // out of that window (or Home/End, which must reach the *logical* first/last value, not
+        // just whatever's currently rendered) needs to scroll the list and patch its innerHTML
+        // before the target row can be focused at all. The date tree has no such window (every
+        // currently-expanded row is already in the DOM), so it falls straight through to the
+        // plain DOM-order nav below.
+        const checklistEl = filterDetail.querySelector<HTMLElement>('.dt-filter-list')
+        if (checklistEl) {
+          const filterableCols = columns.filter((c) => c.filterable !== false)
+          const filterDetailCol = filterableCols.find(
+            (c) => c.key === resolveFilterActiveKey(filterableCols),
+          )
+          const activeValue =
+            active instanceof HTMLInputElement && active.dataset.action === 'toggle-filter'
+              ? active.dataset.value
+              : undefined
+          let targetIdx: number | null = null
+          if (e.key === 'Home') targetIdx = 0
+          else if (e.key === 'End') targetIdx = _filterDetailValues.length - 1
+          else if (activeValue !== undefined) {
+            const curIdx = _filterDetailValues.indexOf(activeValue)
+            targetIdx = e.key === 'ArrowDown' ? curIdx + 1 : curIdx - 1
+          }
+          if (targetIdx !== null && filterDetailCol) {
+            // Falls through to the plain header-control nav below in two cases: moving Up out of
+            // the checklist's very first row (there's no row above it — the previous stop is a
+            // header control instead), and Home/End on an empty list.
+            const fallsThrough = targetIdx < 0 && e.key === 'ArrowUp' && activeValue !== undefined
+            if (!fallsThrough) {
+              if (targetIdx < 0 || targetIdx >= _filterDetailValues.length) {
+                e.preventDefault()
+                return
+              }
+              e.preventDefault()
+              const rowTop = targetIdx * FILTER_LIST_ITEM_HEIGHT
+              let newScrollTop = filterListScrollTop
+              if (rowTop < filterListScrollTop) newScrollTop = rowTop
+              else if (rowTop + FILTER_LIST_ITEM_HEIGHT > filterListScrollTop + _filterListHeight) {
+                newScrollTop = rowTop + FILTER_LIST_ITEM_HEIGHT - _filterListHeight
+              }
+              if (newScrollTop !== filterListScrollTop) {
+                filterListScrollTop = Math.max(0, newScrollTop)
+                checklistEl.scrollTop = filterListScrollTop
+                checklistEl.innerHTML = buildFilterListInnerHtml(filterDetailCol)
+              }
+              const targetValue = _filterDetailValues[targetIdx]
+              for (const cb of checklistEl.querySelectorAll<HTMLInputElement>(
+                'input[data-action="toggle-filter"]',
+              )) {
+                if (cb.dataset.value === targetValue) {
+                  cb.focus()
+                  break
+                }
+              }
+              return
+            }
+          }
+        }
+
+        // Plain DOM-order nav: the header controls (search/select-all/sort-button), date-tree
+        // rows, and — via the fallthrough above — moving out of the checklist's first row back
+        // into the header controls.
+        if (e.key === 'Home' || e.key === 'End') {
+          if (rowInputs.length === 0) return
+          e.preventDefault()
+          ;(e.key === 'Home' ? rowInputs[0] : rowInputs[rowInputs.length - 1]).focus()
+          return
+        }
+        const idx = focusables.indexOf(active)
+        const nextIdx = e.key === 'ArrowDown' ? idx + 1 : idx - 1
+        if (nextIdx < 0 || nextIdx >= focusables.length) return
+        e.preventDefault()
+        focusables[nextIdx].focus()
+        return
+      }
+    }
+
+    // Roving Up/Down/Home/End/Escape navigation across whichever dropdown panel is currently
+    // open (Columns/Sort/Group's full row lists, Filter's left column pane) — a distinct concern
+    // from the Alt+↑/↓ reorder and Enter/Space toggle handled by the row-specific blocks below,
+    // so this only ever acts on a plain (non-Alt) key and always runs *before* those blocks (which
+    // otherwise unconditionally `return`, would-be swallowing an arrow key aimed at this instead).
+    // Deliberately scoped to just the "column list" rows (colrow/sortrow/grouprow/add-buttons/
+    // filter-col buttons) plus each dropdown's own new search input — never the Filter dropdown's
+    // right-hand detail pane (value checklist, date tree, range slider), which has its own native
+    // controls (a range `<input>`'s own Left/Right/Up/Down/Home/End) that must keep working
+    // unmolested; scoping by an explicit "is focus already on one of our own elements" check
+    // (`focusables.indexOf(active) !== -1`) rather than just "is focus somewhere inside .dt-dd" is
+    // what keeps this from hijacking those.
+    const ddPanel = targetEl.closest<HTMLElement>('.dt-dd')
+    if (ddPanel && !e.altKey) {
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        // First Escape clears a non-empty search term (if focus is actually in that dropdown's
+        // own column-search box, or the Filter dropdown's value-search box) rather than closing
+        // outright, matching common combobox convention — a second press (now with nothing left
+        // to clear) closes the dropdown.
+        const searchInput = targetEl.closest<HTMLInputElement>('input[data-action="dd-search"]')
+        const valueSearchInput = targetEl.closest<HTMLInputElement>(
+          'input[data-action="filter-search"]',
+        )
+        if (searchInput && searchInput.value !== '') {
+          const dd = searchInput.dataset.dd ?? ''
+          ddSearchTerms = { ...ddSearchTerms, [dd]: '' }
+          render()
+        } else if (valueSearchInput && valueSearchInput.value !== '') {
+          const key = valueSearchInput.dataset.key ?? ''
+          filterSearchTerms = { ...filterSearchTerms, [key]: '' }
+          filterListScrollTop = 0
+          render()
+        } else {
+          const dd = openDropdown
+          openDropdown = null
+          render()
+          if (dd) {
+            container
+              .querySelector<HTMLElement>(`[data-action="toggle-dd"][data-dd="${dd}"]`)
+              ?.focus()
+          }
+        }
+        return
+      }
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Home' || e.key === 'End') {
+        // One combined query, in actual DOM/visual order — this matters for Sort/Group, where the
+        // active-entries section renders *above* the search box and the addable section renders
+        // *below* it (active → search → addable), not "search first" the way Columns/Filter's
+        // left pane render it. Building the search input and the rows as two separate arrays and
+        // concatenating them (search always first) used to silently reorder Sort/Group's nav to
+        // "search → active → addable", which doesn't match what's on screen.
+        const navEls = Array.from(
+          ddPanel.querySelectorAll<HTMLElement>(
+            'input[data-action="dd-search"], .dt-dd-item--colrow, .dt-dd-item--sortrow, .dt-dd-item--grouprow, .dt-dd-item--click, .dt-filter-col-item',
+          ),
+        )
+        // Each element's own focusable target: the search input, a real <button>, or an explicit
+        // tabindex="0" div is used directly (sortrow/grouprow/add-buttons/filter-col buttons); a
+        // colrow div has neither (its checkbox is the actual Tab stop — see the markup comment
+        // where it's built) so its first focusable descendant is used instead.
+        const focusables = navEls
+          .map((el) =>
+            el.matches('input, button, [tabindex]')
+              ? el
+              : el.querySelector<HTMLElement>('input, button, [tabindex]'),
+          )
+          .filter((el): el is HTMLElement => el !== null)
+        const rowFocusables = focusables.filter((el) => el.dataset.action !== 'dd-search')
+        const active = document.activeElement as HTMLElement | null
+        if (!active || focusables.indexOf(active) === -1) return
+        let target: HTMLElement | undefined
+        if (e.key === 'Home' || e.key === 'End') {
+          if (rowFocusables.length === 0) return
+          e.preventDefault()
+          target = e.key === 'Home' ? rowFocusables[0] : rowFocusables[rowFocusables.length - 1]
+        } else {
+          const idx = focusables.indexOf(active)
+          const nextIdx = e.key === 'ArrowDown' ? idx + 1 : idx - 1
+          if (nextIdx < 0 || nextIdx >= focusables.length) return
+          e.preventDefault()
+          target = focusables[nextIdx]
+        }
+        // If `target` is a `.dt-filter-col-item`, focusing it fires `handleFilterColFocus` (see
+        // its registration below), which is what actually updates `filterActiveCol` and shows its
+        // detail pane — a listbox/radiogroup-style "focus follows selection", so arrowing here
+        // needs no separate Enter/Space "activate" step (a plain click still does the same thing,
+        // since focusing a button on click fires the same event).
+        target.focus()
+        return
+      }
+    }
 
     // Sort/Group dropdown active rows: a completely separate keyboard surface from the table's
     // roving-tabindex row nav below (plain sequential tab stops, not a single-tab-stop-at-a-time
@@ -1917,6 +2342,7 @@ export function createDataTable<TRow extends object>(
   container.addEventListener('input', handleInput)
   container.addEventListener('change', handleChange)
   container.addEventListener('scroll', handleFilterListScroll, true)
+  container.addEventListener('focusin', handleFilterColFocus)
   container.addEventListener('keydown', handleKeyDown)
   container.addEventListener('dragstart', handleColDragStart)
   container.addEventListener('dragover', handleColDragOver)
@@ -1962,6 +2388,7 @@ export function createDataTable<TRow extends object>(
       container.removeEventListener('input', handleInput)
       container.removeEventListener('change', handleChange)
       container.removeEventListener('scroll', handleFilterListScroll, true)
+      container.removeEventListener('focusin', handleFilterColFocus)
       container.removeEventListener('keydown', handleKeyDown)
       container.removeEventListener('dragstart', handleColDragStart)
       container.removeEventListener('dragover', handleColDragOver)
