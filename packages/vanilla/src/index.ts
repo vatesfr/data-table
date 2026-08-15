@@ -55,6 +55,7 @@ import {
   formatDatePart,
   compareMissingLast,
   type SortEntry,
+  type SortDir,
   type RangeFilter,
   type DataTableLabels,
   type TableViewState,
@@ -225,6 +226,10 @@ export function createDataTable<TRow extends object>(
     return filterActiveCol && filterableCols.some((c) => c.key === filterActiveCol)
       ? filterActiveCol
       : (filterableCols[0]?.key ?? null)
+  }
+
+  function defaultSortDirFor(key: string): SortDir {
+    return columns.find((c) => c.key === key)?.defaultSortDir ?? 'asc'
   }
 
   function derive() {
@@ -1268,7 +1273,7 @@ export function createDataTable<TRow extends object>(
         openDropdown = openDropdown === dd ? null : dd
         break
       case 'toggle-sort':
-        sorts = coreToggleSort(sorts, key)
+        sorts = coreToggleSort(sorts, key, defaultSortDirFor(key))
         viewChanged = true
         break
       case 'header-sort':
@@ -1278,7 +1283,9 @@ export function createDataTable<TRow extends object>(
         // multi-column sort from the header. Never removes an entry; that's the chip ×/
         // dropdown's job, so a shift-click can't surprise-clear a sort someone just meant to
         // flip, nor bump it to the end of the priority stack on the next shift-click.
-        sorts = e.shiftKey ? coreAppendOrToggleSort(sorts, key) : coreSetSort(sorts, key)
+        sorts = e.shiftKey
+          ? coreAppendOrToggleSort(sorts, key, defaultSortDirFor(key))
+          : coreSetSort(sorts, key, defaultSortDirFor(key))
         viewChanged = true
         break
       case 'remove-sort':

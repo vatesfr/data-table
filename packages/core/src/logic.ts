@@ -747,35 +747,51 @@ export function selectDateRange(
   })
 }
 
-export function toggleSort(sorts: SortEntry[], key: string): SortEntry[] {
+/**
+ * Cycles `key`'s sort entry through `defaultDir` → its opposite → removed (default `defaultDir`:
+ * `'asc'`, so `none → asc → desc → none`) — a column with `defaultSortDir: 'desc'` instead cycles
+ * `none → desc → asc → none`, so its first click lands on whichever direction is actually useful
+ * first for that column.
+ */
+export function toggleSort(
+  sorts: SortEntry[],
+  key: string,
+  defaultDir: SortDir = 'asc',
+): SortEntry[] {
   const existing = sorts.find((s) => s.key === key)
-  if (!existing) return [...sorts, { key, dir: 'asc' }]
-  if (existing.dir === 'asc')
-    return sorts.map((s) => (s.key === key ? { ...s, dir: 'desc' as const } : s))
+  if (!existing) return [...sorts, { key, dir: defaultDir }]
+  if (existing.dir === defaultDir)
+    return sorts.map((s) => (s.key === key ? { ...s, dir: toggleSortDir(defaultDir) } : s))
   return sorts.filter((s) => s.key !== key)
 }
 
 /**
  * A plain (non-shift) header click: sort by `key` alone, discarding every other sort entry.
- * If `key` is already the sole active sort, cycles its direction (asc → desc → none) the same
- * way `toggleSort` would; otherwise starts fresh at asc, regardless of what was sorted before.
+ * If `key` is already the sole active sort, cycles its direction (`defaultDir` → opposite → none)
+ * the same way `toggleSort` would; otherwise starts fresh at `defaultDir` (default `'asc'`),
+ * regardless of what was sorted before.
  */
-export function setSort(sorts: SortEntry[], key: string): SortEntry[] {
-  if (sorts.length === 1 && sorts[0].key === key) return toggleSort(sorts, key)
-  return [{ key, dir: 'asc' }]
+export function setSort(sorts: SortEntry[], key: string, defaultDir: SortDir = 'asc'): SortEntry[] {
+  if (sorts.length === 1 && sorts[0].key === key) return toggleSort(sorts, key, defaultDir)
+  return [{ key, dir: defaultDir }]
 }
 
 /**
- * A shift-clicked header: add `key` to the existing multi-sort (ascending) if it isn't already
- * part of it, or just flip its direction in place if it is. Deliberately never removes an entry —
- * a shift-click's intent is "adjust the multi-sort", and cycling through "none" would both
- * surprise someone who only meant to flip direction and, on the next shift-click, re-add the
- * column at the *end* of the stack instead of restoring its original priority. Removing a column
- * from the multi-sort has its own dedicated UI (a chip's × or the Sort dropdown's remove button).
+ * A shift-clicked header: add `key` to the existing multi-sort (at `defaultDir`, default `'asc'`)
+ * if it isn't already part of it, or just flip its direction in place if it is. Deliberately never
+ * removes an entry — a shift-click's intent is "adjust the multi-sort", and cycling through "none"
+ * would both surprise someone who only meant to flip direction and, on the next shift-click,
+ * re-add the column at the *end* of the stack instead of restoring its original priority. Removing
+ * a column from the multi-sort has its own dedicated UI (a chip's × or the Sort dropdown's remove
+ * button).
  */
-export function appendOrToggleSort(sorts: SortEntry[], key: string): SortEntry[] {
+export function appendOrToggleSort(
+  sorts: SortEntry[],
+  key: string,
+  defaultDir: SortDir = 'asc',
+): SortEntry[] {
   const existing = sorts.find((s) => s.key === key)
-  if (!existing) return [...sorts, { key, dir: 'asc' }]
+  if (!existing) return [...sorts, { key, dir: defaultDir }]
   return sorts.map((s) => (s.key === key ? { ...s, dir: toggleSortDir(s.dir) } : s))
 }
 

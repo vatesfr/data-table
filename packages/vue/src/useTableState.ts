@@ -59,6 +59,9 @@ export function useTableState<TRow extends object>(
   const L = computed(() => ({ ...DEFAULT_LABELS, ...options.value.labels }))
   const defaultGroupsCollapsed = computed(() => options.value.defaultGroupsCollapsed ?? true)
 
+  const defaultSortDirFor = (key: string) =>
+    columns.value.find((c) => c.key === key)?.defaultSortDir ?? 'asc'
+
   const visibleCols = ref<Set<string>>(
     new Set(options.value.defaultVisibleColumns ?? columns.value.map((c) => c.key)),
   )
@@ -189,13 +192,13 @@ export function useTableState<TRow extends object>(
       columnOrder.value = _moveColumnBy(base, key, delta)
     },
     toggleSort: (key: string) => {
-      sorts.value = _toggleSort(sorts.value, key)
+      sorts.value = _toggleSort(sorts.value, key, defaultSortDirFor(key))
     },
     setSort: (key: string) => {
-      sorts.value = _setSort(sorts.value, key)
+      sorts.value = _setSort(sorts.value, key, defaultSortDirFor(key))
     },
     appendOrToggleSort: (key: string) => {
-      sorts.value = _appendOrToggleSort(sorts.value, key)
+      sorts.value = _appendOrToggleSort(sorts.value, key, defaultSortDirFor(key))
     },
     removeSort: (key: string) => {
       sorts.value = sorts.value.filter((s) => s.key !== key)

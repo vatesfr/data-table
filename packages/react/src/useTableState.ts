@@ -75,6 +75,9 @@ export function useTableState<TRow extends object>(
   const [selectionAnchor, setSelectionAnchor] = useState<TRow | null>(null)
   const [searchQuery, setSearchQueryState] = useState('')
 
+  const defaultSortDirFor = (key: string) =>
+    columns.find((c) => c.key === key)?.defaultSortDir ?? 'asc'
+
   const stringValueMap = useMemo(
     () => computeStringValues(data, columns, L.emptyValue),
     [data, columns, L.emptyValue],
@@ -208,9 +211,10 @@ export function useTableState<TRow extends object>(
       setColumnOrder((prev) =>
         _moveColumnBy(prev.length ? prev : columns.map((c) => c.key), key, delta),
       ),
-    toggleSort: (key: string) => setSorts((prev) => _toggleSort(prev, key)),
-    setSort: (key: string) => setSorts((prev) => _setSort(prev, key)),
-    appendOrToggleSort: (key: string) => setSorts((prev) => _appendOrToggleSort(prev, key)),
+    toggleSort: (key: string) => setSorts((prev) => _toggleSort(prev, key, defaultSortDirFor(key))),
+    setSort: (key: string) => setSorts((prev) => _setSort(prev, key, defaultSortDirFor(key))),
+    appendOrToggleSort: (key: string) =>
+      setSorts((prev) => _appendOrToggleSort(prev, key, defaultSortDirFor(key))),
     removeSort: (key: string) => setSorts((prev) => prev.filter((s) => s.key !== key)),
     toggleSortDir: (key: string) =>
       setSorts((prev) =>

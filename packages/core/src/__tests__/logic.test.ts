@@ -1892,6 +1892,20 @@ describe('toggleSort', () => {
     expect(result).toHaveLength(2)
     expect(result[0].key).toBe('dept')
   })
+
+  it('adds a desc sort fresh when defaultDir is desc', () => {
+    expect(toggleSort([], 'updatedAt', 'desc')).toEqual([{ key: 'updatedAt', dir: 'desc' }])
+  })
+
+  it('flips desc to asc when defaultDir is desc (cycle reversed)', () => {
+    const result = toggleSort([{ key: 'updatedAt', dir: 'desc' }], 'updatedAt', 'desc')
+    expect(result).toEqual([{ key: 'updatedAt', dir: 'asc' }])
+  })
+
+  it('removes sort when already asc and defaultDir is desc', () => {
+    const result = toggleSort([{ key: 'updatedAt', dir: 'asc' }], 'updatedAt', 'desc')
+    expect(result).toEqual([])
+  })
 })
 
 // ─── setSort ──────────────────────────────────────────────────────────────────
@@ -1919,6 +1933,16 @@ describe('setSort', () => {
 
   it('removes the sort when key is already the sole desc sort', () => {
     expect(setSort([{ key: 'name', dir: 'desc' }], 'name')).toEqual([])
+  })
+
+  it('sets a fresh desc sort when defaultDir is desc', () => {
+    expect(setSort([], 'updatedAt', 'desc')).toEqual([{ key: 'updatedAt', dir: 'desc' }])
+  })
+
+  it('cycles desc to asc when key is already the sole sort and defaultDir is desc', () => {
+    expect(setSort([{ key: 'updatedAt', dir: 'desc' }], 'updatedAt', 'desc')).toEqual([
+      { key: 'updatedAt', dir: 'asc' },
+    ])
   })
 })
 
@@ -1961,6 +1985,10 @@ describe('appendOrToggleSort', () => {
     sorts = appendOrToggleSort(sorts, 'name')
     expect(sorts).toHaveLength(1)
     expect(sorts[0].key).toBe('name')
+  })
+
+  it('appends a fresh desc sort when defaultDir is desc', () => {
+    expect(appendOrToggleSort([], 'updatedAt', 'desc')).toEqual([{ key: 'updatedAt', dir: 'desc' }])
   })
 })
 

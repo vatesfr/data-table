@@ -431,6 +431,25 @@ describe('createDataTable', () => {
     expect(table.getViewState().sorts ?? []).toEqual([])
   })
 
+  it("a column's defaultSortDir controls where header-click/shift-click sorting starts", () => {
+    const cols: ColumnDef<Row>[] = [
+      { key: 'score', label: 'Score', type: 'number', defaultSortDir: 'desc' },
+    ]
+    const table = createDataTable(container, { data: ROWS, columns: cols })
+    const scoreHeader = () =>
+      container.querySelector<HTMLElement>('th[data-action="header-sort"][data-key="score"]')!
+
+    click(scoreHeader()) // plain click (setSort)
+    expect(table.getViewState().sorts).toEqual([{ key: 'score', dir: 'desc' }])
+    click(scoreHeader())
+    expect(table.getViewState().sorts).toEqual([{ key: 'score', dir: 'asc' }])
+    click(scoreHeader())
+    expect(table.getViewState().sorts ?? []).toEqual([])
+
+    shiftClick(scoreHeader()) // shift-click (appendOrToggleSort)
+    expect(table.getViewState().sorts).toEqual([{ key: 'score', dir: 'desc' }])
+  })
+
   it('plain-clicking a different header replaces the sort instead of appending to it', () => {
     const table = createDataTable(container, { data: ROWS, columns: COLS })
     click(container.querySelector<HTMLElement>('th[data-action="header-sort"][data-key="name"]')!)

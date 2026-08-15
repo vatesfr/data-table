@@ -200,6 +200,31 @@ describe('useTableState — sort remove/direction/reorder', () => {
     expect(sorts.value).toEqual([])
   })
 
+  it("toggleSort cycles from a column's defaultSortDir instead of asc", () => {
+    const cols: ColumnDef<Row>[] = [{ key: 'score', label: 'Score', defaultSortDir: 'desc' }]
+    const { sorts, toggleSort } = useTableState(ROWS, cols)
+    toggleSort('score')
+    expect(sorts.value).toEqual([{ key: 'score', dir: 'desc' }])
+    toggleSort('score')
+    expect(sorts.value).toEqual([{ key: 'score', dir: 'asc' }])
+    toggleSort('score')
+    expect(sorts.value).toEqual([])
+  })
+
+  it("setSort (header click) starts at a column's defaultSortDir", () => {
+    const cols: ColumnDef<Row>[] = [{ key: 'score', label: 'Score', defaultSortDir: 'desc' }]
+    const { sorts, setSort } = useTableState(ROWS, cols)
+    setSort('score')
+    expect(sorts.value).toEqual([{ key: 'score', dir: 'desc' }])
+  })
+
+  it("appendOrToggleSort (shift-click) starts at a column's defaultSortDir", () => {
+    const cols: ColumnDef<Row>[] = [{ key: 'score', label: 'Score', defaultSortDir: 'desc' }]
+    const { sorts, appendOrToggleSort } = useTableState(ROWS, cols)
+    appendOrToggleSort('score')
+    expect(sorts.value).toEqual([{ key: 'score', dir: 'desc' }])
+  })
+
   it('toggleSortDir flips an existing entry in place without reordering', () => {
     const { sorts, toggleSort, toggleSortDir } = useTableState(ROWS, COLS)
     toggleSort('name')

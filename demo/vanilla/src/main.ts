@@ -294,12 +294,15 @@ const COLUMNS: ColumnDef<Employee>[] = [
   // type: 'date' gets a range filter (2 inputs + a slider) above a Year › Month › Day filter
   // tree, instead of a plain checklist — the range narrows the tree itself. Grouped by year (not
   // the exact join date, which would be one group per row) via the same groupValue/groupFormat
-  // bucketing idea, applied to a timestamp instead of a number.
+  // bucketing idea, applied to a timestamp instead of a number. defaultSortDir: 'desc' — a first
+  // click on this header sorts most-recently-joined first, the more useful direction for a date
+  // column like this one; the direction cycle still ends at "none" on the third click either way.
   {
     key: 'joined',
     label: 'Joined',
     type: 'date',
     width: 100,
+    defaultSortDir: 'desc',
     groupable: true,
     groupValue: bucketDatePart('year'),
     groupFormat: formatDatePart('year'),
