@@ -63,7 +63,7 @@ export interface ColumnDefBase<TRow extends object = Record<string, unknown>> {
   /**
    * The direction a fresh sort on this column should start at — e.g. `'desc'` for a "last
    * modified" date column or a score/count column, where descending is the more useful first
-   * click. Default: `'asc'`. Threaded through `toggleSort`/`setSort`/`appendOrToggleSort`'s
+   * click. Default: `'asc'`. Threaded through `toggleSort`/`replaceSort`/`appendOrToggleSort`'s
    * `defaultDir` param by each adapter; only changes where a *new* sort entry for this column
    * starts (and, symmetrically, which direction its cycle removes from) — an already-active sort
    * entry's own `dir` is unaffected, and this has no bearing on `compare`'s direction-naive

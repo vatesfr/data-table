@@ -793,7 +793,7 @@ export function DataTableView<TRow extends object>({
     moveColumn,
     moveColumnBy,
     toggleSort,
-    setSort,
+    replaceSort,
     appendOrToggleSort,
     removeSort,
     toggleSortDir,
@@ -2440,7 +2440,9 @@ export function DataTableView<TRow extends object>({
                       // Shift-click: add this column to the multi-sort (or flip its direction if
                       // it's already in it) — never removes, so it can't surprise-clear a sort or
                       // bump a column to the end of the priority stack; that's the chip ×/dropdown's job.
-                      onClick={(e) => (e.shiftKey ? appendOrToggleSort(col.key) : setSort(col.key))}
+                      onClick={(e) =>
+                        e.shiftKey ? appendOrToggleSort(col.key) : replaceSort(col.key)
+                      }
                     >
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                         {col.label}

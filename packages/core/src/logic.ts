@@ -766,12 +766,19 @@ export function toggleSort(
 }
 
 /**
- * A plain (non-shift) header click: sort by `key` alone, discarding every other sort entry.
- * If `key` is already the sole active sort, cycles its direction (`defaultDir` → opposite → none)
- * the same way `toggleSort` would; otherwise starts fresh at `defaultDir` (default `'asc'`),
- * regardless of what was sorted before.
+ * A plain (non-shift) header click: sort by `key` alone, discarding every other sort entry —
+ * unlike `toggleSort`/`appendOrToggleSort`, which both preserve the rest of `sorts`. Named
+ * `replaceSort` (not `setSort`) specifically to read as distinct from those two at a glance; all
+ * three sound like near-synonyms otherwise, despite very different effects on the rest of the
+ * multi-sort. If `key` is already the sole active sort, cycles its direction (`defaultDir` →
+ * opposite → none) the same way `toggleSort` would; otherwise starts fresh at `defaultDir`
+ * (default `'asc'`), regardless of what was sorted before.
  */
-export function setSort(sorts: SortEntry[], key: string, defaultDir: SortDir = 'asc'): SortEntry[] {
+export function replaceSort(
+  sorts: SortEntry[],
+  key: string,
+  defaultDir: SortDir = 'asc',
+): SortEntry[] {
   if (sorts.length === 1 && sorts[0].key === key) return toggleSort(sorts, key, defaultDir)
   return [{ key, dir: defaultDir }]
 }

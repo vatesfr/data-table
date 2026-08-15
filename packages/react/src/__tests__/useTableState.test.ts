@@ -273,11 +273,11 @@ describe('useTableState — sort remove/direction/reorder', () => {
     expect(result.current.sorts).toEqual([])
   })
 
-  it('setSort (header click) starts at defaultSortDir', () => {
+  it('replaceSort (header click) starts at defaultSortDir', () => {
     const cols: ColumnDef<Row>[] = [{ key: 'score', label: 'Score', defaultSortDir: 'desc' }]
     const { result } = renderHook(() => useTableState(ROWS, cols))
     act(() => {
-      result.current.setSort('score')
+      result.current.replaceSort('score')
     })
     expect(result.current.sorts).toEqual([{ key: 'score', dir: 'desc' }])
   })

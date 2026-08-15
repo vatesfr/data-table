@@ -88,7 +88,7 @@ const {
   moveColumn,
   moveColumnBy,
   toggleSort,
-  setSort,
+  replaceSort,
   appendOrToggleSort,
   removeSort,
   toggleSortDir,
@@ -718,7 +718,7 @@ function headerSortLabel(key: string): string {
 // ×/dropdown's job.
 function onHeaderSortClick(key: string, event: MouseEvent): void {
   if (event.shiftKey) appendOrToggleSort(key)
-  else setSort(key)
+  else replaceSort(key)
 }
 
 // Sort/Group dropdowns split into an "active" section (priority order, reorderable) and an

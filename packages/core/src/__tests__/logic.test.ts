@@ -26,7 +26,7 @@ import {
   paginateData,
   calcTotalPages,
   toggleSort,
-  setSort,
+  replaceSort,
   appendOrToggleSort,
   toggleFilterAll,
   setFilterValues,
@@ -1920,11 +1920,11 @@ describe('toggleSort', () => {
   })
 })
 
-// ─── setSort ──────────────────────────────────────────────────────────────────
+// ─── replaceSort ──────────────────────────────────────────────────────────────
 
-describe('setSort', () => {
+describe('replaceSort', () => {
   it('sets a fresh asc sort when nothing is sorted', () => {
-    expect(setSort([], 'name')).toEqual([{ key: 'name', dir: 'asc' }])
+    expect(replaceSort([], 'name')).toEqual([{ key: 'name', dir: 'asc' }])
   })
 
   it('replaces a multi-sort with a fresh single asc sort', () => {
@@ -1932,27 +1932,31 @@ describe('setSort', () => {
       { key: 'dept', dir: 'asc' as const },
       { key: 'name', dir: 'desc' as const },
     ]
-    expect(setSort(existing, 'name')).toEqual([{ key: 'name', dir: 'asc' }])
+    expect(replaceSort(existing, 'name')).toEqual([{ key: 'name', dir: 'asc' }])
   })
 
   it('replaces a different single sort with a fresh asc sort', () => {
-    expect(setSort([{ key: 'dept', dir: 'desc' }], 'name')).toEqual([{ key: 'name', dir: 'asc' }])
+    expect(replaceSort([{ key: 'dept', dir: 'desc' }], 'name')).toEqual([
+      { key: 'name', dir: 'asc' },
+    ])
   })
 
   it('cycles asc to desc when key is already the sole sort', () => {
-    expect(setSort([{ key: 'name', dir: 'asc' }], 'name')).toEqual([{ key: 'name', dir: 'desc' }])
+    expect(replaceSort([{ key: 'name', dir: 'asc' }], 'name')).toEqual([
+      { key: 'name', dir: 'desc' },
+    ])
   })
 
   it('removes the sort when key is already the sole desc sort', () => {
-    expect(setSort([{ key: 'name', dir: 'desc' }], 'name')).toEqual([])
+    expect(replaceSort([{ key: 'name', dir: 'desc' }], 'name')).toEqual([])
   })
 
   it('sets a fresh desc sort when defaultDir is desc', () => {
-    expect(setSort([], 'updatedAt', 'desc')).toEqual([{ key: 'updatedAt', dir: 'desc' }])
+    expect(replaceSort([], 'updatedAt', 'desc')).toEqual([{ key: 'updatedAt', dir: 'desc' }])
   })
 
   it('cycles desc to asc when key is already the sole sort and defaultDir is desc', () => {
-    expect(setSort([{ key: 'updatedAt', dir: 'desc' }], 'updatedAt', 'desc')).toEqual([
+    expect(replaceSort([{ key: 'updatedAt', dir: 'desc' }], 'updatedAt', 'desc')).toEqual([
       { key: 'updatedAt', dir: 'asc' },
     ])
   })

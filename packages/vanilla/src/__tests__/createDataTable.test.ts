@@ -439,7 +439,7 @@ describe('createDataTable', () => {
     const scoreHeader = () =>
       container.querySelector<HTMLElement>('th[data-action="header-sort"][data-key="score"]')!
 
-    click(scoreHeader()) // plain click (setSort)
+    click(scoreHeader()) // plain click (replaceSort)
     expect(table.getViewState().sorts).toEqual([{ key: 'score', dir: 'desc' }])
     click(scoreHeader())
     expect(table.getViewState().sorts).toEqual([{ key: 'score', dir: 'asc' }])

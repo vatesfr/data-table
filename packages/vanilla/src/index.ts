@@ -18,7 +18,7 @@ import {
   getColumnValue,
   calcTotalPages,
   toggleSort as coreToggleSort,
-  setSort as coreSetSort,
+  replaceSort as coreReplaceSort,
   appendOrToggleSort as coreAppendOrToggleSort,
   moveSortBy as coreMoveSortBy,
   reorderSort as coreReorderSort,
@@ -1287,7 +1287,7 @@ export function createDataTable<TRow extends object>(
         // flip, nor bump it to the end of the priority stack on the next shift-click.
         sorts = e.shiftKey
           ? coreAppendOrToggleSort(sorts, key, defaultSortDirFor(key))
-          : coreSetSort(sorts, key, defaultSortDirFor(key))
+          : coreReplaceSort(sorts, key, defaultSortDirFor(key))
         viewChanged = true
         break
       case 'remove-sort':
