@@ -603,7 +603,11 @@ function EmployeeCards() {
 // usePersistedView/useUrlView can reach it, unlike <DataTable> which builds its own
 // internal, unreachable state. Try reordering or hiding columns, then reload the page.
 function PersistedTable({ labels }: { labels?: Partial<DataTableLabels> }) {
-  const table = useTableState(SAMPLE_DATA, COLUMNS, PERSISTED_VISIBLE, labels, 5)
+  const table = useTableState(SAMPLE_DATA, COLUMNS, {
+    defaultVisibleColumns: PERSISTED_VISIBLE,
+    labels,
+    defaultPageSize: 5,
+  })
   usePersistedView(table, VIEW_KEYS.persisted.storageKey)
   useUrlView(table, { paramName: VIEW_KEYS.persisted.paramName })
   return (
@@ -618,7 +622,11 @@ function PersistedTable({ labels }: { labels?: Partial<DataTableLabels> }) {
 // instead of <DataTable>) purely so this section can also reach usePersistedView/useUrlView/
 // resetView — nothing about the table's own features changes.
 function FullTable({ labels }: { labels?: Partial<DataTableLabels> }) {
-  const table = useTableState(SAMPLE_DATA, COLUMNS, DEFAULT_VISIBLE, labels, 5)
+  const table = useTableState(SAMPLE_DATA, COLUMNS, {
+    defaultVisibleColumns: DEFAULT_VISIBLE,
+    labels,
+    defaultPageSize: 5,
+  })
   usePersistedView(table, VIEW_KEYS.full.storageKey)
   useUrlView(table, { paramName: VIEW_KEYS.full.paramName })
   return (
@@ -636,7 +644,11 @@ function SelectionTable({
   labels?: Partial<DataTableLabels>
   onSelectionChange: (rows: Employee[]) => void
 }) {
-  const table = useTableState(SAMPLE_DATA, COLUMNS, SELECTION_VISIBLE, labels, 5)
+  const table = useTableState(SAMPLE_DATA, COLUMNS, {
+    defaultVisibleColumns: SELECTION_VISIBLE,
+    labels,
+    defaultPageSize: 5,
+  })
   usePersistedView(table, VIEW_KEYS.selection.storageKey)
   useUrlView(table, { paramName: VIEW_KEYS.selection.paramName })
   return (
@@ -661,7 +673,11 @@ function ClickTable({
   labels?: Partial<DataTableLabels>
   onRowClick: (row: Employee) => void
 }) {
-  const table = useTableState(SAMPLE_DATA, COLUMNS, CLICK_VISIBLE, labels, 5)
+  const table = useTableState(SAMPLE_DATA, COLUMNS, {
+    defaultVisibleColumns: CLICK_VISIBLE,
+    labels,
+    defaultPageSize: 5,
+  })
   usePersistedView(table, VIEW_KEYS.click.storageKey)
   useUrlView(table, { paramName: VIEW_KEYS.click.paramName })
   return (
@@ -681,7 +697,7 @@ function ClickTable({
 // No `labels` prop — matches the huge-dataset table's pre-existing behavior of always using the
 // default English labels regardless of the page's locale switcher.
 function HugeTable() {
-  const table = useTableState(HUGE_DATA, HUGE_COLUMNS, undefined, undefined, 100)
+  const table = useTableState(HUGE_DATA, HUGE_COLUMNS, { defaultPageSize: 100 })
   usePersistedView(table, VIEW_KEYS.huge.storageKey)
   useUrlView(table, { paramName: VIEW_KEYS.huge.paramName })
   return (

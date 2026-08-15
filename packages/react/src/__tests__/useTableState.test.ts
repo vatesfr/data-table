@@ -35,7 +35,9 @@ describe('useTableState — initial state', () => {
   })
 
   it('respects defaultVisibleColumns', () => {
-    const { result } = renderHook(() => useTableState(ROWS, COLS, ['id', 'name']))
+    const { result } = renderHook(() =>
+      useTableState(ROWS, COLS, { defaultVisibleColumns: ['id', 'name'] }),
+    )
     expect(result.current.activeColumns.map((c) => c.key)).toEqual(['id', 'name'])
   })
 
@@ -45,7 +47,7 @@ describe('useTableState — initial state', () => {
   })
 
   it('respects defaultPageSize', () => {
-    const { result } = renderHook(() => useTableState(ROWS, COLS, undefined, undefined, 2))
+    const { result } = renderHook(() => useTableState(ROWS, COLS, { defaultPageSize: 2 }))
     expect(result.current.pagedData).toHaveLength(2)
     expect(result.current.numPages).toBe(2)
   })
@@ -182,7 +184,9 @@ describe('useTableState — column visibility', () => {
   })
 
   it('toggleColVisibility shows a hidden column', () => {
-    const { result } = renderHook(() => useTableState(ROWS, COLS, ['id']))
+    const { result } = renderHook(() =>
+      useTableState(ROWS, COLS, { defaultVisibleColumns: ['id'] }),
+    )
     act(() => {
       result.current.toggleColVisibility('name')
     })
@@ -190,7 +194,9 @@ describe('useTableState — column visibility', () => {
   })
 
   it('cannot hide the last visible column', () => {
-    const { result } = renderHook(() => useTableState(ROWS, COLS, ['id']))
+    const { result } = renderHook(() =>
+      useTableState(ROWS, COLS, { defaultVisibleColumns: ['id'] }),
+    )
     act(() => {
       result.current.toggleColVisibility('id')
     })
@@ -379,7 +385,7 @@ describe('useTableState — group remove/reorder', () => {
 
 describe('useTableState — pagination', () => {
   it('setPage navigates between pages', () => {
-    const { result } = renderHook(() => useTableState(ROWS, COLS, undefined, undefined, 2))
+    const { result } = renderHook(() => useTableState(ROWS, COLS, { defaultPageSize: 2 }))
     act(() => {
       result.current.setPage(2)
     })
@@ -388,7 +394,7 @@ describe('useTableState — pagination', () => {
   })
 
   it('setPage clamps to numPages', () => {
-    const { result } = renderHook(() => useTableState(ROWS, COLS, undefined, undefined, 2))
+    const { result } = renderHook(() => useTableState(ROWS, COLS, { defaultPageSize: 2 }))
     act(() => {
       result.current.setPage(100)
     })
@@ -396,7 +402,7 @@ describe('useTableState — pagination', () => {
   })
 
   it('setPage clamps to 1 at minimum', () => {
-    const { result } = renderHook(() => useTableState(ROWS, COLS, undefined, undefined, 2))
+    const { result } = renderHook(() => useTableState(ROWS, COLS, { defaultPageSize: 2 }))
     act(() => {
       result.current.setPage(-5)
     })
@@ -404,7 +410,7 @@ describe('useTableState — pagination', () => {
   })
 
   it('setPage ignores NaN instead of corrupting page state', () => {
-    const { result } = renderHook(() => useTableState(ROWS, COLS, undefined, undefined, 2))
+    const { result } = renderHook(() => useTableState(ROWS, COLS, { defaultPageSize: 2 }))
     act(() => {
       result.current.setPage(2)
       result.current.setPage(NaN)
@@ -413,7 +419,7 @@ describe('useTableState — pagination', () => {
   })
 
   it('setPageSize ignores NaN instead of breaking pagination', () => {
-    const { result } = renderHook(() => useTableState(ROWS, COLS, undefined, undefined, 2))
+    const { result } = renderHook(() => useTableState(ROWS, COLS, { defaultPageSize: 2 }))
     act(() => {
       result.current.setPageSize(NaN)
     })
@@ -422,7 +428,7 @@ describe('useTableState — pagination', () => {
   })
 
   it('setPageSize resets page to 1', () => {
-    const { result } = renderHook(() => useTableState(ROWS, COLS, undefined, undefined, 2))
+    const { result } = renderHook(() => useTableState(ROWS, COLS, { defaultPageSize: 2 }))
     act(() => {
       result.current.setPage(2)
     })
@@ -452,7 +458,7 @@ describe('useTableState — pagination with grouping', () => {
 
   it('counts header rows toward numPages, growing when expanded vs. the 4 data rows alone', () => {
     const { result } = renderHook(() =>
-      useTableState(DEPT_ROWS, DEPT_COLS, undefined, undefined, 2, false),
+      useTableState(DEPT_ROWS, DEPT_COLS, { defaultPageSize: 2, defaultGroupsCollapsed: false }),
     )
     act(() => {
       result.current.toggleGroup('dept')
@@ -463,7 +469,7 @@ describe('useTableState — pagination with grouping', () => {
 
   it("splits an expanded group's rows across a page boundary and repeats its header as a continued chunk", () => {
     const { result } = renderHook(() =>
-      useTableState(DEPT_ROWS, DEPT_COLS, undefined, undefined, 2, false),
+      useTableState(DEPT_ROWS, DEPT_COLS, { defaultPageSize: 2, defaultGroupsCollapsed: false }),
     )
     act(() => {
       result.current.toggleGroup('dept')
@@ -494,9 +500,7 @@ describe('useTableState — pagination with grouping', () => {
 
   it("backfills a collapsed group's rows from the full group instead of whatever page its header lands on", () => {
     // defaultGroupsCollapsed defaults to true (6th arg omitted)
-    const { result } = renderHook(() =>
-      useTableState(DEPT_ROWS, DEPT_COLS, undefined, undefined, 2),
-    )
+    const { result } = renderHook(() => useTableState(DEPT_ROWS, DEPT_COLS, { defaultPageSize: 2 }))
     act(() => {
       result.current.toggleGroup('dept')
     })
@@ -510,7 +514,7 @@ describe('useTableState — pagination with grouping', () => {
 
   it('pagedData reflects the data rows actually visible on the page, not a flat pageSize slice', () => {
     const { result } = renderHook(() =>
-      useTableState(DEPT_ROWS, DEPT_COLS, undefined, undefined, 2, false),
+      useTableState(DEPT_ROWS, DEPT_COLS, { defaultPageSize: 2, defaultGroupsCollapsed: false }),
     )
     act(() => {
       result.current.toggleGroup('dept')
@@ -522,7 +526,7 @@ describe('useTableState — pagination with grouping', () => {
 
 describe('useTableState — filters reset page', () => {
   it('cycleFilterValue resets page to 1', () => {
-    const { result } = renderHook(() => useTableState(ROWS, COLS, undefined, undefined, 2))
+    const { result } = renderHook(() => useTableState(ROWS, COLS, { defaultPageSize: 2 }))
     act(() => {
       result.current.setPage(2)
     })
@@ -533,7 +537,7 @@ describe('useTableState — filters reset page', () => {
   })
 
   it('setRangeFilter resets page to 1', () => {
-    const { result } = renderHook(() => useTableState(ROWS, COLS, undefined, undefined, 2))
+    const { result } = renderHook(() => useTableState(ROWS, COLS, { defaultPageSize: 2 }))
     act(() => {
       result.current.setPage(2)
     })
@@ -544,7 +548,7 @@ describe('useTableState — filters reset page', () => {
   })
 
   it('toggleFilterAll resets page to 1', () => {
-    const { result } = renderHook(() => useTableState(ROWS, COLS, undefined, undefined, 2))
+    const { result } = renderHook(() => useTableState(ROWS, COLS, { defaultPageSize: 2 }))
     act(() => {
       result.current.setPage(2)
     })
@@ -708,7 +712,7 @@ describe('useTableState — setFilterValues', () => {
 
 describe('useTableState — filters reset page (clearFilters)', () => {
   it('clearFilters resets page to 1', () => {
-    const { result } = renderHook(() => useTableState(ROWS, COLS, undefined, undefined, 2))
+    const { result } = renderHook(() => useTableState(ROWS, COLS, { defaultPageSize: 2 }))
     act(() => {
       result.current.setPage(2)
     })
@@ -734,7 +738,7 @@ describe('useTableState — search', () => {
   })
 
   it('setSearchQuery resets page to 1', () => {
-    const { result } = renderHook(() => useTableState(ROWS, COLS, undefined, undefined, 2))
+    const { result } = renderHook(() => useTableState(ROWS, COLS, { defaultPageSize: 2 }))
     act(() => {
       result.current.setPage(2)
     })
@@ -821,7 +825,7 @@ describe('useTableState — multi-value (array) columns', () => {
 
   it('uses a custom emptyValue label when provided', () => {
     const { result } = renderHook(() =>
-      useTableState(GAMES_WITH_EMPTY, GAME_COLS, undefined, { emptyValue: 'N/A' }),
+      useTableState(GAMES_WITH_EMPTY, GAME_COLS, { labels: { emptyValue: 'N/A' } }),
     )
     expect(result.current.stringValueMap['tags']).toContain('N/A')
     act(() => {

@@ -36,16 +36,27 @@ import {
 } from '@vates/data-table-core'
 import type { ColumnDef } from './types'
 
+export interface UseTableStateOptions {
+  defaultVisibleColumns?: string[]
+  labels?: Partial<DataTableLabels>
+  defaultPageSize?: number
+  /** Whether newly-grouped groups start collapsed. Defaults to `true`; pass `false` to start expanded. */
+  defaultGroupsCollapsed?: boolean
+}
+
 export type TableState<TRow extends object> = ReturnType<typeof useTableState<TRow>>
 
 export function useTableState<TRow extends object>(
   data: TRow[],
   columns: ColumnDef<TRow>[],
-  defaultVisibleColumns?: string[],
-  labelOverrides?: Partial<DataTableLabels>,
-  defaultPageSize?: number,
-  defaultGroupsCollapsed = true,
+  options?: UseTableStateOptions,
 ) {
+  const {
+    defaultVisibleColumns,
+    labels: labelOverrides,
+    defaultPageSize,
+    defaultGroupsCollapsed = true,
+  } = options ?? {}
   const L = { ...DEFAULT_LABELS, ...labelOverrides }
 
   const [visibleCols, setVisibleCols] = useState<Set<string>>(

@@ -337,14 +337,12 @@ const {
   clearSelection, // () => void
   getViewState, // () => TableViewState — snapshot of sort/filter/group/page/etc. (not selection)
   setViewState, // (view: TableViewState) => void — apply a snapshot; fields absent from it reset to default
-} = useTableState(
-  data,
-  columns,
+} = useTableState(data, columns, {
   defaultVisibleColumns,
-  labelOverrides,
+  labels: labelOverrides,
   defaultPageSize,
   defaultGroupsCollapsed, // default true — pass false to start groups expanded
-)
+})
 ```
 
 ## View persistence & sharing
@@ -385,7 +383,10 @@ import { resetView } from '@vates/data-table-react'
 import { useTableState, usePersistedView, useUrlView, DataTableView } from '@vates/data-table-react'
 
 function EmployeeTable() {
-  const table = useTableState(employees, COLUMNS, DEFAULT_VISIBLE, undefined, 20)
+  const table = useTableState(employees, COLUMNS, {
+    defaultVisibleColumns: DEFAULT_VISIBLE,
+    defaultPageSize: 20,
+  })
   usePersistedView(table, 'employee-table-view')
   useUrlView(table)
   return <DataTableView table={table} data={employees} columns={COLUMNS} rowKey="id" />

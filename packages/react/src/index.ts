@@ -1,7 +1,7 @@
 export { DataTable } from './DataTable'
 export { DataTableView } from './DataTableView'
 export { useTableState } from './useTableState'
-export type { TableState } from './useTableState'
+export type { TableState, UseTableStateOptions } from './useTableState'
 export { usePersistedView, useUrlView, resetView } from './persistence'
 export type { ViewStateApi, UseUrlViewOptions, ResetViewOptions } from './persistence'
 export type { ColumnDef, DataTableProps, DataTableViewProps } from './types'

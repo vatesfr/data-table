@@ -14,14 +14,12 @@ export function DataTable<TRow extends object>({
   onSelectionChange,
   onRowClick,
 }: DataTableProps<TRow>) {
-  const table = useTableState(
-    data,
-    columns,
+  const table = useTableState(data, columns, {
     defaultVisibleColumns,
     labels,
     defaultPageSize,
     defaultGroupsCollapsed,
-  )
+  })
 
   return (
     <DataTableView
