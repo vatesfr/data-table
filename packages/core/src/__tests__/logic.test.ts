@@ -1843,6 +1843,15 @@ describe('paginateData', () => {
     const result = paginateData(ROWS, 10, 2)
     expect(result).toEqual([])
   })
+
+  it('returns all rows instead of an empty slice when pageSize is NaN', () => {
+    expect(paginateData(ROWS, 1, NaN)).toEqual(ROWS)
+  })
+
+  it('falls back to page 1 when page is NaN', () => {
+    const result = paginateData(ROWS, NaN, 2)
+    expect(result.map((r) => r.id)).toEqual([1, 2])
+  })
 })
 
 // ─── calcTotalPages ───────────────────────────────────────────────────────────
@@ -1866,6 +1875,10 @@ describe('calcTotalPages', () => {
 
   it('returns 1 when dataset is smaller than pageSize', () => {
     expect(calcTotalPages(3, 10)).toBe(1)
+  })
+
+  it('returns 1 (not NaN) when pageSize is NaN', () => {
+    expect(calcTotalPages(100, NaN)).toBe(1)
   })
 })
 

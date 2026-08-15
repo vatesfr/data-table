@@ -403,6 +403,24 @@ describe('useTableState — pagination', () => {
     expect(result.current.page).toBe(1)
   })
 
+  it('setPage ignores NaN instead of corrupting page state', () => {
+    const { result } = renderHook(() => useTableState(ROWS, COLS, undefined, undefined, 2))
+    act(() => {
+      result.current.setPage(2)
+      result.current.setPage(NaN)
+    })
+    expect(result.current.page).toBe(2)
+  })
+
+  it('setPageSize ignores NaN instead of breaking pagination', () => {
+    const { result } = renderHook(() => useTableState(ROWS, COLS, undefined, undefined, 2))
+    act(() => {
+      result.current.setPageSize(NaN)
+    })
+    expect(result.current.pageSize).toBe(2)
+    expect(result.current.numPages).toBe(2)
+  })
+
   it('setPageSize resets page to 1', () => {
     const { result } = renderHook(() => useTableState(ROWS, COLS, undefined, undefined, 2))
     act(() => {

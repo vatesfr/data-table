@@ -300,9 +300,13 @@ export function useTableState<TRow extends object>(
       else setFilterState((prev) => ({ ...prev, filters: { ...prev.filters, [key]: new Set() } }))
       setPageState(1)
     },
-    setPage: (p: number) => setPageState(Math.max(1, Math.min(p, numPages))),
+    setPage: (p: number) => {
+      if (!Number.isFinite(p)) return
+      setPageState(Math.max(1, Math.min(Math.floor(p), numPages)))
+    },
     setPageSize: (s: number) => {
-      setPageSizeState(s)
+      if (!Number.isFinite(s)) return
+      setPageSizeState(Math.max(0, Math.floor(s)))
       setPageState(1)
     },
     clearSorts: () => setSorts([]),

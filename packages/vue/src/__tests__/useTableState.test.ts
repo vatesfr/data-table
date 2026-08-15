@@ -313,6 +313,20 @@ describe('useTableState — pagination', () => {
     setPageSize(3)
     expect(page.value).toBe(1)
   })
+
+  it('setPage ignores NaN instead of corrupting page state', () => {
+    const { page, setPage } = useTableState(ROWS, COLS, { defaultPageSize: 2 })
+    setPage(2)
+    setPage(NaN)
+    expect(page.value).toBe(2)
+  })
+
+  it('setPageSize ignores NaN instead of breaking pagination', () => {
+    const { pageSize, numPages, setPageSize } = useTableState(ROWS, COLS, { defaultPageSize: 2 })
+    setPageSize(NaN)
+    expect(pageSize.value).toBe(2)
+    expect(numPages.value).toBe(2)
+  })
 })
 
 describe('useTableState — pagination with grouping', () => {

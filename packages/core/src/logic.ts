@@ -1036,13 +1036,14 @@ export function paginateData<TRow extends object>(
   page: number,
   pageSize: number,
 ): TRow[] {
-  if (pageSize <= 0) return data
-  const start = (page - 1) * pageSize
+  if (!Number.isFinite(pageSize) || pageSize <= 0) return data
+  const safePage = Number.isFinite(page) ? Math.floor(page) : 1
+  const start = (Math.max(1, safePage) - 1) * pageSize
   return data.slice(start, start + pageSize)
 }
 
 export function calcTotalPages(count: number, pageSize: number): number {
-  if (pageSize <= 0) return 1
+  if (!Number.isFinite(pageSize) || pageSize <= 0) return 1
   return Math.max(1, Math.ceil(count / pageSize))
 }
 

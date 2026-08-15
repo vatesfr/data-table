@@ -276,10 +276,12 @@ export function useTableState<TRow extends object>(
       page.value = 1
     },
     setPage: (p: number) => {
-      page.value = Math.max(1, Math.min(p, numPages.value))
+      if (!Number.isFinite(p)) return
+      page.value = Math.max(1, Math.min(Math.floor(p), numPages.value))
     },
     setPageSize: (s: number) => {
-      pageSize.value = s
+      if (!Number.isFinite(s)) return
+      pageSize.value = Math.max(0, Math.floor(s))
       page.value = 1
     },
     toggleGroup: (key: string) => {
