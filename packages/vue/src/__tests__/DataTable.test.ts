@@ -336,6 +336,25 @@ describe('DataTable — filter dropdown', () => {
     expect((thumbs[1].element as HTMLInputElement).value).toBe('90')
   })
 
+  it("defaults the plain min/max inputs to the column's data bounds when no filter is set", async () => {
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: FILTER_COLS, rowKey: 'id' } })
+    const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
+    await filterBtn.trigger('click')
+    const scoreItem = wrapper
+      .findAll('.dt__filter-col-item')
+      .find((el) => el.text().includes('Score'))!
+    await scoreItem.trigger('click')
+    expect((wrapper.find('input[placeholder="Min"]').element as HTMLInputElement).value).toBe(
+      '60', // Bob
+    )
+    expect((wrapper.find('input[placeholder="Max"]').element as HTMLInputElement).value).toBe(
+      '90', // Alice
+    )
+    // Bounds are a display-only default — no filter is actually active yet.
+    expect(wrapper.findAll('tbody tr')).toHaveLength(2)
+    expect(scoreItem.find('.dt__filter-col-dot').exists()).toBe(false)
+  })
+
   it('dragging a slider thumb updates the plain min/max inputs and filters rows', async () => {
     const wrapper = mount(DataTable, { props: { data: ROWS, columns: FILTER_COLS, rowKey: 'id' } })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
@@ -709,6 +728,17 @@ describe('DataTable — date filter tree', () => {
     await filterBtn.trigger('click')
     const dateInputs = wrapper.findAll('input[type="date"]')
     expect(dateInputs).toHaveLength(2)
+  })
+
+  it("defaults the date inputs to the column's earliest/latest date when no filter is set", async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: DATE_ROWS, columns: DATE_COLS, rowKey: 'id' },
+    })
+    const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
+    await filterBtn.trigger('click')
+    const dateInputs = wrapper.findAll('input[type="date"]')
+    expect((dateInputs[0].element as HTMLInputElement).value).toBe('2021-01-02') // Game C
+    expect((dateInputs[1].element as HTMLInputElement).value).toBe('2023-05-20') // Game B
   })
 
   it('a date range narrows the tree itself and filters rows, without needing a checkbox ticked', async () => {

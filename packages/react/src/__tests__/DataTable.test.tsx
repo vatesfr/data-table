@@ -324,6 +324,20 @@ describe('DataTable — filter dropdown', () => {
     expect(thumbs[1].value).toBe('90')
   })
 
+  it("defaults the plain min/max inputs to the column's data bounds when no filter is set", () => {
+    const { getByText, getAllByText, getByPlaceholderText, container } = render(
+      <DataTable data={ROWS} columns={FILTER_COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Filter'))
+    const scoreItem = getAllByText('Score').find((el) => el.closest('th') === null)!
+    fireEvent.click(scoreItem)
+    expect((getByPlaceholderText('Min') as HTMLInputElement).value).toBe('60') // Bob
+    expect((getByPlaceholderText('Max') as HTMLInputElement).value).toBe('90') // Alice
+    // Bounds are a display-only default — no filter is actually active yet.
+    expect(container.querySelectorAll('tbody tr')).toHaveLength(2)
+    expect(scoreItem.parentElement?.querySelectorAll('span')).toHaveLength(1) // no dot
+  })
+
   it('dragging a slider thumb updates the plain min/max inputs and filters rows', () => {
     const { getByText, getAllByText, getByPlaceholderText, container } = render(
       <DataTable data={ROWS} columns={FILTER_COLS} rowKey="id" />,
@@ -714,6 +728,15 @@ describe('DataTable — date filter tree', () => {
     fireEvent.click(getByText('Filter'))
     expect((getByLabelText('Min') as HTMLInputElement).type).toBe('date')
     expect((getByLabelText('Max') as HTMLInputElement).type).toBe('date')
+  })
+
+  it("defaults the date inputs to the column's earliest/latest date when no filter is set", () => {
+    const { getByText, getByLabelText } = render(
+      <DataTable data={DATE_ROWS} columns={DATE_COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Filter'))
+    expect((getByLabelText('Min') as HTMLInputElement).value).toBe('2021-01-02') // Game C
+    expect((getByLabelText('Max') as HTMLInputElement).value).toBe('2023-05-20') // Game B
   })
 
   it('a date range narrows the tree itself and filters rows, without needing a checkbox ticked', () => {

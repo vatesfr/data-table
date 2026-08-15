@@ -441,10 +441,24 @@ function countFor(col: ColumnDef<TRow>, value: string): number {
 // just because some other filter narrowed the row set. null when the column has no parseable
 // values at all, or all its values are identical (nothing to bound a slider to) — callers hide
 // the slider in that case, the two plain min/max inputs above it keep working regardless.
+// Formats a bound (epoch ms for a date column, a plain number otherwise) back into the string
+// shape `RangeFilter.min`/`.max` uses — shared by the slider's onChange and the plain min/max
+// inputs' own data-derived default value.
+function formatRangeBound(n: number, col: ColumnDef<TRow>): string {
+  return col.type === 'date' ? new Date(n).toISOString().slice(0, 10) : String(n)
+}
+// Single memoized source for filterDetailCol's own data bounds, shared by the slider config below
+// and by the plain min/max inputs' own default value — filterDetailCol changes identity whenever
+// the active column switches, so this recomputes exactly when needed and no more.
+const filterDetailBounds = computed(() => {
+  const col = filterDetailCol.value
+  if (!col || (col.type !== 'number' && col.type !== 'date')) return null
+  return computeValueBounds(props.data, col)
+})
 function rangeSliderFor(
   col: ColumnDef<TRow>,
+  bounds: { min: number; max: number } | null,
 ): { min: number; max: number; low: number; high: number; step: number | 'any' } | null {
-  const bounds = computeValueBounds(props.data, col)
   if (!bounds || bounds.min >= bounds.max) return null
   const rf = rangeFilters.value[col.key]
   const isDate = col.type === 'date'
@@ -463,13 +477,11 @@ function rangeSliderFor(
 // below — filterDetailCol changes identity whenever the active column switches, so this
 // recomputes exactly when needed and no more.
 const filterDetailSlider = computed(() =>
-  filterDetailCol.value ? rangeSliderFor(filterDetailCol.value) : null,
+  filterDetailCol.value ? rangeSliderFor(filterDetailCol.value, filterDetailBounds.value) : null,
 )
 function onRangeSliderChange(col: ColumnDef<TRow>, low: number, high: number): void {
-  const isDate = col.type === 'date'
-  const fmt = (n: number) => (isDate ? new Date(n).toISOString().slice(0, 10) : String(n))
-  setRangeFilter(col.key, 'min', fmt(low))
-  setRangeFilter(col.key, 'max', fmt(high))
+  setRangeFilter(col.key, 'min', formatRangeBound(low, col))
+  setRangeFilter(col.key, 'max', formatRangeBound(high, col))
 }
 // Single memoized source for the checklist's rendered/sliced values — filteredValuesFor(col) is
 // a plain function re-run on every call, so computing it once here (rather than once for the
@@ -1525,7 +1537,12 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                     <input
                       type="number"
                       :placeholder="L.min"
-                      :value="rangeFilters[filterDetailCol.key]?.min ?? ''"
+                      :value="
+                        rangeFilters[filterDetailCol.key]?.min ??
+                        (filterDetailBounds
+                          ? formatRangeBound(filterDetailBounds.min, filterDetailCol)
+                          : '')
+                      "
                       @input="
                         setRangeFilter(
                           filterDetailCol.key,
@@ -1539,7 +1556,12 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                     <input
                       type="number"
                       :placeholder="L.max"
-                      :value="rangeFilters[filterDetailCol.key]?.max ?? ''"
+                      :value="
+                        rangeFilters[filterDetailCol.key]?.max ??
+                        (filterDetailBounds
+                          ? formatRangeBound(filterDetailBounds.max, filterDetailCol)
+                          : '')
+                      "
                       @input="
                         setRangeFilter(
                           filterDetailCol.key,
@@ -1562,7 +1584,12 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                       <input
                         type="date"
                         :aria-label="L.min"
-                        :value="rangeFilters[filterDetailCol.key]?.min ?? ''"
+                        :value="
+                          rangeFilters[filterDetailCol.key]?.min ??
+                          (filterDetailBounds
+                            ? formatRangeBound(filterDetailBounds.min, filterDetailCol)
+                            : '')
+                        "
                         @input="
                           setRangeFilter(
                             filterDetailCol.key,
@@ -1576,7 +1603,12 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                       <input
                         type="date"
                         :aria-label="L.max"
-                        :value="rangeFilters[filterDetailCol.key]?.max ?? ''"
+                        :value="
+                          rangeFilters[filterDetailCol.key]?.max ??
+                          (filterDetailBounds
+                            ? formatRangeBound(filterDetailBounds.max, filterDetailCol)
+                            : '')
+                        "
                         @input="
                           setRangeFilter(
                             filterDetailCol.key,

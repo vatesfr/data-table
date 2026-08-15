@@ -1650,6 +1650,25 @@ describe('createDataTable', () => {
     expect(minInput.value).toBe('75') // live, before "change" ever fires
   })
 
+  it("defaults the plain min/max inputs to the column's data bounds when no filter is set", () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="filter"]')!)
+    click(
+      container.querySelector<HTMLElement>('[data-action="select-filter-col"][data-key="score"]')!,
+    )
+    const minInput = container.querySelector<HTMLInputElement>(
+      '[data-action="range-min"][data-key="score"]',
+    )!
+    const maxInput = container.querySelector<HTMLInputElement>(
+      '[data-action="range-max"][data-key="score"]',
+    )!
+    expect(minInput.value).toBe('60') // Bob
+    expect(maxInput.value).toBe('90') // Alice
+    // Bounds are a display-only default — no filter is actually active yet.
+    expect(container.querySelectorAll('tbody tr')).toHaveLength(4)
+    expect(container.querySelector('.dt-chip--filter')).toBeNull()
+  })
+
   it('marks the column with a dot and an active-bar chip once a range filter is set', () => {
     createDataTable(container, { data: ROWS, columns: COLS })
     click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="filter"]')!)
@@ -1836,6 +1855,20 @@ describe('createDataTable', () => {
     )!
     expect(minInput.type).toBe('date')
     expect(maxInput.type).toBe('date')
+  })
+
+  it("defaults the date inputs to the column's earliest/latest date when no filter is set", () => {
+    createDataTable(container, { data: DATE_ROWS, columns: DATE_COLS })
+    openDateFilter()
+    const minInput = container.querySelector<HTMLInputElement>(
+      '[data-action="range-min"][data-key="released"]',
+    )!
+    const maxInput = container.querySelector<HTMLInputElement>(
+      '[data-action="range-max"][data-key="released"]',
+    )!
+    expect(minInput.value).toBe('2021-01-02') // Game C
+    expect(maxInput.value).toBe('2023-05-20') // Game B
+    expect(container.querySelector('.dt-chip--filter')).toBeNull()
   })
 
   it('a date range narrows the tree itself and filters rows, without needing a checkbox ticked', () => {
