@@ -816,9 +816,16 @@ export function createDataTable<TRow extends object>(
               const maxDefault = bounds ? formatRangeBound(bounds.max, filterDetailCol) : ''
               s += `<div style="padding:4px 14px 8px">`
               s += `<div style="display:flex;gap:6px;align-items:center">`
-              s += `<input type="number" class="dt-range-input" placeholder="${esc(L.min)}" value="${esc(rf?.min ?? minDefault)}" data-action="range-min" data-key="${esc(filterDetailCol.key)}" data-focus-key="rmin-${esc(filterDetailCol.key)}">`
+              // type="text"/inputmode="decimal" rather than type="number": a number input's
+              // selectionStart/selectionEnd/setSelectionRange are unsupported by spec (always
+              // null), so the generic focus/cursor restore below silently couldn't replant the
+              // caret after each keystroke's full re-render recreated the node — the browser then
+              // defaulted the caret to position 0, so typing "8" then "5" inserted before the "8"
+              // ("58" instead of "85"). Text inputs support selection, so the existing restore
+              // mechanism (already used for every other input in this file) works unchanged.
+              s += `<input type="text" inputmode="decimal" class="dt-range-input" placeholder="${esc(L.min)}" value="${esc(rf?.min ?? minDefault)}" data-action="range-min" data-key="${esc(filterDetailCol.key)}" data-focus-key="rmin-${esc(filterDetailCol.key)}">`
               s += `<span class="dt-range-sep">–</span>`
-              s += `<input type="number" class="dt-range-input" placeholder="${esc(L.max)}" value="${esc(rf?.max ?? maxDefault)}" data-action="range-max" data-key="${esc(filterDetailCol.key)}" data-focus-key="rmax-${esc(filterDetailCol.key)}">`
+              s += `<input type="text" inputmode="decimal" class="dt-range-input" placeholder="${esc(L.max)}" value="${esc(rf?.max ?? maxDefault)}" data-action="range-max" data-key="${esc(filterDetailCol.key)}" data-focus-key="rmax-${esc(filterDetailCol.key)}">`
               s += `</div>`
               s += buildRangeSlider(filterDetailCol, rf, bounds)
               s += `</div>`

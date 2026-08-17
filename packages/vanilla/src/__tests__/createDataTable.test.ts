@@ -1755,6 +1755,37 @@ describe('createDataTable', () => {
     expect(container.querySelectorAll('tbody tr')).toHaveLength(2) // Alice (90) and Clara (80)
   })
 
+  it('typing consecutive digits into a numeric range input appends them in order', () => {
+    // Regression test: the min/max range inputs used to be type="number", whose
+    // selectionStart/selectionEnd/setSelectionRange are unsupported by spec (always null) — so
+    // the generic focus/cursor restore couldn't replant the caret after each keystroke's full
+    // re-render recreated the node, and the browser defaulted the caret to position 0. Typing "8"
+    // then "5" produced "58" instead of "85". Simulates real typing by tracking the caret
+    // (selectionStart/End) on the live element and re-querying it after each render, since the
+    // node is destroyed and recreated on every keystroke.
+    createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="filter"]')!)
+    click(
+      container.querySelector<HTMLElement>('[data-action="select-filter-col"][data-key="score"]')!,
+    )
+    const selector = '[data-action="range-min"][data-key="score"]'
+    function typeChar(char: string): void {
+      const el = container.querySelector<HTMLInputElement>(selector)!
+      const start = el.selectionStart ?? el.value.length
+      const end = el.selectionEnd ?? el.value.length
+      el.value = el.value.slice(0, start) + char + el.value.slice(end)
+      el.setSelectionRange(start + char.length, start + char.length)
+      el.dispatchEvent(new Event('input', { bubbles: true }))
+    }
+    // Start from an empty field (the inputs default to the column's data bounds otherwise, which
+    // would obscure the append-vs-prepend distinction this test is about).
+    setInput(container.querySelector<HTMLInputElement>(selector)!, '')
+    container.querySelector<HTMLInputElement>(selector)!.focus()
+    typeChar('8')
+    typeChar('5')
+    expect(container.querySelector<HTMLInputElement>(selector)!.value).toBe('85')
+  })
+
   it('max range filter keeps only rows at or below the threshold', () => {
     createDataTable(container, { data: ROWS, columns: COLS })
     click(container.querySelector<HTMLElement>('[data-action="toggle-dd"][data-dd="filter"]')!)
