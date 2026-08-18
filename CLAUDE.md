@@ -424,3 +424,7 @@ Packages and demo apps resolve each other without a build step via:
 - **`vite.config.ts` `resolve.alias`** — maps `@vates/data-table-core` to the `packages/core/src` **directory** (not `index.ts`) so Vite's prefix substitution resolves the bare import and any sub-path (`/locales`, `/theme`) correctly
 
 In production, `npm run build` must run `core` before `react`, `vue`, and `vanilla` since they import from its `dist/`.
+
+### Release process
+
+All four packages share a single version-number pool (`CHANGELOG.md`'s `## [X.Y.Z]` headers cover the whole project, not one package each) — but a release only bumps and publishes the packages that actually changed, not every package unconditionally. A release touching only `packages/vanilla` publishes vanilla at the new version and leaves core/react/vue's `package.json` at whatever they were last published at; a release touching several packages together bumps all of those to the same new number. This means the four packages' versions can drift apart over time (e.g. vanilla at `0.9.0` while core/react/vue are still at `0.8.0`), and a later release that finally touches core again jumps it straight to whatever the shared pool is at by then, skipping the numbers in between — that's expected, not a mistake. Cross-package `dependencies` ranges (e.g. `"@vates/data-table-core": "^0.8.0"` in react/vue/vanilla's `package.json`) always reference the dependency's own actual last-published version, not the release's shared number.

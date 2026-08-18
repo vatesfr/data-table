@@ -7,6 +7,28 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-08-18
+
+### Changed
+
+- **Internal:** `@vates/data-table-vanilla` is now implemented with [Solid](https://www.solidjs.com/) + TSX instead of a hand-rolled `innerHTML`-string-rebuilding renderer. `solid-js` is bundled (not a published dependency — never installed by consumers). The public API (`createDataTable(container, options)`, its options, and its returned instance shape) is unchanged; bundle size grew from ~16.3 kB to ~24 kB gzip (still well under a React/Vue-based alternative's ~40 kB+), in exchange for structurally eliminating a class of bugs the old renderer's manual DOM-diffing bookkeeping was prone to (see Fixed below)
+
+### Fixed
+
+- Vanilla: the numeric/date range filter's min/max inputs reversed digit order while typing (e.g. typing "8" then "5" produced "58" instead of "85") — a `type="number"` input doesn't support the selection APIs the old focus-restore mechanism relied on; fixed (ahead of the Solid rewrite) by switching to `type="text" inputmode="decimal"`
+- Vanilla: an array (multi-value) column's cell rendered via a bare comma-join ("Action,RPG") instead of ", "-joined, unlike React/Vue
+- Vanilla: a custom `col.render` on an aggregate column was silently ignored (fell back to `format`/stringify) — `render` now applies uniformly to data, group-header, and aggregate cells, matching React/Vue
+- Vanilla: Home/End keyboard navigation on table rows and group headers was entirely unimplemented
+- Vanilla: Shift+ArrowUp/Down didn't extend row selection to the target the way Shift+click already did
+- Vanilla: collapsing/expanding a group via Enter could drop keyboard focus to the page body
+- Vanilla: opening one toolbar dropdown while another was already open could spuriously close the open one
+- Vanilla: the header and per-group "select all" checkboxes could visually get stuck showing "checked" immediately after clearing a partial selection to zero
+- Vanilla: shift-range **deselection** in the filter checklist/date-tree could clear an unrelated exclude flag on a value swept by the range
+- Vanilla: the Filter dropdown's left column pane had no search box and wasn't alphabetized, unlike the Sort/Group dropdowns' equivalent lists
+- Vanilla: the Filter dropdown's date-column detail pane was missing its select-all checkbox and value-search box entirely
+- Vanilla: a date filter tree's month/day nodes rendered a raw zero-padded key ("05") instead of a localized month name ("May")
+- Vanilla: the date range filter's min/max inputs didn't default to the column's actual data bounds, unlike the numeric range filter's equivalent inputs
+
 ## [0.8.0] - 2026-08-15
 
 ### Added
