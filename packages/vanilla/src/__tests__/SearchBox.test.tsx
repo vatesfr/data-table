@@ -19,8 +19,9 @@ const ROWS: Row[] = [
 function mount() {
   const container = document.createElement('div')
   document.body.appendChild(container)
-  const table = createTableState(ROWS, COLS)
+  let table!: ReturnType<typeof createTableState<Row>>
   const dispose = createRoot((d) => {
+    table = createTableState(ROWS, COLS)
     render(() => <SearchBox table={table} />, container)
     return d
   })
