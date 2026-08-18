@@ -22,6 +22,7 @@ import type { ColumnDef } from '../types'
 import { Dropdown } from './Dropdown'
 import { RangeSlider } from './RangeSlider'
 import { DateTreeItem } from './DateTreeItem'
+import { applyCheckboxState, deferCheckboxCorrection } from './checkboxSync'
 
 interface FilterDropdownProps<TRow extends object> {
   table: TableState<TRow>
@@ -54,6 +55,18 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
   const filterableCols = createMemo(() => props.columns.filter((c) => c.filterable !== false))
 
   const [activeKey, setActiveKey] = createSignal<string | null>(null)
+  // Narrows the left pane's *column list* — a separate concern from `searchTerms` below, which
+  // narrows the active column's *values* in the right detail pane (see CLAUDE.md's "Dropdown
+  // column search and keyboard navigation").
+  const [colSearchTerm, setColSearchTerm] = createSignal('')
+  const searchedFilterableCols = createMemo(() => {
+    const term = colSearchTerm().trim().toLowerCase()
+    return (
+      term ? filterableCols().filter((c) => c.label.toLowerCase().includes(term)) : filterableCols()
+    )
+      .slice()
+      .sort((a, b) => a.label.localeCompare(b.label))
+  })
   const [searchTerms, setSearchTerms] = createSignal<Record<string, string>>({})
   const [valueSorts, setValueSorts] = createSignal<Record<string, ValueSort>>({})
   const [selectionAnchors, setSelectionAnchors] = createSignal<Record<string, string>>({})
@@ -157,6 +170,10 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
     const col = activeCol()
     if (!col) return
     table.toggleFilterAll(col.key, filterDetailValues())
+    // No preventDefault() here (this checkbox is a plain two-state toggle, not tri-state), but
+    // the native pre-click activation can still race Solid's own synchronous write on rare
+    // event-ordering — deferring a correction alongside the state update is cheap insurance.
+    deferCheckboxCorrection(selectAllEl, () => selectAllState())
   }
   const selectAllState = createMemo(() => {
     const col = activeCol()
@@ -171,7 +188,7 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
   })
   let selectAllEl: HTMLInputElement | undefined
   createEffect(() => {
-    if (selectAllEl) selectAllEl.indeterminate = selectAllState().indeterminate
+    applyCheckboxState(selectAllEl, selectAllState().checked, selectAllState().indeterminate)
   })
 
   // --- Date tree ---
@@ -222,7 +239,14 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
     >
       <div class="dt-filter-panel">
         <div class="dt-filter-cols">
-          <For each={filterableCols()}>
+          <input
+            type="text"
+            class="dt-dd-search dt-filter-cols-search"
+            placeholder={table.L.filterSearchPlaceholder}
+            value={colSearchTerm()}
+            onInput={(e) => setColSearchTerm(e.currentTarget.value)}
+          />
+          <For each={searchedFilterableCols()}>
             {(col) => {
               const hasActive = createMemo(() => {
                 const rf = table.rangeFilters()[col.key]
@@ -287,7 +311,7 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
                               const count = () => stringValueCounts().get(value) ?? 0
                               let el: HTMLInputElement | undefined
                               createEffect(() => {
-                                if (el) el.indeterminate = excluded()
+                                applyCheckboxState(el, included(), excluded())
                               })
                               return (
                                 <label class="dt-dd-item">
@@ -298,6 +322,10 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
                                     onClick={(e) => {
                                       e.preventDefault()
                                       handleValueClick(value, (e as MouseEvent).shiftKey)
+                                      deferCheckboxCorrection(el, () => ({
+                                        checked: included(),
+                                        indeterminate: excluded(),
+                                      }))
                                     }}
                                   />
                                   <span class="dt-flex1">{value}</span>
@@ -318,7 +346,10 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
                         <input
                           type="date"
                           aria-label={table.L.min}
-                          value={table.rangeFilters()[col().key]?.min ?? ''}
+                          value={
+                            table.rangeFilters()[col().key]?.min ??
+                            (bounds() ? formatRangeBound(bounds()!.min, col()) : '')
+                          }
                           onInput={(e) =>
                             table.setRangeFilter(col().key, 'min', e.currentTarget.value)
                           }
@@ -327,14 +358,14 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
                         <input
                           type="date"
                           aria-label={table.L.max}
-                          value={table.rangeFilters()[col().key]?.max ?? ''}
+                          value={
+                            table.rangeFilters()[col().key]?.max ??
+                            (bounds() ? formatRangeBound(bounds()!.max, col()) : '')
+                          }
                           onInput={(e) =>
                             table.setRangeFilter(col().key, 'max', e.currentTarget.value)
                           }
                         />
-                        <button type="button" onClick={cycleSort}>
-                          {getDateSortIcon(valueSort().dir)}
-                        </button>
                       </div>
                       <RangeSlider
                         col={col()}
@@ -346,6 +377,32 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
                         }}
                       />
                     </div>
+                    {/* Same shared search-row as the string checklist below (select-all + value
+                        search + sort-order toggle) — the date branch had been missing this
+                        entirely; the range filter/tree above narrow the *values*, but the value
+                        search box and select-all-currently-listed checkbox are independent
+                        controls that apply here too, same as the old vanilla renderer's shared
+                        (non-branched) search-row markup. */}
+                    <div class="dt-filter-search-row">
+                      <input
+                        type="checkbox"
+                        title={table.L.selectAll}
+                        aria-label={table.L.selectAll}
+                        checked={selectAllState().checked}
+                        ref={selectAllEl}
+                        onClick={handleSelectAll}
+                      />
+                      <input
+                        type="text"
+                        class="dt-dd-search"
+                        placeholder={table.L.filterSearchPlaceholder}
+                        value={searchTerm()}
+                        onInput={(e) => setSearchTerm(col().key, e.currentTarget.value)}
+                      />
+                      <button type="button" onClick={cycleSort}>
+                        {getDateSortIcon(valueSort().dir)}
+                      </button>
+                    </div>
                     <div class="dt-date-tree-wrap">
                       <For each={dateTree()}>
                         {(node) => (
@@ -355,6 +412,7 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
                             selected={table.filters()[col().key] ?? new Set()}
                             counts={stringValueCounts()}
                             expanded={expanded()}
+                            searchActive={searchTerm() !== ''}
                             onToggleExpand={(path) => toggleExpand(col().key, path)}
                             onToggleNode={handleDateNodeToggle}
                           />

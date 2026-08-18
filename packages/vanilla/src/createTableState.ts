@@ -354,6 +354,15 @@ export function createTableState<TRow extends object>(
       setSelection(new Set<TRow>())
       setSelectionAnchor(null)
     },
+    // Replaces the selection outright, by object identity — backs vanilla's imperative
+    // `DataTableInstance.setSelection(rows)` (see "Row selection" -> "Vanilla's imperative
+    // selection API"). React/Vue have no equivalent: they expose `selection`/`toggleRowSelection`/
+    // `clearSelection` directly since a consumer there already has the `useTableState` value in
+    // hand, with no need for a separate "replace everything" method.
+    setSelectionRows: (rows: TRow[]) => {
+      setSelection(new Set(rows))
+      setSelectionAnchor(null)
+    },
     getViewState: (): TableViewState => {
       const view: TableViewState = {}
       const allKeys = columns().map((c) => c.key)

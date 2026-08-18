@@ -1,4 +1,4 @@
-import { For, Show, createEffect, createMemo, createSignal } from 'solid-js'
+import { For, Index, Show, createEffect, createMemo, createSignal } from 'solid-js'
 import {
   getColumnValue,
   computeAggregate,
@@ -19,6 +19,14 @@ interface TableBodyProps<TRow extends object> {
   onRowClick?: (row: TRow, event: MouseEvent | KeyboardEvent) => void
 }
 
+// A multi-value (array) column's raw value has no natural single-string representation, so it's
+// joined with ", " rather than falling through to Array.prototype.toString's bare comma-join —
+// matches React/Vue's own cellValue/formatValue.
+function stringifyValue(v: unknown): string {
+  if (Array.isArray(v)) return v.join(', ')
+  return String(v ?? '')
+}
+
 function cellValue<TRow extends object>(col: ColumnDef<TRow>, row: TRow): Node | string {
   const value = getColumnValue(col, row)
   // col.render returns a real DOM Node — Solid can render an arbitrary Node as a JSX child
@@ -26,7 +34,7 @@ function cellValue<TRow extends object>(col: ColumnDef<TRow>, row: TRow): Node |
   // needed at all here: this is a clean simplification the Solid migration gets for free.
   if (col.render) return col.render(value, row)
   if (col.format) return col.format(value, row)
-  return String(value ?? '')
+  return stringifyValue(value)
 }
 
 function aggValue<TRow extends object>(
@@ -36,19 +44,25 @@ function aggValue<TRow extends object>(
 ): Node | string {
   if (!col.aggregate) return ''
   const v = computeAggregate(col, rows)
-  return col.format ? col.format(v, sampleRow) : String(v ?? '')
+  // render applies uniformly to data cells, group-header cells, and aggregate cells (see
+  // CLAUDE.md's "Cell rendering priority") — this branch was missing here, so a custom `render`
+  // on an aggregate column was silently ignored while it worked everywhere else.
+  if (col.render) return col.render(v, sampleRow)
+  return col.format ? col.format(v, sampleRow) : stringifyValue(v)
 }
 
 // Table header + body: sortable/draggable header cells, group headers (collapse toggle,
 // select-all, aggregate row), data rows (selection, row click), and a page-scoped roving-tabindex
-// keyboard nav (see CLAUDE.md's "Keyboard navigation").
+// keyboard nav (see CLAUDE.md's "Keyboard navigation") — ArrowUp/ArrowDown/Home/End move focus,
+// Shift+ArrowUp/Down/Home/End additionally extend row selection to the target first (mirroring a
+// shift-click, via the same toggleRowSelection(row, true) anchor/range logic).
 //
 // Simplification vs. the fuller documented behavior: arrow-key navigation crossing a page
 // boundary (and Ctrl+Home/Ctrl+End jumping to the true first/last item across *all* pages) is
-// deferred — Up/Down/Home/End here operate within the current page only. This is the single
-// most involved piece of the original keyboard-nav design (stashing a pending focus target across
-// an async page-change re-render) and depends on Pagination.tsx existing first; flagged as a
-// follow-up once the full view is assembled and there's a real pagination control to test against.
+// deferred — Home/End here jump to the first/last item of the current page only. This is the
+// single most involved piece of the original keyboard-nav design (stashing a pending focus target
+// across an async page-change re-render); flagged as a follow-up once Pagination.tsx's real page
+// boundaries exist to test against.
 export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
   const { table } = props
   const rowNavEnabled = createMemo(() => !!props.selectable || !!props.onRowClick)
@@ -89,11 +103,30 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
     rowRefs.get(refKey(item))?.focus()
   }
 
-  function moveFocus(delta: number): void {
+  // Shift+Arrow/Home/End additionally extends row selection to the target before moving focus —
+  // `toggleRowSelection(row, true)` reuses the exact same shift-click anchor/range logic already
+  // used for a mouse shift-click (see createTableState's toggleRowSelection), just fed a
+  // keyboard-derived target instead of a click target. Only applies when the target is a row —
+  // landing on a group header via a shift-key press just moves focus, since a header isn't a
+  // rangeable selection unit.
+  function moveFocus(delta: number, shiftKey = false): void {
     const items = navigableItems()
     const idx = items.findIndex((i) => isSameVisibleItem(i, effectiveFocusTarget()!))
     const next = items[idx + delta]
-    if (next) focusItem(next)
+    if (!next) return
+    if (shiftKey && next.kind === 'row') table.toggleRowSelection(next.row, true)
+    focusItem(next)
+  }
+
+  // Home/End jump to the first/last navigable item *of the current page* — crossing to another
+  // page's first/last item (Ctrl+Home/Ctrl+End's documented behavior) stays deferred alongside
+  // the rest of the cross-page keyboard nav noted above.
+  function jumpFocus(toEnd: boolean, shiftKey = false): void {
+    const items = navigableItems()
+    const next = toEnd ? items[items.length - 1] : items[0]
+    if (!next) return
+    if (shiftKey && next.kind === 'row') table.toggleRowSelection(next.row, true)
+    focusItem(next)
   }
 
   const procIdxMap = createMemo(() => new Map(table.processedData().map((r, i) => [r, i])))
@@ -215,12 +248,20 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
           </tr>
         </thead>
         <tbody>
-          <For each={table.groupedData()}>
+          {/* Index, not For: paginateVisibleGroups/groupedData() returns fresh PagedGroup object
+              references on every recompute (even when only a group's collapsed state changed),
+              which would make For — keyed by item reference — remount every group's header/rows
+              on any collapse toggle, dropping DOM focus to <body> along the way. Index instead
+              tracks by array position, so the same slot (and the same GroupHeaderRow/DataRow
+              component instances) is reused whenever the group count/order is unchanged, exactly
+              the case for a plain collapse/expand. `group` becomes an accessor (`group()`) here,
+              per Index's signature. */}
+          <Index each={table.groupedData()}>
             {(group) => (
               <Show
-                when={group.key !== null}
+                when={group().key !== null}
                 fallback={
-                  <For each={group.rows}>
+                  <For each={group().rows}>
                     {(row, ri) => (
                       <DataRow
                         table={table}
@@ -239,7 +280,8 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
                             : undefined
                         }
                         onFocusRow={() => setFocusTarget({ kind: 'row', row })}
-                        onArrow={(delta) => moveFocus(delta)}
+                        onArrow={(delta, shiftKey) => moveFocus(delta, shiftKey)}
+                        onJump={(toEnd, shiftKey) => jumpFocus(toEnd, shiftKey)}
                         registerRef={(el) => rowRefs.set(row, el)}
                       />
                     )}
@@ -249,24 +291,25 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
                 <GroupHeaderRow
                   table={table}
                   columns={props.columns}
-                  group={group}
+                  group={group()}
                   selectable={props.selectable}
                   hasAgg={hasAgg()}
-                  tabIndex={isFocusTarget({ kind: 'group', key: group.key! }) ? 0 : -1}
-                  onFocusGroup={() => setFocusTarget({ kind: 'group', key: group.key! })}
+                  tabIndex={isFocusTarget({ kind: 'group', key: group().key! }) ? 0 : -1}
+                  onFocusGroup={() => setFocusTarget({ kind: 'group', key: group().key! })}
                   onArrow={(delta) => moveFocus(delta)}
-                  registerRef={(el) => rowRefs.set(`group:${group.key}`, el)}
+                  onJump={(toEnd) => jumpFocus(toEnd)}
+                  registerRef={(el) => rowRefs.set(`group:${group().key}`, el)}
                 />
                 <Show
                   when={
                     !isGroupCollapsed(
                       table.collapsedGroups(),
-                      group.key!,
+                      group().key!,
                       table.defaultGroupsCollapsed,
                     )
                   }
                 >
-                  <For each={group.rows}>
+                  <For each={group().rows}>
                     {(row, ri) => (
                       <DataRow
                         table={table}
@@ -286,7 +329,8 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
                             : undefined
                         }
                         onFocusRow={() => setFocusTarget({ kind: 'row', row })}
-                        onArrow={(delta) => moveFocus(delta)}
+                        onArrow={(delta, shiftKey) => moveFocus(delta, shiftKey)}
+                        onJump={(toEnd, shiftKey) => jumpFocus(toEnd, shiftKey)}
                         registerRef={(el) => rowRefs.set(row, el)}
                       />
                     )}
@@ -294,7 +338,7 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
                 </Show>
               </Show>
             )}
-          </For>
+          </Index>
         </tbody>
       </table>
     </div>
@@ -310,19 +354,20 @@ interface GroupHeaderRowProps<TRow extends object> {
   tabIndex: number
   onFocusGroup: () => void
   onArrow: (delta: number) => void
+  onJump: (toEnd: boolean) => void
   registerRef: (el: HTMLElement) => void
 }
 
 function GroupHeaderRow<TRow extends object>(props: GroupHeaderRowProps<TRow>) {
-  const { table, group } = props
+  const { table } = props
   const isCollapsed = createMemo(() =>
-    isGroupCollapsed(table.collapsedGroups(), group.key!, table.defaultGroupsCollapsed),
+    isGroupCollapsed(table.collapsedGroups(), props.group.key!, table.defaultGroupsCollapsed),
   )
   const groupAllSelected = createMemo(
-    () => group.rows.length > 0 && group.rows.every((r) => table.selection().has(r)),
+    () => props.group.rows.length > 0 && props.group.rows.every((r) => table.selection().has(r)),
   )
   const groupSomeSelected = createMemo(
-    () => !groupAllSelected() && group.rows.some((r) => table.selection().has(r)),
+    () => !groupAllSelected() && props.group.rows.some((r) => table.selection().has(r)),
   )
   let cbEl: HTMLInputElement | undefined
   createEffect(() => {
@@ -333,12 +378,13 @@ function GroupHeaderRow<TRow extends object>(props: GroupHeaderRowProps<TRow>) {
     <>
       <tr
         class="dt-group-row"
+        data-gkey={props.group.key}
         tabIndex={props.tabIndex}
         aria-expanded={!isCollapsed()}
         ref={(el) => props.registerRef(el)}
         onClick={(e) => {
           if ((e.target as HTMLElement).closest('[data-no-collapse]')) return
-          table.toggleGroupCollapse(group.key!)
+          table.toggleGroupCollapse(props.group.key!)
         }}
         onFocus={props.onFocusGroup}
         onKeyDown={(e) => {
@@ -348,12 +394,18 @@ function GroupHeaderRow<TRow extends object>(props: GroupHeaderRowProps<TRow>) {
           } else if (e.key === 'ArrowUp') {
             e.preventDefault()
             props.onArrow(-1)
+          } else if (e.key === 'Home') {
+            e.preventDefault()
+            props.onJump(false)
+          } else if (e.key === 'End') {
+            e.preventDefault()
+            props.onJump(true)
           } else if (e.key === 'Enter') {
             e.preventDefault()
-            table.toggleGroupCollapse(group.key!)
+            table.toggleGroupCollapse(props.group.key!)
           } else if (e.key === ' ' && props.selectable) {
             e.preventDefault()
-            table.toggleSelectAll(group.rows)
+            table.toggleSelectAll(props.group.rows)
           }
         }}
       >
@@ -365,7 +417,7 @@ function GroupHeaderRow<TRow extends object>(props: GroupHeaderRowProps<TRow>) {
               ref={cbEl}
               onClick={(e) => {
                 e.stopPropagation()
-                table.toggleSelectAll(group.rows)
+                table.toggleSelectAll(props.group.rows)
               }}
             />
           </td>
@@ -384,17 +436,21 @@ function GroupHeaderRow<TRow extends object>(props: GroupHeaderRowProps<TRow>) {
                   </Show>
                   <span class="dt-group-colname">{gCol?.label ?? gColKey}:</span>{' '}
                   {gCol?.groupValue
-                    ? (gCol.groupFormat?.(group.keyParts[gi()]) ?? group.keyParts[gi()])
-                    : renderGroupCellValue(gCol, group.sampleRow!, group.keyParts[gi()])}
+                    ? (gCol.groupFormat?.(props.group.keyParts[gi()]) ?? props.group.keyParts[gi()])
+                    : renderGroupCellValue(
+                        gCol,
+                        props.group.sampleRow!,
+                        props.group.keyParts[gi()],
+                      )}
                 </>
               )
             }}
           </For>
-          <Show when={group.continued}>
+          <Show when={props.group.continued}>
             {' '}
             <span class="dt-group-continued">{table.L.groupContinued}</span>
           </Show>{' '}
-          <span class="dt-group-count">{table.L.rowsInGroup(group.rows.length)}</span>
+          <span class="dt-group-count">{table.L.rowsInGroup(props.group.rows.length)}</span>
         </td>
       </tr>
       <Show when={props.hasAgg}>
@@ -404,7 +460,9 @@ function GroupHeaderRow<TRow extends object>(props: GroupHeaderRowProps<TRow>) {
           </Show>
           <td class="dt-agg-td" style={{ width: '28px' }} />
           <For each={table.activeColumns()}>
-            {(col) => <td class="dt-agg-td">{aggValue(col, group.rows, group.sampleRow!)}</td>}
+            {(col) => (
+              <td class="dt-agg-td">{aggValue(col, props.group.rows, props.group.sampleRow!)}</td>
+            )}
           </For>
         </tr>
       </Show>
@@ -442,7 +500,8 @@ interface DataRowProps<TRow extends object> {
   indentGroup?: boolean
   tabIndex?: number
   onFocusRow: () => void
-  onArrow: (delta: number) => void
+  onArrow: (delta: number, shiftKey: boolean) => void
+  onJump: (toEnd: boolean, shiftKey: boolean) => void
   registerRef: (el: HTMLElement) => void
 }
 
@@ -478,10 +537,16 @@ function DataRow<TRow extends object>(props: DataRowProps<TRow>) {
       onKeyDown={(e) => {
         if (e.key === 'ArrowDown') {
           e.preventDefault()
-          props.onArrow(1)
+          props.onArrow(1, e.shiftKey)
         } else if (e.key === 'ArrowUp') {
           e.preventDefault()
-          props.onArrow(-1)
+          props.onArrow(-1, e.shiftKey)
+        } else if (e.key === 'Home') {
+          e.preventDefault()
+          props.onJump(false, e.shiftKey)
+        } else if (e.key === 'End') {
+          e.preventDefault()
+          props.onJump(true, e.shiftKey)
         } else if (e.key === ' ' && props.selectable) {
           e.preventDefault()
           table.toggleRowSelection(row, e.shiftKey)

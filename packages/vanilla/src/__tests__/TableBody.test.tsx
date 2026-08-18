@@ -211,6 +211,33 @@ describe('TableBody — grouping and aggregation', () => {
     dispose()
   })
 
+  it('respects a custom col.render on an aggregate column, same as data/group-header cells', () => {
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const cols: ColumnDef<Row>[] = [
+      { key: 'dept', label: 'Dept', groupable: true },
+      {
+        key: 'score',
+        label: 'Score',
+        type: 'number',
+        aggregate: 'avg',
+        render: (v) => {
+          const span = document.createElement('span')
+          span.className = 'custom-agg'
+          span.textContent = `~${v}~`
+          return span
+        },
+      },
+    ]
+    createRoot((d) => {
+      const table = createTableState(ROWS, cols, { defaultGroupsCollapsed: false })
+      table.toggleGroup('dept')
+      render(() => <TableBody table={table} columns={cols} />, container)
+      d()
+    })
+    expect(container.querySelector('.dt-agg-row .custom-agg')?.textContent).toBe('~85~')
+  })
+
   it("a group's own select-all checkbox toggles just that group's rows", () => {
     const { container, table, dispose } = mount({ selectable: true, defaultGroupsCollapsed: false })
     table.toggleGroup('dept')
@@ -224,6 +251,66 @@ describe('TableBody — grouping and aggregation', () => {
         .map((r) => r.name)
         .sort(),
     ).toEqual(['Alice', 'Clara'])
+    dispose()
+  })
+})
+
+describe('TableBody — keyboard navigation', () => {
+  it('End on a focused row jumps focus to the last row of the current page', () => {
+    const { container, dispose } = mount({ selectable: true })
+    const firstRow = container.querySelector<HTMLElement>('tbody tr[data-row-key="1"]')!
+    firstRow.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'End', bubbles: true, cancelable: true }),
+    )
+    expect(document.activeElement).toBe(container.querySelector('tbody tr[data-row-key="3"]'))
+    dispose()
+  })
+
+  it('Home on a focused row jumps focus back to the first row', () => {
+    const { container, dispose } = mount({ selectable: true })
+    const lastRow = container.querySelector<HTMLElement>('tbody tr[data-row-key="3"]')!
+    lastRow.focus()
+    lastRow.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Home', bubbles: true, cancelable: true }),
+    )
+    expect(document.activeElement).toBe(container.querySelector('tbody tr[data-row-key="1"]'))
+    dispose()
+  })
+
+  it('Shift+ArrowDown extends selection to the next row, same as a shift-click', () => {
+    const { container, table, dispose } = mount({ selectable: true })
+    const firstRow = container.querySelector<HTMLElement>('tbody tr[data-row-key="1"]')!
+    firstRow.focus()
+    table.toggleRowSelection(ROWS[0]) // anchor = Alice
+    firstRow.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'ArrowDown',
+        shiftKey: true,
+        bubbles: true,
+        cancelable: true,
+      }),
+    )
+    expect(
+      table
+        .selectedRows()
+        .map((r) => r.name)
+        .sort(),
+    ).toEqual(['Alice', 'Bob'])
+    dispose()
+  })
+
+  it('collapsing a group via Enter does not drop DOM focus (group rows keep stable identity)', () => {
+    const { container, table, dispose } = mount({ defaultGroupsCollapsed: false })
+    table.toggleGroup('dept')
+    const groupRow = container.querySelector<HTMLElement>('.dt-group-row[data-gkey="Eng"]')!
+    groupRow.focus()
+    groupRow.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }),
+    )
+    // Same DOM node, now representing the collapsed group — still focused, not fallen back to
+    // <body> (which a full remount, e.g. from a reference-keyed `<For>`, would cause).
+    expect(document.activeElement).toBe(groupRow)
+    expect(groupRow.getAttribute('aria-expanded')).toBe('false')
     dispose()
   })
 })

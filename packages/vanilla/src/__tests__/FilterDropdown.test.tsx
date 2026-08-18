@@ -95,6 +95,30 @@ describe('FilterDropdown — string checklist', () => {
     dispose()
   })
 
+  it('the checkbox DOM property reflects the tri-state correctly after a click, not just app state', async () => {
+    // Regression test: a checkbox's own native "canceled activation steps" (triggered because
+    // the click handler calls preventDefault() to stay fully controlled) run *after* the click
+    // event finishes dispatching — i.e. after Solid's own synchronous `checked`/`indeterminate`
+    // DOM write — silently reverting `.checked` back to its pre-click value a moment later. The
+    // fix (checkboxSync.ts's syncCheckboxState) re-applies the correct value from a microtask, so
+    // asserting on the checkbox's own DOM property (not just table.filters()) needs one
+    // `await Promise.resolve()` tick to observe the corrected state.
+    const { container, dispose } = mount()
+    const aliceRow = [...container.querySelectorAll('.dt-filter-list .dt-dd-item')].find((el) =>
+      el.textContent?.includes('Alice'),
+    )!
+    const checkbox = aliceRow.querySelector<HTMLInputElement>('input[type="checkbox"]')!
+    checkbox.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
+    await Promise.resolve()
+    expect(checkbox.checked).toBe(true)
+    expect(checkbox.indeterminate).toBe(false)
+    checkbox.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
+    await Promise.resolve()
+    expect(checkbox.checked).toBe(false)
+    expect(checkbox.indeterminate).toBe(true)
+    dispose()
+  })
+
   it('select-all toggles every currently-listed value', () => {
     const { container, table, dispose } = mount()
     const selectAll = container.querySelector<HTMLInputElement>(
@@ -193,6 +217,51 @@ describe('FilterDropdown — date tree', () => {
       .map((el) => el.textContent)
       .filter((t) => /^\d{4}$/.test(t ?? ''))
     expect(yearLabels).toEqual(['2024'])
+    dispose()
+  })
+})
+
+describe('FilterDropdown — left pane search', () => {
+  it('narrows the column list by label', () => {
+    const { container, dispose } = mount()
+    const search = container.querySelector<HTMLInputElement>('.dt-filter-cols-search')!
+    search.value = 'sco'
+    search.dispatchEvent(new Event('input', { bubbles: true }))
+    const labels = [...container.querySelectorAll('.dt-filter-col-item span')].map(
+      (el) => el.textContent,
+    )
+    expect(labels).toEqual(['Score'])
+    dispose()
+  })
+})
+
+describe('FilterDropdown — date tree formatting and controls', () => {
+  it('renders month nodes as a localized month name, not a raw zero-padded number', () => {
+    const { container, dispose } = mount()
+    selectCol(container, 'Joined')
+    const yearToggle = container.querySelector<HTMLElement>('.dt-date-tree-toggle--branch')!
+    yearToggle.click() // expand the first year node to reveal its month children
+    const monthLabels = [...container.querySelectorAll('.dt-date-tree-item .dt-flex1')].map(
+      (el) => el.textContent,
+    )
+    expect(monthLabels).toContain('January')
+    expect(monthLabels).not.toContain('01')
+    dispose()
+  })
+
+  it('has its own select-all checkbox and value search box, same as the string checklist', () => {
+    const { container, table, dispose } = mount()
+    selectCol(container, 'Joined')
+    const searchRow = container.querySelector('.dt-filter-search-row')!
+    expect(searchRow.querySelector('input[type="checkbox"]')).not.toBeNull()
+    const search = searchRow.querySelector<HTMLInputElement>('.dt-dd-search')!
+    search.value = 'nomatch'
+    search.dispatchEvent(new Event('input', { bubbles: true }))
+    expect(container.querySelectorAll('.dt-date-tree-item')).toHaveLength(0)
+    search.value = ''
+    search.dispatchEvent(new Event('input', { bubbles: true }))
+    searchRow.querySelector<HTMLInputElement>('input[type="checkbox"]')!.click()
+    expect(table.filters().joined?.size).toBeGreaterThan(0)
     dispose()
   })
 })

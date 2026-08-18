@@ -29,6 +29,15 @@ export function Dropdown(props: DropdownProps) {
   const [translateX, setTranslateX] = createSignal(0)
 
   function handleDocClick(e: MouseEvent): void {
+    // Every Columns/Sort/Group/Filter dropdown mounts its own Dropdown instance simultaneously,
+    // each with its own document-level capture listener. Without this `props.isOpen` guard, a
+    // click anywhere inside the *currently open* dropdown's own panel would still be treated as
+    // "outside" by every *other*, currently-closed dropdown's listener — and since all four share
+    // one `openDropdown` signal, any of their `onClose()` calls closes whichever one actually is
+    // open, immediately after the click reaches its real target. (Found via the full
+    // createDataTable integration tests: it never surfaced in a single-component test, since
+    // there's no sibling dropdown there to falsely fire.)
+    if (!props.isOpen) return
     if (wrapRef && !wrapRef.contains(e.target as Node)) props.onClose()
   }
   function handleKeyDown(e: KeyboardEvent): void {

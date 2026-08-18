@@ -11,7 +11,7 @@ export default defineConfig({
   ],
   build: {
     lib: {
-      entry: resolve(__dirname, 'src/index.ts'),
+      entry: resolve(__dirname, 'src/index.tsx'),
       name: 'DataTableVanilla',
       fileName: 'data-table-vanilla',
       formats: ['es', 'umd'],
