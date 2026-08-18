@@ -144,6 +144,24 @@ describe('TableBody — selection', () => {
     dispose()
   })
 
+  it('clearing a partial selection via the header checkbox leaves it unchecked, not stuck checked', () => {
+    // Regression test: allSelected() is false both before and after this click (1-of-3 selected
+    // -> 0-of-3 selected), so Solid's compiled `checked` setter — which only writes when the
+    // *tracked value* changes — never touches the DOM property here. But the checkbox's own
+    // native pre-click activation flips `.checked` to true regardless, since the browser has no
+    // idea the intended result is "deselect everything". Without an unconditional rewrite (see
+    // checkboxSync.ts's applyCheckboxState), the header checkbox would falsely show "all
+    // selected" immediately after clearing the selection to zero.
+    const { container, table, dispose } = mount({ selectable: true })
+    table.toggleRowSelection(ROWS[0])
+    const headerCb = container.querySelector<HTMLInputElement>('thead input[type="checkbox"]')!
+    headerCb.click()
+    expect(table.selectedRows()).toHaveLength(0)
+    expect(headerCb.checked).toBe(false)
+    expect(headerCb.indeterminate).toBe(false)
+    dispose()
+  })
+
   it('clicking the checkbox does not also trigger onRowClick', () => {
     const onRowClick = vi.fn()
     const { container, dispose } = mount({ selectable: true, onRowClick })
@@ -251,6 +269,23 @@ describe('TableBody — grouping and aggregation', () => {
         .map((r) => r.name)
         .sort(),
     ).toEqual(['Alice', 'Clara'])
+    dispose()
+  })
+
+  it("clearing a group's partial selection via its checkbox leaves it unchecked, not stuck checked", () => {
+    // Same regression as the header checkbox's own test above, scoped to a group's own
+    // select-all checkbox (groupAllSelected() is false both before and after: 1-of-2 -> 0-of-2).
+    const { container, table, dispose } = mount({ selectable: true, defaultGroupsCollapsed: false })
+    table.toggleGroup('dept')
+    table.toggleRowSelection(ROWS[0]) // Alice, one of Eng's two rows
+    const groupRow = [...container.querySelectorAll<HTMLElement>('.dt-group-row')].find((el) =>
+      el.textContent?.includes('Eng'),
+    )!
+    const groupCb = groupRow.querySelector<HTMLInputElement>('input[type="checkbox"]')!
+    groupCb.click()
+    expect(table.selectedRows()).toHaveLength(0)
+    expect(groupCb.checked).toBe(false)
+    expect(groupCb.indeterminate).toBe(false)
     dispose()
   })
 })

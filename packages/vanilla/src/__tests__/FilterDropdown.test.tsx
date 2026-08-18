@@ -221,6 +221,41 @@ describe('FilterDropdown — date tree', () => {
   })
 })
 
+describe('FilterDropdown — shift-range selection', () => {
+  it('deselecting a range via shift-click does not clear an unrelated exclude flag swept by it', () => {
+    // Regression test: handleValueClick's shift-range branch used to call clearExcludeValues
+    // unconditionally, even when the range was being *deselected* (shouldSelect === false) —
+    // wiping exclude flags on any value in the swept range, not just ones actually moving into
+    // `filters`. React/Vue both guard this with `if (shouldSelect)`.
+    const { container, table, dispose } = mount()
+    function checkboxFor(name: string): HTMLInputElement {
+      const row = [...container.querySelectorAll('.dt-filter-list .dt-dd-item')].find((el) =>
+        el.textContent?.includes(name),
+      )!
+      return row.querySelector<HTMLInputElement>('input[type="checkbox"]')!
+    }
+    function click(el: HTMLElement, shiftKey = false): void {
+      el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, shiftKey }))
+    }
+    // Bob -> excluded (two plain clicks: neutral -> include -> exclude).
+    click(checkboxFor('Bob'))
+    click(checkboxFor('Bob'))
+    // Clara included first (becomes anchor momentarily), then Alice included (now the anchor) —
+    // so a subsequent shift-click on Clara ranges Alice..Clara, sweeping over Bob in between
+    // (checklist is alphabetized: Alice, Bob, Clara, David).
+    click(checkboxFor('Clara'))
+    click(checkboxFor('Alice'))
+    expect(table.excludeFilters().name).toEqual(new Set(['Bob']))
+    // Clara is already included, so this shift-click's target-based direction deselects the range.
+    click(checkboxFor('Clara'), true)
+    expect(table.filters().name?.has('Alice')).toBe(false)
+    expect(table.filters().name?.has('Clara')).toBe(false)
+    // Bob's exclude flag must survive a deselecting range sweep over it.
+    expect(table.excludeFilters().name).toEqual(new Set(['Bob']))
+    dispose()
+  })
+})
+
 describe('FilterDropdown — left pane search', () => {
   it('narrows the column list by label', () => {
     const { container, dispose } = mount()

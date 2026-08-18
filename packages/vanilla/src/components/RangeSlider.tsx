@@ -1,16 +1,13 @@
 import { Show } from 'solid-js'
 import type { RangeFilter } from '@vates/data-table-core'
 import type { ColumnDef } from '../types'
+import { formatRangeBound } from './formatRangeBound'
 
 interface RangeSliderProps<TRow extends object> {
   col: ColumnDef<TRow>
   rangeFilter: RangeFilter | undefined
   bounds: { min: number; max: number } | null
   onCommit: (min: string, max: string) => void
-}
-
-function formatRangeBound<TRow extends object>(n: number, col: ColumnDef<TRow>): string {
-  return col.type === 'date' ? new Date(n).toISOString().slice(0, 10) : String(n)
 }
 
 // "2 inputs + a slider" range control (see CLAUDE.md's "type: 'number'/'type: 'date' range

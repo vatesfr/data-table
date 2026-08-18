@@ -23,6 +23,7 @@ import { Dropdown } from './Dropdown'
 import { RangeSlider } from './RangeSlider'
 import { DateTreeItem } from './DateTreeItem'
 import { applyCheckboxState, deferCheckboxCorrection } from './checkboxSync'
+import { formatRangeBound } from './formatRangeBound'
 
 interface FilterDropdownProps<TRow extends object> {
   table: TableState<TRow>
@@ -34,8 +35,47 @@ interface FilterDropdownProps<TRow extends object> {
 
 const DEFAULT_VALUE_SORT: ValueSort = { by: 'alpha', dir: 'asc' }
 
-function formatRangeBound<TRow extends object>(n: number, col: ColumnDef<TRow>): string {
-  return col.type === 'date' ? new Date(n).toISOString().slice(0, 10) : String(n)
+interface FilterSearchRowProps {
+  checked: boolean
+  selectAllLabel: string
+  onSelectAll: () => void
+  checkboxRef: (el: HTMLInputElement) => void
+  searchPlaceholder: string
+  searchValue: string
+  onSearchInput: (value: string) => void
+  sortIcon: string
+  onSortClick: () => void
+}
+
+// Select-all checkbox + value search input + sort-order toggle — shared by the string checklist
+// and the date tree (the date branch had been missing this entirely at first; see CLAUDE.md's
+// "Filter dropdown" section). Both narrow/select over the same filterDetailValues() pipeline
+// regardless of which control (checklist or tree) renders those values, so this row's own
+// behavior is identical either way — only the sort icon function differs (alpha/count vs.
+// chronological), passed in by the caller.
+function FilterSearchRow(props: FilterSearchRowProps) {
+  return (
+    <div class="dt-filter-search-row">
+      <input
+        type="checkbox"
+        title={props.selectAllLabel}
+        aria-label={props.selectAllLabel}
+        checked={props.checked}
+        ref={props.checkboxRef}
+        onClick={props.onSelectAll}
+      />
+      <input
+        type="text"
+        class="dt-dd-search"
+        placeholder={props.searchPlaceholder}
+        value={props.searchValue}
+        onInput={(e) => props.onSearchInput(e.currentTarget.value)}
+      />
+      <button type="button" onClick={props.onSortClick}>
+        {props.sortIcon}
+      </button>
+    </div>
+  )
 }
 
 // Master-detail filter panel (see CLAUDE.md's "Filter dropdown"): a left pane listing every
@@ -158,9 +198,13 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
     const anchor = selectionAnchors()[col.key]
     if (shiftKey && anchor) {
       const included = table.filters()[col.key]?.has(value) ?? false
+      const shouldSelect = !included
       const range = selectRange(filterDetailValues(), anchor, value)
-      table.setFilterValues(col.key, range, !included)
-      table.clearExcludeValues(col.key, range)
+      table.setFilterValues(col.key, range, shouldSelect)
+      // Only clear exclusions when values are moving *into* filters — deselecting a range must
+      // not silently drop an unrelated exclude flag on a value that happens to be in the swept
+      // range (matches react/vue's own `if (shouldSelect)` guard around this same call).
+      if (shouldSelect) table.clearExcludeValues(col.key, range)
     } else {
       table.cycleFilterValue(col.key, value)
     }
@@ -200,9 +244,11 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
     if (shiftKey && anchorNode) {
       const selected = table.filters()[col.key] ?? new Set()
       const wasChecked = node.values.length > 0 && node.values.every((v) => selected.has(v))
+      const shouldSelect = !wasChecked
       const range = selectDateRange(filterDetailValues(), anchorNode, node, col.parseDate)
-      table.setFilterValues(col.key, range, !wasChecked)
-      table.clearExcludeValues(col.key, range)
+      table.setFilterValues(col.key, range, shouldSelect)
+      // Same "only clear exclusions when selecting" guard as the flat checklist's handleValueClick.
+      if (shouldSelect) table.clearExcludeValues(col.key, range)
     } else {
       table.toggleFilterAll(col.key, node.values)
     }
@@ -282,26 +328,17 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
                     fallback={
                       // --- String checklist ---
                       <>
-                        <div class="dt-filter-search-row">
-                          <input
-                            type="checkbox"
-                            title={table.L.selectAll}
-                            aria-label={table.L.selectAll}
-                            checked={selectAllState().checked}
-                            ref={selectAllEl}
-                            onClick={handleSelectAll}
-                          />
-                          <input
-                            type="text"
-                            class="dt-dd-search"
-                            placeholder={table.L.filterSearchPlaceholder}
-                            value={searchTerm()}
-                            onInput={(e) => setSearchTerm(col().key, e.currentTarget.value)}
-                          />
-                          <button type="button" onClick={cycleSort}>
-                            {getValueSortIcon(valueSort())}
-                          </button>
-                        </div>
+                        <FilterSearchRow
+                          checked={selectAllState().checked}
+                          selectAllLabel={table.L.selectAll}
+                          onSelectAll={handleSelectAll}
+                          checkboxRef={(el) => (selectAllEl = el)}
+                          searchPlaceholder={table.L.filterSearchPlaceholder}
+                          searchValue={searchTerm()}
+                          onSearchInput={(v) => setSearchTerm(col().key, v)}
+                          sortIcon={getValueSortIcon(valueSort())}
+                          onSortClick={cycleSort}
+                        />
                         <div class="dt-filter-list">
                           <For each={filterDetailValues()}>
                             {(value) => {
@@ -377,32 +414,17 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
                         }}
                       />
                     </div>
-                    {/* Same shared search-row as the string checklist below (select-all + value
-                        search + sort-order toggle) — the date branch had been missing this
-                        entirely; the range filter/tree above narrow the *values*, but the value
-                        search box and select-all-currently-listed checkbox are independent
-                        controls that apply here too, same as the old vanilla renderer's shared
-                        (non-branched) search-row markup. */}
-                    <div class="dt-filter-search-row">
-                      <input
-                        type="checkbox"
-                        title={table.L.selectAll}
-                        aria-label={table.L.selectAll}
-                        checked={selectAllState().checked}
-                        ref={selectAllEl}
-                        onClick={handleSelectAll}
-                      />
-                      <input
-                        type="text"
-                        class="dt-dd-search"
-                        placeholder={table.L.filterSearchPlaceholder}
-                        value={searchTerm()}
-                        onInput={(e) => setSearchTerm(col().key, e.currentTarget.value)}
-                      />
-                      <button type="button" onClick={cycleSort}>
-                        {getDateSortIcon(valueSort().dir)}
-                      </button>
-                    </div>
+                    <FilterSearchRow
+                      checked={selectAllState().checked}
+                      selectAllLabel={table.L.selectAll}
+                      onSelectAll={handleSelectAll}
+                      checkboxRef={(el) => (selectAllEl = el)}
+                      searchPlaceholder={table.L.filterSearchPlaceholder}
+                      searchValue={searchTerm()}
+                      onSearchInput={(v) => setSearchTerm(col().key, v)}
+                      sortIcon={getDateSortIcon(valueSort().dir)}
+                      onSortClick={cycleSort}
+                    />
                     <div class="dt-date-tree-wrap">
                       <For each={dateTree()}>
                         {(node) => (

@@ -1,4 +1,4 @@
-import { For, Index, Show, createEffect, createMemo, createSignal } from 'solid-js'
+import { For, Index, Show, createEffect, createMemo, createSignal, onCleanup } from 'solid-js'
 import {
   getColumnValue,
   computeAggregate,
@@ -10,6 +10,7 @@ import {
 } from '@vates/data-table-core'
 import type { TableState } from '../createTableState'
 import type { ColumnDef } from '../types'
+import { applyCheckboxState } from './checkboxSync'
 
 interface TableBodyProps<TRow extends object> {
   table: TableState<TRow>
@@ -70,6 +71,21 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
 
   const [focusTarget, setFocusTarget] = createSignal<VisibleItem<TRow> | null>(null)
   const rowRefs = new Map<TRow | string, HTMLElement>()
+  // Registers a row/group-header's DOM node and prunes it again once that row/header component
+  // instance is disposed (filtered out, replaced by setData, or its group collapsed away) — a
+  // long-lived table that periodically calls setData with fresh row objects (see CLAUDE.md's
+  // scroll/focus-restore design, written with exactly that streaming/live-update use case in
+  // mind) would otherwise accumulate one Map entry, pinning a detached DOM node and the old row
+  // object, for every row ever seen over the table's lifetime. `onCleanup` here ties to whichever
+  // component is actually mounting at call time (DataRow/GroupHeaderRow's own instance, not
+  // TableBody's) since Solid's owner tracking is dynamic, not lexically scoped to where this
+  // function was defined.
+  function trackRowRef(key: TRow | string, el: HTMLElement): void {
+    rowRefs.set(key, el)
+    onCleanup(() => {
+      if (rowRefs.get(key) === el) rowRefs.delete(key)
+    })
+  }
 
   const navigableItems = createMemo(() => {
     const items: VisibleItem<TRow>[] = []
@@ -182,9 +198,15 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
   const someSelected = createMemo(
     () => !allSelected() && table.processedData().some((r) => table.selection().has(r)),
   )
+  // Unconditionally rewrites both .checked and .indeterminate (not just a plain JSX `checked`
+  // binding) — Solid's compiled setter only writes `.checked` when the *tracked value* changes,
+  // but a native checkbox click's own pre-click activation can flip `.checked` on its own even
+  // when `allSelected()` doesn't change (e.g. clearing a partial selection: allSelected() is
+  // false both before and after), leaving the DOM out of sync with the empty selection. See
+  // checkboxSync.ts.
   let selectAllEl: HTMLInputElement | undefined
   createEffect(() => {
-    if (selectAllEl) selectAllEl.indeterminate = someSelected()
+    applyCheckboxState(selectAllEl, allSelected(), someSelected())
   })
 
   function handleHeaderClick(key: string, e: MouseEvent): void {
@@ -282,7 +304,7 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
                         onFocusRow={() => setFocusTarget({ kind: 'row', row })}
                         onArrow={(delta, shiftKey) => moveFocus(delta, shiftKey)}
                         onJump={(toEnd, shiftKey) => jumpFocus(toEnd, shiftKey)}
-                        registerRef={(el) => rowRefs.set(row, el)}
+                        registerRef={(el) => trackRowRef(row, el)}
                       />
                     )}
                   </For>
@@ -298,7 +320,7 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
                   onFocusGroup={() => setFocusTarget({ kind: 'group', key: group().key! })}
                   onArrow={(delta) => moveFocus(delta)}
                   onJump={(toEnd) => jumpFocus(toEnd)}
-                  registerRef={(el) => rowRefs.set(`group:${group().key}`, el)}
+                  registerRef={(el) => trackRowRef(`group:${group().key}`, el)}
                 />
                 <Show
                   when={
@@ -331,7 +353,7 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
                         onFocusRow={() => setFocusTarget({ kind: 'row', row })}
                         onArrow={(delta, shiftKey) => moveFocus(delta, shiftKey)}
                         onJump={(toEnd, shiftKey) => jumpFocus(toEnd, shiftKey)}
-                        registerRef={(el) => rowRefs.set(row, el)}
+                        registerRef={(el) => trackRowRef(row, el)}
                       />
                     )}
                   </For>
@@ -369,9 +391,12 @@ function GroupHeaderRow<TRow extends object>(props: GroupHeaderRowProps<TRow>) {
   const groupSomeSelected = createMemo(
     () => !groupAllSelected() && props.group.rows.some((r) => table.selection().has(r)),
   )
+  // See the header select-all checkbox's own comment above (same fix, same reason): unconditional
+  // rewrite of both properties, not just indeterminate, so a native click's own pre-click
+  // activation can't leave `.checked` out of sync with an unchanged `groupAllSelected()`.
   let cbEl: HTMLInputElement | undefined
   createEffect(() => {
-    if (cbEl) cbEl.indeterminate = groupSomeSelected()
+    applyCheckboxState(cbEl, groupAllSelected(), groupSomeSelected())
   })
 
   return (
@@ -382,10 +407,7 @@ function GroupHeaderRow<TRow extends object>(props: GroupHeaderRowProps<TRow>) {
         tabIndex={props.tabIndex}
         aria-expanded={!isCollapsed()}
         ref={(el) => props.registerRef(el)}
-        onClick={(e) => {
-          if ((e.target as HTMLElement).closest('[data-no-collapse]')) return
-          table.toggleGroupCollapse(props.group.key!)
-        }}
+        onClick={() => table.toggleGroupCollapse(props.group.key!)}
         onFocus={props.onFocusGroup}
         onKeyDown={(e) => {
           if (e.key === 'ArrowDown') {
@@ -410,7 +432,7 @@ function GroupHeaderRow<TRow extends object>(props: GroupHeaderRowProps<TRow>) {
         }}
       >
         <Show when={props.selectable}>
-          <td class="dt-group-td" style={{ width: '36px' }} data-no-collapse>
+          <td class="dt-group-td" style={{ width: '36px' }}>
             <input
               type="checkbox"
               checked={groupAllSelected()}

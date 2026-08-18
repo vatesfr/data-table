@@ -1,3 +1,4 @@
+import { Show } from 'solid-js'
 import type { TableState } from '../createTableState'
 
 interface SearchBoxProps<TRow extends object> {
@@ -24,7 +25,7 @@ export function SearchBox<TRow extends object>(props: SearchBoxProps<TRow>) {
         value={table.searchQuery()}
         onInput={(e) => table.setSearchQuery(e.currentTarget.value)}
       />
-      {table.searchQuery() !== '' && (
+      <Show when={table.searchQuery() !== ''}>
         <button
           type="button"
           class="dt-search-clear"
@@ -34,7 +35,7 @@ export function SearchBox<TRow extends object>(props: SearchBoxProps<TRow>) {
         >
           ×
         </button>
-      )}
+      </Show>
     </span>
   )
 }
