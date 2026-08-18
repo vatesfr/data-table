@@ -7,6 +7,12 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Fixed
+
+- Vanilla: the filter checklist/date-tree checkbox could silently fail to visually update on a real (trusted) mouse click, though the underlying filter state changed correctly — the click-revert-correction relied on a microtask, but a genuine trusted click's native checkbox revert can itself land after that microtask, undoing the correction
+- Vanilla: the filter dropdown's left column pane could scroll a column button on top of its own sticky search box (missing `z-index`, unlike the equivalent Sort/Group/Columns search row)
+- Vanilla: the filter dropdown's checklist/date-tree pane couldn't scroll — it had no bounded height to scroll within, so overflow content was silently clipped by the panel instead
+
 ## [0.9.0] - 2026-08-18
 
 ### Changed
