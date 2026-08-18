@@ -34,7 +34,6 @@ function mountView() {
   let table!: Table
   const Comp = defineComponent({
     setup() {
-      // eslint-disable-next-line react-hooks/rules-of-hooks -- Vue's setup(), not a React component; the rule's naming heuristic doesn't know Vue
       table = useTableState(ROWS, COLS)
       return () =>
         h(DataTableView, { table, data: ROWS, columns: COLS, rowKey: 'id' } as Record<

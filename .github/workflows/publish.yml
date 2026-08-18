@@ -36,7 +36,20 @@ jobs:
       - run: npm run type-check
       - run: npm run build
 
-      - run: npm publish -w packages/core --provenance --access public
-      - run: npm publish -w packages/react --provenance --access public
-      - run: npm publish -w packages/vue --provenance --access public
-      - run: npm publish -w packages/vanilla --provenance --access public
+      # Only the packages actually bumped for this release get published — see CLAUDE.md's
+      # "Release process": the four packages share one version-number pool but a release only
+      # bumps the ones that changed, so an unpublished-bump-free package here is expected, not
+      # an error. `npm publish` itself refuses to republish a version already on the registry, so
+      # skip ahead of time rather than letting that fail the whole job.
+      - name: Publish changed packages
+        run: |
+          for pkg in core react vue vanilla; do
+            name=$(node -p "require('./packages/$pkg/package.json').name")
+            version=$(node -p "require('./packages/$pkg/package.json').version")
+            if npm view "$name@$version" version >/dev/null 2>&1; then
+              echo "$name@$version already published, skipping"
+            else
+              echo "Publishing $name@$version"
+              npm publish -w "packages/$pkg" --provenance --access public
+            fi
+          done
