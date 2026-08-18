@@ -100,20 +100,22 @@ describe('FilterDropdown — string checklist', () => {
     // the click handler calls preventDefault() to stay fully controlled) run *after* the click
     // event finishes dispatching — i.e. after Solid's own synchronous `checked`/`indeterminate`
     // DOM write — silently reverting `.checked` back to its pre-click value a moment later. The
-    // fix (checkboxSync.ts's syncCheckboxState) re-applies the correct value from a microtask, so
-    // asserting on the checkbox's own DOM property (not just table.filters()) needs one
-    // `await Promise.resolve()` tick to observe the corrected state.
+    // fix (checkboxSync.ts's deferCheckboxCorrection) re-applies the correct value from a
+    // macrotask (not a microtask — a real, trusted click's native revert can itself land after
+    // the microtask checkpoint that follows dispatch, see checkboxSync.ts), so asserting on the
+    // checkbox's own DOM property (not just table.filters()) needs a real timer tick, not just a
+    // microtask, to observe the corrected state.
     const { container, dispose } = mount()
     const aliceRow = [...container.querySelectorAll('.dt-filter-list .dt-dd-item')].find((el) =>
       el.textContent?.includes('Alice'),
     )!
     const checkbox = aliceRow.querySelector<HTMLInputElement>('input[type="checkbox"]')!
     checkbox.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
-    await Promise.resolve()
+    await new Promise((resolve) => setTimeout(resolve, 0))
     expect(checkbox.checked).toBe(true)
     expect(checkbox.indeterminate).toBe(false)
     checkbox.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
-    await Promise.resolve()
+    await new Promise((resolve) => setTimeout(resolve, 0))
     expect(checkbox.checked).toBe(false)
     expect(checkbox.indeterminate).toBe(true)
     dispose()

@@ -32,8 +32,17 @@ export function deferCheckboxCorrection(
   el: HTMLInputElement | undefined,
   getState: () => { checked: boolean; indeterminate: boolean },
 ): void {
-  queueMicrotask(() => {
+  // A macrotask (setTimeout), not a microtask (queueMicrotask): for a script-fired click
+  // (el.click(), as in most tests), the browser's "canceled activation steps" revert runs
+  // synchronously within the same call, before any queued microtask gets a chance to run, so a
+  // microtask correction happens to win there. But for a genuine trusted click (real mouse input
+  // — what end users produce, and what Playwright's locator.click() simulates), that same revert
+  // is scheduled to run *after* the microtask checkpoint that follows event dispatch, so a
+  // microtask-deferred correction loses the race and gets silently reverted right back to the
+  // pre-click value a moment later — observed as "the checkbox doesn't update when clicked". A
+  // macrotask always runs after any microtask, so it wins the race either way.
+  setTimeout(() => {
     const { checked, indeterminate } = getState()
     applyCheckboxState(el, checked, indeterminate)
-  })
+  }, 0)
 }
