@@ -1,0 +1,229 @@
+import { describe, it, expect, vi } from 'vitest'
+import { createRoot } from 'solid-js'
+import { render } from 'solid-js/web'
+import { createTableState } from '../createTableState'
+import { TableBody } from '../components/TableBody'
+import type { ColumnDef } from '../types'
+
+interface Row {
+  id: number
+  name: string
+  dept: string
+  score: number
+}
+
+const COLS: ColumnDef<Row>[] = [
+  { key: 'name', label: 'Name' },
+  { key: 'dept', label: 'Dept', groupable: true },
+  { key: 'score', label: 'Score', type: 'number', aggregate: 'avg' },
+]
+const ROWS: Row[] = [
+  { id: 1, name: 'Alice', dept: 'Eng', score: 90 },
+  { id: 2, name: 'Bob', dept: 'HR', score: 60 },
+  { id: 3, name: 'Clara', dept: 'Eng', score: 80 },
+]
+
+function stubRects(container: HTMLElement, selector: string): void {
+  const els = [...container.querySelectorAll<HTMLElement>(selector)]
+  els.forEach((el, i) => {
+    el.getBoundingClientRect = () =>
+      ({ top: 0, bottom: 30, left: i * 80, right: i * 80 + 80, height: 30, width: 80 }) as DOMRect
+  })
+}
+
+function mount(
+  opts: {
+    selectable?: boolean
+    onRowClick?: (r: Row, e: unknown) => void
+    defaultGroupsCollapsed?: boolean
+  } = {},
+) {
+  const container = document.createElement('div')
+  document.body.appendChild(container)
+  let table!: ReturnType<typeof createTableState<Row>>
+  const dispose = createRoot((d) => {
+    table = createTableState(ROWS, COLS, {
+      defaultGroupsCollapsed: opts.defaultGroupsCollapsed,
+    })
+    render(
+      () => (
+        <TableBody
+          table={table}
+          columns={COLS}
+          rowKey="id"
+          selectable={opts.selectable}
+          onRowClick={opts.onRowClick}
+        />
+      ),
+      container,
+    )
+    return d
+  })
+  return { container, table, dispose }
+}
+
+describe('TableBody — rendering', () => {
+  it('renders one row per data row, with a cell per active column', () => {
+    const { container, dispose } = mount()
+    const rows = container.querySelectorAll('tbody tr.dt-tr')
+    expect(rows).toHaveLength(3)
+    expect(rows[0].querySelectorAll('td')).toHaveLength(3)
+    dispose()
+  })
+
+  it('respects col.format for cell display', () => {
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const cols: ColumnDef<Row>[] = [{ key: 'score', label: 'Score', format: (v) => `${v}%` }]
+    createRoot((d) => {
+      const table = createTableState(ROWS, cols)
+      render(() => <TableBody table={table} columns={cols} />, container)
+      d()
+    })
+    expect(container.textContent).toContain('90%')
+  })
+})
+
+describe('TableBody — header sorting', () => {
+  it('plain click replaces the whole sort with this column ascending', () => {
+    const { container, table, dispose } = mount()
+    const scoreHeader = [...container.querySelectorAll('th')].find((th) =>
+      th.textContent?.includes('Score'),
+    )!
+    table.toggleSort('name')
+    scoreHeader.click()
+    expect(table.sorts()).toEqual([{ key: 'score', dir: 'asc' }])
+    dispose()
+  })
+
+  it('shift-click appends to the existing multi-sort', () => {
+    const { container, table, dispose } = mount()
+    const scoreHeader = [...container.querySelectorAll('th')].find((th) =>
+      th.textContent?.includes('Score'),
+    )!
+    table.toggleSort('name')
+    scoreHeader.dispatchEvent(new MouseEvent('click', { bubbles: true, shiftKey: true }))
+    expect(table.sorts().map((s) => s.key)).toEqual(['name', 'score'])
+    dispose()
+  })
+
+  it('drag-and-drop on headers reorders columns', () => {
+    const { container, table, dispose } = mount()
+    stubRects(container, 'th[data-col-key]')
+    const nameHeader = container.querySelector<HTMLElement>('th[data-col-key="name"]')!
+    nameHeader.dispatchEvent(new MouseEvent('dragstart', { bubbles: true }))
+    const scoreHeader = container.querySelector<HTMLElement>('th[data-col-key="score"]')!
+    scoreHeader.dispatchEvent(new MouseEvent('dragover', { bubbles: true, clientX: 170 }))
+    scoreHeader.dispatchEvent(new MouseEvent('drop', { bubbles: true, clientX: 170 }))
+    // Header drag always inserts *before* the drop target (a deliberate simplification, see
+    // CLAUDE.md's "Column reordering") — dropping "name" onto "score" places it immediately
+    // before "score", not after.
+    expect(table.activeColumns().map((c) => c.key)).toEqual(['dept', 'name', 'score'])
+    dispose()
+  })
+})
+
+describe('TableBody — selection', () => {
+  it('clicking a row checkbox toggles selection', () => {
+    const { container, table, dispose } = mount({ selectable: true })
+    const cb = container.querySelector<HTMLInputElement>(
+      'tbody tr[data-row-key="1"] input[type="checkbox"]',
+    )!
+    cb.click()
+    expect(table.selectedRows()).toEqual([ROWS[0]])
+    dispose()
+  })
+
+  it('the header select-all checkbox toggles every row', () => {
+    const { container, table, dispose } = mount({ selectable: true })
+    const headerCb = container.querySelector<HTMLInputElement>('thead input[type="checkbox"]')!
+    headerCb.click()
+    expect(table.selectedRows()).toHaveLength(3)
+    headerCb.click()
+    expect(table.selectedRows()).toHaveLength(0)
+    dispose()
+  })
+
+  it('clicking the checkbox does not also trigger onRowClick', () => {
+    const onRowClick = vi.fn()
+    const { container, dispose } = mount({ selectable: true, onRowClick })
+    const cb = container.querySelector<HTMLInputElement>(
+      'tbody tr[data-row-key="1"] input[type="checkbox"]',
+    )!
+    cb.click()
+    expect(onRowClick).not.toHaveBeenCalled()
+    dispose()
+  })
+})
+
+describe('TableBody — row click', () => {
+  it('clicking a data row (not the checkbox) fires onRowClick with the row', () => {
+    const onRowClick = vi.fn()
+    const { container, dispose } = mount({ onRowClick })
+    const row = container.querySelector<HTMLElement>('tbody tr[data-row-key="1"]')!
+    row.click()
+    expect(onRowClick).toHaveBeenCalledTimes(1)
+    expect(onRowClick.mock.calls[0][0]).toEqual(ROWS[0])
+    dispose()
+  })
+
+  it('Enter on a focused row also fires onRowClick', () => {
+    const onRowClick = vi.fn()
+    const { container, dispose } = mount({ onRowClick })
+    const row = container.querySelector<HTMLElement>('tbody tr[data-row-key="1"]')!
+    row.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }),
+    )
+    expect(onRowClick).toHaveBeenCalledTimes(1)
+    dispose()
+  })
+})
+
+describe('TableBody — grouping and aggregation', () => {
+  it('grouping by a column renders a group header row per value and hides that column', () => {
+    const { container, table, dispose } = mount({ defaultGroupsCollapsed: false })
+    table.toggleGroup('dept')
+    const groupRows = container.querySelectorAll('.dt-group-row')
+    expect(groupRows).toHaveLength(2) // Eng, HR
+    expect(container.textContent).toContain('Dept:')
+    dispose()
+  })
+
+  it('collapsing a group hides its rows but keeps the aggregate row', () => {
+    const { container, table, dispose } = mount({ defaultGroupsCollapsed: false })
+    table.toggleGroup('dept')
+    const groupRow = [...container.querySelectorAll<HTMLElement>('.dt-group-row')].find((el) =>
+      el.textContent?.includes('Eng'),
+    )!
+    expect(container.querySelectorAll('tbody tr.dt-tr')).toHaveLength(3)
+    groupRow.click()
+    expect(container.querySelectorAll('tbody tr.dt-tr')).toHaveLength(1) // only HR's row left visible
+    expect(container.querySelector('.dt-agg-row')).not.toBeNull()
+    dispose()
+  })
+
+  it('the aggregate row reflects computeAggregate for the group', () => {
+    const { container, table, dispose } = mount({ defaultGroupsCollapsed: false })
+    table.toggleGroup('dept')
+    const aggRows = container.querySelectorAll('.dt-agg-row')
+    // Eng group: Alice(90) + Clara(80) -> avg 85
+    expect(aggRows[0].textContent).toContain('85')
+    dispose()
+  })
+
+  it("a group's own select-all checkbox toggles just that group's rows", () => {
+    const { container, table, dispose } = mount({ selectable: true, defaultGroupsCollapsed: false })
+    table.toggleGroup('dept')
+    const groupRow = [...container.querySelectorAll<HTMLElement>('.dt-group-row')].find((el) =>
+      el.textContent?.includes('Eng'),
+    )!
+    groupRow.querySelector<HTMLInputElement>('input[type="checkbox"]')!.click()
+    expect(
+      table
+        .selectedRows()
+        .map((r) => r.name)
+        .sort(),
+    ).toEqual(['Alice', 'Clara'])
+    dispose()
+  })
+})
