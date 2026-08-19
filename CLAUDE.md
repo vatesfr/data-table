@@ -22,7 +22,7 @@ When there are multiple valid approaches to a request, present the options and t
 ```bash
 npm install                      # install all workspace dependencies
 npm run build                    # build all packages (core → react → vue → solid → vanilla; order matters)
-npm run dev:react|vue|vanilla    # start a demo dev server
+npm run dev:react|vue|solid|vanilla # start a demo dev server
 npm run test                     # run tests for all packages
 npm run test -w packages/X       # run tests for one package (core | react | vue | solid | vanilla)
 npm run test:watch -w packages/X # watch mode for one package
@@ -38,12 +38,12 @@ After implementing any new feature:
 1. Review existing tests to see if they need updating; add new tests if the feature isn't covered.
 2. Run `npm run test` to verify nothing regressed.
 3. Run `npm run type-check` to verify no type errors.
-4. Update the demos (`demo/react`, `demo/vue`, and `demo/vanilla`) to showcase the new feature if applicable.
+4. Update the demos (`demo/react`, `demo/vue`, `demo/solid`, and `demo/vanilla`) to showcase the new feature if applicable.
 5. Update any affected Markdown files (CLAUDE.md, READMEs).
 
 ## Architecture
 
-This is an **npm workspaces monorepo** with five publishable packages and three demo apps:
+This is an **npm workspaces monorepo** with five publishable packages and four demo apps:
 
 ```
 packages/
@@ -55,6 +55,7 @@ packages/
 demo/
   react/   — Vite app consuming @vates/data-table-react
   vue/     — Vite app consuming @vates/data-table-vue
+  solid/   — Vite app consuming @vates/data-table-solid
   vanilla/ — Vite app consuming @vates/data-table-vanilla
 ```
 

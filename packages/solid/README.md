@@ -47,6 +47,8 @@ export default function EmployeeTable(props: { employees: Employee[] }) {
 
 `data`/`columns` are tracked reactively — `props.employees` changing later is all it takes, no `createEffect` needed. CSS is injected automatically into `<head>` the first time the table mounts — there's nothing extra to import. This includes all color tokens and dark-mode overrides that activate automatically via `prefers-color-scheme: dark`; see the [theming section of the vanilla README](../vanilla#theming) for the full token table and how to override it (the CSS itself is shared between both packages).
 
+▶ [Try it in the demo](https://vatesfr.github.io/data-table/solid/#full-table)
+
 ## `createTableState`/`DataTableView`, and reaching state `<DataTable>` can't expose
 
 `<DataTable>` covers the common case, but it never hands back the underlying `TableState` — so it can't be used for view persistence, an imperative selection API, or anything else that needs to act on the table from outside. For that, build the two pieces `<DataTable>` itself is made of directly:
@@ -62,6 +64,8 @@ const table = createTableState(
 
 return <DataTableView table={table} data={table.data()} columns={table.columns()} />
 ```
+
+▶ [Try it in the demo](https://vatesfr.github.io/data-table/solid/#custom-layout)
 
 ## View persistence & sharing
 
@@ -83,9 +87,13 @@ createEffect(() => {
 })
 ```
 
+▶ [Try it in the demo](https://vatesfr.github.io/data-table/solid/#persisted-table) — the demo's own `usePersistedView`/`useUrlView` (`demo/solid/src/persistence.ts`) are a fleshed-out version of exactly this pattern, matching react/vue's own hooks.
+
 ## Selection, row click, keyboard navigation, view persistence
 
 Same model as every other adapter — see the [root README](../../README.md#features) and [CLAUDE.md](../../CLAUDE.md) for the full behavior (selection is tracked by object identity, not `rowKey`; shift-click/shift-arrow range selection; roving-tabindex keyboard nav; `getViewState()`/`setViewState()` for persistence/sharing). `TableState<TRow>` exposes the same actions/derived values React's and Vue's `useTableState` do — `selection`, `selectedRows`, `toggleRowSelection`, `toggleSelectAll`, `clearSelection`, `sorts`, `filters`, `groupBy`, `page`, `pageSize`, and so on, all as Solid signals/accessors instead of `useState`/`ref`. `<DataTable>` doesn't expose any of that directly (see above) — pass `selectable` to turn selection on, and `onSelectionChange` to observe it, the same two props `@vates/data-table-vanilla`'s own `createDataTable` accepts.
+
+▶ [Try it in the demo](https://vatesfr.github.io/data-table/solid/#row-selection)
 
 ## License
 

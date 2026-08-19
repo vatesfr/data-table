@@ -42,6 +42,11 @@ jobs:
         env:
           VITE_BASE_URL: /data-table/vue/
 
+      - name: Build Solid demo
+        run: npm run build -w demo/solid
+        env:
+          VITE_BASE_URL: /data-table/solid/
+
       - name: Build Vanilla demo
         run: npm run build -w demo/vanilla
         env:
@@ -52,6 +57,7 @@ jobs:
           mkdir -p site
           cp -r demo/react/dist site/react
           cp -r demo/vue/dist site/vue
+          cp -r demo/solid/dist site/solid
           cp -r demo/vanilla/dist site/vanilla
           cat > site/index.html <<'EOF'
           <!doctype html>
@@ -73,6 +79,7 @@ jobs:
             <div class="links">
               <a href="react/">React</a>
               <a href="vue/">Vue</a>
+              <a href="solid/">Solid</a>
               <a href="vanilla/">Vanilla</a>
             </div>
           </body>

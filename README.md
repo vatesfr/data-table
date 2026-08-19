@@ -8,7 +8,7 @@ A flexible, fully-typed data table for React, Vue 3, Solid, and vanilla JS — w
 
 ## Live demo
 
-[React demo](https://vatesfr.github.io/data-table/react/) · [Vue demo](https://vatesfr.github.io/data-table/vue/) · [Vanilla demo](https://vatesfr.github.io/data-table/vanilla/)
+[React demo](https://vatesfr.github.io/data-table/react/) · [Vue demo](https://vatesfr.github.io/data-table/vue/) · [Solid demo](https://vatesfr.github.io/data-table/solid/) · [Vanilla demo](https://vatesfr.github.io/data-table/vanilla/)
 
 ## Packages
 

@@ -1,0 +1,20 @@
+{
+  "name": "@vates/data-table-demo-solid",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build"
+  },
+  "dependencies": {
+    "@vates/data-table-core": "*",
+    "@vates/data-table-solid": "*",
+    "solid-js": "^1.9.15"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "vite": "^8.1.4",
+    "vite-plugin-solid": "^2.11.14"
+  }
+}
