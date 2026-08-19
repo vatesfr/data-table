@@ -27,3 +27,10 @@ jobs:
       - run: npm run test
       - run: npm run type-check
       - run: npm run build
+
+      # packages/vanilla is the one package with a bundle-size budget (see its
+      # "size-limit" config in package.json) — this rebuilds it and gates the
+      # PR on staying under that budget, catching a bundle-size regression
+      # before merge instead of relying on someone remembering to run
+      # `npm run size` by hand.
+      - run: npm run size -w packages/vanilla
