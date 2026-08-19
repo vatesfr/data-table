@@ -22,8 +22,8 @@
     "*.{js,mjs,cjs,ts,tsx,vue}": "eslint --fix"
   },
   "devDependencies": {
-    "@eslint/js": "^9.0.0",
-    "eslint": "^9.0.0",
+    "@eslint/js": "^10.0.0",
+    "eslint": "^10.0.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "husky": "^9.1.7",
     "lint-staged": "^17.0.8",
