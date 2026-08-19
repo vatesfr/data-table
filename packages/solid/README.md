@@ -20,7 +20,6 @@ npm install @vates/data-table-solid solid-js
 ## Usage
 
 ```tsx
-import { createEffect } from 'solid-js'
 import { createTableState, DataTableView, type ColumnDef } from '@vates/data-table-solid'
 
 interface Employee {
@@ -42,12 +41,9 @@ const COLUMNS: ColumnDef<Employee>[] = [
 ]
 
 export default function EmployeeTable(props: { employees: Employee[] }) {
-  // createTableState takes plain initial values (same shape as react/vue's useTableState),
-  // then owns `data`/`columns` as its own signals via `setData`/`setColumns` — sync a reactive
-  // prop into it with a plain createEffect, the same pattern @vates/data-table-vanilla's own
-  // createDataTable wrapper uses internally.
-  const table = createTableState(props.employees, COLUMNS)
-  createEffect(() => table.setData(props.employees))
+  // Passing an accessor (() => props.employees) instead of the array directly keeps `data`
+  // tracking it reactively for as long as the table exists — no createEffect to write yourself.
+  const table = createTableState(() => props.employees, COLUMNS)
 
   return <DataTableView table={table} data={table.data()} columns={table.columns()} rowKey="id" />
 }
@@ -57,10 +53,20 @@ CSS is injected automatically into `<head>` the first time a `<DataTableView>` m
 
 ## `createTableState`/`DataTableView`, and reaching state a wrapper can't expose
 
-`createTableState(data, columns, options?)` mirrors `packages/react`/`packages/vue`'s own `useTableState` in state shape and action names, and returns a `TableState<TRow>` of signals/derived values/actions — but unlike those two (which get fresh `data`/`columns` arguments on every re-invocation), this one owns `data`/`columns` as its own signals, with `setData`/`setColumns` setters to update them (see the `createEffect` above). `<DataTableView table={...} data={...} columns={...} .../>` is the render layer, taking that `TableState` as a prop rather than building one itself — the same split React/Vue use for their own `DataTableView` — so external code (view persistence, an imperative selection API, etc.) can hold onto `table` and act on it directly:
+`createTableState(data, columns, options?)` mirrors `packages/react`/`packages/vue`'s own `useTableState` in state shape and action names, and returns a `TableState<TRow>` of signals/derived values/actions — but unlike those two (which get fresh `data`/`columns` arguments on every re-invocation), this one owns `data`/`columns` as its own signals, with `setData`/`setColumns` setters to update them. `<DataTableView table={...} data={...} columns={...} .../>` is the render layer, taking that `TableState` as a prop rather than building one itself — the same split React/Vue use for their own `DataTableView` — so external code (view persistence, an imperative selection API, etc.) can hold onto `table` and act on it directly.
+
+`data`/`columns` each accept a plain array (a one-time initial value, exactly like `packages/vanilla`'s own `createDataTable`) _or_ a Solid `Accessor` — pass one and it's tracked reactively for the table's whole lifetime, with no `createEffect` to write yourself:
 
 ```tsx
+// Plain value: seeded once, updated later only via table.setData(...)/table.setColumns(...).
 const table = createTableState(data, columns)
+
+// Accessor: tracked reactively for as long as the table exists.
+const table = createTableState(
+  () => props.data,
+  () => props.columns,
+)
+
 return <DataTableView table={table} data={table.data()} columns={table.columns()} />
 ```
 

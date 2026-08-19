@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { createRoot } from 'solid-js'
+import { createRoot, createSignal } from 'solid-js'
 import { createTableState } from '../createTableState'
 import type { ColumnDef } from '../types'
 
@@ -321,6 +321,57 @@ describe('createTableState — setData/setColumns (no consumer render loop)', ()
       table.toggleColVisibility('score') // hide it
       table.setColumns([...COLS, { key: 'extra', label: 'Extra' }])
       expect(table.activeColumns().map((c) => c.key)).toEqual(['id', 'name', 'extra'])
+    })
+  })
+})
+
+describe('createTableState — accessor inputs for data/columns', () => {
+  it('tracks a data accessor reactively, with no explicit setData call needed', () => {
+    // Deliberately not using withRoot here: mutating the signal from *inside* the same
+    // createRoot call that constructs the table would nest it inside that call's own still-open
+    // update transaction, where Solid defers a render effect's re-run rather than flushing it
+    // synchronously (only pure computations — memos — flush synchronously while nested; this is
+    // exactly the "createMemo's getter always reflects the latest value" guarantee this file's
+    // own top comment describes, which does not extend to effects). Mutating after the root's
+    // own initial setup call has already returned — as any real, later signal write from an
+    // event handler naturally would — flushes synchronously instead, so this is the realistic
+    // shape rather than a workaround.
+    const [rows, setRows] = createSignal(ROWS)
+    let table!: ReturnType<typeof createTableState<Row>>
+    let dispose!: () => void
+    createRoot((d) => {
+      dispose = d
+      table = createTableState(rows, COLS)
+    })
+    expect(table.processedData()).toEqual(ROWS)
+    const more = [...ROWS, { id: 5, name: 'Eve', score: 100 }]
+    setRows(more)
+    expect(table.processedData()).toEqual(more)
+    dispose()
+  })
+
+  it('tracks a columns accessor reactively, reconciling visibleCols the same way setColumns does', () => {
+    const [cols, setCols] = createSignal<ColumnDef<Row>[]>(COLS)
+    let table!: ReturnType<typeof createTableState<Row>>
+    let dispose!: () => void
+    createRoot((d) => {
+      dispose = d
+      table = createTableState(ROWS, cols)
+    })
+    expect(table.activeColumns()).toHaveLength(3)
+    setCols([{ key: 'sku', label: 'SKU' }])
+    expect(table.activeColumns().map((c) => c.key)).toEqual(['sku'])
+    dispose()
+  })
+
+  it('a plain array argument is a one-time initial value, not tracked afterward', () => {
+    withRoot(() => {
+      // Passing ROWS directly (not an accessor) is exactly today's existing behavior: mutating
+      // it externally has no effect on the table, since it was only ever read once at construction.
+      const table = createTableState(ROWS, COLS)
+      const externalCopy = [...ROWS]
+      externalCopy.push({ id: 5, name: 'Eve', score: 100 })
+      expect(table.processedData()).toEqual(ROWS)
     })
   })
 })

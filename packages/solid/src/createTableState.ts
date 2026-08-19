@@ -1,4 +1,4 @@
-import { createSignal, createMemo } from 'solid-js'
+import { createSignal, createMemo, createRenderEffect, type Accessor } from 'solid-js'
 import {
   processData,
   searchData,
@@ -36,6 +36,14 @@ import {
 } from '@vates/data-table-core'
 import type { ColumnDef } from './types'
 
+// Resolves a value that may be given either directly or as a reactive accessor — the same
+// "value or getter" duality Vue's own useTableState accepts via MaybeRefOrGetter, here expressed
+// the Solid way. Safe to discriminate on `typeof value === 'function'`: neither `TRow[]` nor
+// `ColumnDef<TRow>[]` (the only two types this is ever called with) can themselves be a function.
+function access<T>(value: T | Accessor<T>): T {
+  return typeof value === 'function' ? (value as Accessor<T>)() : value
+}
+
 export interface CreateTableStateOptions {
   defaultVisibleColumns?: string[]
   labels?: Partial<DataTableLabels>
@@ -55,13 +63,24 @@ export type TableState<TRow extends object> = ReturnType<typeof createTableState
 // consumer-owned render loop re-invoking this with fresh `data`/`columns` arguments the way React
 // re-invokes `useTableState` on every render, so this module has to own that mutability itself.
 //
+// `initialData`/`initialColumns` each accept a plain value *or* an `Accessor` (mirroring Vue's
+// own `MaybeRefOrGetter` support) — passing an accessor sets up an internal `createEffect` that
+// keeps `data`/`columns` tracking it for the table's whole lifetime, removing the need for the
+// caller to write that effect by hand (as `@vates/data-table-vanilla`'s own `createDataTable`
+// wrapper, and the `<DataTable>` component in this package, both would otherwise have to). A
+// plain array, by contrast, is only ever a one-time initial value — exactly today's existing
+// behavior — fully decoupled after construction, with `setData`/`setColumns` the only way to
+// change it from then on. Calling `setData`/`setColumns` manually on an accessor-backed table
+// still works, but is only a temporary override: the internal effect re-applies the accessor's
+// value the next time it re-runs, the same "controlled input" trade-off as Vue's own `computed`.
+//
 // Ephemeral, UI-only state that React/Vue keep in their *view* layer rather than in
 // `useTableState` (openDropdown, filterActiveCol, ddSearchTerms, focusTarget, drag state, etc. —
 // see "Filter dropdown"/"Keyboard navigation" in the docs) is deliberately NOT here either; it
 // belongs in DataTableView.tsx once that exists, matching the same split.
 export function createTableState<TRow extends object>(
-  initialData: TRow[],
-  initialColumns: ColumnDef<TRow>[],
+  initialData: TRow[] | Accessor<TRow[]>,
+  initialColumns: ColumnDef<TRow>[] | Accessor<ColumnDef<TRow>[]>,
   options?: CreateTableStateOptions,
 ) {
   const {
@@ -72,12 +91,56 @@ export function createTableState<TRow extends object>(
   } = options ?? {}
   const L = { ...DEFAULT_LABELS, ...labelOverrides }
 
-  const [data, setData] = createSignal<TRow[]>(initialData)
-  const [columns, _setColumns] = createSignal<ColumnDef<TRow>[]>(initialColumns)
+  const resolvedInitialColumns = access(initialColumns)
+  const [data, setData] = createSignal<TRow[]>(access(initialData))
+  const [columns, _setColumns] = createSignal<ColumnDef<TRow>[]>(resolvedInitialColumns)
 
   const [visibleCols, setVisibleCols] = createSignal<Set<string>>(
-    new Set(defaultVisibleColumns ?? initialColumns.map((c) => c.key)),
+    new Set(defaultVisibleColumns ?? resolvedInitialColumns.map((c) => c.key)),
   )
+
+  // Wraps the raw `columns` signal setter to reconcile `visibleCols` against the new key set.
+  // `visibleCols` is seeded once at construction (from `defaultVisibleColumns`, or every initial
+  // column) and otherwise only ever mutated by `toggleColVisibility` — a plain passthrough setter
+  // here would leave it holding stale keys after a schema change, and since `activeColumns` is
+  // filtered by `visibleCols`, a column set with no overlap in the old one (e.g. switching to a
+  // different data type/shape entirely) would make every column filter out as "not visible" and
+  // the table would silently render with no columns at all. A column that already existed keeps
+  // whatever visibility choice it had; a genuinely new column (not present in the previous
+  // `columns()`) starts visible by default, the same default construction itself uses with no
+  // `defaultVisibleColumns` override. This also covers the fully-disjoint case for free: with
+  // nothing carried over to preserve, every column in the new set counts as "new" and ends up
+  // visible. Declared here (rather than inline in the returned object below) so the accessor-
+  // tracking effect just below can call it too.
+  const setColumns = (cols: ColumnDef<TRow>[]) => {
+    const prevKeys = new Set(columns().map((c) => c.key))
+    _setColumns(cols)
+    setVisibleCols((prevVisible) => {
+      const next = new Set<string>()
+      for (const c of cols) {
+        if (prevKeys.has(c.key)) {
+          if (prevVisible.has(c.key)) next.add(c.key)
+        } else {
+          next.add(c.key)
+        }
+      }
+      return next
+    })
+  }
+
+  // See this function's own doc comment above for why: an accessor keeps tracking its source for
+  // the table's whole lifetime instead of only seeding the initial value. `createRenderEffect`
+  // (not `createEffect`) specifically — a plain `createEffect` only re-runs in a microtask after
+  // the triggering signal write, so `data()`/`columns()` would lag one tick behind the source
+  // accessor; `createRenderEffect` re-runs synchronously in the same update flush, the same
+  // timing a JSX binding reading the accessor directly would get.
+  if (typeof initialData === 'function') {
+    createRenderEffect(() => setData((initialData as Accessor<TRow[]>)()))
+  }
+  if (typeof initialColumns === 'function') {
+    createRenderEffect(() => setColumns((initialColumns as Accessor<ColumnDef<TRow>[]>)()))
+  }
+
   const [columnOrder, setColumnOrder] = createSignal<string[]>([])
   const [sorts, setSorts] = createSignal<SortEntry[]>([])
   // `filters` (include) and `excludeFilters` ("not one of these values", see `cycleFilterValue`)
@@ -196,35 +259,10 @@ export function createTableState<TRow extends object>(
     activeFilterCount,
     numPages,
     L,
-    // Data/columns mutation (backs createDataTable's public setData/setColumns)
+    // Data/columns mutation (backs createDataTable's public setData/setColumns; see setColumns'
+    // own doc comment above for what it does beyond a plain passthrough setter)
     setData,
-    // Wraps the raw `columns` signal setter to reconcile `visibleCols` against the new key set.
-    // `visibleCols` is seeded once at construction (from `defaultVisibleColumns`, or every
-    // initial column) and otherwise only ever mutated by `toggleColVisibility` — a plain
-    // passthrough setter here would leave it holding stale keys after a schema change, and since
-    // `activeColumns` is filtered by `visibleCols`, a column set with no overlap in the old one
-    // (e.g. switching to a different data type/shape entirely) would make every column filter
-    // out as "not visible" and the table would silently render with no columns at all. A column
-    // that already existed keeps whatever visibility choice it had; a genuinely new column (not
-    // present in the previous `columns()`) starts visible by default, the same default
-    // construction itself uses with no `defaultVisibleColumns` override. This also covers the
-    // fully-disjoint case for free: with nothing carried over to preserve, every column in the
-    // new set counts as "new" and ends up visible.
-    setColumns: (cols: ColumnDef<TRow>[]) => {
-      const prevKeys = new Set(columns().map((c) => c.key))
-      _setColumns(cols)
-      setVisibleCols((prevVisible) => {
-        const next = new Set<string>()
-        for (const c of cols) {
-          if (prevKeys.has(c.key)) {
-            if (prevVisible.has(c.key)) next.add(c.key)
-          } else {
-            next.add(c.key)
-          }
-        }
-        return next
-      })
-    },
+    setColumns,
     // Actions
     toggleColVisibility: (key: string) =>
       setVisibleCols((prev) => {
