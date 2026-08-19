@@ -62,7 +62,6 @@
   },
   "devDependencies": {
     "@size-limit/file": "^13.0.3",
-    "babel-preset-solid": "^1.9.15",
     "jsdom": "^25.0.1",
     "size-limit": "^13.0.3",
     "solid-js": "^1.9.15",
