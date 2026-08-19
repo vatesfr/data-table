@@ -73,7 +73,7 @@ export function createTableState<TRow extends object>(
   const L = { ...DEFAULT_LABELS, ...labelOverrides }
 
   const [data, setData] = createSignal<TRow[]>(initialData)
-  const [columns, setColumns] = createSignal<ColumnDef<TRow>[]>(initialColumns)
+  const [columns, _setColumns] = createSignal<ColumnDef<TRow>[]>(initialColumns)
 
   const [visibleCols, setVisibleCols] = createSignal<Set<string>>(
     new Set(defaultVisibleColumns ?? initialColumns.map((c) => c.key)),
@@ -198,7 +198,33 @@ export function createTableState<TRow extends object>(
     L,
     // Data/columns mutation (backs createDataTable's public setData/setColumns)
     setData,
-    setColumns,
+    // Wraps the raw `columns` signal setter to reconcile `visibleCols` against the new key set.
+    // `visibleCols` is seeded once at construction (from `defaultVisibleColumns`, or every
+    // initial column) and otherwise only ever mutated by `toggleColVisibility` — a plain
+    // passthrough setter here would leave it holding stale keys after a schema change, and since
+    // `activeColumns` is filtered by `visibleCols`, a column set with no overlap in the old one
+    // (e.g. switching to a different data type/shape entirely) would make every column filter
+    // out as "not visible" and the table would silently render with no columns at all. A column
+    // that already existed keeps whatever visibility choice it had; a genuinely new column (not
+    // present in the previous `columns()`) starts visible by default, the same default
+    // construction itself uses with no `defaultVisibleColumns` override. This also covers the
+    // fully-disjoint case for free: with nothing carried over to preserve, every column in the
+    // new set counts as "new" and ends up visible.
+    setColumns: (cols: ColumnDef<TRow>[]) => {
+      const prevKeys = new Set(columns().map((c) => c.key))
+      _setColumns(cols)
+      setVisibleCols((prevVisible) => {
+        const next = new Set<string>()
+        for (const c of cols) {
+          if (prevKeys.has(c.key)) {
+            if (prevVisible.has(c.key)) next.add(c.key)
+          } else {
+            next.add(c.key)
+          }
+        }
+        return next
+      })
+    },
     // Actions
     toggleColVisibility: (key: string) =>
       setVisibleCols((prev) => {
@@ -354,11 +380,14 @@ export function createTableState<TRow extends object>(
       setSelection(new Set<TRow>())
       setSelectionAnchor(null)
     },
-    // Replaces the selection outright, by object identity — backs vanilla's imperative
-    // `DataTableInstance.setSelection(rows)` (see "Row selection" -> "Vanilla's imperative
-    // selection API"). React/Vue have no equivalent: they expose `selection`/`toggleRowSelection`/
-    // `clearSelection` directly since a consumer there already has the `useTableState` value in
-    // hand, with no need for a separate "replace everything" method.
+    // Replaces the selection outright, by object identity — backs @vates/data-table-vanilla's
+    // imperative `DataTableInstance.setSelection(rows)` (see CLAUDE.md's "Row selection" ->
+    // "Vanilla's imperative selection API"), since that wrapper has no reactive `selection` value
+    // of its own to mutate directly. A consumer using this package's own `createTableState`
+    // directly can just call `setSelection(new Set(rows))` itself, so this method mainly exists
+    // for that wrapper's sake. React/Vue have no equivalent: they expose `selection`/
+    // `toggleRowSelection`/`clearSelection` directly since a consumer there already has the
+    // `useTableState` value in hand, with no need for a separate "replace everything" method.
     setSelectionRows: (rows: TRow[]) => {
       setSelection(new Set(rows))
       setSelectionAnchor(null)

@@ -17,10 +17,11 @@ export default defineConfig({
       formats: ['es', 'umd'],
     },
     rollupOptions: {
-      // solid-js is deliberately NOT external here — it's bundled into dist/ as an internal
-      // implementation detail (see package.json: it's a devDependency, not a runtime one), so
-      // consumers never need to install it themselves. Only @vates/data-table-core, the one
-      // dependency genuinely shared across all four adapter packages, stays external.
+      // solid-js AND @vates/data-table-solid (the package this one wraps — see index.tsx) are
+      // deliberately NOT external here — both are bundled into dist/ as internal implementation
+      // details (see package.json: both are devDependencies, not runtime ones), so a non-Solid
+      // consumer never needs to install either themselves. Only @vates/data-table-core, the one
+      // dependency genuinely shared across every adapter package, stays external.
       external: ['@vates/data-table-core', '@vates/data-table-core/theme'],
       output: {
         globals: {

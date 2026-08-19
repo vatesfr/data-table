@@ -10,6 +10,7 @@ labels: enhancement
 - [ ] `@vates/data-table-react`
 - [ ] `@vates/data-table-vue`
 - [ ] `@vates/data-table-vanilla`
+- [ ] `@vates/data-table-solid`
 
 **Problem / motivation**
 

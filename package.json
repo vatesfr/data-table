@@ -6,12 +6,12 @@
     "demo/*"
   ],
   "scripts": {
-    "build": "npm run build -w packages/core && npm run build -w packages/react && npm run build -w packages/vue && npm run build -w packages/vanilla",
+    "build": "npm run build -w packages/core && npm run build -w packages/react && npm run build -w packages/vue && npm run build -w packages/solid && npm run build -w packages/vanilla",
     "dev:react": "npm run dev -w demo/react",
     "dev:vue": "npm run dev -w demo/vue",
     "dev:vanilla": "npm run dev -w demo/vanilla",
-    "type-check": "npm run type-check -w packages/core && npm run type-check -w packages/react && npm run type-check -w packages/vue && npm run type-check -w packages/vanilla",
-    "test": "npm run test -w packages/core && npm run test -w packages/react && npm run test -w packages/vue && npm run test -w packages/vanilla",
+    "type-check": "npm run type-check -w packages/core && npm run type-check -w packages/react && npm run type-check -w packages/vue && npm run type-check -w packages/solid && npm run type-check -w packages/vanilla",
+    "test": "npm run test -w packages/core && npm run test -w packages/react && npm run test -w packages/vue && npm run test -w packages/solid && npm run test -w packages/vanilla",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "eslint .",

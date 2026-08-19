@@ -108,3 +108,19 @@ ${renderThemeCss()}
 .dt-agg-row{font-size:12px;font-weight:500;color:var(--color-text-secondary,#6b6a66);background:var(--color-background-secondary,#f7f6f3)}
 .dt-agg-td{padding:4px 12px;border-bottom:0.5px solid var(--color-border-tertiary,#eeedea)}
 `
+
+// Injects the stylesheet into <head> at most once per page, regardless of how many tables are
+// mounted or which entry point (createTableState/DataTableView directly, or a wrapper like
+// @vates/data-table-vanilla's createDataTable) triggers the first one. Called from
+// `DataTableView` itself (not left to each caller) so a consumer using the raw Solid components
+// gets a styled table with no separate CSS import to remember, the same "just works" guarantee
+// createDataTable already gave vanilla consumers.
+let stylesInjected = false
+export function injectStyles(): void {
+  if (stylesInjected || typeof document === 'undefined') return
+  stylesInjected = true
+  const s = document.createElement('style')
+  s.dataset.dtStyles = ''
+  s.textContent = STYLES
+  document.head.insertBefore(s, document.head.firstChild)
+}

@@ -1,17 +1,17 @@
 {
-  "name": "@vates/data-table-vanilla",
-  "version": "0.9.0",
-  "description": "Vanilla JS adapter for data-table",
+  "name": "@vates/data-table-solid",
+  "version": "0.1.0",
+  "description": "Solid.js adapter for data-table",
   "license": "MIT",
   "author": "Vates",
-  "homepage": "https://github.com/vatesfr/data-table/tree/main/packages/vanilla#readme",
+  "homepage": "https://github.com/vatesfr/data-table/tree/main/packages/solid#readme",
   "bugs": {
     "url": "https://github.com/vatesfr/data-table/issues"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/vatesfr/data-table.git",
-    "directory": "packages/vanilla"
+    "directory": "packages/solid"
   },
   "keywords": [
     "table",
@@ -19,20 +19,21 @@
     "sort",
     "filter",
     "group",
-    "vanilla",
+    "solid",
+    "solidjs",
     "typescript"
   ],
   "engines": {
     "node": ">=18"
   },
   "type": "module",
-  "main": "./dist/data-table-vanilla.umd.cjs",
-  "module": "./dist/data-table-vanilla.js",
+  "main": "./dist/data-table-solid.umd.cjs",
+  "module": "./dist/data-table-solid.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/data-table-vanilla.js",
-      "require": "./dist/data-table-vanilla.umd.cjs",
+      "import": "./dist/data-table-solid.js",
+      "require": "./dist/data-table-solid.umd.cjs",
       "types": "./dist/index.d.ts"
     }
   },
@@ -46,25 +47,16 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "type-check": "tsc --noEmit",
-    "size": "npm run build && size-limit",
     "prepublishOnly": "npm run build"
   },
-  "size-limit": [
-    {
-      "name": "ESM bundle (gzip)",
-      "path": "dist/data-table-vanilla.js",
-      "gzip": true,
-      "limit": "27 KB"
-    }
-  ],
   "dependencies": {
     "@vates/data-table-core": "^0.8.0"
   },
+  "peerDependencies": {
+    "solid-js": ">=1.9.0"
+  },
   "devDependencies": {
-    "@size-limit/file": "^12.1.0",
-    "@vates/data-table-solid": "^0.1.0",
     "jsdom": "^29.1.1",
-    "size-limit": "^12.1.0",
     "solid-js": "^1.9.15",
     "typescript": "^5.5.0",
     "vite": "^8.1.4",

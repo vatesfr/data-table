@@ -1,6 +1,7 @@
 import { Show, createSignal } from 'solid-js'
 import type { TableState } from './createTableState'
 import type { ColumnDef } from './types'
+import { injectStyles } from './styles'
 import { SearchBox } from './components/SearchBox'
 import { ColumnsDropdown } from './components/ColumnsDropdown'
 import { SortDropdown } from './components/SortDropdown'
@@ -27,6 +28,7 @@ type DropdownId = 'cols' | 'sort' | 'group' | 'filter'
 // with imperative needs (usePersistedView-equivalent, etc.) can build a table and pass it in
 // directly instead of only ever going through the createDataTable(container, options) wrapper.
 export function DataTableView<TRow extends object>(props: DataTableViewProps<TRow>) {
+  injectStyles()
   const { table } = props
   const [openDropdown, setOpenDropdown] = createSignal<DropdownId | null>(null)
   const groupableCols = () => props.columns.filter((c) => c.groupable === true)

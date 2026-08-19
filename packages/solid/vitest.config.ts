@@ -7,7 +7,6 @@ export default defineConfig({
   resolve: {
     alias: {
       '@vates/data-table-core': resolve(__dirname, '../core/src'),
-      '@vates/data-table-solid': resolve(__dirname, '../solid/src'),
     },
     // vite-plugin-solid needs the "solid" export condition resolved to solid-js's client-side
     // build even under Vitest's default (node-oriented) test transform — without it, imports

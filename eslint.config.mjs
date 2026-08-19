@@ -28,9 +28,10 @@ export default tseslint.config(
   // assignment to that variable, invisible to ESLint's static analysis since it runs on the
   // pre-compile JSX. Same root cause as the react-hooks exclusion above: Solid's ref model reads,
   // to a rule written for plain JS/React, as "declared but never assigned" when it's actually the
-  // normal way this package attaches a ref to a JSX element.
+  // normal way this package attaches a ref to a JSX element. Applies to both packages/vanilla
+  // (its own thin wrapper) and packages/solid (the actual Solid components it wraps).
   {
-    files: ['packages/vanilla/**/*.tsx'],
+    files: ['packages/vanilla/**/*.tsx', 'packages/solid/**/*.tsx'],
     rules: { 'no-unassigned-vars': 'off' },
   },
 )

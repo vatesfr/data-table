@@ -4,11 +4,12 @@
 [![npm](https://img.shields.io/npm/v/@vates/data-table-react?label=react)](https://www.npmjs.com/package/@vates/data-table-react)
 [![npm](https://img.shields.io/npm/v/@vates/data-table-vue?label=vue)](https://www.npmjs.com/package/@vates/data-table-vue)
 [![npm](https://img.shields.io/npm/v/@vates/data-table-vanilla?label=vanilla)](https://www.npmjs.com/package/@vates/data-table-vanilla)
+[![npm](https://img.shields.io/npm/v/@vates/data-table-solid?label=solid)](https://www.npmjs.com/package/@vates/data-table-solid)
 [![npm](https://img.shields.io/npm/v/@vates/data-table-core?label=core)](https://www.npmjs.com/package/@vates/data-table-core)
 [![node](https://img.shields.io/node/v/@vates/data-table-core)](https://www.npmjs.com/package/@vates/data-table-core)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-A flexible, fully-typed data table for React, Vue 3, and vanilla JS — with sorting, filtering, column visibility, and row grouping built in.
+A flexible, fully-typed data table for React, Vue 3, Solid, and vanilla JS — with sorting, filtering, column visibility, and row grouping built in.
 
 ## Live demo
 
@@ -16,12 +17,13 @@ A flexible, fully-typed data table for React, Vue 3, and vanilla JS — with sor
 
 ## Packages
 
-| Package                                           | Description                        |
-| ------------------------------------------------- | ---------------------------------- |
-| [`@vates/data-table-react`](./packages/react)     | React component and hook           |
-| [`@vates/data-table-vue`](./packages/vue)         | Vue 3 component and composable     |
-| [`@vates/data-table-vanilla`](./packages/vanilla) | Vanilla JS, no framework required  |
-| [`@vates/data-table-core`](./packages/core)       | Framework-agnostic logic (pure TS) |
+| Package                                           | Description                                                      |
+| ------------------------------------------------- | ---------------------------------------------------------------- |
+| [`@vates/data-table-react`](./packages/react)     | React component and hook                                         |
+| [`@vates/data-table-vue`](./packages/vue)         | Vue 3 component and composable                                   |
+| [`@vates/data-table-vanilla`](./packages/vanilla) | Vanilla JS, no framework required                                |
+| [`@vates/data-table-solid`](./packages/solid)     | Solid.js component and primitive (`packages/vanilla` wraps this) |
+| [`@vates/data-table-core`](./packages/core)       | Framework-agnostic logic (pure TS)                               |
 
 ## Features
 
@@ -33,7 +35,7 @@ A flexible, fully-typed data table for React, Vue 3, and vanilla JS — with sor
 - Client-side pagination
 - View persistence & sharing — save sort/filter/group/page/search to `localStorage` or the URL via opt-in helpers
 - i18n via a `labels` prop — defaults to English, with built-in locales for FR, ES, DE, PT
-- Custom cell rendering via render props (React), scoped slots (Vue), or `format` string functions (vanilla)
+- Custom cell rendering via render props (React), scoped slots (Vue), a `render` function returning a DOM node (Solid, vanilla), or `format` string functions (all four)
 - Fully typed with TypeScript generics (`TRow extends object`)
 
 ## Quick start
@@ -160,6 +162,33 @@ table.destroy()
 
 CSS is injected automatically into `<head>`. Cell output is string-only — use `format` to control rendering.
 
+### Solid
+
+Already using Solid? Use [`@vates/data-table-solid`](./packages/solid) directly instead of the vanilla wrapper above, so the table shares your app's own `solid-js` instance rather than a separately-bundled one.
+
+```bash
+npm install @vates/data-table-solid solid-js
+```
+
+```tsx
+import { createTableState, DataTableView, type ColumnDef } from '@vates/data-table-solid'
+
+const COLUMNS: ColumnDef<User>[] = [
+  { key: 'name', label: 'Name', type: 'string' },
+  { key: 'role', label: 'Role', type: 'string', groupable: true },
+  {
+    key: 'salary',
+    label: 'Salary',
+    type: 'number',
+    format: (v) => Number(v).toLocaleString() + ' €',
+  },
+]
+
+const table = createTableState(users, COLUMNS)
+
+// <DataTableView table={table} data={table.data()} columns={table.columns()} rowKey="id" />
+```
+
 ## i18n
 
 All UI strings are in English by default. Use a built-in locale or supply any overrides via the `labels` prop:
@@ -246,7 +275,7 @@ usePersistedView(table, 'my-table-view') // survives reloads
 useUrlView(table) // reflected in ?view=... — reload the page or share the link
 ```
 
-See the exact API for each package: [React](./packages/react#view-persistence--sharing) · [Vue](./packages/vue#view-persistence--sharing) · [Vanilla](./packages/vanilla#view-persistence--sharing).
+See the exact API for each package: [React](./packages/react#view-persistence--sharing) · [Vue](./packages/vue#view-persistence--sharing) · [Vanilla](./packages/vanilla#view-persistence--sharing) · [Solid](./packages/solid#view-persistence--sharing) (no dedicated helper yet — a couple of lines with `createEffect`).
 
 ## Development
 

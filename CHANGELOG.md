@@ -7,8 +7,13 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Added
+
+- **New package: `@vates/data-table-solid`** — the Solid.js implementation (`createTableState`/`DataTableView` and all toolbar/dropdown components) that used to live entirely inside `@vates/data-table-vanilla` is now its own standalone adapter package, for projects already using Solid. `solid-js` is a `peerDependency` there (never bundled), so it shares the consuming app's own Solid instance instead of a second, non-interoperable copy — Solid's reactivity tracking is module-scoped, so two separate bundled copies of `solid-js` wouldn't just cost bytes, a signal from one copy is invisible to a computation running in the other. `@vates/data-table-vanilla`'s public API (`createDataTable(container, options)`) is unchanged; it's now a thin wrapper around `@vates/data-table-solid`, still bundling both `solid-js` and `@vates/data-table-solid` internally so non-Solid consumers never install either.
+
 ### Fixed
 
+- Solid/vanilla: `setColumns`/`table.setColumns` (the imperative "change the schema without rebuilding the table" API) never reconciled `visibleCols` against the new column set — swapping to a fully disjoint set of column keys (e.g. switching to a different object type while reusing the same table instance) made every column filter out as "not visible" and the table silently render with none at all. A column that already existed keeps whatever visibility it had; a genuinely new column now starts visible by default.
 - Vanilla: the filter checklist/date-tree checkbox could silently fail to visually update on a real (trusted) mouse click, though the underlying filter state changed correctly — the click-revert-correction relied on a microtask, but a genuine trusted click's native checkbox revert can itself land after that microtask, undoing the correction
 - Vanilla: the filter dropdown's left column pane could scroll a column button on top of its own sticky search box (missing `z-index`, unlike the equivalent Sort/Group/Columns search row)
 - Vanilla: the filter dropdown's checklist/date-tree pane couldn't scroll — it had no bounded height to scroll within, so overflow content was silently clipped by the panel instead

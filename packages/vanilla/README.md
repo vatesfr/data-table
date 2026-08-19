@@ -7,6 +7,8 @@
 
 Vanilla JS adapter for [data-table](../../README.md) — a flexible, fully-typed data table with sorting, filtering, column visibility/reordering, and row grouping. No framework required.
 
+Internally built on [`@vates/data-table-solid`](../solid), bundled so you never need to install Solid yourself. Already using Solid in your own project? Depend on [`@vates/data-table-solid`](../solid) directly instead — it shares your app's own `solid-js` instance rather than a second, separately-bundled copy.
+
 ## Install
 
 ```bash

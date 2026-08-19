@@ -285,7 +285,7 @@ describe('createTableState — view state persistence', () => {
   })
 })
 
-describe('createTableState — setData/setColumns (vanilla-specific: no consumer render loop)', () => {
+describe('createTableState — setData/setColumns (no consumer render loop)', () => {
   it('setData updates processedData reactively', () => {
     withRoot(() => {
       const table = createTableState(ROWS, COLS)
@@ -300,6 +300,27 @@ describe('createTableState — setData/setColumns (vanilla-specific: no consumer
       const table = createTableState(ROWS, COLS)
       table.setColumns([{ key: 'id', label: 'ID' }])
       expect(table.activeColumns().map((c) => c.key)).toEqual(['id'])
+    })
+  })
+
+  it('setColumns with a fully disjoint key set keeps every new column visible, instead of filtering all of them out', () => {
+    withRoot(() => {
+      const table = createTableState(ROWS, COLS)
+      const newCols: ColumnDef<Row>[] = [
+        { key: 'sku', label: 'SKU' },
+        { key: 'qty', label: 'Qty', type: 'number' },
+      ]
+      table.setColumns(newCols)
+      expect(table.activeColumns().map((c) => c.key)).toEqual(['sku', 'qty'])
+    })
+  })
+
+  it("setColumns preserves an existing column's hidden state and defaults a genuinely new column to visible", () => {
+    withRoot(() => {
+      const table = createTableState(ROWS, COLS)
+      table.toggleColVisibility('score') // hide it
+      table.setColumns([...COLS, { key: 'extra', label: 'Extra' }])
+      expect(table.activeColumns().map((c) => c.key)).toEqual(['id', 'name', 'extra'])
     })
   })
 })

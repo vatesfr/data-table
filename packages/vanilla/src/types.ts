@@ -1,5 +1,15 @@
 import type { ColumnDefBase, DataTableLabels, TableViewState } from '@vates/data-table-core'
 
+// Structurally identical to @vates/data-table-solid's own `ColumnDef` (createTableState/
+// DataTableView there are typed against it) — declared again here rather than imported from
+// that package so this package's own published `dist/index.d.ts` never references a type from
+// @vates/data-table-solid, which (unlike @vates/data-table-core) isn't a real "dependencies"
+// entry for this package — it's bundled, the same internal-implementation-detail status as
+// solid-js itself, so consumers must never be required to have its types resolvable. TypeScript's
+// structural typing means an identically-shaped, independently-declared interface here is still
+// assignable to solid's own `ColumnDef` at every call site that passes one across the boundary
+// (same reasoning React/Vue each already declare their own independent `ColumnDef` rather than
+// sharing one).
 export interface ColumnDef<
   TRow extends object = Record<string, unknown>,
 > extends ColumnDefBase<TRow> {

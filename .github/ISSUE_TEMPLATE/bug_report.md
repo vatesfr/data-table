@@ -10,6 +10,7 @@ labels: bug
 - [ ] `@vates/data-table-react`
 - [ ] `@vates/data-table-vue`
 - [ ] `@vates/data-table-vanilla`
+- [ ] `@vates/data-table-solid`
 
 **Version**
 
@@ -30,5 +31,5 @@ labels: bug
 **Environment**
 
 - Node: <!-- node --version -->
-- Framework version (React / Vue):
+- Framework version (React / Vue / Solid):
 - Browser (if relevant):

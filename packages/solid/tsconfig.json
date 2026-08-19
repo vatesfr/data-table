@@ -15,8 +15,7 @@
     "paths": {
       "@vates/data-table-core": ["../core/src/index.ts"],
       "@vates/data-table-core/locales": ["../core/src/locales.ts"],
-      "@vates/data-table-core/theme": ["../core/src/theme.ts"],
-      "@vates/data-table-solid": ["../solid/src/index.ts"]
+      "@vates/data-table-core/theme": ["../core/src/theme.ts"]
     }
   },
   "include": ["src"],

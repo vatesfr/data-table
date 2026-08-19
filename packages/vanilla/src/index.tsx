@@ -1,5 +1,6 @@
 import { render } from 'solid-js/web'
 import { createRoot, createEffect, on } from 'solid-js'
+import { createTableState, DataTableView } from '@vates/data-table-solid'
 import {
   bucketNumericRange,
   formatNumericRange,
@@ -8,9 +9,6 @@ import {
   compareMissingLast,
 } from '@vates/data-table-core'
 import type { ColumnDef, DataTableOptions, DataTableInstance } from './types'
-import { createTableState } from './createTableState'
-import { DataTableView } from './DataTableView'
-import { STYLES } from './styles'
 
 export type { ColumnDef, DataTableOptions, DataTableInstance }
 export type { DataTableLabels, TableViewState } from '@vates/data-table-core'
@@ -24,29 +22,22 @@ export { bucketNumericRange, formatNumericRange, bucketDatePart, formatDatePart 
 // direction — see `ColumnDefBase.compare` in the docs.
 export { compareMissingLast }
 export type { DatePart } from '@vates/data-table-core'
-export { createTableState } from './createTableState'
-export type { TableState, CreateTableStateOptions } from './createTableState'
-export { DataTableView } from './DataTableView'
-export type { DataTableViewProps } from './DataTableView'
-
-let stylesInjected = false
-function injectStyles(): void {
-  if (stylesInjected || typeof document === 'undefined') return
-  stylesInjected = true
-  const s = document.createElement('style')
-  s.dataset.dtStyles = ''
-  s.textContent = STYLES
-  document.head.insertBefore(s, document.head.firstChild)
-}
 
 // --- Factory ---
 
+// This is now a thin wrapper: the actual reactive state (createTableState) and render layer
+// (DataTableView) live in @vates/data-table-solid (a real, standalone Solid package — solid-js
+// is a peerDependency there, never bundled) so a project already using Solid can depend on it
+// directly and compose the table into its own reactive tree, sharing its own solid-js instance
+// instead of getting a second, non-interoperable copy. This package's own job is narrower: adapt
+// that Solid API into the plain-DOM-container, callback-based `createDataTable` shape a non-Solid
+// consumer expects, and — since a non-Solid consumer must never need to install solid-js
+// themselves — bundle both solid-js and @vates/data-table-solid into its own dist/ (see
+// vite.config.ts's `external`, which still only excludes @vates/data-table-core).
 export function createDataTable<TRow extends object>(
   container: HTMLElement,
   options: DataTableOptions<TRow>,
 ): DataTableInstance<TRow> {
-  injectStyles()
-
   const { rowKey, selectable = false, onSelectionChange, onRowClick } = options
 
   let dispose!: () => void

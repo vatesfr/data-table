@@ -25,17 +25,17 @@ npm run dev:vanilla
 
 ## Build
 
-Packages must be built in order because `react` and `vue` depend on the compiled output of `core`:
+Packages must be built in order because `react`, `vue`, and `solid` depend on the compiled output of `core`, and `vanilla` in turn depends on `solid`'s:
 
 ```bash
-npm run build          # builds core → react → vue → vanilla
+npm run build          # builds core → react → vue → solid → vanilla
 npm run build -w packages/core   # single package
 ```
 
 ## Type checking
 
 ```bash
-npm run type-check     # checks all four packages (vue-tsc for Vue, tsc for the rest)
+npm run type-check     # checks all five packages (vue-tsc for Vue, tsc for the rest)
 ```
 
 ## Project structure
@@ -45,14 +45,15 @@ packages/
   core/    — pure TS logic, no framework dependency
   react/   — React component + useTableState hook
   vue/     — Vue 3 component + useTableState composable
-  vanilla/ — vanilla JS adapter, no framework required
+  solid/   — Solid component + createTableState primitive
+  vanilla/ — vanilla JS adapter, no framework required (wraps `solid`)
 demo/
   react/   — Vite + React demo app
   vue/     — Vite + Vue demo app
   vanilla/ — Vite + vanilla demo app
 ```
 
-All stateless data processing logic belongs in `packages/core`. Framework adapters should only wire up reactivity and rendering. If you find yourself duplicating logic between the React and Vue packages, it probably belongs in core.
+All stateless data processing logic belongs in `packages/core`. Framework adapters should only wire up reactivity and rendering. If you find yourself duplicating logic between the React and Vue packages, it probably belongs in core. `packages/vanilla` should stay a thin wrapper around `packages/solid` — UI/state changes for the Solid+vanilla pairing belong in `packages/solid`, not duplicated into `packages/vanilla` directly.
 
 ## Generic constraint
 
@@ -61,6 +62,6 @@ The `TRow` generic is constrained as `TRow extends object`, not `TRow extends Re
 ## Pull requests
 
 - Keep changes focused — one feature or fix per PR.
-- If you add a feature, update all three adapters (React, Vue, vanilla) and demonstrate it in all three demo apps.
+- If you add a feature, update React, Vue, and Solid (a Solid-level change already covers `packages/vanilla`, since it wraps `packages/solid`) and demonstrate it in the React/Vue/vanilla demo apps.
 - The `labels` prop must cover any new UI string you introduce — don't hardcode text.
-- Run `npm run test` before submitting; packages/core, packages/react, and packages/vue have automated tests. Also manually verify your changes in the demo apps.
+- Run `npm run test` before submitting; every package has automated tests. Also manually verify your changes in the demo apps.
