@@ -62,7 +62,7 @@
   },
   "devDependencies": {
     "@size-limit/file": "^13.0.3",
-    "jsdom": "^25.0.1",
+    "jsdom": "^29.1.1",
     "size-limit": "^13.0.3",
     "solid-js": "^1.9.15",
     "typescript": "^5.5.0",
