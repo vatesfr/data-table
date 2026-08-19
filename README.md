@@ -171,7 +171,7 @@ npm install @vates/data-table-solid solid-js
 ```
 
 ```tsx
-import { createTableState, DataTableView, type ColumnDef } from '@vates/data-table-solid'
+import { DataTable, type ColumnDef } from '@vates/data-table-solid'
 
 const COLUMNS: ColumnDef<User>[] = [
   { key: 'name', label: 'Name', type: 'string' },
@@ -184,9 +184,9 @@ const COLUMNS: ColumnDef<User>[] = [
   },
 ]
 
-const table = createTableState(users, COLUMNS)
-
-// <DataTableView table={table} data={table.data()} columns={table.columns()} rowKey="id" />
+export default function App() {
+  return <DataTable data={users} columns={COLUMNS} rowKey="id" />
+}
 ```
 
 ## i18n
