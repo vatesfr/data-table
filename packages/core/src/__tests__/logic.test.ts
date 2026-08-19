@@ -41,6 +41,7 @@ import {
   getSortIndex,
   countActiveFilters,
   getOrderedColumns,
+  reconcileVisibleColumns,
   reorderColumn,
   moveColumnBy,
   moveSortBy,
@@ -2266,6 +2267,44 @@ describe('getOrderedColumns', () => {
   it('drops stale keys from order that no longer match a column', () => {
     const result = getOrderedColumns(COLS, ['ghost', 'salary', 'name', 'dept'])
     expect(result.map((c) => c.key)).toEqual(['salary', 'name', 'dept'])
+  })
+})
+
+// ─── reconcileVisibleColumns ──────────────────────────────────────────────────
+
+describe('reconcileVisibleColumns', () => {
+  const OLD_COLS = [
+    { key: 'name' as const, label: 'Name' },
+    { key: 'dept' as const, label: 'Dept' },
+    { key: 'salary' as const, label: 'Salary' },
+  ]
+
+  it('a fully disjoint column set keeps every new column visible, instead of filtering all of them out', () => {
+    const newCols = [
+      { key: 'sku' as const, label: 'SKU' },
+      { key: 'qty' as const, label: 'Qty' },
+    ]
+    const result = reconcileVisibleColumns(OLD_COLS, newCols, new Set(['name', 'dept', 'salary']))
+    expect(result).toEqual(new Set(['sku', 'qty']))
+  })
+
+  it("preserves an existing column's hidden state", () => {
+    const visibleCols = new Set(['name', 'salary']) // dept hidden
+    const result = reconcileVisibleColumns(OLD_COLS, OLD_COLS, visibleCols)
+    expect(result).toEqual(new Set(['name', 'salary']))
+  })
+
+  it('defaults a genuinely new column to visible, alongside preserved existing ones', () => {
+    const newCols = [...OLD_COLS, { key: 'region' as const, label: 'Region' }]
+    const visibleCols = new Set(['name', 'salary']) // dept was already hidden
+    const result = reconcileVisibleColumns(OLD_COLS, newCols, visibleCols)
+    expect(result).toEqual(new Set(['name', 'salary', 'region']))
+  })
+
+  it('a removed column simply disappears, with no effect on the others', () => {
+    const newCols = OLD_COLS.filter((c) => c.key !== 'dept')
+    const result = reconcileVisibleColumns(OLD_COLS, newCols, new Set(['name', 'dept', 'salary']))
+    expect(result).toEqual(new Set(['name', 'salary']))
   })
 })
 

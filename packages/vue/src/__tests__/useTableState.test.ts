@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+import { ref, nextTick } from 'vue'
 import { useTableState } from '../useTableState'
 import type { ColumnDef } from '../types'
 
@@ -153,6 +154,27 @@ describe('useTableState — column visibility', () => {
     })
     toggleColVisibility('id')
     expect(activeColumns.value.map((c) => c.key)).toContain('id')
+  })
+
+  it('a columns ref swapped to a fully disjoint key set keeps every new column visible, instead of filtering all of them out', async () => {
+    const columns = ref<ColumnDef<Row>[]>(COLS)
+    const { activeColumns } = useTableState(ROWS, columns)
+    expect(activeColumns.value).toHaveLength(3)
+    columns.value = [
+      { key: 'sku', label: 'SKU' },
+      { key: 'qty', label: 'Qty', type: 'number' },
+    ]
+    await nextTick()
+    expect(activeColumns.value.map((c) => c.key)).toEqual(['sku', 'qty'])
+  })
+
+  it("a columns ref change preserves an existing column's hidden state and defaults a genuinely new column to visible", async () => {
+    const columns = ref<ColumnDef<Row>[]>(COLS)
+    const { activeColumns, toggleColVisibility } = useTableState(ROWS, columns)
+    toggleColVisibility('score') // hide it
+    columns.value = [...COLS, { key: 'extra', label: 'Extra' }]
+    await nextTick()
+    expect(activeColumns.value.map((c) => c.key)).toEqual(['id', 'name', 'extra'])
   })
 })
 

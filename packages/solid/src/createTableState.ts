@@ -23,6 +23,7 @@ import {
   toggleGroupBy,
   toggleCollapse,
   getOrderedColumns,
+  reconcileVisibleColumns,
   reorderColumn as _reorderColumn,
   moveColumnBy as _moveColumnBy,
   getSortIcon as _getSortIcon,
@@ -99,33 +100,15 @@ export function createTableState<TRow extends object>(
     new Set(defaultVisibleColumns ?? resolvedInitialColumns.map((c) => c.key)),
   )
 
-  // Wraps the raw `columns` signal setter to reconcile `visibleCols` against the new key set.
-  // `visibleCols` is seeded once at construction (from `defaultVisibleColumns`, or every initial
-  // column) and otherwise only ever mutated by `toggleColVisibility` — a plain passthrough setter
-  // here would leave it holding stale keys after a schema change, and since `activeColumns` is
-  // filtered by `visibleCols`, a column set with no overlap in the old one (e.g. switching to a
-  // different data type/shape entirely) would make every column filter out as "not visible" and
-  // the table would silently render with no columns at all. A column that already existed keeps
-  // whatever visibility choice it had; a genuinely new column (not present in the previous
-  // `columns()`) starts visible by default, the same default construction itself uses with no
-  // `defaultVisibleColumns` override. This also covers the fully-disjoint case for free: with
-  // nothing carried over to preserve, every column in the new set counts as "new" and ends up
-  // visible. Declared here (rather than inline in the returned object below) so the accessor-
-  // tracking effect just below can call it too.
+  // Wraps the raw `columns` signal setter to reconcile `visibleCols` against the new key set via
+  // core's `reconcileVisibleColumns` (see its own doc comment for the full reasoning — a plain
+  // passthrough setter would leave `visibleCols` holding stale keys after a schema change).
+  // Declared here (rather than inline in the returned object below) so the accessor-tracking
+  // effect just below can call it too.
   const setColumns = (cols: ColumnDef<TRow>[]) => {
-    const prevKeys = new Set(columns().map((c) => c.key))
+    const prevColumns = columns()
     _setColumns(cols)
-    setVisibleCols((prevVisible) => {
-      const next = new Set<string>()
-      for (const c of cols) {
-        if (prevKeys.has(c.key)) {
-          if (prevVisible.has(c.key)) next.add(c.key)
-        } else {
-          next.add(c.key)
-        }
-      }
-      return next
-    })
+    setVisibleCols((prevVisible) => reconcileVisibleColumns(prevColumns, cols, prevVisible))
   }
 
   // See this function's own doc comment above for why: an accessor keeps tracking its source for

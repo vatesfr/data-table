@@ -1,4 +1,4 @@
-import { ref, shallowRef, computed, toValue, type MaybeRefOrGetter } from 'vue'
+import { ref, shallowRef, computed, toValue, watch, type MaybeRefOrGetter } from 'vue'
 import {
   processData,
   searchData,
@@ -23,6 +23,7 @@ import {
   toggleGroupBy,
   toggleCollapse,
   getOrderedColumns,
+  reconcileVisibleColumns,
   reorderColumn as _reorderColumn,
   moveColumnBy as _moveColumnBy,
   getSortIcon as _getSortIcon,
@@ -64,6 +65,18 @@ export function useTableState<TRow extends object>(
   const visibleCols = ref<Set<string>>(
     new Set(options.value.defaultVisibleColumns ?? columns.value.map((c) => c.key)),
   )
+
+  // Reconciles visibleCols (via core's reconcileVisibleColumns — see its own doc comment for the
+  // full reasoning) whenever `columns` itself changes to a different key set. Needed because
+  // useTableState is only called once per component instance (unlike React's own useTableState,
+  // re-invoked with fresh arguments on every render) — `watch` here is Vue's equivalent of that
+  // re-invocation for just this one piece of state. `watch` is lazy by default (no `immediate`),
+  // so this never runs on the initial `columns.value` that seeded `visibleCols` above, only on a
+  // genuine later change.
+  watch(columns, (nextColumns, prevColumns) => {
+    visibleCols.value = reconcileVisibleColumns(prevColumns, nextColumns, visibleCols.value)
+  })
+
   const columnOrder = ref<string[]>([])
   const sorts = ref<SortEntry[]>([])
   const filters = ref<Record<string, Set<string>>>({})

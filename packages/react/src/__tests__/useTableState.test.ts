@@ -202,6 +202,33 @@ describe('useTableState — column visibility', () => {
     })
     expect(result.current.activeColumns.map((c) => c.key)).toContain('id')
   })
+
+  it('a columns prop swapped to a fully disjoint key set keeps every new column visible, instead of filtering all of them out', () => {
+    const { result, rerender } = renderHook(
+      ({ columns }: { columns: ColumnDef<Row>[] }) => useTableState(ROWS, columns),
+      { initialProps: { columns: COLS } },
+    )
+    expect(result.current.activeColumns).toHaveLength(3)
+    const NEW_COLS: ColumnDef<Row>[] = [
+      { key: 'sku', label: 'SKU' },
+      { key: 'qty', label: 'Qty', type: 'number' },
+    ]
+    rerender({ columns: NEW_COLS })
+    expect(result.current.activeColumns.map((c) => c.key)).toEqual(['sku', 'qty'])
+  })
+
+  it("a columns prop change preserves an existing column's hidden state and defaults a genuinely new column to visible", () => {
+    const { result, rerender } = renderHook(
+      ({ columns }: { columns: ColumnDef<Row>[] }) => useTableState(ROWS, columns),
+      { initialProps: { columns: COLS } },
+    )
+    act(() => {
+      result.current.toggleColVisibility('score') // hide it
+    })
+    const withExtra: ColumnDef<Row>[] = [...COLS, { key: 'extra', label: 'Extra' }]
+    rerender({ columns: withExtra })
+    expect(result.current.activeColumns.map((c) => c.key)).toEqual(['id', 'name', 'extra'])
+  })
 })
 
 describe('useTableState — column ordering', () => {

@@ -46,6 +46,15 @@ export interface UseTableStateOptions {
 
 export type TableState<TRow extends object> = ReturnType<typeof useTableState<TRow>>
 
+// True when both key lists contain exactly the same set of keys, ignoring order — a plain
+// reorder of the same columns is not a "schema changed" event for the visibleCols reconciliation
+// below, only a genuine addition/removal is.
+function sameKeySet(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false
+  const set = new Set(a)
+  return b.every((key) => set.has(key))
+}
+
 export function useTableState<TRow extends object>(
   data: TRow[],
   columns: ColumnDef<TRow>[],
@@ -62,6 +71,38 @@ export function useTableState<TRow extends object>(
   const [visibleCols, setVisibleCols] = useState<Set<string>>(
     () => new Set(defaultVisibleColumns ?? columns.map((c) => c.key)),
   )
+
+  // Reconciles visibleCols whenever the `columns` argument itself changes to a different key
+  // set across renders — comparing against the previous render (React's own documented pattern
+  // for "adjust state when a prop changes", see the identical shape used for
+  // filterListScrollTop in DataTableView.tsx) rather than an effect, avoiding both an extra
+  // render and the react-hooks/set-state-in-effect lint error this project's config treats as
+  // one. Without this, a `columns` prop swapped to a set with no overlap in the previous one
+  // (e.g. a consumer keeping the same mounted <DataTable> but changing what kind of data it
+  // shows) would leave every column filtered out as "not visible" — activeColumns below is
+  // filtered by visibleCols — and the table would silently render with none at all. A column
+  // that already existed keeps whatever visibility choice it had; a genuinely new column starts
+  // visible by default, the same default this hook already uses with no defaultVisibleColumns
+  // override — the same reconciliation @vates/data-table-solid's own `setColumns` needed, just
+  // reached here via a changed argument instead of an explicit setter call.
+  const columnKeys = columns.map((c) => c.key)
+  const [prevColumnKeys, setPrevColumnKeys] = useState(columnKeys)
+  if (!sameKeySet(prevColumnKeys, columnKeys)) {
+    setPrevColumnKeys(columnKeys)
+    const prevKeySet = new Set(prevColumnKeys)
+    setVisibleCols((prevVisible) => {
+      const next = new Set<string>()
+      for (const key of columnKeys) {
+        if (prevKeySet.has(key)) {
+          if (prevVisible.has(key)) next.add(key)
+        } else {
+          next.add(key)
+        }
+      }
+      return next
+    })
+  }
+
   const [columnOrder, setColumnOrder] = useState<string[]>([])
   const [sorts, setSorts] = useState<SortEntry[]>([])
   // `filters` (include) and `excludeFilters` — "not one of these values" for multi-value columns,
