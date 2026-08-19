@@ -4,6 +4,8 @@
 [![npm](https://img.shields.io/npm/v/@vates/data-table-react?label=react)](https://www.npmjs.com/package/@vates/data-table-react)
 [![npm](https://img.shields.io/npm/v/@vates/data-table-vue?label=vue)](https://www.npmjs.com/package/@vates/data-table-vue)
 [![npm](https://img.shields.io/npm/v/@vates/data-table-vanilla?label=vanilla)](https://www.npmjs.com/package/@vates/data-table-vanilla)
+[![npm](https://img.shields.io/npm/v/@vates/data-table-core?label=core)](https://www.npmjs.com/package/@vates/data-table-core)
+[![node](https://img.shields.io/node/v/@vates/data-table-core)](https://www.npmjs.com/package/@vates/data-table-core)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 A flexible, fully-typed data table for React, Vue 3, and vanilla JS — with sorting, filtering, column visibility, and row grouping built in.

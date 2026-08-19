@@ -1,5 +1,10 @@
 # @vates/data-table-react
 
+[![npm](https://img.shields.io/npm/v/@vates/data-table-react)](https://www.npmjs.com/package/@vates/data-table-react)
+[![node](https://img.shields.io/node/v/@vates/data-table-react)](https://www.npmjs.com/package/@vates/data-table-react)
+[![bundle size](https://img.shields.io/bundlephobia/minzip/@vates/data-table-react)](https://bundlephobia.com/package/@vates/data-table-react)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 React adapter for [data-table](../../README.md) — a flexible, fully-typed data table with sorting, filtering, column visibility/reordering, and row grouping.
 
 ## Install

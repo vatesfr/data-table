@@ -1,5 +1,10 @@
 # @vates/data-table-core
 
+[![npm](https://img.shields.io/npm/v/@vates/data-table-core)](https://www.npmjs.com/package/@vates/data-table-core)
+[![node](https://img.shields.io/node/v/@vates/data-table-core)](https://www.npmjs.com/package/@vates/data-table-core)
+[![bundle size](https://img.shields.io/bundlephobia/minzip/@vates/data-table-core)](https://bundlephobia.com/package/@vates/data-table-core)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 Framework-agnostic core logic for [data-table](../../README.md). Zero runtime dependencies.
 
 You don't need this package directly if you're using `@vates/data-table-react` or `@vates/data-table-vue` — it is bundled into both adapters. Use it only if you're building your own adapter.

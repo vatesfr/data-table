@@ -1,5 +1,10 @@
 # @vates/data-table-vue
 
+[![npm](https://img.shields.io/npm/v/@vates/data-table-vue)](https://www.npmjs.com/package/@vates/data-table-vue)
+[![node](https://img.shields.io/node/v/@vates/data-table-vue)](https://www.npmjs.com/package/@vates/data-table-vue)
+[![bundle size](https://img.shields.io/bundlephobia/minzip/@vates/data-table-vue)](https://bundlephobia.com/package/@vates/data-table-vue)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 Vue 3 adapter for [data-table](../../README.md) — a flexible, fully-typed data table with sorting, filtering, column visibility/reordering, and row grouping.
 
 ## Install

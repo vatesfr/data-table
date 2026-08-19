@@ -1,5 +1,10 @@
 # @vates/data-table-vanilla
 
+[![npm](https://img.shields.io/npm/v/@vates/data-table-vanilla)](https://www.npmjs.com/package/@vates/data-table-vanilla)
+[![node](https://img.shields.io/node/v/@vates/data-table-vanilla)](https://www.npmjs.com/package/@vates/data-table-vanilla)
+[![bundle size](https://img.shields.io/bundlephobia/minzip/@vates/data-table-vanilla)](https://bundlephobia.com/package/@vates/data-table-vanilla)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 Vanilla JS adapter for [data-table](../../README.md) — a flexible, fully-typed data table with sorting, filtering, column visibility/reordering, and row grouping. No framework required.
 
 ## Install
