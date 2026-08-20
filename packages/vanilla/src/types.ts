@@ -58,6 +58,13 @@ export interface DataTableInstance<TRow extends object = Record<string, unknown>
   /** Fires after any user action that changes the view (not selection). Returns an unsubscribe function. */
   onViewChange(cb: (view: TableViewState) => void): () => void
   /**
+   * Fires whenever the selection changes, with the current `getSelection()`-equivalent rows.
+   * Mirrors `onViewChange`'s subscribe/unsubscribe shape — a listener can be attached any time,
+   * not only via the constructor's `onSelectionChange` option (which is still supported and is
+   * seeded as this listener set's first member). Returns an unsubscribe function.
+   */
+  onSelectionChange(cb: (rows: TRow[]) => void): () => void
+  /**
    * Current selection, by object identity (same model as React/Vue's `selection` — see the docs).
    * Includes rows currently hidden by an active filter, unlike a filtered "selected and visible"
    * view; there is no such filtered accessor here since vanilla exposes state only through methods.

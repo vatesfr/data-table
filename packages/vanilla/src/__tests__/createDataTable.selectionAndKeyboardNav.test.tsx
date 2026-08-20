@@ -182,6 +182,35 @@ describe('createDataTable — imperative selection API', () => {
     expect(rowCheckbox(container, 0).checked).toBe(false)
   })
 
+  it('table.onSelectionChange(cb) lets a listener be attached after construction, mirroring onViewChange', () => {
+    const { table } = mount({ selectable: true })
+    const lateListener = vi.fn()
+    table.onSelectionChange(lateListener)
+    table.setSelection([ROWS[0]])
+    expect(lateListener).toHaveBeenCalledWith([ROWS[0]])
+  })
+
+  it('table.onSelectionChange returns an unsubscribe function', () => {
+    const { table } = mount({ selectable: true })
+    const listener = vi.fn()
+    const unsubscribe = table.onSelectionChange(listener)
+    table.setSelection([ROWS[0]])
+    unsubscribe()
+    table.setSelection([ROWS[1]])
+    expect(listener).toHaveBeenCalledTimes(1)
+    expect(listener).toHaveBeenCalledWith([ROWS[0]])
+  })
+
+  it('the constructor onSelectionChange option and a later table.onSelectionChange listener both fire', () => {
+    const constructorListener = vi.fn()
+    const { table } = mount({ selectable: true, onSelectionChange: constructorListener })
+    const lateListener = vi.fn()
+    table.onSelectionChange(lateListener)
+    table.setSelection([ROWS[0]])
+    expect(constructorListener).toHaveBeenCalledWith([ROWS[0]])
+    expect(lateListener).toHaveBeenCalledWith([ROWS[0]])
+  })
+
   it('getSelection keeps rows filtered out of view, mirroring React/Vue selection semantics', () => {
     const { container, table } = mount({ selectable: true })
     table.setSelection([ROWS[0], ROWS[1]])

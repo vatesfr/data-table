@@ -43,12 +43,17 @@ export function createDataTable<TRow extends object>(
   container: HTMLElement,
   options: DataTableOptions<TRow>,
 ): DataTableInstance<TRow> {
-  const { rowKey, selectable = false, onSelectionChange, onRowClick } = options
+  const { rowKey, selectable = false, onRowClick } = options
 
   let dispose!: () => void
   let disposeView!: () => void
   let table!: ReturnType<typeof createTableState<TRow>>
   const viewChangeListeners = new Set<(view: ReturnType<typeof table.getViewState>) => void>()
+  // Set-of-listeners, mirroring `viewChangeListeners` above, rather than a single fixed callback —
+  // lets a consumer attach a listener after construction too (e.g. wiring up an external "selected
+  // rows" display added later), not just via the constructor's `onSelectionChange` option.
+  const selectionChangeListeners = new Set<(rows: TRow[]) => void>()
+  if (options.onSelectionChange) selectionChangeListeners.add(options.onSelectionChange)
 
   createRoot((d) => {
     dispose = d
@@ -76,9 +81,15 @@ export function createDataTable<TRow extends object>(
       ),
     )
 
-    if (onSelectionChange) {
-      createEffect(on(table.selection.rows, (rows) => onSelectionChange(rows), { defer: true }))
-    }
+    createEffect(
+      on(
+        table.selection.rows,
+        (rows) => {
+          for (const cb of selectionChangeListeners) cb(rows)
+        },
+        { defer: true },
+      ),
+    )
 
     // `render()` (solid-js/web) creates its own internal `createRoot` for the mounted subtree,
     // separate from the outer `createRoot` this factory owns — a nested root is only linked to
@@ -107,6 +118,10 @@ export function createDataTable<TRow extends object>(
     onViewChange: (cb) => {
       viewChangeListeners.add(cb)
       return () => viewChangeListeners.delete(cb)
+    },
+    onSelectionChange: (cb) => {
+      selectionChangeListeners.add(cb)
+      return () => selectionChangeListeners.delete(cb)
     },
     getSelection: () => [...table.selection.all()],
     setSelection: (rows: TRow[]) => table.selection.setAll(rows),
