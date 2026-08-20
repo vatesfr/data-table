@@ -31,13 +31,13 @@ import {
   type ValueSort,
   type VisibleItem,
 } from '@vates/data-table-core'
-import type { ColumnDef, DataTableViewProps } from './types'
+import type { ColumnDef, DataTableViewInternalProps } from './types'
 import Dropdown from './components/Dropdown.vue'
 import ToolbarBtn from './components/ToolbarBtn.vue'
 import DateTreeItem from './components/DateTreeItem.vue'
 import RangeSlider from './components/RangeSlider.vue'
 
-const props = withDefaults(defineProps<DataTableViewProps<TRow>>(), { rowKey: 'id' })
+const props = withDefaults(defineProps<DataTableViewInternalProps<TRow>>(), { rowKey: 'id' })
 
 const emit = defineEmits<{
   selectionChange: [rows: TRow[]]

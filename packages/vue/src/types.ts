@@ -22,18 +22,24 @@ export interface DataTableViewProps<TRow extends object = Record<string, unknown
    */
   rowKey?: string
   selectable?: boolean
-  /**
-   * Explicit override for whether rows should show clickable styling (pointer cursor, hover
-   * highlight). Used by the `<DataTable>` wrapper to forward its own listener-presence check
-   * through, since it always forwards the `row-click` emit itself regardless. Omit when using
-   * `<DataTableView>` directly — it self-detects from its own `@row-click` listener.
-   */
+}
+
+// `<DataTableView>`'s actual runtime props, plus `rowClickable` — an internal wiring detail (see
+// DataTableView.vue's own comment) that only `<DataTable>` ever sets, to forward its own
+// listener-presence check through since it always forwards the `row-click` emit itself
+// regardless. Deliberately not part of `DataTableViewProps` (the type consumers see/import from
+// this package's index) nor re-exported from `index.ts` — a consumer using `<DataTableView>`
+// directly should never see this prop, let alone be tempted to set it themselves; that usage
+// self-detects clickability from its own `@row-click` listener instead.
+export interface DataTableViewInternalProps<
+  TRow extends object = Record<string, unknown>,
+> extends DataTableViewProps<TRow> {
   rowClickable?: boolean
 }
 
 export interface DataTableProps<TRow extends object = Record<string, unknown>> extends Omit<
   DataTableViewProps<TRow>,
-  'table' | 'rowClickable'
+  'table'
 > {
   defaultVisibleColumns?: string[]
   labels?: Partial<DataTableLabels>
