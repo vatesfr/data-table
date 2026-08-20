@@ -314,7 +314,7 @@ With `getRowId` set, a selected id is remapped to its fresh object reference whe
 
 ▶ [Try it in the demo](https://vatesfr.github.io/data-table/vanilla/#row-click)
 
-Pass `onRowClick` to react to a data row being clicked — it receives the full row object and the native click event, no key lookup needed. Group header rows, the aggregate row, and the selection checkbox cell never trigger it.
+Pass `onRowClick` to react to a data row being clicked — it receives the full row object and the native click event, no key lookup needed. Group header rows, the aggregate row, and the selection checkbox cell never trigger it. Pressing Enter while a row has keyboard focus fires it too, with the native `KeyboardEvent` in place of the click event.
 
 ```ts
 const table = createDataTable(container, {
@@ -333,19 +333,19 @@ Drag a column header to reorder it, or drag a row (or press Alt+ArrowUp/Alt+Arro
 
 ## Options
 
-| Option                   | Type                                     | Default | Description                                                    |
-| ------------------------ | ---------------------------------------- | ------- | -------------------------------------------------------------- |
-| `data`                   | `TRow[]`                                 | —       | Row data                                                       |
-| `columns`                | `ColumnDef<TRow>[]`                      | —       | Column definitions                                             |
-| `rowKey`                 | `keyof TRow & string`                    | —       | DOM key only — not selection identity                          |
-| `defaultVisibleColumns`  | `string[]`                               | all     | Initially visible column keys                                  |
-| `labels`                 | `Partial<DataTableLabels>`               | English | UI string overrides                                            |
-| `defaultPageSize`        | `number`                                 | 0 (off) | Initial rows per page; 0 disables pagination                   |
-| `defaultGroupsCollapsed` | `boolean`                                | `true`  | Whether newly-grouped groups start collapsed                   |
-| `getRowId`               | `(row: TRow) => string \| number`        | —       | Opt-in id-based selection identity (see "Row selection" above) |
-| `selectable`             | `boolean`                                | `false` | Show checkbox column for row selection                         |
-| `onSelectionChange`      | `(rows: TRow[]) => void`                 | —       | Called when selection changes                                  |
-| `onRowClick`             | `(row: TRow, event: MouseEvent) => void` | —       | Called when a data row is clicked                              |
+| Option                   | Type                                                      | Default | Description                                                    |
+| ------------------------ | --------------------------------------------------------- | ------- | -------------------------------------------------------------- |
+| `data`                   | `TRow[]`                                                  | —       | Row data                                                       |
+| `columns`                | `ColumnDef<TRow>[]`                                       | —       | Column definitions                                             |
+| `rowKey`                 | `keyof TRow & string`                                     | —       | DOM key only — not selection identity                          |
+| `defaultVisibleColumns`  | `string[]`                                                | all     | Initially visible column keys                                  |
+| `labels`                 | `Partial<DataTableLabels>`                                | English | UI string overrides                                            |
+| `defaultPageSize`        | `number`                                                  | 0 (off) | Initial rows per page; 0 disables pagination                   |
+| `defaultGroupsCollapsed` | `boolean`                                                 | `true`  | Whether newly-grouped groups start collapsed                   |
+| `getRowId`               | `(row: TRow) => string \| number`                         | —       | Opt-in id-based selection identity (see "Row selection" above) |
+| `selectable`             | `boolean`                                                 | `false` | Show checkbox column for row selection                         |
+| `onSelectionChange`      | `(rows: TRow[]) => void`                                  | —       | Called when selection changes                                  |
+| `onRowClick`             | `(row: TRow, event: MouseEvent \| KeyboardEvent) => void` | —       | Called when a data row is clicked                              |
 
 ## Column definition
 
@@ -372,17 +372,23 @@ interface ColumnDef<TRow extends object> {
 
 ## Instance methods
 
-| Method                                | Description                                                                      |
-| ------------------------------------- | -------------------------------------------------------------------------------- |
-| `setData(rows: TRow[])`               | Replace the data and re-render                                                   |
-| `setColumns(cols: ColumnDef<TRow>[])` | Replace the column definitions and re-render                                     |
-| `getViewState()`                      | Returns a serializable snapshot of sort/filter/group/page/etc. (not selection)   |
-| `setViewState(view: TableViewState)`  | Applies a view snapshot; fields absent from it reset to default                  |
-| `onViewChange(cb)`                    | Subscribes to view changes (not selection-only); returns an unsubscribe function |
-| `getSelection()`                      | Current selection (by object identity), including rows hidden by a filter        |
-| `setSelection(rows: TRow[])`          | Replaces the selection outright — e.g. to pre-select rows on load                |
-| `clearSelection()`                    | Empties the selection — e.g. to wire an external "Clear selection" button        |
-| `destroy()`                           | Remove all event listeners and clear the container                               |
+| Method                                      | Description                                                                      |
+| ------------------------------------------- | -------------------------------------------------------------------------------- |
+| `setData(rows: TRow[])`                     | Replace the data and re-render                                                   |
+| `setColumns(cols: ColumnDef<TRow>[])`       | Replace the column definitions and re-render                                     |
+| `getViewState()`                            | Returns a serializable snapshot of sort/filter/group/page/etc. (not selection)   |
+| `setViewState(view: TableViewState)`        | Applies a view snapshot; fields absent from it reset to default                  |
+| `onViewChange(cb)`                          | Subscribes to view changes (not selection-only); returns an unsubscribe function |
+| `getSelection()`                            | Current selection (by object identity), including rows hidden by a filter        |
+| `setSelection(rows: TRow[])`                | Replaces the selection outright — e.g. to pre-select rows on load                |
+| `clearSelection()`                          | Empties the selection — e.g. to wire an external "Clear selection" button        |
+| `setRowKey(key: keyof TRow & string)`       | Changes the row DOM-key property after construction                              |
+| `setSelectable(value: boolean)`             | Toggles whether rows show selection checkboxes after construction                |
+| `setOnRowClick(cb \| undefined)`            | Changes (or clears) the row-click callback after construction                    |
+| `setLabels(labels \| undefined)`            | Replaces the label overrides after construction                                  |
+| `setDefaultGroupsCollapsed(value: boolean)` | Changes whether newly-grouped groups start collapsed after construction          |
+| `setGetRowId(getRowId \| undefined)`        | Changes (or clears) the selection-identity function after construction           |
+| `destroy()`                                 | Remove all event listeners and clear the container                               |
 
 ## View persistence & sharing
 
