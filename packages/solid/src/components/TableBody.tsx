@@ -67,7 +67,7 @@ function aggValue<TRow extends object>(
 export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
   const { table } = props
   const rowNavEnabled = createMemo(() => !!props.selectable || !!props.onRowClick)
-  const hasAgg = createMemo(() => table.activeColumns().some((c) => c.aggregate))
+  const hasAgg = createMemo(() => table.columns.active().some((c) => c.aggregate))
 
   const [focusTarget, setFocusTarget] = createSignal<VisibleItem<TRow> | null>(null)
   const rowRefs = new Map<TRow | string, HTMLElement>()
@@ -93,7 +93,7 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
       if (g.key !== null) items.push({ kind: 'group', key: g.key })
       const collapsed =
         g.key !== null &&
-        isGroupCollapsed(table.collapsedGroups(), g.key, table.defaultGroupsCollapsed())
+        isGroupCollapsed(table.group.collapsed(), g.key, table.group.defaultCollapsed())
       if (!collapsed || g.key === null) for (const row of g.rows) items.push({ kind: 'row', row })
     }
     return items.filter((item) => item.kind === 'group' || rowNavEnabled())
@@ -130,7 +130,7 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
     const idx = items.findIndex((i) => isSameVisibleItem(i, effectiveFocusTarget()!))
     const next = items[idx + delta]
     if (!next) return
-    if (shiftKey && next.kind === 'row') table.toggleRowSelection(next.row, true)
+    if (shiftKey && next.kind === 'row') table.selection.toggle(next.row, true)
     focusItem(next)
   }
 
@@ -141,7 +141,7 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
     const items = navigableItems()
     const next = toEnd ? items[items.length - 1] : items[0]
     if (!next) return
-    if (shiftKey && next.kind === 'row') table.toggleRowSelection(next.row, true)
+    if (shiftKey && next.kind === 'row') table.selection.toggle(next.row, true)
     focusItem(next)
   }
 
@@ -167,7 +167,7 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
     e.preventDefault()
     const from = dragColKey()
     const hit = resolveDropRowHorizontal(e.clientX, headerCellEls())
-    if (from && hit && hit !== from) table.moveColumn(from, hit, false)
+    if (from && hit && hit !== from) table.columns.move(from, hit, false)
     setDragColKey(null)
     setDragOverColKey(null)
   }
@@ -187,16 +187,16 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
   }
 
   const headerSorts = createMemo(() =>
-    table.sorts().filter((s) => table.activeColumns().some((c) => c.key === s.key)),
+    table.sort.entries().filter((s) => table.columns.active().some((c) => c.key === s.key)),
   )
 
   const allSelected = createMemo(
     () =>
       table.processedData().length > 0 &&
-      table.processedData().every((r) => table.selection().has(r)),
+      table.processedData().every((r) => table.selection.all().has(r)),
   )
   const someSelected = createMemo(
-    () => !allSelected() && table.processedData().some((r) => table.selection().has(r)),
+    () => !allSelected() && table.processedData().some((r) => table.selection.all().has(r)),
   )
   // Unconditionally rewrites both .checked and .indeterminate (not just a plain JSX `checked`
   // binding) — Solid's compiled setter only writes `.checked` when the *tracked value* changes,
@@ -210,8 +210,8 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
   })
 
   function handleHeaderClick(key: string, e: MouseEvent): void {
-    if (e.shiftKey) table.appendOrToggleSort(key)
-    else table.replaceSort(key)
+    if (e.shiftKey) table.sort.appendOrToggle(key)
+    else table.sort.replace(key)
   }
 
   return (
@@ -225,14 +225,14 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
                   type="checkbox"
                   checked={allSelected()}
                   ref={selectAllEl}
-                  onClick={() => table.toggleSelectAll(table.processedData())}
+                  onClick={() => table.selection.toggleAll(table.processedData())}
                 />
               </th>
             </Show>
-            <Show when={table.groupBy().length > 0}>
+            <Show when={table.group.by().length > 0}>
               <th class="dt-th dt-th--no-sort" style={{ width: '28px' }} />
             </Show>
-            <For each={table.activeColumns()}>
+            <For each={table.columns.active()}>
               {(col) => {
                 const isSorted = createMemo(() => headerSorts().some((s) => s.key === col.key))
                 const sortIdx = createMemo(() =>
@@ -325,9 +325,9 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
                 <Show
                   when={
                     !isGroupCollapsed(
-                      table.collapsedGroups(),
+                      table.group.collapsed(),
                       group().key!,
-                      table.defaultGroupsCollapsed(),
+                      table.group.defaultCollapsed(),
                     )
                   }
                 >
@@ -383,13 +383,14 @@ interface GroupHeaderRowProps<TRow extends object> {
 function GroupHeaderRow<TRow extends object>(props: GroupHeaderRowProps<TRow>) {
   const { table } = props
   const isCollapsed = createMemo(() =>
-    isGroupCollapsed(table.collapsedGroups(), props.group.key!, table.defaultGroupsCollapsed()),
+    isGroupCollapsed(table.group.collapsed(), props.group.key!, table.group.defaultCollapsed()),
   )
   const groupAllSelected = createMemo(
-    () => props.group.rows.length > 0 && props.group.rows.every((r) => table.selection().has(r)),
+    () =>
+      props.group.rows.length > 0 && props.group.rows.every((r) => table.selection.all().has(r)),
   )
   const groupSomeSelected = createMemo(
-    () => !groupAllSelected() && props.group.rows.some((r) => table.selection().has(r)),
+    () => !groupAllSelected() && props.group.rows.some((r) => table.selection.all().has(r)),
   )
   // See the header select-all checkbox's own comment above (same fix, same reason): unconditional
   // rewrite of both properties, not just indeterminate, so a native click's own pre-click
@@ -407,7 +408,7 @@ function GroupHeaderRow<TRow extends object>(props: GroupHeaderRowProps<TRow>) {
         tabIndex={props.tabIndex}
         aria-expanded={!isCollapsed()}
         ref={(el) => props.registerRef(el)}
-        onClick={() => table.toggleGroupCollapse(props.group.key!)}
+        onClick={() => table.group.toggleCollapse(props.group.key!)}
         onFocus={props.onFocusGroup}
         onKeyDown={(e) => {
           if (e.key === 'ArrowDown') {
@@ -424,10 +425,10 @@ function GroupHeaderRow<TRow extends object>(props: GroupHeaderRowProps<TRow>) {
             props.onJump(true)
           } else if (e.key === 'Enter') {
             e.preventDefault()
-            table.toggleGroupCollapse(props.group.key!)
+            table.group.toggleCollapse(props.group.key!)
           } else if (e.key === ' ' && props.selectable) {
             e.preventDefault()
-            table.toggleSelectAll(props.group.rows)
+            table.selection.toggleAll(props.group.rows)
           }
         }}
       >
@@ -439,7 +440,7 @@ function GroupHeaderRow<TRow extends object>(props: GroupHeaderRowProps<TRow>) {
               ref={cbEl}
               onClick={(e) => {
                 e.stopPropagation()
-                table.toggleSelectAll(props.group.rows)
+                table.selection.toggleAll(props.group.rows)
               }}
             />
           </td>
@@ -447,8 +448,8 @@ function GroupHeaderRow<TRow extends object>(props: GroupHeaderRowProps<TRow>) {
         <td class="dt-group-td" style={{ width: '28px' }}>
           {isCollapsed() ? '▶' : '▼'}
         </td>
-        <td class="dt-group-td" colspan={table.activeColumns().length}>
-          <For each={table.groupBy()}>
+        <td class="dt-group-td" colspan={table.columns.active().length}>
+          <For each={table.group.by()}>
             {(gColKey, gi) => {
               const gCol = props.columns.find((c) => c.key === gColKey)
               return (
@@ -470,9 +471,9 @@ function GroupHeaderRow<TRow extends object>(props: GroupHeaderRowProps<TRow>) {
           </For>
           <Show when={props.group.continued}>
             {' '}
-            <span class="dt-group-continued">{table.L.groupContinued}</span>
+            <span class="dt-group-continued">{table.labels.groupContinued}</span>
           </Show>{' '}
-          <span class="dt-group-count">{table.L.rowsInGroup(props.group.rows.length)}</span>
+          <span class="dt-group-count">{table.labels.rowsInGroup(props.group.rows.length)}</span>
         </td>
       </tr>
       <Show when={props.hasAgg}>
@@ -481,7 +482,7 @@ function GroupHeaderRow<TRow extends object>(props: GroupHeaderRowProps<TRow>) {
             <td class="dt-agg-td" style={{ width: '36px' }} />
           </Show>
           <td class="dt-agg-td" style={{ width: '28px' }} />
-          <For each={table.activeColumns()}>
+          <For each={table.columns.active()}>
             {(col) => (
               <td class="dt-agg-td">{aggValue(col, props.group.rows, props.group.sampleRow!)}</td>
             )}
@@ -529,7 +530,7 @@ interface DataRowProps<TRow extends object> {
 
 function DataRow<TRow extends object>(props: DataRowProps<TRow>) {
   const { table, row } = props
-  const isSelected = createMemo(() => table.selection().has(row))
+  const isSelected = createMemo(() => table.selection.all().has(row))
   const rk = createMemo(() =>
     props.rowKey
       ? String((row as Record<string, unknown>)[props.rowKey] ?? props.procIdx)
@@ -571,7 +572,7 @@ function DataRow<TRow extends object>(props: DataRowProps<TRow>) {
           props.onJump(true, e.shiftKey)
         } else if (e.key === ' ' && props.selectable) {
           e.preventDefault()
-          table.toggleRowSelection(row, e.shiftKey)
+          table.selection.toggle(row, e.shiftKey)
         } else if (e.key === 'Enter' && props.onRowClick) {
           e.preventDefault()
           props.onRowClick(row, e)
@@ -584,14 +585,14 @@ function DataRow<TRow extends object>(props: DataRowProps<TRow>) {
             type="checkbox"
             tabIndex={-1}
             checked={isSelected()}
-            onClick={(e) => table.toggleRowSelection(row, (e as MouseEvent).shiftKey)}
+            onClick={(e) => table.selection.toggle(row, (e as MouseEvent).shiftKey)}
           />
         </td>
       </Show>
       <Show when={props.indentGroup}>
         <td class="dt-td" style={{ width: '28px' }} />
       </Show>
-      <For each={table.activeColumns()}>
+      <For each={table.columns.active()}>
         {(col) => <td class="dt-td">{cellValue(col, row)}</td>}
       </For>
     </tr>

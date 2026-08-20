@@ -90,9 +90,9 @@ describe('TableBody — header sorting', () => {
     const scoreHeader = [...container.querySelectorAll('th')].find((th) =>
       th.textContent?.includes('Score'),
     )!
-    table.toggleSort('name')
+    table.sort.toggle('name')
     scoreHeader.click()
-    expect(table.sorts()).toEqual([{ key: 'score', dir: 'asc' }])
+    expect(table.sort.entries()).toEqual([{ key: 'score', dir: 'asc' }])
     dispose()
   })
 
@@ -101,9 +101,9 @@ describe('TableBody — header sorting', () => {
     const scoreHeader = [...container.querySelectorAll('th')].find((th) =>
       th.textContent?.includes('Score'),
     )!
-    table.toggleSort('name')
+    table.sort.toggle('name')
     scoreHeader.dispatchEvent(new MouseEvent('click', { bubbles: true, shiftKey: true }))
-    expect(table.sorts().map((s) => s.key)).toEqual(['name', 'score'])
+    expect(table.sort.entries().map((s) => s.key)).toEqual(['name', 'score'])
     dispose()
   })
 
@@ -118,7 +118,7 @@ describe('TableBody — header sorting', () => {
     // Header drag always inserts *before* the drop target (a deliberate simplification, see
     // CLAUDE.md's "Column reordering") — dropping "name" onto "score" places it immediately
     // before "score", not after.
-    expect(table.activeColumns().map((c) => c.key)).toEqual(['dept', 'name', 'score'])
+    expect(table.columns.active().map((c) => c.key)).toEqual(['dept', 'name', 'score'])
     dispose()
   })
 })
@@ -130,7 +130,7 @@ describe('TableBody — selection', () => {
       'tbody tr[data-row-key="1"] input[type="checkbox"]',
     )!
     cb.click()
-    expect(table.selectedRows()).toEqual([ROWS[0]])
+    expect(table.selection.rows()).toEqual([ROWS[0]])
     dispose()
   })
 
@@ -138,9 +138,9 @@ describe('TableBody — selection', () => {
     const { container, table, dispose } = mount({ selectable: true })
     const headerCb = container.querySelector<HTMLInputElement>('thead input[type="checkbox"]')!
     headerCb.click()
-    expect(table.selectedRows()).toHaveLength(3)
+    expect(table.selection.rows()).toHaveLength(3)
     headerCb.click()
-    expect(table.selectedRows()).toHaveLength(0)
+    expect(table.selection.rows()).toHaveLength(0)
     dispose()
   })
 
@@ -153,10 +153,10 @@ describe('TableBody — selection', () => {
     // checkboxSync.ts's applyCheckboxState), the header checkbox would falsely show "all
     // selected" immediately after clearing the selection to zero.
     const { container, table, dispose } = mount({ selectable: true })
-    table.toggleRowSelection(ROWS[0])
+    table.selection.toggle(ROWS[0])
     const headerCb = container.querySelector<HTMLInputElement>('thead input[type="checkbox"]')!
     headerCb.click()
-    expect(table.selectedRows()).toHaveLength(0)
+    expect(table.selection.rows()).toHaveLength(0)
     expect(headerCb.checked).toBe(false)
     expect(headerCb.indeterminate).toBe(false)
     dispose()
@@ -200,7 +200,7 @@ describe('TableBody — row click', () => {
 describe('TableBody — grouping and aggregation', () => {
   it('grouping by a column renders a group header row per value and hides that column', () => {
     const { container, table, dispose } = mount({ defaultGroupsCollapsed: false })
-    table.toggleGroup('dept')
+    table.group.toggle('dept')
     const groupRows = container.querySelectorAll('.dt-group-row')
     expect(groupRows).toHaveLength(2) // Eng, HR
     expect(container.textContent).toContain('Dept:')
@@ -209,7 +209,7 @@ describe('TableBody — grouping and aggregation', () => {
 
   it('collapsing a group hides its rows but keeps the aggregate row', () => {
     const { container, table, dispose } = mount({ defaultGroupsCollapsed: false })
-    table.toggleGroup('dept')
+    table.group.toggle('dept')
     const groupRow = [...container.querySelectorAll<HTMLElement>('.dt-group-row')].find((el) =>
       el.textContent?.includes('Eng'),
     )!
@@ -222,7 +222,7 @@ describe('TableBody — grouping and aggregation', () => {
 
   it('the aggregate row reflects computeAggregate for the group', () => {
     const { container, table, dispose } = mount({ defaultGroupsCollapsed: false })
-    table.toggleGroup('dept')
+    table.group.toggle('dept')
     const aggRows = container.querySelectorAll('.dt-agg-row')
     // Eng group: Alice(90) + Clara(80) -> avg 85
     expect(aggRows[0].textContent).toContain('85')
@@ -249,7 +249,7 @@ describe('TableBody — grouping and aggregation', () => {
     ]
     createRoot((d) => {
       const table = createTableState(ROWS, cols, { defaultGroupsCollapsed: false })
-      table.toggleGroup('dept')
+      table.group.toggle('dept')
       render(() => <TableBody table={table} columns={cols} />, container)
       d()
     })
@@ -258,14 +258,14 @@ describe('TableBody — grouping and aggregation', () => {
 
   it("a group's own select-all checkbox toggles just that group's rows", () => {
     const { container, table, dispose } = mount({ selectable: true, defaultGroupsCollapsed: false })
-    table.toggleGroup('dept')
+    table.group.toggle('dept')
     const groupRow = [...container.querySelectorAll<HTMLElement>('.dt-group-row')].find((el) =>
       el.textContent?.includes('Eng'),
     )!
     groupRow.querySelector<HTMLInputElement>('input[type="checkbox"]')!.click()
     expect(
-      table
-        .selectedRows()
+      table.selection
+        .rows()
         .map((r) => r.name)
         .sort(),
     ).toEqual(['Alice', 'Clara'])
@@ -276,14 +276,14 @@ describe('TableBody — grouping and aggregation', () => {
     // Same regression as the header checkbox's own test above, scoped to a group's own
     // select-all checkbox (groupAllSelected() is false both before and after: 1-of-2 -> 0-of-2).
     const { container, table, dispose } = mount({ selectable: true, defaultGroupsCollapsed: false })
-    table.toggleGroup('dept')
-    table.toggleRowSelection(ROWS[0]) // Alice, one of Eng's two rows
+    table.group.toggle('dept')
+    table.selection.toggle(ROWS[0]) // Alice, one of Eng's two rows
     const groupRow = [...container.querySelectorAll<HTMLElement>('.dt-group-row')].find((el) =>
       el.textContent?.includes('Eng'),
     )!
     const groupCb = groupRow.querySelector<HTMLInputElement>('input[type="checkbox"]')!
     groupCb.click()
-    expect(table.selectedRows()).toHaveLength(0)
+    expect(table.selection.rows()).toHaveLength(0)
     expect(groupCb.checked).toBe(false)
     expect(groupCb.indeterminate).toBe(false)
     dispose()
@@ -316,7 +316,7 @@ describe('TableBody — keyboard navigation', () => {
     const { container, table, dispose } = mount({ selectable: true })
     const firstRow = container.querySelector<HTMLElement>('tbody tr[data-row-key="1"]')!
     firstRow.focus()
-    table.toggleRowSelection(ROWS[0]) // anchor = Alice
+    table.selection.toggle(ROWS[0]) // anchor = Alice
     firstRow.dispatchEvent(
       new KeyboardEvent('keydown', {
         key: 'ArrowDown',
@@ -326,8 +326,8 @@ describe('TableBody — keyboard navigation', () => {
       }),
     )
     expect(
-      table
-        .selectedRows()
+      table.selection
+        .rows()
         .map((r) => r.name)
         .sort(),
     ).toEqual(['Alice', 'Bob'])
@@ -336,7 +336,7 @@ describe('TableBody — keyboard navigation', () => {
 
   it('collapsing a group via Enter does not drop DOM focus (group rows keep stable identity)', () => {
     const { container, table, dispose } = mount({ defaultGroupsCollapsed: false })
-    table.toggleGroup('dept')
+    table.group.toggle('dept')
     const groupRow = container.querySelector<HTMLElement>('.dt-group-row[data-gkey="Eng"]')!
     groupRow.focus()
     groupRow.dispatchEvent(

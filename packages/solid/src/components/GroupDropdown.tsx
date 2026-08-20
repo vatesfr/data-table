@@ -23,7 +23,7 @@ export function GroupDropdown<TRow extends object>(props: GroupDropdownProps<TRo
   const [dragOverAfter, setDragOverAfter] = createSignal(false)
 
   const addableCols = createMemo(() => {
-    const groupBy = table.groupBy()
+    const groupBy = table.group.by()
     const term = searchTerm().trim().toLowerCase()
     return props.groupableCols
       .filter((c) => !groupBy.includes(c.key))
@@ -52,7 +52,7 @@ export function GroupDropdown<TRow extends object>(props: GroupDropdownProps<TRo
     e.preventDefault()
     const from = dragKey()
     const hit = resolveDropRow(e.clientY, rowEls())
-    if (from && hit && hit.key !== from) table.moveGroup(from, hit.key, hit.after)
+    if (from && hit && hit.key !== from) table.group.move(from, hit.key, hit.after)
     setDragKey(null)
     setDragOverKey(null)
   }
@@ -65,30 +65,30 @@ export function GroupDropdown<TRow extends object>(props: GroupDropdownProps<TRo
       trigger={
         <button
           type="button"
-          class={`dt-btn${table.groupBy().length > 0 ? ' dt-btn--active dt-btn--grouped' : ''}`}
+          class={`dt-btn${table.group.by().length > 0 ? ' dt-btn--active dt-btn--grouped' : ''}`}
           onClick={props.onToggle}
         >
-          {table.L.group}
+          {table.labels.group}
         </button>
       }
       extraTrigger={
-        <Show when={table.groupBy().length > 0}>
+        <Show when={table.group.by().length > 0}>
           <button
             type="button"
             class="dt-btn-clear"
-            title={table.L.clearGroups}
-            aria-label={table.L.clearGroups}
-            onClick={table.clearGroups}
+            title={table.labels.clearGroups}
+            aria-label={table.labels.clearGroups}
+            onClick={table.group.clear}
           >
             ×
           </button>
         </Show>
       }
     >
-      <Show when={table.groupBy().length > 0}>
-        <div class="dt-dd-section">{table.L.activeGroupsSection}</div>
+      <Show when={table.group.by().length > 0}>
+        <div class="dt-dd-section">{table.labels.activeGroupsSection}</div>
         <div ref={rowsContainer} onDragOver={handleDragOver} onDrop={handleDrop}>
-          <For each={table.groupBy()}>
+          <For each={table.group.by()}>
             {(key, i) => {
               const col = () => props.groupableCols.find((c) => c.key === key)
               return (
@@ -109,10 +109,10 @@ export function GroupDropdown<TRow extends object>(props: GroupDropdownProps<TRo
                   onKeyDown={(e) => {
                     if (e.altKey && e.key === 'ArrowUp') {
                       e.preventDefault()
-                      table.moveGroupBy(key, -1)
+                      table.group.moveBy(key, -1)
                     } else if (e.altKey && e.key === 'ArrowDown') {
                       e.preventDefault()
-                      table.moveGroupBy(key, 1)
+                      table.group.moveBy(key, 1)
                     }
                   }}
                 >
@@ -122,7 +122,7 @@ export function GroupDropdown<TRow extends object>(props: GroupDropdownProps<TRo
                     type="button"
                     class="dt-item-remove"
                     draggable={false}
-                    onClick={() => table.removeGroup(key)}
+                    onClick={() => table.group.remove(key)}
                   >
                     ×
                   </button>
@@ -137,18 +137,18 @@ export function GroupDropdown<TRow extends object>(props: GroupDropdownProps<TRo
           <input
             type="text"
             class="dt-dd-search"
-            placeholder={table.L.filterSearchPlaceholder}
+            placeholder={table.labels.filterSearchPlaceholder}
             value={searchTerm()}
             onInput={(e) => setSearchTerm(e.currentTarget.value)}
           />
         </div>
-        <div class="dt-dd-section">{table.L.groupSection}</div>
+        <div class="dt-dd-section">{table.labels.groupSection}</div>
         <For each={addableCols()}>
           {(col) => (
             <button
               type="button"
               class="dt-dd-item dt-dd-item--click"
-              onClick={() => table.toggleGroup(col.key)}
+              onClick={() => table.group.toggle(col.key)}
             >
               <span class="dt-flex1">{col.label}</span>
             </button>

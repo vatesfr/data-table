@@ -66,7 +66,7 @@ describe('ColumnsDropdown', () => {
       '[data-col-row-key="id"] input[type="checkbox"]',
     )!
     idCheckbox.click()
-    expect(table.activeColumns().map((c) => c.key)).toEqual(['name', 'score'])
+    expect(table.columns.active().map((c) => c.key)).toEqual(['name', 'score'])
     dispose()
   })
 
@@ -92,7 +92,7 @@ describe('ColumnsDropdown', () => {
     const scoreRow = container.querySelector<HTMLElement>('[data-col-row-key="score"]')!
     scoreRow.dispatchEvent(new MouseEvent('dragover', { bubbles: true, clientY: 80 }))
     scoreRow.dispatchEvent(new MouseEvent('drop', { bubbles: true, clientY: 80 }))
-    expect(table.activeColumns().map((c) => c.key)).toEqual(['name', 'score', 'id'])
+    expect(table.columns.active().map((c) => c.key)).toEqual(['name', 'score', 'id'])
     dispose()
   })
 
@@ -109,7 +109,7 @@ describe('ColumnsDropdown', () => {
         cancelable: true,
       }),
     )
-    expect(table.activeColumns().map((c) => c.key)).toEqual(['name', 'id', 'score'])
+    expect(table.columns.active().map((c) => c.key)).toEqual(['name', 'id', 'score'])
     dispose()
   })
 })

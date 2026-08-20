@@ -16,7 +16,7 @@ const FILTER_CHIP_MAX = 3
 
 function summarizeFilterValues<TRow extends object>(
   vals: Set<string>,
-  L: TableState<TRow>['L'],
+  L: TableState<TRow>['labels'],
 ): string {
   const arr = [...vals]
   if (arr.length <= FILTER_CHIP_MAX) return arr.join(', ')
@@ -40,7 +40,7 @@ export function ActiveBar<TRow extends object>(props: ActiveBarProps<TRow>) {
 
   return (
     <div class="dt-active-bar">
-      <For each={table.sorts()}>
+      <For each={table.sort.entries()}>
         {(entry) => {
           const col = () => props.columns.find((c) => c.key === entry.key)
           return (
@@ -48,18 +48,18 @@ export function ActiveBar<TRow extends object>(props: ActiveBarProps<TRow>) {
               <button
                 type="button"
                 class="dt-chip-body"
-                onClick={() => table.toggleSortDir(entry.key)}
+                onClick={() => table.sort.toggleDir(entry.key)}
               >
-                {getSortIcon(table.sorts(), entry.key)} {col()?.label ?? entry.key}
+                {getSortIcon(table.sort.entries(), entry.key)} {col()?.label ?? entry.key}
               </button>
-              <button type="button" class="dt-chip-x" onClick={() => table.removeSort(entry.key)}>
+              <button type="button" class="dt-chip-x" onClick={() => table.sort.remove(entry.key)}>
                 ×
               </button>
             </span>
           )
         }}
       </For>
-      <For each={table.groupBy()}>
+      <For each={table.group.by()}>
         {(key) => {
           const col = () => props.groupableCols.find((c) => c.key === key)
           return (
@@ -67,42 +67,42 @@ export function ActiveBar<TRow extends object>(props: ActiveBarProps<TRow>) {
               <button type="button" class="dt-chip-body" onClick={props.onOpenGroup}>
                 {col()?.label ?? key}
               </button>
-              <button type="button" class="dt-chip-x" onClick={() => table.removeGroup(key)}>
+              <button type="button" class="dt-chip-x" onClick={() => table.group.remove(key)}>
                 ×
               </button>
             </span>
           )
         }}
       </For>
-      <Show when={table.activeFilterCount() > 0}>
-        <For each={Object.entries(table.filters()).filter(([, v]) => v.size > 0)}>
+      <Show when={table.filter.activeCount() > 0}>
+        <For each={Object.entries(table.filter.include()).filter(([, v]) => v.size > 0)}>
           {([key, vals]) => (
             <span class="dt-chip dt-chip--filter">
               <button type="button" class="dt-chip-body" onClick={() => props.onOpenFilter(key)}>
                 {props.columns.find((c) => c.key === key)?.label ?? key}:{' '}
-                {summarizeFilterValues(vals, table.L)}
+                {summarizeFilterValues(vals, table.labels)}
               </button>
               <button
                 type="button"
                 class="dt-chip-x"
-                onClick={() => table.clearColumnFilter(key, 'include')}
+                onClick={() => table.filter.clearColumn(key, 'include')}
               >
                 ×
               </button>
             </span>
           )}
         </For>
-        <For each={Object.entries(table.excludeFilters()).filter(([, v]) => v.size > 0)}>
+        <For each={Object.entries(table.filter.exclude()).filter(([, v]) => v.size > 0)}>
           {([key, vals]) => (
             <span class="dt-chip dt-chip--filter dt-chip--exclude">
               <button type="button" class="dt-chip-body" onClick={() => props.onOpenFilter(key)}>
                 {props.columns.find((c) => c.key === key)?.label ?? key}: ≠{' '}
-                {summarizeFilterValues(vals, table.L)}
+                {summarizeFilterValues(vals, table.labels)}
               </button>
               <button
                 type="button"
                 class="dt-chip-x"
-                onClick={() => table.clearColumnFilter(key, 'exclude')}
+                onClick={() => table.filter.clearColumn(key, 'exclude')}
               >
                 ×
               </button>
@@ -110,7 +110,7 @@ export function ActiveBar<TRow extends object>(props: ActiveBarProps<TRow>) {
           )}
         </For>
         <For
-          each={Object.entries(table.rangeFilters()).filter(
+          each={Object.entries(table.filter.ranges()).filter(
             ([, rf]) => rf.min !== '' || rf.max !== '',
           )}
         >
@@ -122,7 +122,7 @@ export function ActiveBar<TRow extends object>(props: ActiveBarProps<TRow>) {
               <button
                 type="button"
                 class="dt-chip-x"
-                onClick={() => table.clearColumnFilter(key, 'range')}
+                onClick={() => table.filter.clearColumn(key, 'range')}
               >
                 ×
               </button>
@@ -131,8 +131,8 @@ export function ActiveBar<TRow extends object>(props: ActiveBarProps<TRow>) {
         </For>
       </Show>
       <span class="dt-stats">
-        {table.L.rowCount(table.processedData().length, props.totalRows)}
-        {table.groupBy().length > 0 ? table.L.groupCount(pageGroupCount()) : ''}
+        {table.labels.rowCount(table.processedData().length, props.totalRows)}
+        {table.group.by().length > 0 ? table.labels.groupCount(pageGroupCount()) : ''}
       </span>
     </div>
   )

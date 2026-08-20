@@ -8,16 +8,16 @@ interface PaginationProps<TRow extends object> {
 
 export function Pagination<TRow extends object>(props: PaginationProps<TRow>) {
   const { table } = props
-  const clampedPage = () => Math.min(table.page(), table.numPages())
+  const clampedPage = () => Math.min(table.pagination.page(), table.pagination.numPages())
 
   return (
-    <Show when={table.pageSize() > 0}>
+    <Show when={table.pagination.pageSize() > 0}>
       <div class="dt-pagination">
         <button
           type="button"
           class="dt-page-btn"
           disabled={clampedPage() === 1}
-          onClick={() => table.setPage(1)}
+          onClick={() => table.pagination.setPage(1)}
         >
           «
         </button>
@@ -25,35 +25,37 @@ export function Pagination<TRow extends object>(props: PaginationProps<TRow>) {
           type="button"
           class="dt-page-btn"
           disabled={clampedPage() === 1}
-          onClick={() => table.setPage(clampedPage() - 1)}
+          onClick={() => table.pagination.setPage(clampedPage() - 1)}
         >
           ‹
         </button>
-        <span class="dt-page-info">{table.L.pageOf(clampedPage(), table.numPages())}</span>
+        <span class="dt-page-info">
+          {table.labels.pageOf(clampedPage(), table.pagination.numPages())}
+        </span>
         <button
           type="button"
           class="dt-page-btn"
-          disabled={clampedPage() >= table.numPages()}
-          onClick={() => table.setPage(clampedPage() + 1)}
+          disabled={clampedPage() >= table.pagination.numPages()}
+          onClick={() => table.pagination.setPage(clampedPage() + 1)}
         >
           ›
         </button>
         <button
           type="button"
           class="dt-page-btn"
-          disabled={clampedPage() >= table.numPages()}
-          onClick={() => table.setPage(table.numPages())}
+          disabled={clampedPage() >= table.pagination.numPages()}
+          onClick={() => table.pagination.setPage(table.pagination.numPages())}
         >
           »
         </button>
         <span class="dt-rows-per-page-group">
-          <span class="dt-rows-per-page">{table.L.rowsPerPage}:</span>
+          <span class="dt-rows-per-page">{table.labels.rowsPerPage}:</span>
           <select
             class="dt-page-select"
-            value={table.pageSize()}
-            onChange={(e) => table.setPageSize(Number(e.currentTarget.value))}
+            value={table.pagination.pageSize()}
+            onChange={(e) => table.pagination.setPageSize(Number(e.currentTarget.value))}
           >
-            <For each={mergePageSizeOptions([10, 20, 50, 100], table.pageSize())}>
+            <For each={mergePageSizeOptions([10, 20, 50, 100], table.pagination.pageSize())}>
               {(n) => <option value={n}>{n}</option>}
             </For>
           </select>

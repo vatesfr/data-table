@@ -15,7 +15,7 @@ export interface DataTableViewProps<TRow extends object> {
   /**
    * A row property used as a stable DOM key for table rows (falls back to array index when
    * omitted). Purely a rendering-identity hint — it is **not** used for selection, which is
-   * tracked by object identity instead (see `TableState.selection`/`toggleRowSelection`) and
+   * tracked by object identity instead (see `TableState.selection.all`/`.toggle`) and
    * works correctly with no `rowKey` at all. Unlike most table libraries' "row key" prop, this
    * one has no bearing on selection/sort/filter state.
    */
@@ -35,7 +35,7 @@ export function DataTableView<TRow extends object>(props: DataTableViewProps<TRo
   injectStyles()
   const { table } = props
   const [openDropdown, setOpenDropdown] = createSignal<DropdownId | null>(null)
-  const groupableCols = () => table.columns().filter((c) => c.groupable === true)
+  const groupableCols = () => table.columns.list().filter((c) => c.groupable === true)
 
   function toggleDd(id: DropdownId): void {
     setOpenDropdown((cur) => (cur === id ? null : id))
@@ -47,14 +47,14 @@ export function DataTableView<TRow extends object>(props: DataTableViewProps<TRo
         <div class="dt-toolbar-actions">
           <ColumnsDropdown
             table={table}
-            columns={table.columns()}
+            columns={table.columns.list()}
             isOpen={openDropdown() === 'cols'}
             onToggle={() => toggleDd('cols')}
             onClose={() => setOpenDropdown(null)}
           />
           <SortDropdown
             table={table}
-            columns={table.columns()}
+            columns={table.columns.list()}
             isOpen={openDropdown() === 'sort'}
             onToggle={() => toggleDd('sort')}
             onClose={() => setOpenDropdown(null)}
@@ -72,28 +72,28 @@ export function DataTableView<TRow extends object>(props: DataTableViewProps<TRo
           <SearchBox table={table} />
           <FilterDropdown
             table={table}
-            columns={table.columns()}
+            columns={table.columns.list()}
             isOpen={openDropdown() === 'filter'}
             onToggle={() => toggleDd('filter')}
             onClose={() => setOpenDropdown(null)}
           />
           <Show
             when={
-              table.sorts().length > 0 ||
-              table.activeFilterCount() > 0 ||
-              table.groupBy().length > 0 ||
-              table.searchQuery() !== ''
+              table.sort.entries().length > 0 ||
+              table.filter.activeCount() > 0 ||
+              table.group.by().length > 0 ||
+              table.search.query() !== ''
             }
           >
             <button type="button" class="dt-btn dt-clear-all" onClick={table.clearAll}>
-              {table.L.clearAll}
+              {table.labels.clearAll}
             </button>
           </Show>
         </div>
       </div>
       <ActiveBar
         table={table}
-        columns={table.columns()}
+        columns={table.columns.list()}
         groupableCols={groupableCols()}
         totalRows={table.data().length}
         onOpenGroup={() => setOpenDropdown('group')}
@@ -101,7 +101,7 @@ export function DataTableView<TRow extends object>(props: DataTableViewProps<TRo
       />
       <TableBody
         table={table}
-        columns={table.columns()}
+        columns={table.columns.list()}
         rowKey={props.rowKey}
         selectable={props.selectable}
         onRowClick={props.onRowClick}

@@ -69,7 +69,7 @@ describe('FilterDropdown — column selection', () => {
 
   it('shows a dot marker for a column with an active filter', () => {
     const { container, table, dispose } = mount()
-    table.cycleFilterValue('name', 'Alice')
+    table.filter.cycleValue('name', 'Alice')
     const nameBtn = [...container.querySelectorAll('.dt-filter-col-item')].find((b) =>
       b.textContent?.includes('Name'),
     )!
@@ -86,12 +86,12 @@ describe('FilterDropdown — string checklist', () => {
     )!
     const checkbox = aliceRow.querySelector<HTMLInputElement>('input[type="checkbox"]')!
     checkbox.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
-    expect(table.filters().name).toEqual(new Set(['Alice']))
+    expect(table.filter.include().name).toEqual(new Set(['Alice']))
     checkbox.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
-    expect(table.excludeFilters().name).toEqual(new Set(['Alice']))
+    expect(table.filter.exclude().name).toEqual(new Set(['Alice']))
     checkbox.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
-    expect(table.filters().name).toEqual(new Set())
-    expect(table.excludeFilters().name).toEqual(new Set())
+    expect(table.filter.include().name).toEqual(new Set())
+    expect(table.filter.exclude().name).toEqual(new Set())
     dispose()
   })
 
@@ -103,7 +103,7 @@ describe('FilterDropdown — string checklist', () => {
     // fix (checkboxSync.ts's deferCheckboxCorrection) re-applies the correct value from a
     // macrotask (not a microtask — a real, trusted click's native revert can itself land after
     // the microtask checkpoint that follows dispatch, see checkboxSync.ts), so asserting on the
-    // checkbox's own DOM property (not just table.filters()) needs a real timer tick, not just a
+    // checkbox's own DOM property (not just table.filter.include()) needs a real timer tick, not just a
     // microtask, to observe the corrected state.
     const { container, dispose } = mount()
     const aliceRow = [...container.querySelectorAll('.dt-filter-list .dt-dd-item')].find((el) =>
@@ -127,9 +127,9 @@ describe('FilterDropdown — string checklist', () => {
       '.dt-filter-search-row input[type="checkbox"]',
     )!
     selectAll.click()
-    expect(table.filters().name).toEqual(new Set(['Alice', 'Bob', 'Clara', 'David']))
+    expect(table.filter.include().name).toEqual(new Set(['Alice', 'Bob', 'Clara', 'David']))
     selectAll.click()
-    expect(table.filters().name).toEqual(new Set())
+    expect(table.filter.include().name).toEqual(new Set())
     dispose()
   })
 
@@ -170,7 +170,7 @@ describe('FilterDropdown — number range', () => {
     const min = container.querySelector<HTMLInputElement>('input.dt-range-input')!
     min.value = '75'
     min.dispatchEvent(new Event('input', { bubbles: true }))
-    expect(table.rangeFilters().score?.min).toBe('75')
+    expect(table.filter.ranges().score?.min).toBe('75')
     expect(
       table
         .processedData()
@@ -187,8 +187,8 @@ describe('FilterDropdown — number range', () => {
     expect(thumbs).toHaveLength(2)
     thumbs[0].value = '75'
     thumbs[0].dispatchEvent(new Event('input', { bubbles: true }))
-    expect(table.rangeFilters().score?.min).toBe('75')
-    expect(table.rangeFilters().score?.max).toBe('90')
+    expect(table.filter.ranges().score?.min).toBe('75')
+    expect(table.filter.ranges().score?.max).toBe('90')
     dispose()
   })
 })
@@ -203,7 +203,7 @@ describe('FilterDropdown — date tree', () => {
     yearRow
       .querySelector<HTMLInputElement>('input[type="checkbox"]')!
       .dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
-    expect(table.filters().joined).toEqual(new Set(['2023-01-15', '2023-06-20']))
+    expect(table.filter.include().joined).toEqual(new Set(['2023-01-15', '2023-06-20']))
     dispose()
   })
 
@@ -247,13 +247,13 @@ describe('FilterDropdown — shift-range selection', () => {
     // (checklist is alphabetized: Alice, Bob, Clara, David).
     click(checkboxFor('Clara'))
     click(checkboxFor('Alice'))
-    expect(table.excludeFilters().name).toEqual(new Set(['Bob']))
+    expect(table.filter.exclude().name).toEqual(new Set(['Bob']))
     // Clara is already included, so this shift-click's target-based direction deselects the range.
     click(checkboxFor('Clara'), true)
-    expect(table.filters().name?.has('Alice')).toBe(false)
-    expect(table.filters().name?.has('Clara')).toBe(false)
+    expect(table.filter.include().name?.has('Alice')).toBe(false)
+    expect(table.filter.include().name?.has('Clara')).toBe(false)
     // Bob's exclude flag must survive a deselecting range sweep over it.
-    expect(table.excludeFilters().name).toEqual(new Set(['Bob']))
+    expect(table.filter.exclude().name).toEqual(new Set(['Bob']))
     dispose()
   })
 })
@@ -298,7 +298,7 @@ describe('FilterDropdown — date tree formatting and controls', () => {
     search.value = ''
     search.dispatchEvent(new Event('input', { bubbles: true }))
     searchRow.querySelector<HTMLInputElement>('input[type="checkbox"]')!.click()
-    expect(table.filters().joined?.size).toBeGreaterThan(0)
+    expect(table.filter.include().joined?.size).toBeGreaterThan(0)
     dispose()
   })
 })
@@ -307,11 +307,11 @@ describe('FilterDropdown — clear', () => {
   it('the clear-filters × button appears once any filter is active and clears all', () => {
     const { container, table, dispose } = mount()
     expect(container.querySelector('.dt-btn-clear')).toBeNull()
-    table.cycleFilterValue('name', 'Alice')
+    table.filter.cycleValue('name', 'Alice')
     const clearBtn = container.querySelector<HTMLButtonElement>('.dt-btn-clear')
     expect(clearBtn).not.toBeNull()
     clearBtn!.click()
-    expect(table.activeFilterCount()).toBe(0)
+    expect(table.filter.activeCount()).toBe(0)
     dispose()
   })
 })

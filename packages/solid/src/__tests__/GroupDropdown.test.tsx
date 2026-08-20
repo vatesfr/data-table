@@ -57,26 +57,26 @@ describe('GroupDropdown', () => {
     const { container, table, dispose } = mount()
     const btn = [...container.querySelectorAll('button')].find((b) => b.textContent === 'Dept')!
     btn.click()
-    expect(table.groupBy()).toEqual(['dept'])
+    expect(table.group.by()).toEqual(['dept'])
     dispose()
   })
 
   it('remove button removes just that group entry', () => {
     const { container, table, dispose } = mount()
-    table.toggleGroup('dept')
-    table.toggleGroup('team')
+    table.group.toggle('dept')
+    table.group.toggle('team')
     container
       .querySelector<HTMLElement>('[data-group-key="dept"]')!
       .querySelector<HTMLButtonElement>('.dt-item-remove')!
       .click()
-    expect(table.groupBy()).toEqual(['team'])
+    expect(table.group.by()).toEqual(['team'])
     dispose()
   })
 
   it('drag-and-drop reorders active group entries', () => {
     const { container, table, dispose } = mount()
-    table.toggleGroup('dept')
-    table.toggleGroup('team')
+    table.group.toggle('dept')
+    table.group.toggle('team')
     stubRects(container, '[data-group-key]')
 
     const deptRow = container.querySelector<HTMLElement>('[data-group-key="dept"]')!
@@ -85,18 +85,18 @@ describe('GroupDropdown', () => {
     teamRow.dispatchEvent(new MouseEvent('dragover', { bubbles: true, clientY: 50 }))
     teamRow.dispatchEvent(new MouseEvent('drop', { bubbles: true, clientY: 50 }))
 
-    expect(table.groupBy()).toEqual(['team', 'dept'])
+    expect(table.group.by()).toEqual(['team', 'dept'])
     dispose()
   })
 
   it('the clear-groups × button appears only when groupBy is non-empty and clears it', () => {
     const { container, table, dispose } = mount()
     expect(container.querySelector('.dt-btn-clear')).toBeNull()
-    table.toggleGroup('dept')
+    table.group.toggle('dept')
     const clearBtn = container.querySelector<HTMLButtonElement>('.dt-btn-clear')
     expect(clearBtn).not.toBeNull()
     clearBtn!.click()
-    expect(table.groupBy()).toEqual([])
+    expect(table.group.by()).toEqual([])
     dispose()
   })
 })

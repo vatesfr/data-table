@@ -21,17 +21,17 @@ export function SearchBox<TRow extends object>(props: SearchBoxProps<TRow>) {
       <input
         type="text"
         class="dt-search-input"
-        placeholder={table.L.search}
-        value={table.searchQuery()}
-        onInput={(e) => table.setSearchQuery(e.currentTarget.value)}
+        placeholder={table.labels.search}
+        value={table.search.query()}
+        onInput={(e) => table.search.setQuery(e.currentTarget.value)}
       />
-      <Show when={table.searchQuery() !== ''}>
+      <Show when={table.search.query() !== ''}>
         <button
           type="button"
           class="dt-search-clear"
-          title={table.L.clearSearch}
-          aria-label={table.L.clearSearch}
-          onClick={() => table.setSearchQuery('')}
+          title={table.labels.clearSearch}
+          aria-label={table.labels.clearSearch}
+          onClick={() => table.search.setQuery('')}
         >
           ×
         </button>

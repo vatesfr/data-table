@@ -53,7 +53,16 @@ export default function EmployeeTable(props: { employees: Employee[] }) {
 
 `<DataTable>` covers the common case, but it never hands back the underlying `TableState` — so it can't be used for view persistence, an imperative selection API, or anything else that needs to act on the table from outside. For that, build the two pieces `<DataTable>` itself is made of directly:
 
-- **`createTableState(data, columns, options?)`** mirrors `packages/react`/`packages/vue`'s own `useTableState` in state shape and action names, and returns a `TableState<TRow>` of signals/derived values/actions — but unlike those two (which get fresh `data`/`columns` arguments on every re-invocation), this one owns `data`/`columns` as its own signals, with `setData`/`setColumns` setters to update them. `data`/`columns` each accept a plain array (a one-time initial value, exactly like `packages/vanilla`'s own `createDataTable`) _or_ a Solid `Accessor` — pass one and it's tracked reactively for the table's whole lifetime, with no `createEffect` to write yourself (this is what `<DataTable>` itself is built on).
+- **`createTableState(data, columns, options?)`** mirrors `packages/react`/`packages/vue`'s own `useTableState` in internal state/action logic, and returns a `TableState<TRow>` — but namespaced by concern (`table.sort.*`, `table.filter.*`, `table.group.*`, `table.selection.*`, `table.pagination.*`, `table.search.*`, `table.columns.*`, plus a handful of top-level entries like `processedData`/`pagedData`/`getViewState`) rather than the flat ~45-field shape react/vue still return — see [CLAUDE.md](../../CLAUDE.md)'s "Namespaced TableState" for the full design. Unlike those two (which get fresh `data`/`columns` arguments on every re-invocation), this one owns `data`/`columns` as its own signals, with `setData`/`columns.set` setters to update them. `data`/`columns` each accept a plain array (a one-time initial value, exactly like `packages/vanilla`'s own `createDataTable`) _or_ a Solid `Accessor` — pass one and it's tracked reactively for the table's whole lifetime, with no `createEffect` to write yourself (this is what `<DataTable>` itself is built on).
+
+```tsx
+const table = createTableState(data, columns)
+table.sort.toggle('score') // was table.toggleSort('score')
+table.filter.cycleValue('dept', 'Eng') // was table.cycleFilterValue('dept', 'Eng')
+table.selection.toggle(row) // was table.toggleRowSelection(row)
+table.pagination.setPage(2) // was table.setPage(2)
+```
+
 - **`<DataTableView table={...} data={...} columns={...} .../>`** is the render layer, taking that `TableState` as a prop rather than building one itself — the same split React/Vue use for their own `DataTableView`.
 
 ```tsx
@@ -88,7 +97,7 @@ To persist a view somewhere else (e.g. a backend), call `getViewState()`/`setVie
 
 ## Selection, row click, keyboard navigation, view persistence
 
-Same model as every other adapter — see the [root README](../../README.md#features) and [CLAUDE.md](../../CLAUDE.md) for the full behavior (selection is tracked by object identity, not `rowKey`; shift-click/shift-arrow range selection; roving-tabindex keyboard nav; `getViewState()`/`setViewState()` for persistence/sharing). `TableState<TRow>` exposes the same actions/derived values React's and Vue's `useTableState` do — `selection`, `selectedRows`, `toggleRowSelection`, `toggleSelectAll`, `clearSelection`, `sorts`, `filters`, `groupBy`, `page`, `pageSize`, and so on, all as Solid signals/accessors instead of `useState`/`ref`. `<DataTable>` doesn't expose any of that directly (see above) — pass `selectable` to turn selection on, and `onSelectionChange` to observe it, the same two props `@vates/data-table-vanilla`'s own `createDataTable` accepts.
+Same model as every other adapter — see the [root README](../../README.md#features) and [CLAUDE.md](../../CLAUDE.md) for the full behavior (selection is tracked by object identity, not `rowKey`; shift-click/shift-arrow range selection; roving-tabindex keyboard nav; `getViewState()`/`setViewState()` for persistence/sharing). `TableState<TRow>` exposes the same actions/derived values React's and Vue's `useTableState` do, namespaced by concern (see `createTableState`'s own entry above) — `table.selection.all`/`.rows`/`.toggle`/`.toggleAll`/`.clear`, `table.sort.entries`, `table.filter.include`, `table.group.by`, `table.pagination.page`/`.pageSize`, and so on, all as Solid signals/accessors instead of `useState`/`ref`. `<DataTable>` doesn't expose any of that directly (see above) — pass `selectable` to turn selection on, and `onSelectionChange` to observe it, the same two props `@vates/data-table-vanilla`'s own `createDataTable` accepts.
 
 Object-identity selection silently drops on a `setData`/refetch that produces new row objects, since a `Set` can only ever match by reference. Pass `getRowId` (to `createTableState`'s options, or `<DataTable>`'s own prop) to opt into id-based matching instead — a selected id is remapped to its fresh object reference whenever `data` changes, and dropped if the id no longer exists:
 

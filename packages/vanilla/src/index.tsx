@@ -76,7 +76,7 @@ export function createDataTable<TRow extends object>(
     )
 
     if (onSelectionChange) {
-      createEffect(on(table.selectedRows, (rows) => onSelectionChange(rows), { defer: true }))
+      createEffect(on(table.selection.rows, (rows) => onSelectionChange(rows), { defer: true }))
     }
 
     render(
@@ -94,16 +94,16 @@ export function createDataTable<TRow extends object>(
 
   return {
     setData: (data: TRow[]) => table.setData(data),
-    setColumns: (columns: ColumnDef<TRow>[]) => table.setColumns(columns),
+    setColumns: (columns: ColumnDef<TRow>[]) => table.columns.set(columns),
     getViewState: () => table.getViewState(),
     setViewState: (view) => table.setViewState(view),
     onViewChange: (cb) => {
       viewChangeListeners.add(cb)
       return () => viewChangeListeners.delete(cb)
     },
-    getSelection: () => [...table.selection()],
-    setSelection: (rows: TRow[]) => table.setSelectionRows(rows),
-    clearSelection: () => table.clearSelection(),
+    getSelection: () => [...table.selection.all()],
+    setSelection: (rows: TRow[]) => table.selection.setAll(rows),
+    clearSelection: () => table.selection.clear(),
     destroy: () => {
       dispose()
       container.innerHTML = ''

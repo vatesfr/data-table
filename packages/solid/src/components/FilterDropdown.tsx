@@ -132,12 +132,12 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
     return (
       computeStringValueCounts(
         table.data(),
-        table.filters(),
-        table.rangeFilters(),
+        table.filter.include(),
+        table.filter.ranges(),
         props.columns,
-        table.L.emptyValue,
+        table.labels.emptyValue,
         [col.key],
-        table.excludeFilters(),
+        table.filter.exclude(),
       )[col.key] ?? new Map()
     )
   })
@@ -150,18 +150,27 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
   const filterDetailValues = createMemo(() => {
     const col = activeCol()
     if (!col) return []
-    let values = table.stringValueMap()[col.key] ?? []
+    let values = table.filter.valueMap()[col.key] ?? []
     values = filterValuesBySearch(values, searchTerm())
     if (col.type === 'date')
-      values = filterValuesByRange(values, table.rangeFilters()[col.key], col.parseDate)
-    values = filterValuesByCount(values, stringValueCounts(), table.filters()[col.key] ?? new Set())
+      values = filterValuesByRange(values, table.filter.ranges()[col.key], col.parseDate)
+    values = filterValuesByCount(
+      values,
+      stringValueCounts(),
+      table.filter.include()[col.key] ?? new Set(),
+    )
     return sortFilterValues(values, stringValueCounts(), valueSort(), col.compare)
   })
 
   const dateTree = createMemo(() => {
     const col = activeCol()
     if (!col || col.type !== 'date') return []
-    return computeDateTree(filterDetailValues(), table.L.emptyValue, valueSort().dir, col.parseDate)
+    return computeDateTree(
+      filterDetailValues(),
+      table.labels.emptyValue,
+      valueSort().dir,
+      col.parseDate,
+    )
   })
 
   function setSearchTerm(key: string, term: string): void {
@@ -197,23 +206,23 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
     if (!col) return
     const anchor = selectionAnchors()[col.key]
     if (shiftKey && anchor) {
-      const included = table.filters()[col.key]?.has(value) ?? false
+      const included = table.filter.include()[col.key]?.has(value) ?? false
       const shouldSelect = !included
       const range = selectRange(filterDetailValues(), anchor, value)
-      table.setFilterValues(col.key, range, shouldSelect)
+      table.filter.setValues(col.key, range, shouldSelect)
       // Only clear exclusions when values are moving *into* filters — deselecting a range must
       // not silently drop an unrelated exclude flag on a value that happens to be in the swept
       // range (matches react/vue's own `if (shouldSelect)` guard around this same call).
-      if (shouldSelect) table.clearExcludeValues(col.key, range)
+      if (shouldSelect) table.filter.clearExcludeValues(col.key, range)
     } else {
-      table.cycleFilterValue(col.key, value)
+      table.filter.cycleValue(col.key, value)
     }
     setAnchor(col.key, value)
   }
   function handleSelectAll(): void {
     const col = activeCol()
     if (!col) return
-    table.toggleFilterAll(col.key, filterDetailValues())
+    table.filter.toggleAll(col.key, filterDetailValues())
     // No preventDefault() here (this checkbox is a plain two-state toggle, not tri-state), but
     // the native pre-click activation can still race Solid's own synchronous write on rare
     // event-ordering — deferring a correction alongside the state update is cheap insurance.
@@ -223,7 +232,7 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
     const col = activeCol()
     if (!col) return { checked: false, indeterminate: false }
     const values = filterDetailValues()
-    const selected = table.filters()[col.key] ?? new Set()
+    const selected = table.filter.include()[col.key] ?? new Set()
     const selectedCount = values.filter((v) => selected.has(v)).length
     return {
       checked: selectedCount > 0 && selectedCount === values.length,
@@ -242,15 +251,15 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
     const anchorPath = selectionAnchors()[col.key]
     const anchorNode = anchorPath ? findDateTreeNode(dateTree(), anchorPath) : undefined
     if (shiftKey && anchorNode) {
-      const selected = table.filters()[col.key] ?? new Set()
+      const selected = table.filter.include()[col.key] ?? new Set()
       const wasChecked = node.values.length > 0 && node.values.every((v) => selected.has(v))
       const shouldSelect = !wasChecked
       const range = selectDateRange(filterDetailValues(), anchorNode, node, col.parseDate)
-      table.setFilterValues(col.key, range, shouldSelect)
+      table.filter.setValues(col.key, range, shouldSelect)
       // Same "only clear exclusions when selecting" guard as the flat checklist's handleValueClick.
-      if (shouldSelect) table.clearExcludeValues(col.key, range)
+      if (shouldSelect) table.filter.clearExcludeValues(col.key, range)
     } else {
-      table.toggleFilterAll(col.key, node.values)
+      table.filter.toggleAll(col.key, node.values)
     }
     setAnchor(col.key, node.path)
   }
@@ -263,20 +272,20 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
       trigger={
         <button
           type="button"
-          class={`dt-btn${table.activeFilterCount() > 0 ? ' dt-btn--active dt-btn--grouped' : ''}`}
+          class={`dt-btn${table.filter.activeCount() > 0 ? ' dt-btn--active dt-btn--grouped' : ''}`}
           onClick={props.onToggle}
         >
-          {table.L.filter}
+          {table.labels.filter}
         </button>
       }
       extraTrigger={
-        <Show when={table.activeFilterCount() > 0}>
+        <Show when={table.filter.activeCount() > 0}>
           <button
             type="button"
             class="dt-btn-clear"
-            title={table.L.clearFilters}
-            aria-label={table.L.clearFilters}
-            onClick={table.clearFilters}
+            title={table.labels.clearFilters}
+            aria-label={table.labels.clearFilters}
+            onClick={table.filter.clear}
           >
             ×
           </button>
@@ -288,17 +297,17 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
           <input
             type="text"
             class="dt-dd-search dt-filter-cols-search"
-            placeholder={table.L.filterSearchPlaceholder}
+            placeholder={table.labels.filterSearchPlaceholder}
             value={colSearchTerm()}
             onInput={(e) => setColSearchTerm(e.currentTarget.value)}
           />
           <For each={searchedFilterableCols()}>
             {(col) => {
               const hasActive = createMemo(() => {
-                const rf = table.rangeFilters()[col.key]
+                const rf = table.filter.ranges()[col.key]
                 return (
-                  (table.filters()[col.key]?.size ?? 0) > 0 ||
-                  (table.excludeFilters()[col.key]?.size ?? 0) > 0 ||
+                  (table.filter.include()[col.key]?.size ?? 0) > 0 ||
+                  (table.filter.exclude()[col.key]?.size ?? 0) > 0 ||
                   (rf !== undefined && (rf.min !== '' || rf.max !== ''))
                 )
               })
@@ -330,10 +339,10 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
                       <>
                         <FilterSearchRow
                           checked={selectAllState().checked}
-                          selectAllLabel={table.L.selectAll}
+                          selectAllLabel={table.labels.selectAll}
                           onSelectAll={handleSelectAll}
                           checkboxRef={(el) => (selectAllEl = el)}
-                          searchPlaceholder={table.L.filterSearchPlaceholder}
+                          searchPlaceholder={table.labels.filterSearchPlaceholder}
                           searchValue={searchTerm()}
                           onSearchInput={(v) => setSearchTerm(col().key, v)}
                           sortIcon={getValueSortIcon(valueSort())}
@@ -342,9 +351,10 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
                         <div class="dt-filter-list">
                           <For each={filterDetailValues()}>
                             {(value) => {
-                              const included = () => table.filters()[col().key]?.has(value) ?? false
+                              const included = () =>
+                                table.filter.include()[col().key]?.has(value) ?? false
                               const excluded = () =>
-                                table.excludeFilters()[col().key]?.has(value) ?? false
+                                table.filter.exclude()[col().key]?.has(value) ?? false
                               const count = () => stringValueCounts().get(value) ?? 0
                               let el: HTMLInputElement | undefined
                               createEffect(() => {
@@ -382,44 +392,44 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
                       <div style={{ display: 'flex', gap: '6px', 'align-items': 'center' }}>
                         <input
                           type="date"
-                          aria-label={table.L.min}
+                          aria-label={table.labels.min}
                           value={
-                            table.rangeFilters()[col().key]?.min ??
+                            table.filter.ranges()[col().key]?.min ??
                             (bounds() ? formatRangeBound(bounds()!.min, col()) : '')
                           }
                           onInput={(e) =>
-                            table.setRangeFilter(col().key, 'min', e.currentTarget.value)
+                            table.filter.setRange(col().key, 'min', e.currentTarget.value)
                           }
                         />
                         <span class="dt-range-sep">–</span>
                         <input
                           type="date"
-                          aria-label={table.L.max}
+                          aria-label={table.labels.max}
                           value={
-                            table.rangeFilters()[col().key]?.max ??
+                            table.filter.ranges()[col().key]?.max ??
                             (bounds() ? formatRangeBound(bounds()!.max, col()) : '')
                           }
                           onInput={(e) =>
-                            table.setRangeFilter(col().key, 'max', e.currentTarget.value)
+                            table.filter.setRange(col().key, 'max', e.currentTarget.value)
                           }
                         />
                       </div>
                       <RangeSlider
                         col={col()}
-                        rangeFilter={table.rangeFilters()[col().key]}
+                        rangeFilter={table.filter.ranges()[col().key]}
                         bounds={bounds()}
                         onCommit={(min, max) => {
-                          table.setRangeFilter(col().key, 'min', min)
-                          table.setRangeFilter(col().key, 'max', max)
+                          table.filter.setRange(col().key, 'min', min)
+                          table.filter.setRange(col().key, 'max', max)
                         }}
                       />
                     </div>
                     <FilterSearchRow
                       checked={selectAllState().checked}
-                      selectAllLabel={table.L.selectAll}
+                      selectAllLabel={table.labels.selectAll}
                       onSelectAll={handleSelectAll}
                       checkboxRef={(el) => (selectAllEl = el)}
-                      searchPlaceholder={table.L.filterSearchPlaceholder}
+                      searchPlaceholder={table.labels.filterSearchPlaceholder}
                       searchValue={searchTerm()}
                       onSearchInput={(v) => setSearchTerm(col().key, v)}
                       sortIcon={getDateSortIcon(valueSort().dir)}
@@ -431,7 +441,7 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
                           <DateTreeItem
                             node={node}
                             depth={0}
-                            selected={table.filters()[col().key] ?? new Set()}
+                            selected={table.filter.include()[col().key] ?? new Set()}
                             counts={stringValueCounts()}
                             expanded={expanded()}
                             searchActive={searchTerm() !== ''}
@@ -451,33 +461,37 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
                       type="text"
                       inputmode="decimal"
                       class="dt-range-input"
-                      placeholder={table.L.min}
+                      placeholder={table.labels.min}
                       value={
-                        table.rangeFilters()[col().key]?.min ??
+                        table.filter.ranges()[col().key]?.min ??
                         (bounds() ? formatRangeBound(bounds()!.min, col()) : '')
                       }
-                      onInput={(e) => table.setRangeFilter(col().key, 'min', e.currentTarget.value)}
+                      onInput={(e) =>
+                        table.filter.setRange(col().key, 'min', e.currentTarget.value)
+                      }
                     />
                     <span class="dt-range-sep">–</span>
                     <input
                       type="text"
                       inputmode="decimal"
                       class="dt-range-input"
-                      placeholder={table.L.max}
+                      placeholder={table.labels.max}
                       value={
-                        table.rangeFilters()[col().key]?.max ??
+                        table.filter.ranges()[col().key]?.max ??
                         (bounds() ? formatRangeBound(bounds()!.max, col()) : '')
                       }
-                      onInput={(e) => table.setRangeFilter(col().key, 'max', e.currentTarget.value)}
+                      onInput={(e) =>
+                        table.filter.setRange(col().key, 'max', e.currentTarget.value)
+                      }
                     />
                   </div>
                   <RangeSlider
                     col={col()}
-                    rangeFilter={table.rangeFilters()[col().key]}
+                    rangeFilter={table.filter.ranges()[col().key]}
                     bounds={bounds()}
                     onCommit={(min, max) => {
-                      table.setRangeFilter(col().key, 'min', min)
-                      table.setRangeFilter(col().key, 'max', max)
+                      table.filter.setRange(col().key, 'min', min)
+                      table.filter.setRange(col().key, 'max', max)
                     }}
                   />
                 </div>

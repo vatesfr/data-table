@@ -32,7 +32,7 @@ export function SortDropdown<TRow extends object>(props: SortDropdownProps<TRow>
   const [dragOverAfter, setDragOverAfter] = createSignal(false)
 
   const addableCols = createMemo(() => {
-    const sorts = table.sorts()
+    const sorts = table.sort.entries()
     const term = searchTerm().trim().toLowerCase()
     return props.columns
       .filter((c) => getSortIndex(sorts, c.key) === null)
@@ -63,7 +63,7 @@ export function SortDropdown<TRow extends object>(props: SortDropdownProps<TRow>
     e.preventDefault()
     const from = dragKey()
     const hit = resolveDropRow(e.clientY, rowEls())
-    if (from && hit && hit.key !== from) table.moveSort(from, hit.key, hit.after)
+    if (from && hit && hit.key !== from) table.sort.move(from, hit.key, hit.after)
     setDragKey(null)
     setDragOverKey(null)
   }
@@ -76,30 +76,30 @@ export function SortDropdown<TRow extends object>(props: SortDropdownProps<TRow>
       trigger={
         <button
           type="button"
-          class={`dt-btn${table.sorts().length > 0 ? ' dt-btn--active dt-btn--grouped' : ''}`}
+          class={`dt-btn${table.sort.entries().length > 0 ? ' dt-btn--active dt-btn--grouped' : ''}`}
           onClick={props.onToggle}
         >
-          {table.L.sort}
+          {table.labels.sort}
         </button>
       }
       extraTrigger={
-        <Show when={table.sorts().length > 0}>
+        <Show when={table.sort.entries().length > 0}>
           <button
             type="button"
             class="dt-btn-clear"
-            title={table.L.clearSorts}
-            aria-label={table.L.clearSorts}
-            onClick={table.clearSorts}
+            title={table.labels.clearSorts}
+            aria-label={table.labels.clearSorts}
+            onClick={table.sort.clear}
           >
             ×
           </button>
         </Show>
       }
     >
-      <Show when={table.sorts().length > 0}>
-        <div class="dt-dd-section">{table.L.activeSortsSection}</div>
+      <Show when={table.sort.entries().length > 0}>
+        <div class="dt-dd-section">{table.labels.activeSortsSection}</div>
         <div ref={rowsContainer} onDragOver={handleDragOver} onDrop={handleDrop}>
-          <For each={table.sorts()}>
+          <For each={table.sort.entries()}>
             {(entry: SortEntry, i) => {
               const col = () => props.columns.find((c) => c.key === entry.key)
               return (
@@ -117,24 +117,24 @@ export function SortDropdown<TRow extends object>(props: SortDropdownProps<TRow>
                     setDragKey(null)
                     setDragOverKey(null)
                   }}
-                  onClick={() => table.toggleSortDir(entry.key)}
+                  onClick={() => table.sort.toggleDir(entry.key)}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
                       e.preventDefault()
-                      table.toggleSortDir(entry.key)
+                      table.sort.toggleDir(entry.key)
                     } else if (e.altKey && e.key === 'ArrowUp') {
                       e.preventDefault()
-                      table.moveSortBy(entry.key, -1)
+                      table.sort.moveBy(entry.key, -1)
                     } else if (e.altKey && e.key === 'ArrowDown') {
                       e.preventDefault()
-                      table.moveSortBy(entry.key, 1)
+                      table.sort.moveBy(entry.key, 1)
                     }
                   }}
                 >
                   <span class="dt-sort-idx">{i() + 1}</span>
                   <span class="dt-flex1">{col()?.label ?? entry.key}</span>
                   <span class="dt-sort-icon dt-sort-icon--active">
-                    {getSortIcon(table.sorts(), entry.key)}
+                    {getSortIcon(table.sort.entries(), entry.key)}
                   </span>
                   <button
                     type="button"
@@ -142,7 +142,7 @@ export function SortDropdown<TRow extends object>(props: SortDropdownProps<TRow>
                     draggable={false}
                     onClick={(e) => {
                       e.stopPropagation()
-                      table.removeSort(entry.key)
+                      table.sort.remove(entry.key)
                     }}
                   >
                     ×
@@ -158,18 +158,18 @@ export function SortDropdown<TRow extends object>(props: SortDropdownProps<TRow>
           <input
             type="text"
             class="dt-dd-search"
-            placeholder={table.L.filterSearchPlaceholder}
+            placeholder={table.labels.filterSearchPlaceholder}
             value={searchTerm()}
             onInput={(e) => setSearchTerm(e.currentTarget.value)}
           />
         </div>
-        <div class="dt-dd-section">{table.L.sortSection}</div>
+        <div class="dt-dd-section">{table.labels.sortSection}</div>
         <For each={addableCols()}>
           {(col) => (
             <button
               type="button"
               class="dt-dd-item dt-dd-item--click"
-              onClick={() => table.toggleSort(col.key)}
+              onClick={() => table.sort.toggle(col.key)}
             >
               <span class="dt-flex1">{col.label}</span>
             </button>

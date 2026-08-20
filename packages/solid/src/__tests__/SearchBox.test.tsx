@@ -34,7 +34,7 @@ describe('SearchBox', () => {
     const input = container.querySelector<HTMLInputElement>('input')!
     input.value = 'ali'
     input.dispatchEvent(new Event('input', { bubbles: true }))
-    expect(table.searchQuery()).toBe('ali')
+    expect(table.search.query()).toBe('ali')
     expect(table.processedData()).toEqual([ROWS[0]])
     dispose()
   })

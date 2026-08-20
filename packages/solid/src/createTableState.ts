@@ -72,13 +72,19 @@ export interface CreateTableStateOptions<TRow extends object = Record<string, un
 export type TableState<TRow extends object> = ReturnType<typeof createTableState<TRow>>
 
 // Solid port of react/useTableState.ts & vue/useTableState.ts — see CLAUDE.md's "Solid + TSX
-// migration" note for why: this module intentionally mirrors those two field-for-field (same
-// state shape, same action names) rather than reinventing the shape, so a change made to one
-// adapter's state logic has an obvious equivalent here. The one structural difference from
-// React/Vue: `data`/`columns` are themselves signals with public `setData`/`setColumns` setters,
-// because vanilla's `createDataTable(container, options)` is a factory called once — there's no
-// consumer-owned render loop re-invoking this with fresh `data`/`columns` arguments the way React
-// re-invokes `useTableState` on every render, so this module has to own that mutability itself.
+// migration" note for why. Internal state/action logic mirrors those two field-for-field (same
+// signal names, same core functions called), so a change made to one adapter's state logic has an
+// obvious equivalent here — only the *returned object's shape* is namespaced (`table.sort.*`,
+// `table.filter.*`, `table.group.*`, `table.selection.*`, `table.pagination.*`, `table.search.*`,
+// `table.columns.*`, plus `processedData`/`pagedData`/`groupedData`/`visibleItems`/`labels` and
+// `getViewState`/`setViewState`/`clearAll` staying top-level) rather than the ~45-field flat object
+// every adapter used to return — see CLAUDE.md's "Namespaced TableState" for the full reasoning;
+// Solid is the first adapter migrated to this shape, with React/Vue to follow the same grouping.
+// The one structural difference from React/Vue: `data`/`columns` are themselves signals with
+// public `setData`/`columns.set` setters, because vanilla's `createDataTable(container, options)`
+// is a factory called once — there's no consumer-owned render loop re-invoking this with fresh
+// `data`/`columns` arguments the way React re-invokes `useTableState` on every render, so this
+// module has to own that mutability itself.
 //
 // `initialData`/`initialColumns` each accept a plain value *or* an `Accessor` (mirroring Vue's
 // own `MaybeRefOrGetter` support) — passing an accessor sets up an internal `createEffect` that
@@ -86,8 +92,8 @@ export type TableState<TRow extends object> = ReturnType<typeof createTableState
 // caller to write that effect by hand (as `@vates/data-table-vanilla`'s own `createDataTable`
 // wrapper, and the `<DataTable>` component in this package, both would otherwise have to). A
 // plain array, by contrast, is only ever a one-time initial value — exactly today's existing
-// behavior — fully decoupled after construction, with `setData`/`setColumns` the only way to
-// change it from then on. Calling `setData`/`setColumns` manually on an accessor-backed table
+// behavior — fully decoupled after construction, with `setData`/`columns.set` the only way to
+// change it from then on. Calling `setData`/`columns.set` manually on an accessor-backed table
 // still works, but is only a temporary override: the internal effect re-applies the accessor's
 // value the next time it re-runs, the same "controlled input" trade-off as Vue's own `computed`.
 //
@@ -241,153 +247,207 @@ export function createTableState<TRow extends object>(
   const selectedRows = createMemo(() => selectedRowsOf(processedData(), selection(), getRowId))
 
   return {
-    // Raw state (for direct manipulation in the UI)
+    // Top-level: the pipeline's actual output, not a "concern" of its own
     data,
-    columns,
-    selection,
-    visibleCols,
-    columnOrder,
-    sorts,
-    filters,
-    excludeFilters,
-    rangeFilters,
-    groupBy,
-    collapsedGroups,
-    page,
-    pageSize,
-    searchQuery,
-    // Fixed at construction (no setter — `options.defaultGroupsCollapsed` isn't meant to change at
-    // runtime), but still exposed as a same-shaped accessor rather than a bare value so every "raw
-    // state" entry on this object is called the same way (`table.defaultGroupsCollapsed()`), not a
-    // one-off exception a consumer has to remember.
-    defaultGroupsCollapsed: () => defaultGroupsCollapsed,
-    // Derived
-    selectedRows,
+    setData,
     processedData,
     pagedData,
     groupedData,
     visibleItems,
-    activeColumns,
-    orderedColumns,
-    stringValueMap,
-    activeFilterCount,
-    numPages,
-    L,
-    // Data/columns mutation (backs createDataTable's public setData/setColumns; see setColumns'
-    // own doc comment above for what it does beyond a plain passthrough setter)
-    setData,
-    setColumns,
-    // Actions
-    toggleColVisibility: (key: string) =>
-      setVisibleCols((prev) => {
-        const next = new Set(prev)
-        if (next.has(key)) {
-          if (next.size > 1) next.delete(key)
-        } else next.add(key)
-        return next
-      }),
-    moveColumn: (dragKey: string, targetKey: string, after = false) =>
-      setColumnOrder((prev) =>
-        _reorderColumn(prev.length ? prev : columns().map((c) => c.key), dragKey, targetKey, after),
-      ),
-    moveColumnBy: (key: string, delta: number) =>
-      setColumnOrder((prev) =>
-        _moveColumnBy(prev.length ? prev : columns().map((c) => c.key), key, delta),
-      ),
-    toggleSort: (key: string) => setSorts((prev) => _toggleSort(prev, key, defaultSortDirFor(key))),
-    replaceSort: (key: string) =>
-      setSorts((prev) => _replaceSort(prev, key, defaultSortDirFor(key))),
-    appendOrToggleSort: (key: string) =>
-      setSorts((prev) => _appendOrToggleSort(prev, key, defaultSortDirFor(key))),
-    removeSort: (key: string) => setSorts((prev) => prev.filter((s) => s.key !== key)),
-    toggleSortDir: (key: string) =>
-      setSorts((prev) =>
-        prev.map((s) => (s.key === key ? { ...s, dir: _toggleSortDir(s.dir) } : s)),
-      ),
-    moveSortBy: (key: string, delta: number) => setSorts((prev) => _moveSortBy(prev, key, delta)),
-    moveSort: (dragKey: string, targetKey: string, after = false) =>
-      setSorts((prev) => _reorderSort(prev, dragKey, targetKey, after)),
-    toggleFilterAll: (key: string, values: string[]) => {
-      // Same reasoning as React's useTableState: only the "select all ON" branch touches
-      // excludeFilters (every listed value is about to become included, and a value can't be in
-      // both sets at once) — "deselect all" only clears what the checkbox actually showed as
-      // selected.
-      setFilterState((prev) => {
-        const willSelectAll = !values.some((v) => prev.filters[key]?.has(v))
-        return {
-          filters: _toggleFilterAll(prev.filters, key, values),
-          excludeFilters: willSelectAll
-            ? _clearExcludeValues(prev.excludeFilters, key, values)
-            : prev.excludeFilters,
-        }
-      })
-      setPageState(1)
+    labels: L,
+
+    columns: {
+      list: columns,
+      set: setColumns,
+      visible: visibleCols,
+      active: activeColumns,
+      ordered: orderedColumns,
+      toggleVisibility: (key: string) =>
+        setVisibleCols((prev) => {
+          const next = new Set(prev)
+          if (next.has(key)) {
+            if (next.size > 1) next.delete(key)
+          } else next.add(key)
+          return next
+        }),
+      move: (dragKey: string, targetKey: string, after = false) =>
+        setColumnOrder((prev) =>
+          _reorderColumn(
+            prev.length ? prev : columns().map((c) => c.key),
+            dragKey,
+            targetKey,
+            after,
+          ),
+        ),
+      moveBy: (key: string, delta: number) =>
+        setColumnOrder((prev) =>
+          _moveColumnBy(prev.length ? prev : columns().map((c) => c.key), key, delta),
+        ),
     },
-    setFilterValues: (key: string, values: string[], selected: boolean) => {
-      setFilterState((prev) => ({
-        ...prev,
-        filters: _setFilterValues(prev.filters, key, values, selected),
-      }))
-      setPageState(1)
+
+    sort: {
+      entries: sorts,
+      toggle: (key: string) => setSorts((prev) => _toggleSort(prev, key, defaultSortDirFor(key))),
+      replace: (key: string) => setSorts((prev) => _replaceSort(prev, key, defaultSortDirFor(key))),
+      appendOrToggle: (key: string) =>
+        setSorts((prev) => _appendOrToggleSort(prev, key, defaultSortDirFor(key))),
+      remove: (key: string) => setSorts((prev) => prev.filter((s) => s.key !== key)),
+      toggleDir: (key: string) =>
+        setSorts((prev) =>
+          prev.map((s) => (s.key === key ? { ...s, dir: _toggleSortDir(s.dir) } : s)),
+        ),
+      moveBy: (key: string, delta: number) => setSorts((prev) => _moveSortBy(prev, key, delta)),
+      move: (dragKey: string, targetKey: string, after = false) =>
+        setSorts((prev) => _reorderSort(prev, dragKey, targetKey, after)),
+      clear: () => setSorts([]),
+      icon: (key: string) => _getSortIcon(sorts(), key),
+      index: (key: string) => _getSortIndex(sorts(), key),
     },
-    cycleFilterValue: (key: string, value: string) => {
-      setFilterState((prev) => _cycleFilterValue(prev.filters, prev.excludeFilters, key, value))
-      setPageState(1)
-    },
-    clearExcludeValues: (key: string, values: string[]) => {
-      setFilterState((prev) => ({
-        ...prev,
-        excludeFilters: _clearExcludeValues(prev.excludeFilters, key, values),
-      }))
-    },
-    setRangeFilter: (key: string, field: 'min' | 'max', value: string) => {
-      setRangeFilters((prev) => ({
-        ...prev,
-        [key]: { min: prev[key]?.min ?? '', max: prev[key]?.max ?? '', [field]: value },
-      }))
-      setPageState(1)
-    },
-    toggleGroup: (key: string) => setGroupBy((prev) => toggleGroupBy(prev, key)),
-    removeGroup: (key: string) => setGroupBy((prev) => prev.filter((k) => k !== key)),
-    moveGroupBy: (key: string, delta: number) =>
-      setGroupBy((prev) => _moveColumnBy(prev, key, delta)),
-    moveGroup: (dragKey: string, targetKey: string, after = false) =>
-      setGroupBy((prev) => _reorderColumn(prev, dragKey, targetKey, after)),
-    toggleGroupCollapse: (key: string) => setCollapsedGroups((prev) => toggleCollapse(prev, key)),
-    clearColumnFilter: (key: string, kind: 'include' | 'exclude' | 'range' = 'include') => {
-      if (kind === 'exclude')
+
+    filter: {
+      include: filters,
+      exclude: excludeFilters,
+      ranges: rangeFilters,
+      activeCount: activeFilterCount,
+      valueMap: stringValueMap,
+      toggleAll: (key: string, values: string[]) => {
+        // Only the "select all ON" branch touches excludeFilters (every listed value is about to
+        // become included, and a value can't be in both sets at once) — "deselect all" only
+        // clears what the checkbox actually showed as selected.
+        setFilterState((prev) => {
+          const willSelectAll = !values.some((v) => prev.filters[key]?.has(v))
+          return {
+            filters: _toggleFilterAll(prev.filters, key, values),
+            excludeFilters: willSelectAll
+              ? _clearExcludeValues(prev.excludeFilters, key, values)
+              : prev.excludeFilters,
+          }
+        })
+        setPageState(1)
+      },
+      setValues: (key: string, values: string[], selected: boolean) => {
         setFilterState((prev) => ({
           ...prev,
-          excludeFilters: { ...prev.excludeFilters, [key]: new Set() },
+          filters: _setFilterValues(prev.filters, key, values, selected),
         }))
-      else if (kind === 'range')
-        setRangeFilters((prev) => ({ ...prev, [key]: { min: '', max: '' } }))
-      else setFilterState((prev) => ({ ...prev, filters: { ...prev.filters, [key]: new Set() } }))
-      setPageState(1)
+        setPageState(1)
+      },
+      cycleValue: (key: string, value: string) => {
+        setFilterState((prev) => _cycleFilterValue(prev.filters, prev.excludeFilters, key, value))
+        setPageState(1)
+      },
+      clearExcludeValues: (key: string, values: string[]) => {
+        setFilterState((prev) => ({
+          ...prev,
+          excludeFilters: _clearExcludeValues(prev.excludeFilters, key, values),
+        }))
+      },
+      setRange: (key: string, field: 'min' | 'max', value: string) => {
+        setRangeFilters((prev) => ({
+          ...prev,
+          [key]: { min: prev[key]?.min ?? '', max: prev[key]?.max ?? '', [field]: value },
+        }))
+        setPageState(1)
+      },
+      clearColumn: (key: string, kind: 'include' | 'exclude' | 'range' = 'include') => {
+        if (kind === 'exclude')
+          setFilterState((prev) => ({
+            ...prev,
+            excludeFilters: { ...prev.excludeFilters, [key]: new Set() },
+          }))
+        else if (kind === 'range')
+          setRangeFilters((prev) => ({ ...prev, [key]: { min: '', max: '' } }))
+        else setFilterState((prev) => ({ ...prev, filters: { ...prev.filters, [key]: new Set() } }))
+        setPageState(1)
+      },
+      clear: () => {
+        setFilterState({ filters: {}, excludeFilters: {} })
+        setRangeFilters({})
+        setPageState(1)
+      },
     },
-    setPage: (p: number) => {
-      if (!Number.isFinite(p)) return
-      setPageState(Math.max(1, Math.min(Math.floor(p), numPages())))
+
+    group: {
+      by: groupBy,
+      collapsed: collapsedGroups,
+      // Fixed at construction (no setter — `options.defaultGroupsCollapsed` isn't meant to change
+      // at runtime), but still exposed as a same-shaped accessor as everything else here, not a
+      // one-off exception a consumer has to remember.
+      defaultCollapsed: () => defaultGroupsCollapsed,
+      toggle: (key: string) => setGroupBy((prev) => toggleGroupBy(prev, key)),
+      remove: (key: string) => setGroupBy((prev) => prev.filter((k) => k !== key)),
+      moveBy: (key: string, delta: number) => setGroupBy((prev) => _moveColumnBy(prev, key, delta)),
+      move: (dragKey: string, targetKey: string, after = false) =>
+        setGroupBy((prev) => _reorderColumn(prev, dragKey, targetKey, after)),
+      toggleCollapse: (key: string) => setCollapsedGroups((prev) => toggleCollapse(prev, key)),
+      clear: () => {
+        setGroupBy([])
+        setCollapsedGroups(new Set<string>())
+      },
     },
-    setPageSize: (s: number) => {
-      if (!Number.isFinite(s)) return
-      setPageSizeState(Math.max(0, Math.floor(s)))
-      setPageState(1)
+
+    selection: {
+      all: selection,
+      rows: selectedRows,
+      toggle: (row: TRow, shiftKey = false) => {
+        setSelection((prev) => {
+          const anchor = selectionAnchor()
+          if (shiftKey && anchor) {
+            const next = new Set(prev)
+            const shouldSelect = !isRowSelected(next, row, getRowId)
+            const range = selectRange(processedData(), anchor, row)
+            if (shouldSelect) range.forEach((r) => next.add(r))
+            else range.forEach((r) => next.delete(r))
+            return next
+          }
+          return toggleRowInSelection(prev, row, getRowId)
+        })
+        // Solid's Setter overloads can't tell `row` (typed TRow, whose `object` constraint
+        // structurally overlaps Function) apart from a functional updater — the standard Solid
+        // workaround is wrapping the plain value in a thunk.
+        setSelectionAnchor(() => row)
+      },
+      toggleAll: (rows: TRow[]) =>
+        setSelection((prev) => toggleAllInSelection(prev, rows, getRowId)),
+      clear: () => {
+        setSelection(new Set<TRow>())
+        setSelectionAnchor(null)
+      },
+      // Replaces the selection outright, by object identity — backs @vates/data-table-vanilla's
+      // imperative `DataTableInstance.setSelection(rows)` (see CLAUDE.md's "Row selection" ->
+      // "Vanilla's imperative selection API"), since that wrapper has no reactive `selection.all`
+      // value of its own to mutate directly. A consumer using this package's own `createTableState`
+      // directly has no need for a separate "replace everything" method — this mainly exists for
+      // that wrapper's sake.
+      setAll: (rows: TRow[]) => {
+        setSelection(new Set(rows))
+        setSelectionAnchor(null)
+      },
     },
-    clearSorts: () => setSorts([]),
-    clearFilters: () => {
-      setFilterState({ filters: {}, excludeFilters: {} })
-      setRangeFilters({})
-      setPageState(1)
+
+    pagination: {
+      page,
+      pageSize,
+      numPages,
+      setPage: (p: number) => {
+        if (!Number.isFinite(p)) return
+        setPageState(Math.max(1, Math.min(Math.floor(p), numPages())))
+      },
+      setPageSize: (s: number) => {
+        if (!Number.isFinite(s)) return
+        setPageSizeState(Math.max(0, Math.floor(s)))
+        setPageState(1)
+      },
     },
-    clearGroups: () => {
-      setGroupBy([])
-      setCollapsedGroups(new Set<string>())
+
+    search: {
+      query: searchQuery,
+      setQuery: (q: string) => {
+        setSearchQueryState(q)
+        setPageState(1)
+      },
     },
-    setSearchQuery: (q: string) => {
-      setSearchQueryState(q)
-      setPageState(1)
-    },
+
     clearAll: () => {
       setSorts([])
       setFilterState({ filters: {}, excludeFilters: {} })
@@ -397,44 +457,7 @@ export function createTableState<TRow extends object>(
       setPageState(1)
       setSearchQueryState('')
     },
-    getSortIcon: (key: string) => _getSortIcon(sorts(), key),
-    getSortIndex: (key: string) => _getSortIndex(sorts(), key),
-    toggleRowSelection: (row: TRow, shiftKey = false) => {
-      setSelection((prev) => {
-        const anchor = selectionAnchor()
-        if (shiftKey && anchor) {
-          const next = new Set(prev)
-          const shouldSelect = !isRowSelected(next, row, getRowId)
-          const range = selectRange(processedData(), anchor, row)
-          if (shouldSelect) range.forEach((r) => next.add(r))
-          else range.forEach((r) => next.delete(r))
-          return next
-        }
-        return toggleRowInSelection(prev, row, getRowId)
-      })
-      // Solid's Setter overloads can't tell `row` (typed TRow, whose `object` constraint
-      // structurally overlaps Function) apart from a functional updater — the standard Solid
-      // workaround is wrapping the plain value in a thunk.
-      setSelectionAnchor(() => row)
-    },
-    toggleSelectAll: (rows: TRow[]) =>
-      setSelection((prev) => toggleAllInSelection(prev, rows, getRowId)),
-    clearSelection: () => {
-      setSelection(new Set<TRow>())
-      setSelectionAnchor(null)
-    },
-    // Replaces the selection outright, by object identity — backs @vates/data-table-vanilla's
-    // imperative `DataTableInstance.setSelection(rows)` (see CLAUDE.md's "Row selection" ->
-    // "Vanilla's imperative selection API"), since that wrapper has no reactive `selection` value
-    // of its own to mutate directly. A consumer using this package's own `createTableState`
-    // directly can just call `setSelection(new Set(rows))` itself, so this method mainly exists
-    // for that wrapper's sake. React/Vue have no equivalent: they expose `selection`/
-    // `toggleRowSelection`/`clearSelection` directly since a consumer there already has the
-    // `useTableState` value in hand, with no need for a separate "replace everything" method.
-    setSelectionRows: (rows: TRow[]) => {
-      setSelection(new Set(rows))
-      setSelectionAnchor(null)
-    },
+
     getViewState: (): TableViewState => {
       const view: TableViewState = {}
       const allKeys = columns().map((c) => c.key)

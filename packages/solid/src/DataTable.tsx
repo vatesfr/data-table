@@ -25,7 +25,7 @@ export interface DataTableProps<TRow extends object> extends Omit<
   getRowId?: GetRowId<TRow>
   /**
    * Fires whenever the selection changes. `createTableState`+`DataTableView` used directly has
-   * no equivalent — a consumer holding onto `table` can just read `table.selectedRows()`
+   * no equivalent — a consumer holding onto `table` can just read `table.selection.rows()`
    * reactively — but `<DataTable>` never hands `table` back, so this is the only way to observe
    * selection here, the same reason `@vates/data-table-vanilla`'s `createDataTable` has one too.
    */
@@ -58,7 +58,7 @@ export function DataTable<TRow extends object>(props: DataTableProps<TRow>) {
   // change of the callback itself, only to what it's called with.
   const onSelectionChange = props.onSelectionChange
   if (onSelectionChange) {
-    createEffect(on(table.selectedRows, (rows) => onSelectionChange(rows), { defer: true }))
+    createEffect(on(table.selection.rows, (rows) => onSelectionChange(rows), { defer: true }))
   }
 
   return (

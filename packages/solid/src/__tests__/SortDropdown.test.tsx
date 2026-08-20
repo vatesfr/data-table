@@ -60,33 +60,33 @@ describe('SortDropdown', () => {
     const { container, table, dispose } = mount()
     const btn = [...container.querySelectorAll('button')].find((b) => b.textContent === 'Score')!
     btn.click()
-    expect(table.sorts()).toEqual([{ key: 'score', dir: 'asc' }])
+    expect(table.sort.entries()).toEqual([{ key: 'score', dir: 'asc' }])
     dispose()
   })
 
   it('clicking an active row toggles its direction', () => {
     const { container, table, dispose } = mount()
-    table.toggleSort('score')
+    table.sort.toggle('score')
     const row = container.querySelector<HTMLElement>('[data-sort-key="score"]')!
     row.click()
-    expect(table.sorts()).toEqual([{ key: 'score', dir: 'desc' }])
+    expect(table.sort.entries()).toEqual([{ key: 'score', dir: 'desc' }])
     dispose()
   })
 
   it('the remove button removes just that entry without toggling its direction', () => {
     const { container, table, dispose } = mount()
-    table.toggleSort('name')
-    table.appendOrToggleSort('score')
+    table.sort.toggle('name')
+    table.sort.appendOrToggle('score')
     const row = container.querySelector<HTMLElement>('[data-sort-key="name"]')!
     row.querySelector<HTMLButtonElement>('.dt-item-remove')!.click()
-    expect(table.sorts()).toEqual([{ key: 'score', dir: 'asc' }])
+    expect(table.sort.entries()).toEqual([{ key: 'score', dir: 'asc' }])
     dispose()
   })
 
   it('drag-and-drop reorders active entries', () => {
     const { container, table, dispose } = mount()
-    table.toggleSort('name')
-    table.appendOrToggleSort('score')
+    table.sort.toggle('name')
+    table.sort.appendOrToggle('score')
     stubRects(container, '[data-sort-key]')
 
     // jsdom has no DragEvent — a plain MouseEvent works identically here since dispatch only
@@ -100,13 +100,13 @@ describe('SortDropdown', () => {
     scoreRow.dispatchEvent(new MouseEvent('dragover', { bubbles: true, clientY: 50 }))
     scoreRow.dispatchEvent(new MouseEvent('drop', { bubbles: true, clientY: 50 }))
 
-    expect(table.sorts().map((s) => s.key)).toEqual(['score', 'name'])
+    expect(table.sort.entries().map((s) => s.key)).toEqual(['score', 'name'])
     dispose()
   })
 
   it('search narrows the addable list only, not the active section', () => {
     const { container, table, dispose } = mount()
-    table.toggleSort('id')
+    table.sort.toggle('id')
     const search = container.querySelector<HTMLInputElement>('.dt-dd-search')!
     search.value = 'sco'
     search.dispatchEvent(new Event('input', { bubbles: true }))

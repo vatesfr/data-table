@@ -553,8 +553,8 @@ function EmployeeCards() {
       >
         <For each={sortCols}>
           {(col) => (
-            <button onClick={() => table.toggleSort(col)} style={VIEW_CONTROL_BTN_STYLE}>
-              {col.charAt(0).toUpperCase() + col.slice(1)} {table.getSortIcon(col)}
+            <button onClick={() => table.sort.toggle(col)} style={VIEW_CONTROL_BTN_STYLE}>
+              {col.charAt(0).toUpperCase() + col.slice(1)} {table.sort.icon(col)}
             </button>
           )}
         </For>
@@ -672,7 +672,7 @@ function SelectionTable(props: {
   // which never hands `table` back to its caller — see the package README/CLAUDE.md). This
   // section already owns `table` directly, so the same createEffect(on(...)) <DataTable> uses
   // internally works just as well here.
-  createEffect(on(table.selectedRows, (rows) => props.onSelectionChange(rows), { defer: true }))
+  createEffect(on(table.selection.rows, (rows) => props.onSelectionChange(rows), { defer: true }))
   return (
     <>
       <ViewControls onReset={() => resetView(table, VIEW_KEYS.selection)} />
@@ -927,12 +927,12 @@ export default function App() {
       >
         Pass <code>selectable</code> to show checkboxes; since this section builds its own{' '}
         <code>createTableState</code>, the selection is read straight off{' '}
-        <code>table.selectedRows()</code> — no <code>onSelectionChange</code> callback needed (that
-        convenience is <code>{'<DataTable>'}</code>-only). Shift-click a checkbox to select (or
-        deselect) the whole range since the last-clicked row. Click a row then use ↑/↓/Home/End to
-        move focus (↑/↓ cross page boundaries; <kbd>Ctrl</kbd>+Home/End jump to the true first/last
-        row across all pages), <kbd>Space</kbd> to select, and Shift+↑/↓/Home/End to extend the
-        range from the keyboard.
+        <code>table.selection.rows()</code> — no <code>onSelectionChange</code> callback needed
+        (that convenience is <code>{'<DataTable>'}</code>-only). Shift-click a checkbox to select
+        (or deselect) the whole range since the last-clicked row. Click a row then use ↑/↓/Home/End
+        to move focus (↑/↓ cross page boundaries; <kbd>Ctrl</kbd>+Home/End jump to the true
+        first/last row across all pages), <kbd>Space</kbd> to select, and Shift+↑/↓/Home/End to
+        extend the range from the keyboard.
       </p>
       <Show when={selected().length > 0}>
         <div

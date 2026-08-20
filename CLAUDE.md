@@ -99,7 +99,7 @@ Vue customization uses **scoped slots** instead of render props:
 
 - **`types.ts`** — `ColumnDef<TRow>` extends `ColumnDefBase<TRow>` with `render?: (value, row) => Node`
 - **`styles.ts`** — the CSS string + `injectStyles()`, called automatically by `DataTableView` on mount
-- **`createTableState.ts`** — a field-for-field Solid port of react/vue's `useTableState` (`createSignal`/`createMemo` instead of `useState`/`useMemo`). `data`/`columns` accept a plain value or an `Accessor`; an accessor gets a `createRenderEffect` wiring it to `setData`/`setColumns` for the table's lifetime. `setColumns` reconciles `visibleCols` against the new key set (see "Reconciling `visibleCols`" below).
+- **`createTableState.ts`** — internal state/action logic mirrors react/vue's `useTableState` field-for-field (`createSignal`/`createMemo` instead of `useState`/`useMemo`), but the _returned object_ is namespaced (see "Namespaced TableState" below) rather than the flat shape react/vue still return. `data`/`columns` accept a plain value or an `Accessor`; an accessor gets a `createRenderEffect` wiring it to `setData`/`columns.set` for the table's lifetime. `columns.set` reconciles `columns.visible` against the new key set (see "Reconciling `visibleCols`" below).
 - **`DataTableView.tsx`** — composes the toolbar, `ActiveBar`, `TableBody`, and `Pagination`; takes a `table: TableState<TRow>` prop instead of calling `createTableState` itself.
 - **`components/`** — `Dropdown.tsx`, `SearchBox.tsx`, `ColumnsDropdown.tsx`, `SortDropdown.tsx`, `GroupDropdown.tsx`, `FilterDropdown.tsx`, `RangeSlider.tsx`, `DateTreeItem.tsx`, `ActiveBar.tsx`, `TableBody.tsx`, `Pagination.tsx`, `dragReorder.ts`, `checkboxSync.ts` (see below).
 - **`DataTable.tsx`** — thin wrapper: builds `createTableState` internally (passing `data`/`columns` as accessors) and renders `<DataTableView>`.
@@ -112,6 +112,26 @@ Known, deliberate simplifications vs. React/Vue: the flat filter checklist isn't
 Most "vanilla does X via `data-action`/`data-focus-key`" asides elsewhere in this file actually describe code that now lives in `packages/solid`, not `packages/vanilla` — `packages/vanilla` today is only the thin wrapper described in its own section below.
 
 Full rationale — the accessor/effect mechanism, every deferred-feature detail, and more — lives in [docs/solid-package.md](docs/solid-package.md).
+
+### Namespaced TableState
+
+`useTableState`/`createTableState`'s returned object used to be one flat ~45-field object — every raw state signal, every derived value, and every action as a sibling top-level property, with no grouping. That was hard to scan (autocomplete on `table.` is a wall of ~45 entries) and made related concerns (e.g. `sorts`/`toggleSort`/`replaceSort`/`moveSortBy`/`getSortIcon`, all "sort") look unrelated to each other purely because they didn't share a prefix consistently.
+
+The shape is now namespaced by concern — one sub-object per feature area, each holding that area's own state and actions with the redundant prefix dropped (`toggleSort` → `sort.toggle`, `moveGroupBy` → `group.moveBy`):
+
+- **`columns`** — `{ visible, active, ordered, toggleVisibility, move, moveBy }`, plus Solid-only `list`/`set` (the raw full column array/setter — React/Vue never had this on `TableState` at all, since they get fresh `columns` as a constructor argument instead)
+- **`sort`** — `{ entries, toggle, replace, appendOrToggle, remove, toggleDir, move, moveBy, clear, icon, index }`
+- **`filter`** — `{ include, exclude, ranges, activeCount, valueMap, toggleAll, setValues, cycleValue, clearExcludeValues, setRange, clearColumn, clear }`
+- **`group`** — `{ by, collapsed, defaultCollapsed, toggle, remove, move, moveBy, toggleCollapse, clear }`
+- **`selection`** — `{ all, rows, toggle, toggleAll, clear }`, plus Solid/vanilla-only `setAll` (was `setSelectionRows` — replaces the selection outright by reference, backing vanilla's imperative `setSelection(rows)`, which has no reactive value of its own to mutate directly)
+- **`pagination`** — `{ page, pageSize, numPages, setPage, setPageSize }`
+- **`search`** — `{ query, setQuery }`
+
+Stays top-level — these are the pipeline's actual output, not a "concern" of their own, and nesting the single most commonly accessed values under one more property hop would hurt the common case for no benefit: `data`/`setData` (Solid only), `processedData`, `pagedData`, `groupedData`, `visibleItems`, `labels` (was `L`), `getViewState`/`setViewState` (cross-cutting; `persistence.ts` in every adapter reaches these and nothing else, so this split leaves it completely untouched), `clearAll` (also cross-cutting).
+
+`filter` keeps all six of its mutators despite the temptation to trim it further (e.g. one `setColumn(key, patch)` replacing all six) — `clearExcludeValues` looked like it was purely `toggleAll`'s own internal helper for clearing stale exclusions before a "select all", but `FilterDropdown`'s shift-click checklist range-select calls it directly too, so it's genuinely part of the built-in UI's own needs, not just an implementation detail safe to fold away.
+
+This reduces top-level members from ~45 to 15 (7 namespace objects + 8 top-level entries), a real cut in perceived surface area, at the cost of being a breaking change — every field/action moved. Pre-1.0 (core is at 0.8.0, Solid at 0.1.0), so this ships as a hard cut with no flat-property compatibility shim, rather than a getter-based deprecation bridge that would add real runtime complexity for a temporary bridge undermining the entire point of the change. **Solid is the first adapter migrated to this shape** (see "Solid package" above); React and Vue still return the old flat shape until they're migrated the same way, at which point this note should be updated to say all four match.
 
 ### Vanilla package (`packages/vanilla`)
 
@@ -234,7 +254,7 @@ No adapter-level wiring was needed beyond passing `filterDetailCol.compare` thro
 
 Each adapter reaches this from a different trigger, matching how each already owns `columns`:
 
-- **Solid** — `createTableState.setColumns` (its own explicit setter, exposed publicly and also used internally by the accessor-tracking effect) calls it directly: `setVisibleCols((prevVisible) => reconcileVisibleColumns(prevColumns, cols, prevVisible))`, where `prevColumns` is `columns()` read just before the signal is updated.
+- **Solid** — `createTableState.columns.set` (its own explicit setter, exposed publicly and also used internally by the accessor-tracking effect) calls it directly: `setVisibleCols((prevVisible) => reconcileVisibleColumns(prevColumns, cols, prevVisible))`, where `prevColumns` is `columns()` read just before the signal is updated.
 - **React** — `useTableState` gets fresh `columns` on every render (no explicit setter of its own), so the reconciliation runs inline during render, comparing against the previous render's column keys — the same "adjust state when a prop changes" pattern already used for `filterListScrollTop` in `DataTableView.tsx` (a plain `if` calling `setState` synchronously during render, not inside an effect, which both avoids an extra render and sidesteps the `react-hooks/set-state-in-effect` lint error). A `sameKeySet` guard (order-insensitive) prevents this from re-running every render when `columns` is a fresh array with the identical key set — without it, the state update on every render would defeat the whole "only reconcile on a genuine key-set change" point.
 - **Vue** — a `watch(columns, (nextColumns, prevColumns) => { visibleCols.value = reconcileVisibleColumns(...) })`, since `useTableState` (like Solid's `createTableState`) is only called once per component instance, unlike React's re-invocation-per-render — `watch` is Vue's equivalent mechanism for reacting to a later change. `watch` is lazy by default (no `immediate`), so it never runs against the very same `columns.value` that already seeded `visibleCols` above it.
 

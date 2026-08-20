@@ -25,7 +25,7 @@ export function ColumnsDropdown<TRow extends object>(props: ColumnsDropdownProps
   const [dragOverKey, setDragOverKey] = createSignal<string | null>(null)
   const [dragOverAfter, setDragOverAfter] = createSignal(false)
 
-  const orderedColumns = createMemo(() => table.orderedColumns())
+  const orderedColumns = createMemo(() => table.columns.ordered())
   const searchedColumns = createMemo(() => {
     const term = searchTerm().trim().toLowerCase()
     return term
@@ -53,7 +53,7 @@ export function ColumnsDropdown<TRow extends object>(props: ColumnsDropdownProps
     e.preventDefault()
     const from = dragKey()
     const hit = resolveDropRow(e.clientY, rowEls())
-    if (from && hit && hit.key !== from) table.moveColumn(from, hit.key, hit.after)
+    if (from && hit && hit.key !== from) table.columns.move(from, hit.key, hit.after)
     setDragKey(null)
     setDragOverKey(null)
   }
@@ -65,7 +65,7 @@ export function ColumnsDropdown<TRow extends object>(props: ColumnsDropdownProps
       onClose={props.onClose}
       trigger={
         <button type="button" class="dt-btn" onClick={props.onToggle}>
-          {table.L.columns}
+          {table.labels.columns}
         </button>
       }
     >
@@ -73,12 +73,12 @@ export function ColumnsDropdown<TRow extends object>(props: ColumnsDropdownProps
         <input
           type="text"
           class="dt-dd-search"
-          placeholder={table.L.filterSearchPlaceholder}
+          placeholder={table.labels.filterSearchPlaceholder}
           value={searchTerm()}
           onInput={(e) => setSearchTerm(e.currentTarget.value)}
         />
       </div>
-      <div class="dt-dd-section">{table.L.columnsSection}</div>
+      <div class="dt-dd-section">{table.labels.columnsSection}</div>
       <div ref={rowsContainer} onDragOver={handleDragOver} onDrop={handleDrop}>
         <For each={searchedColumns()}>
           {(col) => (
@@ -99,15 +99,15 @@ export function ColumnsDropdown<TRow extends object>(props: ColumnsDropdownProps
               <label class="dt-flex1">
                 <input
                   type="checkbox"
-                  checked={table.visibleCols().has(col.key)}
-                  onClick={() => table.toggleColVisibility(col.key)}
+                  checked={table.columns.visible().has(col.key)}
+                  onClick={() => table.columns.toggleVisibility(col.key)}
                   onKeyDown={(e) => {
                     if (e.altKey && e.key === 'ArrowUp') {
                       e.preventDefault()
-                      table.moveColumnBy(col.key, -1)
+                      table.columns.moveBy(col.key, -1)
                     } else if (e.altKey && e.key === 'ArrowDown') {
                       e.preventDefault()
-                      table.moveColumnBy(col.key, 1)
+                      table.columns.moveBy(col.key, 1)
                     }
                   }}
                 />{' '}

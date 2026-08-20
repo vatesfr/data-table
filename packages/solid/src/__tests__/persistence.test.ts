@@ -46,13 +46,13 @@ describe('usePersistedView', () => {
   it('hydrates state from localStorage on mount', () => {
     localStorage.setItem('key1', encodeViewState({ sorts: [{ key: 'score', dir: 'desc' }] }))
     const { table, dispose } = mountTable((t) => usePersistedView(t, 'key1'))
-    expect(table.sorts()).toEqual([{ key: 'score', dir: 'desc' }])
+    expect(table.sort.entries()).toEqual([{ key: 'score', dir: 'desc' }])
     dispose()
   })
 
   it('saves the view to localStorage when it changes', () => {
     const { table, dispose } = mountTable((t) => usePersistedView(t, 'key2'))
-    table.toggleSort('score')
+    table.sort.toggle('score')
     expect(decodeViewState(localStorage.getItem('key2')!)).toEqual({
       sorts: [{ key: 'score', dir: 'asc' }],
     })
@@ -71,13 +71,13 @@ describe('useUrlView', () => {
   it('hydrates state from the URL on mount', () => {
     window.history.replaceState(null, '', `/?view=${encodeViewState({ searchQuery: 'abc' })}`)
     const { table, dispose } = mountTable((t) => useUrlView(t))
-    expect(table.searchQuery()).toBe('abc')
+    expect(table.search.query()).toBe('abc')
     dispose()
   })
 
   it('writes the view to the URL when it changes', () => {
     const { table, dispose } = mountTable((t) => useUrlView(t))
-    table.setSearchQuery('xyz')
+    table.search.setQuery('xyz')
     const encoded = new URLSearchParams(window.location.search).get('view')
     expect(decodeViewState(encoded!)).toEqual({ searchQuery: 'xyz' })
     dispose()
@@ -85,15 +85,15 @@ describe('useUrlView', () => {
 
   it('removes the view param once the view returns to default', () => {
     const { table, dispose } = mountTable((t) => useUrlView(t))
-    table.setSearchQuery('xyz')
-    table.setSearchQuery('')
+    table.search.setQuery('xyz')
+    table.search.setQuery('')
     expect(new URLSearchParams(window.location.search).has('view')).toBe(false)
     dispose()
   })
 
   it('supports a custom paramName', () => {
     const { table, dispose } = mountTable((t) => useUrlView(t, { paramName: 'v' }))
-    table.setSearchQuery('xyz')
+    table.search.setQuery('xyz')
     expect(new URLSearchParams(window.location.search).has('v')).toBe(true)
     dispose()
   })
@@ -105,7 +105,7 @@ describe('usePersistence', () => {
     const { table, dispose } = mountTable((t) =>
       usePersistence(t, { storageKey: 'key7', paramName: 'v' }),
     )
-    expect(table.sorts()).toEqual([{ key: 'score', dir: 'desc' }])
+    expect(table.sort.entries()).toEqual([{ key: 'score', dir: 'desc' }])
     dispose()
   })
 
@@ -113,7 +113,7 @@ describe('usePersistence', () => {
     const { table, dispose } = mountTable((t) =>
       usePersistence(t, { storageKey: 'key8', paramName: 'v' }),
     )
-    table.setSearchQuery('xyz')
+    table.search.setQuery('xyz')
     expect(decodeViewState(localStorage.getItem('key8')!)).toEqual({ searchQuery: 'xyz' })
     expect(new URLSearchParams(window.location.search).has('v')).toBe(true)
     dispose()
@@ -121,7 +121,7 @@ describe('usePersistence', () => {
 
   it('skips localStorage persistence entirely when storageKey is omitted', () => {
     const { table, dispose } = mountTable((t) => usePersistence(t, { paramName: 'v' }))
-    table.setSearchQuery('xyz')
+    table.search.setQuery('xyz')
     expect(localStorage.length).toBe(0)
     expect(new URLSearchParams(window.location.search).has('v')).toBe(true)
     dispose()
@@ -132,12 +132,12 @@ describe('usePersistence', () => {
     const { table, dispose } = mountTable((t) => {
       reset = usePersistence(t, { storageKey: 'key9', paramName: 'v' }).reset
     })
-    table.setSearchQuery('xyz')
+    table.search.setQuery('xyz')
     expect(localStorage.getItem('key9')).not.toBeNull()
     reset()
     expect(localStorage.getItem('key9')).toBeNull()
     expect(new URLSearchParams(window.location.search).has('v')).toBe(false)
-    expect(table.searchQuery()).toBe('')
+    expect(table.search.query()).toBe('')
     dispose()
   })
 })
@@ -145,11 +145,11 @@ describe('usePersistence', () => {
 describe('resetView', () => {
   it('resets live state to construction-time defaults', () => {
     const { table, dispose } = mountTable(() => {})
-    table.toggleSort('score')
-    table.setSearchQuery('xyz')
+    table.sort.toggle('score')
+    table.search.setQuery('xyz')
     resetView(table)
-    expect(table.sorts()).toEqual([])
-    expect(table.searchQuery()).toBe('')
+    expect(table.sort.entries()).toEqual([])
+    expect(table.search.query()).toBe('')
     dispose()
   })
 
@@ -163,7 +163,7 @@ describe('resetView', () => {
 
   it('clears the given URL param', () => {
     const { table, dispose } = mountTable((t) => useUrlView(t, { paramName: 'v' }))
-    table.setSearchQuery('xyz')
+    table.search.setQuery('xyz')
     expect(new URLSearchParams(window.location.search).has('v')).toBe(true)
     resetView(table, { paramName: 'v' })
     expect(new URLSearchParams(window.location.search).has('v')).toBe(false)
