@@ -18,6 +18,7 @@ import {
   type TableViewState,
 } from '@vates/data-table-vanilla'
 import { createScoreBar } from './components/scoreBar'
+import { badge, muted } from './components/badge'
 import { HUGE_DATA, HUGE_COLUMNS, HUGE_ROW_COUNT } from './hugeData'
 
 interface Employee {
@@ -255,10 +256,28 @@ const SAMPLE_DATA: Employee[] = [
   },
 ]
 
+const DEPT_COLORS = {
+  Engineering: { bg: '#EAF3DE', color: '#3B6D11' },
+  Product: { bg: '#E6F1FB', color: '#185FA5' },
+  Design: { bg: '#FBEAF0', color: '#993556' },
+  Sales: { bg: '#FAEEDA', color: '#854F0B' },
+  HR: { bg: '#EEEDFE', color: '#534AB7' },
+}
+const STATUS_COLORS = {
+  Active: { bg: '#EAF3DE', color: '#3B6D11' },
+  Inactive: { bg: '#FCEBEB', color: '#A32D2D' },
+}
+
 // 'tier' below is a computed column derived from 'score' (see "Computed columns") purely to
 // showcase `compare` — Bronze/Silver/Gold/Platinum has no natural alphabetical order ('Gold' <
 // 'Platinum' < 'Silver' alphabetically, nowhere close to the intended rank).
 const TIER_ORDER = ['Bronze', 'Silver', 'Gold', 'Platinum']
+const TIER_COLORS = {
+  Platinum: { bg: '#EEEDFE', color: '#534AB7' },
+  Gold: { bg: '#FAEEDA', color: '#854F0B' },
+  Silver: { bg: '#E6F1FB', color: '#185FA5' },
+  Bronze: { bg: '#FBEAF0', color: '#993556' },
+}
 function tierFor(score: number | null): string {
   if (score == null) return ''
   if (score >= 95) return 'Platinum'
@@ -270,7 +289,17 @@ function tierFor(score: number | null): string {
 const COLUMNS: ColumnDef<Employee>[] = [
   { key: 'id', label: 'ID', type: 'number', width: 60, sortable: false, filterable: false },
   { key: 'name', label: 'Name', type: 'string', width: 160 },
-  { key: 'department', label: 'Department', type: 'string', width: 130, groupable: true },
+  // groupable + render: a real DOM node badge; renderFilterLabel keeps the filter checklist
+  // showing the same badge instead of the raw string.
+  {
+    key: 'department',
+    label: 'Department',
+    type: 'string',
+    width: 130,
+    groupable: true,
+    render: (v) => badge(String(v), DEPT_COLORS),
+    renderFilterLabel: (v) => badge(v, DEPT_COLORS),
+  },
   { key: 'role', label: 'Role', type: 'string', width: 140, groupable: true },
   {
     key: 'salary',
@@ -318,7 +347,16 @@ const COLUMNS: ColumnDef<Employee>[] = [
     aggregate: 'avg',
     format: (v) => Number(v).toLocaleString('en-US', { maximumFractionDigits: 1 }),
   },
-  { key: 'status', label: 'Status', type: 'string', width: 90, groupable: true },
+  // render — badge consistent with the Department column above (also gets renderFilterLabel)
+  {
+    key: 'status',
+    label: 'Status',
+    type: 'string',
+    width: 90,
+    groupable: true,
+    render: (v) => badge(String(v), STATUS_COLORS),
+    renderFilterLabel: (v) => badge(v, STATUS_COLORS),
+  },
   // render returns a DOM node instead of a string, so it can build richer cells (bars, badges,
   // links) than format's escaped-string output allows. compareMissingLast() (issue #15) keeps a
   // not-yet-reviewed employee's row last in the Score sort regardless of direction — null
@@ -330,15 +368,7 @@ const COLUMNS: ColumnDef<Employee>[] = [
     type: 'number',
     width: 80,
     compare: compareMissingLast(),
-    render: (v) => {
-      if (v == null) {
-        const span = document.createElement('span')
-        span.style.cssText = 'font-size:12px;color:var(--color-text-tertiary)'
-        span.textContent = 'No review yet'
-        return span
-      }
-      return createScoreBar(Number(v))
-    },
+    render: (v) => (v == null ? muted('No review yet') : createScoreBar(Number(v))),
   },
   // computed column (value) + compare (issue #15): bucket a continuous score into an ordered
   // enum and sort it by rank, not alphabetically — see TIER_ORDER above, wrapped in
@@ -353,7 +383,7 @@ const COLUMNS: ColumnDef<Employee>[] = [
     ),
     groupable: true,
     width: 90,
-    format: (v) => (v ? String(v) : '—'),
+    render: (v) => (v ? badge(String(v), TIER_COLORS) : muted('—')),
   },
   // array-valued column: filter checklist lists individual skills, grouping fans a row into
   // one group per skill, and cells join the array with ', ' — all automatic, no flag needed.
@@ -398,7 +428,7 @@ const SECTIONS = [
   { id: 'full-table', label: 'Full-featured table' },
   { id: 'row-selection', label: 'Row selection' },
   { id: 'row-click', label: 'Row click' },
-  { id: 'persisted-table', label: 'View persistence & sharing' },
+  { id: 'persisted-table', label: 'Persisted table' },
   { id: 'dynamic-data', label: 'Dynamic data' },
   { id: 'huge-dataset', label: 'Huge dataset' },
 ]
@@ -560,7 +590,7 @@ app.innerHTML = `
     ${renderViewControls('click')}
     <div id="table-click"></div>
 
-    <h2 id="persisted-table" style="font-size:16px;font-weight:600;margin-top:40px;margin-bottom:4px;scroll-margin-top:56px">View persistence &amp; sharing</h2>
+    <h2 id="persisted-table" style="font-size:16px;font-weight:600;margin-top:40px;margin-bottom:4px;scroll-margin-top:56px">Persisted table</h2>
     <p style="font-size:14px;color:var(--color-text-secondary);margin-top:0;margin-bottom:12px">
       <code>persistViewToLocalStorage</code> saves sort/filter/group/etc. across reloads;
       <code>syncViewToUrl</code> reflects them in the URL — reload the page or use "Copy share link"
@@ -675,101 +705,86 @@ themeBtn.addEventListener('click', () => {
 
 // ---- Table 1: full-featured ----
 
-function createTable1() {
-  return createDataTable<Employee>(document.getElementById('table1')!, {
-    data: SAMPLE_DATA,
-    columns: COLUMNS,
-    rowKey: 'id',
-    defaultVisibleColumns: DEFAULT_VISIBLE,
-    defaultPageSize: 5,
-    labels: LOCALES[currentLocale],
-  })
-}
-let table1 = createTable1()
-let unwireTable1 = wireViewPersistence(table1, 'full')
+const table1 = createDataTable<Employee>(document.getElementById('table1')!, {
+  data: SAMPLE_DATA,
+  columns: COLUMNS,
+  rowKey: 'id',
+  defaultVisibleColumns: DEFAULT_VISIBLE,
+  defaultPageSize: 5,
+  labels: LOCALES[currentLocale],
+})
+wireViewPersistence(table1, 'full')
 
 // ---- Table 2: selectable ----
 
 const banner = document.getElementById('selection-banner')!
 
-function createTable2() {
-  return createDataTable<Employee>(document.getElementById('table2')!, {
-    data: SAMPLE_DATA,
-    columns: COLUMNS,
-    rowKey: 'id',
-    defaultVisibleColumns: SELECTION_VISIBLE,
-    defaultPageSize: 5,
-    labels: LOCALES[currentLocale],
-    selectable: true,
-    onSelectionChange(rows) {
-      if (rows.length === 0) {
-        banner.style.display = 'none'
-      } else {
-        banner.style.display = 'flex'
-        banner.innerHTML = `
-          <span style="color:var(--color-text-info);font-weight:500;white-space:nowrap">${rows.length} selected</span>
-          <span style="color:var(--color-text-secondary);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
-            ${rows.map((r) => r.name).join(', ')}
-          </span>
-        `
-      }
-    },
-  })
-}
-let table2 = createTable2()
-let unwireTable2 = wireViewPersistence(table2, 'selection')
+const table2 = createDataTable<Employee>(document.getElementById('table2')!, {
+  data: SAMPLE_DATA,
+  columns: COLUMNS,
+  rowKey: 'id',
+  defaultVisibleColumns: SELECTION_VISIBLE,
+  defaultPageSize: 5,
+  labels: LOCALES[currentLocale],
+  selectable: true,
+  onSelectionChange(rows) {
+    if (rows.length === 0) {
+      banner.style.display = 'none'
+    } else {
+      banner.style.display = 'flex'
+      banner.innerHTML = `
+        <span style="color:var(--color-text-info);font-weight:500;white-space:nowrap">${rows.length} selected</span>
+        <span style="color:var(--color-text-secondary);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+          ${rows.map((r) => r.name).join(', ')}
+        </span>
+      `
+    }
+  },
+})
+wireViewPersistence(table2, 'selection')
 
 // ---- Table: row click ----
 
 const clickBanner = document.getElementById('click-banner')!
 
-function createTableClick() {
-  return createDataTable<Employee>(document.getElementById('table-click')!, {
-    data: SAMPLE_DATA,
-    columns: COLUMNS,
-    rowKey: 'id',
-    defaultVisibleColumns: CLICK_VISIBLE,
-    defaultPageSize: 5,
-    labels: LOCALES[currentLocale],
-    onRowClick(row) {
-      clickBanner.style.display = 'block'
-      clickBanner.textContent = `Last clicked: ${row.name} (${row.role})`
-    },
-  })
-}
-let tableClick = createTableClick()
-let unwireTableClick = wireViewPersistence(tableClick, 'click')
+const tableClick = createDataTable<Employee>(document.getElementById('table-click')!, {
+  data: SAMPLE_DATA,
+  columns: COLUMNS,
+  rowKey: 'id',
+  defaultVisibleColumns: CLICK_VISIBLE,
+  defaultPageSize: 5,
+  labels: LOCALES[currentLocale],
+  onRowClick(row) {
+    clickBanner.style.display = 'block'
+    clickBanner.textContent = `Last clicked: ${row.name} (${row.role})`
+  },
+})
+wireViewPersistence(tableClick, 'click')
 
 // ---- Table: view persistence & sharing ----
 
-function createTablePersist() {
-  return createDataTable<Employee>(document.getElementById('table-persist')!, {
-    data: SAMPLE_DATA,
-    columns: COLUMNS,
-    rowKey: 'id',
-    defaultVisibleColumns: PERSISTED_VISIBLE,
-    defaultPageSize: 5,
-    labels: LOCALES[currentLocale],
-  })
-}
-let tablePersist = createTablePersist()
-let unwireTablePersist = wireViewPersistence(tablePersist, 'persisted')
+const tablePersist = createDataTable<Employee>(document.getElementById('table-persist')!, {
+  data: SAMPLE_DATA,
+  columns: COLUMNS,
+  rowKey: 'id',
+  defaultVisibleColumns: PERSISTED_VISIBLE,
+  defaultPageSize: 5,
+  labels: LOCALES[currentLocale],
+})
+wireViewPersistence(tablePersist, 'persisted')
 
 // ---- Table 3: dynamic data ----
 
 let dynamicData = SAMPLE_DATA.slice(0, 5)
 
-function createTable3() {
-  return createDataTable<Employee>(document.getElementById('table3')!, {
-    data: dynamicData,
-    columns: COLUMNS,
-    rowKey: 'id',
-    defaultVisibleColumns: DYNAMIC_VISIBLE,
-    labels: LOCALES[currentLocale],
-  })
-}
-let table3 = createTable3()
-let unwireTable3 = wireViewPersistence(table3, 'dynamic')
+const table3 = createDataTable<Employee>(document.getElementById('table3')!, {
+  data: dynamicData,
+  columns: COLUMNS,
+  rowKey: 'id',
+  defaultVisibleColumns: DYNAMIC_VISIBLE,
+  labels: LOCALES[currentLocale],
+})
+wireViewPersistence(table3, 'dynamic')
 
 let nextId = 100
 document.getElementById('add-row-btn')!.addEventListener('click', () => {
@@ -795,31 +810,26 @@ document.getElementById('add-row-btn')!.addEventListener('click', () => {
 })
 
 // ---- Table: huge dataset ----
-
-function createTableHuge() {
-  return createDataTable(document.getElementById('table-huge')!, {
-    data: HUGE_DATA,
-    columns: HUGE_COLUMNS,
-    rowKey: 'id',
-    defaultPageSize: 100,
-    labels: LOCALES[currentLocale],
-  })
-}
-let tableHuge = createTableHuge()
-let unwireTableHuge = wireViewPersistence(tableHuge, 'huge')
+//
+// No `labels` option here, matching the other three demos' convention of always showing this
+// section in English regardless of the page's locale switcher.
+const tableHuge = createDataTable(document.getElementById('table-huge')!, {
+  data: HUGE_DATA,
+  columns: HUGE_COLUMNS,
+  rowKey: 'id',
+  defaultPageSize: 100,
+})
+wireViewPersistence(tableHuge, 'huge')
 
 // ---- Reset / copy-share-link buttons: one delegated listener for every table's controls ----
-//
-// RESET_TARGETS' arrow functions close over the `let` instance variables above and read them at
-// call time, so they always resolve to whichever table is currently live — important since the
-// locale switcher below destroys and recreates every table.
-const RESET_TARGETS: Record<string, () => ViewStateTable> = {
-  full: () => table1,
-  selection: () => table2,
-  click: () => tableClick,
-  persisted: () => tablePersist,
-  dynamic: () => table3,
-  huge: () => tableHuge,
+
+const RESET_TARGETS: Record<string, ViewStateTable> = {
+  full: table1,
+  selection: table2,
+  click: tableClick,
+  persisted: tablePersist,
+  dynamic: table3,
+  huge: tableHuge,
 }
 
 app.addEventListener('click', (e) => {
@@ -834,19 +844,16 @@ app.addEventListener('click', (e) => {
   const resetBtn = target.closest<HTMLButtonElement>('[data-view-reset]')
   if (resetBtn) {
     const key = resetBtn.dataset.viewReset!
-    resetView(RESET_TARGETS[key](), VIEW_KEYS[key])
+    resetView(RESET_TARGETS[key], VIEW_KEYS[key])
   }
 })
 
-// ---- Locale switcher: recreate every table with the new locale ----
+// ---- Locale switcher: update every table's labels in place ----
 //
-// Labels are set at creation time, so changing locale means destroying and recreating each
-// table — there's no other way to change them after the fact. Registered here (rather than in
-// the "Locale switcher" section above) because it needs every table's create-factory and
-// instance variable, all defined further down the file: function declarations hoist, but the
-// `let` bindings for those instances don't exist yet at that point in the script's execution —
-// harmless here since this only runs later, in response to a click, by which time everything
-// below has finished initializing.
+// setLabels() replaces the label overrides on a live instance — no destroy/recreate needed, so
+// each table's sort/filter/group/selection state survives a locale switch untouched. `tableHuge`
+// is deliberately skipped, matching the other three demos' huge-dataset table always staying
+// English.
 
 localeBtns.addEventListener('click', (e) => {
   const btn = (e.target as HTMLElement).closest('[data-locale]') as HTMLElement | null
@@ -854,36 +861,12 @@ localeBtns.addEventListener('click', (e) => {
   currentLocale = btn.dataset.locale!
   renderLocaleBtns()
 
-  unwireTable1()
-  table1.destroy()
-  table1 = createTable1()
-  unwireTable1 = wireViewPersistence(table1, 'full')
-
-  unwireTable2()
-  table2.destroy()
-  table2 = createTable2()
-  unwireTable2 = wireViewPersistence(table2, 'selection')
-  banner.style.display = 'none' // the new table starts with an empty selection
-
-  unwireTableClick()
-  tableClick.destroy()
-  tableClick = createTableClick()
-  unwireTableClick = wireViewPersistence(tableClick, 'click')
-
-  unwireTablePersist()
-  tablePersist.destroy()
-  tablePersist = createTablePersist()
-  unwireTablePersist = wireViewPersistence(tablePersist, 'persisted')
-
-  unwireTable3()
-  table3.destroy()
-  table3 = createTable3()
-  unwireTable3 = wireViewPersistence(table3, 'dynamic')
-
-  unwireTableHuge()
-  tableHuge.destroy()
-  tableHuge = createTableHuge()
-  unwireTableHuge = wireViewPersistence(tableHuge, 'huge')
+  const labels = LOCALES[currentLocale]
+  table1.setLabels(labels)
+  table2.setLabels(labels)
+  tableClick.setLabels(labels)
+  tablePersist.setLabels(labels)
+  table3.setLabels(labels)
 })
 
 // All tables are populated by this point, so the page has its real (final) height —
