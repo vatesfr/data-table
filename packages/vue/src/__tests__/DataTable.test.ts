@@ -57,6 +57,71 @@ describe('DataTable — rowClick', () => {
   })
 })
 
+describe('DataTable — v-model:page / v-model:search-query', () => {
+  it('emits the initial page and searchQuery once at mount, even with no interaction', () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS, columns: COLS, rowKey: 'id' },
+    })
+    expect(wrapper.emitted('update:page')![0]).toEqual([1])
+    expect(wrapper.emitted('update:searchQuery')![0]).toEqual([''])
+  })
+
+  it('emits update:page when the page changes via pagination controls', async () => {
+    const manyRows: Row[] = Array.from({ length: 25 }, (_, i) => ({
+      id: i,
+      name: `Row ${i}`,
+      score: i,
+    }))
+    const wrapper = mount(DataTable, {
+      props: { data: manyRows, columns: COLS, rowKey: 'id', defaultPageSize: 10 },
+    })
+    const nextBtn = wrapper.findAll('.dt__page-btn').find((b) => b.text() === '›')!
+    await nextBtn.trigger('click')
+    const pageEmits = wrapper.emitted('update:page')!
+    expect(pageEmits[pageEmits.length - 1]).toEqual([2])
+  })
+
+  it('emits update:searchQuery when typing in the search box', async () => {
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: COLS, rowKey: 'id' } })
+    await wrapper.find('input.dt__search-input').setValue('ali')
+    const queryEmits = wrapper.emitted('update:searchQuery')!
+    expect(queryEmits[queryEmits.length - 1]).toEqual(['ali'])
+  })
+
+  it('binding :page jumps the table to that page at mount', () => {
+    const manyRows: Row[] = Array.from({ length: 25 }, (_, i) => ({
+      id: i,
+      name: `Row ${i}`,
+      score: i,
+    }))
+    const wrapper = mount(DataTable, {
+      props: { data: manyRows, columns: COLS, rowKey: 'id', defaultPageSize: 10, page: 3 },
+    })
+    expect(wrapper.find('.dt__page-info').text()).toBe('Page 3 of 3')
+  })
+
+  it('binding :search-query pre-filters rows at mount', () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS, columns: COLS, rowKey: 'id', searchQuery: 'ali' },
+    })
+    const names = wrapper.findAll('tbody tr td:first-child').map((td) => td.text())
+    expect(names).toEqual(['Alice'])
+  })
+
+  it('changing the :page prop later re-syncs the table to that page', async () => {
+    const manyRows: Row[] = Array.from({ length: 25 }, (_, i) => ({
+      id: i,
+      name: `Row ${i}`,
+      score: i,
+    }))
+    const wrapper = mount(DataTable, {
+      props: { data: manyRows, columns: COLS, rowKey: 'id', defaultPageSize: 10, page: 1 },
+    })
+    await wrapper.setProps({ page: 2 })
+    expect(wrapper.find('.dt__page-info').text()).toContain('2')
+  })
+})
+
 describe('DataTable — aggregate row', () => {
   it('does not render an aggregate row when there is no grouping', () => {
     const cols: ColumnDef<Row>[] = [

@@ -1,5 +1,5 @@
 <script setup lang="ts" generic="TRow extends object">
-import { getCurrentInstance, useSlots, type Slots } from 'vue'
+import { getCurrentInstance, useSlots, watch, type Slots } from 'vue'
 import { useTableState } from './useTableState'
 import DataTableView from './DataTableView.vue'
 import type { DataTableProps } from './types'
@@ -15,6 +15,8 @@ const props = withDefaults(defineProps<DataTableProps<TRow>>(), {
 const emit = defineEmits<{
   selectionChange: [rows: TRow[]]
   rowClick: [row: TRow, event: MouseEvent | KeyboardEvent]
+  'update:page': [page: number]
+  'update:searchQuery': [query: string]
 }>()
 
 // Detects whether our own caller passed a @row-click listener, so it can be forwarded to
@@ -43,6 +45,32 @@ const table = useTableState(
     defaultGroupsCollapsed: props.defaultGroupsCollapsed,
   }),
 )
+
+// v-model:page / v-model:search-query — the two pieces of <DataTable>'s internal state that,
+// unlike selection (already observable via selectionChange/onSelectionChange), otherwise have no
+// way to be read from outside at all, let alone set. `props.page`/`props.searchQuery` stay
+// `undefined` unless the caller actually binds v-model:page/v-model:search-query, in which case
+// these two watch pairs re-sync useTableState's own state whenever the bound value changes
+// externally (immediate: true also applies it once at mount, not just on later changes) and emit
+// the table's own value back out on every change (immediate: true here too, so a freshly-bound
+// v-model reflects the table's real initial value even before any user interaction).
+watch(
+  () => props.page,
+  (page) => {
+    if (page !== undefined && page !== table.page.value) table.setPage(page)
+  },
+  { immediate: true },
+)
+watch(table.page, (page) => emit('update:page', page), { immediate: true })
+
+watch(
+  () => props.searchQuery,
+  (query) => {
+    if (query !== undefined && query !== table.searchQuery.value) table.setSearchQuery(query)
+  },
+  { immediate: true },
+)
+watch(table.searchQuery, (query) => emit('update:searchQuery', query), { immediate: true })
 </script>
 
 <template>

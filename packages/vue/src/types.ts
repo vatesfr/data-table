@@ -46,4 +46,14 @@ export interface DataTableProps<TRow extends object = Record<string, unknown>> e
   defaultPageSize?: number
   /** Whether newly-grouped groups start collapsed. Defaults to `true`; pass `false` to start expanded. */
   defaultGroupsCollapsed?: boolean
+  /**
+   * `v-model:page` — two-way bound to the table's own current page. Unlike selection (already
+   * observable via `selectionChange`/`onSelectionChange`), `<DataTable>` otherwise has no way to
+   * read or set the current page from outside at all. Omit to just let the table manage its own
+   * page as before; binding it lets a parent read the page (e.g. to show it elsewhere) or jump to
+   * one programmatically.
+   */
+  page?: number
+  /** `v-model:search-query` — same two-way binding as `page` above, for the global search box. */
+  searchQuery?: string
 }

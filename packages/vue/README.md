@@ -269,25 +269,47 @@ Drag a column header to reorder it, or drag a row (or press Alt+ArrowUp/Alt+Arro
 
 ## `DataTable` props
 
-| Prop                     | Type                       | Default | Description                                  |
-| ------------------------ | -------------------------- | ------- | -------------------------------------------- |
-| `data`                   | `TRow[]`                   | —       | Row data                                     |
-| `columns`                | `ColumnDef<TRow>[]`        | —       | Column definitions                           |
-| `rowKey`                 | `keyof TRow & string`      | —       | Vue `:key` only — not selection identity     |
-| `defaultVisibleColumns`  | `string[]`                 | all     | Initially visible column keys                |
-| `labels`                 | `Partial<DataTableLabels>` | English | UI string overrides                          |
-| `defaultPageSize`        | `number`                   | 0 (off) | Initial rows per page; 0 disables pagination |
-| `defaultGroupsCollapsed` | `boolean`                  | `true`  | Whether newly-grouped groups start collapsed |
-| `selectable`             | `boolean`                  | `false` | Show checkbox column for row selection       |
+| Prop                     | Type                       | Default | Description                                            |
+| ------------------------ | -------------------------- | ------- | ------------------------------------------------------ |
+| `data`                   | `TRow[]`                   | —       | Row data                                               |
+| `columns`                | `ColumnDef<TRow>[]`        | —       | Column definitions                                     |
+| `rowKey`                 | `keyof TRow & string`      | —       | Vue `:key` only — not selection identity               |
+| `defaultVisibleColumns`  | `string[]`                 | all     | Initially visible column keys                          |
+| `labels`                 | `Partial<DataTableLabels>` | English | UI string overrides                                    |
+| `defaultPageSize`        | `number`                   | 0 (off) | Initial rows per page; 0 disables pagination           |
+| `defaultGroupsCollapsed` | `boolean`                  | `true`  | Whether newly-grouped groups start collapsed           |
+| `selectable`             | `boolean`                  | `false` | Show checkbox column for row selection                 |
+| `page`                   | `number`                   | —       | `v-model:page` — the table's current page              |
+| `searchQuery`            | `string`                   | —       | `v-model:search-query` — the global search box's value |
 
 All props accept `MaybeRefOrGetter` — you can pass refs, computed values, or plain values.
 
+`page`/`searchQuery` are the two pieces of state `<DataTable>` otherwise has no way to read or set from outside at all (selection already has `selectionChange`/`onSelectionChange` — see "Row selection" above). Bind them with `v-model` for two-way sync — a parent can read the current page/search term, or jump/search programmatically:
+
+```vue
+<script setup lang="ts">
+import { ref } from 'vue'
+import { DataTable } from '@vates/data-table-vue'
+
+const page = ref(1)
+const searchQuery = ref('')
+</script>
+
+<template>
+  <DataTable v-model:page="page" v-model:search-query="searchQuery" :data :columns />
+</template>
+```
+
+Omit either prop entirely to just let `<DataTable>` manage its own state, as before.
+
 ## Events
 
-| Event             | Payload                          | Description                                                                                  |
-| ----------------- | -------------------------------- | -------------------------------------------------------------------------------------------- |
-| `selectionChange` | `TRow[]`                         | Emitted when selection changes; payload is the selected rows present in the filtered dataset |
-| `rowClick`        | `[row: TRow, event: MouseEvent]` | Emitted when a data row is clicked                                                           |
+| Event                | Payload                          | Description                                                                                  |
+| -------------------- | -------------------------------- | -------------------------------------------------------------------------------------------- |
+| `selectionChange`    | `TRow[]`                         | Emitted when selection changes; payload is the selected rows present in the filtered dataset |
+| `rowClick`           | `[row: TRow, event: MouseEvent]` | Emitted when a data row is clicked                                                           |
+| `update:page`        | `number`                         | Emitted whenever the current page changes — pair with `v-model:page`                         |
+| `update:searchQuery` | `string`                         | Emitted whenever the search query changes — pair with `v-model:search-query`                 |
 
 ## Column definition
 
