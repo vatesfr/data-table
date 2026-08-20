@@ -375,7 +375,11 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
                                       }))
                                     }}
                                   />
-                                  <span class="dt-flex1">{value}</span>
+                                  <span class="dt-flex1">
+                                    {col().renderFilterLabel
+                                      ? col().renderFilterLabel!(value)
+                                      : value}
+                                  </span>
                                   <span class="dt-filter-count" aria-hidden="true">
                                     {count()}
                                   </span>

@@ -303,6 +303,48 @@ describe('FilterDropdown — date tree formatting and controls', () => {
   })
 })
 
+describe('FilterDropdown — renderFilterLabel', () => {
+  it('renders the custom node instead of the plain value in the checklist', () => {
+    const cols: ColumnDef<Row>[] = [
+      {
+        key: 'dept',
+        label: 'Dept',
+        filterable: true,
+        renderFilterLabel: (v) => {
+          const span = document.createElement('span')
+          span.dataset.custom = v
+          span.textContent = v.toUpperCase()
+          return span
+        },
+      },
+    ]
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const dispose = createRoot((d) => {
+      const table = createTableState(ROWS, cols)
+      render(
+        () => (
+          <FilterDropdown
+            table={table}
+            columns={cols}
+            isOpen={true}
+            onToggle={() => {}}
+            onClose={() => {}}
+          />
+        ),
+        container,
+      )
+      return d
+    })
+    const engRow = [...container.querySelectorAll('.dt-filter-list .dt-dd-item')].find((el) =>
+      el.querySelector('[data-custom="Eng"]'),
+    )!
+    expect(engRow).toBeDefined()
+    expect(engRow.querySelector('[data-custom="Eng"]')!.textContent).toBe('ENG')
+    dispose()
+  })
+})
+
 describe('FilterDropdown — clear', () => {
   it('the clear-filters × button appears once any filter is active and clears all', () => {
     const { container, table, dispose } = mount()

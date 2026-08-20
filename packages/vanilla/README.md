@@ -118,6 +118,17 @@ Use `col.format(value, row)` to control the plain-text string rendered for a cel
 }
 ```
 
+Use `col.renderFilterLabel(value)` to render the same kind of custom node for a value's row in the filter dropdown's checklist — it doesn't get `row` (a checklist row represents a raw value, not a specific row) and isn't applied to `type: 'date'` columns, whose filter is a Year/Month/Day tree rather than a flat checklist:
+
+```ts
+{
+  key: 'status',
+  label: 'Status',
+  render: (v) => badge(String(v)),
+  renderFilterLabel: (v) => badge(v), // same badge in the filter checklist
+}
+```
+
 ## Multi-value (array) columns
 
 ▶ [Try it in the demo](https://vatesfr.github.io/data-table/vanilla/#full-table)
@@ -346,6 +357,8 @@ interface ColumnDef<TRow extends object> {
   width?: number
   value?: (row: TRow) => unknown // compute the cell value from the whole row (also covers aliasing)
   format?: (value: unknown, row: TRow) => string
+  render?: (value: unknown, row: TRow) => Node // custom cell DOM node; takes priority over format; see Cell customization
+  renderFilterLabel?: (value: string) => Node // custom filter-checklist label; not applied to type: 'date' columns
   compare?: (a: unknown, b: unknown, dir: SortDir) => number // custom ordering for row sort, group order, and the filter checklist; see Custom sort order
   sortable?: boolean // default: true
   filterable?: boolean // default: true
