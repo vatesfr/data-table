@@ -1006,8 +1006,15 @@ export function DataTableView<TRow extends object>({
   const filterDetailCol = filterableCols.find((c) => c.key === filterActiveKey) ?? null
   // The filter dropdown is master-detail — only filterDetailCol's checklist is ever rendered —
   // so facet counts only need computing for that one column, not every filterable column (see
-  // computeStringValueCounts's targetKeys param). The React Compiler auto-memoizes this like
-  // everything else in the component — no manual useMemo needed.
+  // computeStringValueCounts's targetKeys param). Deliberately not wrapped in a manual useMemo:
+  // this package's vite.config.ts doesn't wire in the actual React Compiler babel plugin yet, so
+  // this genuinely does recompute on every render for now — but eslint.config.mjs's
+  // eslint-plugin-react-hooks@7 `recommended` ruleset already enforces the compiler's own
+  // constraints (`react-hooks/preserve-manual-memoization`) in preparation for enabling it, and
+  // that rule actively rejects hand-written `useMemo` here (its dependency-mutability analysis
+  // can't verify these particular deps stay safe to preserve). Adding manual memoization now would
+  // have to be undone the moment the compiler is actually wired in, so this is intentionally left
+  // for the compiler to take over rather than hand-optimized in a way that fights it.
   const stringValueCounts = computeStringValueCounts(
     data,
     filters,
