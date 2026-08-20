@@ -8,6 +8,7 @@ import {
 // own children the same way, regardless of whether Vue's filename-based self-reference applies
 // to this build setup.
 import DateTreeItem from './DateTreeItem.vue'
+import { vIndeterminate } from '../directives/vIndeterminate'
 
 const props = defineProps<{
   nodes: DateTreeNode[]
@@ -22,15 +23,6 @@ const emit = defineEmits<{
   toggleNode: [node: DateTreeNode, event: MouseEvent]
   toggleExpand: [path: string]
 }>()
-
-const vIndeterminate = {
-  mounted: (el: HTMLInputElement, b: { value: boolean }) => {
-    el.indeterminate = b.value
-  },
-  updated: (el: HTMLInputElement, b: { value: boolean }) => {
-    el.indeterminate = b.value
-  },
-}
 
 function isLeaf(node: DateTreeNode): boolean {
   return node.children.length === 0

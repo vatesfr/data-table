@@ -45,6 +45,7 @@ import Dropdown from './components/Dropdown.vue'
 import ToolbarBtn from './components/ToolbarBtn.vue'
 import DateTreeItem from './components/DateTreeItem.vue'
 import RangeSlider from './components/RangeSlider.vue'
+import { vIndeterminate } from './directives/vIndeterminate'
 
 const props = withDefaults(defineProps<DataTableViewInternalProps<TRow>>(), { rowKey: 'id' })
 
@@ -316,15 +317,6 @@ const allSelected = computed(
   () => processedData.value.length > 0 && selectedRows.value.length === processedData.value.length,
 )
 const someSelected = computed(() => selectedRows.value.length > 0 && !allSelected.value)
-
-const vIndeterminate = {
-  mounted: (el: HTMLInputElement, b: { value: boolean }) => {
-    el.indeterminate = b.value
-  },
-  updated: (el: HTMLInputElement, b: { value: boolean }) => {
-    el.indeterminate = b.value
-  },
-}
 
 function isGroupAllSelected(rows: TRow[]) {
   return rows.length > 0 && rows.every((r) => selection.value.has(r))
