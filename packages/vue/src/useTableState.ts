@@ -79,7 +79,11 @@ export function useTableState<TRow extends object>(
   const defaultSortDirFor = (key: string) =>
     columns.value.find((c) => c.key === key)?.defaultSortDir ?? 'asc'
 
-  const visibleCols = ref<Set<string>>(
+  // shallowRef, not ref: every write below replaces the whole Set/array wholesale (never mutated
+  // in place), the same "always replaced" pattern that already justifies `selection`/
+  // `selectionAnchor` using shallowRef further down — no need to pay for Vue's deep-reactive Proxy
+  // wrapping on every `.value` access when nothing ever reads/writes through nested reactivity.
+  const visibleCols = shallowRef<Set<string>>(
     new Set(options.value.defaultVisibleColumns ?? columns.value.map((c) => c.key)),
   )
 
@@ -94,16 +98,18 @@ export function useTableState<TRow extends object>(
     visibleCols.value = reconcileVisibleColumns(prevColumns, nextColumns, visibleCols.value)
   })
 
-  const columnOrder = ref<string[]>([])
-  const sorts = ref<SortEntry[]>([])
-  const filters = ref<Record<string, Set<string>>>({})
+  // All shallowRef, same "always replaced wholesale, never mutated in place" reasoning as
+  // `visibleCols` above.
+  const columnOrder = shallowRef<string[]>([])
+  const sorts = shallowRef<SortEntry[]>([])
+  const filters = shallowRef<Record<string, Set<string>>>({})
   // "Not one of these values" filters for multi-value columns — see `cycleFilterValue`. Kept as
   // a separate Set per column, mutually exclusive with `filters` (a value is never in both at
   // once) by `cycleFilterValue`/`clearExcludeValues`.
-  const excludeFilters = ref<Record<string, Set<string>>>({})
-  const rangeFilters = ref<Record<string, RangeFilter>>({})
-  const groupBy = ref<string[]>([])
-  const collapsedGroups = ref<Set<string>>(new Set())
+  const excludeFilters = shallowRef<Record<string, Set<string>>>({})
+  const rangeFilters = shallowRef<Record<string, RangeFilter>>({})
+  const groupBy = shallowRef<string[]>([])
+  const collapsedGroups = shallowRef<Set<string>>(new Set())
   const page = ref(1)
   const pageSize = ref(options.value.defaultPageSize ?? 0)
   const selection = shallowRef<Set<TRow>>(new Set())
