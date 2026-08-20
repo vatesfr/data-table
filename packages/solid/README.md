@@ -55,6 +55,10 @@ export default function EmployeeTable(props: { employees: Employee[] }) {
 
 - **`createTableState(data, columns, options?)`** mirrors `packages/react`/`packages/vue`'s own `useTableState` in internal state/action logic, and returns a `TableState<TRow>` — but namespaced by concern (`table.sort.*`, `table.filter.*`, `table.group.*`, `table.selection.*`, `table.pagination.*`, `table.search.*`, `table.columns.*`, plus a handful of top-level entries like `processedData`/`pagedData`/`getViewState`) rather than the flat ~45-field shape react/vue still return — see [CLAUDE.md](../../CLAUDE.md)'s "Namespaced TableState" for the full design. Unlike those two (which get fresh `data`/`columns` arguments on every re-invocation), this one owns `data`/`columns` as its own signals, with `setData`/`columns.set` setters to update them. `data`/`columns` each accept a plain array (a one-time initial value, exactly like `packages/vanilla`'s own `createDataTable`) _or_ a Solid `Accessor` — pass one and it's tracked reactively for the table's whole lifetime, with no `createEffect` to write yourself (this is what `<DataTable>` itself is built on).
 
+  The 3rd `options` argument accepts either a plain `CreateTableStateOptions` object or an `Accessor` returning one — unlike `data`/`columns`, individual option fields can't each independently be "value or Accessor" (`getRowId` is itself a function, indistinguishable at runtime from an Accessor returning one), so reactivity is lifted to the whole options object instead. Passing an Accessor keeps `labels`/`defaultGroupsCollapsed`/`getRowId` live (a later change takes effect immediately, no need to recreate the table); `defaultVisibleColumns`/`defaultPageSize` stay seed-only either way.
+
+  Two fields on `TableState` exist only here, not on React/Vue's: `table.columns.list`/`table.columns.set` (the raw column signal/setter — React/Vue never had this on `TableState` at all, since they get fresh `columns` as a constructor argument instead) and `table.selection.setAll` (replaces the selection outright by reference; mainly exists to back `@vates/data-table-vanilla`'s imperative `setSelection(rows)`). `table.labels` is also the one field that differs in kind from React/Vue: it's a `createMemo`, called as `table.labels()`, not a plain object — it has to react to a changed `labels` option itself.
+
 ```tsx
 const table = createTableState(data, columns)
 table.sort.toggle('score') // was table.toggleSort('score')
@@ -71,8 +75,10 @@ const table = createTableState(
   () => props.columns,
 )
 
-return <DataTableView table={table} data={table.data()} columns={table.columns()} />
+return <DataTableView table={table} />
 ```
+
+`DataTableViewProps` only takes `table` (plus `rowKey`/`selectable`/`onRowClick`) — no separate `data`/`columns` props, since `table.data()`/`table.columns.list()` already are that value.
 
 ▶ [Try it in the demo](https://vatesfr.github.io/data-table/solid/#custom-layout)
 
@@ -106,6 +112,10 @@ const table = createTableState(data, columns, { getRowId: (row) => row.id })
 ```
 
 ▶ [Try it in the demo](https://vatesfr.github.io/data-table/solid/#row-selection)
+
+## Known limitations
+
+Deliberate simplifications vs. React/Vue, none of which affect mouse/touch interaction: the flat filter checklist isn't virtualized yet; roving Up/Down/Home/End nav inside an open dropdown, dropdown focus-on-open, and Sort/Group's activate/remove focus retention aren't implemented; the Filter dropdown's Left/Right pane-crossing nav isn't implemented; `TableBody`'s Home/End only jump within the current page. See [docs/solid-package.md](../../docs/solid-package.md) for the full detail.
 
 ## License
 
