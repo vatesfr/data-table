@@ -13,7 +13,7 @@ one-line note if deliberately not fixed (e.g. "won't fix — acceptable trade-of
 
 ## A. Cross-package differences
 
-- [ ] **A1. `labels`/`defaultGroupsCollapsed`/`getRowId` reactivity is inconsistent across
+- [x] **A1. `labels`/`defaultGroupsCollapsed`/`getRowId` reactivity is inconsistent across
       adapters.** React and Vue treat these three options as live (React: recomputed every
       render / read directly with no capture; Vue: wrapped in `computed`). Solid captures all
       three once at construction (`labels` merged into a plain static object;
@@ -24,23 +24,35 @@ one-line note if deliberately not fixed (e.g. "won't fix — acceptable trade-of
       React/Vue explicitly frozen to match Solid — then document the decision in CLAUDE.md.
   - Locations: `packages/react/src/useTableState.ts`, `packages/vue/src/useTableState.ts`,
     `packages/solid/src/createTableState.ts`.
+  - **Resolved**: Solid's `createTableState` now accepts its whole `options` 3rd argument as a
+    plain object or an `Accessor` returning one (mirroring Vue's own whole-`options`
+    `MaybeRefOrGetter`), making `labels`/`defaultGroupsCollapsed`/`getRowId` live there too.
+    `table.labels` is now a `createMemo` (`table.labels()`) instead of a plain object — a
+    breaking change to Solid's own `TableState` shape, acceptable at `0.1.0`. Documented in
+    CLAUDE.md's "Solid package" section.
 
-- [ ] **A2. `defaultVisibleColumns`/`defaultPageSize` are frozen-at-construction in all four
+- [x] **A2. `defaultVisibleColumns`/`defaultPageSize` are frozen-at-construction in all four
       adapters** (consistent, but worth confirming this is intentional given A1 makes the
       "default*" prefix an unreliable signal — `defaultGroupsCollapsed` is live in two adapters
       while these two are frozen everywhere). If kept frozen, document explicitly in each
       adapter's `types.ts`/README that these are seed-only and later prop/option changes are
       silently ignored except by an explicit `setViewState` call.
+  - **Resolved via documentation, no code change** — kept frozen (deliberately, not a bug);
+    documented explicitly in CLAUDE.md's "Solid package" and "Vanilla package" sections as
+    seed-only across every adapter.
 
-- [ ] **A3. Vanilla's `data`/`columns` are passed to `createTableState` as plain values, never
+- [x] **A3. Vanilla's `data`/`columns` are passed to `createTableState` as plain values, never
       as Accessors**, so vanilla gets none of the "auto-syncs to a live reactive source"
       convenience Solid's own `createTableState` supports for Accessor-typed args. Confirm this
       is the intended contract (vanilla has no reactive source to feed one from) rather than an
       unexploited capability, and document it in `packages/vanilla`'s CLAUDE.md section if so.
   - Location: `packages/vanilla/src/index.tsx` (`createTableState(options.data,
 options.columns, {...})`).
+  - **Resolved via documentation, no code change** — confirmed intended (vanilla's own
+    `options` object has no reactivity of its own to feed an Accessor from); documented in
+    CLAUDE.md's "Vanilla package" section.
 
-- [ ] **A4. Vanilla's `DataTableInstance` method names don't map 1:1 onto
+- [x] **A4. Vanilla's `DataTableInstance` method names don't map 1:1 onto
       `TableState.selection`.** `clearSelection()`/`setSelection()`/`getSelection()` vs.
       `selection.clear()`/`selection.setAll()`/`selection.all`. `setAll` exists **only** on
       Solid's `TableState` (added specifically to back vanilla's `setSelection` — see
@@ -48,14 +60,14 @@ options.columns, {...})`).
       method at all. Consider either renaming vanilla's methods to read as obvious aliases, or
       adding a doc note in CLAUDE.md's "Row selection" section cross-referencing the mapping so
       it isn't rediscovered by hand each time.
+  - **Resolved via documentation, no rename** — added a cross-reference note to CLAUDE.md's
+    "Row selection" section listing the three name mappings.
 
-- [ ] **A5. Persistence helpers have no shared naming convention across packages**
-      (`persistViewToLocalStorage`/`syncViewToUrl`/`persistView` vanilla vs.
-      `usePersistedView`/`useUrlView`/`usePersistence` React/Vue/Solid) — expected given
-      hooks-vs-plain-function conventions, but only `resetView` kept an identical name in all
-      four. Low priority; flagging for awareness, not necessarily a fix.
+- ~~**A5. Persistence helpers have no shared naming convention across packages**~~ — no action
+  taken; low priority, each naming scheme is already justified by its own
+  hooks-vs-plain-function convention. Won't fix.
 
-- [ ] **A6. Core's pipeline functions disagree on where `columns` and `emptyLabel` sit in the
+- [x] **A6. Core's pipeline functions disagree on where `columns` and `emptyLabel` sit in the
       parameter list**, risking transposition bugs when adapter code chains several calls:
   - `columns` position: `computeStringValues` (2), `searchData`/`groupData` (3),
     `sortWithinGroups`/`computeStringValueCounts` (4), `processData` (5).
@@ -65,12 +77,19 @@ options.columns, {...})`).
     always position 2) across all `logic.ts` pipeline functions — a breaking change, so batch
     it with another planned breaking release.
   - Location: `packages/core/src/logic.ts`.
+  - **Resolved, narrower scope than originally framed** — re-reading `logic.ts` directly showed
+    `columns`/`emptyLabel` are already adjacent wherever both appear; the position drift just
+    reflects each function's own differing count of preceding required params, not a real
+    inconsistency worth reordering. The one genuine drift was `columns` being **optional**
+    (defaulting to `[]`) in `processData`/`groupData`/`sortWithinGroups` but **required** in
+    their siblings — fixed by making it required in all six (breaking change; every real call
+    site already passed it). No parameter reordering was done.
 
 ---
 
 ## B. Non-idiomatic approaches
 
-- [ ] **B1. [BUG, not just style] Vanilla's `destroy()` leaks a permanent
+- [x] **B1. [BUG, not just style] Vanilla's `destroy()` leaks a permanent
       `document`-level click listener per Dropdown, every time a table is destroyed.**
       `render()` (from `solid-js/web`) creates its _own_ internal `createRoot` and returns a
       disposer that `index.tsx` discards; the outer `createRoot` the wrapper captures as
@@ -86,8 +105,11 @@ options.columns, {...})`).
       **Fix**: capture `render()`'s own returned disposer in `index.tsx` and call _that_ (not
       just the outer `createRoot`'s) inside `destroy()`.
   - Location: `packages/vanilla/src/index.tsx`.
+  - **Fixed** — `render()`'s own returned disposer is now captured (`disposeView`) and called
+    in `destroy()` alongside the outer root's `dispose()`. Regression test spies on
+    `document.addEventListener`/`removeEventListener` across a create+destroy cycle.
 
-- [ ] **B2. Vue's `isRowClickable`/`rowClickable` detection isn't actually reactive.** Both
+- [x] **B2. Vue's `isRowClickable`/`rowClickable` detection isn't actually reactive.** Both
       `DataTable.vue` and `DataTableView.vue` read
       `getCurrentInstance()?.vnode.props?.onRowClick` — a non-tracked raw property access.
       `DataTableView.vue` wraps it in `computed()`, but the only tracked dependency is
@@ -96,8 +118,10 @@ options.columns, {...})`).
       styling. Fix or document as a known limitation.
   - Locations: `packages/vue/src/DataTable.vue` (`isRowClickable` const), `DataTableView.vue`
     (`computed` at ~line 56-58).
+  - **Fixed** — both now hold the self-detected value in a `ref`, re-derived in `onUpdated`
+    (runs after every re-render, by which point `vnode.props` reflects the latest listener).
 
-- [ ] **B3. Vue's `ref` vs `shallowRef` policy is inconsistent.** `selection`/
+- [x] **B3. Vue's `ref` vs `shallowRef` policy is inconsistent.** `selection`/
       `selectionAnchor` correctly use `shallowRef` (documented: always replaced wholesale, never
       mutated in place — and `UnwrapRefSimple<TRow>` would break the generic constraint
       otherwise). But `visibleCols`, `collapsedGroups`, `filters`, `excludeFilters`, `sorts`,
@@ -106,12 +130,14 @@ options.columns, {...})`).
       switching these to `shallowRef` for consistency (no behavior change expected, since nothing
       mutates them in place).
   - Location: `packages/vue/src/useTableState.ts`.
+  - **Fixed** — all switched to `shallowRef`; full suite green, no behavior change.
 
-- [ ] **B4. Vue's `vIndeterminate` directive is duplicated verbatim** in
+- [x] **B4. Vue's `vIndeterminate` directive is duplicated verbatim** in
       `DataTableView.vue` and `components/DateTreeItem.vue` instead of being defined once and
       imported. Low priority, pure DRY cleanup.
+  - **Fixed** — extracted to `packages/vue/src/directives/vIndeterminate.ts`, imported by both.
 
-- [ ] **B5. React's memoization policy differs between `useTableState.ts` and
+- [x] **B5. React's memoization policy differs between `useTableState.ts` and
       `DataTableView.tsx`.** The hook manually `useMemo`s every derived value with explicit dep
       arrays. The view component instead leaves several derived values
       (`stringValueCounts`, `filterDetailBounds`, `filterDetailValues`, `filterDetailTree`)
@@ -123,50 +149,63 @@ options.columns, {...})`).
       disagree.
   - Location: `packages/react/src/DataTableView.tsx` (~lines 1010-1308) vs.
     `packages/react/src/useTableState.ts`.
+  - **Resolved differently than planned** — confirmed `vite.config.ts` doesn't wire in the
+    actual React Compiler babel plugin, so the original comment's premise was false and these
+    do recompute every render. The planned fix (wrap in manual `useMemo`) was attempted but
+    **rejected by `eslint-plugin-react-hooks@7`'s `recommended` ruleset**
+    (`react-hooks/preserve-manual-memoization`), which is already enforced in
+    `eslint.config.mjs` in preparation for eventually enabling the real compiler — it flagged
+    the hand-written `useMemo` as unpreservable. Reverted the `useMemo` attempt; replaced the
+    comment with an accurate one instead. No behavior change.
 
-- [ ] **B6. Core naming inconsistencies** (lower priority, cosmetic/discoverability):
+- [x] **B6. Core naming inconsistencies** (lower priority, cosmetic/discoverability):
   - `toggleSort`/`appendOrToggleSort` are true multi-state cycles (none→dir→opposite→none /
     add→flip) but keep the "toggle" verb instead of "cycle" like `cycleValueSort`/
     `cycleFilterValue` — the `replaceSort` doc comment itself admits the three read as
     confusing near-synonyms.
-  - `calcTotalPages` is the only `calc*`-prefixed function next to a consistent `compute*`
-    family (`computeStringValueCounts`, `computeValueBounds`, `computeDateTree`,
-    `computeAggregate`, `computeVirtualRange`).
-  - `selectedRowsOf` breaks the verb-first convention its own siblings use
-    (`isRowSelected`, `toggleRowInSelection`, `reconcileSelection`) — `getSelectedRows` would
-    match better.
+  - ~~`calcTotalPages` is the only `calc*`-prefixed function~~ — **renamed to
+    `computeTotalPages`**.
+  - ~~`selectedRowsOf` breaks the verb-first convention~~ — **renamed to `getSelectedRows`**.
   - `sumDateTreeNodeCount` is the only `sum*`-prefixed function among otherwise `compute*`/
     `get*`-named aggregation helpers.
   - `toggleFilterAll` (verb+Object+"All") vs. `toggleAllInSelection` (verb+"All"+In+Object) —
     same "toggle...all" concept, inverted word order.
   - Location: `packages/core/src/logic.ts`.
+  - **Partially resolved** — only the two clearest, highest-value renames were made (see
+    above); `toggleSort`/`appendOrToggleSort` naming, `sumDateTreeNodeCount`, and the
+    `toggleFilterAll`/`toggleAllInSelection` word-order mismatch are left as-is — lower signal,
+    not worth further breaking churn for a cosmetic gain.
 
-- [ ] **B7. Core internal duplication** (cosmetic/maintenance, not user-facing):
+- [x] **B7. Core internal duplication** (cosmetic/maintenance, not user-facing):
   - `getComparableValue(col, row)` and `comparableFromKeyPart(col, keyPart)` have identical
     type-coercion bodies (date/number/raw), differing only in how the raw value is obtained.
     Could share one `coerceByType(col, raw)` helper.
   - `toggleFilterAll`'s body duplicates `setFilterValues`'s add/delete loop plus a
     `someSelected` check up front — could be rewritten as
     `setFilterValues(filters, key, values, !someSelected)`.
-  - The five selection-identity functions (`isRowSelected`, `selectedRowsOf`,
+  - The five selection-identity functions (`isRowSelected`, `getSelectedRows`,
     `toggleRowInSelection`, `toggleAllInSelection`, `reconcileSelection`) each hand-roll the
     same `if (!getRowId) {identity} else {id-map}` branching — intentional per existing
     comment, but still five repetitions of one pattern.
   - Location: `packages/core/src/logic.ts`.
+  - **Fixed** — `coerceByType` extracted and shared; `toggleFilterAll` now delegates to
+    `setFilterValues`. The five-function `getRowId?` branching repetition was left as-is
+    (already flagged as intentional in the existing comment there).
 
-- [ ] **B8. Vanilla wrapper imposes static-only behavior on options that have no underlying
+- [x] **B8. Vanilla wrapper imposes static-only behavior on options that have no underlying
       reason to be static.** `rowKey`, `selectable`, `onRowClick` are destructured into plain
       consts in `index.tsx` and passed to `DataTableView` once — but `DataTableView` already
       reads `props.rowKey`/`props.selectable`/`props.onRowClick` in a way that would stay
       reactive if the wrapper threaded a signal through. Pure wrapper-layer gap (no Solid-layer
       change needed), distinct from A1/A2's options which are frozen at the Solid layer itself.
   - Location: `packages/vanilla/src/index.tsx`.
+  - **Fixed** — each wrapped in its own `createSignal`; see C2.
 
 ---
 
 ## C. Settings that should be reactive/updatable and aren't
 
-- [ ] **C1. [Highest value, easy fix] Vanilla's `onSelectionChange` has no way to attach a
+- [x] **C1. [Highest value, easy fix] Vanilla's `onSelectionChange` has no way to attach a
       listener after construction.** Unlike `onViewChange(cb)`, which is exactly this
       subscribe/unsubscribe pattern and already exists in the same file, `onSelectionChange` is
       wired into a single `createEffect` only if passed at construction time — there's no
@@ -174,23 +213,30 @@ options.columns, {...})`).
       `onViewChange`'s existing implementation.
   - Location: `packages/vanilla/src/index.tsx`, `packages/vanilla/src/types.ts`
     (`DataTableInstance`).
+  - **Fixed** — `selectionChangeListeners` is now a `Set`, seeded with the constructor option;
+    `onSelectionChange(cb): () => void` added to `DataTableInstance`.
 
-- [ ] **C2. Vanilla: `rowKey`, `selectable`, `onRowClick` should be updatable post-construction**
+- [x] **C2. Vanilla: `rowKey`, `selectable`, `onRowClick` should be updatable post-construction**
       the same way `setData`/`setColumns` are — see B8, same underlying fix.
+  - **Fixed** — `setRowKey`/`setSelectable`/`setOnRowClick` added to `DataTableInstance`.
 
-- [ ] **C3. Solid (and therefore vanilla, transitively): `labels`, `defaultGroupsCollapsed`,
+- [x] **C3. Solid (and therefore vanilla, transitively): `labels`, `defaultGroupsCollapsed`,
       `getRowId` are frozen at the `createTableState` layer** — see A1. If parity with React/Vue
       is the chosen resolution, these three need to accept `Accessor`s the same way
       `data`/`columns` already do in `createTableState.ts`.
+  - **Fixed** — see A1. `setLabels`/`setDefaultGroupsCollapsed`/`setGetRowId` also added to
+    vanilla's `DataTableInstance`, backed by the same mechanism.
 
-- [ ] **C4. React/Vue: `defaultVisibleColumns`/`defaultPageSize` are silently inert after
+- [x] **C4. React/Vue: `defaultVisibleColumns`/`defaultPageSize` are silently inert after
       mount** — changing them only affects a later explicit `setViewState`/`getViewState()` call,
       not the live table state. See A2 — either make them live or document the freeze explicitly
       in each adapter's `types.ts`.
+  - **Resolved via documentation, no code change** — kept frozen; see A2.
 
-- [ ] **C5. Vanilla's `data`/`columns` never use Solid's Accessor mechanism** — see A3.
+- [x] **C5. Vanilla's `data`/`columns` never use Solid's Accessor mechanism** — see A3.
       Confirm intended, or thread accessors through if there's a real use case (e.g. a future
       vanilla consumer with its own reactive data source wanting to skip manual `setData` calls).
+  - **Resolved via documentation, no code change** — confirmed intended; see A3.
 
 ---
 
@@ -205,3 +251,17 @@ options.columns, {...})`).
 5. Everything else (B3–B8, A2/A4–A6, C2/C4/C5) — lower severity, batch opportunistically or
    alongside another breaking-change release given some (A6) require breaking core's
    parameter order.
+
+---
+
+## Status: all items resolved (2026-08-20)
+
+Every item above is checked off, either fixed in code (A1, A6 in narrowed scope, B1–B4, B6 in
+narrowed scope, B7, B8, C1–C3) or resolved via a documentation-only decision with no code
+change (A2, A3, A4, C4, C5), with A5 explicitly left as won't-fix. See the individual **Fixed**/
+**Resolved**/**Partially resolved** notes above for what actually happened at each item,
+including two places where the actual outcome differed from the original plan (A6's scope was
+narrowed after re-reading `logic.ts` directly; B5's fix turned out to be rejected by an
+already-enforced ESLint rule, so the comment was corrected instead of adding memoization).
+Implemented across 10 commits on the `fix/api-audit-findings` branch, each independently
+type-checked, tested, and built across all five packages.
