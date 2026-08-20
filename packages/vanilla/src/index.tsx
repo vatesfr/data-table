@@ -46,6 +46,7 @@ export function createDataTable<TRow extends object>(
   const { rowKey, selectable = false, onSelectionChange, onRowClick } = options
 
   let dispose!: () => void
+  let disposeView!: () => void
   let table!: ReturnType<typeof createTableState<TRow>>
   const viewChangeListeners = new Set<(view: ReturnType<typeof table.getViewState>) => void>()
 
@@ -79,7 +80,13 @@ export function createDataTable<TRow extends object>(
       createEffect(on(table.selection.rows, (rows) => onSelectionChange(rows), { defer: true }))
     }
 
-    render(
+    // `render()` (solid-js/web) creates its own internal `createRoot` for the mounted subtree,
+    // separate from the outer `createRoot` this factory owns — a nested root is only linked to
+    // its parent via `.owner`, never registered in the parent's `.owned`, so the outer `dispose`
+    // above never reaches anything mounted here (e.g. `Dropdown`'s `document`-level click
+    // listener). `render`'s own return value must be captured and disposed too, or every
+    // `createDataTable(...)` call leaks that listener forever, even past `destroy()`.
+    disposeView = render(
       () => (
         <DataTableView
           table={table}
@@ -105,6 +112,7 @@ export function createDataTable<TRow extends object>(
     setSelection: (rows: TRow[]) => table.selection.setAll(rows),
     clearSelection: () => table.selection.clear(),
     destroy: () => {
+      disposeView()
       dispose()
       container.innerHTML = ''
     },

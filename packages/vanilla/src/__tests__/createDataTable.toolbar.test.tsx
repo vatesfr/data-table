@@ -282,6 +282,26 @@ describe('createDataTable', () => {
     expect(container.innerHTML).toBe('')
   })
 
+  it('destroy disposes every document-level listener registered by the mounted view (no leak)', () => {
+    // Each Dropdown (Columns/Sort/Filter/Group) registers a capture-phase 'click' listener on
+    // `document` in its own onMount, cleaned up via onCleanup. `render()`'s own internal root
+    // owns that cleanup — if `destroy()` only disposed the wrapper's outer root and not the one
+    // `render()` itself returns, these listeners would survive forever. Table has a groupable
+    // column, so all four dropdowns (Columns/Sort/Group/Filter) mount.
+    const addSpy = vi.spyOn(document, 'addEventListener')
+    const removeSpy = vi.spyOn(document, 'removeEventListener')
+    const table = createDataTable(container, { data: ROWS, columns: COLS })
+    const addedClickListeners = addSpy.mock.calls.filter(([type]) => type === 'click').length
+    expect(addedClickListeners).toBeGreaterThan(0)
+
+    table.destroy()
+
+    const removedClickListeners = removeSpy.mock.calls.filter(([type]) => type === 'click').length
+    expect(removedClickListeners).toBe(addedClickListeners)
+    addSpy.mockRestore()
+    removeSpy.mockRestore()
+  })
+
   // --- toolbar / active state bar ---
 
   it('renders the active bar with just the row-count stats when nothing is active', () => {
