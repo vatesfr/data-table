@@ -34,11 +34,11 @@ LABELS_PT                           // Portuguese
 
 ```ts
 getColumnValue(col, row) // read a column's cell value: row[col.key], or col.value(row) if value is set
-processData(data, filters, rangeFilters, sorts, columns?, emptyLabel?) // filter + sort rows; columns needed for array-valued (multiMode) filters and computed columns, emptyLabel for empty-array rows (default '(none)')
-groupData(rows, groupBy, columns?, emptyLabel?) // group sorted rows; array-valued columns fan a row into one group per item, empty arrays bucket under emptyLabel; columns needed to group by a computed column
+processData(data, filters, rangeFilters, sorts, columns, emptyLabel?) // filter + sort rows; columns needed for array-valued (multiMode) filters and computed columns, emptyLabel for empty-array rows (default '(none)')
+groupData(rows, groupBy, columns, emptyLabel?) // group sorted rows; array-valued columns fan a row into one group per item, empty arrays bucket under emptyLabel; columns needed to group by a computed column
 computeStringValues(data, columns, emptyLabel?) // build filter value lists; array values are flattened and deduped, empty arrays contribute emptyLabel
 paginateData(data, page, pageSize) // slice rows for the current page (pageSize 0 → all)
-calcTotalPages(count, pageSize) // total page count (pageSize 0 → 1)
+computeTotalPages(count, pageSize) // total page count (pageSize 0 → 1)
 paginateVisibleGroups(groupedFull, visibleItems, collapsedGroups, defaultCollapsed, page, pageSize) // re-chunk a page's slice of visibleItems back into PagedGroup[] for rendering, counting header rows toward the page budget
 paginateVisibleItems(visibleItems, page, pageSize) // per-page slice of visibleItems for keyboard nav, with a synthetic continuation header prepended when the page starts mid-group
 mergePageSizeOptions(options, pageSize) // insert pageSize into a "rows per page" option list (sorted) if it's missing, so a custom page size still shows correctly in a <select>

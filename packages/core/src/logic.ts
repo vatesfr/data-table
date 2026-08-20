@@ -955,7 +955,7 @@ export function selectRange<T>(items: T[], anchor: T, target: T): T[] {
 // row objects (even with identical content) silently drops selection, since a `Set` can only ever
 // match by reference. `getRowId` is the opt-in escape hatch — a consumer who supplies one gets
 // selection that survives such a refresh, matched by id instead of reference, at the cost of an
-// O(selection size) index build on each selection-membership check (`selectedRowsOf`) or mutation
+// O(selection size) index build on each selection-membership check (`getSelectedRows`) or mutation
 // (`toggleRowInSelection`/`toggleAllInSelection`) — cheap for any selection size a user could
 // plausibly multi-select by hand, and only paid at all by a consumer who opts in.
 export type GetRowId<TRow> = (row: TRow) => string | number
@@ -973,7 +973,7 @@ export function isRowSelected<TRow>(
 
 // The array-filter equivalent of isRowSelected, used to derive `selectedRows` from
 // `processedData` — builds one id lookup up front instead of re-scanning `selection` per row.
-export function selectedRowsOf<TRow>(
+export function getSelectedRows<TRow>(
   rows: TRow[],
   selection: Set<TRow>,
   getRowId?: GetRowId<TRow>,
@@ -1030,7 +1030,7 @@ export function toggleAllInSelection<TRow>(
 
 // Keeps `selection`'s stored row objects pointing at `nextData`'s current references for their
 // ids — call this whenever `data` changes. Without it, a getRowId-based `isRowSelected`/
-// `selectedRowsOf` check still keeps working (ids still match), but `selection` itself would
+// `getSelectedRows` check still keeps working (ids still match), but `selection` itself would
 // quietly accumulate detached row objects from every past `data` array forever, and anything
 // reading `selection` directly (not through those two helpers) would see stale references. Drops
 // an id from `selection` entirely once it no longer exists in `nextData`. A no-op passthrough
@@ -1187,7 +1187,7 @@ export function paginateData<TRow extends object>(
   return data.slice(start, start + pageSize)
 }
 
-export function calcTotalPages(count: number, pageSize: number): number {
+export function computeTotalPages(count: number, pageSize: number): number {
   if (!Number.isFinite(pageSize) || pageSize <= 0) return 1
   return Math.max(1, Math.ceil(count / pageSize))
 }

@@ -7,7 +7,7 @@ import {
   getVisibleRows,
   paginateVisibleGroups,
   paginateData,
-  calcTotalPages,
+  computeTotalPages,
   computeStringValues,
   toggleSort as _toggleSort,
   replaceSort as _replaceSort,
@@ -21,7 +21,7 @@ import {
   clearExcludeValues as _clearExcludeValues,
   selectRange,
   isRowSelected,
-  selectedRowsOf,
+  getSelectedRows,
   toggleRowInSelection,
   toggleAllInSelection,
   reconcileSelection,
@@ -159,7 +159,7 @@ export function useTableState<TRow extends object>(
     getVisibleRows(groupedFull.value, collapsedGroups.value, defaultGroupsCollapsed.value),
   )
 
-  const numPages = computed(() => calcTotalPages(visibleItems.value.length, pageSize.value))
+  const numPages = computed(() => computeTotalPages(visibleItems.value.length, pageSize.value))
 
   const clampedPage = computed(() => Math.min(page.value, numPages.value))
 
@@ -193,7 +193,7 @@ export function useTableState<TRow extends object>(
   )
 
   const selectedRows = computed(() =>
-    selectedRowsOf(processedData.value, selection.value, getRowId.value),
+    getSelectedRows(processedData.value, selection.value, getRowId.value),
   )
 
   return {

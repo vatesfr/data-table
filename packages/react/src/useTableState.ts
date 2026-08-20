@@ -7,7 +7,7 @@ import {
   getVisibleRows,
   paginateVisibleGroups,
   paginateData,
-  calcTotalPages,
+  computeTotalPages,
   computeStringValues,
   toggleSort as _toggleSort,
   replaceSort as _replaceSort,
@@ -21,7 +21,7 @@ import {
   clearExcludeValues as _clearExcludeValues,
   selectRange,
   isRowSelected,
-  selectedRowsOf,
+  getSelectedRows,
   toggleRowInSelection,
   toggleAllInSelection,
   reconcileSelection,
@@ -195,7 +195,7 @@ export function useTableState<TRow extends object>(
   )
 
   const numPages = useMemo(
-    () => calcTotalPages(visibleItems.length, pageSize),
+    () => computeTotalPages(visibleItems.length, pageSize),
     [visibleItems.length, pageSize],
   )
 
@@ -241,7 +241,7 @@ export function useTableState<TRow extends object>(
   )
 
   const selectedRows = useMemo(
-    () => selectedRowsOf(processedData, selection, getRowId),
+    () => getSelectedRows(processedData, selection, getRowId),
     [processedData, selection, getRowId],
   )
 

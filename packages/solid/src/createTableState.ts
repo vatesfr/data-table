@@ -7,7 +7,7 @@ import {
   getVisibleRows,
   paginateVisibleGroups,
   paginateData,
-  calcTotalPages,
+  computeTotalPages,
   computeStringValues,
   toggleSort as _toggleSort,
   replaceSort as _replaceSort,
@@ -21,7 +21,7 @@ import {
   clearExcludeValues as _clearExcludeValues,
   selectRange,
   isRowSelected,
-  selectedRowsOf,
+  getSelectedRows,
   toggleRowInSelection,
   toggleAllInSelection,
   reconcileSelection,
@@ -224,7 +224,7 @@ export function createTableState<TRow extends object>(
     getVisibleRows(groupedFull(), collapsedGroups(), getOptions().defaultGroupsCollapsed ?? true),
   )
 
-  const numPages = createMemo(() => calcTotalPages(visibleItems().length, pageSize()))
+  const numPages = createMemo(() => computeTotalPages(visibleItems().length, pageSize()))
 
   const clampedPage = createMemo(() => Math.min(page(), numPages()))
 
@@ -258,7 +258,7 @@ export function createTableState<TRow extends object>(
   )
 
   const selectedRows = createMemo(() =>
-    selectedRowsOf(processedData(), selection(), getOptions().getRowId),
+    getSelectedRows(processedData(), selection(), getOptions().getRowId),
   )
 
   return {

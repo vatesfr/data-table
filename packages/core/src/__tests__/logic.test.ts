@@ -24,7 +24,7 @@ import {
   computeAggregate,
   getColumnValue,
   paginateData,
-  calcTotalPages,
+  computeTotalPages,
   toggleSort,
   replaceSort,
   appendOrToggleSort,
@@ -34,7 +34,7 @@ import {
   clearExcludeValues,
   selectRange,
   isRowSelected,
-  selectedRowsOf,
+  getSelectedRows,
   toggleRowInSelection,
   toggleAllInSelection,
   reconcileSelection,
@@ -1059,8 +1059,8 @@ describe('paginateVisibleGroups', () => {
     const groupedFull = groupData(ROWS, ['dept'], [])
     const expanded = getVisibleRows(groupedFull, new Set())
     const collapsed = getVisibleRows(groupedFull, new Set(['Eng', 'HR']))
-    expect(calcTotalPages(expanded.length, 2)).toBe(3) // 6 items (2 headers + 4 rows) / 2
-    expect(calcTotalPages(collapsed.length, 2)).toBe(1) // 2 header-only items
+    expect(computeTotalPages(expanded.length, 2)).toBe(3) // 6 items (2 headers + 4 rows) / 2
+    expect(computeTotalPages(collapsed.length, 2)).toBe(1) // 2 header-only items
   })
 })
 
@@ -1872,31 +1872,31 @@ describe('paginateData', () => {
   })
 })
 
-// ─── calcTotalPages ───────────────────────────────────────────────────────────
+// ─── computeTotalPages ───────────────────────────────────────────────────────────
 
-describe('calcTotalPages', () => {
+describe('computeTotalPages', () => {
   it('returns 1 when pageSize is 0 (pagination disabled)', () => {
-    expect(calcTotalPages(100, 0)).toBe(1)
+    expect(computeTotalPages(100, 0)).toBe(1)
   })
 
   it('returns correct count for evenly divisible dataset', () => {
-    expect(calcTotalPages(4, 2)).toBe(2)
+    expect(computeTotalPages(4, 2)).toBe(2)
   })
 
   it('rounds up for a partial last page', () => {
-    expect(calcTotalPages(5, 2)).toBe(3)
+    expect(computeTotalPages(5, 2)).toBe(3)
   })
 
   it('returns 1 for an empty dataset', () => {
-    expect(calcTotalPages(0, 10)).toBe(1)
+    expect(computeTotalPages(0, 10)).toBe(1)
   })
 
   it('returns 1 when dataset is smaller than pageSize', () => {
-    expect(calcTotalPages(3, 10)).toBe(1)
+    expect(computeTotalPages(3, 10)).toBe(1)
   })
 
   it('returns 1 (not NaN) when pageSize is NaN', () => {
-    expect(calcTotalPages(100, NaN)).toBe(1)
+    expect(computeTotalPages(100, NaN)).toBe(1)
   })
 })
 
@@ -2227,18 +2227,18 @@ describe('isRowSelected', () => {
   })
 })
 
-describe('selectedRowsOf', () => {
+describe('getSelectedRows', () => {
   it('without getRowId, filters by object identity', () => {
     const a: SelRow = { id: 1, name: 'a' }
     const b: SelRow = { id: 2, name: 'b' }
-    expect(selectedRowsOf([a, b], new Set([a]))).toEqual([a])
+    expect(getSelectedRows([a, b], new Set([a]))).toEqual([a])
   })
 
   it('with getRowId, filters by id even against refetched objects', () => {
     const a: SelRow = { id: 1, name: 'a' }
     const aRefetched: SelRow = { id: 1, name: 'a (refetched)' }
     const b: SelRow = { id: 2, name: 'b' }
-    expect(selectedRowsOf([aRefetched, b], new Set([a]), getRowId)).toEqual([aRefetched])
+    expect(getSelectedRows([aRefetched, b], new Set([a]), getRowId)).toEqual([aRefetched])
   })
 })
 
