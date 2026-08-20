@@ -92,6 +92,7 @@ A column whose cell value is an array — tags, genres, categories — is detect
 - Cells without a custom `#cell-{key}` slot or `format` display the array joined with `, `.
 - Every checklist item (array-valued columns and plain string columns alike) shows how many rows currently match it — helpful for scanning a high-cardinality column like `tags` before picking a value. The count is faceted: it reflects every other active filter, but not the checklist's own column, so selecting a value elsewhere narrows the counts shown here without a value's own selection state affecting its neighbors. A value with a count of 0 is dropped from the checklist entirely — unless it's already selected, in which case it stays listed so it can still be unticked.
 - A sort-order button next to the search input cycles the checklist between alphabetical (A→Z / Z→A) and by-count (high→low / low→high) order — default is alphabetical ascending.
+- Each checklist value cycles through a tri-state: neutral → include → exclude → neutral (`table.filter.cycleValue`), so a value can be explicitly excluded, not just included. Include/exclude are kept mutually exclusive per value. Active-bar chips are per-kind — an include-values chip, an exclude-values chip, and a range chip for a column can all appear at once, each independently removable.
 
 ```ts
 interface Game {
@@ -265,7 +266,7 @@ With `getRowId` set, a selected id is remapped to its fresh object reference whe
 
 ▶ [Try it in the demo](https://vatesfr.github.io/data-table/vue/#row-click)
 
-Listen to `@row-click` to react to a data row being clicked — it receives the full row object and the native click event, no key lookup needed. Group header rows, the aggregate row, and the selection checkbox cell never trigger it.
+Listen to `@row-click` to react to a data row being clicked — it receives the full row object and the native event, no key lookup needed. Group header rows, the aggregate row, and the selection checkbox cell never trigger it. A focused row also fires it on `Enter` (see "Keyboard navigation" above), so the event is `MouseEvent | KeyboardEvent`, not just `MouseEvent`.
 
 ```vue
 <DataTable
@@ -275,6 +276,27 @@ Listen to `@row-click` to react to a data row being clicked — it receives the 
   @row-click="(row, event) => console.log('clicked', row.name)"
 />
 ```
+
+## Header click sorting
+
+▶ [Try it in the demo](https://vatesfr.github.io/data-table/vue/#full-table)
+
+Clicking a column header is a single-column-sort shortcut, distinct from the Sort dropdown (which stays the tool for a deliberate multi-column sort with explicit priority):
+
+- **Plain click** sorts by that column alone, discarding every other active sort (`table.sort.replace(key)`) — or cycles its direction if it's already the sole active sort.
+- **Shift-click** adds the column to the existing multi-sort, or flips its direction in place if it's already part of it (`table.sort.appendOrToggle(key)`) — it never removes a column from the sort; use the active-bar chip's `×` or the Sort dropdown's remove button for that.
+
+The header's own sort-icon index (`1↑`, `2↓`, …) only appears once more than one currently-visible header is sorted.
+
+## Keyboard navigation
+
+Table rows use a **roving tabindex**: exactly one row — a data row or a group header — is a Tab stop at a time, and arrow keys move it:
+
+- `ArrowUp`/`ArrowDown` move focus, crossing page boundaries when paginated.
+- `Home`/`End` jump within the current page; `Ctrl`/`Cmd+Home`/`End` jump across all pages.
+- `Space` toggles the focused row's/group's selection (when `selectable`).
+- `Enter` fires `rowClick` on a data row, or toggles a group header's collapsed state.
+- `Shift+ArrowUp/Down/Home/End` range-selects from the last-clicked/focused anchor, same as shift-click.
 
 ## Column reordering
 
@@ -288,7 +310,7 @@ Drag a column header to reorder it, or drag a row (or press Alt+ArrowUp/Alt+Arro
 | ------------------------ | --------------------------------- | ------- | -------------------------------------------------------------- |
 | `data`                   | `TRow[]`                          | —       | Row data                                                       |
 | `columns`                | `ColumnDef<TRow>[]`               | —       | Column definitions                                             |
-| `rowKey`                 | `keyof TRow & string`             | —       | Vue `:key` only — not selection identity                       |
+| `rowKey`                 | `string`                          | —       | Vue `:key` only — not selection identity                       |
 | `defaultVisibleColumns`  | `string[]`                        | all     | Initially visible column keys                                  |
 | `labels`                 | `Partial<DataTableLabels>`        | English | UI string overrides                                            |
 | `defaultPageSize`        | `number`                          | 0 (off) | Initial rows per page; 0 disables pagination                   |
@@ -320,27 +342,33 @@ Omit either prop entirely to just let `<DataTable>` manage its own state, as bef
 
 ## Events
 
-| Event                | Payload                          | Description                                                                                  |
-| -------------------- | -------------------------------- | -------------------------------------------------------------------------------------------- |
-| `selectionChange`    | `TRow[]`                         | Emitted when selection changes; payload is the selected rows present in the filtered dataset |
-| `rowClick`           | `[row: TRow, event: MouseEvent]` | Emitted when a data row is clicked                                                           |
-| `update:page`        | `number`                         | Emitted whenever the current page changes — pair with `v-model:page`                         |
-| `update:searchQuery` | `string`                         | Emitted whenever the search query changes — pair with `v-model:search-query`                 |
+| Event                | Payload                                           | Description                                                                                  |
+| -------------------- | ------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `selectionChange`    | `TRow[]`                                          | Emitted when selection changes; payload is the selected rows present in the filtered dataset |
+| `rowClick`           | `[row: TRow, event: MouseEvent \| KeyboardEvent]` | Emitted when a data row is clicked or activated via Enter                                    |
+| `update:page`        | `number`                                          | Emitted whenever the current page changes — pair with `v-model:page`                         |
+| `update:searchQuery` | `string`                                          | Emitted whenever the search query changes — pair with `v-model:search-query`                 |
 
 ## Column definition
+
+This is a non-exhaustive illustrative subset — see core's [`ColumnDefBase`](../core/src/types.ts) for the full field list, including `parseDate`, `defaultSortDir`, `defaultValueSort`, and `searchable` below.
 
 ```ts
 interface ColumnDef<TRow extends object> {
   key: string // unique column id; used for row[key] lookup unless `value` is set
   label: string
   type?: 'string' | 'number' | 'date' // controls filter UI: checklist / range / year-month-day tree; default: 'string'
+  parseDate?: (value: string) => number // parses a `type: 'date'` column's raw value for sorting/filtering; default: `(v) => new Date(v).getTime()`
   width?: number
   value?: (row: TRow) => unknown // compute the cell value from the whole row (also covers aliasing)
   format?: (value: unknown, row: TRow) => string
   compare?: (a: unknown, b: unknown, dir: SortDir) => number // custom ordering for row sort, group order, and the filter checklist; see Custom sort order
+  defaultSortDir?: SortDir // direction a fresh sort on this column starts at; default: 'asc'; see Header click sorting
+  defaultValueSort?: ValueSort // starting sort order for this column's filter checklist/date tree; default: `{ by: 'alpha', dir: 'asc' }`
   sortable?: boolean // default: true
   filterable?: boolean // default: true
   groupable?: boolean // default: false
+  searchable?: boolean // excludes this column from global search; default: true
   groupValue?: (value: unknown, row: TRow) => unknown // bucket a groupBy value into a coarser group key; see Grouped columns
   groupFormat?: (keyPart: string) => string // render a groupValue bucket key in the group header
   multiMode?: 'and' | 'or' // match mode for array-valued columns; default: 'or'
@@ -382,7 +410,9 @@ const {
 
 const {
   entries: sorts,
-  toggle: toggleSort,
+  toggle: toggleSort, // append-or-cycle a column into the multi-sort; used by the Sort dropdown's "add" rows
+  replace: replaceSort, // (key: string) => void — sort by this column alone, discarding other sorts; header plain-click
+  appendOrToggle: appendOrToggleSort, // (key: string) => void — add/flip in place, never removes; header shift-click
   clear: clearSorts,
   icon: getSortIcon,
   index: getSortIndex,
