@@ -1,5 +1,14 @@
 <script setup lang="ts" generic="TRow extends object">
-import { computed, ref, shallowRef, watch, nextTick, useSlots, getCurrentInstance } from 'vue'
+import {
+  computed,
+  onUpdated,
+  ref,
+  shallowRef,
+  watch,
+  nextTick,
+  useSlots,
+  getCurrentInstance,
+} from 'vue'
 import {
   computeAggregate,
   computeStringValueCounts,
@@ -53,9 +62,17 @@ const slots = useSlots()
 // regardless of listener presence, matching the underlying emit's own semantics) and instead
 // passes its own listener-presence check through explicitly via `rowClickable` — falling back
 // to self-detection here only when `<DataTableView>` is used directly, with no such prop.
-const isRowClickable = computed(
-  () => props.rowClickable ?? !!getCurrentInstance()?.vnode.props?.onRowClick,
-)
+//
+// `vnode.props` isn't itself a reactive read, so a plain `computed` over it only re-runs when
+// `props.rowClickable` changes — self-detection would otherwise stay frozen at whatever it saw
+// on the very first evaluation. `selfDetected` is a ref re-derived in `onUpdated` (which runs
+// after every re-render, by which point `vnode.props` reflects the latest incoming listener)
+// instead, so a caller adding/removing `@row-click` after mount is picked up on the next render.
+const selfDetectedRowClickable = ref(!!getCurrentInstance()?.vnode.props?.onRowClick)
+onUpdated(() => {
+  selfDetectedRowClickable.value = !!getCurrentInstance()?.vnode.props?.onRowClick
+})
+const isRowClickable = computed(() => props.rowClickable ?? selfDetectedRowClickable.value)
 
 function handleRowClick(row: TRow, event: MouseEvent | KeyboardEvent) {
   emit('rowClick', row, event)

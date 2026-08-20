@@ -55,6 +55,19 @@ describe('DataTable — rowClick', () => {
     await wrapper.find('tbody tr input[type="checkbox"]').trigger('click')
     expect(wrapper.emitted('rowClick')).toBeFalsy()
   })
+
+  it('adds the clickable class once a rowClick listener is attached after mount, on the next render', async () => {
+    // isRowClickable used to be a one-time `getCurrentInstance()?.vnode.props?.onRowClick` read,
+    // frozen forever after setup — see the audit's "Vue rowClickable reactivity" finding. It's now
+    // re-derived in onUpdated, so a listener attached post-mount is picked up on the next render
+    // rather than staying frozen at whatever was true at mount time.
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS, columns: COLS, rowKey: 'id' },
+    })
+    expect(wrapper.find('tbody tr').classes()).not.toContain('dt__tr--clickable')
+    await wrapper.setProps({ onRowClick: vi.fn() })
+    expect(wrapper.find('tbody tr').classes()).toContain('dt__tr--clickable')
+  })
 })
 
 describe('DataTable — v-model:page / v-model:search-query', () => {

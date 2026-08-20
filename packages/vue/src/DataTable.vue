@@ -1,5 +1,5 @@
 <script setup lang="ts" generic="TRow extends object">
-import { getCurrentInstance, useSlots, watch, type Slots } from 'vue'
+import { getCurrentInstance, onUpdated, ref, useSlots, watch, type Slots } from 'vue'
 import { useTableState } from './useTableState'
 import DataTableView from './DataTableView.vue'
 import type { DataTableProps } from './types'
@@ -22,7 +22,16 @@ const emit = defineEmits<{
 // Detects whether our own caller passed a @row-click listener, so it can be forwarded to
 // DataTableView as an explicit `rowClickable` prop — the row-click emit itself is always
 // forwarded below regardless (clicking a row always emits, whether or not anyone's listening).
-const isRowClickable = !!getCurrentInstance()?.vnode.props?.onRowClick
+// `vnode.props` isn't reactive on its own (useAttrs() can't be used here — see this file's own
+// history/CLAUDE.md's "Row click" note: Vue strips `onRowClick` out of $attrs since `rowClick` is
+// a declared emit), so a plain one-time read would stay frozen forever if the caller added/removed
+// @row-click after mount. Re-deriving it in onUpdated (which runs after every re-render, by which
+// point `vnode.props` already reflects the latest incoming listener) keeps it current as of the
+// next render instead.
+const isRowClickable = ref(!!getCurrentInstance()?.vnode.props?.onRowClick)
+onUpdated(() => {
+  isRowClickable.value = !!getCurrentInstance()?.vnode.props?.onRowClick
+})
 
 function forwardRowClick(row: TRow, event: MouseEvent | KeyboardEvent): void {
   emit('rowClick', row, event)
