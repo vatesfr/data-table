@@ -22,3 +22,10 @@ export { DataTableView } from './DataTableView'
 export type { DataTableViewProps } from './DataTableView'
 export { DataTable } from './DataTable'
 export type { DataTableProps } from './DataTable'
+export { usePersistedView, useUrlView, resetView, usePersistence } from './persistence'
+export type {
+  ViewStateApi,
+  UseUrlViewOptions,
+  ResetViewOptions,
+  UsePersistenceOptions,
+} from './persistence'

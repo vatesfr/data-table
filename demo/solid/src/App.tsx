@@ -7,6 +7,10 @@ import {
   bucketDatePart,
   formatDatePart,
   compareMissingLast,
+  usePersistedView,
+  useUrlView,
+  resetView,
+  usePersistence,
   LABELS_EN,
   LABELS_FR,
   LABELS_DE,
@@ -15,7 +19,6 @@ import {
   type ColumnDef,
   type DataTableLabels,
 } from '@vates/data-table-solid'
-import { usePersistedView, useUrlView, resetView } from './persistence'
 import { badge } from './components/Badge'
 import { scoreBar } from './components/ScoreBar'
 import { HUGE_DATA, HUGE_COLUMNS, HUGE_ROW_COUNT } from './hugeData'
@@ -615,17 +618,21 @@ function EmployeeCards() {
 // Same built-in look as <DataTable>, but the caller owns createTableState — so
 // usePersistedView/useUrlView can reach it, unlike <DataTable> which builds its own
 // internal, unreachable state. Try reordering or hiding columns, then reload the page.
+//
+// Uses usePersistence — the combined localStorage+URL helper — instead of wiring
+// usePersistedView/useUrlView/resetView separately (as the other sections below do): one
+// VIEW_KEYS.persisted object feeds all three, so its storageKey/paramName can't drift out of
+// sync between them.
 function PersistedTable(props: { labels?: Partial<DataTableLabels> }) {
   const table = createTableState(SAMPLE_DATA, COLUMNS, {
     defaultVisibleColumns: PERSISTED_VISIBLE,
     labels: props.labels,
     defaultPageSize: 5,
   })
-  usePersistedView(table, VIEW_KEYS.persisted.storageKey)
-  useUrlView(table, { paramName: VIEW_KEYS.persisted.paramName })
+  const { reset } = usePersistence(table, VIEW_KEYS.persisted)
   return (
     <>
-      <ViewControls onReset={() => resetView(table, VIEW_KEYS.persisted)} />
+      <ViewControls onReset={reset} />
       <DataTableView table={table} rowKey="id" />
     </>
   )

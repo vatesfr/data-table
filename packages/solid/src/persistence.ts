@@ -1,12 +1,12 @@
 import { createEffect, on, onCleanup } from 'solid-js'
 import { encodeViewState, decodeViewState, type TableViewState } from '@vates/data-table-core'
 
-// @vates/data-table-solid has no usePersistedView/useUrlView-style helper of its own yet (see its
-// README's "View persistence & sharing" section) — react/vue each ship one, built on the exact
-// same getViewState()/setViewState() primitive this package's own createTableState also exposes.
-// This is the "plain createEffect" implementation the README itself sketches, fleshed out to the
-// same behavior as react/vue's own hooks so this demo can showcase persistence identically to
-// theirs. A future package version could promote this straight into @vates/data-table-solid.
+// Solid's own equivalent of react/vue's usePersistedView/useUrlView/usePersistence, built on the
+// exact same getViewState()/setViewState() primitive this package's own createTableState also
+// exposes — see CLAUDE.md's "View persistence" for the shared design across all three adapters.
+// Named to match react/vue's own hooks (rather than a Solid-conventional `createXxx` name) since
+// these are the same concept under the same API — cross-adapter consistency wins here over strict
+// per-framework naming convention.
 
 export interface ViewStateApi {
   getViewState(): TableViewState
@@ -15,9 +15,13 @@ export interface ViewStateApi {
 
 /**
  * Loads a persisted view from `localStorage` once and saves it back on every subsequent change.
- * `table` is typically the object returned by `createTableState`.
+ * `table` is typically the object returned by `createTableState`. `storageKey` may be `undefined`
+ * to no-op — this lets `usePersistence` below call this unconditionally regardless of whether
+ * storage persistence is actually wanted.
  */
-export function usePersistedView(table: ViewStateApi, storageKey: string): void {
+export function usePersistedView(table: ViewStateApi, storageKey: string | undefined): void {
+  if (!storageKey) return
+
   const stored = localStorage.getItem(storageKey)
   const view = stored ? decodeViewState(stored) : undefined
   if (view) table.setViewState(view)
@@ -27,7 +31,14 @@ export function usePersistedView(table: ViewStateApi, storageKey: string): void 
   createEffect(
     on(
       () => table.getViewState(),
-      (v) => localStorage.setItem(storageKey, encodeViewState(v)),
+      (v) => {
+        // Mirrors useUrlView's own empty-view handling below: a view back at its
+        // construction-time defaults removes the key entirely rather than storing an
+        // encoded-but-empty blob, so resetView's own removeItem isn't immediately undone by
+        // this effect's next run.
+        if (Object.keys(v).length === 0) localStorage.removeItem(storageKey)
+        else localStorage.setItem(storageKey, encodeViewState(v))
+      },
       { defer: true },
     ),
   )
@@ -97,4 +108,23 @@ export function resetView(table: ViewStateApi, options?: ResetViewOptions): void
     const url = `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash}`
     window.history.replaceState(null, '', url)
   }
+}
+
+export type UsePersistenceOptions = ResetViewOptions
+
+/**
+ * Combines `usePersistedView` + `useUrlView` behind one options object, so `storageKey`/
+ * `paramName` are written down once instead of separately at three call sites (`usePersistedView`,
+ * `useUrlView`, and `resetView` all need the *same* values — a typo'd/forgotten key at any one of
+ * them is a silent bug). Returns a `reset()` bound to those same options, equivalent to calling
+ * `resetView(table, options)` yourself.
+ */
+export function usePersistence(
+  table: ViewStateApi,
+  options: UsePersistenceOptions = {},
+): { reset: () => void } {
+  const { storageKey, paramName } = options
+  usePersistedView(table, storageKey)
+  useUrlView(table, { paramName })
+  return { reset: () => resetView(table, { storageKey, paramName }) }
 }

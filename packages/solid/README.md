@@ -69,25 +69,22 @@ return <DataTableView table={table} data={table.data()} columns={table.columns()
 
 ## View persistence & sharing
 
-There's no `usePersistedView`/`useUrlView`-style helper in this package yet (React/Vue each have one) — `getViewState()`/`setViewState()` capture and apply a serializable snapshot of sort, filters, groups, page, etc. (everything except selection, which is identity-based and not meaningful to persist or share), and a plain `createEffect` reading `table.getViewState()` covers the same ground in a couple of lines:
+▶ [Try it in the demo](https://vatesfr.github.io/data-table/solid/#persisted-table)
+
+`getViewState()`/`setViewState()` capture and apply a serializable snapshot of sort, filters, groups, page, etc. — everything except selection, which is identity-based and not meaningful to persist or share. Opt-in helpers wire this up to `localStorage` and the URL, matching React/Vue's own:
 
 ```tsx
-import { createEffect } from 'solid-js'
-import { decodeViewState, encodeViewState } from '@vates/data-table-core'
+import { createTableState, usePersistence } from '@vates/data-table-solid'
 
 const table = createTableState(data, columns)
-
-// Restore once on mount...
-const stored = localStorage.getItem('my-table-view')
-if (stored) table.setViewState(decodeViewState(stored) ?? {})
-
-// ...and save on every subsequent change.
-createEffect(() => {
-  localStorage.setItem('my-table-view', encodeViewState(table.getViewState()))
-})
+const { reset } = usePersistence(table, { storageKey: 'my-table-view', paramName: 'view' })
 ```
 
-▶ [Try it in the demo](https://vatesfr.github.io/data-table/solid/#persisted-table) — the demo's own `usePersistedView`/`useUrlView` (`demo/solid/src/persistence.ts`) are a fleshed-out version of exactly this pattern, matching react/vue's own hooks.
+`usePersistence` combines `usePersistedView` (loads on mount, saves on every change) and `useUrlView` (loads from `?view=...` on mount and on back/forward navigation, writes back via `history.replaceState`) behind one options object, so `storageKey`/`paramName` are written down once instead of separately at each call site. Its returned `reset()` puts the table back to its construction-time defaults and clears whatever was persisted — equivalent to calling `resetView(table, { storageKey: 'my-table-view', paramName: 'view' })` yourself. Use `usePersistedView`/`useUrlView`/`resetView` directly instead if you only want one of the two (e.g. URL sharing with no `localStorage`).
+
+To persist a view somewhere else (e.g. a backend), call `getViewState()`/`setViewState(view)` directly — these helpers work with any object shaped like `{ getViewState(), setViewState(view) }`.
+
+`<DataTable>` builds its own `createTableState` internally, so these helpers can't reach it — see the `createTableState`/`DataTableView` section above for the split that lets you own the state yourself.
 
 ## Selection, row click, keyboard navigation, view persistence
 

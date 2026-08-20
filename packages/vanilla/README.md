@@ -359,35 +359,35 @@ interface ColumnDef<TRow extends object> {
 
 ▶ [Try it in the demo](https://vatesfr.github.io/data-table/vanilla/#persisted-table)
 
-`getViewState()`/`setViewState()` capture and apply a serializable snapshot of sort, filters, groups, page, etc. — everything except selection, which is identity-based and not meaningful to persist or share. Two opt-in helpers wire this up to `localStorage` and the URL:
+`getViewState()`/`setViewState()` capture and apply a serializable snapshot of sort, filters, groups, page, etc. — everything except selection, which is identity-based and not meaningful to persist or share. `persistView` wires this up to both `localStorage` and the URL from one options object:
 
 ```ts
-import {
-  createDataTable,
-  persistViewToLocalStorage,
-  syncViewToUrl,
-} from '@vates/data-table-vanilla'
+import { createDataTable, persistView } from '@vates/data-table-vanilla'
 
 const table = createDataTable(container, { data, columns })
-const unpersist = persistViewToLocalStorage(table, 'my-table-view') // survives reloads
-const unsync = syncViewToUrl(table) // reflected in ?view=... — reload the page or share the link
+const { reset, unsubscribe } = persistView(table, {
+  storageKey: 'my-table-view',
+  paramName: 'view',
+})
 
-// call these alongside table.destroy() if the table can be torn down before a full page unload
-unpersist()
-unsync()
+// call this alongside table.destroy() if the table can be torn down before a full page unload
+unsubscribe()
 ```
 
-`persistViewToLocalStorage(table, storageKey)` loads the view immediately and saves it on every change (via `onViewChange`). `syncViewToUrl(table, { paramName? })` loads from the URL immediately and on back/forward navigation, and writes back via `history.replaceState` (so sort/filter tweaks don't spam browser history). Both only act when their source actually has a view to apply — composed together, a plain reload with no `view` param keeps the localStorage-restored view instead of resetting it.
+`persistView` combines `persistViewToLocalStorage` (loads immediately, saves on every change via `onViewChange`) and `syncViewToUrl` (loads from `?view=...` immediately and on back/forward navigation, writes back via `history.replaceState`) — both only act when their source actually has a view to apply, so a plain reload with no `view` param keeps the localStorage-restored view instead of resetting it. Its returned `reset()` puts the table back to its construction-time defaults and clears whatever was persisted (equivalent to `resetView(table, options)`); `unsubscribe()` stops both.
 
-To persist a view somewhere else (e.g. a backend), call `getViewState()`/`setViewState(view)`/`onViewChange(cb)` directly — the two helpers above work with any object shaped like that, so `table` (or anything else with that shape) can be passed in.
-
-`resetView(table, { storageKey?, paramName? })` puts a table back to its construction-time defaults and clears whatever `persistViewToLocalStorage`/`syncViewToUrl` persisted for it — pass the same `storageKey`/`paramName` you gave those functions (both optional, since you might only be using one of them):
+Use `persistViewToLocalStorage(table, storageKey)`/`syncViewToUrl(table, { paramName? })`/`resetView(table, { storageKey?, paramName? })` directly instead if you only want one of the two (e.g. URL sharing with no `localStorage`) — pass the same `storageKey`/`paramName` to each, since `persistView` is just these three sharing one options object under the hood:
 
 ```ts
-import { resetView } from '@vates/data-table-vanilla'
+import { createDataTable, syncViewToUrl, resetView } from '@vates/data-table-vanilla'
 
-resetButton.addEventListener('click', () => resetView(table, { storageKey: 'my-table-view' }))
+const table = createDataTable(container, { data, columns })
+const unsync = syncViewToUrl(table) // reflected in ?view=... — reload the page or share the link
+
+resetButton.addEventListener('click', () => resetView(table))
 ```
+
+To persist a view somewhere else (e.g. a backend), call `getViewState()`/`setViewState(view)`/`onViewChange(cb)` directly — these helpers work with any object shaped like that, so `table` (or anything else with that shape) can be passed in.
 
 ## i18n
 

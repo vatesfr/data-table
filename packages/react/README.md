@@ -354,27 +354,33 @@ const {
 
 ▶ [Try it in the demo](https://vatesfr.github.io/data-table/react/#persisted-table)
 
-`getViewState()`/`setViewState()` capture and apply a serializable snapshot of sort, filters, groups, page, etc. — everything except selection, which is identity-based and not meaningful to persist or share. Two opt-in hooks wire this up to `localStorage` and the URL:
+`getViewState()`/`setViewState()` capture and apply a serializable snapshot of sort, filters, groups, page, etc. — everything except selection, which is identity-based and not meaningful to persist or share. `usePersistence` wires this up to both `localStorage` and the URL from one options object:
 
 ```tsx
-import { useTableState, usePersistedView, useUrlView } from '@vates/data-table-react'
+import { useTableState, usePersistence } from '@vates/data-table-react'
 
 const table = useTableState(data, columns)
-usePersistedView(table, 'my-table-view') // survives reloads
-useUrlView(table) // reflected in ?view=... — reload the page or share the link
+const { reset } = usePersistence(table, { storageKey: 'my-table-view', paramName: 'view' })
 ```
 
-`usePersistedView(table, storageKey)` loads the view on mount and saves it on every change. `useUrlView(table, { paramName? })` loads from the URL on mount and on back/forward navigation, and writes back via `history.replaceState` (so sort/filter tweaks don't spam browser history). Both only act when their source actually has a view to apply — composed together, a plain reload with no `view` param keeps the localStorage-restored view instead of resetting it.
-
-To persist a view somewhere else (e.g. a backend), call `getViewState()`/`setViewState(view)` directly — `usePersistedView`/`useUrlView` work with any object shaped like `{ getViewState(), setViewState(view) }`, so `table` (or anything else with that shape) can be passed in.
-
-`resetView(table, { storageKey?, paramName? })` puts a table back to its construction-time defaults and clears whatever `usePersistedView`/`useUrlView` persisted for it — pass the same `storageKey`/`paramName` you gave those hooks (both optional, since you might only be using one of them):
+`usePersistence` combines `usePersistedView` (loads on mount, saves on every change) and `useUrlView` (loads from `?view=...` on mount and on back/forward navigation, writes back via `history.replaceState`) — both only act when their source actually has a view to apply, so a plain reload with no `view` param keeps the localStorage-restored view instead of resetting it. Its returned `reset()` puts the table back to its construction-time defaults and clears whatever was persisted:
 
 ```tsx
-import { resetView } from '@vates/data-table-react'
-
-;<button onClick={() => resetView(table, { storageKey: 'my-table-view' })}>Reset</button>
+;<button onClick={reset}>Reset</button>
 ```
+
+Use `usePersistedView(table, storageKey)`/`useUrlView(table, { paramName? })`/`resetView(table, { storageKey?, paramName? })` directly instead if you only want one of the two (e.g. URL sharing with no `localStorage`) — pass the same `storageKey`/`paramName` to each, since `usePersistence` is just these three sharing one options object under the hood:
+
+```tsx
+import { useTableState, usePersistedView, useUrlView, resetView } from '@vates/data-table-react'
+
+const table = useTableState(data, columns)
+useUrlView(table) // reflected in ?view=... — reload the page or share the link
+
+;<button onClick={() => resetView(table)}>Reset</button>
+```
+
+To persist a view somewhere else (e.g. a backend), call `getViewState()`/`setViewState(view)` directly — these helpers work with any object shaped like `{ getViewState(), setViewState(view) }`, so `table` (or anything else with that shape) can be passed in.
 
 `<DataTable>` builds its own `useTableState` internally, so these hooks can't reach it — see `DataTableView` below for the built-in UI wired to a `useTableState` instance you own.
 
@@ -385,15 +391,14 @@ import { resetView } from '@vates/data-table-react'
 `<DataTable>` is `useTableState` + a render layer bundled together, with no way to reach the state from outside. `DataTableView` is that same render layer, taking a `useTableState` result as a prop instead of creating its own — so you get the identical built-in UI while keeping full external access to it (persistence, imperative selection control, or anything else `useTableState` returns):
 
 ```tsx
-import { useTableState, usePersistedView, useUrlView, DataTableView } from '@vates/data-table-react'
+import { useTableState, usePersistence, DataTableView } from '@vates/data-table-react'
 
 function EmployeeTable() {
   const table = useTableState(employees, COLUMNS, {
     defaultVisibleColumns: DEFAULT_VISIBLE,
     defaultPageSize: 20,
   })
-  usePersistedView(table, 'employee-table-view')
-  useUrlView(table)
+  usePersistence(table, { storageKey: 'employee-table-view', paramName: 'view' })
   return <DataTableView table={table} data={employees} columns={COLUMNS} rowKey="id" />
 }
 ```
