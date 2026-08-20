@@ -74,5 +74,17 @@ export interface DataTableInstance<TRow extends object = Record<string, unknown>
   setSelection(rows: TRow[]): void
   /** Empties the selection — e.g. to wire an external "Clear selection" button. */
   clearSelection(): void
+  /** Changes the row DOM-key property after construction — see `DataTableOptions.rowKey`. */
+  setRowKey(key: keyof TRow & string): void
+  /** Toggles whether rows show selection checkboxes after construction. */
+  setSelectable(value: boolean): void
+  /** Changes (or clears, passing `undefined`) the row-click callback after construction. */
+  setOnRowClick(cb: ((row: TRow, event: MouseEvent | KeyboardEvent) => void) | undefined): void
+  /** Replaces the label overrides after construction — see `DataTableOptions.labels`. */
+  setLabels(labels: Partial<DataTableLabels> | undefined): void
+  /** Changes whether newly-grouped groups start collapsed after construction. */
+  setDefaultGroupsCollapsed(value: boolean): void
+  /** Changes (or clears, passing `undefined`) the selection-identity function after construction. */
+  setGetRowId(getRowId: GetRowId<TRow> | undefined): void
   destroy(): void
 }

@@ -266,6 +266,34 @@ describe('createDataTable', () => {
     expect(colHeaders(container)).not.toContain('Name')
   })
 
+  it('setLabels replaces label overrides after construction, without recreating the table', () => {
+    const table = createDataTable(container, { data: ROWS, columns: COLS })
+    expect(container.querySelector('.dt-stats')?.textContent).toContain('4 / 4 rows')
+    table.setLabels({ rowCount: (filtered, total) => `${filtered} of ${total} custom` })
+    expect(container.querySelector('.dt-stats')?.textContent).toBe('4 of 4 custom')
+  })
+
+  it('setSelectable toggles row checkboxes after construction', () => {
+    const table = createDataTable(container, { data: ROWS, columns: COLS })
+    expect(container.querySelector('thead input[type="checkbox"]')).toBeNull()
+    table.setSelectable(true)
+    expect(container.querySelector('thead input[type="checkbox"]')).not.toBeNull()
+    table.setSelectable(false)
+    expect(container.querySelector('thead input[type="checkbox"]')).toBeNull()
+  })
+
+  it('setRowKey/setOnRowClick/setDefaultGroupsCollapsed/setGetRowId are callable after construction', () => {
+    // These have no easily-observable DOM effect on their own (rowKey is a rendering-identity
+    // hint only; the others are exercised via their own dedicated describe blocks elsewhere) — this
+    // just confirms none of them throw and the table keeps rendering normally afterward.
+    const table = createDataTable(container, { data: ROWS, columns: COLS })
+    table.setRowKey('name')
+    table.setOnRowClick(() => {})
+    table.setDefaultGroupsCollapsed(false)
+    table.setGetRowId((row: Row) => row.id)
+    expect(container.querySelectorAll('tbody tr').length).toBeGreaterThan(0)
+  })
+
   it('destroy clears the container', () => {
     const table = createDataTable(container, { data: ROWS, columns: COLS })
     table.destroy()

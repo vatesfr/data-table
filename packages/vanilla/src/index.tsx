@@ -1,5 +1,5 @@
 import { render } from 'solid-js/web'
-import { createRoot, createEffect, on } from 'solid-js'
+import { createRoot, createEffect, createSignal, on } from 'solid-js'
 import { createTableState, DataTableView } from '@vates/data-table-solid'
 import {
   bucketNumericRange,
@@ -8,6 +8,7 @@ import {
   formatDatePart,
   compareMissingLast,
 } from '@vates/data-table-core'
+import type { GetRowId } from '@vates/data-table-core'
 import type { ColumnDef, DataTableOptions, DataTableInstance } from './types'
 
 export type { ColumnDef, DataTableOptions, DataTableInstance }
@@ -43,8 +44,6 @@ export function createDataTable<TRow extends object>(
   container: HTMLElement,
   options: DataTableOptions<TRow>,
 ): DataTableInstance<TRow> {
-  const { rowKey, selectable = false, onRowClick } = options
-
   let dispose!: () => void
   let disposeView!: () => void
   let table!: ReturnType<typeof createTableState<TRow>>
@@ -55,15 +54,36 @@ export function createDataTable<TRow extends object>(
   const selectionChangeListeners = new Set<(rows: TRow[]) => void>()
   if (options.onSelectionChange) selectionChangeListeners.add(options.onSelectionChange)
 
+  // Each of these six options is now backed by its own signal, so it can be changed after
+  // construction (via the matching `setXxx` returned below) without recreating the table —
+  // `rowKey`/`selectable`/`onRowClick` because `DataTableView`/`TableBody` already read their
+  // own props lazily (a signal call passed directly as a JSX prop stays live through Solid's
+  // compiled prop getters, the same mechanism that already keeps `table` itself live), and
+  // `labels`/`defaultGroupsCollapsed`/`getRowId` because `createTableState` now accepts its whole
+  // `options` argument as an Accessor (see that package's own doc comment). `defaultVisibleColumns`/
+  // `defaultPageSize` stay plain, one-time values — `createTableState` only ever seeds from them
+  // once regardless, matching every other adapter's documented frozen behavior for those two.
+  const [rowKey, setRowKeySignal] = createSignal(options.rowKey)
+  const [selectable, setSelectableSignal] = createSignal(options.selectable ?? false)
+  // `onRowClick`/`getRowId` are themselves functions, so Solid's setter overloads can't tell them
+  // apart from a functional updater — wrap each write in a thunk, the same workaround
+  // `createTableState`'s own `selectionAnchor` signal already uses for the same reason.
+  const [onRowClick, setOnRowClickSignal] = createSignal(options.onRowClick)
+  const [labels, setLabelsSignal] = createSignal(options.labels)
+  const [defaultGroupsCollapsed, setDefaultGroupsCollapsedSignal] = createSignal(
+    options.defaultGroupsCollapsed,
+  )
+  const [getRowId, setGetRowIdSignal] = createSignal(options.getRowId)
+
   createRoot((d) => {
     dispose = d
-    table = createTableState(options.data, options.columns, {
+    table = createTableState(options.data, options.columns, () => ({
       defaultVisibleColumns: options.defaultVisibleColumns,
-      labels: options.labels,
+      labels: labels(),
       defaultPageSize: options.defaultPageSize,
-      defaultGroupsCollapsed: options.defaultGroupsCollapsed,
-      getRowId: options.getRowId,
-    })
+      defaultGroupsCollapsed: defaultGroupsCollapsed(),
+      getRowId: getRowId(),
+    }))
 
     // Fires on every subsequent change to any view-affecting signal (sort/filter/group/page/etc,
     // see getViewState) — `on(..., { defer: true })` skips the initial run at mount, matching the
@@ -101,9 +121,9 @@ export function createDataTable<TRow extends object>(
       () => (
         <DataTableView
           table={table}
-          rowKey={rowKey}
-          selectable={selectable}
-          onRowClick={onRowClick}
+          rowKey={rowKey()}
+          selectable={selectable()}
+          onRowClick={onRowClick()}
         />
       ),
       container,
@@ -126,6 +146,17 @@ export function createDataTable<TRow extends object>(
     getSelection: () => [...table.selection.all()],
     setSelection: (rows: TRow[]) => table.selection.setAll(rows),
     clearSelection: () => table.selection.clear(),
+    // Wrapped in a thunk even though `key` is never actually a function: TS can't prove a
+    // generic `keyof TRow & string` excludes `Function` structurally, so Solid's setter overload
+    // resolution rejects a bare value here — same generic-signal friction as `getRowId`/
+    // `onRowClick` above, just for a type-system reason rather than a real runtime ambiguity.
+    setRowKey: (key: keyof TRow & string) => setRowKeySignal(() => key),
+    setSelectable: (value: boolean) => setSelectableSignal(value),
+    setOnRowClick: (cb: ((row: TRow, event: MouseEvent | KeyboardEvent) => void) | undefined) =>
+      setOnRowClickSignal(() => cb),
+    setLabels: (next: DataTableOptions<TRow>['labels']) => setLabelsSignal(next),
+    setDefaultGroupsCollapsed: (value: boolean) => setDefaultGroupsCollapsedSignal(value),
+    setGetRowId: (next: GetRowId<TRow> | undefined) => setGetRowIdSignal(() => next),
     destroy: () => {
       disposeView()
       dispose()
