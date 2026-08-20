@@ -1,6 +1,5 @@
 import { Show, createSignal } from 'solid-js'
 import type { TableState } from './createTableState'
-import type { ColumnDef } from './types'
 import { injectStyles } from './styles'
 import { SearchBox } from './components/SearchBox'
 import { ColumnsDropdown } from './components/ColumnsDropdown'
@@ -13,8 +12,6 @@ import { Pagination } from './components/Pagination'
 
 export interface DataTableViewProps<TRow extends object> {
   table: TableState<TRow>
-  data: TRow[]
-  columns: ColumnDef<TRow>[]
   /**
    * A row property used as a stable DOM key for table rows (falls back to array index when
    * omitted). Purely a rendering-identity hint — it is **not** used for selection, which is
@@ -38,7 +35,7 @@ export function DataTableView<TRow extends object>(props: DataTableViewProps<TRo
   injectStyles()
   const { table } = props
   const [openDropdown, setOpenDropdown] = createSignal<DropdownId | null>(null)
-  const groupableCols = () => props.columns.filter((c) => c.groupable === true)
+  const groupableCols = () => table.columns().filter((c) => c.groupable === true)
 
   function toggleDd(id: DropdownId): void {
     setOpenDropdown((cur) => (cur === id ? null : id))
@@ -50,14 +47,14 @@ export function DataTableView<TRow extends object>(props: DataTableViewProps<TRo
         <div class="dt-toolbar-actions">
           <ColumnsDropdown
             table={table}
-            columns={props.columns}
+            columns={table.columns()}
             isOpen={openDropdown() === 'cols'}
             onToggle={() => toggleDd('cols')}
             onClose={() => setOpenDropdown(null)}
           />
           <SortDropdown
             table={table}
-            columns={props.columns}
+            columns={table.columns()}
             isOpen={openDropdown() === 'sort'}
             onToggle={() => toggleDd('sort')}
             onClose={() => setOpenDropdown(null)}
@@ -75,7 +72,7 @@ export function DataTableView<TRow extends object>(props: DataTableViewProps<TRo
           <SearchBox table={table} />
           <FilterDropdown
             table={table}
-            columns={props.columns}
+            columns={table.columns()}
             isOpen={openDropdown() === 'filter'}
             onToggle={() => toggleDd('filter')}
             onClose={() => setOpenDropdown(null)}
@@ -96,15 +93,15 @@ export function DataTableView<TRow extends object>(props: DataTableViewProps<TRo
       </div>
       <ActiveBar
         table={table}
-        columns={props.columns}
+        columns={table.columns()}
         groupableCols={groupableCols()}
-        totalRows={props.data.length}
+        totalRows={table.data().length}
         onOpenGroup={() => setOpenDropdown('group')}
         onOpenFilter={() => setOpenDropdown('filter')}
       />
       <TableBody
         table={table}
-        columns={props.columns}
+        columns={table.columns()}
         rowKey={props.rowKey}
         selectable={props.selectable}
         onRowClick={props.onRowClick}

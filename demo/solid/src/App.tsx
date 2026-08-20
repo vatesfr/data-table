@@ -626,7 +626,7 @@ function PersistedTable(props: { labels?: Partial<DataTableLabels> }) {
   return (
     <>
       <ViewControls onReset={() => resetView(table, VIEW_KEYS.persisted)} />
-      <DataTableView table={table} data={table.data()} columns={table.columns()} rowKey="id" />
+      <DataTableView table={table} rowKey="id" />
     </>
   )
 }
@@ -645,7 +645,7 @@ function FullTable(props: { labels?: Partial<DataTableLabels> }) {
   return (
     <>
       <ViewControls onReset={() => resetView(table, VIEW_KEYS.full)} />
-      <DataTableView table={table} data={table.data()} columns={table.columns()} rowKey="id" />
+      <DataTableView table={table} rowKey="id" />
     </>
   )
 }
@@ -669,13 +669,7 @@ function SelectionTable(props: {
   return (
     <>
       <ViewControls onReset={() => resetView(table, VIEW_KEYS.selection)} />
-      <DataTableView
-        table={table}
-        data={table.data()}
-        columns={table.columns()}
-        rowKey="id"
-        selectable
-      />
+      <DataTableView table={table} rowKey="id" selectable />
     </>
   )
 }
@@ -694,13 +688,7 @@ function ClickTable(props: {
   return (
     <>
       <ViewControls onReset={() => resetView(table, VIEW_KEYS.click)} />
-      <DataTableView
-        table={table}
-        data={table.data()}
-        columns={table.columns()}
-        rowKey="id"
-        onRowClick={(row) => props.onRowClick(row)}
-      />
+      <DataTableView table={table} rowKey="id" onRowClick={(row) => props.onRowClick(row)} />
     </>
   )
 }
@@ -714,7 +702,7 @@ function HugeTable() {
   return (
     <>
       <ViewControls onReset={() => resetView(table, VIEW_KEYS.huge)} />
-      <DataTableView table={table} data={table.data()} columns={table.columns()} rowKey="id" />
+      <DataTableView table={table} rowKey="id" />
     </>
   )
 }

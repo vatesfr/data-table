@@ -77,8 +77,6 @@ export function createDataTable<TRow extends object>(
       () => (
         <DataTableView
           table={table}
-          data={table.data()}
-          columns={table.columns()}
           rowKey={rowKey}
           selectable={selectable}
           onRowClick={onRowClick}

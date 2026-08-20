@@ -1,12 +1,18 @@
 import { createEffect, on } from 'solid-js'
 import { createTableState } from './createTableState'
 import { DataTableView, type DataTableViewProps } from './DataTableView'
+import type { ColumnDef } from './types'
 import type { DataTableLabels } from '@vates/data-table-core'
 
 export interface DataTableProps<TRow extends object> extends Omit<
   DataTableViewProps<TRow>,
   'table'
 > {
+  // `DataTableView` reads these from `table` (see its own props — no separate data/columns props
+  // there), but `<DataTable>` builds that `table` itself via `createTableState`, so it still needs
+  // them as its own inputs.
+  data: TRow[]
+  columns: ColumnDef<TRow>[]
   defaultVisibleColumns?: string[]
   labels?: Partial<DataTableLabels>
   defaultPageSize?: number
@@ -52,8 +58,6 @@ export function DataTable<TRow extends object>(props: DataTableProps<TRow>) {
   return (
     <DataTableView
       table={table}
-      data={table.data()}
-      columns={table.columns()}
       rowKey={props.rowKey}
       selectable={props.selectable}
       onRowClick={props.onRowClick}
