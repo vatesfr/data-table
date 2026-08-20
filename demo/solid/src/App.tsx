@@ -302,9 +302,8 @@ const COLUMNS: ColumnDef<Employee>[] = [
   { key: 'id', label: 'ID', type: 'number', width: 60, sortable: false, filterable: false },
   { key: 'name', label: 'Name', type: 'string', width: 160 },
   // groupable + render: a real DOM node badge (this package's ColumnDef.render returns a Node, not
-  // JSX — see components/Badge.ts). Unlike React, there's no renderFilterLabel equivalent here
-  // (it's a React-only field on top of core's ColumnDefBase) — the filter checklist below shows
-  // this column's raw string values even though its cells render a colored badge.
+  // JSX — see components/Badge.ts). renderFilterLabel mirrors it in the filter checklist, so the
+  // same badge shows there instead of the raw string.
   {
     key: 'department',
     label: 'Department',
@@ -312,6 +311,7 @@ const COLUMNS: ColumnDef<Employee>[] = [
     width: 130,
     groupable: true,
     render: (v) => badge(String(v), DEPT_COLORS),
+    renderFilterLabel: (v) => badge(v, DEPT_COLORS),
   },
   { key: 'role', label: 'Role', type: 'string', width: 140, groupable: true },
   // format: plain string — use this when no custom node is needed; the numeric range filter (2
@@ -362,7 +362,8 @@ const COLUMNS: ColumnDef<Employee>[] = [
     aggregate: 'avg',
     format: (v) => Number(v).toLocaleString('en-US', { maximumFractionDigits: 1 }),
   },
-  // render — badge consistent with the Department column above (no renderFilterLabel here either)
+  // render + renderFilterLabel — badge consistent in cells and the filter dropdown, same as
+  // Department above.
   {
     key: 'status',
     label: 'Status',
@@ -370,6 +371,7 @@ const COLUMNS: ColumnDef<Employee>[] = [
     width: 90,
     groupable: true,
     render: (v) => badge(String(v), STATUS_COLORS),
+    renderFilterLabel: (v) => badge(v, STATUS_COLORS),
   },
   // render returns a DOM node — use render (not format) when the cell isn't plain text.
   // compareMissingLast() (issue #15) keeps a not-yet-reviewed employee's row last in the Score
@@ -624,11 +626,13 @@ function EmployeeCards() {
 // VIEW_KEYS.persisted object feeds all three, so its storageKey/paramName can't drift out of
 // sync between them.
 function PersistedTable(props: { labels?: Partial<DataTableLabels> }) {
-  const table = createTableState(SAMPLE_DATA, COLUMNS, {
+  // options passed as an accessor (rather than a plain object) so `labels` stays live — see the
+  // "locale switcher" note in App() below.
+  const table = createTableState(SAMPLE_DATA, COLUMNS, () => ({
     defaultVisibleColumns: PERSISTED_VISIBLE,
     labels: props.labels,
     defaultPageSize: 5,
-  })
+  }))
   const { reset } = usePersistence(table, VIEW_KEYS.persisted)
   return (
     <>
@@ -642,11 +646,11 @@ function PersistedTable(props: { labels?: Partial<DataTableLabels> }) {
 // DataTableView instead of <DataTable>) purely so this section can also reach
 // usePersistedView/useUrlView/resetView — nothing about the table's own features changes.
 function FullTable(props: { labels?: Partial<DataTableLabels> }) {
-  const table = createTableState(SAMPLE_DATA, COLUMNS, {
+  const table = createTableState(SAMPLE_DATA, COLUMNS, () => ({
     defaultVisibleColumns: DEFAULT_VISIBLE,
     labels: props.labels,
     defaultPageSize: 5,
-  })
+  }))
   usePersistedView(table, VIEW_KEYS.full.storageKey)
   useUrlView(table, { paramName: VIEW_KEYS.full.paramName })
   return (
@@ -661,11 +665,11 @@ function SelectionTable(props: {
   labels?: Partial<DataTableLabels>
   onSelectionChange: (rows: Employee[]) => void
 }) {
-  const table = createTableState(SAMPLE_DATA, COLUMNS, {
+  const table = createTableState(SAMPLE_DATA, COLUMNS, () => ({
     defaultVisibleColumns: SELECTION_VISIBLE,
     labels: props.labels,
     defaultPageSize: 5,
-  })
+  }))
   usePersistedView(table, VIEW_KEYS.selection.storageKey)
   useUrlView(table, { paramName: VIEW_KEYS.selection.paramName })
   // DataTableViewProps has no onSelectionChange (that convenience only exists on <DataTable>,
@@ -685,11 +689,11 @@ function ClickTable(props: {
   labels?: Partial<DataTableLabels>
   onRowClick: (row: Employee) => void
 }) {
-  const table = createTableState(SAMPLE_DATA, COLUMNS, {
+  const table = createTableState(SAMPLE_DATA, COLUMNS, () => ({
     defaultVisibleColumns: CLICK_VISIBLE,
     labels: props.labels,
     defaultPageSize: 5,
-  })
+  }))
   usePersistedView(table, VIEW_KEYS.click.storageKey)
   useUrlView(table, { paramName: VIEW_KEYS.click.paramName })
   return (
@@ -895,15 +899,11 @@ export default function App() {
       <p style={{ 'font-size': '12px', color: 'var(--color-text-secondary)', margin: '0 0 16px' }}>
         📖 <DocLink anchor="usage">Package docs</DocLink>
       </p>
-      {/* <Show ... keyed> remounts this section (a fresh createTableState) whenever the locale
-          changes, rather than mutating labels in place: createTableState's `labels` option is
-          read once at construction (unlike react/vue's useTableState, re-invoked every render with
-          fresh props) — see createTableState.ts. A full remount is the Solid-idiomatic stand-in for
-          React's `key` prop here, and usePersistedView/useUrlView re-hydrate synchronously on the
-          very same pass, so no visible flash of default state follows the remount. */}
-      <Show when={localeKey()} keyed>
-        {(locale) => <FullTable labels={LOCALES[locale]} />}
-      </Show>
+      {/* labels={LOCALES[localeKey()]} stays live with no remount: FullTable passes its whole
+          createTableState options as an accessor (rather than a plain object), so the `labels`
+          memo inside createTableState re-reads `props.labels` whenever this prop expression's
+          own dependency (localeKey) changes — see createTableState.ts's `L = createMemo(...)`. */}
+      <FullTable labels={LOCALES[localeKey()]} />
 
       <h2
         id="row-selection"
@@ -986,9 +986,7 @@ export default function App() {
           </button>
         </div>
       </Show>
-      <Show when={localeKey()} keyed>
-        {(locale) => <SelectionTable labels={LOCALES[locale]} onSelectionChange={setSelected} />}
-      </Show>
+      <SelectionTable labels={LOCALES[localeKey()]} onSelectionChange={setSelected} />
 
       <h2
         id="row-click"
@@ -1023,9 +1021,7 @@ export default function App() {
           </div>
         )}
       </Show>
-      <Show when={localeKey()} keyed>
-        {(locale) => <ClickTable labels={LOCALES[locale]} onRowClick={setClicked} />}
-      </Show>
+      <ClickTable labels={LOCALES[localeKey()]} onRowClick={setClicked} />
 
       <h2
         id="custom-layout"
@@ -1064,9 +1060,7 @@ export default function App() {
         built-in UI from a <code>createTableState</code> instance you own instead — reorder or hide
         a column, then reload the page.
       </p>
-      <Show when={localeKey()} keyed>
-        {(locale) => <PersistedTable labels={LOCALES[locale]} />}
-      </Show>
+      <PersistedTable labels={LOCALES[localeKey()]} />
 
       <h2
         id="huge-dataset"
