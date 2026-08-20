@@ -68,12 +68,12 @@ describe('DataTableView', () => {
       />,
     )
     act(() => {
-      table!.toggleRowSelection(ROWS[0])
+      table!.selection.toggle(ROWS[0])
     })
-    expect(table!.selectedRows).toEqual([ROWS[0]])
+    expect(table!.selection.rows).toEqual([ROWS[0]])
     act(() => {
-      table!.clearSelection()
+      table!.selection.clear()
     })
-    expect(table!.selectedRows).toEqual([])
+    expect(table!.selection.rows).toEqual([])
   })
 })

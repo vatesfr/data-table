@@ -534,7 +534,8 @@ function fmtSalary(n: number) {
 // (localStorage) and round-trips through "Copy share link" (URL query param).
 function EmployeeCards() {
   const table = useTableState(SAMPLE_DATA, COLUMNS)
-  const { processedData, getSortIcon, toggleSort } = table
+  const { processedData } = table
+  const { icon: getSortIcon, toggle: toggleSort } = table.sort
   usePersistedView(table, VIEW_KEYS.custom.storageKey)
   useUrlView(table, { paramName: VIEW_KEYS.custom.paramName })
 

@@ -35,7 +35,7 @@ describe('usePersistedView', () => {
       usePersistedView(table, 'key1')
       return table
     })
-    expect(result.current.sorts).toEqual([{ key: 'score', dir: 'desc' }])
+    expect(result.current.sort.entries).toEqual([{ key: 'score', dir: 'desc' }])
   })
 
   it('saves the view to localStorage when it changes', () => {
@@ -45,7 +45,7 @@ describe('usePersistedView', () => {
       return table
     })
     act(() => {
-      result.current.toggleSort('score')
+      result.current.sort.toggle('score')
     })
     expect(decodeViewState(localStorage.getItem('key2')!)).toEqual({
       sorts: [{ key: 'score', dir: 'asc' }],
@@ -71,7 +71,7 @@ describe('useUrlView', () => {
       useUrlView(table)
       return table
     })
-    expect(result.current.searchQuery).toBe('abc')
+    expect(result.current.search.query).toBe('abc')
   })
 
   it('writes the view to the URL when it changes', () => {
@@ -81,7 +81,7 @@ describe('useUrlView', () => {
       return table
     })
     act(() => {
-      result.current.setSearchQuery('xyz')
+      result.current.search.setQuery('xyz')
     })
     const encoded = new URLSearchParams(window.location.search).get('view')
     expect(decodeViewState(encoded!)).toEqual({ searchQuery: 'xyz' })
@@ -94,10 +94,10 @@ describe('useUrlView', () => {
       return table
     })
     act(() => {
-      result.current.setSearchQuery('xyz')
+      result.current.search.setQuery('xyz')
     })
     act(() => {
-      result.current.setSearchQuery('')
+      result.current.search.setQuery('')
     })
     expect(new URLSearchParams(window.location.search).has('view')).toBe(false)
   })
@@ -109,7 +109,7 @@ describe('useUrlView', () => {
       return table
     })
     act(() => {
-      result.current.setSearchQuery('xyz')
+      result.current.search.setQuery('xyz')
     })
     expect(new URLSearchParams(window.location.search).has('v')).toBe(true)
   })
@@ -124,7 +124,7 @@ describe('usePersistedView + useUrlView composed', () => {
       useUrlView(table)
       return table
     })
-    expect(result.current.sorts).toEqual([{ key: 'score', dir: 'desc' }])
+    expect(result.current.sort.entries).toEqual([{ key: 'score', dir: 'desc' }])
   })
 })
 
@@ -136,7 +136,7 @@ describe('usePersistence', () => {
       usePersistence(table, { storageKey: 'key7', paramName: 'v' })
       return table
     })
-    expect(result.current.sorts).toEqual([{ key: 'score', dir: 'desc' }])
+    expect(result.current.sort.entries).toEqual([{ key: 'score', dir: 'desc' }])
   })
 
   it('saves to both localStorage and the URL when the view changes', () => {
@@ -146,7 +146,7 @@ describe('usePersistence', () => {
       return table
     })
     act(() => {
-      result.current.setSearchQuery('xyz')
+      result.current.search.setQuery('xyz')
     })
     expect(decodeViewState(localStorage.getItem('key8')!)).toEqual({ searchQuery: 'xyz' })
     expect(new URLSearchParams(window.location.search).has('v')).toBe(true)
@@ -159,7 +159,7 @@ describe('usePersistence', () => {
       return table
     })
     act(() => {
-      result.current.setSearchQuery('xyz')
+      result.current.search.setQuery('xyz')
     })
     expect(localStorage.length).toBe(0)
     expect(new URLSearchParams(window.location.search).has('v')).toBe(true)
@@ -172,13 +172,13 @@ describe('usePersistence', () => {
       return { table, reset }
     })
     act(() => {
-      result.current.table.setSearchQuery('xyz')
+      result.current.table.search.setQuery('xyz')
     })
     expect(localStorage.getItem('key9')).not.toBeNull()
     act(() => result.current.reset())
     expect(localStorage.getItem('key9')).toBeNull()
     expect(new URLSearchParams(window.location.search).has('v')).toBe(false)
-    expect(result.current.table.searchQuery).toBe('')
+    expect(result.current.table.search.query).toBe('')
   })
 })
 
@@ -186,12 +186,12 @@ describe('resetView', () => {
   it('resets live state to construction-time defaults', () => {
     const { result } = renderHook(() => useTableState(ROWS, COLS))
     act(() => {
-      result.current.toggleSort('score')
-      result.current.setSearchQuery('xyz')
+      result.current.sort.toggle('score')
+      result.current.search.setQuery('xyz')
     })
     act(() => resetView(result.current))
-    expect(result.current.sorts).toEqual([])
-    expect(result.current.searchQuery).toBe('')
+    expect(result.current.sort.entries).toEqual([])
+    expect(result.current.search.query).toBe('')
   })
 
   it('clears the given localStorage key', () => {
@@ -208,7 +208,7 @@ describe('resetView', () => {
       return table
     })
     act(() => {
-      result.current.setSearchQuery('xyz')
+      result.current.search.setQuery('xyz')
     })
     expect(new URLSearchParams(window.location.search).has('v')).toBe(true)
     act(() => resetView(result.current, { paramName: 'v' }))
