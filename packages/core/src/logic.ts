@@ -22,19 +22,28 @@ export function getColumnValue<TRow extends object>(col: ColumnDefBase<TRow>, ro
 }
 
 /**
- * Reads a column's cell value and coerces it per `col.type`, so every type-aware comparison
+ * Coerces an already-obtained raw value per `col.type`, so every type-aware comparison
  * (currently just sort) agrees on what a column's value *means* instead of each call site
  * guessing independently from the raw value's runtime `typeof` — the root cause behind both
  * the date/string sort mismatch (issue #10) and the same-shaped bug for numeric-string values
  * in a `type: 'number'` column. `'date'` parses via `col.parseDate` (default `new Date`),
  * `'number'` coerces via `Number`; anything else (including untyped/computed columns) passes
- * the raw value through unchanged, preserving numeric sort for plain numbers with no `type` set.
+ * the value through unchanged, preserving numeric sort for plain numbers with no `type` set.
+ * Shared by `getComparableValue` (a row's own cell value) and `comparableFromKeyPart` (a group's
+ * already-stringified `keyPart`) — same coercion, different source for the raw value.
  */
-function getComparableValue<TRow extends object>(col: ColumnDefBase<TRow>, row: TRow): unknown {
-  const raw = getColumnValue(col, row)
-  if (col.type === 'date') return (col.parseDate ?? defaultParseDate)(raw as string)
-  if (col.type === 'number') return Number(raw)
+function coerceByType<TRow extends object>(
+  col: ColumnDefBase<TRow> | undefined,
+  raw: unknown,
+): unknown {
+  if (col?.type === 'date') return (col.parseDate ?? defaultParseDate)(raw as string)
+  if (col?.type === 'number') return Number(raw)
   return raw
+}
+
+/** Reads a column's cell value and coerces it per `col.type` — see `coerceByType`. */
+function getComparableValue<TRow extends object>(col: ColumnDefBase<TRow>, row: TRow): unknown {
+  return coerceByType(col, getColumnValue(col, row))
 }
 
 /**
@@ -128,7 +137,7 @@ export function processData<TRow extends object>(
   filters: Record<string, Set<string>>,
   rangeFilters: Record<string, RangeFilter>,
   sorts: SortEntry[],
-  columns: ColumnDefBase<TRow>[] = [],
+  columns: ColumnDefBase<TRow>[],
   emptyLabel = '(none)',
   excludeFilters: Record<string, Set<string>> = {},
 ): TRow[] {
@@ -202,7 +211,7 @@ export interface GroupResult<TRow extends object> {
 export function groupData<TRow extends object>(
   data: TRow[],
   groupBy: string[],
-  columns: ColumnDefBase<TRow>[] = [],
+  columns: ColumnDefBase<TRow>[],
   emptyLabel = '(none)',
 ): GroupResult<TRow>[] {
   if (groupBy.length === 0) return [{ key: null, keyParts: [], rows: data }]
@@ -226,14 +235,12 @@ export function groupData<TRow extends object>(
   return Object.entries(groups).map(([key, { keyParts, rows }]) => ({ key, keyParts, rows }))
 }
 
-/** Same type-aware coercion as `getComparableValue`, applied to a group's own string `keyPart` instead of a row. */
+/** Same type-aware coercion as `getComparableValue`, applied to a group's own string `keyPart` instead of a row — see `coerceByType`. */
 function comparableFromKeyPart<TRow extends object>(
   col: ColumnDefBase<TRow> | undefined,
   keyPart: string,
 ): unknown {
-  if (col?.type === 'date') return (col.parseDate ?? defaultParseDate)(keyPart)
-  if (col?.type === 'number') return Number(keyPart)
-  return keyPart
+  return coerceByType(col, keyPart)
 }
 
 /**
@@ -268,7 +275,7 @@ export function sortWithinGroups<TRow extends object>(
   groups: GroupResult<TRow>[],
   sorts: SortEntry[],
   groupBy: string[],
-  columns: ColumnDefBase<TRow>[] = [],
+  columns: ColumnDefBase<TRow>[],
 ): GroupResult<TRow>[] {
   const colByKey = new Map<string, ColumnDefBase<TRow>>(columns.map((c) => [c.key, c]))
   const groupSorts = sorts.filter((s) => groupBy.includes(s.key))
@@ -847,12 +854,8 @@ export function toggleFilterAll(
   key: string,
   values: string[],
 ): Record<string, Set<string>> {
-  const current = filters[key] ?? new Set<string>()
-  const someSelected = values.some((v) => current.has(v))
-  const next = new Set(current)
-  if (someSelected) values.forEach((v) => next.delete(v))
-  else values.forEach((v) => next.add(v))
-  return { ...filters, [key]: next }
+  const someSelected = values.some((v) => filters[key]?.has(v))
+  return setFilterValues(filters, key, values, !someSelected)
 }
 
 /**

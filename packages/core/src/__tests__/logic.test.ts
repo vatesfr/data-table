@@ -288,36 +288,42 @@ describe('compareMissingLast', () => {
 
 describe('processData', () => {
   it('returns all rows when no filters or sorts', () => {
-    expect(processData(ROWS, {}, {}, [])).toEqual(ROWS)
+    expect(processData(ROWS, {}, {}, [], [])).toEqual(ROWS)
   })
 
   it('filters by a string checklist', () => {
-    const result = processData(ROWS, { dept: new Set(['Eng']) }, {}, [])
+    const result = processData(ROWS, { dept: new Set(['Eng']) }, {}, [], [])
     expect(result.map((r) => r.name)).toEqual(['Alice', 'Clara'])
   })
 
   it('ignores an empty filter set (shows all)', () => {
-    const result = processData(ROWS, { dept: new Set() }, {}, [])
+    const result = processData(ROWS, { dept: new Set() }, {}, [], [])
     expect(result).toHaveLength(4)
   })
 
   it('filters by multiple columns (AND logic)', () => {
-    const result = processData(ROWS, { dept: new Set(['Eng']), name: new Set(['Clara']) }, {}, [])
+    const result = processData(
+      ROWS,
+      { dept: new Set(['Eng']), name: new Set(['Clara']) },
+      {},
+      [],
+      [],
+    )
     expect(result.map((r) => r.name)).toEqual(['Clara'])
   })
 
   it('applies a numeric range min filter', () => {
-    const result = processData(ROWS, {}, { salary: { min: '80000', max: '' } }, [])
+    const result = processData(ROWS, {}, { salary: { min: '80000', max: '' } }, [], [])
     expect(result.map((r) => r.name)).toEqual(['Alice', 'Clara'])
   })
 
   it('applies a numeric range max filter', () => {
-    const result = processData(ROWS, {}, { salary: { min: '', max: '65000' } }, [])
+    const result = processData(ROWS, {}, { salary: { min: '', max: '65000' } }, [], [])
     expect(result.map((r) => r.name)).toEqual(['Bob'])
   })
 
   it('applies min and max together', () => {
-    const result = processData(ROWS, {}, { salary: { min: '65000', max: '95000' } }, [])
+    const result = processData(ROWS, {}, { salary: { min: '65000', max: '95000' } }, [], [])
     expect(result.map((r) => r.name)).toEqual(['Alice', 'David'])
   })
 
@@ -328,17 +334,17 @@ describe('processData', () => {
   })
 
   it('sorts ascending by string column', () => {
-    const result = processData(ROWS, {}, {}, [{ key: 'name', dir: 'asc' }])
+    const result = processData(ROWS, {}, {}, [{ key: 'name', dir: 'asc' }], [])
     expect(result.map((r) => r.name)).toEqual(['Alice', 'Bob', 'Clara', 'David'])
   })
 
   it('sorts descending by string column', () => {
-    const result = processData(ROWS, {}, {}, [{ key: 'name', dir: 'desc' }])
+    const result = processData(ROWS, {}, {}, [{ key: 'name', dir: 'desc' }], [])
     expect(result.map((r) => r.name)).toEqual(['David', 'Clara', 'Bob', 'Alice'])
   })
 
   it('sorts ascending by numeric column', () => {
-    const result = processData(ROWS, {}, {}, [{ key: 'salary', dir: 'asc' }])
+    const result = processData(ROWS, {}, {}, [{ key: 'salary', dir: 'asc' }], [])
     expect(result.map((r) => r.salary)).toEqual([60000, 70000, 90000, 110000])
   })
 
@@ -442,19 +448,23 @@ describe('processData', () => {
   })
 
   it('applies sort after filter', () => {
-    const result = processData(ROWS, { dept: new Set(['Eng']) }, {}, [
-      { key: 'salary', dir: 'desc' },
-    ])
+    const result = processData(
+      ROWS,
+      { dept: new Set(['Eng']) },
+      {},
+      [{ key: 'salary', dir: 'desc' }],
+      [],
+    )
     expect(result.map((r) => r.name)).toEqual(['Clara', 'Alice'])
   })
 
   it('matches array-valued columns by intersection (or semantics, default)', () => {
-    const result = processData(GAMES, { tags: new Set(['Action']) }, {}, [])
+    const result = processData(GAMES, { tags: new Set(['Action']) }, {}, [], [])
     expect(result.map((r) => r.name)).toEqual(['Game A', 'Game B'])
   })
 
   it('matches array-valued columns with any selected value (or semantics)', () => {
-    const result = processData(GAMES, { tags: new Set(['Adventure', 'RPG']) }, {}, [])
+    const result = processData(GAMES, { tags: new Set(['Adventure', 'RPG']) }, {}, [], [])
     expect(result.map((r) => r.name)).toEqual(['Game A', 'Game B', 'Game C'])
   })
 
@@ -465,7 +475,7 @@ describe('processData', () => {
   })
 
   it('matches rows with an empty array against the "(none)" bucket by default', () => {
-    const result = processData(GAMES_WITH_EMPTY, { tags: new Set(['(none)']) }, {}, [])
+    const result = processData(GAMES_WITH_EMPTY, { tags: new Set(['(none)']) }, {}, [], [])
     expect(result.map((r) => r.name)).toEqual(['Game D'])
   })
 
@@ -615,12 +625,12 @@ describe('processData', () => {
 
 describe('groupData', () => {
   it('returns a single null-key group when groupBy is empty', () => {
-    const result = groupData(ROWS, [])
+    const result = groupData(ROWS, [], [])
     expect(result).toEqual([{ key: null, keyParts: [], rows: ROWS }])
   })
 
   it('groups rows by a single column', () => {
-    const result = groupData(ROWS, ['dept'])
+    const result = groupData(ROWS, ['dept'], [])
     expect(result).toHaveLength(2)
     expect(result.find((g) => g.key === 'Eng')?.rows).toHaveLength(2)
     expect(result.find((g) => g.key === 'HR')?.rows).toHaveLength(2)
@@ -643,19 +653,19 @@ describe('groupData', () => {
   })
 
   it('builds composite keys for multi-column grouping', () => {
-    const result = groupData(ROWS, ['dept', 'name'])
+    const result = groupData(ROWS, ['dept', 'name'], [])
     expect(result.map((g) => g.key)).toContain('Eng › Alice')
     expect(result.map((g) => g.key)).toContain('HR › Bob')
   })
 
   it('exposes keyParts aligned with groupBy for each group', () => {
-    const result = groupData(ROWS, ['dept', 'name'])
+    const result = groupData(ROWS, ['dept', 'name'], [])
     const eng = result.find((g) => g.key === 'Eng › Alice')
     expect(eng?.keyParts).toEqual(['Eng', 'Alice'])
   })
 
   it('fans an array-valued column out into one group per item', () => {
-    const result = groupData(GAMES, ['tags'])
+    const result = groupData(GAMES, ['tags'], [])
     expect(result.map((g) => g.key).sort()).toEqual(['Action', 'Adventure', 'RPG'])
     expect(result.find((g) => g.key === 'Action')?.rows.map((r) => r.name)).toEqual([
       'Game A',
@@ -669,14 +679,14 @@ describe('groupData', () => {
 
   it('cross-products an array-valued column with another groupBy column', () => {
     const gamesWithDev = GAMES.map((g) => ({ ...g, dev: g.id === 2 ? 'Studio B' : 'Studio A' }))
-    const result = groupData(gamesWithDev, ['dev', 'tags'])
+    const result = groupData(gamesWithDev, ['dev', 'tags'], [])
     expect(result.map((g) => g.key).sort()).toEqual(
       ['Studio A › Action', 'Studio A › RPG', 'Studio B › Action', 'Studio B › Adventure'].sort(),
     )
   })
 
   it('buckets rows with an empty array under a "(none)" group by default', () => {
-    const result = groupData(GAMES_WITH_EMPTY, ['tags'])
+    const result = groupData(GAMES_WITH_EMPTY, ['tags'], [])
     expect(result.map((g) => g.key).sort()).toEqual(['(none)', 'Action', 'Adventure', 'RPG'])
     expect(result.find((g) => g.key === '(none)')?.rows.map((r) => r.name)).toEqual(['Game D'])
   })
@@ -735,7 +745,7 @@ describe('sortWithinGroups', () => {
   ]
 
   it("sorts rows within each group by the secondary key, ignoring the grouped multi-value column's own whole-array comparison (issue #12)", () => {
-    const groups = groupData(SCORED_GAMES, ['tags'])
+    const groups = groupData(SCORED_GAMES, ['tags'], [])
     const sorted = sortWithinGroups(
       groups,
       [
@@ -743,6 +753,7 @@ describe('sortWithinGroups', () => {
         { key: 'score', dir: 'asc' },
       ],
       ['tags'],
+      [],
     )
     expect(sorted.find((g) => g.key === 'Action')?.rows.map((r) => r.name)).toEqual([
       'Game D',
@@ -752,8 +763,8 @@ describe('sortWithinGroups', () => {
   })
 
   it('respects a descending direction on the remaining sort key', () => {
-    const groups = groupData(SCORED_GAMES, ['tags'])
-    const sorted = sortWithinGroups(groups, [{ key: 'score', dir: 'desc' }], ['tags'])
+    const groups = groupData(SCORED_GAMES, ['tags'], [])
+    const sorted = sortWithinGroups(groups, [{ key: 'score', dir: 'desc' }], ['tags'], [])
     expect(sorted.find((g) => g.key === 'Action')?.rows.map((r) => r.name)).toEqual([
       'Game A',
       'Game B',
@@ -762,14 +773,14 @@ describe('sortWithinGroups', () => {
   })
 
   it('reorders the groups themselves ascending by their own key when the sort key is the groupBy column (issue #12)', () => {
-    const groups = groupData(SCORED_GAMES, ['tags'])
-    const sorted = sortWithinGroups(groups, [{ key: 'tags', dir: 'asc' }], ['tags'])
+    const groups = groupData(SCORED_GAMES, ['tags'], [])
+    const sorted = sortWithinGroups(groups, [{ key: 'tags', dir: 'asc' }], ['tags'], [])
     expect(sorted.map((g) => g.key)).toEqual(['Action', 'Adventure', 'RPG'])
   })
 
   it('reorders the groups themselves descending when dir is desc', () => {
-    const groups = groupData(SCORED_GAMES, ['tags'])
-    const sorted = sortWithinGroups(groups, [{ key: 'tags', dir: 'desc' }], ['tags'])
+    const groups = groupData(SCORED_GAMES, ['tags'], [])
+    const sorted = sortWithinGroups(groups, [{ key: 'tags', dir: 'desc' }], ['tags'], [])
     expect(sorted.map((g) => g.key)).toEqual(['RPG', 'Adventure', 'Action'])
   })
 
@@ -840,8 +851,8 @@ describe('sortWithinGroups', () => {
   })
 
   it('returns the groups unchanged when sorts is empty', () => {
-    const groups = groupData(SCORED_GAMES, ['tags'])
-    expect(sortWithinGroups(groups, [], ['tags'])).toBe(groups)
+    const groups = groupData(SCORED_GAMES, ['tags'], [])
+    expect(sortWithinGroups(groups, [], ['tags'], [])).toBe(groups)
   })
 
   it('orders bucketed groups (groupValue) numerically off the bucket key, not lexicographically', () => {
@@ -937,14 +948,14 @@ describe('formatDatePart', () => {
 
 describe('getVisibleRows', () => {
   it('flattens an ungrouped result (single null-key group) as-is, with no group header items', () => {
-    const groups = groupData(ROWS, [])
+    const groups = groupData(ROWS, [], [])
     expect(getVisibleRows(groups, new Set())).toEqual(
       ROWS.map((row) => ({ kind: 'row', row, groupKey: null })),
     )
   })
 
   it('includes one group header item per group plus its rows in order when none are collapsed', () => {
-    const groups = groupData(ROWS, ['dept'])
+    const groups = groupData(ROWS, ['dept'], [])
     const visible = getVisibleRows(groups, new Set())
     const headerKeys = visible.filter((i) => i.kind === 'group').map((i) => i.key)
     expect(headerKeys.sort()).toEqual(['Eng', 'HR'])
@@ -957,7 +968,7 @@ describe('getVisibleRows', () => {
   })
 
   it("omits a collapsed group's rows but keeps its header item reachable", () => {
-    const groups = groupData(ROWS, ['dept'])
+    const groups = groupData(ROWS, ['dept'], [])
     const visible = getVisibleRows(groups, new Set(['Eng']))
     expect(visible.some((i) => i.kind === 'group' && i.key === 'Eng')).toBe(true)
     expect(visible.some((i) => i.kind === 'row' && i.row.dept === 'Eng')).toBe(false)
@@ -965,7 +976,7 @@ describe('getVisibleRows', () => {
   })
 
   it('collapses every group by default when defaultCollapsed is true, except those toggled back open', () => {
-    const groups = groupData(ROWS, ['dept'])
+    const groups = groupData(ROWS, ['dept'], [])
     const visible = getVisibleRows(groups, new Set(['Eng']), true)
     expect(visible.some((i) => i.kind === 'row' && i.row.dept === 'Eng')).toBe(true)
     expect(visible.some((i) => i.kind === 'row' && i.row.dept === 'HR')).toBe(false)
@@ -977,7 +988,7 @@ describe('getVisibleRows', () => {
 describe('paginateVisibleGroups', () => {
   // groupData(ROWS, ['dept']) => Eng:[Alice, Clara], HR:[Bob, David] (first-seen order)
   it("splits an expanded group's rows across pages and repeats its header as 'continued'", () => {
-    const groupedFull = groupData(ROWS, ['dept'])
+    const groupedFull = groupData(ROWS, ['dept'], [])
     const visible = getVisibleRows(groupedFull, new Set())
     // visible = [group Eng, row Alice, row Clara, group HR, row Bob, row David] (6 items)
 
@@ -1005,7 +1016,7 @@ describe('paginateVisibleGroups', () => {
   })
 
   it("backfills a collapsed group's rows from the full group instead of its (empty) visible slice", () => {
-    const groupedFull = groupData(ROWS, ['dept'])
+    const groupedFull = groupData(ROWS, ['dept'], [])
     const collapsedGroups = new Set(['Eng'])
     const visible = getVisibleRows(groupedFull, collapsedGroups)
     // visible = [group Eng (collapsed, no rows), group HR, row Bob, row David] (4 items)
@@ -1030,7 +1041,7 @@ describe('paginateVisibleGroups', () => {
   })
 
   it('reduces to plain data-row pagination with a single null-key chunk when ungrouped', () => {
-    const groupedFull = groupData(ROWS, [])
+    const groupedFull = groupData(ROWS, [], [])
     const visible = getVisibleRows(groupedFull, new Set())
     const page1 = paginateVisibleGroups(groupedFull, visible, new Set(), false, 1, 2)
     expect(page1).toEqual([
@@ -1045,7 +1056,7 @@ describe('paginateVisibleGroups', () => {
   })
 
   it('counts header rows toward the page budget: numPages grows with an expanded group, shrinks when collapsed', () => {
-    const groupedFull = groupData(ROWS, ['dept'])
+    const groupedFull = groupData(ROWS, ['dept'], [])
     const expanded = getVisibleRows(groupedFull, new Set())
     const collapsed = getVisibleRows(groupedFull, new Set(['Eng', 'HR']))
     expect(calcTotalPages(expanded.length, 2)).toBe(3) // 6 items (2 headers + 4 rows) / 2
@@ -1057,7 +1068,7 @@ describe('paginateVisibleGroups', () => {
 
 describe('paginateVisibleItems', () => {
   it("prepends a synthetic continuation header when a page's slice starts mid-group", () => {
-    const groupedFull = groupData(ROWS, ['dept'])
+    const groupedFull = groupData(ROWS, ['dept'], [])
     const visible = getVisibleRows(groupedFull, new Set())
     const page2 = paginateVisibleItems(visible, 2, 2)
     expect(page2).toEqual([
@@ -1068,12 +1079,12 @@ describe('paginateVisibleItems', () => {
   })
 
   it('does not prepend anything when a page starts on a real header or ungrouped data', () => {
-    const groupedFull = groupData(ROWS, ['dept'])
+    const groupedFull = groupData(ROWS, ['dept'], [])
     const visible = getVisibleRows(groupedFull, new Set())
     const page1 = paginateVisibleItems(visible, 1, 2)
     expect(page1[0]).toEqual({ kind: 'group', key: 'Eng' })
 
-    const ungrouped = getVisibleRows(groupData(ROWS, []), new Set())
+    const ungrouped = getVisibleRows(groupData(ROWS, [], []), new Set())
     const ungroupedPage2 = paginateVisibleItems(ungrouped, 2, 2)
     expect(ungroupedPage2).toEqual([
       { kind: 'row', row: ROWS[2], groupKey: null },
@@ -1134,7 +1145,7 @@ describe('isSameVisibleItem / indexOfVisibleItem', () => {
   })
 
   it('indexOfVisibleItem finds the matching item, or -1 for null/absent target', () => {
-    const groups = groupData(ROWS, ['dept'])
+    const groups = groupData(ROWS, ['dept'], [])
     const items = getVisibleRows(groups, new Set())
     expect(indexOfVisibleItem(items, null)).toBe(-1)
     expect(indexOfVisibleItem(items, { kind: 'group', key: 'Eng' })).toBeGreaterThanOrEqual(0)
