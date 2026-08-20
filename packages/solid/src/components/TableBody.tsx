@@ -93,7 +93,7 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
       if (g.key !== null) items.push({ kind: 'group', key: g.key })
       const collapsed =
         g.key !== null &&
-        isGroupCollapsed(table.collapsedGroups(), g.key, table.defaultGroupsCollapsed)
+        isGroupCollapsed(table.collapsedGroups(), g.key, table.defaultGroupsCollapsed())
       if (!collapsed || g.key === null) for (const row of g.rows) items.push({ kind: 'row', row })
     }
     return items.filter((item) => item.kind === 'group' || rowNavEnabled())
@@ -327,7 +327,7 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
                     !isGroupCollapsed(
                       table.collapsedGroups(),
                       group().key!,
-                      table.defaultGroupsCollapsed,
+                      table.defaultGroupsCollapsed(),
                     )
                   }
                 >
@@ -383,7 +383,7 @@ interface GroupHeaderRowProps<TRow extends object> {
 function GroupHeaderRow<TRow extends object>(props: GroupHeaderRowProps<TRow>) {
   const { table } = props
   const isCollapsed = createMemo(() =>
-    isGroupCollapsed(table.collapsedGroups(), props.group.key!, table.defaultGroupsCollapsed),
+    isGroupCollapsed(table.collapsedGroups(), props.group.key!, table.defaultGroupsCollapsed()),
   )
   const groupAllSelected = createMemo(
     () => props.group.rows.length > 0 && props.group.rows.every((r) => table.selection().has(r)),

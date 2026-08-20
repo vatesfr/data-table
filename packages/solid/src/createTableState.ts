@@ -229,7 +229,11 @@ export function createTableState<TRow extends object>(
     page,
     pageSize,
     searchQuery,
-    defaultGroupsCollapsed,
+    // Fixed at construction (no setter — `options.defaultGroupsCollapsed` isn't meant to change at
+    // runtime), but still exposed as a same-shaped accessor rather than a bare value so every "raw
+    // state" entry on this object is called the same way (`table.defaultGroupsCollapsed()`), not a
+    // one-off exception a consumer has to remember.
+    defaultGroupsCollapsed: () => defaultGroupsCollapsed,
     // Derived
     selectedRows,
     processedData,
