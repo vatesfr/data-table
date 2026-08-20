@@ -21,7 +21,7 @@ SortEntry                           // { key: string; dir: 'asc' | 'desc' }
 RangeFilter                         // { min: string; max: string }
 ValueSort                           // { by: 'alpha' | 'count'; dir: 'asc' | 'desc' } — a filter checklist's value sort order
 DataTableLabels                     // all UI strings + 4 pluralization functions + emptyValue
-TableViewState                      // serializable snapshot of visibleCols/columnOrder/sorts/filters/rangeFilters/groupBy/collapsedGroups/page/pageSize/searchQuery (not selection)
+TableViewState                      // serializable snapshot of visibleCols/columnOrder/sorts/filters/excludeFilters/rangeFilters/groupBy/collapsedGroups/page/pageSize/searchQuery (not selection)
 DEFAULT_LABELS                      // English defaults (alias for LABELS_EN)
 LABELS_EN                           // English
 LABELS_FR                           // French
@@ -32,38 +32,138 @@ LABELS_PT                           // Portuguese
 
 ### Pure functions
 
+#### Filtering
+
 ```ts
-getColumnValue(col, row) // read a column's cell value: row[col.key], or col.value(row) if value is set
-processData(data, filters, rangeFilters, sorts, columns, emptyLabel?) // filter + sort rows; columns needed for array-valued (multiMode) filters and computed columns, emptyLabel for empty-array rows (default '(none)')
-groupData(rows, groupBy, columns, emptyLabel?) // group sorted rows; array-valued columns fan a row into one group per item, empty arrays bucket under emptyLabel; columns needed to group by a computed column
+processData(data, filters, rangeFilters, sorts, columns, emptyLabel?, excludeFilters?) // filter + sort rows; columns needed for array-valued (multiMode) filters and computed columns, emptyLabel for empty-array rows (default '(none)'), excludeFilters for "not one of these" values
 computeStringValues(data, columns, emptyLabel?) // build filter value lists; array values are flattened and deduped, empty arrays contribute emptyLabel
-paginateData(data, page, pageSize) // slice rows for the current page (pageSize 0 → all)
-computeTotalPages(count, pageSize) // total page count (pageSize 0 → 1)
-paginateVisibleGroups(groupedFull, visibleItems, collapsedGroups, defaultCollapsed, page, pageSize) // re-chunk a page's slice of visibleItems back into PagedGroup[] for rendering, counting header rows toward the page budget
-paginateVisibleItems(visibleItems, page, pageSize) // per-page slice of visibleItems for keyboard nav, with a synthetic continuation header prepended when the page starts mid-group
-mergePageSizeOptions(options, pageSize) // insert pageSize into a "rows per page" option list (sorted) if it's missing, so a custom page size still shows correctly in a <select>
-toggleSort(sorts, key) // cycle asc → desc → off
+computeStringValueCounts(data, filters, rangeFilters, columns, emptyLabel?, targetKeys?, excludeFilters?) // per-value facet counts (rows matching every *other* active filter); targetKeys scopes computation to just the columns needed, for performance
 cycleFilterValue(filters, excludeFilters, key, value) // cycle a checklist value neutral → include → exclude → neutral
-filterValuesBySearch(values, term) // narrow a checklist's values by a case-insensitive substring
+clearExcludeValues(excludeFilters, key, values) // remove values from key's exclude set, keeping cycleFilterValue's "never in both sets" invariant after a batch include action
+filterValuesBySearch(values, term) // narrow a checklist's values by a case- and diacritic-insensitive substring
 filterValuesByRange(values, range, parseDate?) // narrow a date column's checklist/tree values to those within range's bounds (filterValuesBySearch's sibling, for the range filter above a date tree)
+filterValuesByCount(values, counts, selected) // drop checklist values with a facet count of 0, except already-selected ones
 computeValueBounds(data, col) // a number/date column's actual min/max across data, for a range filter's slider bounds; null if no row has a parseable value
 toggleFilterAll(filters, key, values) // deselect all given values if any is selected, else select all of them
+setFilterValues(filters, key, values, selected) // set values for key to selected unconditionally (backs shift-click range selection)
+selectRange(items, anchor, target) // contiguous run of items between anchor and target (inclusive), for shift-click range selection over a rendered list
 sortFilterValues(values, counts, sort, compare?) // reorder a filter checklist's values by ValueSort (alphabetical or by facet count, asc/desc); compare mirrors the column's own ColumnDefBase.compare
-compareMissingLast(compare?, isMissing?) // ready-made ColumnDefBase.compare that pins a value (missing data, by default) last regardless of sort direction
 cycleValueSort(sort) // advance a ValueSort: alpha-asc → alpha-desc → count-desc → count-asc → alpha-asc
-toggleSortDir(dir) // flip 'asc' | 'desc' (used for the date tree's own asc/desc toggle)
+toggleSortDir(dir) // flip 'asc' | 'desc' (also used for the date tree's own asc/desc toggle)
 getValueSortIcon(sort) // compact icon for a ValueSort, e.g. 'ABC ↑' or '# ↓'
 getDateSortIcon(dir) // compact icon for a date tree's sort direction, '↑' | '↓'
-toggleGroupBy(groupBy, key) // add/remove a group key
-toggleCollapse(collapsed, key) // toggle a collapsed group
-getOrderedColumns(columns, order) // sort columns per an order array of keys; columns missing from order are appended at the end
-reorderColumn(order, dragKey, targetKey, after = false) // move dragKey to just before targetKey (or just after, if after is true) (drag-and-drop)
-moveColumnBy(order, key, delta) // swap key with its neighbor delta positions away (e.g. -1/+1 for up/down buttons)
+countActiveFilters(filters, rangeFilters, excludeFilters?) // total active filter count
+```
+
+See [docs/filter-dropdown.md](../../docs/filter-dropdown.md) for the full master-detail filter dropdown design.
+
+#### Date tree / filter checklist
+
+```ts
+DateTreeNode                                          // { key, path, values, children } — one level of a type:'date' column's filter tree
+computeDateTree(values, emptyLabel?, dir?, parseDate?) // group a date column's checklist values into a Year › Month › Day tree
+getDateTreeNodeState(node, selected)                  // 'checked' | 'unchecked' | 'indeterminate' for a date-tree node given selected filter values
+sumDateTreeNodeCount(node, counts)                    // sum facet counts (computeStringValueCounts-style) across every raw value under a node
+findDateTreeNode(nodes, path)                         // depth-first lookup of a node by its path
+selectDateRange(allValues, anchorNode, targetNode, parseDate?) // shift-click range selection over the tree, as a chronological interval (not rendered-row order)
+computeVirtualRange(scrollTop, viewportHeight, itemHeight, totalCount, overscan?) // VirtualRange { startIndex, endIndex, offsetY, totalHeight } for a fixed-row-height windowed checklist render
+normalizeForSearch(s) // lowercase + strip diacritics, e.g. "Öoo" -> "ooo" (used by filterValuesBySearch and searchData)
+```
+
+#### Sorting
+
+```ts
+toggleSort(sorts, key, defaultDir?) // cycle defaultDir → opposite → off (default defaultDir 'asc', so none → asc → desc → none)
+replaceSort(sorts, key, defaultDir?) // plain header click: sort by key alone, discarding every other sort entry; cycles direction if key is already the sole active sort
+appendOrToggleSort(sorts, key, defaultDir?) // shift-click header: add key to the multi-sort, or flip its direction in place if already present — never removes it
 moveSortBy(sorts, key, delta) // swap the sort entry for key with its neighbor delta positions away (e.g. -1/+1 for up/down buttons)
-reorderSort(sorts, dragKey, targetKey, after = false) // move the sort entry keyed dragKey to just before targetKey's (or just after, if after is true) (drag-and-drop)
+reorderSort(sorts, dragKey, targetKey, after = false) // move the sort entry keyed dragKey to just before targetKey (or just after, if after is true) (drag-and-drop)
 getSortIcon(sorts, key) // '↑' | '↓' | '↕'
 getSortIndex(sorts, key) // 1-based position or null
-countActiveFilters(filters, rangeFilters) // total active filter count
+countActiveSorts(sorts) // sorts.length, exported for symmetry with countActiveFilters/countActiveGroups
+compareMissingLast(compare?, isMissing?) // ready-made ColumnDefBase.compare that pins a value (missing data, by default) last regardless of sort direction
+```
+
+`ColumnDefBase.compare`/`defaultSortDir` (a plain, direction-naive `(a, b, dir) => number` comparator, and the direction a fresh sort starts at) are read internally by `processData`'s sort, `sortWithinGroups`, `computeStringValues`, and `sortFilterValues` — no separate function to call.
+
+#### Grouping
+
+```ts
+GroupResult<TRow>                    // { key, keyParts, rows } — one entry per group from groupData
+groupData(rows, groupBy, columns, emptyLabel?) // group sorted rows; array-valued columns fan a row into one group per item, empty arrays bucket under emptyLabel; columns needed to group by a computed column
+sortWithinGroups(groups, sorts, groupBy, columns) // reorder groups by their own groupBy value and re-sort each group's rows, fixing multi-value groupBy columns having no single per-row comparable value
+toggleGroupBy(groupBy, key) // add/remove a group key
+toggleCollapse(collapsedGroups, key) // toggle a collapsed group
+isGroupCollapsed(collapsedGroups, key, defaultCollapsed?) // whether key is collapsed; collapsedGroups tracks manual toggles away from defaultCollapsed, not absolute state
+countActiveGroups(groupBy) // groupBy.length, exported for symmetry with countActiveFilters/countActiveSorts
+DatePart                              // 'year' | 'month' | 'day' — granularity for bucketDatePart/formatDatePart
+bucketNumericRange(step) // ready-made groupValue: rounds a number down to the start of its step-wide range
+formatNumericRange(step, unit?) // formats a bucketNumericRange key as "<lower>–<upper><unit>"
+bucketDatePart(part, parseDate?) // ready-made groupValue: truncates a date to the start of its enclosing year/month/day, as an ISO string
+formatDatePart(part) // formats a bucketDatePart key for display, e.g. "2024-05-01" -> "May 2024"
+```
+
+See [docs/grouped-columns.md](../../docs/grouped-columns.md) for the full mechanics (fan-out, aggregation, bucketing).
+
+#### Selection (identity)
+
+```ts
+GetRowId<TRow>                                    // (row: TRow) => string | number — opt-in id accessor for selection matched by id instead of object reference
+isRowSelected(selection, row, getRowId?)          // membership check; Set.has by default, id-scan when getRowId is given
+getSelectedRows(rows, selection, getRowId?)       // array-filter form of isRowSelected, backs `selectedRows`
+toggleRowInSelection(selection, row, getRowId?)   // add/remove row from selection Set (by reference, or by id when getRowId is given)
+toggleAllInSelection(selection, rows, getRowId?)  // select all of rows if none are selected, else deselect all of them
+reconcileSelection(nextData, selection, getRowId?) // remap each selected id to its fresh object reference in nextData and drop ids no longer present; no-op when getRowId is omitted
+```
+
+Selection is tracked as `Set<TRow>` by object identity by default; `getRowId` is the opt-in escape hatch so selection survives a `data` refetch that produces new row objects with the same content. `selectRange` (see Filtering above) also backs shift-click range selection over rows, but is not id-aware.
+
+#### Pagination
+
+```ts
+paginateData(data, page, pageSize) // slice rows for the current page (pageSize 0 → all)
+computeTotalPages(count, pageSize) // total page count (pageSize 0 → 1)
+PagedGroup<TRow> // GroupResult + { continued, sampleRow } — one page's chunk from paginateVisibleGroups
+paginateVisibleGroups(groupedFull, visibleItems, collapsedGroups, defaultCollapsed, page, pageSize) // re-chunk a page's slice of visibleItems back into PagedGroup[] for rendering, counting header rows toward the page budget
+mergePageSizeOptions(options, pageSize) // insert pageSize into a "rows per page" option list (sorted) if it's missing, so a custom page size still shows correctly in a <select>
+```
+
+See [docs/pagination.md](../../docs/pagination.md) for `PagedGroup`'s `continued`/`sampleRow` semantics and how grouping composes with pagination.
+
+#### Columns
+
+```ts
+getColumnValue(col, row) // read a column's cell value: row[col.key], or col.value(row) if value is set
+getOrderedColumns(columns, order) // sort columns per an order array of keys; columns missing from order are appended at the end
+reconcileVisibleColumns(prevColumns, nextColumns, visibleCols) // reconcile a visibleCols set against a replaced column list — a column in both keeps its choice, a genuinely new column starts visible
+reorderColumn(order, dragKey, targetKey, (after = false)) // move dragKey to just before targetKey (or just after, if after is true) (drag-and-drop)
+moveColumnBy(order, key, delta) // swap key with its neighbor delta positions away (e.g. -1/+1 for up/down buttons)
+```
+
+See [docs/column-reordering.md](../../docs/column-reordering.md) for the full drag-and-drop wiring.
+
+#### Keyboard navigation
+
+```ts
+VisibleItem<TRow>                                    // { kind: 'group', key } | { kind: 'row', row, groupKey? } — one navigable target in display order
+getVisibleRows(groups, collapsedGroups, defaultCollapsed?) // flatten groupData's result into VisibleItem[] display order, for Up/Down/Home/End nav
+isSameVisibleItem(a, b) // whether a and b are the same navigable target — rows by object identity, groups by key
+indexOfVisibleItem(items, target) // index of target within items, or -1 if target is null/absent
+paginateVisibleItems(visibleItems, page, pageSize) // per-page slice of visibleItems for keyboard nav, with a synthetic continuation header prepended when the page starts mid-group
+```
+
+See [docs/keyboard-navigation.md](../../docs/keyboard-navigation.md) for the roving-tabindex mechanism and per-adapter wiring. See also [docs/dropdown-keyboard-nav.md](../../docs/dropdown-keyboard-nav.md) for the separate dropdown-panel (Columns/Sort/Group/Filter) keyboard nav.
+
+#### Aggregation
+
+```ts
+computeAggregate(col, rows) // compute a group header's aggregate value per col.aggregate ('sum' | 'count' | 'avg' | 'min' | 'max' or a custom function)
+```
+
+#### Search
+
+```ts
+searchData(data, query, columns) // filter rows by a case- and diacritic-insensitive substring match against any searchable column's string value
 ```
 
 ### View state
@@ -72,6 +172,10 @@ countActiveFilters(filters, rangeFilters) // total active filter count
 encodeViewState(view) // TableViewState -> compact, URL-safe string (base64url of a shortened JSON shape; fields at their default are omitted)
 decodeViewState(encoded) // string -> TableViewState, or undefined if the input is malformed
 ```
+
+### Theme
+
+`LIGHT_THEME`/`DARK_THEME`/`renderThemeCss()` are **not** re-exported from this package's main entry point — they're reachable via a dedicated `@vates/data-table-core/theme` sub-path export instead (same pattern as `/locales`), since React/Vue consumers importing this package directly would otherwise see theme APIs with no relevance to them. Currently consumed only by the Solid adapter (vanilla gets it transitively by bundling `@vates/data-table-solid`).
 
 ## License
 
