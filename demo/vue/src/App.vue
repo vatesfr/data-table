@@ -6,6 +6,7 @@ import {
   usePersistedView,
   useUrlView,
   resetView,
+  usePersistence,
   bucketNumericRange,
   formatNumericRange,
   bucketDatePart,
@@ -520,13 +521,17 @@ useUrlView(table, { paramName: VIEW_KEYS.custom.paramName })
 // Same built-in look as <DataTable>, but the caller owns useTableState — so
 // usePersistedView/useUrlView can reach it, unlike <DataTable> which builds its own
 // internal, unreachable state. Try reordering or hiding columns, then reload the page.
+//
+// Uses usePersistence — the combined localStorage+URL helper — instead of wiring
+// usePersistedView/useUrlView/resetView separately (as the other sections do): one
+// VIEW_KEYS.persisted object feeds all three, so its storageKey/paramName can't drift out of
+// sync between them.
 const persistedTable = useTableState(SAMPLE_DATA, COLUMNS, () => ({
   defaultVisibleColumns: PERSISTED_VISIBLE,
   defaultPageSize: 5,
   labels: currentLocale.value,
 }))
-usePersistedView(persistedTable, VIEW_KEYS.persisted.storageKey)
-useUrlView(persistedTable, { paramName: VIEW_KEYS.persisted.paramName })
+const { reset: resetPersistedTable } = usePersistence(persistedTable, VIEW_KEYS.persisted)
 
 // The remaining sections below (full-featured, row-selection, row-click, huge-dataset) are
 // wired the same way — useTableState + DataTableView instead of <DataTable> — purely so each
@@ -997,7 +1002,7 @@ function fmtSalary(n: number) {
       <code>useTableState</code> instance you own instead — reorder or hide a column, then reload
       the page. <span v-html="docLink('view-persistence--sharing', '📖 Docs')" />
     </p>
-    <ViewControls @reset="resetView(persistedTable, VIEW_KEYS.persisted)" />
+    <ViewControls @reset="resetPersistedTable" />
     <DataTableView :table="persistedTable" :data="SAMPLE_DATA" :columns="COLUMNS" row-key="id">
       <template #cell-department="{ value }">
         <Badge :value="String(value)" :color-map="DEPT_COLORS" />

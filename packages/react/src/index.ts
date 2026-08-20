@@ -2,8 +2,13 @@ export { DataTable } from './DataTable'
 export { DataTableView } from './DataTableView'
 export { useTableState } from './useTableState'
 export type { TableState, UseTableStateOptions } from './useTableState'
-export { usePersistedView, useUrlView, resetView } from './persistence'
-export type { ViewStateApi, UseUrlViewOptions, ResetViewOptions } from './persistence'
+export { usePersistedView, useUrlView, resetView, usePersistence } from './persistence'
+export type {
+  ViewStateApi,
+  UseUrlViewOptions,
+  ResetViewOptions,
+  UsePersistenceOptions,
+} from './persistence'
 export type { ColumnDef, DataTableProps, DataTableViewProps } from './types'
 // Re-export core types & helpers that consumers need
 export type {

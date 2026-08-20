@@ -3,7 +3,7 @@ import { defineComponent, h, nextTick } from 'vue'
 import { mount } from '@vue/test-utils'
 import { encodeViewState, decodeViewState } from '@vates/data-table-core'
 import { useTableState } from '../useTableState'
-import { usePersistedView, useUrlView, resetView } from '../persistence'
+import { usePersistedView, useUrlView, resetView, usePersistence } from '../persistence'
 import type { ColumnDef } from '../types'
 
 interface Row {
@@ -107,6 +107,49 @@ describe('usePersistedView + useUrlView composed', () => {
       useUrlView(t)
     })
     expect(table.sorts.value).toEqual([{ key: 'score', dir: 'desc' }])
+  })
+})
+
+describe('usePersistence', () => {
+  it('hydrates from both localStorage and the URL, keying each off the same options object', () => {
+    localStorage.setItem('key7', encodeViewState({ sorts: [{ key: 'score', dir: 'desc' }] }))
+    const { table } = mountWithTableState((t) =>
+      usePersistence(t, { storageKey: 'key7', paramName: 'v' }),
+    )
+    expect(table.sorts.value).toEqual([{ key: 'score', dir: 'desc' }])
+  })
+
+  it('saves to both localStorage and the URL when the view changes', async () => {
+    const { table } = mountWithTableState((t) =>
+      usePersistence(t, { storageKey: 'key8', paramName: 'v' }),
+    )
+    table.setSearchQuery('xyz')
+    await nextTick()
+    expect(decodeViewState(localStorage.getItem('key8')!)).toEqual({ searchQuery: 'xyz' })
+    expect(new URLSearchParams(window.location.search).has('v')).toBe(true)
+  })
+
+  it('skips localStorage persistence entirely when storageKey is omitted', async () => {
+    const { table } = mountWithTableState((t) => usePersistence(t, { paramName: 'v' }))
+    table.setSearchQuery('xyz')
+    await nextTick()
+    expect(localStorage.length).toBe(0)
+    expect(new URLSearchParams(window.location.search).has('v')).toBe(true)
+  })
+
+  it('reset() clears the same storageKey/paramName it was configured with', async () => {
+    let reset!: () => void
+    const { table } = mountWithTableState((t) => {
+      reset = usePersistence(t, { storageKey: 'key9', paramName: 'v' }).reset
+    })
+    table.setSearchQuery('xyz')
+    await nextTick()
+    expect(localStorage.getItem('key9')).not.toBeNull()
+    reset()
+    await nextTick()
+    expect(localStorage.getItem('key9')).toBeNull()
+    expect(new URLSearchParams(window.location.search).has('v')).toBe(false)
+    expect(table.searchQuery.value).toBe('')
   })
 })
 

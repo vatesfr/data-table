@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { encodeViewState, decodeViewState } from '@vates/data-table-core'
 import { useTableState } from '../useTableState'
-import { usePersistedView, useUrlView, resetView } from '../persistence'
+import { usePersistedView, useUrlView, resetView, usePersistence } from '../persistence'
 import type { ColumnDef } from '../types'
 
 interface Row {
@@ -125,6 +125,60 @@ describe('usePersistedView + useUrlView composed', () => {
       return table
     })
     expect(result.current.sorts).toEqual([{ key: 'score', dir: 'desc' }])
+  })
+})
+
+describe('usePersistence', () => {
+  it('hydrates from both localStorage and the URL, keying each off the same options object', () => {
+    localStorage.setItem('key7', encodeViewState({ sorts: [{ key: 'score', dir: 'desc' }] }))
+    const { result } = renderHook(() => {
+      const table = useTableState(ROWS, COLS)
+      usePersistence(table, { storageKey: 'key7', paramName: 'v' })
+      return table
+    })
+    expect(result.current.sorts).toEqual([{ key: 'score', dir: 'desc' }])
+  })
+
+  it('saves to both localStorage and the URL when the view changes', () => {
+    const { result } = renderHook(() => {
+      const table = useTableState(ROWS, COLS)
+      usePersistence(table, { storageKey: 'key8', paramName: 'v' })
+      return table
+    })
+    act(() => {
+      result.current.setSearchQuery('xyz')
+    })
+    expect(decodeViewState(localStorage.getItem('key8')!)).toEqual({ searchQuery: 'xyz' })
+    expect(new URLSearchParams(window.location.search).has('v')).toBe(true)
+  })
+
+  it('skips localStorage persistence entirely when storageKey is omitted', () => {
+    const { result } = renderHook(() => {
+      const table = useTableState(ROWS, COLS)
+      usePersistence(table, { paramName: 'v' })
+      return table
+    })
+    act(() => {
+      result.current.setSearchQuery('xyz')
+    })
+    expect(localStorage.length).toBe(0)
+    expect(new URLSearchParams(window.location.search).has('v')).toBe(true)
+  })
+
+  it('reset() clears the same storageKey/paramName it was configured with', () => {
+    const { result } = renderHook(() => {
+      const table = useTableState(ROWS, COLS)
+      const { reset } = usePersistence(table, { storageKey: 'key9', paramName: 'v' })
+      return { table, reset }
+    })
+    act(() => {
+      result.current.table.setSearchQuery('xyz')
+    })
+    expect(localStorage.getItem('key9')).not.toBeNull()
+    act(() => result.current.reset())
+    expect(localStorage.getItem('key9')).toBeNull()
+    expect(new URLSearchParams(window.location.search).has('v')).toBe(false)
+    expect(result.current.table.searchQuery).toBe('')
   })
 })
 

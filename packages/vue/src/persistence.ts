@@ -11,8 +11,12 @@ export interface ViewStateApi {
  * `table` is typically the object returned by `useTableState`. Relies on `watch` only firing
  * in response to an actual reactive change, so — unlike a render-driven effect — there's no
  * risk of saving pre-hydration state: hydration itself is the change that triggers the first save.
+ * `storageKey` may be `undefined` to no-op — this lets `usePersistence` below call this
+ * unconditionally regardless of whether storage persistence is actually wanted.
  */
-export function usePersistedView(table: ViewStateApi, storageKey: string): void {
+export function usePersistedView(table: ViewStateApi, storageKey: string | undefined): void {
+  if (!storageKey) return
+
   onMounted(() => {
     const stored = localStorage.getItem(storageKey)
     const view = stored ? decodeViewState(stored) : undefined
@@ -22,7 +26,12 @@ export function usePersistedView(table: ViewStateApi, storageKey: string): void 
   watch(
     () => table.getViewState(),
     (view) => {
-      localStorage.setItem(storageKey, encodeViewState(view))
+      // Mirrors useUrlView's own empty-view handling below: a view back at its construction-time
+      // defaults removes the key entirely rather than storing an encoded-but-empty blob, so
+      // `resetView`'s own `removeItem` (or a plain "clear all" that lands back on the defaults)
+      // isn't immediately undone by this watcher's next run.
+      if (Object.keys(view).length === 0) localStorage.removeItem(storageKey)
+      else localStorage.setItem(storageKey, encodeViewState(view))
     },
     { deep: true },
   )
@@ -94,4 +103,22 @@ export function resetView(table: ViewStateApi, options?: ResetViewOptions): void
     const url = `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash}`
     window.history.replaceState(null, '', url)
   }
+}
+
+export type UsePersistenceOptions = ResetViewOptions
+
+/**
+ * Combines `usePersistedView` + `useUrlView` behind one options object, so `storageKey`/
+ * `paramName` are written down once instead of separately at three call sites (`usePersistedView`,
+ * `useUrlView`, and `resetView` all need the *same* values — a typo'd/forgotten key at any one of
+ * them is a silent bug). Returns a `reset()` bound to those same options, equivalent to calling
+ * `resetView(table, options)` yourself.
+ */
+export function usePersistence(
+  table: ViewStateApi,
+  options: UsePersistenceOptions = {},
+): { reset: () => void } {
+  usePersistedView(table, options.storageKey)
+  useUrlView(table, { paramName: options.paramName })
+  return { reset: () => resetView(table, options) }
 }

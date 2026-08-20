@@ -5,6 +5,7 @@ import {
   usePersistedView,
   useUrlView,
   resetView,
+  usePersistence,
   bucketNumericRange,
   formatNumericRange,
   bucketDatePart,
@@ -602,17 +603,21 @@ function EmployeeCards() {
 // Same built-in look as <DataTable>, but the caller owns useTableState — so
 // usePersistedView/useUrlView can reach it, unlike <DataTable> which builds its own
 // internal, unreachable state. Try reordering or hiding columns, then reload the page.
+//
+// Uses usePersistence — the combined localStorage+URL helper — instead of wiring
+// usePersistedView/useUrlView/resetView separately (as the other sections below do): one
+// VIEW_KEYS.persisted object feeds all three, so its storageKey/paramName can't drift out of
+// sync between them.
 function PersistedTable({ labels }: { labels?: Partial<DataTableLabels> }) {
   const table = useTableState(SAMPLE_DATA, COLUMNS, {
     defaultVisibleColumns: PERSISTED_VISIBLE,
     labels,
     defaultPageSize: 5,
   })
-  usePersistedView(table, VIEW_KEYS.persisted.storageKey)
-  useUrlView(table, { paramName: VIEW_KEYS.persisted.paramName })
+  const { reset } = usePersistence(table, VIEW_KEYS.persisted)
   return (
     <>
-      <ViewControls onReset={() => resetView(table, VIEW_KEYS.persisted)} />
+      <ViewControls onReset={reset} />
       <DataTableView table={table} data={SAMPLE_DATA} columns={COLUMNS} rowKey="id" />
     </>
   )

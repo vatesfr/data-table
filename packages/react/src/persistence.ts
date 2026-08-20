@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import { encodeViewState, decodeViewState, type TableViewState } from '@vates/data-table-core'
 
 export interface ViewStateApi {
@@ -8,12 +8,15 @@ export interface ViewStateApi {
 
 /**
  * Loads a persisted view from `localStorage` on mount and saves it back on every change.
- * `table` is typically the object returned by `useTableState`.
+ * `table` is typically the object returned by `useTableState`. `storageKey` may be `undefined` to
+ * no-op — this lets `usePersistence` below call this hook unconditionally (required by the Rules
+ * of Hooks) regardless of whether storage persistence is actually wanted.
  */
-export function usePersistedView(table: ViewStateApi, storageKey: string): void {
+export function usePersistedView(table: ViewStateApi, storageKey: string | undefined): void {
   const skipNextSave = useRef(true)
 
   useEffect(() => {
+    if (!storageKey) return
     const stored = localStorage.getItem(storageKey)
     const view = stored ? decodeViewState(stored) : undefined
     if (view) table.setViewState(view)
@@ -21,13 +24,20 @@ export function usePersistedView(table: ViewStateApi, storageKey: string): void 
   }, [storageKey])
 
   useEffect(() => {
+    if (!storageKey) return
     // The first commit reflects state from before hydration (or before the effect above ran);
     // saving it would overwrite storage with the pre-hydration defaults.
     if (skipNextSave.current) {
       skipNextSave.current = false
       return
     }
-    localStorage.setItem(storageKey, encodeViewState(table.getViewState()))
+    // Mirrors useUrlView's own empty-view handling below: a view back at its construction-time
+    // defaults removes the key entirely rather than storing an encoded-but-empty blob, so
+    // `resetView`'s own `removeItem` (or a plain "clear all" that lands back on the defaults)
+    // isn't immediately undone by this effect's next run.
+    const view = table.getViewState()
+    if (Object.keys(view).length === 0) localStorage.removeItem(storageKey)
+    else localStorage.setItem(storageKey, encodeViewState(view))
   })
 }
 
@@ -98,5 +108,29 @@ export function resetView(table: ViewStateApi, options?: ResetViewOptions): void
     const query = params.toString()
     const url = `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash}`
     window.history.replaceState(null, '', url)
+  }
+}
+
+export type UsePersistenceOptions = ResetViewOptions
+
+/**
+ * Combines `usePersistedView` + `useUrlView` behind one options object, so `storageKey`/
+ * `paramName` are written down once instead of separately at three call sites (`usePersistedView`,
+ * `useUrlView`, and `resetView` all need the *same* values — a typo'd/forgotten key at any one of
+ * them is a silent bug). Returns a `reset()` bound to those same options, equivalent to calling
+ * `resetView(table, options)` yourself.
+ */
+export function usePersistence(
+  table: ViewStateApi,
+  options: UsePersistenceOptions = {},
+): { reset: () => void } {
+  const { storageKey, paramName } = options
+  usePersistedView(table, storageKey)
+  useUrlView(table, { paramName })
+  return {
+    reset: useCallback(
+      () => resetView(table, { storageKey, paramName }),
+      [table, storageKey, paramName],
+    ),
   }
 }

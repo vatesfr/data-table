@@ -17,7 +17,12 @@ export function persistViewToLocalStorage(table: ViewStateApi, storageKey: strin
   if (view) table.setViewState(view)
 
   return table.onViewChange((view) => {
-    localStorage.setItem(storageKey, encodeViewState(view))
+    // Mirrors syncViewToUrl's own empty-view handling below: a view back at its construction-time
+    // defaults removes the key entirely rather than storing an encoded-but-empty blob, so
+    // `resetView`'s own `removeItem` (or a plain "clear all" that lands back on the defaults)
+    // isn't immediately undone by this listener's next fire.
+    if (Object.keys(view).length === 0) localStorage.removeItem(storageKey)
+    else localStorage.setItem(storageKey, encodeViewState(view))
   })
 }
 
@@ -86,5 +91,28 @@ export function resetView(table: ViewStateApi, options?: ResetViewOptions): void
     const query = params.toString()
     const url = `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash}`
     window.history.replaceState(null, '', url)
+  }
+}
+
+export type PersistViewOptions = ResetViewOptions
+
+/**
+ * Combines `persistViewToLocalStorage` + `syncViewToUrl` behind one options object, so
+ * `storageKey`/`paramName` are written down once instead of separately at three call sites
+ * (`persistViewToLocalStorage`, `syncViewToUrl`, and `resetView` all need the *same* values — a
+ * typo'd/forgotten key at any one of them is a silent bug). Returns a `reset()` bound to those
+ * same options (equivalent to calling `resetView(table, options)` yourself) alongside a combined
+ * `unsubscribe()` — call it alongside `table.destroy()`, same as the two functions it wraps.
+ */
+export function persistView(
+  table: ViewStateApi,
+  options: PersistViewOptions = {},
+): { reset: () => void; unsubscribe: () => void } {
+  const unsubscribes: Array<() => void> = []
+  if (options.storageKey) unsubscribes.push(persistViewToLocalStorage(table, options.storageKey))
+  unsubscribes.push(syncViewToUrl(table, { paramName: options.paramName }))
+  return {
+    reset: () => resetView(table, options),
+    unsubscribe: () => unsubscribes.forEach((unsubscribe) => unsubscribe()),
   }
 }

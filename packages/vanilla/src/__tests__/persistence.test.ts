@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { encodeViewState, decodeViewState } from '@vates/data-table-core'
 import { createDataTable } from '../index'
-import { persistViewToLocalStorage, syncViewToUrl, resetView } from '../persistence'
+import { persistViewToLocalStorage, syncViewToUrl, resetView, persistView } from '../persistence'
 import type { ColumnDef } from '../types'
 
 interface Row {
@@ -114,6 +114,51 @@ describe('persistence helpers', () => {
       persistViewToLocalStorage(table, 'key5')
       syncViewToUrl(table)
       expect(table.getViewState()).toEqual({ sorts: [{ key: 'score', dir: 'desc' }] })
+    })
+  })
+
+  describe('persistView', () => {
+    it('hydrates from both localStorage and the URL, keying each off the same options object', () => {
+      localStorage.setItem('key7', encodeViewState({ sorts: [{ key: 'score', dir: 'desc' }] }))
+      const table = createDataTable(container, { data: ROWS, columns: COLS })
+      persistView(table, { storageKey: 'key7', paramName: 'v' })
+      expect(table.getViewState()).toEqual({ sorts: [{ key: 'score', dir: 'desc' }] })
+    })
+
+    it('saves to both localStorage and the URL when the view changes', () => {
+      const table = createDataTable(container, { data: ROWS, columns: COLS })
+      persistView(table, { storageKey: 'key8', paramName: 'v' })
+      table.setViewState({ searchQuery: 'xyz' })
+      expect(decodeViewState(localStorage.getItem('key8')!)).toEqual({ searchQuery: 'xyz' })
+      expect(new URLSearchParams(window.location.search).has('v')).toBe(true)
+    })
+
+    it('skips localStorage persistence entirely when storageKey is omitted', () => {
+      const table = createDataTable(container, { data: ROWS, columns: COLS })
+      persistView(table, { paramName: 'v' })
+      table.setViewState({ searchQuery: 'xyz' })
+      expect(localStorage.length).toBe(0)
+      expect(new URLSearchParams(window.location.search).has('v')).toBe(true)
+    })
+
+    it('reset() clears the same storageKey/paramName it was configured with', () => {
+      const table = createDataTable(container, { data: ROWS, columns: COLS })
+      const { reset } = persistView(table, { storageKey: 'key9', paramName: 'v' })
+      table.setViewState({ searchQuery: 'xyz' })
+      expect(localStorage.getItem('key9')).not.toBeNull()
+      reset()
+      expect(localStorage.getItem('key9')).toBeNull()
+      expect(new URLSearchParams(window.location.search).has('v')).toBe(false)
+      expect(table.getViewState()).toEqual({})
+    })
+
+    it('stops persisting once unsubscribed', () => {
+      const table = createDataTable(container, { data: ROWS, columns: COLS })
+      const { unsubscribe } = persistView(table, { storageKey: 'key10', paramName: 'v' })
+      unsubscribe()
+      table.setViewState({ searchQuery: 'xyz' })
+      expect(localStorage.getItem('key10')).toBeNull()
+      expect(new URLSearchParams(window.location.search).has('v')).toBe(false)
     })
   })
 

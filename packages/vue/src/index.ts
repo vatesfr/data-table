@@ -2,8 +2,13 @@ export { default as DataTable } from './DataTable.vue'
 export { default as DataTableView } from './DataTableView.vue'
 export { useTableState } from './useTableState'
 export type { TableState, UseTableStateOptions } from './useTableState'
-export { usePersistedView, useUrlView, resetView } from './persistence'
-export type { ViewStateApi, UseUrlViewOptions, ResetViewOptions } from './persistence'
+export { usePersistedView, useUrlView, resetView, usePersistence } from './persistence'
+export type {
+  ViewStateApi,
+  UseUrlViewOptions,
+  ResetViewOptions,
+  UsePersistenceOptions,
+} from './persistence'
 export type { ColumnDef, DataTableProps, DataTableViewProps } from './types'
 export type {
   DataTableLabels,
