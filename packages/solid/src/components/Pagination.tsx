@@ -30,7 +30,7 @@ export function Pagination<TRow extends object>(props: PaginationProps<TRow>) {
           ‹
         </button>
         <span class="dt-page-info">
-          {table.labels.pageOf(clampedPage(), table.pagination.numPages())}
+          {table.labels().pageOf(clampedPage(), table.pagination.numPages())}
         </span>
         <button
           type="button"
@@ -49,7 +49,7 @@ export function Pagination<TRow extends object>(props: PaginationProps<TRow>) {
           »
         </button>
         <span class="dt-rows-per-page-group">
-          <span class="dt-rows-per-page">{table.labels.rowsPerPage}:</span>
+          <span class="dt-rows-per-page">{table.labels().rowsPerPage}:</span>
           <select
             class="dt-page-select"
             value={table.pagination.pageSize()}

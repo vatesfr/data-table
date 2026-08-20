@@ -86,7 +86,7 @@ export function DataTableView<TRow extends object>(props: DataTableViewProps<TRo
             }
           >
             <button type="button" class="dt-btn dt-clear-all" onClick={table.clearAll}>
-              {table.labels.clearAll}
+              {table.labels().clearAll}
             </button>
           </Show>
         </div>

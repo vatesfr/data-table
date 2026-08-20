@@ -135,7 +135,7 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
         table.filter.include(),
         table.filter.ranges(),
         props.columns,
-        table.labels.emptyValue,
+        table.labels().emptyValue,
         [col.key],
         table.filter.exclude(),
       )[col.key] ?? new Map()
@@ -167,7 +167,7 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
     if (!col || col.type !== 'date') return []
     return computeDateTree(
       filterDetailValues(),
-      table.labels.emptyValue,
+      table.labels().emptyValue,
       valueSort().dir,
       col.parseDate,
     )
@@ -275,7 +275,7 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
           class={`dt-btn${table.filter.activeCount() > 0 ? ' dt-btn--active dt-btn--grouped' : ''}`}
           onClick={props.onToggle}
         >
-          {table.labels.filter}
+          {table.labels().filter}
         </button>
       }
       extraTrigger={
@@ -283,8 +283,8 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
           <button
             type="button"
             class="dt-btn-clear"
-            title={table.labels.clearFilters}
-            aria-label={table.labels.clearFilters}
+            title={table.labels().clearFilters}
+            aria-label={table.labels().clearFilters}
             onClick={table.filter.clear}
           >
             ×
@@ -297,7 +297,7 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
           <input
             type="text"
             class="dt-dd-search dt-filter-cols-search"
-            placeholder={table.labels.filterSearchPlaceholder}
+            placeholder={table.labels().filterSearchPlaceholder}
             value={colSearchTerm()}
             onInput={(e) => setColSearchTerm(e.currentTarget.value)}
           />
@@ -339,10 +339,10 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
                       <>
                         <FilterSearchRow
                           checked={selectAllState().checked}
-                          selectAllLabel={table.labels.selectAll}
+                          selectAllLabel={table.labels().selectAll}
                           onSelectAll={handleSelectAll}
                           checkboxRef={(el) => (selectAllEl = el)}
-                          searchPlaceholder={table.labels.filterSearchPlaceholder}
+                          searchPlaceholder={table.labels().filterSearchPlaceholder}
                           searchValue={searchTerm()}
                           onSearchInput={(v) => setSearchTerm(col().key, v)}
                           sortIcon={getValueSortIcon(valueSort())}
@@ -392,7 +392,7 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
                       <div style={{ display: 'flex', gap: '6px', 'align-items': 'center' }}>
                         <input
                           type="date"
-                          aria-label={table.labels.min}
+                          aria-label={table.labels().min}
                           value={
                             table.filter.ranges()[col().key]?.min ??
                             (bounds() ? formatRangeBound(bounds()!.min, col()) : '')
@@ -404,7 +404,7 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
                         <span class="dt-range-sep">–</span>
                         <input
                           type="date"
-                          aria-label={table.labels.max}
+                          aria-label={table.labels().max}
                           value={
                             table.filter.ranges()[col().key]?.max ??
                             (bounds() ? formatRangeBound(bounds()!.max, col()) : '')
@@ -426,10 +426,10 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
                     </div>
                     <FilterSearchRow
                       checked={selectAllState().checked}
-                      selectAllLabel={table.labels.selectAll}
+                      selectAllLabel={table.labels().selectAll}
                       onSelectAll={handleSelectAll}
                       checkboxRef={(el) => (selectAllEl = el)}
-                      searchPlaceholder={table.labels.filterSearchPlaceholder}
+                      searchPlaceholder={table.labels().filterSearchPlaceholder}
                       searchValue={searchTerm()}
                       onSearchInput={(v) => setSearchTerm(col().key, v)}
                       sortIcon={getDateSortIcon(valueSort().dir)}
@@ -461,7 +461,7 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
                       type="text"
                       inputmode="decimal"
                       class="dt-range-input"
-                      placeholder={table.labels.min}
+                      placeholder={table.labels().min}
                       value={
                         table.filter.ranges()[col().key]?.min ??
                         (bounds() ? formatRangeBound(bounds()!.min, col()) : '')
@@ -475,7 +475,7 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
                       type="text"
                       inputmode="decimal"
                       class="dt-range-input"
-                      placeholder={table.labels.max}
+                      placeholder={table.labels().max}
                       value={
                         table.filter.ranges()[col().key]?.max ??
                         (bounds() ? formatRangeBound(bounds()!.max, col()) : '')

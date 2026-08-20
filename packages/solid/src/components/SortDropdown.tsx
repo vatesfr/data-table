@@ -79,7 +79,7 @@ export function SortDropdown<TRow extends object>(props: SortDropdownProps<TRow>
           class={`dt-btn${table.sort.entries().length > 0 ? ' dt-btn--active dt-btn--grouped' : ''}`}
           onClick={props.onToggle}
         >
-          {table.labels.sort}
+          {table.labels().sort}
         </button>
       }
       extraTrigger={
@@ -87,8 +87,8 @@ export function SortDropdown<TRow extends object>(props: SortDropdownProps<TRow>
           <button
             type="button"
             class="dt-btn-clear"
-            title={table.labels.clearSorts}
-            aria-label={table.labels.clearSorts}
+            title={table.labels().clearSorts}
+            aria-label={table.labels().clearSorts}
             onClick={table.sort.clear}
           >
             ×
@@ -97,7 +97,7 @@ export function SortDropdown<TRow extends object>(props: SortDropdownProps<TRow>
       }
     >
       <Show when={table.sort.entries().length > 0}>
-        <div class="dt-dd-section">{table.labels.activeSortsSection}</div>
+        <div class="dt-dd-section">{table.labels().activeSortsSection}</div>
         <div ref={rowsContainer} onDragOver={handleDragOver} onDrop={handleDrop}>
           <For each={table.sort.entries()}>
             {(entry: SortEntry, i) => {
@@ -158,12 +158,12 @@ export function SortDropdown<TRow extends object>(props: SortDropdownProps<TRow>
           <input
             type="text"
             class="dt-dd-search"
-            placeholder={table.labels.filterSearchPlaceholder}
+            placeholder={table.labels().filterSearchPlaceholder}
             value={searchTerm()}
             onInput={(e) => setSearchTerm(e.currentTarget.value)}
           />
         </div>
-        <div class="dt-dd-section">{table.labels.sortSection}</div>
+        <div class="dt-dd-section">{table.labels().sortSection}</div>
         <For each={addableCols()}>
           {(col) => (
             <button

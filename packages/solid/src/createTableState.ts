@@ -52,8 +52,12 @@ function access<T>(value: T | Accessor<T>): T {
 }
 
 export interface CreateTableStateOptions<TRow extends object = Record<string, unknown>> {
+  /** Seed-only: read once at construction to build the initial `visibleCols` set. See `labels`/
+   * `defaultGroupsCollapsed`/`getRowId` below for the fields that *do* stay live when `options`
+   * itself is given as an Accessor. */
   defaultVisibleColumns?: string[]
   labels?: Partial<DataTableLabels>
+  /** Seed-only — see `defaultVisibleColumns` above. */
   defaultPageSize?: number
   /** Whether newly-grouped groups start collapsed. Defaults to `true`; pass `false` to start expanded. */
   defaultGroupsCollapsed?: boolean
@@ -104,16 +108,24 @@ export type TableState<TRow extends object> = ReturnType<typeof createTableState
 export function createTableState<TRow extends object>(
   initialData: TRow[] | Accessor<TRow[]>,
   initialColumns: ColumnDef<TRow>[] | Accessor<ColumnDef<TRow>[]>,
-  options?: CreateTableStateOptions<TRow>,
+  options?: CreateTableStateOptions<TRow> | Accessor<CreateTableStateOptions<TRow> | undefined>,
 ) {
-  const {
-    defaultVisibleColumns,
-    labels: labelOverrides,
-    defaultPageSize,
-    defaultGroupsCollapsed = true,
-    getRowId,
-  } = options ?? {}
-  const L = { ...DEFAULT_LABELS, ...labelOverrides }
+  // `options` may be given directly or as a reactive Accessor, same duality as `initialData`/
+  // `initialColumns` above — but unlike those two, `labels`/`defaultGroupsCollapsed`/`getRowId`
+  // can't each independently accept "value or Accessor" the same way: `getRowId` is itself a
+  // function, indistinguishable at runtime from an Accessor that *returns* one, which is exactly
+  // the ambiguity `access`'s own doc comment rules out. Lifting reactivity to the whole options
+  // object sidesteps that: a plain `CreateTableStateOptions` object is never itself a function, so
+  // `access` safely discriminates "the whole options accessor" from "the options object", and
+  // reading `getOptions().getRowId` (etc.) after that is just ordinary property access — same
+  // approach Vue's own `useTableState` takes with its whole `options` argument.
+  const getOptions = (): CreateTableStateOptions<TRow> => access(options) ?? {}
+  // `defaultVisibleColumns`/`defaultPageSize` stay seed-only regardless of whether `options` is
+  // reactive — read once, untracked, right now, to build each signal's initial value. `labels`/
+  // `defaultGroupsCollapsed`/`getRowId` (read via `getOptions()` at their own use sites below,
+  // inside a memo or fresh at each call) are the fields that actually stay live.
+  const { defaultVisibleColumns, defaultPageSize } = getOptions()
+  const L = createMemo(() => ({ ...DEFAULT_LABELS, ...getOptions().labels }))
 
   const resolvedInitialColumns = access(initialColumns)
   const [data, _setData] = createSignal<TRow[]>(access(initialData))
@@ -132,7 +144,8 @@ export function createTableState<TRow extends object>(
   // effect just below can call it too.
   const setData = (rows: TRow[]) => {
     _setData(rows)
-    if (getRowId) setSelection((prev) => reconcileSelection(rows, prev, getRowId))
+    const rowId = getOptions().getRowId
+    if (rowId) setSelection((prev) => reconcileSelection(rows, prev, rowId))
   }
 
   // Wraps the raw `columns` signal setter to reconcile `visibleCols` against the new key set via
@@ -181,7 +194,7 @@ export function createTableState<TRow extends object>(
   const defaultSortDirFor = (key: string) =>
     columns().find((c) => c.key === key)?.defaultSortDir ?? 'asc'
 
-  const stringValueMap = createMemo(() => computeStringValues(data(), columns(), L.emptyValue))
+  const stringValueMap = createMemo(() => computeStringValues(data(), columns(), L().emptyValue))
 
   const processedData = createMemo(() =>
     processData(
@@ -190,7 +203,7 @@ export function createTableState<TRow extends object>(
       rangeFilters(),
       sorts(),
       columns(),
-      L.emptyValue,
+      L().emptyValue,
       excludeFilters(),
     ),
   )
@@ -200,7 +213,7 @@ export function createTableState<TRow extends object>(
   // rows first and grouping whatever lands on that page afterward — see "Pagination" in the docs.
   const groupedFull = createMemo(() =>
     sortWithinGroups(
-      groupData(processedData(), groupBy(), columns(), L.emptyValue),
+      groupData(processedData(), groupBy(), columns(), L().emptyValue),
       sorts(),
       groupBy(),
       columns(),
@@ -208,7 +221,7 @@ export function createTableState<TRow extends object>(
   )
 
   const visibleItems = createMemo(() =>
-    getVisibleRows(groupedFull(), collapsedGroups(), defaultGroupsCollapsed),
+    getVisibleRows(groupedFull(), collapsedGroups(), getOptions().defaultGroupsCollapsed ?? true),
   )
 
   const numPages = createMemo(() => calcTotalPages(visibleItems().length, pageSize()))
@@ -226,7 +239,7 @@ export function createTableState<TRow extends object>(
       groupedFull(),
       visibleItems(),
       collapsedGroups(),
-      defaultGroupsCollapsed,
+      getOptions().defaultGroupsCollapsed ?? true,
       clampedPage(),
       pageSize(),
     ),
@@ -244,7 +257,9 @@ export function createTableState<TRow extends object>(
     countActiveFilters(filters(), rangeFilters(), excludeFilters()),
   )
 
-  const selectedRows = createMemo(() => selectedRowsOf(processedData(), selection(), getRowId))
+  const selectedRows = createMemo(() =>
+    selectedRowsOf(processedData(), selection(), getOptions().getRowId),
+  )
 
   return {
     // Top-level: the pipeline's actual output, not a "concern" of its own
@@ -370,10 +385,9 @@ export function createTableState<TRow extends object>(
     group: {
       by: groupBy,
       collapsed: collapsedGroups,
-      // Fixed at construction (no setter — `options.defaultGroupsCollapsed` isn't meant to change
-      // at runtime), but still exposed as a same-shaped accessor as everything else here, not a
-      // one-off exception a consumer has to remember.
-      defaultCollapsed: () => defaultGroupsCollapsed,
+      // Live — reads the latest `options.defaultGroupsCollapsed` on every call, tracking it
+      // reactively when `options` itself was given as an Accessor (see `getOptions` above).
+      defaultCollapsed: () => getOptions().defaultGroupsCollapsed ?? true,
       toggle: (key: string) => setGroupBy((prev) => toggleGroupBy(prev, key)),
       remove: (key: string) => setGroupBy((prev) => prev.filter((k) => k !== key)),
       moveBy: (key: string, delta: number) => setGroupBy((prev) => _moveColumnBy(prev, key, delta)),
@@ -390,17 +404,18 @@ export function createTableState<TRow extends object>(
       all: selection,
       rows: selectedRows,
       toggle: (row: TRow, shiftKey = false) => {
+        const rowId = getOptions().getRowId
         setSelection((prev) => {
           const anchor = selectionAnchor()
           if (shiftKey && anchor) {
             const next = new Set(prev)
-            const shouldSelect = !isRowSelected(next, row, getRowId)
+            const shouldSelect = !isRowSelected(next, row, rowId)
             const range = selectRange(processedData(), anchor, row)
             if (shouldSelect) range.forEach((r) => next.add(r))
             else range.forEach((r) => next.delete(r))
             return next
           }
-          return toggleRowInSelection(prev, row, getRowId)
+          return toggleRowInSelection(prev, row, rowId)
         })
         // Solid's Setter overloads can't tell `row` (typed TRow, whose `object` constraint
         // structurally overlaps Function) apart from a functional updater — the standard Solid
@@ -408,7 +423,7 @@ export function createTableState<TRow extends object>(
         setSelectionAnchor(() => row)
       },
       toggleAll: (rows: TRow[]) =>
-        setSelection((prev) => toggleAllInSelection(prev, rows, getRowId)),
+        setSelection((prev) => toggleAllInSelection(prev, rows, getOptions().getRowId)),
       clear: () => {
         setSelection(new Set<TRow>())
         setSelectionAnchor(null)

@@ -471,9 +471,9 @@ function GroupHeaderRow<TRow extends object>(props: GroupHeaderRowProps<TRow>) {
           </For>
           <Show when={props.group.continued}>
             {' '}
-            <span class="dt-group-continued">{table.labels.groupContinued}</span>
+            <span class="dt-group-continued">{table.labels().groupContinued}</span>
           </Show>{' '}
-          <span class="dt-group-count">{table.labels.rowsInGroup(props.group.rows.length)}</span>
+          <span class="dt-group-count">{table.labels().rowsInGroup(props.group.rows.length)}</span>
         </td>
       </tr>
       <Show when={props.hasAgg}>

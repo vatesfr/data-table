@@ -21,7 +21,7 @@ export function SearchBox<TRow extends object>(props: SearchBoxProps<TRow>) {
       <input
         type="text"
         class="dt-search-input"
-        placeholder={table.labels.search}
+        placeholder={table.labels().search}
         value={table.search.query()}
         onInput={(e) => table.search.setQuery(e.currentTarget.value)}
       />
@@ -29,8 +29,8 @@ export function SearchBox<TRow extends object>(props: SearchBoxProps<TRow>) {
         <button
           type="button"
           class="dt-search-clear"
-          title={table.labels.clearSearch}
-          aria-label={table.labels.clearSearch}
+          title={table.labels().clearSearch}
+          aria-label={table.labels().clearSearch}
           onClick={() => table.search.setQuery('')}
         >
           ×

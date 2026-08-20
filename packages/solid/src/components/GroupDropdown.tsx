@@ -68,7 +68,7 @@ export function GroupDropdown<TRow extends object>(props: GroupDropdownProps<TRo
           class={`dt-btn${table.group.by().length > 0 ? ' dt-btn--active dt-btn--grouped' : ''}`}
           onClick={props.onToggle}
         >
-          {table.labels.group}
+          {table.labels().group}
         </button>
       }
       extraTrigger={
@@ -76,8 +76,8 @@ export function GroupDropdown<TRow extends object>(props: GroupDropdownProps<TRo
           <button
             type="button"
             class="dt-btn-clear"
-            title={table.labels.clearGroups}
-            aria-label={table.labels.clearGroups}
+            title={table.labels().clearGroups}
+            aria-label={table.labels().clearGroups}
             onClick={table.group.clear}
           >
             ×
@@ -86,7 +86,7 @@ export function GroupDropdown<TRow extends object>(props: GroupDropdownProps<TRo
       }
     >
       <Show when={table.group.by().length > 0}>
-        <div class="dt-dd-section">{table.labels.activeGroupsSection}</div>
+        <div class="dt-dd-section">{table.labels().activeGroupsSection}</div>
         <div ref={rowsContainer} onDragOver={handleDragOver} onDrop={handleDrop}>
           <For each={table.group.by()}>
             {(key, i) => {
@@ -137,12 +137,12 @@ export function GroupDropdown<TRow extends object>(props: GroupDropdownProps<TRo
           <input
             type="text"
             class="dt-dd-search"
-            placeholder={table.labels.filterSearchPlaceholder}
+            placeholder={table.labels().filterSearchPlaceholder}
             value={searchTerm()}
             onInput={(e) => setSearchTerm(e.currentTarget.value)}
           />
         </div>
-        <div class="dt-dd-section">{table.labels.groupSection}</div>
+        <div class="dt-dd-section">{table.labels().groupSection}</div>
         <For each={addableCols()}>
           {(col) => (
             <button

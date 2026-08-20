@@ -42,16 +42,22 @@ export interface DataTableProps<TRow extends object> extends Omit<
 // @vates/data-table-vanilla's createDataTable), which all need to re-seed/re-sync by hand
 // because their own underlying state primitive doesn't accept a reactive source directly.
 export function DataTable<TRow extends object>(props: DataTableProps<TRow>) {
+  // Passed as a thunk (not a plain object), same reasoning as `data`/`columns` above: `labels`/
+  // `defaultGroupsCollapsed`/`getRowId` stay live this way (see `createTableState`'s own
+  // `getOptions` doc comment) — a later change to any of these props takes effect immediately,
+  // with no manual createEffect needed here. `defaultVisibleColumns`/`defaultPageSize` are still
+  // only ever read once by `createTableState` regardless, matching their own documented seed-only
+  // behavior.
   const table = createTableState(
     () => props.data,
     () => props.columns,
-    {
+    () => ({
       defaultVisibleColumns: props.defaultVisibleColumns,
       labels: props.labels,
       defaultPageSize: props.defaultPageSize,
       defaultGroupsCollapsed: props.defaultGroupsCollapsed,
       getRowId: props.getRowId,
-    },
+    }),
   )
 
   // Checked once at construction, matching vanilla's own wrapper — not reactive to a later

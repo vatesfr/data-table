@@ -65,7 +65,7 @@ export function ColumnsDropdown<TRow extends object>(props: ColumnsDropdownProps
       onClose={props.onClose}
       trigger={
         <button type="button" class="dt-btn" onClick={props.onToggle}>
-          {table.labels.columns}
+          {table.labels().columns}
         </button>
       }
     >
@@ -73,12 +73,12 @@ export function ColumnsDropdown<TRow extends object>(props: ColumnsDropdownProps
         <input
           type="text"
           class="dt-dd-search"
-          placeholder={table.labels.filterSearchPlaceholder}
+          placeholder={table.labels().filterSearchPlaceholder}
           value={searchTerm()}
           onInput={(e) => setSearchTerm(e.currentTarget.value)}
         />
       </div>
-      <div class="dt-dd-section">{table.labels.columnsSection}</div>
+      <div class="dt-dd-section">{table.labels().columnsSection}</div>
       <div ref={rowsContainer} onDragOver={handleDragOver} onDrop={handleDrop}>
         <For each={searchedColumns()}>
           {(col) => (

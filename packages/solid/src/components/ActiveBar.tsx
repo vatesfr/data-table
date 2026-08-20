@@ -16,7 +16,7 @@ const FILTER_CHIP_MAX = 3
 
 function summarizeFilterValues<TRow extends object>(
   vals: Set<string>,
-  L: TableState<TRow>['labels'],
+  L: ReturnType<TableState<TRow>['labels']>,
 ): string {
   const arr = [...vals]
   if (arr.length <= FILTER_CHIP_MAX) return arr.join(', ')
@@ -80,7 +80,7 @@ export function ActiveBar<TRow extends object>(props: ActiveBarProps<TRow>) {
             <span class="dt-chip dt-chip--filter">
               <button type="button" class="dt-chip-body" onClick={() => props.onOpenFilter(key)}>
                 {props.columns.find((c) => c.key === key)?.label ?? key}:{' '}
-                {summarizeFilterValues(vals, table.labels)}
+                {summarizeFilterValues(vals, table.labels())}
               </button>
               <button
                 type="button"
@@ -97,7 +97,7 @@ export function ActiveBar<TRow extends object>(props: ActiveBarProps<TRow>) {
             <span class="dt-chip dt-chip--filter dt-chip--exclude">
               <button type="button" class="dt-chip-body" onClick={() => props.onOpenFilter(key)}>
                 {props.columns.find((c) => c.key === key)?.label ?? key}: ≠{' '}
-                {summarizeFilterValues(vals, table.labels)}
+                {summarizeFilterValues(vals, table.labels())}
               </button>
               <button
                 type="button"
@@ -131,8 +131,8 @@ export function ActiveBar<TRow extends object>(props: ActiveBarProps<TRow>) {
         </For>
       </Show>
       <span class="dt-stats">
-        {table.labels.rowCount(table.processedData().length, props.totalRows)}
-        {table.group.by().length > 0 ? table.labels.groupCount(pageGroupCount()) : ''}
+        {table.labels().rowCount(table.processedData().length, props.totalRows)}
+        {table.group.by().length > 0 ? table.labels().groupCount(pageGroupCount()) : ''}
       </span>
     </div>
   )

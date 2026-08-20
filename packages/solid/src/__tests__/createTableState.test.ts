@@ -430,3 +430,64 @@ describe('createTableState — accessor inputs for data/columns', () => {
     })
   })
 })
+
+describe('createTableState — accessor input for options (labels/defaultGroupsCollapsed/getRowId stay live)', () => {
+  it('a plain options object is captured once, matching pre-existing behavior', () => {
+    withRoot(() => {
+      const table = createTableState(ROWS, COLS, { labels: { rowCount: () => 'frozen' } })
+      expect(table.labels().rowCount(0, 0)).toBe('frozen')
+    })
+  })
+
+  it('tracks labels reactively when options is given as an Accessor', () => {
+    const [labels, setLabels] = createSignal({ rowCount: (): string => 'v1' })
+    let table!: ReturnType<typeof createTableState<Row>>
+    let dispose!: () => void
+    createRoot((d) => {
+      dispose = d
+      table = createTableState(ROWS, COLS, () => ({ labels: labels() }))
+    })
+    expect(table.labels().rowCount(0, 0)).toBe('v1')
+    setLabels({ rowCount: () => 'v2' })
+    expect(table.labels().rowCount(0, 0)).toBe('v2')
+    dispose()
+  })
+
+  it('tracks defaultGroupsCollapsed reactively when options is given as an Accessor', () => {
+    const [defaultGroupsCollapsed, setDefaultGroupsCollapsed] = createSignal(true)
+    let table!: ReturnType<typeof createTableState<Row>>
+    let dispose!: () => void
+    createRoot((d) => {
+      dispose = d
+      table = createTableState(ROWS, COLS, () => ({
+        defaultGroupsCollapsed: defaultGroupsCollapsed(),
+      }))
+    })
+    expect(table.group.defaultCollapsed()).toBe(true)
+    setDefaultGroupsCollapsed(false)
+    expect(table.group.defaultCollapsed()).toBe(false)
+    dispose()
+  })
+
+  it('tracks getRowId reactively when options is given as an Accessor', () => {
+    const [getRowId, setGetRowId] = createSignal<((row: Row) => string | number) | undefined>(
+      undefined,
+    )
+    let table!: ReturnType<typeof createTableState<Row>>
+    let dispose!: () => void
+    createRoot((d) => {
+      dispose = d
+      table = createTableState(ROWS, COLS, () => ({ getRowId: getRowId() }))
+    })
+    // Without getRowId, selection tracks by object identity — a fresh object with the same `id`
+    // does not count as already selected.
+    table.selection.toggle(ROWS[0])
+    expect(table.selection.rows()).toEqual([ROWS[0]])
+    setGetRowId(() => (row: Row) => row.id)
+    // Now that getRowId is live, toggling a *different* object sharing id 1 is recognized as the
+    // same row and deselects it instead of adding a second entry.
+    table.selection.toggle({ ...ROWS[0] })
+    expect(table.selection.rows()).toEqual([])
+    dispose()
+  })
+})
