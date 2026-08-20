@@ -1,4 +1,9 @@
-import type { ColumnDefBase, DataTableLabels, TableViewState } from '@vates/data-table-core'
+import type {
+  ColumnDefBase,
+  DataTableLabels,
+  GetRowId,
+  TableViewState,
+} from '@vates/data-table-core'
 
 // Structurally identical to @vates/data-table-solid's own `ColumnDef` (createTableState/
 // DataTableView there are typed against it) — declared again here rather than imported from
@@ -33,6 +38,12 @@ export interface DataTableOptions<TRow extends object = Record<string, unknown>>
   defaultPageSize?: number
   /** Whether newly-grouped groups start collapsed. Defaults to `true`; pass `false` to start expanded. */
   defaultGroupsCollapsed?: boolean
+  /**
+   * Opt-in row identity for selection — see `@vates/data-table-solid`'s `CreateTableStateOptions.
+   * getRowId` doc comment for the full reasoning. Omit to keep the default object-identity
+   * behavior.
+   */
+  getRowId?: GetRowId<TRow>
   selectable?: boolean
   onSelectionChange?: (rows: TRow[]) => void
   /** Fires on a row click, or on Enter while a row has keyboard focus (see "Keyboard navigation"). */

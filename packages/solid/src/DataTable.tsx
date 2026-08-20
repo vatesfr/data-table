@@ -2,7 +2,7 @@ import { createEffect, on } from 'solid-js'
 import { createTableState } from './createTableState'
 import { DataTableView, type DataTableViewProps } from './DataTableView'
 import type { ColumnDef } from './types'
-import type { DataTableLabels } from '@vates/data-table-core'
+import type { DataTableLabels, GetRowId } from '@vates/data-table-core'
 
 export interface DataTableProps<TRow extends object> extends Omit<
   DataTableViewProps<TRow>,
@@ -18,6 +18,11 @@ export interface DataTableProps<TRow extends object> extends Omit<
   defaultPageSize?: number
   /** Whether newly-grouped groups start collapsed. Defaults to `true`; pass `false` to start expanded. */
   defaultGroupsCollapsed?: boolean
+  /**
+   * Opt-in row identity for selection — see `CreateTableStateOptions.getRowId`'s own doc comment
+   * for the full reasoning. Omit to keep the default object-identity behavior.
+   */
+  getRowId?: GetRowId<TRow>
   /**
    * Fires whenever the selection changes. `createTableState`+`DataTableView` used directly has
    * no equivalent — a consumer holding onto `table` can just read `table.selectedRows()`
@@ -45,6 +50,7 @@ export function DataTable<TRow extends object>(props: DataTableProps<TRow>) {
       labels: props.labels,
       defaultPageSize: props.defaultPageSize,
       defaultGroupsCollapsed: props.defaultGroupsCollapsed,
+      getRowId: props.getRowId,
     },
   )
 

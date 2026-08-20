@@ -73,6 +73,7 @@ function mount(
     onRowClick: (row: Row, e: MouseEvent | KeyboardEvent) => void
     defaultPageSize: number
     defaultGroupsCollapsed: boolean
+    getRowId: (row: Row) => number
   }> = {},
 ) {
   const container = document.createElement('div')
@@ -85,6 +86,7 @@ function mount(
     onRowClick: opts.onRowClick,
     defaultPageSize: opts.defaultPageSize,
     defaultGroupsCollapsed: opts.defaultGroupsCollapsed,
+    getRowId: opts.getRowId,
   })
   return { container, table }
 }
@@ -190,6 +192,44 @@ describe('createDataTable — imperative selection API', () => {
     click(aliceRow.querySelector<HTMLInputElement>('input[type="checkbox"]')!)
     // Bob is filtered out of the visible rows but stays in the selection.
     expect(table.getSelection()).toEqual([ROWS[0], ROWS[1]])
+  })
+})
+
+describe('createDataTable — getRowId (selection identity)', () => {
+  // getSelection() returns the raw selection Set unfiltered (see its own doc comment — it
+  // deliberately includes rows hidden by a filter too), so it doesn't itself go "empty" here the
+  // way React/Vue/Solid's processedData-filtered `selectedRows` would; the observable effect of a
+  // silently-dropped identity match is that no checkbox renders as checked anymore.
+  it('without getRowId, setData with new row objects leaves no checkbox rendered as checked', () => {
+    const { container, table } = mount({ selectable: true })
+    table.setSelection([ROWS[0]])
+    expect(rowCheckbox(container, 0).checked).toBe(true)
+    table.setData(ROWS.map((r) => ({ ...r })))
+    expect(rowCheckbox(container, 0).checked).toBe(false)
+  })
+
+  it('with getRowId, selection survives setData producing new row objects', () => {
+    const { container, table } = mount({ selectable: true, getRowId: (r) => r.id })
+    table.setSelection([ROWS[0]]) // Alice, id 1
+    const refetched = ROWS.map((r) => ({ ...r }))
+    table.setData(refetched)
+    expect(table.getSelection()).toEqual([refetched[0]])
+    expect(rowCheckbox(container, 0).checked).toBe(true)
+  })
+
+  it('with getRowId, a row no longer present after setData is dropped from selection', () => {
+    const { table } = mount({ selectable: true, getRowId: (r) => r.id })
+    table.setSelection([ROWS[0]]) // Alice, id 1
+    table.setData(ROWS.slice(1).map((r) => ({ ...r })))
+    expect(table.getSelection()).toEqual([])
+  })
+
+  it('with getRowId, clicking a fresh-object row with a selected id deselects it', () => {
+    const { container, table } = mount({ selectable: true, getRowId: (r) => r.id })
+    table.setSelection([ROWS[0]]) // Alice, id 1
+    table.setData(ROWS.map((r) => ({ ...r }))) // fresh references, same ids
+    click(rowCheckbox(container, 0)) // same id (1), different reference
+    expect(table.getSelection()).toEqual([])
   })
 })
 

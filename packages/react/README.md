@@ -227,6 +227,21 @@ const [selected, setSelected] = useState<Employee[]>([])
 
 `onSelectionChange` receives the array of currently selected rows that are present in the filtered dataset. Selection uses object identity (`Set<TRow>`), so it persists across sort/filter changes as long as row references are stable.
 
+Refetching or re-mapping `data` breaks that assumption — even identical content in a new array of new objects silently drops selection, since a `Set` can only ever match by reference. Pass `getRowId` to opt into id-based matching instead, so selection survives a refresh:
+
+```tsx
+<DataTable
+  data={employees}
+  columns={COLUMNS}
+  rowKey="id"
+  selectable
+  onSelectionChange={setSelected}
+  getRowId={(employee) => employee.id}
+/>
+```
+
+With `getRowId` set, a selected id is remapped to its fresh object reference whenever `data` changes, and dropped if the id no longer exists. Omit it to keep the default object-identity behavior exactly as above.
+
 ## Row click
 
 ▶ [Try it in the demo](https://vatesfr.github.io/data-table/react/#row-click)
@@ -250,18 +265,19 @@ Drag a column header to reorder it, or drag a row (or press Alt+ArrowUp/Alt+Arro
 
 ## `DataTable` props
 
-| Prop                     | Type                                                          | Default | Description                                  |
-| ------------------------ | ------------------------------------------------------------- | ------- | -------------------------------------------- |
-| `data`                   | `TRow[]`                                                      | —       | Row data                                     |
-| `columns`                | `ColumnDef<TRow>[]`                                           | —       | Column definitions                           |
-| `rowKey`                 | `keyof TRow & string`                                         | —       | React list key only — not selection identity |
-| `defaultVisibleColumns`  | `string[]`                                                    | all     | Initially visible column keys                |
-| `labels`                 | `Partial<DataTableLabels>`                                    | English | UI string overrides                          |
-| `defaultPageSize`        | `number`                                                      | 0 (off) | Initial rows per page; 0 disables pagination |
-| `defaultGroupsCollapsed` | `boolean`                                                     | `true`  | Whether newly-grouped groups start collapsed |
-| `selectable`             | `boolean`                                                     | `false` | Show checkbox column for row selection       |
-| `onSelectionChange`      | `(rows: TRow[]) => void`                                      | —       | Called when selection changes                |
-| `onRowClick`             | `(row: TRow, event: MouseEvent<HTMLTableRowElement>) => void` | —       | Called when a data row is clicked            |
+| Prop                     | Type                                                          | Default | Description                                                    |
+| ------------------------ | ------------------------------------------------------------- | ------- | -------------------------------------------------------------- |
+| `data`                   | `TRow[]`                                                      | —       | Row data                                                       |
+| `columns`                | `ColumnDef<TRow>[]`                                           | —       | Column definitions                                             |
+| `rowKey`                 | `keyof TRow & string`                                         | —       | React list key only — not selection identity                   |
+| `defaultVisibleColumns`  | `string[]`                                                    | all     | Initially visible column keys                                  |
+| `labels`                 | `Partial<DataTableLabels>`                                    | English | UI string overrides                                            |
+| `defaultPageSize`        | `number`                                                      | 0 (off) | Initial rows per page; 0 disables pagination                   |
+| `defaultGroupsCollapsed` | `boolean`                                                     | `true`  | Whether newly-grouped groups start collapsed                   |
+| `getRowId`               | `(row: TRow) => string \| number`                             | —       | Opt-in id-based selection identity (see "Row selection" above) |
+| `selectable`             | `boolean`                                                     | `false` | Show checkbox column for row selection                         |
+| `onSelectionChange`      | `(rows: TRow[]) => void`                                      | —       | Called when selection changes                                  |
+| `onRowClick`             | `(row: TRow, event: MouseEvent<HTMLTableRowElement>) => void` | —       | Called when a data row is clicked                              |
 
 ## Column definition
 

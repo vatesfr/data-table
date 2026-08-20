@@ -11,7 +11,7 @@ import {
 import type { ColumnDef, DataTableOptions, DataTableInstance } from './types'
 
 export type { ColumnDef, DataTableOptions, DataTableInstance }
-export type { DataTableLabels, TableViewState } from '@vates/data-table-core'
+export type { DataTableLabels, TableViewState, GetRowId } from '@vates/data-table-core'
 export { persistViewToLocalStorage, syncViewToUrl, resetView, persistView } from './persistence'
 export type {
   ViewStateApi,
@@ -56,6 +56,7 @@ export function createDataTable<TRow extends object>(
       labels: options.labels,
       defaultPageSize: options.defaultPageSize,
       defaultGroupsCollapsed: options.defaultGroupsCollapsed,
+      getRowId: options.getRowId,
     })
 
     // Fires on every subsequent change to any view-affecting signal (sort/filter/group/page/etc,

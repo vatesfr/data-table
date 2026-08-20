@@ -90,6 +90,12 @@ To persist a view somewhere else (e.g. a backend), call `getViewState()`/`setVie
 
 Same model as every other adapter — see the [root README](../../README.md#features) and [CLAUDE.md](../../CLAUDE.md) for the full behavior (selection is tracked by object identity, not `rowKey`; shift-click/shift-arrow range selection; roving-tabindex keyboard nav; `getViewState()`/`setViewState()` for persistence/sharing). `TableState<TRow>` exposes the same actions/derived values React's and Vue's `useTableState` do — `selection`, `selectedRows`, `toggleRowSelection`, `toggleSelectAll`, `clearSelection`, `sorts`, `filters`, `groupBy`, `page`, `pageSize`, and so on, all as Solid signals/accessors instead of `useState`/`ref`. `<DataTable>` doesn't expose any of that directly (see above) — pass `selectable` to turn selection on, and `onSelectionChange` to observe it, the same two props `@vates/data-table-vanilla`'s own `createDataTable` accepts.
 
+Object-identity selection silently drops on a `setData`/refetch that produces new row objects, since a `Set` can only ever match by reference. Pass `getRowId` (to `createTableState`'s options, or `<DataTable>`'s own prop) to opt into id-based matching instead — a selected id is remapped to its fresh object reference whenever `data` changes, and dropped if the id no longer exists:
+
+```tsx
+const table = createTableState(data, columns, { getRowId: (row) => row.id })
+```
+
 ▶ [Try it in the demo](https://vatesfr.github.io/data-table/solid/#row-selection)
 
 ## License

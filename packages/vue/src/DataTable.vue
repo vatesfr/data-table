@@ -43,6 +43,7 @@ const table = useTableState(
     labels: props.labels,
     defaultPageSize: props.defaultPageSize,
     defaultGroupsCollapsed: props.defaultGroupsCollapsed,
+    getRowId: props.getRowId,
   }),
 )
 

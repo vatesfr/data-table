@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { ref, nextTick } from 'vue'
+import { ref, shallowRef, nextTick } from 'vue'
 import { useTableState } from '../useTableState'
 import type { ColumnDef } from '../types'
 
@@ -130,6 +130,60 @@ describe('useTableState — row selection', () => {
     const { selectedRows, toggleRowSelection } = useTableState(ROWS, COLS)
     toggleRowSelection(ROWS[2], true)
     expect(selectedRows.value).toEqual([ROWS[2]])
+  })
+})
+
+describe('useTableState — getRowId (selection identity)', () => {
+  it('without getRowId, a refetch (new row objects) silently drops selection', () => {
+    const data = shallowRef(ROWS)
+    const { selectedRows, toggleRowSelection } = useTableState(data, COLS)
+    toggleRowSelection(ROWS[0])
+    expect(selectedRows.value).toEqual([ROWS[0]])
+    data.value = ROWS.map((r) => ({ ...r }))
+    expect(selectedRows.value).toEqual([])
+  })
+
+  it('with getRowId, selection survives a refetch that produces new row objects', () => {
+    const data = shallowRef(ROWS)
+    const { selectedRows, toggleRowSelection } = useTableState(data, COLS, {
+      getRowId: (r) => r.id,
+    })
+    toggleRowSelection(ROWS[0]) // Alice, id 1
+    const refetched = ROWS.map((r) => ({ ...r }))
+    data.value = refetched
+    expect(selectedRows.value).toEqual([refetched[0]])
+  })
+
+  it('with getRowId, a row no longer present after the refetch is dropped from selection', () => {
+    const data = shallowRef(ROWS)
+    const { selectedRows, toggleRowSelection } = useTableState(data, COLS, {
+      getRowId: (r) => r.id,
+    })
+    toggleRowSelection(ROWS[0]) // Alice, id 1
+    data.value = ROWS.slice(1).map((r) => ({ ...r }))
+    expect(selectedRows.value).toEqual([])
+  })
+
+  it('with getRowId, toggleRowSelection on a fresh-object row with a selected id deselects it', () => {
+    const data = shallowRef(ROWS)
+    const { selectedRows, toggleRowSelection } = useTableState(data, COLS, {
+      getRowId: (r) => r.id,
+    })
+    toggleRowSelection(ROWS[0]) // Alice, id 1
+    const refetched = ROWS.map((r) => ({ ...r }))
+    data.value = refetched
+    toggleRowSelection(refetched[0]) // same id, different reference
+    expect(selectedRows.value).toEqual([])
+  })
+
+  it('with getRowId, the raw selection Set is reconciled to the fresh reference after a tick', async () => {
+    const data = shallowRef(ROWS)
+    const { selection, toggleRowSelection } = useTableState(data, COLS, { getRowId: (r) => r.id })
+    toggleRowSelection(ROWS[0]) // Alice, id 1
+    const refetched = ROWS.map((r) => ({ ...r }))
+    data.value = refetched
+    await nextTick()
+    expect([...selection.value]).toEqual([refetched[0]])
   })
 })
 

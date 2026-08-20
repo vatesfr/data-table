@@ -7,7 +7,7 @@ import {
 } from '@vates/data-table-core'
 
 export type { ColumnDef } from './types'
-export type { DataTableLabels, TableViewState, DatePart } from '@vates/data-table-core'
+export type { DataTableLabels, TableViewState, DatePart, GetRowId } from '@vates/data-table-core'
 export * from '@vates/data-table-core/locales'
 // Ready-made groupValue/groupFormat pairs for bucketing a continuous/high-cardinality column
 // (percentages, timestamps) into coarser groups — see `ColumnDefBase.groupValue` in the docs.

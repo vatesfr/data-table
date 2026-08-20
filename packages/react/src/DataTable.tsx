@@ -10,6 +10,7 @@ export function DataTable<TRow extends object>({
   labels,
   defaultPageSize,
   defaultGroupsCollapsed,
+  getRowId,
   selectable,
   onSelectionChange,
   onRowClick,
@@ -19,6 +20,7 @@ export function DataTable<TRow extends object>({
     labels,
     defaultPageSize,
     defaultGroupsCollapsed,
+    getRowId,
   })
 
   return (

@@ -19,6 +19,7 @@ export type {
   ColumnDefBase,
   TableViewState,
   DatePart,
+  GetRowId,
 } from '@vates/data-table-core'
 export { DEFAULT_LABELS } from '@vates/data-table-core'
 export * from '@vates/data-table-core/locales'

@@ -33,6 +33,11 @@ import {
   cycleFilterValue,
   clearExcludeValues,
   selectRange,
+  isRowSelected,
+  selectedRowsOf,
+  toggleRowInSelection,
+  toggleAllInSelection,
+  reconcileSelection,
   selectDateRange,
   toggleGroupBy,
   toggleCollapse,
@@ -2179,6 +2184,120 @@ describe('selectRange', () => {
     const b = { id: 2 }
     const c = { id: 3 }
     expect(selectRange([a, b, c], a, c)).toEqual([a, b, c])
+  })
+})
+
+// ─── Selection identity (getRowId) ────────────────────────────────────────────
+
+interface SelRow {
+  id: number
+  name: string
+}
+const getRowId = (r: SelRow) => r.id
+
+describe('isRowSelected', () => {
+  it('without getRowId, matches by object identity', () => {
+    const a: SelRow = { id: 1, name: 'a' }
+    const aRefetched: SelRow = { id: 1, name: 'a' }
+    expect(isRowSelected(new Set([a]), a)).toBe(true)
+    expect(isRowSelected(new Set([a]), aRefetched)).toBe(false)
+  })
+
+  it('with getRowId, matches by id across different object references', () => {
+    const a: SelRow = { id: 1, name: 'a' }
+    const aRefetched: SelRow = { id: 1, name: 'a (refetched)' }
+    expect(isRowSelected(new Set([a]), aRefetched, getRowId)).toBe(true)
+  })
+
+  it('with getRowId, a different id does not match', () => {
+    const a: SelRow = { id: 1, name: 'a' }
+    const b: SelRow = { id: 2, name: 'b' }
+    expect(isRowSelected(new Set([a]), b, getRowId)).toBe(false)
+  })
+})
+
+describe('selectedRowsOf', () => {
+  it('without getRowId, filters by object identity', () => {
+    const a: SelRow = { id: 1, name: 'a' }
+    const b: SelRow = { id: 2, name: 'b' }
+    expect(selectedRowsOf([a, b], new Set([a]))).toEqual([a])
+  })
+
+  it('with getRowId, filters by id even against refetched objects', () => {
+    const a: SelRow = { id: 1, name: 'a' }
+    const aRefetched: SelRow = { id: 1, name: 'a (refetched)' }
+    const b: SelRow = { id: 2, name: 'b' }
+    expect(selectedRowsOf([aRefetched, b], new Set([a]), getRowId)).toEqual([aRefetched])
+  })
+})
+
+describe('toggleRowInSelection', () => {
+  it('without getRowId, adds an unselected row and removes an already-selected one', () => {
+    const a: SelRow = { id: 1, name: 'a' }
+    expect([...toggleRowInSelection(new Set(), a)]).toEqual([a])
+    expect([...toggleRowInSelection(new Set([a]), a)]).toEqual([])
+  })
+
+  it('with getRowId, toggling a refetched row removes the old reference by id', () => {
+    const a: SelRow = { id: 1, name: 'a' }
+    const aRefetched: SelRow = { id: 1, name: 'a (refetched)' }
+    const next = toggleRowInSelection(new Set([a]), aRefetched, getRowId)
+    expect(next.size).toBe(0)
+  })
+
+  it('does not mutate the input selection', () => {
+    const a: SelRow = { id: 1, name: 'a' }
+    const original = new Set<Row>()
+    toggleRowInSelection(original, a)
+    expect(original.size).toBe(0)
+  })
+})
+
+describe('toggleAllInSelection', () => {
+  const a: SelRow = { id: 1, name: 'a' }
+  const b: SelRow = { id: 2, name: 'b' }
+
+  it('selects all when none are selected', () => {
+    expect([...toggleAllInSelection(new Set(), [a, b])].sort()).toEqual([a, b].sort())
+  })
+
+  it('deselects all when any are already selected', () => {
+    expect([...toggleAllInSelection(new Set([a]), [a, b])]).toEqual([])
+  })
+
+  it('with getRowId, selecting replaces a stale same-id reference rather than duplicating it', () => {
+    const aStale: SelRow = { id: 1, name: 'a (stale)' }
+    const next = toggleAllInSelection(new Set([aStale]), [a, b], getRowId)
+    // aStale and a share id 1 — toggleAllInSelection sees `a` as "already selected" (by id) via
+    // aStale, so this is the deselect-all branch: both should end up removed, not 3 entries.
+    expect(next.size).toBe(0)
+  })
+})
+
+describe('reconcileSelection', () => {
+  it('is a no-op without getRowId', () => {
+    const a: SelRow = { id: 1, name: 'a' }
+    const selection = new Set([a])
+    expect(reconcileSelection([], selection)).toBe(selection)
+  })
+
+  it('remaps a selected id to its fresh object reference in nextData', () => {
+    const a: SelRow = { id: 1, name: 'a' }
+    const aRefetched: SelRow = { id: 1, name: 'a (refetched)' }
+    const next = reconcileSelection([aRefetched], new Set([a]), getRowId)
+    expect([...next]).toEqual([aRefetched])
+  })
+
+  it('drops an id no longer present in nextData', () => {
+    const a: SelRow = { id: 1, name: 'a' }
+    const next = reconcileSelection([], new Set([a]), getRowId)
+    expect(next.size).toBe(0)
+  })
+
+  it('returns the same Set instance when nothing actually changed', () => {
+    const a: SelRow = { id: 1, name: 'a' }
+    const selection = new Set([a])
+    expect(reconcileSelection([a], selection, getRowId)).toBe(selection)
   })
 })
 

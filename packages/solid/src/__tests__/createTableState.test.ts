@@ -128,6 +128,61 @@ describe('createTableState — row selection', () => {
   })
 })
 
+describe('createTableState — getRowId (selection identity)', () => {
+  it('without getRowId, setData with new row objects silently drops selection', () => {
+    withRoot(() => {
+      const table = createTableState(ROWS, COLS)
+      table.toggleRowSelection(ROWS[0])
+      expect(table.selectedRows()).toEqual([ROWS[0]])
+      table.setData(ROWS.map((r) => ({ ...r })))
+      expect(table.selectedRows()).toEqual([])
+    })
+  })
+
+  it('with getRowId, selection survives setData producing new row objects', () => {
+    withRoot(() => {
+      const table = createTableState(ROWS, COLS, { getRowId: (r) => r.id })
+      table.toggleRowSelection(ROWS[0]) // Alice, id 1
+      const refetched = ROWS.map((r) => ({ ...r }))
+      table.setData(refetched)
+      expect(table.selectedRows()).toEqual([refetched[0]])
+      // The raw selection Set itself is reconciled too, not just selectedRows' derived view.
+      expect([...table.selection()]).toEqual([refetched[0]])
+    })
+  })
+
+  it('with getRowId, a row no longer present after setData is dropped from selection', () => {
+    withRoot(() => {
+      const table = createTableState(ROWS, COLS, { getRowId: (r) => r.id })
+      table.toggleRowSelection(ROWS[0]) // Alice, id 1
+      table.setData(ROWS.slice(1).map((r) => ({ ...r })))
+      expect(table.selectedRows()).toEqual([])
+    })
+  })
+
+  it('with getRowId, toggleRowSelection on a fresh-object row with a selected id deselects it', () => {
+    withRoot(() => {
+      const table = createTableState(ROWS, COLS, { getRowId: (r) => r.id })
+      table.toggleRowSelection(ROWS[0]) // Alice, id 1
+      const refetched = ROWS.map((r) => ({ ...r }))
+      table.setData(refetched)
+      table.toggleRowSelection(refetched[0]) // same id, different reference
+      expect(table.selectedRows()).toEqual([])
+    })
+  })
+
+  it('with getRowId, toggleSelectAll treats a stale-reference id as already selected', () => {
+    withRoot(() => {
+      const table = createTableState(ROWS, COLS, { getRowId: (r) => r.id })
+      table.toggleRowSelection(ROWS[0]) // Alice, id 1
+      const refetched = ROWS.map((r) => ({ ...r }))
+      table.setData(refetched)
+      table.toggleSelectAll(refetched)
+      expect(table.selectedRows()).toEqual([])
+    })
+  })
+})
+
 describe('createTableState — sorting', () => {
   it('toggleSort cycles asc -> desc -> none', () => {
     withRoot(() => {

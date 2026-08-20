@@ -20,6 +20,11 @@ import {
   cycleFilterValue as _cycleFilterValue,
   clearExcludeValues as _clearExcludeValues,
   selectRange,
+  isRowSelected,
+  selectedRowsOf,
+  toggleRowInSelection,
+  toggleAllInSelection,
+  reconcileSelection,
   toggleGroupBy,
   toggleCollapse,
   getOrderedColumns,
@@ -33,15 +38,26 @@ import {
   type RangeFilter,
   type DataTableLabels,
   type TableViewState,
+  type GetRowId,
 } from '@vates/data-table-core'
 import type { ColumnDef } from './types'
 
-export interface UseTableStateOptions {
+export interface UseTableStateOptions<TRow extends object = Record<string, unknown>> {
   defaultVisibleColumns?: string[]
   labels?: Partial<DataTableLabels>
   defaultPageSize?: number
   /** Whether newly-grouped groups start collapsed. Defaults to `true`; pass `false` to start expanded. */
   defaultGroupsCollapsed?: boolean
+  /**
+   * Opt-in row identity for selection. By default, selection tracks rows by object identity — a
+   * refetch or re-map of `data` that produces new row objects (even with identical content)
+   * silently drops selection, since a `Set` can only ever match by reference. Supplying `getRowId`
+   * switches selection to match by id instead, so it survives that kind of refresh: whenever
+   * `data` changes, currently-selected ids are looked up in the new array and remapped to their
+   * fresh object references (an id no longer present is dropped from selection). Omit this to
+   * keep today's exact default behavior.
+   */
+  getRowId?: GetRowId<TRow>
 }
 
 export type TableState<TRow extends object> = ReturnType<typeof useTableState<TRow>>
@@ -58,13 +74,14 @@ function sameKeySet(a: string[], b: string[]): boolean {
 export function useTableState<TRow extends object>(
   data: TRow[],
   columns: ColumnDef<TRow>[],
-  options?: UseTableStateOptions,
+  options?: UseTableStateOptions<TRow>,
 ) {
   const {
     defaultVisibleColumns,
     labels: labelOverrides,
     defaultPageSize,
     defaultGroupsCollapsed = true,
+    getRowId,
   } = options ?? {}
   const L = { ...DEFAULT_LABELS, ...labelOverrides }
 
@@ -125,6 +142,16 @@ export function useTableState<TRow extends object>(
   const [selection, setSelection] = useState<Set<TRow>>(new Set())
   const [selectionAnchor, setSelectionAnchor] = useState<TRow | null>(null)
   const [searchQuery, setSearchQueryState] = useState('')
+
+  // Reconciles `selection`'s stored row references against a changed `data` argument, same
+  // "adjust state when a prop changes" render-time pattern as visibleCols/columnKeys above —
+  // only actually does anything when `getRowId` is set (reconcileSelection is a no-op passthrough
+  // otherwise, so this is a zero-cost no-op for the default object-identity behavior).
+  const [prevData, setPrevData] = useState(data)
+  if (data !== prevData) {
+    setPrevData(data)
+    if (getRowId) setSelection((prev) => reconcileSelection(data, prev, getRowId))
+  }
 
   const defaultSortDirFor = (key: string) =>
     columns.find((c) => c.key === key)?.defaultSortDir ?? 'asc'
@@ -214,8 +241,8 @@ export function useTableState<TRow extends object>(
   )
 
   const selectedRows = useMemo(
-    () => processedData.filter((r) => selection.has(r)),
-    [processedData, selection],
+    () => selectedRowsOf(processedData, selection, getRowId),
+    [processedData, selection, getRowId],
   )
 
   return {
@@ -384,29 +411,20 @@ export function useTableState<TRow extends object>(
     getSortIndex: (key: string) => _getSortIndex(sorts, key),
     toggleRowSelection: (row: TRow, shiftKey = false) => {
       setSelection((prev) => {
-        const next = new Set(prev)
         if (shiftKey && selectionAnchor) {
-          const shouldSelect = !next.has(row)
+          const next = new Set(prev)
+          const shouldSelect = !isRowSelected(next, row, getRowId)
           const range = selectRange(processedData, selectionAnchor, row)
           if (shouldSelect) range.forEach((r) => next.add(r))
           else range.forEach((r) => next.delete(r))
-        } else if (next.has(row)) {
-          next.delete(row)
-        } else {
-          next.add(row)
+          return next
         }
-        return next
+        return toggleRowInSelection(prev, row, getRowId)
       })
       setSelectionAnchor(row)
     },
     toggleSelectAll: (rows: TRow[]) =>
-      setSelection((prev) => {
-        const next = new Set(prev)
-        const someSelected = rows.some((r) => next.has(r))
-        if (someSelected) rows.forEach((r) => next.delete(r))
-        else rows.forEach((r) => next.add(r))
-        return next
-      }),
+      setSelection((prev) => toggleAllInSelection(prev, rows, getRowId)),
     clearSelection: () => {
       setSelection(new Set())
       setSelectionAnchor(null)

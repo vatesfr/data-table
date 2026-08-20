@@ -174,6 +174,81 @@ describe('useTableState — row selection', () => {
   })
 })
 
+describe('useTableState — getRowId (selection identity)', () => {
+  it('without getRowId, a refetch (new row objects) silently drops selection', () => {
+    const { result, rerender } = renderHook(({ data }) => useTableState(data, COLS), {
+      initialProps: { data: ROWS },
+    })
+    act(() => {
+      result.current.toggleRowSelection(ROWS[0])
+    })
+    expect(result.current.selectedRows).toEqual([ROWS[0]])
+    const refetched = ROWS.map((r) => ({ ...r }))
+    rerender({ data: refetched })
+    expect(result.current.selectedRows).toEqual([])
+  })
+
+  it('with getRowId, selection survives a refetch that produces new row objects', () => {
+    const { result, rerender } = renderHook(
+      ({ data }) => useTableState(data, COLS, { getRowId: (r) => r.id }),
+      { initialProps: { data: ROWS } },
+    )
+    act(() => {
+      result.current.toggleRowSelection(ROWS[0]) // Alice, id 1
+    })
+    const refetched = ROWS.map((r) => ({ ...r }))
+    rerender({ data: refetched })
+    expect(result.current.selectedRows).toEqual([refetched[0]])
+  })
+
+  it('with getRowId, a row no longer present after the refetch is dropped from selection', () => {
+    const { result, rerender } = renderHook(
+      ({ data }) => useTableState(data, COLS, { getRowId: (r) => r.id }),
+      { initialProps: { data: ROWS } },
+    )
+    act(() => {
+      result.current.toggleRowSelection(ROWS[0]) // Alice, id 1
+    })
+    const refetchedWithoutAlice = ROWS.slice(1).map((r) => ({ ...r }))
+    rerender({ data: refetchedWithoutAlice })
+    expect(result.current.selectedRows).toEqual([])
+  })
+
+  it('with getRowId, toggleRowSelection on a fresh-object row with a selected id deselects it', () => {
+    const { result, rerender } = renderHook(
+      ({ data }) => useTableState(data, COLS, { getRowId: (r) => r.id }),
+      { initialProps: { data: ROWS } },
+    )
+    act(() => {
+      result.current.toggleRowSelection(ROWS[0]) // Alice, id 1
+    })
+    const refetched = ROWS.map((r) => ({ ...r }))
+    rerender({ data: refetched })
+    act(() => {
+      result.current.toggleRowSelection(refetched[0]) // same id, different reference
+    })
+    expect(result.current.selectedRows).toEqual([])
+  })
+
+  it('with getRowId, toggleSelectAll treats a stale-reference id as already selected', () => {
+    const { result, rerender } = renderHook(
+      ({ data }) => useTableState(data, COLS, { getRowId: (r) => r.id }),
+      { initialProps: { data: ROWS } },
+    )
+    act(() => {
+      result.current.toggleRowSelection(ROWS[0]) // Alice, id 1
+    })
+    const refetched = ROWS.map((r) => ({ ...r }))
+    rerender({ data: refetched })
+    act(() => {
+      result.current.toggleSelectAll(refetched)
+    })
+    // Alice (id 1) was already selected (by id) before this call, so this is the deselect-all
+    // branch: nothing should end up selected.
+    expect(result.current.selectedRows).toEqual([])
+  })
+})
+
 describe('useTableState — column visibility', () => {
   it('toggleColVisibility hides a column', () => {
     const { result } = renderHook(() => useTableState(ROWS, COLS))

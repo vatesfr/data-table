@@ -20,6 +20,11 @@ import {
   cycleFilterValue as _cycleFilterValue,
   clearExcludeValues as _clearExcludeValues,
   selectRange,
+  isRowSelected,
+  selectedRowsOf,
+  toggleRowInSelection,
+  toggleAllInSelection,
+  reconcileSelection,
   toggleGroupBy,
   toggleCollapse,
   getOrderedColumns,
@@ -34,15 +39,26 @@ import {
   type RangeFilter,
   type DataTableLabels,
   type TableViewState,
+  type GetRowId,
 } from '@vates/data-table-core'
 import type { ColumnDef } from './types'
 
-export interface UseTableStateOptions {
+export interface UseTableStateOptions<TRow extends object = Record<string, unknown>> {
   defaultVisibleColumns?: string[]
   labels?: Partial<DataTableLabels>
   defaultPageSize?: number
   /** Whether newly-grouped groups start collapsed. Defaults to `true`; pass `false` to start expanded. */
   defaultGroupsCollapsed?: boolean
+  /**
+   * Opt-in row identity for selection. By default, selection tracks rows by object identity — a
+   * refetch or re-map of `data` that produces new row objects (even with identical content)
+   * silently drops selection, since a `Set` can only ever match by reference. Supplying `getRowId`
+   * switches selection to match by id instead, so it survives that kind of refresh: whenever
+   * `data` changes, currently-selected ids are looked up in the new array and remapped to their
+   * fresh object references (an id no longer present is dropped from selection). Omit this to
+   * keep today's exact default behavior.
+   */
+  getRowId?: GetRowId<TRow>
 }
 
 export type TableState<TRow extends object> = ReturnType<typeof useTableState<TRow>>
@@ -50,7 +66,7 @@ export type TableState<TRow extends object> = ReturnType<typeof useTableState<TR
 export function useTableState<TRow extends object>(
   getData: MaybeRefOrGetter<TRow[]>,
   getColumns: MaybeRefOrGetter<ColumnDef<TRow>[]>,
-  getOptions?: MaybeRefOrGetter<UseTableStateOptions>,
+  getOptions?: MaybeRefOrGetter<UseTableStateOptions<TRow>>,
 ) {
   const data = computed(() => toValue(getData))
   const columns = computed(() => toValue(getColumns))
@@ -58,6 +74,7 @@ export function useTableState<TRow extends object>(
 
   const L = computed(() => ({ ...DEFAULT_LABELS, ...options.value.labels }))
   const defaultGroupsCollapsed = computed(() => options.value.defaultGroupsCollapsed ?? true)
+  const getRowId = computed(() => options.value.getRowId)
 
   const defaultSortDirFor = (key: string) =>
     columns.value.find((c) => c.key === key)?.defaultSortDir ?? 'asc'
@@ -92,6 +109,17 @@ export function useTableState<TRow extends object>(
   const selection = shallowRef<Set<TRow>>(new Set())
   const selectionAnchor = shallowRef<TRow | null>(null)
   const searchQuery = ref('')
+
+  // Reconciles `selection`'s stored row references whenever `data` changes — same trigger as
+  // visibleCols' own reconciliation above (a `watch`, since useTableState is only called once per
+  // component instance). Only actually does anything when `getRowId` is set (reconcileSelection
+  // is a no-op passthrough otherwise, so this costs nothing for the default object-identity
+  // behavior). `watch` is lazy by default, so this never runs against the very same `data.value`
+  // that already seeded things above it.
+  watch(data, (nextData) => {
+    if (getRowId.value)
+      selection.value = reconcileSelection(nextData, selection.value, getRowId.value)
+  })
 
   const stringValueMap = computed(() =>
     computeStringValues(data.value, columns.value, L.value.emptyValue),
@@ -158,7 +186,9 @@ export function useTableState<TRow extends object>(
     countActiveFilters(filters.value, rangeFilters.value, excludeFilters.value),
   )
 
-  const selectedRows = computed(() => processedData.value.filter((r) => selection.value.has(r)))
+  const selectedRows = computed(() =>
+    selectedRowsOf(processedData.value, selection.value, getRowId.value),
+  )
 
   return {
     // Reactive state
@@ -337,26 +367,20 @@ export function useTableState<TRow extends object>(
     getSortIcon: (key: string) => _getSortIcon(sorts.value, key),
     getSortIndex: (key: string) => _getSortIndex(sorts.value, key),
     toggleRowSelection: (row: TRow, shiftKey = false) => {
-      const next = new Set(selection.value)
       if (shiftKey && selectionAnchor.value) {
-        const shouldSelect = !next.has(row)
+        const next = new Set(selection.value)
+        const shouldSelect = !isRowSelected(next, row, getRowId.value)
         const range = selectRange(processedData.value, selectionAnchor.value, row)
         if (shouldSelect) range.forEach((r) => next.add(r))
         else range.forEach((r) => next.delete(r))
-      } else if (next.has(row)) {
-        next.delete(row)
+        selection.value = next
       } else {
-        next.add(row)
+        selection.value = toggleRowInSelection(selection.value, row, getRowId.value)
       }
-      selection.value = next
       selectionAnchor.value = row
     },
     toggleSelectAll: (rows: TRow[]) => {
-      const next = new Set(selection.value)
-      const someSelected = rows.some((r) => next.has(r))
-      if (someSelected) rows.forEach((r) => next.delete(r))
-      else rows.forEach((r) => next.add(r))
-      selection.value = next
+      selection.value = toggleAllInSelection(selection.value, rows, getRowId.value)
     },
     clearSelection: () => {
       selection.value = new Set()

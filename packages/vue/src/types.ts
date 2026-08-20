@@ -1,4 +1,4 @@
-import type { ColumnDefBase, DataTableLabels } from '@vates/data-table-core'
+import type { ColumnDefBase, DataTableLabels, GetRowId } from '@vates/data-table-core'
 import type { TableState } from './useTableState'
 
 // Vue uses scoped slots instead of render functions — no extra fields needed.
@@ -46,6 +46,11 @@ export interface DataTableProps<TRow extends object = Record<string, unknown>> e
   defaultPageSize?: number
   /** Whether newly-grouped groups start collapsed. Defaults to `true`; pass `false` to start expanded. */
   defaultGroupsCollapsed?: boolean
+  /**
+   * Opt-in row identity for selection — see `UseTableStateOptions.getRowId`'s own doc comment for
+   * the full reasoning. Omit to keep the default object-identity behavior.
+   */
+  getRowId?: GetRowId<TRow>
   /**
    * `v-model:page` — two-way bound to the table's own current page. Unlike selection (already
    * observable via `selectionChange`/`onSelectionChange`), `<DataTable>` otherwise has no way to

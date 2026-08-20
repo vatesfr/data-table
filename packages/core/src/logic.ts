@@ -944,6 +944,118 @@ export function selectRange<T>(items: T[], anchor: T, target: T): T[] {
   return items.slice(start, end + 1)
 }
 
+// --- Selection identity (opt-in getRowId) ---
+//
+// Selection is tracked as Set<TRow> by object identity by default — no `getRowId` involved, and
+// every function below is a no-op passthrough to that exact pre-existing behavior when `getRowId`
+// is omitted. That default has one real footgun: a re-fetch or re-map of `data` that produces new
+// row objects (even with identical content) silently drops selection, since a `Set` can only ever
+// match by reference. `getRowId` is the opt-in escape hatch — a consumer who supplies one gets
+// selection that survives such a refresh, matched by id instead of reference, at the cost of an
+// O(selection size) index build on each selection-membership check (`selectedRowsOf`) or mutation
+// (`toggleRowInSelection`/`toggleAllInSelection`) — cheap for any selection size a user could
+// plausibly multi-select by hand, and only paid at all by a consumer who opts in.
+export type GetRowId<TRow> = (row: TRow) => string | number
+
+export function isRowSelected<TRow>(
+  selection: Set<TRow>,
+  row: TRow,
+  getRowId?: GetRowId<TRow>,
+): boolean {
+  if (!getRowId) return selection.has(row)
+  const id = getRowId(row)
+  for (const r of selection) if (getRowId(r) === id) return true
+  return false
+}
+
+// The array-filter equivalent of isRowSelected, used to derive `selectedRows` from
+// `processedData` — builds one id lookup up front instead of re-scanning `selection` per row.
+export function selectedRowsOf<TRow>(
+  rows: TRow[],
+  selection: Set<TRow>,
+  getRowId?: GetRowId<TRow>,
+): TRow[] {
+  if (!getRowId) return rows.filter((r) => selection.has(r))
+  const ids = new Set<string | number>()
+  for (const r of selection) ids.add(getRowId(r))
+  return rows.filter((r) => ids.has(getRowId(r)))
+}
+
+export function toggleRowInSelection<TRow>(
+  selection: Set<TRow>,
+  row: TRow,
+  getRowId?: GetRowId<TRow>,
+): Set<TRow> {
+  const next = new Set(selection)
+  if (!getRowId) {
+    if (next.has(row)) next.delete(row)
+    else next.add(row)
+    return next
+  }
+  const id = getRowId(row)
+  for (const r of next) {
+    if (getRowId(r) === id) {
+      next.delete(r)
+      return next
+    }
+  }
+  next.add(row)
+  return next
+}
+
+export function toggleAllInSelection<TRow>(
+  selection: Set<TRow>,
+  rows: TRow[],
+  getRowId?: GetRowId<TRow>,
+): Set<TRow> {
+  if (!getRowId) {
+    const someSelected = rows.some((r) => selection.has(r))
+    const next = new Set(selection)
+    rows.forEach((r) => (someSelected ? next.delete(r) : next.add(r)))
+    return next
+  }
+  const rowIds = new Set(rows.map(getRowId))
+  const someSelected = [...selection].some((r) => rowIds.has(getRowId(r)))
+  const next = new Set(selection)
+  // Drop any existing entry sharing an id with `rows` first, whether selecting or deselecting —
+  // covers both the plain toggle-off case and "selecting" a row whose id is already present under
+  // a stale (pre-refresh) reference, so it doesn't end up double-counted under two references.
+  for (const r of [...next]) if (rowIds.has(getRowId(r))) next.delete(r)
+  if (!someSelected) rows.forEach((r) => next.add(r))
+  return next
+}
+
+// Keeps `selection`'s stored row objects pointing at `nextData`'s current references for their
+// ids — call this whenever `data` changes. Without it, a getRowId-based `isRowSelected`/
+// `selectedRowsOf` check still keeps working (ids still match), but `selection` itself would
+// quietly accumulate detached row objects from every past `data` array forever, and anything
+// reading `selection` directly (not through those two helpers) would see stale references. Drops
+// an id from `selection` entirely once it no longer exists in `nextData`. A no-op passthrough
+// (returns `selection` unchanged, not even a copy) when `getRowId` is omitted, matching today's
+// behavior exactly — object-identity selection has always relied on stable references, with no
+// reconciliation step.
+export function reconcileSelection<TRow>(
+  nextData: TRow[],
+  selection: Set<TRow>,
+  getRowId?: GetRowId<TRow>,
+): Set<TRow> {
+  if (!getRowId || selection.size === 0) return selection
+  const byId = new Map<string | number, TRow>()
+  for (const row of nextData) byId.set(getRowId(row), row)
+  const next = new Set<TRow>()
+  let changed = false
+  for (const row of selection) {
+    const fresh = byId.get(getRowId(row))
+    if (fresh === undefined) {
+      changed = true
+      continue
+    }
+    next.add(fresh)
+    if (fresh !== row) changed = true
+  }
+  return changed ? next : selection
+}
+
 export function toggleGroupBy(groupBy: string[], key: string): string[] {
   return groupBy.includes(key) ? groupBy.filter((k) => k !== key) : [...groupBy, key]
 }
