@@ -67,9 +67,9 @@ describe('DataTableView', () => {
 
   it('supports imperative selection control from outside via the table object', () => {
     const { table } = mountView()
-    table.toggleRowSelection(ROWS[0])
-    expect(table.selectedRows.value).toEqual([ROWS[0]])
-    table.clearSelection()
-    expect(table.selectedRows.value).toEqual([])
+    table.selection.toggle(ROWS[0])
+    expect(table.selection.rows.value).toEqual([ROWS[0]])
+    table.selection.clear()
+    expect(table.selection.rows.value).toEqual([])
   })
 })

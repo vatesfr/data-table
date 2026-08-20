@@ -24,28 +24,35 @@ const ROWS: Row[] = [
 
 describe('useTableState — initial state', () => {
   it('exposes all rows in processedData and selectedRows is empty', () => {
-    const { processedData, selectedRows } = useTableState(ROWS, COLS)
+    const table = useTableState(ROWS, COLS)
+    const { processedData } = table
+    const { rows: selectedRows } = table.selection
     expect(processedData.value).toEqual(ROWS)
     expect(selectedRows.value).toEqual([])
   })
 
   it('defaults to all columns visible', () => {
-    const { activeColumns } = useTableState(ROWS, COLS)
+    const table = useTableState(ROWS, COLS)
+    const { active: activeColumns } = table.columns
     expect(activeColumns.value).toHaveLength(3)
   })
 
   it('respects defaultVisibleColumns option', () => {
-    const { activeColumns } = useTableState(ROWS, COLS, { defaultVisibleColumns: ['id', 'name'] })
+    const table = useTableState(ROWS, COLS, { defaultVisibleColumns: ['id', 'name'] })
+    const { active: activeColumns } = table.columns
     expect(activeColumns.value.map((c) => c.key)).toEqual(['id', 'name'])
   })
 
   it('defaults pageSize to 0 (no pagination, all rows on one page)', () => {
-    const { pagedData } = useTableState(ROWS, COLS)
+    const table = useTableState(ROWS, COLS)
+    const { pagedData } = table
     expect(pagedData.value).toHaveLength(4)
   })
 
   it('respects defaultPageSize option', () => {
-    const { pagedData, numPages } = useTableState(ROWS, COLS, { defaultPageSize: 2 })
+    const table = useTableState(ROWS, COLS, { defaultPageSize: 2 })
+    const { pagedData } = table
+    const { numPages } = table.pagination
     expect(pagedData.value).toHaveLength(2)
     expect(numPages.value).toBe(2)
   })
@@ -53,7 +60,8 @@ describe('useTableState — initial state', () => {
 
 describe('useTableState — row selection', () => {
   it('toggleRowSelection adds and removes by object identity', () => {
-    const { selectedRows, toggleRowSelection } = useTableState(ROWS, COLS)
+    const table = useTableState(ROWS, COLS)
+    const { rows: selectedRows, toggle: toggleRowSelection } = table.selection
     toggleRowSelection(ROWS[0])
     expect(selectedRows.value).toEqual([ROWS[0]])
     toggleRowSelection(ROWS[0])
@@ -61,10 +69,9 @@ describe('useTableState — row selection', () => {
   })
 
   it('selectedRows only reflects rows present in processedData', () => {
-    const { selectedRows, toggleRowSelection, cycleFilterValue, clearFilters } = useTableState(
-      ROWS,
-      COLS,
-    )
+    const table = useTableState(ROWS, COLS)
+    const { rows: selectedRows, toggle: toggleRowSelection } = table.selection
+    const { cycleValue: cycleFilterValue, clear: clearFilters } = table.filter
     toggleRowSelection(ROWS[0]) // Alice
     toggleRowSelection(ROWS[1]) // Bob
     // Filter down to Alice only — Bob disappears from selectedRows but stays in selection
@@ -76,48 +83,71 @@ describe('useTableState — row selection', () => {
   })
 
   it('toggleSelectAll selects all when none are selected', () => {
-    const { selectedRows, toggleSelectAll } = useTableState(ROWS, COLS)
+    const table = useTableState(ROWS, COLS)
+    const { rows: selectedRows, toggleAll: toggleSelectAll } = table.selection
     toggleSelectAll(ROWS)
     expect(selectedRows.value).toHaveLength(4)
   })
 
   it('toggleSelectAll deselects all when all are selected', () => {
-    const { selectedRows, toggleSelectAll } = useTableState(ROWS, COLS)
+    const table = useTableState(ROWS, COLS)
+    const { rows: selectedRows, toggleAll: toggleSelectAll } = table.selection
     toggleSelectAll(ROWS)
     toggleSelectAll(ROWS)
     expect(selectedRows.value).toEqual([])
   })
 
   it('toggleSelectAll deselects all when only some are selected (partial)', () => {
-    const { selectedRows, toggleRowSelection, toggleSelectAll } = useTableState(ROWS, COLS)
+    const table = useTableState(ROWS, COLS)
+    const {
+      rows: selectedRows,
+      toggle: toggleRowSelection,
+      toggleAll: toggleSelectAll,
+    } = table.selection
     toggleRowSelection(ROWS[0])
     toggleSelectAll(ROWS)
     expect(selectedRows.value).toHaveLength(0)
   })
 
   it('toggleSelectAll with empty array is a no-op', () => {
-    const { selectedRows, toggleRowSelection, toggleSelectAll } = useTableState(ROWS, COLS)
+    const table = useTableState(ROWS, COLS)
+    const {
+      rows: selectedRows,
+      toggle: toggleRowSelection,
+      toggleAll: toggleSelectAll,
+    } = table.selection
     toggleRowSelection(ROWS[0])
     toggleSelectAll([])
     expect(selectedRows.value).toHaveLength(1)
   })
 
   it('clearSelection empties the selection', () => {
-    const { selectedRows, toggleSelectAll, clearSelection } = useTableState(ROWS, COLS)
+    const table = useTableState(ROWS, COLS)
+    const {
+      rows: selectedRows,
+      toggleAll: toggleSelectAll,
+      clear: clearSelection,
+    } = table.selection
     toggleSelectAll(ROWS)
     clearSelection()
     expect(selectedRows.value).toEqual([])
   })
 
   it('shift-click toggleRowSelection selects the range between the last click and the target', () => {
-    const { selectedRows, toggleRowSelection } = useTableState(ROWS, COLS)
+    const table = useTableState(ROWS, COLS)
+    const { rows: selectedRows, toggle: toggleRowSelection } = table.selection
     toggleRowSelection(ROWS[0]) // anchor = Alice
     toggleRowSelection(ROWS[2], true) // shift-click Clara
     expect(selectedRows.value).toEqual([ROWS[0], ROWS[1], ROWS[2]])
   })
 
   it('shift-click deselects the range when the clicked row is already selected', () => {
-    const { selectedRows, toggleRowSelection, toggleSelectAll } = useTableState(ROWS, COLS)
+    const table = useTableState(ROWS, COLS)
+    const {
+      rows: selectedRows,
+      toggle: toggleRowSelection,
+      toggleAll: toggleSelectAll,
+    } = table.selection
     toggleSelectAll(ROWS) // all four selected
     toggleRowSelection(ROWS[0]) // anchor = Alice, now deselected
     toggleRowSelection(ROWS[0]) // re-select Alice, anchor stays Alice
@@ -127,7 +157,8 @@ describe('useTableState — row selection', () => {
   })
 
   it('shift-click with no prior anchor falls back to a plain toggle', () => {
-    const { selectedRows, toggleRowSelection } = useTableState(ROWS, COLS)
+    const table = useTableState(ROWS, COLS)
+    const { rows: selectedRows, toggle: toggleRowSelection } = table.selection
     toggleRowSelection(ROWS[2], true)
     expect(selectedRows.value).toEqual([ROWS[2]])
   })
@@ -136,7 +167,8 @@ describe('useTableState — row selection', () => {
 describe('useTableState — getRowId (selection identity)', () => {
   it('without getRowId, a refetch (new row objects) silently drops selection', () => {
     const data = shallowRef(ROWS)
-    const { selectedRows, toggleRowSelection } = useTableState(data, COLS)
+    const table = useTableState(data, COLS)
+    const { rows: selectedRows, toggle: toggleRowSelection } = table.selection
     toggleRowSelection(ROWS[0])
     expect(selectedRows.value).toEqual([ROWS[0]])
     data.value = ROWS.map((r) => ({ ...r }))
@@ -145,9 +177,10 @@ describe('useTableState — getRowId (selection identity)', () => {
 
   it('with getRowId, selection survives a refetch that produces new row objects', () => {
     const data = shallowRef(ROWS)
-    const { selectedRows, toggleRowSelection } = useTableState(data, COLS, {
+    const table = useTableState(data, COLS, {
       getRowId: (r) => r.id,
     })
+    const { rows: selectedRows, toggle: toggleRowSelection } = table.selection
     toggleRowSelection(ROWS[0]) // Alice, id 1
     const refetched = ROWS.map((r) => ({ ...r }))
     data.value = refetched
@@ -156,9 +189,10 @@ describe('useTableState — getRowId (selection identity)', () => {
 
   it('with getRowId, a row no longer present after the refetch is dropped from selection', () => {
     const data = shallowRef(ROWS)
-    const { selectedRows, toggleRowSelection } = useTableState(data, COLS, {
+    const table = useTableState(data, COLS, {
       getRowId: (r) => r.id,
     })
+    const { rows: selectedRows, toggle: toggleRowSelection } = table.selection
     toggleRowSelection(ROWS[0]) // Alice, id 1
     data.value = ROWS.slice(1).map((r) => ({ ...r }))
     expect(selectedRows.value).toEqual([])
@@ -166,9 +200,10 @@ describe('useTableState — getRowId (selection identity)', () => {
 
   it('with getRowId, toggleRowSelection on a fresh-object row with a selected id deselects it', () => {
     const data = shallowRef(ROWS)
-    const { selectedRows, toggleRowSelection } = useTableState(data, COLS, {
+    const table = useTableState(data, COLS, {
       getRowId: (r) => r.id,
     })
+    const { rows: selectedRows, toggle: toggleRowSelection } = table.selection
     toggleRowSelection(ROWS[0]) // Alice, id 1
     const refetched = ROWS.map((r) => ({ ...r }))
     data.value = refetched
@@ -178,7 +213,8 @@ describe('useTableState — getRowId (selection identity)', () => {
 
   it('with getRowId, the raw selection Set is reconciled to the fresh reference after a tick', async () => {
     const data = shallowRef(ROWS)
-    const { selection, toggleRowSelection } = useTableState(data, COLS, { getRowId: (r) => r.id })
+    const table = useTableState(data, COLS, { getRowId: (r) => r.id })
+    const { all: selection, toggle: toggleRowSelection } = table.selection
     toggleRowSelection(ROWS[0]) // Alice, id 1
     const refetched = ROWS.map((r) => ({ ...r }))
     data.value = refetched
@@ -189,30 +225,34 @@ describe('useTableState — getRowId (selection identity)', () => {
 
 describe('useTableState — column visibility', () => {
   it('toggleColVisibility hides a column', () => {
-    const { activeColumns, toggleColVisibility } = useTableState(ROWS, COLS)
+    const table = useTableState(ROWS, COLS)
+    const { active: activeColumns, toggleVisibility: toggleColVisibility } = table.columns
     toggleColVisibility('name')
     expect(activeColumns.value.map((c) => c.key)).not.toContain('name')
   })
 
   it('toggleColVisibility shows a hidden column', () => {
-    const { activeColumns, toggleColVisibility } = useTableState(ROWS, COLS, {
+    const table = useTableState(ROWS, COLS, {
       defaultVisibleColumns: ['id'],
     })
+    const { active: activeColumns, toggleVisibility: toggleColVisibility } = table.columns
     toggleColVisibility('name')
     expect(activeColumns.value.map((c) => c.key)).toContain('name')
   })
 
   it('cannot hide the last visible column', () => {
-    const { activeColumns, toggleColVisibility } = useTableState(ROWS, COLS, {
+    const table = useTableState(ROWS, COLS, {
       defaultVisibleColumns: ['id'],
     })
+    const { active: activeColumns, toggleVisibility: toggleColVisibility } = table.columns
     toggleColVisibility('id')
     expect(activeColumns.value.map((c) => c.key)).toContain('id')
   })
 
   it('a columns ref swapped to a fully disjoint key set keeps every new column visible, instead of filtering all of them out', async () => {
     const columns = ref<ColumnDef<Row>[]>(COLS)
-    const { activeColumns } = useTableState(ROWS, columns)
+    const table = useTableState(ROWS, columns)
+    const { active: activeColumns } = table.columns
     expect(activeColumns.value).toHaveLength(3)
     columns.value = [
       { key: 'sku', label: 'SKU' },
@@ -224,7 +264,8 @@ describe('useTableState — column visibility', () => {
 
   it("a columns ref change preserves an existing column's hidden state and defaults a genuinely new column to visible", async () => {
     const columns = ref<ColumnDef<Row>[]>(COLS)
-    const { activeColumns, toggleColVisibility } = useTableState(ROWS, columns)
+    const table = useTableState(ROWS, columns)
+    const { active: activeColumns, toggleVisibility: toggleColVisibility } = table.columns
     toggleColVisibility('score') // hide it
     columns.value = [...COLS, { key: 'extra', label: 'Extra' }]
     await nextTick()
@@ -234,31 +275,40 @@ describe('useTableState — column visibility', () => {
 
 describe('useTableState — column ordering', () => {
   it('defaults to natural column order', () => {
-    const { orderedColumns } = useTableState(ROWS, COLS)
+    const table = useTableState(ROWS, COLS)
+    const { ordered: orderedColumns } = table.columns
     expect(orderedColumns.value.map((c) => c.key)).toEqual(['id', 'name', 'score'])
   })
 
   it('moveColumn reorders by drag-and-drop semantics (insert before target)', () => {
-    const { orderedColumns, activeColumns, moveColumn } = useTableState(ROWS, COLS)
+    const table = useTableState(ROWS, COLS)
+    const { ordered: orderedColumns, active: activeColumns, move: moveColumn } = table.columns
     moveColumn('score', 'id')
     expect(orderedColumns.value.map((c) => c.key)).toEqual(['score', 'id', 'name'])
     expect(activeColumns.value.map((c) => c.key)).toEqual(['score', 'id', 'name'])
   })
 
   it('moveColumnBy swaps with the neighbor in the given direction', () => {
-    const { orderedColumns, moveColumnBy } = useTableState(ROWS, COLS)
+    const table = useTableState(ROWS, COLS)
+    const { ordered: orderedColumns, moveBy: moveColumnBy } = table.columns
     moveColumnBy('id', 1)
     expect(orderedColumns.value.map((c) => c.key)).toEqual(['name', 'id', 'score'])
   })
 
   it('moveColumnBy is a no-op past the boundary', () => {
-    const { orderedColumns, moveColumnBy } = useTableState(ROWS, COLS)
+    const table = useTableState(ROWS, COLS)
+    const { ordered: orderedColumns, moveBy: moveColumnBy } = table.columns
     moveColumnBy('id', -1)
     expect(orderedColumns.value.map((c) => c.key)).toEqual(['id', 'name', 'score'])
   })
 
   it('preserves order across visibility toggles', () => {
-    const { activeColumns, moveColumn, toggleColVisibility } = useTableState(ROWS, COLS)
+    const table = useTableState(ROWS, COLS)
+    const {
+      active: activeColumns,
+      move: moveColumn,
+      toggleVisibility: toggleColVisibility,
+    } = table.columns
     moveColumn('score', 'id')
     toggleColVisibility('name')
     expect(activeColumns.value.map((c) => c.key)).toEqual(['score', 'id'])
@@ -269,7 +319,8 @@ describe('useTableState — column ordering', () => {
 
 describe('useTableState — sort remove/direction/reorder', () => {
   it('removeSort clears a sort entry without cycling through direction', () => {
-    const { sorts, toggleSort, removeSort } = useTableState(ROWS, COLS)
+    const table = useTableState(ROWS, COLS)
+    const { entries: sorts, toggle: toggleSort, remove: removeSort } = table.sort
     toggleSort('score')
     expect(sorts.value).toEqual([{ key: 'score', dir: 'asc' }])
     removeSort('score')
@@ -278,7 +329,8 @@ describe('useTableState — sort remove/direction/reorder', () => {
 
   it("toggleSort cycles from a column's defaultSortDir instead of asc", () => {
     const cols: ColumnDef<Row>[] = [{ key: 'score', label: 'Score', defaultSortDir: 'desc' }]
-    const { sorts, toggleSort } = useTableState(ROWS, cols)
+    const table = useTableState(ROWS, cols)
+    const { entries: sorts, toggle: toggleSort } = table.sort
     toggleSort('score')
     expect(sorts.value).toEqual([{ key: 'score', dir: 'desc' }])
     toggleSort('score')
@@ -289,20 +341,23 @@ describe('useTableState — sort remove/direction/reorder', () => {
 
   it("replaceSort (header click) starts at a column's defaultSortDir", () => {
     const cols: ColumnDef<Row>[] = [{ key: 'score', label: 'Score', defaultSortDir: 'desc' }]
-    const { sorts, replaceSort } = useTableState(ROWS, cols)
+    const table = useTableState(ROWS, cols)
+    const { entries: sorts, replace: replaceSort } = table.sort
     replaceSort('score')
     expect(sorts.value).toEqual([{ key: 'score', dir: 'desc' }])
   })
 
   it("appendOrToggleSort (shift-click) starts at a column's defaultSortDir", () => {
     const cols: ColumnDef<Row>[] = [{ key: 'score', label: 'Score', defaultSortDir: 'desc' }]
-    const { sorts, appendOrToggleSort } = useTableState(ROWS, cols)
+    const table = useTableState(ROWS, cols)
+    const { entries: sorts, appendOrToggle: appendOrToggleSort } = table.sort
     appendOrToggleSort('score')
     expect(sorts.value).toEqual([{ key: 'score', dir: 'desc' }])
   })
 
   it('toggleSortDir flips an existing entry in place without reordering', () => {
-    const { sorts, toggleSort, toggleSortDir } = useTableState(ROWS, COLS)
+    const table = useTableState(ROWS, COLS)
+    const { entries: sorts, toggle: toggleSort, toggleDir: toggleSortDir } = table.sort
     toggleSort('name')
     toggleSort('score')
     toggleSortDir('name')
@@ -313,7 +368,8 @@ describe('useTableState — sort remove/direction/reorder', () => {
   })
 
   it('moveSortBy reorders priority by swapping with a neighbor', () => {
-    const { sorts, toggleSort, moveSortBy } = useTableState(ROWS, COLS)
+    const table = useTableState(ROWS, COLS)
+    const { entries: sorts, toggle: toggleSort, moveBy: moveSortBy } = table.sort
     toggleSort('name')
     toggleSort('score')
     moveSortBy('score', -1)
@@ -321,7 +377,8 @@ describe('useTableState — sort remove/direction/reorder', () => {
   })
 
   it('moveSort reorders by drag-and-drop semantics (insert before target)', () => {
-    const { sorts, toggleSort, moveSort } = useTableState(ROWS, COLS)
+    const table = useTableState(ROWS, COLS)
+    const { entries: sorts, toggle: toggleSort, move: moveSort } = table.sort
     toggleSort('id')
     toggleSort('name')
     toggleSort('score')
@@ -338,7 +395,8 @@ describe('useTableState — group remove/reorder', () => {
   ]
 
   it('removeGroup clears a group entry', () => {
-    const { groupBy, toggleGroup, removeGroup } = useTableState(ROWS, GROUPABLE_COLS)
+    const table = useTableState(ROWS, GROUPABLE_COLS)
+    const { by: groupBy, toggle: toggleGroup, remove: removeGroup } = table.group
     toggleGroup('name')
     expect(groupBy.value).toEqual(['name'])
     removeGroup('name')
@@ -346,7 +404,8 @@ describe('useTableState — group remove/reorder', () => {
   })
 
   it('moveGroupBy reorders priority by swapping with a neighbor', () => {
-    const { groupBy, toggleGroup, moveGroupBy } = useTableState(ROWS, GROUPABLE_COLS)
+    const table = useTableState(ROWS, GROUPABLE_COLS)
+    const { by: groupBy, toggle: toggleGroup, moveBy: moveGroupBy } = table.group
     toggleGroup('name')
     toggleGroup('score')
     moveGroupBy('score', -1)
@@ -354,7 +413,8 @@ describe('useTableState — group remove/reorder', () => {
   })
 
   it('moveGroup reorders by drag-and-drop semantics (insert before target)', () => {
-    const { groupBy, toggleGroup, moveGroup } = useTableState(ROWS, GROUPABLE_COLS)
+    const table = useTableState(ROWS, GROUPABLE_COLS)
+    const { by: groupBy, toggle: toggleGroup, move: moveGroup } = table.group
     toggleGroup('id')
     toggleGroup('name')
     toggleGroup('score')
@@ -365,40 +425,47 @@ describe('useTableState — group remove/reorder', () => {
 
 describe('useTableState — pagination', () => {
   it('setPage navigates between pages', () => {
-    const { page, pagedData, setPage } = useTableState(ROWS, COLS, { defaultPageSize: 2 })
+    const table = useTableState(ROWS, COLS, { defaultPageSize: 2 })
+    const { pagedData } = table
+    const { page, setPage } = table.pagination
     setPage(2)
     expect(page.value).toBe(2)
     expect(pagedData.value).toEqual([ROWS[2], ROWS[3]])
   })
 
   it('setPage clamps to numPages', () => {
-    const { page, setPage } = useTableState(ROWS, COLS, { defaultPageSize: 2 })
+    const table = useTableState(ROWS, COLS, { defaultPageSize: 2 })
+    const { page, setPage } = table.pagination
     setPage(100)
     expect(page.value).toBe(2)
   })
 
   it('setPage clamps to 1 at minimum', () => {
-    const { page, setPage } = useTableState(ROWS, COLS, { defaultPageSize: 2 })
+    const table = useTableState(ROWS, COLS, { defaultPageSize: 2 })
+    const { page, setPage } = table.pagination
     setPage(-5)
     expect(page.value).toBe(1)
   })
 
   it('setPageSize resets page to 1', () => {
-    const { page, setPage, setPageSize } = useTableState(ROWS, COLS, { defaultPageSize: 2 })
+    const table = useTableState(ROWS, COLS, { defaultPageSize: 2 })
+    const { page, setPage, setPageSize } = table.pagination
     setPage(2)
     setPageSize(3)
     expect(page.value).toBe(1)
   })
 
   it('setPage ignores NaN instead of corrupting page state', () => {
-    const { page, setPage } = useTableState(ROWS, COLS, { defaultPageSize: 2 })
+    const table = useTableState(ROWS, COLS, { defaultPageSize: 2 })
+    const { page, setPage } = table.pagination
     setPage(2)
     setPage(NaN)
     expect(page.value).toBe(2)
   })
 
   it('setPageSize ignores NaN instead of breaking pagination', () => {
-    const { pageSize, numPages, setPageSize } = useTableState(ROWS, COLS, { defaultPageSize: 2 })
+    const table = useTableState(ROWS, COLS, { defaultPageSize: 2 })
+    const { pageSize, numPages, setPageSize } = table.pagination
     setPageSize(NaN)
     expect(pageSize.value).toBe(2)
     expect(numPages.value).toBe(2)
@@ -423,20 +490,25 @@ describe('useTableState — pagination with grouping', () => {
   ]
 
   it('counts header rows toward numPages, growing when expanded vs. the 4 data rows alone', () => {
-    const { numPages, toggleGroup } = useTableState(DEPT_ROWS, DEPT_COLS, {
+    const table = useTableState(DEPT_ROWS, DEPT_COLS, {
       defaultPageSize: 2,
       defaultGroupsCollapsed: false,
     })
+    const { numPages } = table.pagination
+    const { toggle: toggleGroup } = table.group
     toggleGroup('dept')
     // 2 headers + 4 rows = 6 visible items, pageSize 2 => 3 pages (not 2, as pure data pagination would give)
     expect(numPages.value).toBe(3)
   })
 
   it("splits an expanded group's rows across a page boundary and repeats its header as a continued chunk", () => {
-    const { groupedData, toggleGroup, setPage } = useTableState(DEPT_ROWS, DEPT_COLS, {
+    const table = useTableState(DEPT_ROWS, DEPT_COLS, {
       defaultPageSize: 2,
       defaultGroupsCollapsed: false,
     })
+    const { groupedData } = table
+    const { toggle: toggleGroup } = table.group
+    const { setPage } = table.pagination
     toggleGroup('dept')
     expect(groupedData.value).toEqual([
       {
@@ -462,9 +534,12 @@ describe('useTableState — pagination with grouping', () => {
 
   it("backfills a collapsed group's rows from the full group instead of whatever page its header lands on", () => {
     // defaultGroupsCollapsed defaults to true
-    const { numPages, groupedData, toggleGroup } = useTableState(DEPT_ROWS, DEPT_COLS, {
+    const table = useTableState(DEPT_ROWS, DEPT_COLS, {
       defaultPageSize: 2,
     })
+    const { groupedData } = table
+    const { numPages } = table.pagination
+    const { toggle: toggleGroup } = table.group
     toggleGroup('dept')
     // Both groups collapsed => visible items are just the 2 headers, all fitting on page 1
     expect(numPages.value).toBe(1)
@@ -475,10 +550,12 @@ describe('useTableState — pagination with grouping', () => {
   })
 
   it('pagedData reflects the data rows actually visible on the page, not a flat pageSize slice', () => {
-    const { pagedData, toggleGroup } = useTableState(DEPT_ROWS, DEPT_COLS, {
+    const table = useTableState(DEPT_ROWS, DEPT_COLS, {
       defaultPageSize: 2,
       defaultGroupsCollapsed: false,
     })
+    const { pagedData } = table
+    const { toggle: toggleGroup } = table.group
     toggleGroup('dept')
     // page 1 budget: 1 header + 1 data row = 2 items, so only Alice is a *data* row here
     expect(pagedData.value).toEqual([DEPT_ROWS[0]])
@@ -487,28 +564,36 @@ describe('useTableState — pagination with grouping', () => {
 
 describe('useTableState — filters reset page', () => {
   it('cycleFilterValue resets page to 1', () => {
-    const { page, setPage, cycleFilterValue } = useTableState(ROWS, COLS, { defaultPageSize: 2 })
+    const table = useTableState(ROWS, COLS, { defaultPageSize: 2 })
+    const { page, setPage } = table.pagination
+    const { cycleValue: cycleFilterValue } = table.filter
     setPage(2)
     cycleFilterValue('name', 'Alice')
     expect(page.value).toBe(1)
   })
 
   it('setRangeFilter resets page to 1', () => {
-    const { page, setPage, setRangeFilter } = useTableState(ROWS, COLS, { defaultPageSize: 2 })
+    const table = useTableState(ROWS, COLS, { defaultPageSize: 2 })
+    const { page, setPage } = table.pagination
+    const { setRange: setRangeFilter } = table.filter
     setPage(2)
     setRangeFilter('score', 'min', '70')
     expect(page.value).toBe(1)
   })
 
   it('clearFilters resets page to 1', () => {
-    const { page, setPage, clearFilters } = useTableState(ROWS, COLS, { defaultPageSize: 2 })
+    const table = useTableState(ROWS, COLS, { defaultPageSize: 2 })
+    const { page, setPage } = table.pagination
+    const { clear: clearFilters } = table.filter
     setPage(2)
     clearFilters()
     expect(page.value).toBe(1)
   })
 
   it('toggleFilterAll resets page to 1', () => {
-    const { page, setPage, toggleFilterAll } = useTableState(ROWS, COLS, { defaultPageSize: 2 })
+    const table = useTableState(ROWS, COLS, { defaultPageSize: 2 })
+    const { page, setPage } = table.pagination
+    const { toggleAll: toggleFilterAll } = table.filter
     setPage(2)
     toggleFilterAll('name', ['Alice', 'Bob'])
     expect(page.value).toBe(1)
@@ -517,21 +602,28 @@ describe('useTableState — filters reset page', () => {
 
 describe('useTableState — toggleFilterAll', () => {
   it('selects all given values when none are selected', () => {
-    const { filters, toggleFilterAll } = useTableState(ROWS, COLS)
+    const table = useTableState(ROWS, COLS)
+    const { include: filters, toggleAll: toggleFilterAll } = table.filter
     toggleFilterAll('name', ['Alice', 'Bob'])
     expect(filters.value['name']?.has('Alice')).toBe(true)
     expect(filters.value['name']?.has('Bob')).toBe(true)
   })
 
   it('deselects all given values when all are already selected', () => {
-    const { filters, toggleFilterAll } = useTableState(ROWS, COLS)
+    const table = useTableState(ROWS, COLS)
+    const { include: filters, toggleAll: toggleFilterAll } = table.filter
     toggleFilterAll('name', ['Alice', 'Bob'])
     toggleFilterAll('name', ['Alice', 'Bob'])
     expect(filters.value['name']?.size ?? 0).toBe(0)
   })
 
   it('only affects the given values, leaving other selections for the same key untouched', () => {
-    const { filters, cycleFilterValue, toggleFilterAll } = useTableState(ROWS, COLS)
+    const table = useTableState(ROWS, COLS)
+    const {
+      include: filters,
+      cycleValue: cycleFilterValue,
+      toggleAll: toggleFilterAll,
+    } = table.filter
     cycleFilterValue('name', 'Clara')
     toggleFilterAll('name', ['Alice', 'Bob'])
     expect(filters.value['name']?.has('Clara')).toBe(true)
@@ -542,7 +634,9 @@ describe('useTableState — toggleFilterAll', () => {
 
 describe('useTableState — cycleFilterValue (exclude filters)', () => {
   it('cycles a value neutral -> include -> exclude -> neutral', () => {
-    const { filters, excludeFilters, cycleFilterValue, processedData } = useTableState(ROWS, COLS)
+    const table = useTableState(ROWS, COLS)
+    const { processedData } = table
+    const { include: filters, exclude: excludeFilters, cycleValue: cycleFilterValue } = table.filter
 
     cycleFilterValue('name', 'Alice')
     expect(filters.value['name']?.has('Alice')).toBe(true)
@@ -560,7 +654,8 @@ describe('useTableState — cycleFilterValue (exclude filters)', () => {
   })
 
   it('activeFilterCount counts a column with an active exclude filter', () => {
-    const { activeFilterCount, cycleFilterValue } = useTableState(ROWS, COLS)
+    const table = useTableState(ROWS, COLS)
+    const { activeCount: activeFilterCount, cycleValue: cycleFilterValue } = table.filter
     cycleFilterValue('name', 'Alice')
     cycleFilterValue('name', 'Alice') // include -> exclude
     expect(activeFilterCount.value).toBe(1)
@@ -569,7 +664,13 @@ describe('useTableState — cycleFilterValue (exclude filters)', () => {
 
 describe('useTableState — toggleFilterAll and exclude filters', () => {
   it("select-all's ON branch clears an existing exclusion on a listed value", () => {
-    const { filters, excludeFilters, cycleFilterValue, toggleFilterAll } = useTableState(ROWS, COLS)
+    const table = useTableState(ROWS, COLS)
+    const {
+      include: filters,
+      exclude: excludeFilters,
+      cycleValue: cycleFilterValue,
+      toggleAll: toggleFilterAll,
+    } = table.filter
     cycleFilterValue('name', 'Alice')
     cycleFilterValue('name', 'Alice') // include -> exclude
     toggleFilterAll('name', ['Alice', 'Bob'])
@@ -578,7 +679,13 @@ describe('useTableState — toggleFilterAll and exclude filters', () => {
   })
 
   it("select-all's deselect branch leaves an unrelated exclusion untouched", () => {
-    const { filters, excludeFilters, cycleFilterValue, toggleFilterAll } = useTableState(ROWS, COLS)
+    const table = useTableState(ROWS, COLS)
+    const {
+      include: filters,
+      exclude: excludeFilters,
+      cycleValue: cycleFilterValue,
+      toggleAll: toggleFilterAll,
+    } = table.filter
     cycleFilterValue('name', 'Bob') // include Bob
     cycleFilterValue('name', 'Alice')
     cycleFilterValue('name', 'Alice') // include -> exclude Alice
@@ -591,10 +698,13 @@ describe('useTableState — toggleFilterAll and exclude filters', () => {
 
 describe('useTableState — clearColumnFilter kinds', () => {
   it('clearing the include kind leaves an exclude filter on the same column untouched', () => {
-    const { filters, excludeFilters, cycleFilterValue, clearColumnFilter } = useTableState(
-      ROWS,
-      COLS,
-    )
+    const table = useTableState(ROWS, COLS)
+    const {
+      include: filters,
+      exclude: excludeFilters,
+      cycleValue: cycleFilterValue,
+      clearColumn: clearColumnFilter,
+    } = table.filter
     cycleFilterValue('name', 'Bob')
     cycleFilterValue('name', 'Alice')
     cycleFilterValue('name', 'Alice') // include -> exclude
@@ -604,10 +714,13 @@ describe('useTableState — clearColumnFilter kinds', () => {
   })
 
   it('clearing the exclude kind leaves an include filter on the same column untouched', () => {
-    const { filters, excludeFilters, cycleFilterValue, clearColumnFilter } = useTableState(
-      ROWS,
-      COLS,
-    )
+    const table = useTableState(ROWS, COLS)
+    const {
+      include: filters,
+      exclude: excludeFilters,
+      cycleValue: cycleFilterValue,
+      clearColumn: clearColumnFilter,
+    } = table.filter
     cycleFilterValue('name', 'Bob')
     cycleFilterValue('name', 'Alice')
     cycleFilterValue('name', 'Alice') // include -> exclude
@@ -619,14 +732,16 @@ describe('useTableState — clearColumnFilter kinds', () => {
 
 describe('useTableState — setFilterValues', () => {
   it('adds the given values unconditionally when selected is true', () => {
-    const { filters, setFilterValues } = useTableState(ROWS, COLS)
+    const table = useTableState(ROWS, COLS)
+    const { include: filters, setValues: setFilterValues } = table.filter
     setFilterValues('name', ['Alice', 'Bob'], true)
     expect(filters.value['name']?.has('Alice')).toBe(true)
     expect(filters.value['name']?.has('Bob')).toBe(true)
   })
 
   it('removes the given values unconditionally when selected is false', () => {
-    const { filters, setFilterValues } = useTableState(ROWS, COLS)
+    const table = useTableState(ROWS, COLS)
+    const { include: filters, setValues: setFilterValues } = table.filter
     setFilterValues('name', ['Alice', 'Bob', 'Clara'], true)
     setFilterValues('name', ['Alice', 'Bob'], false)
     expect(filters.value['name']?.has('Alice')).toBe(false)
@@ -637,25 +752,32 @@ describe('useTableState — setFilterValues', () => {
 
 describe('useTableState — search', () => {
   it('defaults searchQuery to empty string', () => {
-    const { searchQuery } = useTableState(ROWS, COLS)
+    const table = useTableState(ROWS, COLS)
+    const { query: searchQuery } = table.search
     expect(searchQuery.value).toBe('')
   })
 
   it('setSearchQuery filters processedData', () => {
-    const { processedData, setSearchQuery } = useTableState(ROWS, COLS)
+    const table = useTableState(ROWS, COLS)
+    const { processedData } = table
+    const { setQuery: setSearchQuery } = table.search
     setSearchQuery('ali')
     expect(processedData.value.map((r) => r.name)).toEqual(['Alice'])
   })
 
   it('setSearchQuery resets page to 1', () => {
-    const { page, setPage, setSearchQuery } = useTableState(ROWS, COLS, { defaultPageSize: 2 })
+    const table = useTableState(ROWS, COLS, { defaultPageSize: 2 })
+    const { page, setPage } = table.pagination
+    const { setQuery: setSearchQuery } = table.search
     setPage(2)
     setSearchQuery('a')
     expect(page.value).toBe(1)
   })
 
   it('clearAll resets searchQuery', () => {
-    const { searchQuery, processedData, setSearchQuery, clearAll } = useTableState(ROWS, COLS)
+    const table = useTableState(ROWS, COLS)
+    const { processedData, clearAll } = table
+    const { query: searchQuery, setQuery: setSearchQuery } = table.search
     setSearchQuery('alice')
     clearAll()
     expect(searchQuery.value).toBe('')
@@ -683,7 +805,8 @@ const GAMES_WITH_EMPTY: Game[] = [...GAMES, { id: 3, name: 'Game C', tags: [] }]
 
 describe('useTableState — multi-value (array) columns', () => {
   it('stringValueMap flattens array values into individual filter options', () => {
-    const { stringValueMap } = useTableState(GAMES, GAME_COLS)
+    const table = useTableState(GAMES, GAME_COLS)
+    const { valueMap: stringValueMap } = table.filter
     expect(stringValueMap.value['tags']).toEqual(['Action', 'Adventure', 'RPG'])
   })
 
@@ -692,35 +815,41 @@ describe('useTableState — multi-value (array) columns', () => {
   // logic.test.ts for the underlying computeStringValueCounts faceting logic.
 
   it('cycleFilterValue matches rows whose array contains the selected value', () => {
-    const { processedData, cycleFilterValue } = useTableState(GAMES, GAME_COLS)
+    const table = useTableState(GAMES, GAME_COLS)
+    const { processedData } = table
+    const { cycleValue: cycleFilterValue } = table.filter
     cycleFilterValue('tags', 'RPG')
     expect(processedData.value.map((g) => g.name)).toEqual(['Game A'])
   })
 
   it('groupedData fans a row into one group per array item', () => {
-    const { groupedData, toggleGroup } = useTableState(GAMES, GAME_COLS)
+    const table = useTableState(GAMES, GAME_COLS)
+    const { groupedData } = table
+    const { toggle: toggleGroup } = table.group
     toggleGroup('tags')
     expect(groupedData.value.map((g) => g.key).sort()).toEqual(['Action', 'Adventure', 'RPG'])
   })
 
   it('stringValueMap lists a "(none)" entry for rows with an empty array', () => {
-    const { stringValueMap } = useTableState(GAMES_WITH_EMPTY, GAME_COLS)
+    const table = useTableState(GAMES_WITH_EMPTY, GAME_COLS)
+    const { valueMap: stringValueMap } = table.filter
     expect(stringValueMap.value['tags']).toEqual(['(none)', 'Action', 'Adventure', 'RPG'])
   })
 
   it('groupedData buckets rows with an empty array under "(none)"', () => {
-    const { groupedData, toggleGroup } = useTableState(GAMES_WITH_EMPTY, GAME_COLS)
+    const table = useTableState(GAMES_WITH_EMPTY, GAME_COLS)
+    const { groupedData } = table
+    const { toggle: toggleGroup } = table.group
     toggleGroup('tags')
     const noneGroup = groupedData.value.find((g) => g.key === '(none)')
     expect(noneGroup?.rows.map((r) => r.name)).toEqual(['Game C'])
   })
 
   it('uses a custom emptyValue label when provided', () => {
-    const { stringValueMap, groupedData, toggleGroup } = useTableState(
-      GAMES_WITH_EMPTY,
-      GAME_COLS,
-      { labels: { emptyValue: 'N/A' } },
-    )
+    const table = useTableState(GAMES_WITH_EMPTY, GAME_COLS, { labels: { emptyValue: 'N/A' } })
+    const { groupedData } = table
+    const { valueMap: stringValueMap } = table.filter
+    const { toggle: toggleGroup } = table.group
     expect(stringValueMap.value['tags']).toContain('N/A')
     toggleGroup('tags')
     expect(groupedData.value.map((g) => g.key)).toContain('N/A')
@@ -739,13 +868,17 @@ describe('useTableState — computed columns', () => {
   ]
 
   it('sorts by a computed column value', () => {
-    const { processedData, toggleSort } = useTableState(ROWS, COMPUTED_COLS)
+    const table = useTableState(ROWS, COMPUTED_COLS)
+    const { processedData } = table
+    const { toggle: toggleSort } = table.sort
     toggleSort('grade')
     expect(processedData.value.map((r) => r.name)).toEqual(['Alice', 'Clara', 'Bob', 'David'])
   })
 
   it('groups by a computed column value', () => {
-    const { groupedData, toggleGroup } = useTableState(ROWS, COMPUTED_COLS)
+    const table = useTableState(ROWS, COMPUTED_COLS)
+    const { groupedData } = table
+    const { toggle: toggleGroup } = table.group
     toggleGroup('grade')
     expect(groupedData.value.find((g) => g.key === 'A')?.rows.map((r) => r.name)).toEqual([
       'Alice',
@@ -760,12 +893,17 @@ describe('useTableState — computed columns', () => {
 
 describe('useTableState — view state', () => {
   it('getViewState omits fields still at their default', () => {
-    const { getViewState } = useTableState(ROWS, COLS)
+    const table = useTableState(ROWS, COLS)
+    const { getViewState } = table
     expect(getViewState()).toEqual({})
   })
 
   it('getViewState captures changes made through actions', () => {
-    const { getViewState, toggleSort, cycleFilterValue, setPage } = useTableState(ROWS, COLS)
+    const table = useTableState(ROWS, COLS)
+    const { getViewState } = table
+    const { toggle: toggleSort } = table.sort
+    const { cycleValue: cycleFilterValue } = table.filter
+    const { setPage } = table.pagination
     toggleSort('score')
     cycleFilterValue('name', 'Alice')
     setPage(1)
@@ -776,10 +914,9 @@ describe('useTableState — view state', () => {
   })
 
   it('getViewState/setViewState round-trip an exclude filter', () => {
-    const { getViewState, setViewState, excludeFilters, cycleFilterValue } = useTableState(
-      ROWS,
-      COLS,
-    )
+    const table = useTableState(ROWS, COLS)
+    const { getViewState, setViewState } = table
+    const { exclude: excludeFilters, cycleValue: cycleFilterValue } = table.filter
     cycleFilterValue('name', 'Alice')
     cycleFilterValue('name', 'Alice') // include -> exclude
     const view = getViewState()
@@ -793,7 +930,11 @@ describe('useTableState — view state', () => {
   })
 
   it('setViewState applies a snapshot and getViewState round-trips it', () => {
-    const { getViewState, setViewState, sorts, groupBy, searchQuery } = useTableState(ROWS, COLS)
+    const table = useTableState(ROWS, COLS)
+    const { getViewState, setViewState } = table
+    const { entries: sorts } = table.sort
+    const { by: groupBy } = table.group
+    const { query: searchQuery } = table.search
     const view = {
       sorts: [{ key: 'score', dir: 'desc' as const }],
       groupBy: ['name'],
@@ -807,10 +948,11 @@ describe('useTableState — view state', () => {
   })
 
   it('setViewState resets fields absent from the given view', () => {
-    const { setViewState, toggleSort, setSearchQuery, sorts, groupBy, searchQuery } = useTableState(
-      ROWS,
-      COLS,
-    )
+    const table = useTableState(ROWS, COLS)
+    const { setViewState } = table
+    const { toggle: toggleSort, entries: sorts } = table.sort
+    const { setQuery: setSearchQuery, query: searchQuery } = table.search
+    const { by: groupBy } = table.group
     toggleSort('score')
     setSearchQuery('a')
     setViewState({ groupBy: ['name'] })
@@ -820,13 +962,17 @@ describe('useTableState — view state', () => {
   })
 
   it('setViewState falls back to default visible columns when given stale keys', () => {
-    const { setViewState, activeColumns } = useTableState(ROWS, COLS)
+    const table = useTableState(ROWS, COLS)
+    const { setViewState } = table
+    const { active: activeColumns } = table.columns
     setViewState({ visibleCols: ['nonexistent'] })
     expect(activeColumns.value.map((c) => c.key)).toEqual(['id', 'name', 'score'])
   })
 
   it('getViewState captures columnOrder and setViewState round-trips it', () => {
-    const { getViewState, setViewState, moveColumn, orderedColumns } = useTableState(ROWS, COLS)
+    const table = useTableState(ROWS, COLS)
+    const { getViewState, setViewState } = table
+    const { move: moveColumn, ordered: orderedColumns } = table.columns
     moveColumn('score', 'id')
     const view = getViewState()
     expect(view.columnOrder).toEqual(['score', 'id', 'name'])
@@ -837,7 +983,9 @@ describe('useTableState — view state', () => {
   })
 
   it('setViewState drops stale keys from columnOrder', () => {
-    const { setViewState, orderedColumns } = useTableState(ROWS, COLS)
+    const table = useTableState(ROWS, COLS)
+    const { setViewState } = table
+    const { ordered: orderedColumns } = table.columns
     setViewState({ columnOrder: ['score', 'ghost', 'id', 'name'] })
     expect(orderedColumns.value.map((c) => c.key)).toEqual(['score', 'id', 'name'])
   })

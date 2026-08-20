@@ -514,7 +514,8 @@ onUnmounted(() => {
 // usePersistedView/useUrlView are opt-in helpers — the sort below survives a reload
 // (localStorage) and round-trips through "Copy share link" (URL query param).
 const table = useTableState(SAMPLE_DATA, COLUMNS)
-const { processedData, getSortIcon, toggleSort } = table
+const { processedData } = table
+const { icon: getSortIcon, toggle: toggleSort } = table.sort
 usePersistedView(table, VIEW_KEYS.custom.storageKey)
 useUrlView(table, { paramName: VIEW_KEYS.custom.paramName })
 

@@ -58,20 +58,20 @@ const table = useTableState(
 watch(
   () => props.page,
   (page) => {
-    if (page !== undefined && page !== table.page.value) table.setPage(page)
+    if (page !== undefined && page !== table.pagination.page.value) table.pagination.setPage(page)
   },
   { immediate: true },
 )
-watch(table.page, (page) => emit('update:page', page), { immediate: true })
+watch(table.pagination.page, (page) => emit('update:page', page), { immediate: true })
 
 watch(
   () => props.searchQuery,
   (query) => {
-    if (query !== undefined && query !== table.searchQuery.value) table.setSearchQuery(query)
+    if (query !== undefined && query !== table.search.query.value) table.search.setQuery(query)
   },
   { immediate: true },
 )
-watch(table.searchQuery, (query) => emit('update:searchQuery', query), { immediate: true })
+watch(table.search.query, (query) => emit('update:searchQuery', query), { immediate: true })
 </script>
 
 <template>

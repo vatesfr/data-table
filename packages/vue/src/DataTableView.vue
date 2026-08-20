@@ -61,62 +61,66 @@ function handleRowClick(row: TRow, event: MouseEvent | KeyboardEvent) {
   emit('rowClick', row, event)
 }
 
+// `props.table`'s own fields are namespaced by concern (see CLAUDE.md's "Namespaced TableState")
+// — destructured here into the same bare local names this file's script and template already
+// use throughout, so nothing below this block (including every `<template>` binding, since
+// `<script setup>` auto-exposes top-level `const`s to the template) needed to change when the
+// namespacing landed.
+const { processedData, groupedData, visibleItems, labels: L, clearAll } = props.table
 const {
-  visibleCols,
-  sorts,
-  filters,
-  excludeFilters,
-  rangeFilters,
-  groupBy,
-  collapsedGroups,
-  defaultGroupsCollapsed,
-  selection,
-  selectedRows,
-  processedData,
-  groupedData,
-  visibleItems,
-  activeColumns,
-  orderedColumns,
-  stringValueMap,
-  activeFilterCount,
-  page,
-  pageSize,
-  numPages,
-  searchQuery,
-  L,
-  toggleColVisibility,
-  moveColumn,
-  moveColumnBy,
-  toggleSort,
-  replaceSort,
-  appendOrToggleSort,
-  removeSort,
-  toggleSortDir,
-  moveSortBy,
-  moveSort,
-  toggleFilterAll,
-  setFilterValues,
-  cycleFilterValue,
+  visible: visibleCols,
+  active: activeColumns,
+  ordered: orderedColumns,
+  toggleVisibility: toggleColVisibility,
+  move: moveColumn,
+  moveBy: moveColumnBy,
+} = props.table.columns
+const {
+  entries: sorts,
+  toggle: toggleSort,
+  replace: replaceSort,
+  appendOrToggle: appendOrToggleSort,
+  remove: removeSort,
+  toggleDir: toggleSortDir,
+  moveBy: moveSortBy,
+  move: moveSort,
+  clear: clearSorts,
+  icon: getSortIcon,
+  index: getSortIndex,
+} = props.table.sort
+const {
+  include: filters,
+  exclude: excludeFilters,
+  ranges: rangeFilters,
+  activeCount: activeFilterCount,
+  valueMap: stringValueMap,
+  toggleAll: toggleFilterAll,
+  setValues: setFilterValues,
+  cycleValue: cycleFilterValue,
   clearExcludeValues,
-  setRangeFilter,
-  clearColumnFilter,
-  toggleGroup,
-  removeGroup,
-  moveGroupBy,
-  moveGroup,
-  toggleGroupCollapse,
-  clearSorts,
-  clearFilters,
-  clearGroups,
-  clearAll,
-  setPage,
-  setPageSize,
-  setSearchQuery,
-  getSortIcon,
-  getSortIndex,
-  toggleRowSelection,
-  toggleSelectAll,
-} = props.table
+  setRange: setRangeFilter,
+  clearColumn: clearColumnFilter,
+  clear: clearFilters,
+} = props.table.filter
+const {
+  by: groupBy,
+  collapsed: collapsedGroups,
+  defaultCollapsed: defaultGroupsCollapsed,
+  toggle: toggleGroup,
+  remove: removeGroup,
+  moveBy: moveGroupBy,
+  move: moveGroup,
+  toggleCollapse: toggleGroupCollapse,
+  clear: clearGroups,
+} = props.table.group
+const {
+  all: selection,
+  rows: selectedRows,
+  toggle: toggleRowSelection,
+  toggleAll: toggleSelectAll,
+} = props.table.selection
+const { page, pageSize, numPages, setPage, setPageSize } = props.table.pagination
+const { query: searchQuery, setQuery: setSearchQuery } = props.table.search
 
 watch(selectedRows, (rows) => {
   emit('selectionChange', rows)

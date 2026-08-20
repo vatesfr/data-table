@@ -191,169 +191,210 @@ export function useTableState<TRow extends object>(
   )
 
   return {
-    // Reactive state
-    selection,
-    visibleCols,
-    columnOrder,
-    sorts,
-    filters,
-    excludeFilters,
-    rangeFilters,
-    groupBy,
-    collapsedGroups,
-    page,
-    pageSize,
-    searchQuery,
-    defaultGroupsCollapsed,
-    // Computed
-    selectedRows,
+    // Top-level: the pipeline's actual output, not a "concern" of its own
     processedData,
     pagedData,
     groupedData,
     visibleItems,
-    activeColumns,
-    orderedColumns,
-    stringValueMap,
-    activeFilterCount,
-    numPages,
-    L,
-    // Actions
-    toggleColVisibility: (key: string) => {
-      const next = new Set(visibleCols.value)
-      if (next.has(key)) {
-        if (next.size > 1) next.delete(key)
-      } else next.add(key)
-      visibleCols.value = next
+    labels: L,
+
+    columns: {
+      visible: visibleCols,
+      active: activeColumns,
+      ordered: orderedColumns,
+      toggleVisibility: (key: string) => {
+        const next = new Set(visibleCols.value)
+        if (next.has(key)) {
+          if (next.size > 1) next.delete(key)
+        } else next.add(key)
+        visibleCols.value = next
+      },
+      move: (dragKey: string, targetKey: string, after = false) => {
+        const base = columnOrder.value.length ? columnOrder.value : columns.value.map((c) => c.key)
+        columnOrder.value = _reorderColumn(base, dragKey, targetKey, after)
+      },
+      moveBy: (key: string, delta: number) => {
+        const base = columnOrder.value.length ? columnOrder.value : columns.value.map((c) => c.key)
+        columnOrder.value = _moveColumnBy(base, key, delta)
+      },
     },
-    moveColumn: (dragKey: string, targetKey: string, after = false) => {
-      const base = columnOrder.value.length ? columnOrder.value : columns.value.map((c) => c.key)
-      columnOrder.value = _reorderColumn(base, dragKey, targetKey, after)
+
+    sort: {
+      entries: sorts,
+      toggle: (key: string) => {
+        sorts.value = _toggleSort(sorts.value, key, defaultSortDirFor(key))
+      },
+      replace: (key: string) => {
+        sorts.value = _replaceSort(sorts.value, key, defaultSortDirFor(key))
+      },
+      appendOrToggle: (key: string) => {
+        sorts.value = _appendOrToggleSort(sorts.value, key, defaultSortDirFor(key))
+      },
+      remove: (key: string) => {
+        sorts.value = sorts.value.filter((s) => s.key !== key)
+      },
+      toggleDir: (key: string) => {
+        sorts.value = sorts.value.map((s) =>
+          s.key === key ? { ...s, dir: _toggleSortDir(s.dir) } : s,
+        )
+      },
+      moveBy: (key: string, delta: number) => {
+        sorts.value = _moveSortBy(sorts.value, key, delta)
+      },
+      move: (dragKey: string, targetKey: string, after = false) => {
+        sorts.value = _reorderSort(sorts.value, dragKey, targetKey, after)
+      },
+      clear: () => {
+        sorts.value = []
+      },
+      icon: (key: string) => _getSortIcon(sorts.value, key),
+      index: (key: string) => _getSortIndex(sorts.value, key),
     },
-    moveColumnBy: (key: string, delta: number) => {
-      const base = columnOrder.value.length ? columnOrder.value : columns.value.map((c) => c.key)
-      columnOrder.value = _moveColumnBy(base, key, delta)
-    },
-    toggleSort: (key: string) => {
-      sorts.value = _toggleSort(sorts.value, key, defaultSortDirFor(key))
-    },
-    replaceSort: (key: string) => {
-      sorts.value = _replaceSort(sorts.value, key, defaultSortDirFor(key))
-    },
-    appendOrToggleSort: (key: string) => {
-      sorts.value = _appendOrToggleSort(sorts.value, key, defaultSortDirFor(key))
-    },
-    removeSort: (key: string) => {
-      sorts.value = sorts.value.filter((s) => s.key !== key)
-    },
-    toggleSortDir: (key: string) => {
-      sorts.value = sorts.value.map((s) =>
-        s.key === key ? { ...s, dir: _toggleSortDir(s.dir) } : s,
-      )
-    },
-    moveSortBy: (key: string, delta: number) => {
-      sorts.value = _moveSortBy(sorts.value, key, delta)
-    },
-    moveSort: (dragKey: string, targetKey: string, after = false) => {
-      sorts.value = _reorderSort(sorts.value, dragKey, targetKey, after)
-    },
-    toggleFilterAll: (key: string, values: string[]) => {
-      // The master checkbox's own checked/indeterminate state reflects `filters` only (no visual
-      // concept of exclusion) — so only the "select all ON" branch should ever touch
-      // `excludeFilters`, and only because it must: every listed value is about to become
-      // included, and a value can't be in both sets at once (see `cycleFilterValue`). The
-      // "deselect all" branch leaves `excludeFilters` completely alone — it only clears values
-      // the checkbox showed as selected, which by that same invariant can never include an
-      // already-excluded value.
-      const willSelectAll = !values.some((v) => filters.value[key]?.has(v))
-      filters.value = _toggleFilterAll(filters.value, key, values)
-      if (willSelectAll)
+
+    filter: {
+      include: filters,
+      exclude: excludeFilters,
+      ranges: rangeFilters,
+      activeCount: activeFilterCount,
+      valueMap: stringValueMap,
+      toggleAll: (key: string, values: string[]) => {
+        // The master checkbox's own checked/indeterminate state reflects `filters` only (no
+        // visual concept of exclusion) — so only the "select all ON" branch should ever touch
+        // `excludeFilters`, and only because it must: every listed value is about to become
+        // included, and a value can't be in both sets at once (see `cycleValue`). The
+        // "deselect all" branch leaves `excludeFilters` completely alone — it only clears values
+        // the checkbox showed as selected, which by that same invariant can never include an
+        // already-excluded value.
+        const willSelectAll = !values.some((v) => filters.value[key]?.has(v))
+        filters.value = _toggleFilterAll(filters.value, key, values)
+        if (willSelectAll)
+          excludeFilters.value = _clearExcludeValues(excludeFilters.value, key, values)
+        page.value = 1
+      },
+      setValues: (key: string, values: string[], selected: boolean) => {
+        filters.value = _setFilterValues(filters.value, key, values, selected)
+        page.value = 1
+      },
+      // Cycles a single checklist value neutral → include → exclude → neutral. Shift-range
+      // selection (`setValues` above) stays include-only by design — see the docs — so a caller
+      // extending a range that should also clear a swept value's exclusion calls
+      // `clearExcludeValues` alongside it, same as `toggleAll` above.
+      cycleValue: (key: string, value: string) => {
+        const next = _cycleFilterValue(filters.value, excludeFilters.value, key, value)
+        filters.value = next.filters
+        excludeFilters.value = next.excludeFilters
+        page.value = 1
+      },
+      clearExcludeValues: (key: string, values: string[]) => {
         excludeFilters.value = _clearExcludeValues(excludeFilters.value, key, values)
-      page.value = 1
+      },
+      setRange: (key: string, field: 'min' | 'max', value: string) => {
+        rangeFilters.value = {
+          ...rangeFilters.value,
+          [key]: {
+            min: rangeFilters.value[key]?.min ?? '',
+            max: rangeFilters.value[key]?.max ?? '',
+            [field]: value,
+          },
+        }
+        page.value = 1
+      },
+      // A column can carry an include set, an exclude set, and a range filter all at once (a
+      // date column, or any multi-value column with both an include and an exclude selection) —
+      // `kind` says which one to clear, so removing one doesn't silently drop the others too.
+      // This used to be a single unconditional "full per-column reset" (clearing every kind
+      // together), which read as an acceptable simplification back when a column could carry at
+      // most an include set *or* a range filter as alternatives — but once include/exclude
+      // became two states a column can hold at once, that stopped reading as a reset and started
+      // reading as a bug: removing one active-bar chip silently cleared a sibling chip too.
+      clearColumn: (key: string, kind: 'include' | 'exclude' | 'range' = 'include') => {
+        if (kind === 'exclude') excludeFilters.value = { ...excludeFilters.value, [key]: new Set() }
+        else if (kind === 'range')
+          rangeFilters.value = { ...rangeFilters.value, [key]: { min: '', max: '' } }
+        else filters.value = { ...filters.value, [key]: new Set() }
+        page.value = 1
+      },
+      clear: () => {
+        filters.value = {}
+        excludeFilters.value = {}
+        rangeFilters.value = {}
+        page.value = 1
+      },
     },
-    setFilterValues: (key: string, values: string[], selected: boolean) => {
-      filters.value = _setFilterValues(filters.value, key, values, selected)
-      page.value = 1
+
+    group: {
+      by: groupBy,
+      collapsed: collapsedGroups,
+      defaultCollapsed: defaultGroupsCollapsed,
+      toggle: (key: string) => {
+        groupBy.value = toggleGroupBy(groupBy.value, key)
+      },
+      remove: (key: string) => {
+        groupBy.value = groupBy.value.filter((k) => k !== key)
+      },
+      moveBy: (key: string, delta: number) => {
+        groupBy.value = _moveColumnBy(groupBy.value, key, delta)
+      },
+      move: (dragKey: string, targetKey: string, after = false) => {
+        groupBy.value = _reorderColumn(groupBy.value, dragKey, targetKey, after)
+      },
+      toggleCollapse: (key: string) => {
+        collapsedGroups.value = toggleCollapse(collapsedGroups.value, key)
+      },
+      clear: () => {
+        groupBy.value = []
+        collapsedGroups.value = new Set()
+      },
     },
-    // Cycles a single checklist value neutral → include → exclude → neutral (see
-    // `cycleFilterValue`). Shift-range selection (`setFilterValues` above) stays include-only by
-    // design — see the docs — so a caller extending a range that should also clear a swept
-    // value's exclusion calls `clearExcludeValues` alongside it, same as `toggleFilterAll` above.
-    cycleFilterValue: (key: string, value: string) => {
-      const next = _cycleFilterValue(filters.value, excludeFilters.value, key, value)
-      filters.value = next.filters
-      excludeFilters.value = next.excludeFilters
-      page.value = 1
+
+    selection: {
+      all: selection,
+      rows: selectedRows,
+      toggle: (row: TRow, shiftKey = false) => {
+        if (shiftKey && selectionAnchor.value) {
+          const next = new Set(selection.value)
+          const shouldSelect = !isRowSelected(next, row, getRowId.value)
+          const range = selectRange(processedData.value, selectionAnchor.value, row)
+          if (shouldSelect) range.forEach((r) => next.add(r))
+          else range.forEach((r) => next.delete(r))
+          selection.value = next
+        } else {
+          selection.value = toggleRowInSelection(selection.value, row, getRowId.value)
+        }
+        selectionAnchor.value = row
+      },
+      toggleAll: (rows: TRow[]) => {
+        selection.value = toggleAllInSelection(selection.value, rows, getRowId.value)
+      },
+      clear: () => {
+        selection.value = new Set()
+        selectionAnchor.value = null
+      },
     },
-    clearExcludeValues: (key: string, values: string[]) => {
-      excludeFilters.value = _clearExcludeValues(excludeFilters.value, key, values)
+
+    pagination: {
+      page,
+      pageSize,
+      numPages,
+      setPage: (p: number) => {
+        if (!Number.isFinite(p)) return
+        page.value = Math.max(1, Math.min(Math.floor(p), numPages.value))
+      },
+      setPageSize: (s: number) => {
+        if (!Number.isFinite(s)) return
+        pageSize.value = Math.max(0, Math.floor(s))
+        page.value = 1
+      },
     },
-    setRangeFilter: (key: string, field: 'min' | 'max', value: string) => {
-      rangeFilters.value = {
-        ...rangeFilters.value,
-        [key]: {
-          min: rangeFilters.value[key]?.min ?? '',
-          max: rangeFilters.value[key]?.max ?? '',
-          [field]: value,
-        },
-      }
-      page.value = 1
+
+    search: {
+      query: searchQuery,
+      setQuery: (q: string) => {
+        searchQuery.value = q
+        page.value = 1
+      },
     },
-    // A column can carry an include set, an exclude set, and a range filter all at once (a date
-    // column, or any multi-value column with both an include and an exclude selection) — `kind`
-    // says which one to clear, so removing one doesn't silently drop the others too. This used to
-    // be a single unconditional "full per-column reset" (clearing every kind together), which read
-    // as an acceptable simplification back when a column could carry at most an include set *or*
-    // a range filter as alternatives — but once include/exclude became two states a column can
-    // hold at once, that stopped reading as a reset and started reading as a bug: removing one
-    // active-bar chip silently cleared a sibling chip on the same column too.
-    clearColumnFilter: (key: string, kind: 'include' | 'exclude' | 'range' = 'include') => {
-      if (kind === 'exclude') excludeFilters.value = { ...excludeFilters.value, [key]: new Set() }
-      else if (kind === 'range')
-        rangeFilters.value = { ...rangeFilters.value, [key]: { min: '', max: '' } }
-      else filters.value = { ...filters.value, [key]: new Set() }
-      page.value = 1
-    },
-    setPage: (p: number) => {
-      if (!Number.isFinite(p)) return
-      page.value = Math.max(1, Math.min(Math.floor(p), numPages.value))
-    },
-    setPageSize: (s: number) => {
-      if (!Number.isFinite(s)) return
-      pageSize.value = Math.max(0, Math.floor(s))
-      page.value = 1
-    },
-    toggleGroup: (key: string) => {
-      groupBy.value = toggleGroupBy(groupBy.value, key)
-    },
-    removeGroup: (key: string) => {
-      groupBy.value = groupBy.value.filter((k) => k !== key)
-    },
-    moveGroupBy: (key: string, delta: number) => {
-      groupBy.value = _moveColumnBy(groupBy.value, key, delta)
-    },
-    moveGroup: (dragKey: string, targetKey: string, after = false) => {
-      groupBy.value = _reorderColumn(groupBy.value, dragKey, targetKey, after)
-    },
-    toggleGroupCollapse: (key: string) => {
-      collapsedGroups.value = toggleCollapse(collapsedGroups.value, key)
-    },
-    clearSorts: () => {
-      sorts.value = []
-    },
-    clearFilters: () => {
-      filters.value = {}
-      excludeFilters.value = {}
-      rangeFilters.value = {}
-      page.value = 1
-    },
-    clearGroups: () => {
-      groupBy.value = []
-      collapsedGroups.value = new Set()
-    },
-    setSearchQuery: (q: string) => {
-      searchQuery.value = q
-      page.value = 1
-    },
+
     clearAll: () => {
       sorts.value = []
       filters.value = {}
@@ -364,28 +405,7 @@ export function useTableState<TRow extends object>(
       page.value = 1
       searchQuery.value = ''
     },
-    getSortIcon: (key: string) => _getSortIcon(sorts.value, key),
-    getSortIndex: (key: string) => _getSortIndex(sorts.value, key),
-    toggleRowSelection: (row: TRow, shiftKey = false) => {
-      if (shiftKey && selectionAnchor.value) {
-        const next = new Set(selection.value)
-        const shouldSelect = !isRowSelected(next, row, getRowId.value)
-        const range = selectRange(processedData.value, selectionAnchor.value, row)
-        if (shouldSelect) range.forEach((r) => next.add(r))
-        else range.forEach((r) => next.delete(r))
-        selection.value = next
-      } else {
-        selection.value = toggleRowInSelection(selection.value, row, getRowId.value)
-      }
-      selectionAnchor.value = row
-    },
-    toggleSelectAll: (rows: TRow[]) => {
-      selection.value = toggleAllInSelection(selection.value, rows, getRowId.value)
-    },
-    clearSelection: () => {
-      selection.value = new Set()
-      selectionAnchor.value = null
-    },
+
     getViewState: (): TableViewState => {
       const view: TableViewState = {}
       const allKeys = columns.value.map((c) => c.key)

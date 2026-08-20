@@ -354,60 +354,69 @@ For custom rendering, provide a `#cell-{key}` slot instead of a `render` functio
 
 If you need to build a custom layout, use the composable directly:
 
+`useTableState`'s return value is grouped by concern instead of one flat object — `table.sort`, `table.filter`, `table.group`, `table.selection`, `table.pagination`, `table.search`, and `table.columns` each hold their own refs and actions, with a handful of cross-cutting things (`processedData`, `pagedData`, `getViewState`, `clearAll`, etc.) staying top-level:
+
 ```ts
 import { useTableState } from '@vates/data-table-vue'
 
+const table = useTableState(data, columns, options) // data/columns/options can be refs, computed values, or plain values
+
 const {
-  // Reactive state (refs)
-  visibleCols,
-  columnOrder,
-  sorts,
-  filters,
-  rangeFilters,
-  groupBy,
-  collapsedGroups,
-  defaultGroupsCollapsed,
-  page,
-  pageSize,
-  selection, // ShallowRef<Set<TRow>> — use selection.value.has(row) to check membership
-  // Computed
   processedData,
   pagedData,
   groupedData,
-  activeColumns,
-  orderedColumns, // all columns (visible + hidden) sorted per columnOrder — for a custom columns panel
-  stringValueMap,
-  activeFilterCount,
-  numPages,
-  selectedRows,
-  L,
-  // Actions
-  toggleColVisibility,
-  moveColumn, // (dragKey: string, targetKey: string) => void — drag-and-drop reordering
-  moveColumnBy, // (key: string, delta: number) => void — swap with the neighbor delta positions away
-  toggleSort,
-  cycleFilterValue,
-  setRangeFilter,
-  toggleGroup,
-  toggleGroupCollapse,
-  clearColumnFilter,
-  clearSorts,
-  clearFilters,
-  clearGroups,
-  clearAll,
-  setPage,
-  setPageSize,
-  getSortIcon,
-  getSortIndex,
-  toggleRowSelection, // (row: TRow) => void
-  toggleSelectAll, // (rows: TRow[]) => void — selects all if any unselected, else deselects all
-  clearSelection, // () => void
+  labels: L,
   getViewState, // () => TableViewState — snapshot of sort/filter/group/page/etc. (not selection)
   setViewState, // (view: TableViewState) => void — apply a snapshot; fields absent from it reset to default
-} = useTableState(data, columns, options)
-```
+  clearAll,
+} = table
 
-`data`, `columns`, and `options` can be refs, computed values, or plain values.
+const {
+  visible: visibleCols,
+  active: activeColumns,
+  ordered: orderedColumns, // all columns (visible + hidden) sorted per columnOrder — for a custom columns panel
+  toggleVisibility: toggleColVisibility,
+  move: moveColumn, // (dragKey: string, targetKey: string) => void — drag-and-drop reordering
+  moveBy: moveColumnBy, // (key: string, delta: number) => void — swap with the neighbor delta positions away
+} = table.columns
+
+const {
+  entries: sorts,
+  toggle: toggleSort,
+  clear: clearSorts,
+  icon: getSortIcon,
+  index: getSortIndex,
+} = table.sort
+
+const {
+  include: filters,
+  ranges: rangeFilters,
+  activeCount: activeFilterCount,
+  valueMap: stringValueMap,
+  cycleValue: cycleFilterValue,
+  setRange: setRangeFilter,
+  clearColumn: clearColumnFilter,
+  clear: clearFilters,
+} = table.filter
+
+const {
+  by: groupBy,
+  collapsed: collapsedGroups,
+  toggle: toggleGroup,
+  toggleCollapse: toggleGroupCollapse,
+  clear: clearGroups,
+} = table.group
+
+const {
+  all: selection, // ShallowRef<Set<TRow>> — use selection.value.has(row) to check membership
+  rows: selectedRows,
+  toggle: toggleRowSelection, // (row: TRow) => void
+  toggleAll: toggleSelectAll, // (rows: TRow[]) => void — selects all if any unselected, else deselects all
+  clear: clearSelection, // () => void
+} = table.selection
+
+const { page, pageSize, numPages, setPage, setPageSize } = table.pagination
+```
 
 ## View persistence & sharing
 
