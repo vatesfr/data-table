@@ -242,11 +242,35 @@ Refetching or re-mapping `data` breaks that assumption — even identical conten
 
 With `getRowId` set, a selected id is remapped to its fresh object reference whenever `data` changes, and dropped if the id no longer exists. Omit it to keep the default object-identity behavior exactly as above.
 
+## Header click sorting
+
+▶ [Try it in the demo](https://vatesfr.github.io/data-table/react/#full-table)
+
+Clicking a sortable column header is a single-column-sort shortcut, separate from the Sort dropdown (which builds a deliberate multi-column sort with explicit priority/direction). A plain click replaces the whole sort with just that column, cycling its direction (asc → desc → none) if it's already the sole active sort. A shift-click adds the column to the existing multi-sort instead (or flips its direction in place if it's already part of it) — it never removes a column from the multi-sort; use the active-bar chip's `×` or the Sort dropdown's remove button for that.
+
+`defaultSortDir` (see "Column definition" below) picks which direction a fresh sort on that column starts at.
+
+## Search
+
+Pass a `searchQuery` externally, or use `table.search.query`/`table.search.setQuery` when driving the hook directly (see "`useTableState` hook" below). It matches any searchable column's string value case-insensitively before sort/filter/group run. Set `searchable: false` on a column to exclude it from this match.
+
+## Keyboard navigation
+
+▶ [Try it in the demo](https://vatesfr.github.io/data-table/react/#full-table)
+
+Table rows use a roving tabindex — exactly one data row or group header is a Tab stop at a time, and arrow keys move it:
+
+- `ArrowUp`/`ArrowDown` move focus one row, crossing page boundaries when paginated.
+- `Home`/`End` jump within the current page; `Ctrl`/`Cmd+Home`/`End` jump across all pages.
+- `Space` toggles the focused row's/group header's selection (when `selectable`).
+- `Enter` fires `onRowClick` on a data row, or toggles a group header's collapse.
+- `Shift+ArrowUp/Down/Home/End` additionally range-selects, same anchor/range logic as shift-clicking a checkbox.
+
 ## Row click
 
 ▶ [Try it in the demo](https://vatesfr.github.io/data-table/react/#row-click)
 
-Pass `onRowClick` to react to a data row being clicked — it receives the full row object and the native click event, no key lookup needed. Group header rows, the aggregate row, and the selection checkbox cell never trigger it.
+Pass `onRowClick` to react to a data row being clicked — it receives the full row object and the native click event, no key lookup needed. Group header rows, the aggregate row, and the selection checkbox cell never trigger it. Pressing Enter while a row has keyboard focus (see "Keyboard navigation" above) also fires it, with the `KeyboardEvent` in place of the `MouseEvent`.
 
 ```tsx
 <DataTable
@@ -265,19 +289,19 @@ Drag a column header to reorder it, or drag a row (or press Alt+ArrowUp/Alt+Arro
 
 ## `DataTable` props
 
-| Prop                     | Type                                                          | Default | Description                                                    |
-| ------------------------ | ------------------------------------------------------------- | ------- | -------------------------------------------------------------- |
-| `data`                   | `TRow[]`                                                      | —       | Row data                                                       |
-| `columns`                | `ColumnDef<TRow>[]`                                           | —       | Column definitions                                             |
-| `rowKey`                 | `keyof TRow & string`                                         | —       | React list key only — not selection identity                   |
-| `defaultVisibleColumns`  | `string[]`                                                    | all     | Initially visible column keys                                  |
-| `labels`                 | `Partial<DataTableLabels>`                                    | English | UI string overrides                                            |
-| `defaultPageSize`        | `number`                                                      | 0 (off) | Initial rows per page; 0 disables pagination                   |
-| `defaultGroupsCollapsed` | `boolean`                                                     | `true`  | Whether newly-grouped groups start collapsed                   |
-| `getRowId`               | `(row: TRow) => string \| number`                             | —       | Opt-in id-based selection identity (see "Row selection" above) |
-| `selectable`             | `boolean`                                                     | `false` | Show checkbox column for row selection                         |
-| `onSelectionChange`      | `(rows: TRow[]) => void`                                      | —       | Called when selection changes                                  |
-| `onRowClick`             | `(row: TRow, event: MouseEvent<HTMLTableRowElement>) => void` | —       | Called when a data row is clicked                              |
+| Prop                     | Type                                                                                                | Default | Description                                                        |
+| ------------------------ | --------------------------------------------------------------------------------------------------- | ------- | ------------------------------------------------------------------ |
+| `data`                   | `TRow[]`                                                                                            | —       | Row data                                                           |
+| `columns`                | `ColumnDef<TRow>[]`                                                                                 | —       | Column definitions                                                 |
+| `rowKey`                 | `keyof TRow & string`                                                                               | —       | React list key only — not selection identity                       |
+| `defaultVisibleColumns`  | `string[]`                                                                                          | all     | Initially visible column keys                                      |
+| `labels`                 | `Partial<DataTableLabels>`                                                                          | English | UI string overrides                                                |
+| `defaultPageSize`        | `number`                                                                                            | 0 (off) | Initial rows per page; 0 disables pagination                       |
+| `defaultGroupsCollapsed` | `boolean`                                                                                           | `true`  | Whether newly-grouped groups start collapsed                       |
+| `getRowId`               | `(row: TRow) => string \| number`                                                                   | —       | Opt-in id-based selection identity (see "Row selection" above)     |
+| `selectable`             | `boolean`                                                                                           | `false` | Show checkbox column for row selection                             |
+| `onSelectionChange`      | `(rows: TRow[]) => void`                                                                            | —       | Called when selection changes                                      |
+| `onRowClick`             | `(row: TRow, event: MouseEvent<HTMLTableRowElement> \| KeyboardEvent<HTMLTableRowElement>) => void` | —       | Called when a data row is clicked, or on Enter with keyboard focus |
 
 ## Column definition
 
@@ -290,9 +314,11 @@ interface ColumnDef<TRow extends object> {
   value?: (row: TRow) => unknown // compute the cell value from the whole row (also covers aliasing)
   format?: (value: unknown, row: TRow) => string
   compare?: (a: unknown, b: unknown, dir: SortDir) => number // custom ordering for row sort, group order, and the filter checklist; see Custom sort order
+  defaultSortDir?: SortDir // direction a fresh sort on this column starts at; default: 'asc'
   sortable?: boolean // default: true
   filterable?: boolean // default: true
   groupable?: boolean // default: false
+  searchable?: boolean // include this column in global search matching; default: true
   groupValue?: (value: unknown, row: TRow) => unknown // bucket a groupBy value into a coarser group key; see Grouped columns
   groupFormat?: (keyPart: string) => string // render a groupValue bucket key in the group header
   multiMode?: 'and' | 'or' // match mode for array-valued columns; default: 'or'
@@ -342,6 +368,8 @@ const {
 const {
   entries: sorts,
   toggle: toggleSort,
+  replace: replaceSort, // (key: string) => void — single-column sort shortcut, discards other sorts; see Header click sorting
+  appendOrToggle: appendOrToggleSort, // (key: string) => void — adds to the multi-sort or flips direction in place, never removes
   clear: clearSorts,
   icon: getSortIcon,
   index: getSortIndex,
@@ -369,13 +397,17 @@ const {
 const {
   all: selection, // Set<TRow> — use .has(row) to check membership
   rows: selectedRows,
-  toggle: toggleRowSelection, // (row: TRow) => void
+  toggle: toggleRowSelection, // (row: TRow, shiftKey?: boolean) => void
   toggleAll: toggleSelectAll, // (rows: TRow[]) => void — selects all if any unselected, else deselects all
   clear: clearSelection, // () => void
 } = table.selection
 
 const { page, pageSize, numPages, setPage, setPageSize } = table.pagination
+
+const { query: searchQuery, setQuery: setSearchQuery } = table.search
 ```
+
+`toggle`'s optional `shiftKey` enables range selection: passing `true` (typically read off the checkbox's own click event) selects/deselects every row between the last-clicked row (the anchor) and this one, computed over the full filtered/sorted `processedData` — not just the current page — via core's `selectRange`. A plain click (`shiftKey` omitted or `false`) toggles just that row and updates the anchor to it.
 
 ## View persistence & sharing
 
