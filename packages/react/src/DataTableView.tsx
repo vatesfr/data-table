@@ -2560,7 +2560,9 @@ export function DataTableView<TRow extends object>({
                 !isCollapsed &&
                   rows.map((row, ri) => (
                     <tr
-                      key={rowKey ? String(asRecord(row)[rowKey] ?? ri) : ri}
+                      key={String(
+                        rowKey ? (asRecord(row)[rowKey] ?? `${gkey}-${ri}`) : `${gkey}-${ri}`,
+                      )}
                       ref={(el) => {
                         if (el) rowRefs.current.set(row, el)
                         else rowRefs.current.delete(row)
