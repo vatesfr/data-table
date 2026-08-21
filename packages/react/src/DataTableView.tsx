@@ -1080,10 +1080,46 @@ export function DataTableView<TRow extends object>({
       />
     )
   }
-  // Unset min/max inputs default to this same bounds value (via formatRangeBound) rather than
-  // sitting empty — a blank box gives no hint of what range is even meaningful for this column,
-  // and it means the slider's own thumbs (which already fell back to these bounds) no longer
-  // visually disagree with the text inputs next to them.
+  // The plain min/max inputs (+ slider below them) for a number/date range filter — the two
+  // types differ only in <input type>, whether the label is a placeholder (number) or
+  // aria-label (date, since a native date input has no room for placeholder text) and the
+  // date input's own fixed width. Unset min/max default to `bounds` (via formatRangeBound)
+  // rather than sitting empty — a blank box gives no hint of what range is even meaningful for
+  // this column, and it means the slider's own thumbs (which already fell back to these bounds)
+  // no longer visually disagree with the text inputs next to them.
+  const renderRangeInputsFor = (
+    col: ColumnDef<TRow>,
+    bounds: { min: number; max: number } | null,
+  ) => {
+    const isDate = col.type === 'date'
+    const inputStyle = isDate ? { ...S.rangeInput, width: 118 } : S.rangeInput
+    const valueFor = (kind: 'min' | 'max') =>
+      rangeFilters[col.key]?.[kind] ?? (bounds ? formatRangeBound(bounds[kind], col) : '')
+    return (
+      <div style={{ padding: '4px 14px 8px' }}>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          <input
+            type={isDate ? 'date' : 'number'}
+            placeholder={isDate ? undefined : L.min}
+            aria-label={isDate ? L.min : undefined}
+            value={valueFor('min')}
+            onChange={(e) => setRangeFilter(col.key, 'min', e.target.value)}
+            style={inputStyle}
+          />
+          <span style={{ color: 'var(--color-text-tertiary)', fontSize: 12 }}>–</span>
+          <input
+            type={isDate ? 'date' : 'number'}
+            placeholder={isDate ? undefined : L.max}
+            aria-label={isDate ? L.max : undefined}
+            value={valueFor('max')}
+            onChange={(e) => setRangeFilter(col.key, 'max', e.target.value)}
+            style={inputStyle}
+          />
+        </div>
+        {renderRangeSliderFor(col, bounds)}
+      </div>
+    )
+  }
   const filterDetailBounds =
     filterDetailCol && (filterDetailCol.type === 'number' || filterDetailCol.type === 'date')
       ? computeValueBounds(data, filterDetailCol)
@@ -1880,82 +1916,11 @@ export function DataTableView<TRow extends object>({
                 <div style={S.filterDetail} data-filter-detail>
                   {filterDetailCol &&
                     (filterDetailCol.type === 'number' ? (
-                      <div style={{ padding: '4px 14px 8px' }}>
-                        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                          <input
-                            type="number"
-                            placeholder={L.min}
-                            value={
-                              rangeFilters[filterDetailCol.key]?.min ??
-                              (filterDetailBounds
-                                ? formatRangeBound(filterDetailBounds.min, filterDetailCol)
-                                : '')
-                            }
-                            onChange={(e) =>
-                              setRangeFilter(filterDetailCol.key, 'min', e.target.value)
-                            }
-                            style={S.rangeInput}
-                          />
-                          <span style={{ color: 'var(--color-text-tertiary)', fontSize: 12 }}>
-                            –
-                          </span>
-                          <input
-                            type="number"
-                            placeholder={L.max}
-                            value={
-                              rangeFilters[filterDetailCol.key]?.max ??
-                              (filterDetailBounds
-                                ? formatRangeBound(filterDetailBounds.max, filterDetailCol)
-                                : '')
-                            }
-                            onChange={(e) =>
-                              setRangeFilter(filterDetailCol.key, 'max', e.target.value)
-                            }
-                            style={S.rangeInput}
-                          />
-                        </div>
-                        {renderRangeSliderFor(filterDetailCol, filterDetailBounds)}
-                      </div>
+                      renderRangeInputsFor(filterDetailCol, filterDetailBounds)
                     ) : (
                       <>
-                        {filterDetailCol.type === 'date' && (
-                          <div style={{ padding: '4px 14px 8px' }}>
-                            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                              <input
-                                type="date"
-                                aria-label={L.min}
-                                value={
-                                  rangeFilters[filterDetailCol.key]?.min ??
-                                  (filterDetailBounds
-                                    ? formatRangeBound(filterDetailBounds.min, filterDetailCol)
-                                    : '')
-                                }
-                                onChange={(e) =>
-                                  setRangeFilter(filterDetailCol.key, 'min', e.target.value)
-                                }
-                                style={{ ...S.rangeInput, width: 118 }}
-                              />
-                              <span style={{ color: 'var(--color-text-tertiary)', fontSize: 12 }}>
-                                –
-                              </span>
-                              <input
-                                type="date"
-                                aria-label={L.max}
-                                value={
-                                  rangeFilters[filterDetailCol.key]?.max ??
-                                  (filterDetailBounds
-                                    ? formatRangeBound(filterDetailBounds.max, filterDetailCol)
-                                    : '')
-                                }
-                                onChange={(e) =>
-                                  setRangeFilter(filterDetailCol.key, 'max', e.target.value)
-                                }
-                                style={{ ...S.rangeInput, width: 118 }}
-                              />
-                            </div>
-                            {renderRangeSliderFor(filterDetailCol, filterDetailBounds)}
-                          </div>
-                        )}
+                        {filterDetailCol.type === 'date' &&
+                          renderRangeInputsFor(filterDetailCol, filterDetailBounds)}
                         <div style={S.filterSearchRow}>
                           {filterDetailValues.length > 0 && (
                             <input
