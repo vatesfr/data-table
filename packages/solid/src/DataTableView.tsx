@@ -52,13 +52,9 @@ export function DataTableView<TRow extends object>(props: DataTableViewProps<TRo
             onToggle={() => toggleDd('cols')}
             onClose={() => setOpenDropdown(null)}
           />
-          <SortDropdown
-            table={table}
-            columns={table.columns.list()}
-            isOpen={openDropdown() === 'sort'}
-            onToggle={() => toggleDd('sort')}
-            onClose={() => setOpenDropdown(null)}
-          />
+          {/* Group before Sort — data is grouped first, then ordered (groups themselves, then
+              rows within them), matching the Sort dropdown's own "Group order" section coming
+              before "Active sorts" and the active bar's group-chips-before-sort-chips order. */}
           <Show when={groupableCols().length > 0}>
             <GroupDropdown
               table={table}
@@ -68,6 +64,13 @@ export function DataTableView<TRow extends object>(props: DataTableViewProps<TRo
               onClose={() => setOpenDropdown(null)}
             />
           </Show>
+          <SortDropdown
+            table={table}
+            columns={table.columns.list()}
+            isOpen={openDropdown() === 'sort'}
+            onToggle={() => toggleDd('sort')}
+            onClose={() => setOpenDropdown(null)}
+          />
           <span class="dt-toolbar-divider" />
           <SearchBox table={table} />
           <FilterDropdown

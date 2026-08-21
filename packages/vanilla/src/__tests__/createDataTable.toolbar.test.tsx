@@ -373,14 +373,17 @@ describe('createDataTable', () => {
       ].find((cb) => cb.closest('label')?.textContent?.includes('Alice'))!,
     )
 
+    // Grouping Dept auto-inserts a matching sort entry (issue #17), but the active bar merges a
+    // grouped column's sort+group chips into one (dt-chip--grouped-sort) rather than showing two
+    // identically-labeled chips — so this is still 3 chips: Score's sort chip, Dept's merged
+    // sort+group chip, and Name's filter chip.
     const chips = [...container.querySelectorAll<HTMLElement>('.dt-active-bar .dt-chip')]
     expect(chips).toHaveLength(3)
     expect(chips.some((c) => c.textContent?.includes('Score'))).toBe(true)
-    expect(
-      chips.some(
-        (c) => c.textContent?.includes('Dept') && !c.classList.contains('dt-chip--filter'),
-      ),
-    ).toBe(true)
+    const deptChip = chips.find(
+      (c) => c.textContent?.includes('Dept') && !c.classList.contains('dt-chip--filter'),
+    )!
+    expect(deptChip.classList.contains('dt-chip--grouped-sort')).toBe(true)
     expect(chips.some((c) => c.classList.contains('dt-chip--filter'))).toBe(true)
   })
 
@@ -413,8 +416,14 @@ describe('createDataTable', () => {
     clickAddable(container, 'Dept')
     openDropdown(container, 'Group') // close
 
-    const chipBody = findByText(container, 'Dept', '.dt-active-bar .dt-chip-body')
-    click(chipBody)
+    // Grouping Dept also auto-inserts a matching sort entry (issue #17), so this renders as one
+    // merged chip (dt-chip--grouped-sort) instead of a plain group chip — its body now toggles
+    // sort direction, and the dedicated group-mark button ("⊞") is what opens the Group dropdown.
+    const groupMark = container.querySelector<HTMLElement>(
+      '.dt-active-bar .dt-chip--grouped-sort .dt-chip-group-mark',
+    )!
+    expect(groupMark).toBeTruthy()
+    click(groupMark)
     expect(container.querySelector('.dt-dd')).not.toBeNull()
     // Simplified vs. the fuller documented behavior (see ActiveBar.tsx's own doc comment): opening
     // via the chip does not additionally focus that entry's row inside the dropdown, so (unlike

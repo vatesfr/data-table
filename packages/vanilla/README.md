@@ -238,6 +238,8 @@ Set `groupable: true` on a column to make it available in the toolbar's Group dr
 { key: 'department', label: 'Department', groupable: true }
 ```
 
+Grouping a column also adds a matching sort for it (ascending by default), so groups have a defined order right away instead of an arbitrary one — the same sort entry shown as a chip in the active bar and a row in the Sort dropdown, reversible or removable like any other sort. Removing that sort later doesn't ungroup the column; it just goes back to an arbitrary group order.
+
 Grouping buckets rows by **exact value** by default — fine for low-cardinality columns (department, status), but a continuous or near-unique column (a percentage, a raw timestamp) would create one group per row. Set `groupValue` to bucket into coarser groups instead — it only affects grouping; sort/filter/aggregate/cell rendering keep reading the column's real value, untouched:
 
 ```ts

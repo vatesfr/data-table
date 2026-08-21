@@ -38,6 +38,7 @@ import {
   type DateTreeNode,
   type ValueSort,
   type VisibleItem,
+  type SortEntry,
 } from '@vates/data-table-core'
 import { Dropdown } from './components/Dropdown'
 import { ToolbarBtn } from './components/ToolbarBtn'
@@ -149,6 +150,11 @@ const S = {
     letterSpacing: '0.05em',
     textTransform: 'uppercase',
   } as CSSProperties,
+  ddHint: {
+    padding: '0 14px 6px',
+    fontSize: 11,
+    color: 'var(--color-text-tertiary)',
+  } as CSSProperties,
   filterCount: {
     fontSize: 12,
     color: 'var(--color-text-tertiary)',
@@ -209,6 +215,27 @@ const S = {
     background: 'var(--color-background-danger)',
     color: 'var(--color-text-danger)',
     border: '0.5px solid var(--color-border-danger)',
+  } as CSSProperties,
+  // A grouped column's own chip merges its sort chip and group chip into one pill (see
+  // "Active-bar chip click actions" / issue #17's follow-up in CLAUDE.md) instead of showing two
+  // identically-labeled chips — chipXMiddle squares off the sort-remove ×'s right edge (it's no
+  // longer the pill's last segment) so it butts cleanly against chipGroupMark next to it; the
+  // trailing group-remove × stays plain chipX (still the pill's actual right end).
+  chipXMiddle: {
+    borderRadius: 0,
+    borderRight: 'none',
+  } as CSSProperties,
+  chipGroupMark: {
+    cursor: 'pointer',
+    background: 'var(--color-background-secondary)',
+    border: '0.5px solid var(--color-border-secondary)',
+    borderRight: 'none',
+    borderRadius: 0,
+    padding: '2px 5px',
+    fontSize: 12,
+    color: 'var(--color-text-tertiary)',
+    fontFamily: 'inherit',
+    lineHeight: 1.4,
   } as CSSProperties,
   groupRow: {
     background: 'var(--color-background-secondary)',
@@ -774,7 +801,6 @@ export function DataTableView<TRow extends object>({
     appendOrToggle: appendOrToggleSort,
     remove: removeSort,
     toggleDir: toggleSortDir,
-    moveBy: moveSortBy,
     move: moveSort,
     clear: clearSorts,
     icon: getSortIcon,
@@ -805,6 +831,18 @@ export function DataTableView<TRow extends object>({
     toggleCollapse: toggleGroupCollapse,
     clear: clearGroups,
   } = table.group
+
+  // Split for the Sort dropdown's active list (see "Auto-syncing group order with sort" in
+  // CLAUDE.md): entries matching a currently grouped column always govern nesting order via
+  // `groupBy`'s own order, never via drag position within `sorts` — mixing them into one flat
+  // draggable list made dragging a tie-break column above a group column look like it did
+  // something when it never could (issue #17's follow-up). `groupSortEntries` is in `groupBy`'s
+  // own order (skipping a grouped column with no matching sort entry); `nonGroupSortEntries` is
+  // the actual freely-reorderable tie-break priority stack.
+  const groupSortEntries = groupBy
+    .map((key) => sorts.find((s) => s.key === key))
+    .filter((s): s is SortEntry => s !== undefined)
+  const nonGroupSortEntries = sorts.filter((s) => !groupBy.includes(s.key))
 
   // Kept independent from dragColKey/dragOverColKey above (the <th> header drag state), even
   // though both ultimately reorder columnOrder — mirrors vanilla giving each dropdown its own
@@ -1536,150 +1574,11 @@ export function DataTableView<TRow extends object>({
             ))}
           </Dropdown>
 
-          {/* Sort */}
-          <Dropdown
-            open={openSortDD}
-            setOpen={setOpenSortDD}
-            trigger={
-              <ToolbarBtn active={sorts.length > 0} grouped={sorts.length > 0}>
-                {L.sort}
-              </ToolbarBtn>
-            }
-            extraTrigger={
-              sorts.length > 0 && (
-                <button
-                  type="button"
-                  onClick={clearSorts}
-                  title={L.clearSorts}
-                  aria-label={L.clearSorts}
-                  style={S.btnClear}
-                >
-                  ×
-                </button>
-              )
-            }
-            onDragOver={onSortRowsDragOver}
-            onDrop={onSortRowsDrop}
-          >
-            {sorts.length > 0 && (
-              <>
-                <div style={S.ddSection}>{L.activeSortsSection}</div>
-                {sorts.map((entry, i) => {
-                  const col = columns.find((c) => c.key === entry.key)
-                  return (
-                    // The whole row is the click target (toggles direction) and the drag source
-                    // (reorder priority); `×` stays a separate <button> (draggable=false so
-                    // starting a drag from it doesn't also drag the row) since removing isn't
-                    // something a row click/drag should ever trigger. tabIndex + onKeyDown give
-                    // it Alt+↑/↓ reorder and Enter/Space-to-toggle from the keyboard — a plain
-                    // div gets no free keyboard activation the way a real <button> would (unlike
-                    // the add-list below, which doesn't need custom keyboard handling).
-                    // dragover/drop are handled at the Dropdown panel level (see above), not
-                    // per-row — that's what lets a drop past the last row still resolve to a
-                    // valid target.
-                    <div
-                      key={entry.key}
-                      data-sort-key={entry.key}
-                      data-dd-row
-                      draggable
-                      tabIndex={0}
-                      onDragStart={() => onSortRowDragStart(entry.key)}
-                      onDragEnd={onSortRowDragEnd}
-                      onClick={() => toggleSortDir(entry.key)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault()
-                          toggleSortDir(entry.key)
-                        } else if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
-                          e.preventDefault()
-                          moveSortBy(entry.key, e.key === 'ArrowUp' ? -1 : 1)
-                        }
-                      }}
-                      style={{
-                        ...S.ddItem,
-                        justifyContent: 'space-between',
-                        opacity: dragSortKey === entry.key ? 0.4 : 1,
-                        boxShadow:
-                          dragOverSortKey === entry.key
-                            ? `inset 0 ${dragOverSortAfter ? '-2px' : '2px'} 0 var(--color-text-primary)`
-                            : undefined,
-                      }}
-                    >
-                      <span
-                        style={{
-                          width: 18,
-                          fontSize: 11,
-                          color: 'var(--color-text-tertiary)',
-                          fontWeight: 500,
-                        }}
-                      >
-                        {i + 1}
-                      </span>
-                      <span style={{ flex: 1 }}>{col?.label ?? entry.key}</span>
-                      <span style={{ fontSize: 15, color: 'var(--color-text-primary)' }}>
-                        {getSortIcon(entry.key)}
-                      </span>
-                      <button
-                        type="button"
-                        draggable={false}
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          // Removing this entry unmounts this whole row (a different JSX subtree
-                          // than the addable button it's about to become again — see
-                          // pendingSortFocusKey above), so focus needs an explicit hand-off.
-                          pendingSortFocusKey.current = entry.key
-                          removeSort(entry.key)
-                        }}
-                        style={S.itemRemove}
-                      >
-                        ×
-                      </button>
-                    </div>
-                  )
-                })}
-              </>
-            )}
-            {addableSortCols.length > 0 && (
-              <>
-                {/* Search box narrows this "add" list only — the active-sorts section above
-                    keeps its own priority order and is never hidden by it, since it's a short,
-                    already-visible list with its own remove/reorder controls. */}
-                <div style={S.ddSearchRow}>
-                  <DdSearchInput
-                    value={ddSearchTerms.sort ?? ''}
-                    onChange={(v) => setDdSearchTerms({ ...ddSearchTerms, sort: v })}
-                    placeholder={L.filterSearchPlaceholder}
-                  />
-                </div>
-                <div style={S.ddSection}>{L.sortSection}</div>
-                {searchedAddableSortCols.map((col) => (
-                  // A real <button> (not a div) so it's a native Tab stop and Enter/Space
-                  // "click" it for free — no manual tabIndex/keydown wiring needed, unlike the
-                  // active rows above (which need custom keyboard handling anyway for Alt+↑/↓).
-                  <button
-                    key={col.key}
-                    type="button"
-                    data-sort-add-key={col.key}
-                    data-dd-row
-                    onClick={() => {
-                      // Activating this column moves it into the active section above (a
-                      // different JSX subtree, so a different DOM node) — see
-                      // pendingSortFocusKey.
-                      pendingSortFocusKey.current = col.key
-                      toggleSort(col.key)
-                    }}
-                    style={{ ...S.ddItem, ...S.ddItemButton }}
-                  >
-                    <span style={{ flex: 1 }}>{col.label}</span>
-                  </button>
-                ))}
-              </>
-            )}
-          </Dropdown>
-
-          {/* Group — placed right after Sort (both "shape" the view — order/columns) rather than
-              after Filter, so the toolbar reads as two clusters: Columns/Sort/Group shape the
-              view, Search/Filter narrow it — see the divider below. */}
+          {/* Group before Sort — data is grouped first, then ordered (groups themselves, then
+              rows within them), matching the Sort dropdown's own "Group order" section coming
+              before "Active sorts" and the active bar's group-chips-before-sort-chips order.
+              Both still "shape" the view (vs. Search/Filter narrowing it below) — see the
+              divider below. */}
           {groupableCols.length > 0 && (
             <Dropdown
               open={openGroupDD}
@@ -1802,6 +1701,205 @@ export function DataTableView<TRow extends object>({
               )}
             </Dropdown>
           )}
+
+          {/* Sort */}
+          <Dropdown
+            open={openSortDD}
+            setOpen={setOpenSortDD}
+            trigger={
+              <ToolbarBtn active={sorts.length > 0} grouped={sorts.length > 0}>
+                {L.sort}
+              </ToolbarBtn>
+            }
+            extraTrigger={
+              sorts.length > 0 && (
+                <button
+                  type="button"
+                  onClick={clearSorts}
+                  title={L.clearSorts}
+                  aria-label={L.clearSorts}
+                  style={S.btnClear}
+                >
+                  ×
+                </button>
+              )
+            }
+            onDragOver={onSortRowsDragOver}
+            onDrop={onSortRowsDrop}
+          >
+            {groupSortEntries.length > 0 && (
+              <>
+                <div style={S.ddSection}>{L.groupOrderSection}</div>
+                <div style={S.ddHint}>{L.groupOrderHint}</div>
+                {groupSortEntries.map((entry, i) => {
+                  const col = columns.find((c) => c.key === entry.key)
+                  // Not draggable, no Alt+↑/↓ reorder — nesting order always follows groupBy's
+                  // own order (see the Group dropdown), so reordering here would be a no-op;
+                  // direction is still toggleable/removable in place, same as any other entry.
+                  return (
+                    <div
+                      key={entry.key}
+                      tabIndex={0}
+                      onClick={() => toggleSortDir(entry.key)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          toggleSortDir(entry.key)
+                        }
+                      }}
+                      style={{ ...S.ddItem, justifyContent: 'space-between' }}
+                    >
+                      <span
+                        style={{
+                          width: 18,
+                          fontSize: 11,
+                          color: 'var(--color-text-tertiary)',
+                          fontWeight: 500,
+                        }}
+                      >
+                        {i + 1}
+                      </span>
+                      <span style={{ flex: 1 }}>{col?.label ?? entry.key}</span>
+                      <span style={{ fontSize: 15, color: 'var(--color-text-primary)' }}>
+                        {getSortIcon(entry.key)}
+                      </span>
+                      <button
+                        type="button"
+                        draggable={false}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          removeSort(entry.key)
+                        }}
+                        style={S.itemRemove}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  )
+                })}
+              </>
+            )}
+            {nonGroupSortEntries.length > 0 && (
+              <>
+                <div style={S.ddSection}>{L.activeSortsSection}</div>
+                {nonGroupSortEntries.map((entry, i) => {
+                  const col = columns.find((c) => c.key === entry.key)
+                  return (
+                    // The whole row is the click target (toggles direction) and the drag source
+                    // (reorder priority); `×` stays a separate <button> (draggable=false so
+                    // starting a drag from it doesn't also drag the row) since removing isn't
+                    // something a row click/drag should ever trigger. tabIndex + onKeyDown give
+                    // it Alt+↑/↓ reorder and Enter/Space-to-toggle from the keyboard — a plain
+                    // div gets no free keyboard activation the way a real <button> would (unlike
+                    // the add-list below, which doesn't need custom keyboard handling).
+                    // dragover/drop are handled at the Dropdown panel level (see above), not
+                    // per-row — that's what lets a drop past the last row still resolve to a
+                    // valid target.
+                    <div
+                      key={entry.key}
+                      data-sort-key={entry.key}
+                      data-dd-row
+                      draggable
+                      tabIndex={0}
+                      onDragStart={() => onSortRowDragStart(entry.key)}
+                      onDragEnd={onSortRowDragEnd}
+                      onClick={() => toggleSortDir(entry.key)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          toggleSortDir(entry.key)
+                        } else if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+                          e.preventDefault()
+                          // Swap with the neighbor within this non-group subset (by key, via
+                          // moveSort/reorderSort), not the raw sorts-array neighbor (moveSortBy)
+                          // — a group entry can sit between two non-group ones in the underlying
+                          // array, and swapping with it would silently do nothing visible here.
+                          const delta = e.key === 'ArrowUp' ? -1 : 1
+                          const neighbor = nonGroupSortEntries[i + delta]
+                          if (neighbor) moveSort(entry.key, neighbor.key, delta > 0)
+                        }
+                      }}
+                      style={{
+                        ...S.ddItem,
+                        justifyContent: 'space-between',
+                        opacity: dragSortKey === entry.key ? 0.4 : 1,
+                        boxShadow:
+                          dragOverSortKey === entry.key
+                            ? `inset 0 ${dragOverSortAfter ? '-2px' : '2px'} 0 var(--color-text-primary)`
+                            : undefined,
+                      }}
+                    >
+                      <span
+                        style={{
+                          width: 18,
+                          fontSize: 11,
+                          color: 'var(--color-text-tertiary)',
+                          fontWeight: 500,
+                        }}
+                      >
+                        {i + 1}
+                      </span>
+                      <span style={{ flex: 1 }}>{col?.label ?? entry.key}</span>
+                      <span style={{ fontSize: 15, color: 'var(--color-text-primary)' }}>
+                        {getSortIcon(entry.key)}
+                      </span>
+                      <button
+                        type="button"
+                        draggable={false}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          // Removing this entry unmounts this whole row (a different JSX subtree
+                          // than the addable button it's about to become again — see
+                          // pendingSortFocusKey above), so focus needs an explicit hand-off.
+                          pendingSortFocusKey.current = entry.key
+                          removeSort(entry.key)
+                        }}
+                        style={S.itemRemove}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  )
+                })}
+              </>
+            )}
+            {addableSortCols.length > 0 && (
+              <>
+                {/* Search box narrows this "add" list only — the active-sorts section above
+                    keeps its own priority order and is never hidden by it, since it's a short,
+                    already-visible list with its own remove/reorder controls. */}
+                <div style={S.ddSearchRow}>
+                  <DdSearchInput
+                    value={ddSearchTerms.sort ?? ''}
+                    onChange={(v) => setDdSearchTerms({ ...ddSearchTerms, sort: v })}
+                    placeholder={L.filterSearchPlaceholder}
+                  />
+                </div>
+                <div style={S.ddSection}>{L.sortSection}</div>
+                {searchedAddableSortCols.map((col) => (
+                  // A real <button> (not a div) so it's a native Tab stop and Enter/Space
+                  // "click" it for free — no manual tabIndex/keydown wiring needed, unlike the
+                  // active rows above (which need custom keyboard handling anyway for Alt+↑/↓).
+                  <button
+                    key={col.key}
+                    type="button"
+                    data-sort-add-key={col.key}
+                    data-dd-row
+                    onClick={() => {
+                      // Activating this column moves it into the active section above (a
+                      // different JSX subtree, so a different DOM node) — see
+                      // pendingSortFocusKey.
+                      pendingSortFocusKey.current = col.key
+                      toggleSort(col.key)
+                    }}
+                    style={{ ...S.ddItem, ...S.ddItemButton }}
+                  >
+                    <span style={{ flex: 1 }}>{col.label}</span>
+                  </button>
+                ))}
+              </>
+            )}
+          </Dropdown>
 
           {/* Divider between the "shape" controls above (Columns/Sort/Group) and the "find"
               controls below (Search/Filter). */}
@@ -2129,42 +2227,64 @@ export function DataTableView<TRow extends object>({
             grouped clear buttons above) that does something specific to that chip's own kind of
             active state, so tweaking an already-active sort/group/filter no longer requires
             reopening its dropdown and re-navigating to the same entry. */}
-        {sorts.map((entry) => {
-          const col = columns.find((c) => c.key === entry.key)
-          return (
-            <span key={entry.key} style={S.chip}>
-              {/* Toggles direction in place — the same action the Sort dropdown's own
-                  active-sort row already uses — no dropdown needed for the single most common
-                  tweak. `entry.key` keeps this button's identity (and DOM node) stable across
-                  the toggle, so it stays focused for free with no explicit refocus needed, unlike
-                  Group/Filter below (whose click opens a not-yet-mounted dropdown panel). */}
-              <button type="button" onClick={() => toggleSortDir(entry.key)} style={S.chipBody}>
-                {getSortIcon(entry.key)} {col?.label ?? entry.key}
-              </button>
-              <button type="button" onClick={() => removeSort(entry.key)} style={S.chipX}>
-                ×
-              </button>
-            </span>
-          )
-        })}
+        {/* A grouped column always carries its own sort entry now (insertGroupSort, issue #17),
+            so rendering the sort loop and the group loop independently would show two
+            identically-labeled chips for the same column with nothing visually linking them —
+            skip a sort entry below when its key is also a groupBy key; it's rendered merged with
+            its group chip here instead. Group chips render before plain sort chips — matches the
+            Sort dropdown's own "Group order" section coming before "Active sorts" (see below),
+            since grouping is the structural, primary concern and tie-break sorting is
+            secondary. */}
         {groupBy.map((key) => {
           const col = groupableCols.find((c) => c.key === key)
+          const sortEntry = sorts.find((s) => s.key === key)
+          if (!sortEntry) {
+            return (
+              <span key={key} style={S.chip}>
+                {/* Opens the Group dropdown focused on this entry's row — there's no single
+                    obvious inline toggle for a group entry the way direction is for sort, so
+                    getting straight to it (ready to reorder/remove) is the most useful available
+                    action. Reuses pendingGroupFocusKey (see above) since it already matches on
+                    the same data-group-key the dropdown's own active row carries. */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    pendingGroupFocusKey.current = key
+                    setOpenGroupDD(true)
+                  }}
+                  style={S.chipBody}
+                >
+                  {col?.label ?? key}
+                </button>
+                <button type="button" onClick={() => removeGroup(key)} style={S.chipX}>
+                  ×
+                </button>
+              </span>
+            )
+          }
           return (
             <span key={key} style={S.chip}>
-              {/* Opens the Group dropdown focused on this entry's row — there's no single
-                  obvious inline toggle for a group entry the way direction is for sort, so
-                  getting straight to it (ready to reorder/remove) is the most useful available
-                  action. Reuses pendingGroupFocusKey (see above) since it already matches on
-                  the same data-group-key the dropdown's own active row carries. */}
+              <button type="button" onClick={() => toggleSortDir(key)} style={S.chipBody}>
+                {getSortIcon(key)} {col?.label ?? key}
+              </button>
               <button
                 type="button"
+                onClick={() => removeSort(key)}
+                style={{ ...S.chipX, ...S.chipXMiddle }}
+              >
+                ×
+              </button>
+              <button
+                type="button"
+                data-chip-group-mark={key}
                 onClick={() => {
                   pendingGroupFocusKey.current = key
                   setOpenGroupDD(true)
                 }}
-                style={S.chipBody}
+                style={S.chipGroupMark}
+                aria-label={L.group}
               >
-                {col?.label ?? key}
+                ⊞
               </button>
               <button type="button" onClick={() => removeGroup(key)} style={S.chipX}>
                 ×
@@ -2172,6 +2292,27 @@ export function DataTableView<TRow extends object>({
             </span>
           )
         })}
+        {sorts
+          .filter((entry) => !groupBy.includes(entry.key))
+          .map((entry) => {
+            const col = columns.find((c) => c.key === entry.key)
+            return (
+              <span key={entry.key} style={S.chip}>
+                {/* Toggles direction in place — the same action the Sort dropdown's own
+                    active-sort row already uses — no dropdown needed for the single most common
+                    tweak. `entry.key` keeps this button's identity (and DOM node) stable across
+                    the toggle, so it stays focused for free with no explicit refocus needed,
+                    unlike Group/Filter above (whose click opens a not-yet-mounted dropdown
+                    panel). */}
+                <button type="button" onClick={() => toggleSortDir(entry.key)} style={S.chipBody}>
+                  {getSortIcon(entry.key)} {col?.label ?? entry.key}
+                </button>
+                <button type="button" onClick={() => removeSort(entry.key)} style={S.chipX}>
+                  ×
+                </button>
+              </span>
+            )
+          })}
         {activeFilterCount > 0 &&
           Object.entries(filters)
             .filter(([, v]) => v.size > 0)

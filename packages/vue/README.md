@@ -183,6 +183,8 @@ Set `groupable: true` on a column to make it available in the toolbar's Group dr
 { key: 'department', label: 'Department', groupable: true }
 ```
 
+Grouping a column also adds a matching sort for it (ascending by default), so groups have a defined order right away instead of an arbitrary one — the same sort entry shown as a chip in the active bar and a row in the Sort dropdown, reversible or removable like any other sort. Removing that sort later doesn't ungroup the column; it just goes back to an arbitrary group order.
+
 Grouping buckets rows by **exact value** by default — fine for low-cardinality columns (department, status), but a continuous or near-unique column (a percentage, a raw timestamp) would create one group per row. Set `groupValue` to bucket into coarser groups instead — it only affects grouping; sort/filter/aggregate/cell rendering keep reading the column's real value, untouched:
 
 ```ts
@@ -315,7 +317,7 @@ Listen to `@row-click` to react to a data row being clicked — it receives the 
 
 Clicking a column header is a single-column-sort shortcut, distinct from the Sort dropdown (which stays the tool for a deliberate multi-column sort with explicit priority):
 
-- **Plain click** sorts by that column alone, discarding every other active sort (`table.sort.replace(key)`) — or cycles its direction if it's already the sole active sort.
+- **Plain click** sorts by that column alone, discarding every other active _non-group_ sort (`table.sort.replace(key)`) — or cycles its direction if it's already the sole active non-group sort. A currently grouped column's own sort entry (which governs group order, not row order — see "Grouped columns" below) is left untouched, since a plain click on some unrelated column shouldn't silently wipe out how the table is grouped.
 - **Shift-click** adds the column to the existing multi-sort, or flips its direction in place if it's already part of it (`table.sort.appendOrToggle(key)`) — it never removes a column from the sort; use the active-bar chip's `×` or the Sort dropdown's remove button for that.
 
 The header's own sort-icon index (`1↑`, `2↓`, …) only appears once more than one currently-visible header is sorted.

@@ -46,6 +46,26 @@ export function SortDropdown<TRow extends object>(props: SortDropdownProps<TRow>
     return alphabetizedByLabel(notYetActive, searchTerm())
   })
 
+  // Split the active list in two: entries matching a currently grouped column always govern
+  // nesting order (`sortWithinGroups` reads that off `groupBy`'s own order, never off drag
+  // position within `sorts` — see CLAUDE.md's "Auto-syncing group order with sort") and entries
+  // for everything else, which is the actual freely-reorderable tie-break priority stack. Mixing
+  // both into one flat draggable list made it look like dragging a tie-break column above a
+  // group column changed something when it never could — see issue #17's follow-up. `groupEntries`
+  // is in `groupBy`'s own order (skipping a grouped column with no matching sort entry — nothing
+  // to show there), matching what actually governs nesting.
+  const groupEntries = createMemo(() => {
+    const sorts = table.sort.entries()
+    return table.group
+      .by()
+      .map((key) => sorts.find((s) => s.key === key))
+      .filter((s): s is SortEntry => s !== undefined)
+  })
+  const nonGroupEntries = createMemo(() => {
+    const groupBy = table.group.by()
+    return table.sort.entries().filter((s) => !groupBy.includes(s.key))
+  })
+
   return (
     <Dropdown
       isOpen={props.isOpen}
@@ -74,10 +94,52 @@ export function SortDropdown<TRow extends object>(props: SortDropdownProps<TRow>
         </Show>
       }
     >
-      <Show when={table.sort.entries().length > 0}>
+      <Show when={groupEntries().length > 0}>
+        <div class="dt-dd-section">{table.labels().groupOrderSection}</div>
+        <div class="dt-dd-hint">{table.labels().groupOrderHint}</div>
+        <For each={groupEntries()}>
+          {(entry: SortEntry, i) => {
+            const col = () => props.columns.find((c) => c.key === entry.key)
+            return (
+              // Not draggable, no Alt+Arrow reorder — nesting order always follows groupBy's own
+              // order (see the Group dropdown), so reordering here would be a no-op; direction is
+              // still toggleable/removable in place, same as any other sort entry.
+              <div
+                class="dt-dd-item dt-dd-item--col dt-dd-item--sortrow dt-dd-item--locked"
+                tabIndex={0}
+                onClick={() => table.sort.toggleDir(entry.key)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    table.sort.toggleDir(entry.key)
+                  }
+                }}
+              >
+                <span class="dt-sort-idx">{i() + 1}</span>
+                <span class="dt-flex1">{col()?.label ?? entry.key}</span>
+                <span class="dt-sort-icon dt-sort-icon--active">
+                  {getSortIcon(table.sort.entries(), entry.key)}
+                </span>
+                <button
+                  type="button"
+                  class="dt-item-remove"
+                  draggable={false}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    table.sort.remove(entry.key)
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+            )
+          }}
+        </For>
+      </Show>
+      <Show when={nonGroupEntries().length > 0}>
         <div class="dt-dd-section">{table.labels().activeSortsSection}</div>
         <div ref={setContainer} onDragOver={handleDragOver} onDrop={handleDrop}>
-          <For each={table.sort.entries()}>
+          <For each={nonGroupEntries()}>
             {(entry: SortEntry, i) => {
               const col = () => props.columns.find((c) => c.key === entry.key)
               return (
@@ -97,12 +159,16 @@ export function SortDropdown<TRow extends object>(props: SortDropdownProps<TRow>
                     if (e.key === 'Enter' || e.key === ' ') {
                       e.preventDefault()
                       table.sort.toggleDir(entry.key)
-                    } else if (e.altKey && e.key === 'ArrowUp') {
+                    } else if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
                       e.preventDefault()
-                      table.sort.moveBy(entry.key, -1)
-                    } else if (e.altKey && e.key === 'ArrowDown') {
-                      e.preventDefault()
-                      table.sort.moveBy(entry.key, 1)
+                      // Swap with the neighbor within this non-group subset (by key, via
+                      // reorderSort), not the raw sorts-array neighbor (moveSortBy) — a group
+                      // entry can sit between two non-group ones in the underlying array, and
+                      // swapping with it would silently do nothing visible in this section.
+                      const list = nonGroupEntries()
+                      const delta = e.key === 'ArrowUp' ? -1 : 1
+                      const neighbor = list[i() + delta]
+                      if (neighbor) table.sort.move(entry.key, neighbor.key, delta > 0)
                     }
                   }}
                 >

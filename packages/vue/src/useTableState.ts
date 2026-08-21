@@ -26,6 +26,8 @@ import {
   toggleAllInSelection,
   reconcileSelection,
   toggleGroupBy,
+  insertGroupSort,
+  reorderGroupSorts,
   toggleCollapse,
   getOrderedColumns,
   reconcileVisibleColumns,
@@ -233,7 +235,7 @@ export function useTableState<TRow extends object>(
         sorts.value = _toggleSort(sorts.value, key, defaultSortDirFor(key))
       },
       replace: (key: string) => {
-        sorts.value = _replaceSort(sorts.value, key, defaultSortDirFor(key))
+        sorts.value = _replaceSort(sorts.value, key, defaultSortDirFor(key), groupBy.value)
       },
       appendOrToggle: (key: string) => {
         sorts.value = _appendOrToggleSort(sorts.value, key, defaultSortDirFor(key))
@@ -335,16 +337,22 @@ export function useTableState<TRow extends object>(
       collapsed: collapsedGroups,
       defaultCollapsed: defaultGroupsCollapsed,
       toggle: (key: string) => {
-        groupBy.value = toggleGroupBy(groupBy.value, key)
+        const prev = groupBy.value
+        if (!prev.includes(key)) {
+          sorts.value = insertGroupSort(sorts.value, prev, key, defaultSortDirFor(key))
+        }
+        groupBy.value = toggleGroupBy(prev, key)
       },
       remove: (key: string) => {
         groupBy.value = groupBy.value.filter((k) => k !== key)
       },
       moveBy: (key: string, delta: number) => {
         groupBy.value = _moveColumnBy(groupBy.value, key, delta)
+        sorts.value = reorderGroupSorts(sorts.value, groupBy.value)
       },
       move: (dragKey: string, targetKey: string, after = false) => {
         groupBy.value = _reorderColumn(groupBy.value, dragKey, targetKey, after)
+        sorts.value = reorderGroupSorts(sorts.value, groupBy.value)
       },
       toggleCollapse: (key: string) => {
         collapsedGroups.value = toggleCollapse(collapsedGroups.value, key)

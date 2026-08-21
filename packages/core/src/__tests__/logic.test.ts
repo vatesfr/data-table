@@ -40,6 +40,8 @@ import {
   reconcileSelection,
   selectDateRange,
   toggleGroupBy,
+  insertGroupSort,
+  reorderGroupSorts,
   toggleCollapse,
   isGroupCollapsed,
   getSortIcon,
@@ -728,6 +730,29 @@ describe('groupData', () => {
     const result = groupData(ROWS, ['dept', 'salary'], cols)
     expect(result.map((g) => g.key).sort()).toEqual(['Eng › 100000', 'Eng › 50000', 'HR › 50000'])
   })
+
+  it('preserves true first-seen order for numeric-looking bucket keys, instead of a plain object silently re-sorting them ascending', () => {
+    // A canonical non-negative integer string (e.g. a numericRangeGroup bucket key like '80000')
+    // is a JS "array index" key — a plain `Record<string, ...>` would enumerate those ascending
+    // regardless of insertion order, making an unsorted numeric-bucketed group look permanently
+    // pre-sorted. Rows here are deliberately out of bucket order (80000, 100000, then back to
+    // 60000) so an object-based implementation and a Map-based one disagree on the result.
+    const rows = [
+      { name: 'A', salary: 92000 }, // bucket 80000
+      { name: 'B', salary: 105000 }, // bucket 100000
+      { name: 'C', salary: 78000 }, // bucket 60000
+    ]
+    const cols = [
+      {
+        key: 'salary',
+        label: 'Salary',
+        type: 'number' as const,
+        groupValue: bucketNumericRange(20000),
+      },
+    ]
+    const result = groupData(rows, ['salary'], cols)
+    expect(result.map((g) => g.key)).toEqual(['80000', '100000', '60000'])
+  })
 })
 
 // ─── sortWithinGroups ────────────────────────────────────────────────────────
@@ -882,6 +907,51 @@ describe('sortWithinGroups', () => {
     const groups = groupData(rows, ['price'], cols)
     const sorted = sortWithinGroups(groups, [{ key: 'price', dir: 'asc' }], ['price'], cols)
     expect(sorted.map((g) => g.key)).toEqual(['0', '20', '100'])
+  })
+
+  it("nests multi-level groups by groupBy's own order, not by the entries' relative order within sorts", () => {
+    interface Employee {
+      name: string
+      dept: string
+      role: string
+    }
+    const rows: Employee[] = [
+      { name: 'A', dept: 'Eng', role: 'Lead' },
+      { name: 'B', dept: 'HR', role: 'Lead' },
+      { name: 'C', dept: 'Eng', role: 'IC' },
+      { name: 'D', dept: 'HR', role: 'IC' },
+    ]
+    const groups = groupData(rows, ['dept', 'role'], [])
+    // `sorts` lists role before dept — if nesting followed sorts-array order (the pre-fix
+    // behavior), this would nest by role first. groupBy still says dept nests outer.
+    const sorted = sortWithinGroups(
+      groups,
+      [
+        { key: 'role', dir: 'asc' },
+        { key: 'dept', dir: 'asc' },
+      ],
+      ['dept', 'role'],
+      [],
+    )
+    expect(sorted.map((g) => g.key)).toEqual(['Eng › IC', 'Eng › Lead', 'HR › IC', 'HR › Lead'])
+  })
+
+  it('skips a groupBy level with no matching sort entry, falling through to the next level', () => {
+    interface Employee {
+      name: string
+      dept: string
+      role: string
+    }
+    const rows: Employee[] = [
+      { name: 'A', dept: 'Eng', role: 'Lead' },
+      { name: 'B', dept: 'HR', role: 'Lead' },
+      { name: 'C', dept: 'Eng', role: 'IC' },
+    ]
+    const groups = groupData(rows, ['dept', 'role'], [])
+    // No entry for 'dept' — only 'role' governs nesting, dept order stays whatever groupData
+    // produced (first-seen).
+    const sorted = sortWithinGroups(groups, [{ key: 'role', dir: 'asc' }], ['dept', 'role'], [])
+    expect(sorted.map((g) => g.key)).toEqual(['Eng › IC', 'Eng › Lead', 'HR › Lead'])
   })
 })
 
@@ -2139,6 +2209,115 @@ describe('replaceSort', () => {
   it('cycles desc to asc when key is already the sole sort and defaultDir is desc', () => {
     expect(replaceSort([{ key: 'updatedAt', dir: 'desc' }], 'updatedAt', 'desc')).toEqual([
       { key: 'updatedAt', dir: 'asc' },
+    ])
+  })
+
+  it("keeps a grouped column's sort entry untouched instead of discarding it (issue #17)", () => {
+    const existing = [
+      { key: 'dept', dir: 'asc' as const },
+      { key: 'name', dir: 'desc' as const },
+    ]
+    // Clicking "score"'s header shouldn't wipe dept's group-ordering sort, since dept has no
+    // header of its own to reclick once grouped.
+    expect(replaceSort(existing, 'score', 'asc', ['dept'])).toEqual([
+      { key: 'dept', dir: 'asc' },
+      { key: 'score', dir: 'asc' },
+    ])
+  })
+
+  it('still cycles the sole non-group sort in place, leaving the group entry alone', () => {
+    const existing = [
+      { key: 'dept', dir: 'asc' as const },
+      { key: 'name', dir: 'asc' as const },
+    ]
+    expect(replaceSort(existing, 'name', 'asc', ['dept'])).toEqual([
+      { key: 'dept', dir: 'asc' },
+      { key: 'name', dir: 'desc' },
+    ])
+  })
+
+  it("cycles a grouped column's own entry in place instead of duplicating it (reachable via keepVisibleWhenGrouped)", () => {
+    // A grouped column normally has no header to click, but keepVisibleWhenGrouped keeps one —
+    // the group/rest split above must not re-append a second entry for a key it already holds.
+    const sorts = [{ key: 'dept', dir: 'asc' as const }]
+    expect(replaceSort(sorts, 'dept', 'asc', ['dept'])).toEqual([{ key: 'dept', dir: 'desc' }])
+  })
+
+  it("cycling a grouped column's own entry to none leaves every other group level untouched", () => {
+    const sorts = [
+      { key: 'dept', dir: 'desc' as const },
+      { key: 'role', dir: 'asc' as const },
+    ]
+    expect(replaceSort(sorts, 'dept', 'asc', ['dept', 'role'])).toEqual([
+      { key: 'role', dir: 'asc' },
+    ])
+  })
+})
+
+describe('insertGroupSort', () => {
+  it('inserts a fresh asc entry when the grouped column had no sort', () => {
+    expect(insertGroupSort([], [], 'dept')).toEqual([{ key: 'dept', dir: 'asc' }])
+  })
+
+  it("places the new entry after previously grouped columns' entries but before other columns'", () => {
+    const sorts = [
+      { key: 'region', dir: 'asc' as const },
+      { key: 'name', dir: 'desc' as const },
+    ]
+    expect(insertGroupSort(sorts, ['region'], 'dept')).toEqual([
+      { key: 'region', dir: 'asc' },
+      { key: 'dept', dir: 'asc' },
+      { key: 'name', dir: 'desc' },
+    ])
+  })
+
+  it('keeps an existing manual direction, only repositioning the entry', () => {
+    const sorts = [
+      { key: 'name', dir: 'asc' as const },
+      { key: 'dept', dir: 'desc' as const },
+    ]
+    expect(insertGroupSort(sorts, [], 'dept')).toEqual([
+      { key: 'dept', dir: 'desc' },
+      { key: 'name', dir: 'asc' },
+    ])
+  })
+
+  it('uses the given default direction for a genuinely new entry', () => {
+    expect(insertGroupSort([], [], 'updatedAt', 'desc')).toEqual([
+      { key: 'updatedAt', dir: 'desc' },
+    ])
+  })
+})
+
+describe('reorderGroupSorts', () => {
+  it("reorders group columns' sort entries to follow groupBy's new order", () => {
+    const sorts = [
+      { key: 'region', dir: 'asc' as const },
+      { key: 'dept', dir: 'desc' as const },
+      { key: 'name', dir: 'asc' as const },
+    ]
+    expect(reorderGroupSorts(sorts, ['dept', 'region'])).toEqual([
+      { key: 'dept', dir: 'desc' },
+      { key: 'region', dir: 'asc' },
+      { key: 'name', dir: 'asc' },
+    ])
+  })
+
+  it('skips a groupBy key with no matching sort entry', () => {
+    const sorts = [{ key: 'region', dir: 'asc' as const }]
+    expect(reorderGroupSorts(sorts, ['dept', 'region'])).toEqual([{ key: 'region', dir: 'asc' }])
+  })
+
+  it('leaves non-group entries in their original relative position, after the group block', () => {
+    const sorts = [
+      { key: 'name', dir: 'asc' as const },
+      { key: 'dept', dir: 'desc' as const },
+      { key: 'region', dir: 'asc' as const },
+    ]
+    expect(reorderGroupSorts(sorts, ['region', 'dept'])).toEqual([
+      { key: 'region', dir: 'asc' },
+      { key: 'dept', dir: 'desc' },
+      { key: 'name', dir: 'asc' },
     ])
   })
 })

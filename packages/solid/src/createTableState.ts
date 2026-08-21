@@ -26,6 +26,8 @@ import {
   toggleAllInSelection,
   reconcileSelection,
   toggleGroupBy,
+  insertGroupSort,
+  reorderGroupSorts,
   toggleCollapse,
   getOrderedColumns,
   reconcileVisibleColumns,
@@ -305,7 +307,8 @@ export function createTableState<TRow extends object>(
     sort: {
       entries: sorts,
       toggle: (key: string) => setSorts((prev) => _toggleSort(prev, key, defaultSortDirFor(key))),
-      replace: (key: string) => setSorts((prev) => _replaceSort(prev, key, defaultSortDirFor(key))),
+      replace: (key: string) =>
+        setSorts((prev) => _replaceSort(prev, key, defaultSortDirFor(key), groupBy())),
       appendOrToggle: (key: string) =>
         setSorts((prev) => _appendOrToggleSort(prev, key, defaultSortDirFor(key))),
       remove: (key: string) => setSorts((prev) => prev.filter((s) => s.key !== key)),
@@ -390,11 +393,26 @@ export function createTableState<TRow extends object>(
       // Live — reads the latest `options.defaultGroupsCollapsed` on every call, tracking it
       // reactively when `options` itself was given as an Accessor (see `getOptions` above).
       defaultCollapsed: () => getOptions().defaultGroupsCollapsed ?? true,
-      toggle: (key: string) => setGroupBy((prev) => toggleGroupBy(prev, key)),
+      toggle: (key: string) =>
+        setGroupBy((prev) => {
+          if (!prev.includes(key)) {
+            setSorts((prevSorts) => insertGroupSort(prevSorts, prev, key, defaultSortDirFor(key)))
+          }
+          return toggleGroupBy(prev, key)
+        }),
       remove: (key: string) => setGroupBy((prev) => prev.filter((k) => k !== key)),
-      moveBy: (key: string, delta: number) => setGroupBy((prev) => _moveColumnBy(prev, key, delta)),
+      moveBy: (key: string, delta: number) =>
+        setGroupBy((prev) => {
+          const next = _moveColumnBy(prev, key, delta)
+          setSorts((prevSorts) => reorderGroupSorts(prevSorts, next))
+          return next
+        }),
       move: (dragKey: string, targetKey: string, after = false) =>
-        setGroupBy((prev) => _reorderColumn(prev, dragKey, targetKey, after)),
+        setGroupBy((prev) => {
+          const next = _reorderColumn(prev, dragKey, targetKey, after)
+          setSorts((prevSorts) => reorderGroupSorts(prevSorts, next))
+          return next
+        }),
       toggleCollapse: (key: string) => setCollapsedGroups((prev) => toggleCollapse(prev, key)),
       clear: () => {
         setGroupBy([])

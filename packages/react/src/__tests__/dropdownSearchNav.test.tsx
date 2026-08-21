@@ -256,10 +256,11 @@ describe('DataTable — active-bar chip click actions', () => {
     fireEvent.click(ddCopyOf(getAllByText, 'Dept'))
     fireEvent.click(getByText('Group')) // close the dropdown
     expect(container.querySelector('[data-group-key="dept"]')).toBeNull()
-    const chipBody = [...container.querySelectorAll('span')]
-      .find((el) => el.textContent?.trim() === 'Dept×')!
-      .querySelector('button:first-child')!
-    fireEvent.click(chipBody)
+    // Grouping Dept also auto-inserts a matching sort entry (issue #17), so this renders as one
+    // merged sort+group chip (its body now toggles sort direction) — the dedicated group-mark
+    // button is what opens the Group dropdown here.
+    const groupMark = container.querySelector('[data-chip-group-mark="dept"]')!
+    fireEvent.click(groupMark)
     expect(document.activeElement).toBe(container.querySelector('[data-group-key="dept"]'))
   })
 

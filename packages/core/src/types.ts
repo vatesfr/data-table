@@ -165,6 +165,15 @@ export interface DataTableLabels {
   sort: string
   /** Heading over the already-active sort entries (priority order) in the Sort dropdown */
   activeSortsSection: string
+  /**
+   * Heading over the Sort dropdown's separate, non-draggable sub-list of entries matching a
+   * currently grouped column — nesting order there always follows `groupBy`'s own order (see
+   * `sortWithinGroups`), not drag position, so these render read-only here rather than mixed
+   * into the freely-reorderable `activeSortsSection` list below them.
+   */
+  groupOrderSection: string
+  /** Hint text under `groupOrderSection` pointing at where nesting is actually reordered */
+  groupOrderHint: string
   sortSection: string
   clearSorts: string
   filter: string

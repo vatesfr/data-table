@@ -2497,8 +2497,12 @@ describe('DataTable — active-bar chip click actions', () => {
     await openDd(wrapper, 'Group') // close
 
     expect(wrapper.find('.dropdown__menu').exists()).toBe(false)
-    const chipBody = wrapper.find('.dt__chip .dt__chip-body')
-    await chipBody.trigger('click')
+    // Grouping also auto-inserts a matching sort entry (issue #17) — rather than two
+    // identically-labeled chips, this merges into one dt__chip--grouped-sort chip; its own
+    // group-mark button (not the body, which now toggles sort direction) opens the dropdown.
+    const groupMark = wrapper.find('[data-chip-group-mark="name"]')
+    expect(groupMark.exists()).toBe(true)
+    await groupMark.trigger('click')
     expect(wrapper.find('.dropdown__menu').exists()).toBe(true)
     expect(document.activeElement).toBe(wrapper.find('.dt__dd-item--grouprow').element)
   })

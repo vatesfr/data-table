@@ -166,6 +166,8 @@ Set `groupable: true` on a column to make it available in the toolbar's Group dr
 { key: 'department', label: 'Department', groupable: true }
 ```
 
+Grouping a column also adds a matching sort for it (ascending by default), so groups have a defined order right away instead of an arbitrary one — the same sort entry shown as a chip in the active bar and a row in the Sort dropdown, reversible or removable like any other sort. Removing that sort later doesn't ungroup the column; it just goes back to an arbitrary group order.
+
 Grouping buckets rows by **exact value** by default — fine for low-cardinality columns (department, status), but a continuous or near-unique column (a percentage, a raw timestamp) would create one group per row. Set `groupValue` to bucket into coarser groups instead — it only affects grouping; sort/filter/aggregate/cell rendering keep reading the column's real value, untouched:
 
 ```tsx
@@ -278,7 +280,7 @@ With `getRowId` set, a selected id is remapped to its fresh object reference whe
 
 ▶ [Try it in the demo](https://vatesfr.github.io/data-table/react/#full-table)
 
-Clicking a sortable column header is a single-column-sort shortcut, separate from the Sort dropdown (which builds a deliberate multi-column sort with explicit priority/direction). A plain click replaces the whole sort with just that column, cycling its direction (asc → desc → none) if it's already the sole active sort. A shift-click adds the column to the existing multi-sort instead (or flips its direction in place if it's already part of it) — it never removes a column from the multi-sort; use the active-bar chip's `×` or the Sort dropdown's remove button for that.
+Clicking a sortable column header is a single-column-sort shortcut, separate from the Sort dropdown (which builds a deliberate multi-column sort with explicit priority/direction). A plain click replaces the _non-group_ part of the sort with just that column, cycling its direction (asc → desc → none) if it's already the sole active non-group sort — a currently grouped column's own sort entry (which governs group order, not row order — see "Grouped columns" above) is left untouched, since a plain click on some unrelated column shouldn't silently wipe out how the table is grouped. A shift-click adds the column to the existing multi-sort instead (or flips its direction in place if it's already part of it) — it never removes a column from the multi-sort; use the active-bar chip's `×` or the Sort dropdown's remove button for that.
 
 `defaultSortDir` (see "Column definition" below) picks which direction a fresh sort on that column starts at.
 

@@ -257,6 +257,17 @@ export interface GroupResult<TRow extends object> {
  * Groups rows by one or more columns. When a groupBy column's value is an array (e.g. tags),
  * a row is fanned out into one group per array item instead of one group per whole-array
  * combination — so a row tagged ['Action', 'RPG'] appears in both the 'Action' and 'RPG' groups.
+ *
+ * Accumulates into a `Map`, not a plain object — a plain `Record<string, ...>`'s keys would
+ * otherwise silently reorder themselves: any own key that's a canonical non-negative integer
+ * string (e.g. `'40000'`, a `numericRangeGroup`-bucketed key, or a raw integer groupBy value)
+ * is a JS spec-mandated "array index" key, and those always enumerate in ascending numeric
+ * order ahead of every other string key, regardless of insertion order. That made an otherwise-
+ * unsorted numeric-bucketed group column look permanently pre-sorted ascending — e.g. still
+ * appearing "sorted by Salary" after the matching sort entry was removed — for a reason that had
+ * nothing to do with `sorts`/`sortWithinGroups` at all. `Map` preserves true first-seen order
+ * for every key shape, so "no matching sort → arbitrary order" (see `sortWithinGroups`) means
+ * the same thing for a numeric column as it already did for a string one.
  */
 export function groupData<TRow extends object>(
   data: TRow[],
@@ -266,7 +277,7 @@ export function groupData<TRow extends object>(
 ): GroupResult<TRow>[] {
   if (groupBy.length === 0) return [{ key: null, keyParts: [], rows: data }]
   const colByKey = buildColByKey(columns)
-  const groups: Record<string, { keyParts: string[]; rows: TRow[] }> = {}
+  const groups = new Map<string, { keyParts: string[]; rows: TRow[] }>()
   for (const row of data) {
     let combos: string[][] = [[]]
     for (const g of groupBy) {
@@ -278,11 +289,15 @@ export function groupData<TRow extends object>(
     }
     for (const keyParts of combos) {
       const key = keyParts.join(' › ')
-      if (!groups[key]) groups[key] = { keyParts, rows: [] }
-      groups[key].rows.push(row)
+      let group = groups.get(key)
+      if (!group) {
+        group = { keyParts, rows: [] }
+        groups.set(key, group)
+      }
+      group.rows.push(row)
     }
   }
-  return Object.entries(groups).map(([key, { keyParts, rows }]) => ({ key, keyParts, rows }))
+  return [...groups.entries()].map(([key, { keyParts, rows }]) => ({ key, keyParts, rows }))
 }
 
 /** Same type-aware coercion as `getComparableValue`, applied to a group's own string `keyPart` instead of a row — see `coerceByType`. */
@@ -328,7 +343,9 @@ export function sortWithinGroups<TRow extends object>(
   columns: ColumnDefBase<TRow>[],
 ): GroupResult<TRow>[] {
   const colByKey = buildColByKey(columns)
-  const groupSorts = sorts.filter((s) => groupBy.includes(s.key))
+  const dirByGroupKey = new Map(
+    sorts.filter((s) => groupBy.includes(s.key)).map((s) => [s.key, s.dir]),
+  )
   const withinGroupSorts = sorts.filter((s) => !groupBy.includes(s.key))
 
   let result = groups
@@ -338,10 +355,18 @@ export function sortWithinGroups<TRow extends object>(
       rows: sortRows(group.rows, withinGroupSorts, colByKey),
     }))
   }
-  if (groupSorts.length > 0) {
+  // Nesting priority follows `groupBy`'s own order — the same order the Group dropdown displays
+  // — not the relative order group-matching entries happen to have within `sorts`. A level with
+  // no matching entry is skipped (falls through to the next level, same as a tied `compare`
+  // result would), rather than leaving nesting undefined for it. This deliberately doesn't read
+  // `sorts`-array position at all, so reordering entries in the Sort dropdown can never desync
+  // nesting from what the Group dropdown shows for the same `groupBy` (see CLAUDE.md).
+  if (dirByGroupKey.size > 0) {
     result = [...result].sort((a, b) => {
-      for (const { key, dir } of groupSorts) {
-        const idx = groupBy.indexOf(key)
+      for (let idx = 0; idx < groupBy.length; idx++) {
+        const key = groupBy[idx]
+        const dir = dirByGroupKey.get(key)
+        if (dir === undefined) continue
         const col = colByKey.get(key)
         const ka = a.keyParts[idx]
         const kb = b.keyParts[idx]
@@ -1023,17 +1048,39 @@ export function toggleSort(
  * unlike `toggleSort`/`appendOrToggleSort`, which both preserve the rest of `sorts`. Named
  * `replaceSort` (not `setSort`) specifically to read as distinct from those two at a glance; all
  * three sound like near-synonyms otherwise, despite very different effects on the rest of the
- * multi-sort. If `key` is already the sole active sort, cycles its direction (`defaultDir` →
- * opposite → none) the same way `toggleSort` would; otherwise starts fresh at `defaultDir`
- * (default `'asc'`), regardless of what was sorted before.
+ * multi-sort. If `key` is already the sole active *non-group* sort, cycles its direction
+ * (`defaultDir` → opposite → none) the same way `toggleSort` would; otherwise starts fresh at
+ * `defaultDir` (default `'asc'`), regardless of what was sorted before.
+ *
+ * `groupBy` (default `[]`) exempts any entry whose key is currently grouped from the discard —
+ * a grouped column normally has no header of its own to reclick (see "Grouped columns"), so
+ * without this a plain click on some unrelated, still-visible column would silently wipe out
+ * every grouped column's sort order (see `insertGroupSort`) with no way for the user to see why.
+ * Those entries are passed through untouched, in their existing relative order, ahead of the
+ * fresh `key` entry.
+ *
+ * If `key` itself is in `groupBy` (reachable via `keepVisibleWhenGrouped`, which keeps a grouped
+ * column's header clickable), this delegates to `toggleSort` instead of the group/rest split
+ * above — that split assumes `key` is never one of the entries it's re-collecting into
+ * `groupSorts`, which would otherwise append a second, duplicate entry for a key already present
+ * there. Cycling in place (rather than "discard everything else, start fresh") is also the
+ * correct semantics here: a group column's own direction governs that group's order, and
+ * resetting the rest of `sorts` makes no sense for a column that's structurally a group — every
+ * other group level still needs its own entry to keep its nesting position, and there's no
+ * "just this column alone" state to reset to without ungrouping.
  */
 export function replaceSort(
   sorts: SortEntry[],
   key: string,
   defaultDir: SortDir = 'asc',
+  groupBy: string[] = [],
 ): SortEntry[] {
-  if (sorts.length === 1 && sorts[0].key === key) return toggleSort(sorts, key, defaultDir)
-  return [{ key, dir: defaultDir }]
+  if (groupBy.includes(key)) return toggleSort(sorts, key, defaultDir)
+  const groupSorts = sorts.filter((s) => groupBy.includes(s.key))
+  const rest = sorts.filter((s) => !groupBy.includes(s.key))
+  if (rest.length === 1 && rest[0].key === key)
+    return [...groupSorts, ...toggleSort(rest, key, defaultDir)]
+  return [...groupSorts, { key, dir: defaultDir }]
 }
 
 /**
@@ -1307,6 +1354,54 @@ export function reconcileSelection<TRow>(
 
 export function toggleGroupBy(groupBy: string[], key: string): string[] {
   return groupBy.includes(key) ? groupBy.filter((k) => k !== key) : [...groupBy, key]
+}
+
+/**
+ * Inserts (or repositions) a sort entry for a column just added to `groupBy`, so a newly grouped
+ * column is never left without a defined order (GitHub issue #17) with no extra step required
+ * from the user. `prevGroupBy` must be `groupBy` as it was *before* adding `key` — call this
+ * only from the "add" branch of a group-toggle action, never on remove: an ungrouped column's
+ * sort entry (if any) is left exactly where it is and from then on behaves like any other
+ * sort the user set by hand, reversible/removable the same way via the active-bar chip or the
+ * Sort dropdown. That's a deliberate scope cut vs. auto-removing it on ungroup — no provenance
+ * tracking (which entries are "the group's" vs. "the user's own") is needed as a result.
+ *
+ * The new entry is placed after every existing entry whose key is in `prevGroupBy` (so a second,
+ * third, ... grouped column's sort keeps deferring to the earlier ones for group nesting order,
+ * matching `groupBy`'s own append-on-toggle order) and before every other entry (so an unrelated
+ * column the user already sorted by keeps acting as an intra-group tie-breaker, not the primary
+ * order). If `key` already has an entry (the user had manually sorted by it before grouping),
+ * only its position moves — its existing direction is kept rather than reset to `dir`.
+ */
+export function insertGroupSort(
+  sorts: SortEntry[],
+  prevGroupBy: string[],
+  key: string,
+  dir: SortDir = 'asc',
+): SortEntry[] {
+  const existingDir = sorts.find((s) => s.key === key)?.dir
+  const withoutKey = sorts.filter((s) => s.key !== key)
+  const groupSorts = withoutKey.filter((s) => prevGroupBy.includes(s.key))
+  const rest = withoutKey.filter((s) => !prevGroupBy.includes(s.key))
+  return [...groupSorts, { key, dir: existingDir ?? dir }, ...rest]
+}
+
+/**
+ * Re-orders whichever `sorts` entries match a key in `groupBy` to follow `groupBy`'s own current
+ * order, leaving every other entry's relative position unchanged. Call this right after `groupBy`
+ * itself is reordered (`group.move`/`group.moveBy`'s drag/Alt+Arrow reorder) — without it, dragging
+ * a group to a new nesting position would leave its `insertGroupSort`-inserted sort entry behind
+ * at its old priority, so the visible group nesting and the actual row order it produces would
+ * silently disagree. A `groupBy` key with no matching entry (removed via the Sort dropdown, or
+ * never grouped-and-sorted to begin with) is simply skipped, not inserted.
+ */
+export function reorderGroupSorts(sorts: SortEntry[], groupBy: string[]): SortEntry[] {
+  const byKey = new Map(sorts.map((s) => [s.key, s]))
+  const groupSorts = groupBy
+    .map((key) => byKey.get(key))
+    .filter((s): s is SortEntry => s !== undefined)
+  const rest = sorts.filter((s) => !groupBy.includes(s.key))
+  return [...groupSorts, ...rest]
 }
 
 /**

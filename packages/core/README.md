@@ -74,7 +74,7 @@ normalizeForSearch(s) // lowercase + strip diacritics, e.g. "Öoo" -> "ooo" (use
 
 ```ts
 toggleSort(sorts, key, defaultDir?) // cycle defaultDir → opposite → off (default defaultDir 'asc', so none → asc → desc → none)
-replaceSort(sorts, key, defaultDir?) // plain header click: sort by key alone, discarding every other sort entry; cycles direction if key is already the sole active sort
+replaceSort(sorts, key, defaultDir?, groupBy?) // plain header click: sort by key alone, discarding every other *non-group* sort entry; cycles direction if key is already the sole active non-group sort. groupBy (default []) exempts a currently grouped column's own entry from the discard, and — if key itself is grouped (reachable via keepVisibleWhenGrouped) — cycles that entry in place instead
 appendOrToggleSort(sorts, key, defaultDir?) // shift-click header: add key to the multi-sort, or flip its direction in place if already present — never removes it
 moveSortBy(sorts, key, delta) // swap the sort entry for key with its neighbor delta positions away (e.g. -1/+1 for up/down buttons)
 reorderSort(sorts, dragKey, targetKey, after = false) // move the sort entry keyed dragKey to just before targetKey (or just after, if after is true) (drag-and-drop)
@@ -93,6 +93,8 @@ GroupResult<TRow>                    // { key, keyParts, rows } — one entry pe
 groupData(rows, groupBy, columns, emptyLabel?) // group sorted rows; array-valued columns fan a row into one group per item, empty arrays bucket under emptyLabel; columns needed to group by a computed column
 sortWithinGroups(groups, sorts, groupBy, columns) // reorder groups by their own groupBy value and re-sort each group's rows, fixing multi-value groupBy columns having no single per-row comparable value
 toggleGroupBy(groupBy, key) // add/remove a group key
+insertGroupSort(sorts, prevGroupBy, key, dir?) // called when a column is newly grouped: inserts (or repositions) a sort entry for it, after other grouped columns' entries and before everything else — an ordinary, user-removable/reversible entry, not tracked state (issue #17)
+reorderGroupSorts(sorts, groupBy) // re-orders whichever sorts entries match a groupBy key to follow groupBy's own order — call after groupBy itself is reordered, so nesting priority never desyncs from it
 toggleCollapse(collapsedGroups, key) // toggle a collapsed group
 isGroupCollapsed(collapsedGroups, key, defaultCollapsed?) // whether key is collapsed; collapsedGroups tracks manual toggles away from defaultCollapsed, not absolute state
 countActiveGroups(groupBy) // groupBy.length, exported for symmetry with countActiveFilters/countActiveSorts

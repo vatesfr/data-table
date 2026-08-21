@@ -192,10 +192,22 @@ describe('createDataTable (grouping, group dropdown, pagination+grouping, search
     groupByDept(container)
     const groupBtn = findButtonByText(container, 'Group')
     expect(groupBtn.textContent).toBe('Group')
-    const chip = container.querySelector<HTMLElement>('.dt-active-bar .dt-chip')!
-    expect(chip.textContent).toContain('Dept')
-    click(chip.querySelector<HTMLElement>('.dt-chip-x')!)
-    expect(container.querySelector('.dt-active-bar .dt-chip')).toBeNull()
+    // Grouping also auto-inserts a matching sort entry (issue #17) — rather than two identically
+    // labeled chips, the active bar merges them into one dt-chip--grouped-sort chip with two ×
+    // buttons (remove sort / remove group).
+    const chips = [...container.querySelectorAll<HTMLElement>('.dt-active-bar .dt-chip')]
+    expect(chips).toHaveLength(1)
+    const groupChip = chips[0]
+    expect(groupChip.classList.contains('dt-chip--grouped-sort')).toBe(true)
+    expect(groupChip.textContent).toContain('Dept')
+    const removeButtons = [...groupChip.querySelectorAll<HTMLElement>('.dt-chip-x')]
+    expect(removeButtons).toHaveLength(2)
+    click(removeButtons[1]) // the group-removal ×, not the sort-removal one
+    // Removing the group doesn't remove the auto-inserted sort — it's now an ordinary sort entry
+    // (plain, unmerged chip) the user can separately reverse/remove (see insertGroupSort note).
+    const remaining = [...container.querySelectorAll<HTMLElement>('.dt-active-bar .dt-chip')]
+    expect(remaining).toHaveLength(1)
+    expect(remaining[0].classList.contains('dt-chip--grouped-sort')).toBe(false)
   })
 
   it('removing an active group entry clears the group and moves the column back to the add section', () => {
@@ -218,7 +230,9 @@ describe('createDataTable (grouping, group dropdown, pagination+grouping, search
     openGroupDropdown(container) // close it (toggle)
 
     expect(container.querySelector('.dt-dd')).toBeNull()
-    click(container.querySelector<HTMLElement>('.dt-btn-clear')!)
+    // Grouping now also auto-inserts a sort entry, so the Sort toolbar button grows its own
+    // clear-sorts × too — scope to the Group dropdown's specifically via its distinct label.
+    click(container.querySelector<HTMLElement>('.dt-btn-clear[title="Clear groups"]')!)
     expect(container.querySelector('.dt-dd')).toBeNull() // still closed, not reopened by the click
     expect(colHeaders(container)).toContain('Dept')
   })

@@ -31,6 +31,7 @@ import {
   type DateTreeNode,
   type ValueSort,
   type VisibleItem,
+  type SortEntry,
 } from '@vates/data-table-core'
 import type { ColumnDef, DataTableViewInternalProps } from './types'
 import Dropdown from './components/Dropdown.vue'
@@ -88,7 +89,6 @@ const {
   appendOrToggle: appendOrToggleSort,
   remove: removeSort,
   toggleDir: toggleSortDir,
-  moveBy: moveSortBy,
   move: moveSort,
   clear: clearSorts,
   icon: getSortIcon,
@@ -127,6 +127,23 @@ const {
 } = props.table.selection
 const { page, pageSize, numPages, setPage, setPageSize } = props.table.pagination
 const { query: searchQuery, setQuery: setSearchQuery } = props.table.search
+
+// Split for the Sort dropdown's active list and the active-bar chips (see "Auto-syncing group
+// order with sort" in CLAUDE.md): entries matching a currently grouped column always govern
+// nesting order via groupBy's own order, never via drag position within `sorts` — mixing them
+// into one flat draggable list (or showing two identically-labeled chips) made it look like
+// dragging a tie-break column above a group column changed something when it never could
+// (issue #17's follow-up). `groupSortEntries` is in groupBy's own order (skipping a grouped
+// column with no matching sort entry); `nonGroupSortEntries` is the actual freely-reorderable
+// tie-break priority stack / the chips for non-grouped sorts.
+const groupSortEntries = computed(() =>
+  groupBy.value
+    .map((key) => sorts.value.find((s) => s.key === key))
+    .filter((s): s is SortEntry => s !== undefined),
+)
+const nonGroupSortEntries = computed(() =>
+  sorts.value.filter((s) => !groupBy.value.includes(s.key)),
+)
 
 watch(selectedRows, (rows) => {
   emit('selectionChange', rows)
@@ -823,7 +840,15 @@ function onSortRowKeyDown(event: KeyboardEvent, key: string): void {
     toggleSortDir(key)
   } else if (event.altKey && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {
     event.preventDefault()
-    moveSortBy(key, event.key === 'ArrowUp' ? -1 : 1)
+    // Swap with the neighbor within the non-group subset (by key, via moveSort/reorderSort), not
+    // the raw sorts-array neighbor (moveSortBy) — a group entry can sit between two non-group
+    // ones in the underlying array, and swapping with it would silently do nothing visible in
+    // this section (only non-group entries render here — see nonGroupSortEntries).
+    const list = nonGroupSortEntries.value
+    const delta = event.key === 'ArrowUp' ? -1 : 1
+    const idx = list.findIndex((s) => s.key === key)
+    const neighbor = list[idx + delta]
+    if (neighbor) moveSort(key, neighbor.key, delta > 0)
   }
 }
 
@@ -1171,117 +1196,11 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
           </div>
         </Dropdown>
 
-        <!-- Sort -->
-        <Dropdown
-          ref="sortDropdownRef"
-          @dragover="onSortRowsDragOver"
-          @drop="onSortRowsDrop"
-          @keydown="(e: KeyboardEvent) => onDropdownKeydown('sort', sortDropdownRef, e)"
-        >
-          <template #trigger="{ open }">
-            <ToolbarBtn :active="open || sorts.length > 0" :grouped="sorts.length > 0">
-              {{ L.sort }}
-            </ToolbarBtn>
-          </template>
-          <!--
-            Rendered next to (not inside) the toggle button — replaces the old in-panel
-            "Clear sorts" footer row (removed below) with a one-click affordance that doesn't
-            require opening the dropdown first. See Dropdown's `extra-trigger` slot.
-          -->
-          <template #extra-trigger>
-            <button
-              v-if="sorts.length > 0"
-              type="button"
-              class="dt__btn-clear"
-              :title="L.clearSorts"
-              :aria-label="L.clearSorts"
-              @click="clearSorts"
-            >
-              ×
-            </button>
-          </template>
-          <template v-if="sorts.length > 0">
-            <div class="dt__dd-section">{{ L.activeSortsSection }}</div>
-            <!--
-              The whole row is the click target (toggles direction) and the drag source (reorder
-              priority); `×` stays a separate <button> (draggable="false" so starting a drag from
-              it doesn't also drag the row) since removing isn't something a row click/drag
-              should ever trigger. tabindex + @keydown give it Alt+↑/↓ reorder and
-              Enter/Space-to-toggle from the keyboard — a plain div gets no free keyboard
-              activation the way a real <button> would (unlike the add-list below).
-              @dragover/@drop are handled at the Dropdown panel level (see above), not per-row —
-              that's what lets a drop past the last row still resolve to a valid target.
-            -->
-            <div
-              v-for="(entry, i) in sorts"
-              :key="entry.key"
-              :ref="(el) => setSortRowRef(entry.key, el as Element | null)"
-              :data-sort-key="entry.key"
-              class="dt__dd-item dt__dd-item--col dt__dd-item--sortrow"
-              :class="{
-                'dt__dd-item--dragging': dragSortKey === entry.key,
-                'dt__dd-item--drag-over': dragOverSortKey === entry.key && !dragOverSortAfter,
-                'dt__dd-item--drag-over-after': dragOverSortKey === entry.key && dragOverSortAfter,
-              }"
-              draggable="true"
-              tabindex="0"
-              @click="toggleSortDir(entry.key)"
-              @keydown="onSortRowKeyDown($event, entry.key)"
-              @dragstart="onSortDragStart(entry.key)"
-              @dragend="onSortDragEnd"
-            >
-              <span class="dt__sort-idx">{{ i + 1 }}</span>
-              <span class="dt__flex1">{{ findCol(entry.key)?.label ?? entry.key }}</span>
-              <span class="dt__sort-icon dt__sort-icon--active">{{ getSortIcon(entry.key) }}</span>
-              <button
-                type="button"
-                class="dt__item-remove"
-                draggable="false"
-                @click.stop="onRemoveSortClick(entry.key)"
-              >
-                ×
-              </button>
-            </div>
-          </template>
-          <template v-if="addableSortCols.length > 0">
-            <!--
-              Search box narrows this "add" list only — the active-sorts section above keeps its
-              own priority order and is never hidden by it. The add list itself carries no
-              ordering meaning (none of these are sorted yet), so it's alphabetized by label
-              instead of raw column-definition order, to make scanning a long list easier.
-            -->
-            <div class="dt__dd-search-row">
-              <input
-                type="text"
-                class="dt__dd-search"
-                data-dd-search
-                :placeholder="L.filterSearchPlaceholder"
-                :value="ddSearchTerm('sort')"
-                @input="setDdSearchTerm('sort', ($event.target as HTMLInputElement).value)"
-              />
-            </div>
-            <div class="dt__dd-section">{{ L.sortSection }}</div>
-            <!--
-              A real <button> (not a div) so it's a native Tab stop and Enter/Space "click" it
-              for free — no manual tabindex/keydown wiring needed, unlike the active rows above
-              (which need custom keyboard handling anyway for Alt+↑/↓ reorder).
-            -->
-            <button
-              v-for="col in searchedAddableSortCols"
-              :key="col.key"
-              :ref="(el) => setAddableSortRef(col.key, el as Element | null)"
-              type="button"
-              class="dt__dd-item dt__dd-item--clickable"
-              @click="onAddSort(col.key)"
-            >
-              <span class="dt__flex1">{{ col.label }}</span>
-            </button>
-          </template>
-        </Dropdown>
-
-        <!-- Group — placed right after Sort (both "shape" the view — order/columns) rather than
-             after Filter, so the toolbar reads as two clusters: Columns/Sort/Group shape the
-             view, Search/Filter narrow it — see the divider below. -->
+        <!-- Group before Sort — data is grouped first, then ordered (groups themselves, then
+             rows within them), matching the Sort dropdown's own "Group order" section coming
+             before "Active sorts" and the active bar's group-chips-before-sort-chips order.
+             Both still "shape" the view (vs. Search/Filter narrowing it below) — see the
+             divider below. -->
         <Dropdown
           v-if="groupableCols.length > 0"
           ref="groupDropdownRef"
@@ -1364,6 +1283,150 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
               type="button"
               class="dt__dd-item dt__dd-item--clickable"
               @click="onAddGroup(col.key)"
+            >
+              <span class="dt__flex1">{{ col.label }}</span>
+            </button>
+          </template>
+        </Dropdown>
+
+        <!-- Sort -->
+        <Dropdown
+          ref="sortDropdownRef"
+          @dragover="onSortRowsDragOver"
+          @drop="onSortRowsDrop"
+          @keydown="(e: KeyboardEvent) => onDropdownKeydown('sort', sortDropdownRef, e)"
+        >
+          <template #trigger="{ open }">
+            <ToolbarBtn :active="open || sorts.length > 0" :grouped="sorts.length > 0">
+              {{ L.sort }}
+            </ToolbarBtn>
+          </template>
+          <!--
+            Rendered next to (not inside) the toggle button — replaces the old in-panel
+            "Clear sorts" footer row (removed below) with a one-click affordance that doesn't
+            require opening the dropdown first. See Dropdown's `extra-trigger` slot.
+          -->
+          <template #extra-trigger>
+            <button
+              v-if="sorts.length > 0"
+              type="button"
+              class="dt__btn-clear"
+              :title="L.clearSorts"
+              :aria-label="L.clearSorts"
+              @click="clearSorts"
+            >
+              ×
+            </button>
+          </template>
+          <template v-if="groupSortEntries.length > 0">
+            <div class="dt__dd-section">{{ L.groupOrderSection }}</div>
+            <div class="dt__dd-hint">{{ L.groupOrderHint }}</div>
+            <!--
+              Not draggable, no Alt+↑/↓ reorder — nesting order always follows groupBy's own
+              order (see the Group dropdown), so reordering here would be a no-op; direction is
+              still toggleable/removable in place, same as any other sort entry.
+            -->
+            <div
+              v-for="(entry, i) in groupSortEntries"
+              :key="entry.key"
+              class="dt__dd-item dt__dd-item--col dt__dd-item--sortrow"
+              tabindex="0"
+              @click="toggleSortDir(entry.key)"
+              @keydown="
+                (e: KeyboardEvent) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    toggleSortDir(entry.key)
+                  }
+                }
+              "
+            >
+              <span class="dt__sort-idx">{{ i + 1 }}</span>
+              <span class="dt__flex1">{{ findCol(entry.key)?.label ?? entry.key }}</span>
+              <span class="dt__sort-icon dt__sort-icon--active">{{ getSortIcon(entry.key) }}</span>
+              <button
+                type="button"
+                class="dt__item-remove"
+                draggable="false"
+                @click.stop="removeSort(entry.key)"
+              >
+                ×
+              </button>
+            </div>
+          </template>
+          <template v-if="nonGroupSortEntries.length > 0">
+            <div class="dt__dd-section">{{ L.activeSortsSection }}</div>
+            <!--
+              The whole row is the click target (toggles direction) and the drag source (reorder
+              priority); `×` stays a separate <button> (draggable="false" so starting a drag from
+              it doesn't also drag the row) since removing isn't something a row click/drag
+              should ever trigger. tabindex + @keydown give it Alt+↑/↓ reorder and
+              Enter/Space-to-toggle from the keyboard — a plain div gets no free keyboard
+              activation the way a real <button> would (unlike the add-list below).
+              @dragover/@drop are handled at the Dropdown panel level (see above), not per-row —
+              that's what lets a drop past the last row still resolve to a valid target.
+            -->
+            <div
+              v-for="(entry, i) in nonGroupSortEntries"
+              :key="entry.key"
+              :ref="(el) => setSortRowRef(entry.key, el as Element | null)"
+              :data-sort-key="entry.key"
+              class="dt__dd-item dt__dd-item--col dt__dd-item--sortrow"
+              :class="{
+                'dt__dd-item--dragging': dragSortKey === entry.key,
+                'dt__dd-item--drag-over': dragOverSortKey === entry.key && !dragOverSortAfter,
+                'dt__dd-item--drag-over-after': dragOverSortKey === entry.key && dragOverSortAfter,
+              }"
+              draggable="true"
+              tabindex="0"
+              @click="toggleSortDir(entry.key)"
+              @keydown="onSortRowKeyDown($event, entry.key)"
+              @dragstart="onSortDragStart(entry.key)"
+              @dragend="onSortDragEnd"
+            >
+              <span class="dt__sort-idx">{{ i + 1 }}</span>
+              <span class="dt__flex1">{{ findCol(entry.key)?.label ?? entry.key }}</span>
+              <span class="dt__sort-icon dt__sort-icon--active">{{ getSortIcon(entry.key) }}</span>
+              <button
+                type="button"
+                class="dt__item-remove"
+                draggable="false"
+                @click.stop="onRemoveSortClick(entry.key)"
+              >
+                ×
+              </button>
+            </div>
+          </template>
+          <template v-if="addableSortCols.length > 0">
+            <!--
+              Search box narrows this "add" list only — the active-sorts section above keeps its
+              own priority order and is never hidden by it. The add list itself carries no
+              ordering meaning (none of these are sorted yet), so it's alphabetized by label
+              instead of raw column-definition order, to make scanning a long list easier.
+            -->
+            <div class="dt__dd-search-row">
+              <input
+                type="text"
+                class="dt__dd-search"
+                data-dd-search
+                :placeholder="L.filterSearchPlaceholder"
+                :value="ddSearchTerm('sort')"
+                @input="setDdSearchTerm('sort', ($event.target as HTMLInputElement).value)"
+              />
+            </div>
+            <div class="dt__dd-section">{{ L.sortSection }}</div>
+            <!--
+              A real <button> (not a div) so it's a native Tab stop and Enter/Space "click" it
+              for free — no manual tabindex/keydown wiring needed, unlike the active rows above
+              (which need custom keyboard handling anyway for Alt+↑/↓ reorder).
+            -->
+            <button
+              v-for="col in searchedAddableSortCols"
+              :key="col.key"
+              :ref="(el) => setAddableSortRef(col.key, el as Element | null)"
+              type="button"
+              class="dt__dd-item dt__dd-item--clickable"
+              @click="onAddSort(col.key)"
             >
               <span class="dt__flex1">{{ col.label }}</span>
             </button>
@@ -1669,17 +1732,43 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
       has an equally obvious single inline toggle the way direction is for sort.
     -->
     <div class="dt__active-bar">
-      <span v-for="entry in sorts" :key="entry.key" class="dt__chip">
+      <!-- A grouped column always carries its own sort entry now (insertGroupSort, issue #17),
+           so rendering the sort loop and the group loop independently would show two
+           identically-labeled chips for the same column with nothing visually linking them —
+           nonGroupSortEntries below skips a sort entry when its key is also a groupBy key; it's
+           rendered merged with its group chip here instead. Group chips render before plain sort
+           chips — matches the Sort dropdown's own "Group order" section coming before "Active
+           sorts", since grouping is the structural, primary concern and tie-break sorting is
+           secondary. -->
+      <template v-for="key in groupBy" :key="key">
+        <span v-if="sorts.find((s) => s.key === key)" class="dt__chip dt__chip--grouped-sort">
+          <button type="button" class="dt__chip-body" @click="toggleSortDir(key)">
+            {{ getSortIcon(key) }} {{ findCol(key)?.label ?? key }}
+          </button>
+          <button type="button" class="dt__chip-remove" @click="removeSort(key)">×</button>
+          <button
+            type="button"
+            class="dt__chip-group-mark"
+            :aria-label="L.group"
+            :data-chip-group-mark="key"
+            @click="onOpenGroupEntry(key)"
+          >
+            ⊞
+          </button>
+          <button type="button" class="dt__chip-remove" @click="removeGroup(key)">×</button>
+        </span>
+        <span v-else class="dt__chip">
+          <button type="button" class="dt__chip-body" @click="onOpenGroupEntry(key)">
+            {{ findCol(key)?.label ?? key }}
+          </button>
+          <button type="button" class="dt__chip-remove" @click="removeGroup(key)">×</button>
+        </span>
+      </template>
+      <span v-for="entry in nonGroupSortEntries" :key="entry.key" class="dt__chip">
         <button type="button" class="dt__chip-body" @click="toggleSortDir(entry.key)">
           {{ getSortIcon(entry.key) }} {{ findCol(entry.key)?.label ?? entry.key }}
         </button>
         <button type="button" class="dt__chip-remove" @click="removeSort(entry.key)">×</button>
-      </span>
-      <span v-for="key in groupBy" :key="key" class="dt__chip">
-        <button type="button" class="dt__chip-body" @click="onOpenGroupEntry(key)">
-          {{ findCol(key)?.label ?? key }}
-        </button>
-        <button type="button" class="dt__chip-remove" @click="removeGroup(key)">×</button>
       </span>
       <template v-if="activeFilterCount > 0">
         <template v-for="[key, vals] in Object.entries(filters)" :key="key">
@@ -2055,6 +2144,11 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
+.dt__dd-hint {
+  padding: 0 14px 6px;
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+}
 .dt__dd-item {
   display: flex;
   align-items: center;
@@ -2336,6 +2430,33 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
   line-height: 1.4;
 }
 .dt__chip-remove:hover {
+  color: var(--color-text-primary);
+}
+/* A grouped column's chip merges its sort chip and group chip into one pill (issue #17's
+   follow-up) instead of showing two identically-labeled chips. dt__chip--grouped-sort's first
+   .dt__chip-remove (the sort-remove ×) squares off its right edge — it's no longer the pill's
+   last segment — so it butts cleanly against dt__chip-group-mark next to it; the trailing
+   group-remove × stays a plain .dt__chip-remove (the pill's actual right end). font-size matches
+   the other segments' 12px so the middle segment isn't visibly shorter (line-height is relative
+   to font-size). */
+.dt__chip--grouped-sort .dt__chip-remove:first-of-type {
+  border-radius: 0;
+  border-right: none;
+}
+.dt__chip-group-mark {
+  cursor: pointer;
+  background: var(--color-background-secondary);
+  border: 0.5px solid var(--color-border-secondary);
+  border-right: none;
+  border-radius: 0;
+  padding: 2px 5px;
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+  font-family: inherit;
+  line-height: 1.4;
+}
+.dt__chip-group-mark:hover {
+  background: var(--color-background-tertiary);
   color: var(--color-text-primary);
 }
 

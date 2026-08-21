@@ -21,6 +21,7 @@ ${renderThemeCss()}
 .dt-filter-cols-search{position:sticky;top:0;display:block;width:100%;box-sizing:border-box;margin-bottom:4px;background:var(--color-background-primary,#fff);z-index:1}
 .dt-dd-section{padding:6px 14px 2px;font-size:11px;color:var(--color-text-tertiary,#9b9a96);font-weight:500;letter-spacing:.05em;text-transform:uppercase;white-space:nowrap}
 .dt-dd-sublabel{font-size:12px;margin-bottom:4px;color:var(--color-text-secondary,#6b6a66)}
+.dt-dd-hint{padding:0 14px 6px;font-size:11px;color:var(--color-text-tertiary,#9b9a96)}
 .dt-dd-item{display:flex;align-items:center;gap:8px;padding:7px 14px;font-size:13px;color:var(--color-text-primary,#1a1916);cursor:default;border:none;background:none;font-family:inherit;text-align:left;margin:0;width:100%;box-sizing:border-box}
 .dt-dd-item--click{cursor:pointer}
 .dt-dd-item--click:hover{background:var(--color-background-secondary,#f7f6f3)}
@@ -60,6 +61,9 @@ ${renderThemeCss()}
 .dt-chip-x:hover{color:var(--color-text-primary,#1a1916)}
 .dt-chip--filter .dt-chip-body,.dt-chip--filter .dt-chip-x{background:var(--color-background-info,#e6f1fb);color:var(--color-text-info,#185fa5);border-color:var(--color-border-info,#b8d6f5)}
 .dt-chip--exclude .dt-chip-body,.dt-chip--exclude .dt-chip-x{background:var(--color-background-danger,#fbe9e9);color:var(--color-text-danger,#a5182f);border-color:var(--color-border-danger,#f2c2c2)}
+.dt-chip--grouped-sort .dt-chip-x:first-of-type{border-radius:0;border-right:none}
+.dt-chip-group-mark{cursor:pointer;background:var(--color-background-secondary,#f7f6f3);border:0.5px solid var(--color-border-secondary,#dddcd8);border-right:none;border-radius:0;padding:2px 5px;font-size:12px;color:var(--color-text-tertiary,#9b9a96);font-family:inherit;line-height:1.4}
+.dt-chip-group-mark:hover{background:var(--color-background-tertiary,#f1efe9);color:var(--color-text-primary,#1a1916)}
 .dt-table-wrap{overflow-x:auto;border:0.5px solid var(--color-border-tertiary,#eeedea);border-radius:8px;margin-top:12px}
 .dt-table{width:100%;border-collapse:collapse;font-size:13px}
 .dt-th{padding:8px 12px;text-align:left;font-weight:500;font-size:12px;background:var(--color-background-tertiary,#eae9e5);color:var(--color-text-secondary,#6b6a66);border-bottom:1px solid var(--color-border-secondary,#dddcd8);white-space:nowrap;user-select:none;cursor:pointer}
