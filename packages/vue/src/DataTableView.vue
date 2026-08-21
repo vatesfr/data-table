@@ -45,7 +45,7 @@ import type { ColumnDef, DataTableViewInternalProps } from './types'
 import Dropdown from './components/Dropdown.vue'
 import ToolbarBtn from './components/ToolbarBtn.vue'
 import DateTreeItem from './components/DateTreeItem.vue'
-import RangeSlider from './components/RangeSlider.vue'
+import RangeInputs from './components/RangeInputs.vue'
 import { vIndeterminate } from './directives/vIndeterminate'
 import { useDropdownReorder } from './composables/useDropdownReorder'
 
@@ -1471,99 +1471,51 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
             </div>
             <div class="dt__filter-detail">
               <template v-if="filterDetailCol">
-                <div v-if="filterDetailCol.type === 'number'" class="dt__range">
-                  <div class="dt__range-inputs">
-                    <input
-                      type="number"
-                      :placeholder="L.min"
-                      :value="
-                        rangeFilters[filterDetailCol.key]?.min ??
-                        (filterDetailBounds
-                          ? formatRangeBound(filterDetailBounds.min, filterDetailCol)
-                          : '')
-                      "
-                      @input="
-                        setRangeFilter(
-                          filterDetailCol.key,
-                          'min',
-                          ($event.target as HTMLInputElement).value,
-                        )
-                      "
-                      class="dt__range-input"
-                    />
-                    <span class="dt__range-sep">–</span>
-                    <input
-                      type="number"
-                      :placeholder="L.max"
-                      :value="
-                        rangeFilters[filterDetailCol.key]?.max ??
-                        (filterDetailBounds
-                          ? formatRangeBound(filterDetailBounds.max, filterDetailCol)
-                          : '')
-                      "
-                      @input="
-                        setRangeFilter(
-                          filterDetailCol.key,
-                          'max',
-                          ($event.target as HTMLInputElement).value,
-                        )
-                      "
-                      class="dt__range-input"
-                    />
-                  </div>
-                  <RangeSlider
-                    v-if="filterDetailSlider"
-                    v-bind="filterDetailSlider"
-                    @change="(lo, hi) => onRangeSliderChange(filterDetailCol!, lo, hi)"
-                  />
-                </div>
+                <RangeInputs
+                  v-if="filterDetailCol.type === 'number'"
+                  :is-date="false"
+                  :min="
+                    rangeFilters[filterDetailCol.key]?.min ??
+                    (filterDetailBounds
+                      ? formatRangeBound(filterDetailBounds.min, filterDetailCol)
+                      : '')
+                  "
+                  :max="
+                    rangeFilters[filterDetailCol.key]?.max ??
+                    (filterDetailBounds
+                      ? formatRangeBound(filterDetailBounds.max, filterDetailCol)
+                      : '')
+                  "
+                  :min-label="L.min"
+                  :max-label="L.max"
+                  :slider="filterDetailSlider"
+                  @update:min="setRangeFilter(filterDetailCol.key, 'min', $event)"
+                  @update:max="setRangeFilter(filterDetailCol.key, 'max', $event)"
+                  @slider-change="(lo, hi) => onRangeSliderChange(filterDetailCol!, lo, hi)"
+                />
                 <template v-else>
-                  <div v-if="filterDetailCol.type === 'date'" class="dt__range">
-                    <div class="dt__range-inputs">
-                      <input
-                        type="date"
-                        :aria-label="L.min"
-                        :value="
-                          rangeFilters[filterDetailCol.key]?.min ??
-                          (filterDetailBounds
-                            ? formatRangeBound(filterDetailBounds.min, filterDetailCol)
-                            : '')
-                        "
-                        @input="
-                          setRangeFilter(
-                            filterDetailCol.key,
-                            'min',
-                            ($event.target as HTMLInputElement).value,
-                          )
-                        "
-                        class="dt__range-input dt__range-input--date"
-                      />
-                      <span class="dt__range-sep">–</span>
-                      <input
-                        type="date"
-                        :aria-label="L.max"
-                        :value="
-                          rangeFilters[filterDetailCol.key]?.max ??
-                          (filterDetailBounds
-                            ? formatRangeBound(filterDetailBounds.max, filterDetailCol)
-                            : '')
-                        "
-                        @input="
-                          setRangeFilter(
-                            filterDetailCol.key,
-                            'max',
-                            ($event.target as HTMLInputElement).value,
-                          )
-                        "
-                        class="dt__range-input dt__range-input--date"
-                      />
-                    </div>
-                    <RangeSlider
-                      v-if="filterDetailSlider"
-                      v-bind="filterDetailSlider"
-                      @change="(lo, hi) => onRangeSliderChange(filterDetailCol!, lo, hi)"
-                    />
-                  </div>
+                  <RangeInputs
+                    v-if="filterDetailCol.type === 'date'"
+                    :is-date="true"
+                    :min="
+                      rangeFilters[filterDetailCol.key]?.min ??
+                      (filterDetailBounds
+                        ? formatRangeBound(filterDetailBounds.min, filterDetailCol)
+                        : '')
+                    "
+                    :max="
+                      rangeFilters[filterDetailCol.key]?.max ??
+                      (filterDetailBounds
+                        ? formatRangeBound(filterDetailBounds.max, filterDetailCol)
+                        : '')
+                    "
+                    :min-label="L.min"
+                    :max-label="L.max"
+                    :slider="filterDetailSlider"
+                    @update:min="setRangeFilter(filterDetailCol.key, 'min', $event)"
+                    @update:max="setRangeFilter(filterDetailCol.key, 'max', $event)"
+                    @slider-change="(lo, hi) => onRangeSliderChange(filterDetailCol!, lo, hi)"
+                  />
                   <div class="dt__filter-search-row">
                     <input
                       v-if="filterDetailValues.length > 0"
@@ -2338,33 +2290,6 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
 }
 .dt__dd-item--exclude input[type='checkbox'] {
   accent-color: var(--color-text-danger);
-}
-
-/* Range filter */
-.dt__range {
-  padding: 4px 14px 8px;
-}
-.dt__range-inputs {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-}
-.dt__range-sep {
-  font-size: 12px;
-  color: var(--color-text-tertiary);
-}
-.dt__range-input {
-  width: 80px;
-  padding: 3px 6px;
-  font-size: 12px;
-  border: 0.5px solid var(--color-border-secondary);
-  border-radius: 4px;
-  font-family: inherit;
-  background: transparent;
-  color: inherit;
-}
-.dt__range-input--date {
-  width: 118px;
 }
 
 /* Chips — .dt__chip is just a flex wrapper now; the actual padding/background/border live on
