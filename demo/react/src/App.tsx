@@ -324,6 +324,9 @@ const COLUMNS: ColumnDef<Employee>[] = [
     // (issue #18); a null salary (Eva, just joined) lands in its own "(none)" group instead of
     // being miscounted as $0.
     groupable: true,
+    // header shows only the $20k bucket, not the exact salary — keep the column visible
+    // when grouped so the real value stays visible on each row.
+    keepVisibleWhenGrouped: true,
     ...numericRangeGroup(20000, ' USD'),
   },
   // type: 'date' gets a range filter (2 inputs + a slider) above a Year › Month › Day filter
@@ -339,6 +342,9 @@ const COLUMNS: ColumnDef<Employee>[] = [
     width: 100,
     defaultSortDir: 'desc',
     groupable: true,
+    // header shows only the year, not the exact join date — keep the column visible when
+    // grouped so the real date stays visible on each row.
+    keepVisibleWhenGrouped: true,
     ...datePartGroup('year'),
   },
   // computed column: value is a function, so there's no matching 'tenure' property on Employee —
@@ -400,18 +406,22 @@ const COLUMNS: ColumnDef<Employee>[] = [
       ),
   },
   // array-valued column: filter checklist lists individual skills, grouping fans a row into
-  // one group per skill, and cells join the array with ', ' — all automatic, no flag needed.
-  // The checklist is also where exclude filters live: click a value once to include it (only
-  // rows with that skill), click again to exclude it (rows with that skill are dropped), click
-  // a third time to clear it — try excluding "Leadership" to hide everyone who has it.
-  // defaultValueSort: a skill checklist reads better "most common first" than alphabetically —
-  // the sort-order toggle still cycles through all 4 states from here, this just picks where it
-  // starts.
+  // one group per skill, and cells join the array with ', ' — all automatic. keepVisibleWhenGrouped
+  // keeps the column visible while grouped so a row's other skills stay visible from within any
+  // one group's expansion. The checklist is also where exclude filters live: click a value once
+  // to include it (only rows with that skill), click again to exclude it (rows with that skill
+  // are dropped), click a third time to clear it — try excluding "Leadership" to hide everyone
+  // who has it. defaultValueSort: a skill checklist reads better "most common first" than
+  // alphabetically — the sort-order toggle still cycles through all 4 states from here, this
+  // just picks where it starts.
   {
     key: 'skills',
     label: 'Skills',
     width: 180,
     groupable: true,
+    // multi-value column: grouping fans a row into one group per skill, so hiding it would
+    // hide a row's other skills while looking at any one group.
+    keepVisibleWhenGrouped: true,
     defaultValueSort: { by: 'count', dir: 'desc' },
   },
 ]
