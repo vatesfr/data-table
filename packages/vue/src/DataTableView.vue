@@ -1,14 +1,5 @@
 <script setup lang="ts" generic="TRow extends object">
-import {
-  computed,
-  onUpdated,
-  ref,
-  shallowRef,
-  watch,
-  nextTick,
-  useSlots,
-  getCurrentInstance,
-} from 'vue'
+import { computed, ref, shallowRef, watch, nextTick, useSlots } from 'vue'
 import {
   computeAggregate,
   computeStringValueCounts,
@@ -48,6 +39,7 @@ import DateTreeItem from './components/DateTreeItem.vue'
 import RangeInputs from './components/RangeInputs.vue'
 import { vIndeterminate } from './directives/vIndeterminate'
 import { useDropdownReorder } from './composables/useDropdownReorder'
+import { useSelfDetectedListener } from './composables/useSelfDetectedListener'
 
 const props = withDefaults(defineProps<DataTableViewInternalProps<TRow>>(), { rowKey: 'id' })
 
@@ -66,15 +58,9 @@ const slots = useSlots()
 // passes its own listener-presence check through explicitly via `rowClickable` — falling back
 // to self-detection here only when `<DataTableView>` is used directly, with no such prop.
 //
-// `vnode.props` isn't itself a reactive read, so a plain `computed` over it only re-runs when
-// `props.rowClickable` changes — self-detection would otherwise stay frozen at whatever it saw
-// on the very first evaluation. `selfDetected` is a ref re-derived in `onUpdated` (which runs
-// after every re-render, by which point `vnode.props` reflects the latest incoming listener)
-// instead, so a caller adding/removing `@row-click` after mount is picked up on the next render.
-const selfDetectedRowClickable = ref(!!getCurrentInstance()?.vnode.props?.onRowClick)
-onUpdated(() => {
-  selfDetectedRowClickable.value = !!getCurrentInstance()?.vnode.props?.onRowClick
-})
+// See useSelfDetectedListener for why this needs onUpdated rather than a plain computed over
+// vnode.props directly.
+const selfDetectedRowClickable = useSelfDetectedListener('onRowClick')
 const isRowClickable = computed(() => props.rowClickable ?? selfDetectedRowClickable.value)
 
 function handleRowClick(row: TRow, event: MouseEvent | KeyboardEvent) {
@@ -768,15 +754,23 @@ function setAddableSortRef(key: string, el: Element | null): void {
   if (el) addableSortRefs.set(key, el as HTMLElement)
   else addableSortRefs.delete(key)
 }
-async function onAddSort(key: string): Promise<void> {
-  toggleSort(key)
+// Runs `action`, then focuses whatever `key` maps to in `refMap` once the resulting DOM update
+// has committed — the shared shape behind every "activate/remove an addable Sort/Group entry (or
+// open its dropdown from a chip) and refocus the row it moved to" handler below.
+async function activateAndFocus(
+  action: () => void,
+  refMap: Map<string, HTMLElement>,
+  key: string,
+): Promise<void> {
+  action()
   await nextTick()
-  sortRowRefs.get(key)?.focus()
+  refMap.get(key)?.focus()
 }
-async function onRemoveSortClick(key: string): Promise<void> {
-  removeSort(key)
-  await nextTick()
-  addableSortRefs.get(key)?.focus()
+function onAddSort(key: string): Promise<void> {
+  return activateAndFocus(() => toggleSort(key), sortRowRefs, key)
+}
+function onRemoveSortClick(key: string): Promise<void> {
+  return activateAndFocus(() => removeSort(key), addableSortRefs, key)
 }
 
 const groupRowRefs = new Map<string, HTMLElement>()
@@ -789,15 +783,11 @@ function setAddableGroupRef(key: string, el: Element | null): void {
   if (el) addableGroupRefs.set(key, el as HTMLElement)
   else addableGroupRefs.delete(key)
 }
-async function onAddGroup(key: string): Promise<void> {
-  toggleGroup(key)
-  await nextTick()
-  groupRowRefs.get(key)?.focus()
+function onAddGroup(key: string): Promise<void> {
+  return activateAndFocus(() => toggleGroup(key), groupRowRefs, key)
 }
-async function onRemoveGroupClick(key: string): Promise<void> {
-  removeGroup(key)
-  await nextTick()
-  addableGroupRefs.get(key)?.focus()
+function onRemoveGroupClick(key: string): Promise<void> {
+  return activateAndFocus(() => removeGroup(key), addableGroupRefs, key)
 }
 
 // Active-bar group chip body (see "Active-bar chip click actions"): opens the Group dropdown and
@@ -808,10 +798,8 @@ async function onRemoveGroupClick(key: string): Promise<void> {
 // it is the most useful available action. `groupDropdownRef` is read from plain script here (not
 // a template expression), so — unlike the inline `@keydown` handlers wired directly in the
 // template — `.value` is needed (see the comment on onDropdownKeydown's own `dropdown` param).
-async function onOpenGroupEntry(key: string): Promise<void> {
-  groupDropdownRef.value?.open()
-  await nextTick()
-  groupRowRefs.get(key)?.focus()
+function onOpenGroupEntry(key: string): Promise<void> {
+  return activateAndFocus(() => groupDropdownRef.value?.open(), groupRowRefs, key)
 }
 
 // Drag-and-drop reordering for the Sort dropdown's active entries — kept as its own independent
