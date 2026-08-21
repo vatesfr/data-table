@@ -1,6 +1,6 @@
 {
   "name": "@vates/data-table-solid",
-  "version": "0.1.0",
+  "version": "0.10.0",
   "description": "Solid.js adapter for data-table",
   "license": "MIT",
   "author": "Vates",
@@ -50,7 +50,7 @@
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
-    "@vates/data-table-core": "^0.8.0"
+    "@vates/data-table-core": "^0.10.0"
   },
   "peerDependencies": {
     "solid-js": ">=1.9.0"
