@@ -7,8 +7,8 @@ export default defineConfig({
   plugins: [solid()],
   resolve: {
     alias: {
-      '@vates/data-table-core': resolve(__dirname, '../../packages/core/src'),
-      '@vates/data-table-solid': resolve(__dirname, '../../packages/solid/src/index.ts'),
+      '@vates/data-table-core': resolve(import.meta.dirname, '../../packages/core/src'),
+      '@vates/data-table-solid': resolve(import.meta.dirname, '../../packages/solid/src/index.ts'),
     },
   },
 })

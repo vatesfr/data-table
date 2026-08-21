@@ -12,8 +12,11 @@ export default defineConfig({
   plugins: [solid()],
   resolve: {
     alias: {
-      '@vates/data-table-core': resolve(__dirname, '../../packages/core/src'),
-      '@vates/data-table-vanilla': resolve(__dirname, '../../packages/vanilla/src/index.tsx'),
+      '@vates/data-table-core': resolve(import.meta.dirname, '../../packages/core/src'),
+      '@vates/data-table-vanilla': resolve(
+        import.meta.dirname,
+        '../../packages/vanilla/src/index.tsx',
+      ),
     },
   },
 })

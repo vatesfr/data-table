@@ -7,8 +7,8 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      '@vates/data-table-core': resolve(__dirname, '../../packages/core/src'),
-      '@vates/data-table-react': resolve(__dirname, '../../packages/react/src/index.ts'),
+      '@vates/data-table-core': resolve(import.meta.dirname, '../../packages/core/src'),
+      '@vates/data-table-react': resolve(import.meta.dirname, '../../packages/react/src/index.ts'),
     },
     dedupe: ['react', 'react-dom', 'react/jsx-runtime'],
   },
