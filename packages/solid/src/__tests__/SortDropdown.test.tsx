@@ -117,4 +117,37 @@ describe('SortDropdown', () => {
     expect(container.querySelector('[data-sort-key="id"]')).not.toBeNull()
     dispose()
   })
+
+  it('excludes a sortable: false column from the addable list', () => {
+    const cols: ColumnDef<Row>[] = [
+      { key: 'id', label: 'ID', sortable: false },
+      { key: 'name', label: 'Name' },
+      { key: 'score', label: 'Score', type: 'number' },
+    ]
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const dispose = createRoot((d) => {
+      const table = createTableState(ROWS, cols)
+      const [isOpen, setIsOpen] = createSignal(true)
+      render(
+        () => (
+          <SortDropdown
+            table={table}
+            columns={cols}
+            isOpen={isOpen()}
+            onToggle={() => setIsOpen((o) => !o)}
+            onClose={() => setIsOpen(false)}
+          />
+        ),
+        container,
+      )
+      return d
+    })
+    const addableLabels = [...container.querySelectorAll('.dt-dd-item--click .dt-flex1')].map(
+      (el) => el.textContent,
+    )
+    expect(addableLabels).not.toContain('ID')
+    expect(addableLabels).toEqual(['Name', 'Score'])
+    dispose()
+  })
 })

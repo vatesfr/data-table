@@ -728,15 +728,18 @@ function headerSortLabel(key: string): string {
 // Plain click: sort by this column alone, discarding other active sorts. Shift-click: add this
 // column to the multi-sort (or flip its direction if it's already in it) — never removes, so it
 // can't surprise-clear a sort or bump a column to the end of the priority stack; that's the chip
-// ×/dropdown's job.
-function onHeaderSortClick(key: string, event: MouseEvent): void {
-  if (event.shiftKey) appendOrToggleSort(key)
-  else replaceSort(key)
+// ×/dropdown's job. No-op entirely when the column opts out via sortable: false.
+function onHeaderSortClick(col: ColumnDef<TRow>, event: MouseEvent): void {
+  if (col.sortable === false) return
+  if (event.shiftKey) appendOrToggleSort(col.key)
+  else replaceSort(col.key)
 }
 
 // Sort/Group dropdowns split into an "active" section (priority order, reorderable) and an
 // "add" section (everything else) — reordering only ever makes sense among active entries.
-const addableSortCols = computed(() => props.columns.filter((c) => getSortIndex(c.key) === null))
+const addableSortCols = computed(() =>
+  props.columns.filter((c) => c.sortable !== false && getSortIndex(c.key) === null),
+)
 const addableGroupCols = computed(() =>
   groupableCols.value.filter((c) => !groupBy.value.includes(c.key)),
 )
@@ -1916,7 +1919,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
               @dragover.prevent="onColDragOver(col.key)"
               @drop.prevent="onColDrop(col.key)"
               @dragend="onColDragEnd"
-              @click="onHeaderSortClick(col.key, $event)"
+              @click="onHeaderSortClick(col, $event)"
             >
               {{ col.label }}
               <span

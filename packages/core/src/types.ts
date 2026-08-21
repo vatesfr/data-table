@@ -89,6 +89,11 @@ export interface ColumnDefBase<TRow extends object = Record<string, unknown>> {
   value?: (row: TRow) => unknown
   /** Format a value to a plain string (framework-agnostic alternative to render) */
   format?: (value: unknown, row: TRow) => string
+  /**
+   * Excludes this column from both header-click sorting and the Sort dropdown's "add a sort"
+   * list. Default: true. Enforced by each adapter, not core — `toggleSort`/`replaceSort`/
+   * `appendOrToggleSort` themselves have no `columns` argument to check this against.
+   */
   sortable?: boolean
   filterable?: boolean
   groupable?: boolean

@@ -209,9 +209,10 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
     applyCheckboxState(selectAllEl, allSelected(), someSelected())
   })
 
-  function handleHeaderClick(key: string, e: MouseEvent): void {
-    if (e.shiftKey) table.sort.appendOrToggle(key)
-    else table.sort.replace(key)
+  function handleHeaderClick(col: ColumnDef<TRow>, e: MouseEvent): void {
+    if (col.sortable === false) return
+    if (e.shiftKey) table.sort.appendOrToggle(col.key)
+    else table.sort.replace(col.key)
   }
 
   return (
@@ -255,7 +256,7 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
                       setDragColKey(null)
                       setDragOverColKey(null)
                     }}
-                    onClick={(e) => handleHeaderClick(col.key, e)}
+                    onClick={(e) => handleHeaderClick(col, e)}
                   >
                     <span class="dt-th-inner">
                       {col.label}{' '}

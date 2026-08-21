@@ -1046,6 +1046,24 @@ describe('DataTable — sort dropdown', () => {
     { key: 'score', label: 'Score', type: 'number' },
   ]
 
+  it('excludes a sortable: false column from the addable list', async () => {
+    const cols: ColumnDef<Row>[] = [
+      { key: 'name', label: 'Name', sortable: false },
+      { key: 'score', label: 'Score', type: 'number' },
+    ]
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: cols, rowKey: 'id' } })
+    await wrapper
+      .findAll('button')
+      .find((b) => b.text() === 'Sort')!
+      .trigger('click')
+    expect(wrapper.findAll('.dt__dd-item--clickable').some((el) => el.text() === 'Name')).toBe(
+      false,
+    )
+    expect(wrapper.findAll('.dt__dd-item--clickable').some((el) => el.text() === 'Score')).toBe(
+      true,
+    )
+  })
+
   it('lists a not-yet-sorted column under the add section as a real button', async () => {
     const wrapper = mount(DataTable, { props: { data: ROWS, columns: SORT_COLS, rowKey: 'id' } })
     await wrapper
@@ -1289,6 +1307,19 @@ describe('DataTable — header click sort', () => {
     // A third shift-click flips it back to asc rather than removing it from the stack.
     await headerOf(wrapper, 'Score').trigger('click', { shiftKey: true })
     expect(headerOf(wrapper, 'Score').text()).toContain('2↑')
+  })
+
+  it('sortable: false makes a header click/shift-click a no-op', async () => {
+    const cols: ColumnDef<Row>[] = [
+      { key: 'name', label: 'Name', sortable: false },
+      { key: 'score', label: 'Score', type: 'number' },
+    ]
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: cols, rowKey: 'id' } })
+    await headerOf(wrapper, 'Name').trigger('click')
+    await headerOf(wrapper, 'Name').trigger('click', { shiftKey: true })
+    expect(headerOf(wrapper, 'Name').text()).not.toMatch(/[↑↓]/)
+    const names = wrapper.findAll('tbody tr td:first-child').map((td) => td.text())
+    expect(names).toEqual(['Alice', 'Bob']) // unchanged, original order
   })
 
   it('a single sorted column shows only the direction arrow, no index number', async () => {

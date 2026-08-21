@@ -977,7 +977,9 @@ export function DataTableView<TRow extends object>({
   const groupableCols = columns.filter((c) => c.groupable === true)
   // Sort/Group dropdowns split into an "active" section (priority order, reorderable) and an
   // "add" section (everything else) — reordering only ever makes sense among active entries.
-  const addableSortCols = columns.filter((c) => getSortIndex(c.key) === null)
+  const addableSortCols = columns.filter(
+    (c) => c.sortable !== false && getSortIndex(c.key) === null,
+  )
   const addableGroupCols = groupableCols.filter((c) => !groupBy.includes(c.key))
   // Narrows a dropdown's own column list by label (see `ddSearchTerms`) — the Columns dropdown
   // keeps its own `orderedColumns` order untouched (it doubles as the drag-to-reorder surface,
@@ -2449,9 +2451,12 @@ export function DataTableView<TRow extends object>({
                       // Shift-click: add this column to the multi-sort (or flip its direction if
                       // it's already in it) — never removes, so it can't surprise-clear a sort or
                       // bump a column to the end of the priority stack; that's the chip ×/dropdown's job.
-                      onClick={(e) =>
-                        e.shiftKey ? appendOrToggleSort(col.key) : replaceSort(col.key)
-                      }
+                      // No-op entirely when the column opts out via sortable: false.
+                      onClick={(e) => {
+                        if (col.sortable === false) return
+                        if (e.shiftKey) appendOrToggleSort(col.key)
+                        else replaceSort(col.key)
+                      }}
                     >
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                         {col.label}

@@ -1224,6 +1224,34 @@ describe('DataTable — header click sort', () => {
     expect(headerOf(getAllByText, 'Score').textContent).toContain('2↑')
   })
 
+  it('sortable: false makes a header click/shift-click a no-op', () => {
+    const cols: ColumnDef<Row>[] = [
+      { key: 'name', label: 'Name', sortable: false },
+      { key: 'score', label: 'Score', type: 'number' },
+    ]
+    const { getAllByText, container } = render(<DataTable data={ROWS} columns={cols} rowKey="id" />)
+    fireEvent.click(headerOf(getAllByText, 'Name'))
+    fireEvent.click(headerOf(getAllByText, 'Name'), { shiftKey: true })
+    expect(headerOf(getAllByText, 'Name').textContent).not.toMatch(/[↑↓]/)
+    const names = [...container.querySelectorAll('tbody tr td:first-child')].map(
+      (td) => td.textContent,
+    )
+    expect(names).toEqual(['Alice', 'Bob']) // unchanged, original order
+  })
+
+  it("sortable: false excludes the column from the Sort dropdown's addable list", () => {
+    const cols: ColumnDef<Row>[] = [
+      { key: 'name', label: 'Name', sortable: false },
+      { key: 'score', label: 'Score', type: 'number' },
+    ]
+    const { getByText, getAllByText, queryAllByText } = render(
+      <DataTable data={ROWS} columns={cols} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Sort'))
+    expect(queryAllByText('Name').some((el) => el.closest('th') === null)).toBe(false)
+    expect(ddCopyOf(getAllByText, 'Score').closest('button')).not.toBeNull()
+  })
+
   it('a single sorted column shows only the direction arrow, no index number', () => {
     const { getAllByText } = render(<DataTable data={ROWS} columns={SORT_COLS} rowKey="id" />)
     fireEvent.click(headerOf(getAllByText, 'Score'))
