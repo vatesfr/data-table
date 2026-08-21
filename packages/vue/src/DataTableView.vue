@@ -353,6 +353,15 @@ function ddSearchTerm(dd: string): string {
 function setDdSearchTerm(dd: string, term: string): void {
   ddSearchTerms.value = { ...ddSearchTerms.value, [dd]: term }
 }
+// Narrows `cols` by label substring (case-insensitive), then alphabetizes — the shared shape of
+// the Filter dropdown's left pane and Sort/Group's addable lists below, none of which have any
+// existing order of their own worth preserving (unlike the Columns dropdown's own
+// searchedOrderedColumns above, which keeps its real table/drag order for exactly that reason).
+function alphabetizedByLabel<T extends { label: string }>(cols: T[], term: string): T[] {
+  const t = term.trim().toLowerCase()
+  const list = t ? cols.filter((c) => c.label.toLowerCase().includes(t)) : cols
+  return list.slice().sort((a, b) => a.label.localeCompare(b.label))
+}
 // The Columns dropdown keeps `orderedColumns`'s real table/drag order unchanged — it doubles as
 // the drag-to-reorder surface, so alphabetizing would conflict with that order's own meaning.
 const searchedOrderedColumns = computed(() => {
@@ -363,13 +372,9 @@ const searchedOrderedColumns = computed(() => {
 })
 // The Filter dropdown's left column pane has no reorder concept of its own, so — like Sort/Group's
 // addable lists below — it's alphabetized to make a long list easier to scan.
-const searchedFilterableCols = computed(() => {
-  const term = ddSearchTerm('filter').trim().toLowerCase()
-  const list = term
-    ? filterableCols.value.filter((c) => c.label.toLowerCase().includes(term))
-    : filterableCols.value
-  return list.slice().sort((a, b) => a.label.localeCompare(b.label))
-})
+const searchedFilterableCols = computed(() =>
+  alphabetizedByLabel(filterableCols.value, ddSearchTerm('filter')),
+)
 const filterActiveCol = ref<string | null>(null)
 const filterSearchTerms = ref<Record<string, string>>({})
 const filterSelectionAnchor = ref<Record<string, string>>({})
@@ -742,20 +747,12 @@ const addableGroupCols = computed(() =>
 // priority order and is never hidden by a search term, since it's a short, already-visible list
 // with its own remove/reorder controls. The addable list itself carries no ordering meaning (none
 // of these are sorted/grouped yet), so it's alphabetized instead of raw column-definition order.
-const searchedAddableSortCols = computed(() => {
-  const term = ddSearchTerm('sort').trim().toLowerCase()
-  const list = term
-    ? addableSortCols.value.filter((c) => c.label.toLowerCase().includes(term))
-    : addableSortCols.value
-  return list.slice().sort((a, b) => a.label.localeCompare(b.label))
-})
-const searchedAddableGroupCols = computed(() => {
-  const term = ddSearchTerm('group').trim().toLowerCase()
-  const list = term
-    ? addableGroupCols.value.filter((c) => c.label.toLowerCase().includes(term))
-    : addableGroupCols.value
-  return list.slice().sort((a, b) => a.label.localeCompare(b.label))
-})
+const searchedAddableSortCols = computed(() =>
+  alphabetizedByLabel(addableSortCols.value, ddSearchTerm('sort')),
+)
+const searchedAddableGroupCols = computed(() =>
+  alphabetizedByLabel(addableGroupCols.value, ddSearchTerm('group')),
+)
 
 // Activating an addable Sort/Group column (or removing an active one) moves its row into a
 // *different* v-for list — Vue's keyed reconciliation can't preserve focus across that (the
