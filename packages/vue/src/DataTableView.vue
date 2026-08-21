@@ -35,6 +35,7 @@ import {
   computeVirtualRange,
   getSortIndex as getHeaderSortIndex,
   getSortIcon as getHeaderSortIcon,
+  summarizeFilterValues,
   type PagedGroup,
   type DateTreeNode,
   type ValueSort,
@@ -653,13 +654,6 @@ function formatValue(v: unknown, row: TRow, col: ColumnDef<TRow>): string {
 
 function cellText(row: TRow, col: ColumnDef<TRow>): string {
   return formatValue(getColumnValue(col, row), row, col)
-}
-
-const FILTER_CHIP_MAX = 3
-function summarizeFilterValues(vals: Set<string>): string {
-  const arr = [...vals]
-  if (arr.length <= FILTER_CHIP_MAX) return arr.join(', ')
-  return `${arr.slice(0, FILTER_CHIP_MAX).join(', ')}, ${L.value.moreValues(arr.length - FILTER_CHIP_MAX)}`
 }
 
 function findCol(key: string): ColumnDef<TRow> | undefined {
@@ -1841,7 +1835,8 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
         <template v-for="[key, vals] in Object.entries(filters)" :key="key">
           <span v-if="vals.size > 0" class="dt__chip dt__chip--info">
             <button type="button" class="dt__chip-body" @click="onOpenFilterCol(key)">
-              {{ columns.find((c) => c.key === key)?.label }}: {{ summarizeFilterValues(vals) }}
+              {{ columns.find((c) => c.key === key)?.label }}:
+              {{ summarizeFilterValues(vals, L.moreValues) }}
             </button>
             <button
               type="button"
@@ -1860,7 +1855,8 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
         <template v-for="[key, vals] in Object.entries(excludeFilters)" :key="`exclude-${key}`">
           <span v-if="vals.size > 0" class="dt__chip dt__chip--danger">
             <button type="button" class="dt__chip-body" @click="onOpenFilterCol(key)">
-              {{ columns.find((c) => c.key === key)?.label }}: ≠ {{ summarizeFilterValues(vals) }}
+              {{ columns.find((c) => c.key === key)?.label }}: ≠
+              {{ summarizeFilterValues(vals, L.moreValues) }}
             </button>
             <button
               type="button"

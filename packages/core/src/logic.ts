@@ -575,6 +575,25 @@ export function filterValuesByCount(
   return values.filter((v) => selected.has(v) || (counts.get(v) ?? 0) > 0)
 }
 
+/** Max values shown by name on an active-bar filter chip before falling back to a "+N more"
+ * suffix — see `summarizeFilterValues`. */
+export const FILTER_CHIP_MAX = 3
+
+/**
+ * Renders a filter chip's label body: the first `FILTER_CHIP_MAX` selected values joined by
+ * comma, or — once there are more than that — those plus a `moreValues(n)`-formatted suffix for
+ * the rest (`moreValues` is `DataTableLabels.moreValues`, passed in rather than imported so this
+ * stays framework-agnostic pure string logic with no dependency on where labels live).
+ */
+export function summarizeFilterValues(
+  vals: Set<string>,
+  moreValues: (n: number) => string,
+): string {
+  const arr = [...vals]
+  if (arr.length <= FILTER_CHIP_MAX) return arr.join(', ')
+  return `${arr.slice(0, FILTER_CHIP_MAX).join(', ')}, ${moreValues(arr.length - FILTER_CHIP_MAX)}`
+}
+
 /**
  * Numeric bounds of a column's actual values across `data` — the slider's own `min`/`max`, so it
  * always spans exactly what's in the dataset. Deliberately computed from the full, unfiltered

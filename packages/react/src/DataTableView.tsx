@@ -35,6 +35,7 @@ import {
   computeVirtualRange,
   getSortIndex as getHeaderSortIndex,
   getSortIcon as getHeaderSortIcon,
+  summarizeFilterValues,
   type DateTreeNode,
   type ValueSort,
   type VisibleItem,
@@ -1403,13 +1404,6 @@ export function DataTableView<TRow extends object>({
   const cellValue = (row: TRow, col: ColumnDef<TRow>) =>
     formatValue(getColumnValue(col, row), row, col)
 
-  const FILTER_CHIP_MAX = 3
-  const summarizeFilterValues = (vals: Set<string>) => {
-    const arr = [...vals]
-    if (arr.length <= FILTER_CHIP_MAX) return arr.join(', ')
-    return `${arr.slice(0, FILTER_CHIP_MAX).join(', ')}, ${L.moreValues(arr.length - FILTER_CHIP_MAX)}`
-  }
-
   return (
     <div style={S.wrap} ref={rootRef}>
       <div style={S.toolbar}>
@@ -2309,7 +2303,8 @@ export function DataTableView<TRow extends object>({
                   }}
                   style={{ ...S.chipBody, ...S.chipFilter }}
                 >
-                  {columns.find((c) => c.key === key)?.label}: {summarizeFilterValues(vals)}
+                  {columns.find((c) => c.key === key)?.label}:{' '}
+                  {summarizeFilterValues(vals, L.moreValues)}
                 </button>
                 <button
                   type="button"
@@ -2339,7 +2334,8 @@ export function DataTableView<TRow extends object>({
                   }}
                   style={{ ...S.chipBody, ...S.chipExclude }}
                 >
-                  {columns.find((c) => c.key === key)?.label}: ≠ {summarizeFilterValues(vals)}
+                  {columns.find((c) => c.key === key)?.label}: ≠{' '}
+                  {summarizeFilterValues(vals, L.moreValues)}
                 </button>
                 <button
                   type="button"
