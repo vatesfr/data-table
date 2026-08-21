@@ -2433,13 +2433,15 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
   color: var(--color-text-primary);
 }
 /* A grouped column's chip merges its sort chip and group chip into one pill (issue #17's
-   follow-up) instead of showing two identically-labeled chips. dt__chip--grouped-sort's first
-   .dt__chip-remove (the sort-remove ×) squares off its right edge — it's no longer the pill's
-   last segment — so it butts cleanly against dt__chip-group-mark next to it; the trailing
-   group-remove × stays a plain .dt__chip-remove (the pill's actual right end). font-size matches
-   the other segments' 12px so the middle segment isn't visibly shorter (line-height is relative
-   to font-size). */
-.dt__chip--grouped-sort .dt__chip-remove:first-of-type {
+   follow-up) instead of showing two identically-labeled chips. dt__chip--grouped-sort's sort-
+   remove × squares off its right edge — it's no longer the pill's last segment — so it butts
+   cleanly against dt__chip-group-mark next to it; the trailing group-remove × stays a plain
+   .dt__chip-remove (the pill's actual right end). Selected via the adjacent-sibling combinator
+   (.dt__chip-body + .dt__chip-remove), not :first-of-type — :first-of-type counts by tag name,
+   and .dt__chip-body is itself a <button> and the pill's actual first child, so a :first-of-type
+   selector on .dt__chip-remove never matched anything. font-size matches the other segments' 12px
+   so the middle segment isn't visibly shorter (line-height is relative to font-size). */
+.dt__chip--grouped-sort .dt__chip-body + .dt__chip-remove {
   border-radius: 0;
   border-right: none;
 }
