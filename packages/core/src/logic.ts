@@ -363,19 +363,52 @@ export function sortWithinGroups<TRow extends object>(
  * per distinct value. The returned number keeps `sortWithinGroups`' existing numeric comparison
  * correct with no separate sort key needed; pair with `formatNumericRange` to render the range
  * itself (e.g. `"40–50"`) instead of just its lower bound in the group header.
+ *
+ * A missing (`null`/`undefined`) or non-numeric value returns `null` rather than coercing it —
+ * `Number(null) === 0` would otherwise silently merge "no value" into the same bucket as a real,
+ * confirmed `0`, and `Number(undefined)`/`Number('abc')` being `NaN` would otherwise flow through
+ * to a group key that stringifies to the literal text `"NaN"` (see `groupData`'s `multiValues`).
+ * `null` stringifies to `''` the same way an *unbucketed* missing value already does, so it lands
+ * in the same "no value" group a plain (non-bucketed) numeric column's missing rows already get.
  */
-export function bucketNumericRange(step: number): (value: unknown) => number {
+export function bucketNumericRange(step: number): (value: unknown) => number | null {
   return (value: unknown) => {
+    if (value == null) return null
     const n = Number(value)
-    return isNaN(n) ? NaN : Math.floor(n / step) * step
+    return isNaN(n) ? null : Math.floor(n / step) * step
   }
 }
 
-/** Formats a `bucketNumericRange(step)` key as `"<lower>–<upper><unit>"`, e.g. `"40–50%"`. */
-export function formatNumericRange(step: number, unit = ''): (keyPart: string) => string {
+/**
+ * Formats a `bucketNumericRange(step)` key as `"<lower>–<upper><unit>"`, e.g. `"40–50%"`.
+ * `missingLabel` renders the "no value" group (see `bucketNumericRange`); a keyPart that didn't
+ * come from `bucketNumericRange` and isn't a number is returned unchanged rather than replaced,
+ * on the assumption it's meaningful raw text from some other source.
+ */
+export function formatNumericRange(
+  step: number,
+  unit = '',
+  missingLabel = '(none)',
+): (keyPart: string) => string {
   return (keyPart: string) => {
+    if (keyPart === '') return missingLabel
     const n = Number(keyPart)
     return isNaN(n) ? keyPart : `${n}–${n + step}${unit}`
+  }
+}
+
+/** `bucketNumericRange`/`formatNumericRange` as one matched pair, so `step`/`unit`/`missingLabel`
+ * are given once instead of twice — passing them to only one half is a config-divergence bug
+ * that fails silently (a group header disagreeing with its own bucket's real boundaries). Spread
+ * directly into a column def: `{ key: 'price', ...numericRangeGroup(10, '%') }`. */
+export function numericRangeGroup(
+  step: number,
+  unit = '',
+  missingLabel = '(none)',
+): { groupValue: (value: unknown) => number | null; groupFormat: (keyPart: string) => string } {
+  return {
+    groupValue: bucketNumericRange(step),
+    groupFormat: formatNumericRange(step, unit, missingLabel),
   }
 }
 
@@ -389,12 +422,19 @@ export type DatePart = 'year' | 'month' | 'day'
  * so `sortWithinGroups`' existing chronological comparison stays correct with no separate sort
  * key needed. Pair with `formatDatePart` to render a human label (e.g. `"May 2024"`) instead of
  * the raw ISO bucket key in the group header.
+ *
+ * A missing (`null`/`undefined`) value returns `null` rather than falling through to
+ * `String(value)` — `String(null) === "null"`, a 4-character string that fails to parse and
+ * would otherwise surface as the literal group header text "null". A genuinely invalid *but
+ * present* value (e.g. `"not-a-date"`) still returns it unchanged — that case has real raw text
+ * worth keeping, unlike a missing value.
  */
 export function bucketDatePart(
   part: DatePart,
   parseDate: (value: string) => number = defaultParseDate,
-): (value: unknown) => string {
+): (value: unknown) => string | null {
   return (value: unknown) => {
+    if (value == null) return null
     const t = parseDate(String(value))
     if (isNaN(t)) return String(value)
     const { y, m, day: dayPart } = datePartsOf(new Date(t))
@@ -403,14 +443,150 @@ export function bucketDatePart(
   }
 }
 
-/** Formats a `bucketDatePart(part)` ISO key for display, e.g. `"2024-05-01"` -> `"May 2024"` for `'month'`. */
-export function formatDatePart(part: DatePart): (keyPart: string) => string {
+/** Formats a `bucketDatePart(part)` ISO key for display, e.g. `"2024-05-01"` -> `"May 2024"` for
+ * `'month'`. `missingLabel` renders the "no value" group (see `bucketDatePart`). */
+export function formatDatePart(
+  part: DatePart,
+  missingLabel = '(none)',
+): (keyPart: string) => string {
   return (keyPart: string) => {
+    if (keyPart === '') return missingLabel
     const d = new Date(keyPart)
     if (isNaN(d.getTime())) return keyPart
     if (part === 'year') return String(d.getFullYear())
     if (part === 'month') return d.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
     return d.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })
+  }
+}
+
+/** `bucketDatePart`/`formatDatePart` as one matched pair — see `numericRangeGroup`'s own doc for
+ * why (`part`/`parseDate` given once instead of twice). Spread directly into a column def:
+ * `{ key: 'releaseDate', ...datePartGroup('month') }`. */
+export function datePartGroup(
+  part: DatePart,
+  parseDate: (value: string) => number = defaultParseDate,
+  missingLabel = '(none)',
+): { groupValue: (value: unknown) => string | null; groupFormat: (keyPart: string) => string } {
+  return {
+    groupValue: bucketDatePart(part, parseDate),
+    groupFormat: formatDatePart(part, missingLabel),
+  }
+}
+
+/** Options shared by `bucketLogRange`/`formatLogRange`/`logRangeGroup`. */
+export interface LogRangeOptions {
+  /** Multiplier per exponent step: `10` for decades (default), `2` for octaves/binary doublings. */
+  base?: number
+  /**
+   * Bucket starts within one `base` cycle, as multipliers of `base ** exponent` — e.g. `[1, 3]`
+   * splits each decade into a "1–3" and a "3–10" bucket (a "1-3-10" half-decade grid); `[1, 2, 5]`
+   * gives the common "1-2-5" grid. Must include `1`. Defaults to `[1]`: one bucket per power of
+   * `base` — plain order-of-magnitude (or per-octave, with `base: 2`).
+   */
+  divisions?: number[]
+  /**
+   * Values below this collapse into a single low bucket instead of extending the log grid down
+   * toward zero — the near-zero tail of a right-skewed column (mostly-unplayed games, mostly-empty
+   * carts) is rarely worth splitting further, and `log` is undefined at/below `0` regardless.
+   * Default `1`. Pass `min: 0` to opt out of the collapse bucket and let the grid extend all the
+   * way down to (but not including) zero — `0` and negative values still always fall into the
+   * below-threshold bucket no matter what `min` is set to, since they have no log-scale bucket to
+   * extend into.
+   */
+  min?: number
+}
+
+const LOG_RANGE_EPSILON = 1e-9
+/** Sentinel bucket key for "below `min`" — sorts before every real bucket (all `>= min > 0`) and
+ * is distinguishable from the `null` "missing" key used by every other bucketer in this file. */
+const BELOW_LOG_MIN = -Infinity
+
+function sortedDivisions(divisions: number[] | undefined): number[] {
+  return [...(divisions ?? [1])].sort((a, b) => a - b)
+}
+
+/** The bucket-start value just after `start` in the same `base`/`divisions` grid `bucketLogRange`
+ * produced `start` from — used by `formatLogRange` to render a bucket's upper bound without
+ * `bucketLogRange` needing to return a `[start, end]` pair (every other bucketer in this file
+ * returns a single scalar key too, so `groupData`/`sortWithinGroups` only ever handle one shape). */
+function logRangeBoundaryAfter(start: number, base: number, divisions: number[]): number {
+  const exp = Math.floor(Math.log(start) / Math.log(base) + LOG_RANGE_EPSILON)
+  const normalized = start / base ** exp
+  const idx = divisions.findIndex(
+    (d) => Math.abs(d - normalized) < LOG_RANGE_EPSILON * Math.max(normalized, 1),
+  )
+  return idx === divisions.length - 1
+    ? divisions[0] * base ** (exp + 1)
+    : divisions[idx + 1] * base ** exp
+}
+
+function formatLogMagnitude(n: number): string {
+  const trim = (v: number) => Number(v.toPrecision(12)).toString()
+  if (n >= 1e6) return `${trim(n / 1e6)}M`
+  if (n >= 1e3) return `${trim(n / 1e3)}k`
+  return trim(n)
+}
+
+/**
+ * Ready-made `groupValue` bucketing function for a `type: 'number'` column on a logarithmic
+ * scale — for right-skewed columns (review counts, hours played, file sizes) spanning several
+ * orders of magnitude, where any single linear `bucketNumericRange` step is either too coarse
+ * for the long tail or too fine for the low end. See `LogRangeOptions` for `base`/`divisions`/
+ * `min`. Missing/non-numeric values return `null`, same convention as `bucketNumericRange`; a
+ * value below `min` (or `<= 0`, always unbucketable on a log scale) returns a distinct sentinel
+ * so it groups apart from "no value" rather than merging with it. Pair with `formatLogRange`
+ * (same options) to render a bucket's range in the group header, or use `logRangeGroup` for both.
+ */
+export function bucketLogRange(options: LogRangeOptions = {}): (value: unknown) => number | null {
+  const { base = 10, min = 1 } = options
+  const divisions = sortedDivisions(options.divisions)
+  return (value: unknown) => {
+    if (value == null) return null
+    const n = Number(value)
+    if (isNaN(n)) return null
+    if (n <= 0 || n < min) return BELOW_LOG_MIN
+    let exp = Math.floor(Math.log(n) / Math.log(base) + LOG_RANGE_EPSILON)
+    for (;;) {
+      for (let i = divisions.length - 1; i >= 0; i--) {
+        const start = base ** exp * divisions[i]
+        if (start <= n * (1 + LOG_RANGE_EPSILON)) return start
+      }
+      exp--
+    }
+  }
+}
+
+/** Formats a `bucketLogRange(options)` key as `"<lower>–<upper><unit>"` (e.g. `"3–10"`,
+ * `"300k–1M"`), or `"<<min><unit>"` for the below-`min` bucket. Same `options` as the bucketer;
+ * `missingLabel` renders the "no value" group. */
+export function formatLogRange(
+  options: LogRangeOptions = {},
+  unit = '',
+  missingLabel = '(none)',
+): (keyPart: string) => string {
+  const { base = 10, min = 1 } = options
+  const divisions = sortedDivisions(options.divisions)
+  return (keyPart: string) => {
+    if (keyPart === '') return missingLabel
+    const n = Number(keyPart)
+    if (isNaN(n)) return keyPart
+    if (n === BELOW_LOG_MIN) return `<${formatLogMagnitude(min)}${unit}`
+    const end = logRangeBoundaryAfter(n, base, divisions)
+    return `${formatLogMagnitude(n)}–${formatLogMagnitude(end)}${unit}`
+  }
+}
+
+/** `bucketLogRange`/`formatLogRange` as one matched pair — see `numericRangeGroup`'s own doc for
+ * why (`options`/`unit`/`missingLabel` given once instead of twice). Spread directly into a
+ * column def: `{ key: 'hoursPlayed', ...logRangeGroup({ divisions: [1, 3] }) }`. */
+export function logRangeGroup(
+  options: LogRangeOptions = {},
+  unit = '',
+  missingLabel = '(none)',
+): { groupValue: (value: unknown) => number | null; groupFormat: (keyPart: string) => string } {
+  return {
+    groupValue: bucketLogRange(options),
+    groupFormat: formatLogRange(options, unit, missingLabel),
   }
 }
 
