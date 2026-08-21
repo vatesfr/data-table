@@ -102,6 +102,12 @@ function defaultCompare(a: unknown, b: unknown, _dir?: SortDir): number {
   return String(a ?? '').localeCompare(String(b ?? ''))
 }
 
+/** Flips a direction-naive comparator's result for a descending sort — the same "compute cmp,
+ * then negate it for desc" idiom repeated at every sort-ordering call site in this module. */
+function applyDir(cmp: number, dir: SortDir): number {
+  return dir === 'asc' ? cmp : -cmp
+}
+
 /**
  * Ready-made `ColumnDefBase.compare` for pinning a value — missing data, by default — to the end
  * of the sort regardless of the active ascending/descending direction (see `compare`'s `dir`
@@ -123,7 +129,7 @@ export function compareMissingLast<T = unknown>(
     if (ma && mb) return 0
     if (ma || mb) {
       const rel = ma ? 1 : -1 // a missing → wants a after b
-      return dir === 'asc' ? rel : -rel // pre-cancels the sort's own direction flip
+      return applyDir(rel, dir) // pre-cancels the sort's own direction flip
     }
     return compare(a, b)
   }
@@ -159,7 +165,7 @@ function sortRows<TRow extends object>(
   decorated.sort((a, b) => {
     for (let i = 0; i < sorts.length; i++) {
       const cmp = compareFns[i](a.values[i], b.values[i], sorts[i].dir)
-      if (cmp !== 0) return sorts[i].dir === 'asc' ? cmp : -cmp
+      if (cmp !== 0) return applyDir(cmp, sorts[i].dir)
     }
     return 0
   })
@@ -332,7 +338,7 @@ export function sortWithinGroups<TRow extends object>(
         const va = col?.compare ? ka : comparableFromKeyPart(col, ka)
         const vb = col?.compare ? kb : comparableFromKeyPart(col, kb)
         const cmp = col?.compare ? col.compare(va, vb, dir) : defaultCompare(va, vb)
-        if (cmp !== 0) return dir === 'asc' ? cmp : -cmp
+        if (cmp !== 0) return applyDir(cmp, dir)
       }
       return 0
     })
@@ -634,10 +640,10 @@ export function sortFilterValues(
   return [...values].sort((a, b) => {
     if (sort.by === 'count') {
       const cmp = (counts.get(a) ?? 0) - (counts.get(b) ?? 0)
-      return (sort.dir === 'desc' ? -cmp : cmp) || compare(a, b, 'asc')
+      return applyDir(cmp, sort.dir) || compare(a, b, 'asc')
     }
     const cmp = compare(a, b, sort.dir)
-    return sort.dir === 'desc' ? -cmp : cmp
+    return applyDir(cmp, sort.dir)
   })
 }
 
