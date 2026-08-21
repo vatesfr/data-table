@@ -30,6 +30,32 @@ function buildColByKey<TRow extends object>(
 }
 
 /**
+ * Resolves a row's value for a given key — via the column's own accessor (`getColumnValue`,
+ * which honors `col.value`) when a matching column exists, or a plain `row[key]` lookup when it
+ * doesn't (a filter/rangeFilter/groupBy key with no corresponding column definition still needs
+ * to resolve to *something*). Shared by every place `processData`/`groupData` look up a raw
+ * value from a possibly-absent column.
+ */
+function resolveValue<TRow extends object>(
+  col: ColumnDefBase<TRow> | undefined,
+  row: TRow,
+  key: string,
+): unknown {
+  return col ? getColumnValue(col, row) : asRecord(row)[key]
+}
+
+/** `resolveValue` followed by `multiValues` — the same pairing shows up everywhere a filter/group
+ * key needs to be read as a flat, deduped array of strings rather than a raw value. */
+function resolveMultiValues<TRow extends object>(
+  col: ColumnDefBase<TRow> | undefined,
+  row: TRow,
+  key: string,
+  emptyLabel: string,
+): string[] {
+  return multiValues(resolveValue(col, row, key), emptyLabel)
+}
+
+/**
  * Coerces an already-obtained raw value per `col.type`, so every type-aware comparison
  * (currently just sort) agrees on what a column's value *means* instead of each call site
  * guessing independently from the raw value's runtime `typeof` — the root cause behind both
@@ -157,7 +183,7 @@ export function processData<TRow extends object>(
     const col = colByKey.get(key)
     const mode = col?.multiMode ?? 'or'
     result = result.filter((row) => {
-      const rowValues = multiValues(col ? getColumnValue(col, row) : asRecord(row)[key], emptyLabel)
+      const rowValues = resolveMultiValues(col, row, key, emptyLabel)
       return mode === 'and'
         ? [...vals].every((v) => rowValues.includes(v))
         : [...vals].some((v) => rowValues.includes(v))
@@ -172,14 +198,14 @@ export function processData<TRow extends object>(
     if (vals.size === 0) continue
     const col = colByKey.get(key)
     result = result.filter((row) => {
-      const rowValues = multiValues(col ? getColumnValue(col, row) : asRecord(row)[key], emptyLabel)
+      const rowValues = resolveMultiValues(col, row, key, emptyLabel)
       return ![...vals].some((v) => rowValues.includes(v))
     })
   }
 
   for (const [key, range] of Object.entries(rangeFilters)) {
     const col = colByKey.get(key)
-    const rangeValue = (r: TRow) => (col ? getColumnValue(col, r) : asRecord(r)[key])
+    const rangeValue = (r: TRow) => resolveValue(col, r, key)
     if (col?.type === 'date') {
       // Bounds come from the range filter's native <input type="date">s, always ISO
       // `YYYY-MM-DD` — parsed with the default parser, not `col.parseDate`, since a column's
@@ -229,7 +255,7 @@ export function groupData<TRow extends object>(
     let combos: string[][] = [[]]
     for (const g of groupBy) {
       const col = colByKey.get(g)
-      const raw = col ? getColumnValue(col, row) : asRecord(row)[g]
+      const raw = resolveValue(col, row, g)
       const bucketed = col?.groupValue ? col.groupValue(raw, row) : raw
       const values = multiValues(bucketed, emptyLabel)
       combos = combos.flatMap((combo) => values.map((v) => [...combo, v]))
