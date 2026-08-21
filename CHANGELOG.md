@@ -25,8 +25,11 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - `sortWithinGroups` (core) now derives multi-level group nesting order from `groupBy`'s own order instead of the relative order group-matching entries happened to have within `sorts` — previously, reordering two grouped columns' sort entries via the Sort dropdown could nest groups in an order that visually contradicted what the Group dropdown displayed (#17).
 - `replaceSort` (core) no longer duplicates a grouped column's own sort entry when that column is clicked via its header (reachable only through `keepVisibleWhenGrouped`, which keeps a grouped column's header clickable) — it now cycles that entry's direction in place instead (#17).
 - `bucketNumericRange`/`bucketDatePart` now return `null` for a missing (`null`/`undefined`) value instead of silently coercing it — `bucketNumericRange` previously read `Number(null) === 0`, merging "no value" into the same group as a real, confirmed `0`; `bucketDatePart` previously read `String(null) === "null"`, surfacing the literal text `"null"` as a group header. `bucketNumericRange` also now returns `null` (rather than `NaN`) for a non-numeric value, since `NaN` previously flowed through to a group key that stringified to the literal visible text `"NaN"`. `formatNumericRange`/`formatDatePart` each gained a 3rd `missingLabel = '(none)'` parameter rendered for that group (#18)
+- Solid/Vue: the merged group+sort active-bar pill rendered as two visually disconnected chips instead of one seamless pill — the sort-remove ×'s border-square-off relied on a `:first-of-type` selector that never matched, since `:first-of-type` counts by tag name and the pill's chip-body segment is itself a `<button>` and its actual first child. Replaced with an adjacent-sibling selector that targets the sort-remove × unambiguously. React was unaffected, since it applies the equivalent override as an inline style on that element directly rather than through a CSS selector.
 
-## [0.10.0] - 2026-08-21
+## [Unreleased]
+
+## [0.11.0] - 2026-08-21
 
 ### Added
 
