@@ -47,6 +47,7 @@ import ToolbarBtn from './components/ToolbarBtn.vue'
 import DateTreeItem from './components/DateTreeItem.vue'
 import RangeSlider from './components/RangeSlider.vue'
 import { vIndeterminate } from './directives/vIndeterminate'
+import { useDropdownReorder } from './composables/useDropdownReorder'
 
 const props = withDefaults(defineProps<DataTableViewInternalProps<TRow>>(), { rowKey: 'id' })
 
@@ -816,70 +817,18 @@ async function onOpenGroupEntry(key: string): Promise<void> {
   groupRowRefs.get(key)?.focus()
 }
 
-/**
- * Resolves the drop target for the Sort/Group/Columns dropdown drag-and-drop lists below: the
- * specific row under the cursor, and whether the dragged item should land before or after it.
- * Cursor position within the hovered row's own bounds decides before/after (top half vs bottom
- * half) so a row can be a valid "insert after" target too — including the *last* row, which
- * "insert before" alone could never reach. When the cursor isn't directly over any row (e.g.
- * past the last row, in the dead space below it, or over the dropdown's "add" section) it snaps
- * to the nearest edge row instead, so there's no dead zone that silently rejects the drop. `e` is
- * expected to be handled at the Dropdown panel level (`e.currentTarget` is the panel, not a
- * row), so it can see every row via `attr`, a `data-*` attribute unique to that list's rows.
- */
-function resolveDropdownDragRow(
-  e: DragEvent,
-  attr: string,
-): { key: string; after: boolean } | null {
-  const root = e.currentTarget as HTMLElement
-  const selector = `[${attr}]`
-  const rows = Array.from(root.querySelectorAll<HTMLElement>(selector))
-  if (rows.length === 0) return null
-  const readKey = (el: HTMLElement) => el.getAttribute(attr)!
-  const hit = (e.target as HTMLElement).closest<HTMLElement>(selector)
-  if (hit) {
-    const rect = hit.getBoundingClientRect()
-    return { key: readKey(hit), after: e.clientY > rect.top + rect.height / 2 }
-  }
-  const first = rows[0]
-  const last = rows[rows.length - 1]
-  if (e.clientY <= first.getBoundingClientRect().top) return { key: readKey(first), after: false }
-  if (e.clientY >= last.getBoundingClientRect().bottom) return { key: readKey(last), after: true }
-  return null
-}
-
 // Drag-and-drop reordering for the Sort dropdown's active entries — kept as its own independent
 // state (rather than reusing dragColKey/dragOverColKey above), mirroring how each dropdown gets
 // its own drag state instead of a shared one.
-const dragSortKey = ref<string | null>(null)
-const dragOverSortKey = ref<string | null>(null)
-const dragOverSortAfter = ref(false)
-function onSortDragStart(key: string): void {
-  dragSortKey.value = key
-}
-function onSortDragEnd(): void {
-  dragSortKey.value = null
-  dragOverSortKey.value = null
-}
-// @dragover/@drop for the whole active-sorts list — bound to the Dropdown panel (via its
-// forwarded $attrs) rather than per-row, so a drop past the last row still resolves.
-function onSortRowsDragOver(e: DragEvent): void {
-  if (!dragSortKey.value) return
-  const target = resolveDropdownDragRow(e, 'data-sort-key')
-  if (!target || target.key === dragSortKey.value) return
-  e.preventDefault()
-  dragOverSortKey.value = target.key
-  dragOverSortAfter.value = target.after
-}
-function onSortRowsDrop(e: DragEvent): void {
-  if (!dragSortKey.value) return
-  const target = resolveDropdownDragRow(e, 'data-sort-key')
-  if (!target) return
-  e.preventDefault()
-  if (target.key !== dragSortKey.value) moveSort(dragSortKey.value, target.key, target.after)
-  dragSortKey.value = null
-  dragOverSortKey.value = null
-}
+const {
+  dragKey: dragSortKey,
+  dragOverKey: dragOverSortKey,
+  dragOverAfter: dragOverSortAfter,
+  onRowDragStart: onSortDragStart,
+  onRowDragEnd: onSortDragEnd,
+  onDragOver: onSortRowsDragOver,
+  onDrop: onSortRowsDrop,
+} = useDropdownReorder('data-sort-key', moveSort)
 // Alt+↑/↓ mirrors the drag gesture for keyboard-only reorder; Enter/Space mirrors the row's own
 // click (toggle direction) since a plain div gets no free keyboard activation the way a real
 // <button> would (unlike the add-list, which renders real buttons and needs no handler here).
@@ -895,33 +844,15 @@ function onSortRowKeyDown(event: KeyboardEvent, key: string): void {
 
 // Same as above, for the Group dropdown's active entries — a group entry has nothing to toggle
 // on click (no direction), so only Alt+↑/↓ reorder applies.
-const dragGroupKey = ref<string | null>(null)
-const dragOverGroupKey = ref<string | null>(null)
-const dragOverGroupAfter = ref(false)
-function onGroupDragStart(key: string): void {
-  dragGroupKey.value = key
-}
-function onGroupDragEnd(): void {
-  dragGroupKey.value = null
-  dragOverGroupKey.value = null
-}
-function onGroupRowsDragOver(e: DragEvent): void {
-  if (!dragGroupKey.value) return
-  const target = resolveDropdownDragRow(e, 'data-group-key')
-  if (!target || target.key === dragGroupKey.value) return
-  e.preventDefault()
-  dragOverGroupKey.value = target.key
-  dragOverGroupAfter.value = target.after
-}
-function onGroupRowsDrop(e: DragEvent): void {
-  if (!dragGroupKey.value) return
-  const target = resolveDropdownDragRow(e, 'data-group-key')
-  if (!target) return
-  e.preventDefault()
-  if (target.key !== dragGroupKey.value) moveGroup(dragGroupKey.value, target.key, target.after)
-  dragGroupKey.value = null
-  dragOverGroupKey.value = null
-}
+const {
+  dragKey: dragGroupKey,
+  dragOverKey: dragOverGroupKey,
+  dragOverAfter: dragOverGroupAfter,
+  onRowDragStart: onGroupDragStart,
+  onRowDragEnd: onGroupDragEnd,
+  onDragOver: onGroupRowsDragOver,
+  onDrop: onGroupRowsDrop,
+} = useDropdownReorder('data-group-key', moveGroup)
 function onGroupRowKeyDown(event: KeyboardEvent, key: string): void {
   if (event.altKey && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {
     event.preventDefault()
@@ -932,33 +863,15 @@ function onGroupRowKeyDown(event: KeyboardEvent, key: string): void {
 // Drag-and-drop reordering for the Columns dropdown's rows — replaces the old ▲▼ buttons. The
 // row itself gets no tabindex: the checkbox inside is already a native Tab stop, so a second one
 // on the row would just be a redundant, visually-identical stop for the same rectangle.
-const dragColRowKey = ref<string | null>(null)
-const dragOverColRowKey = ref<string | null>(null)
-const dragOverColRowAfter = ref(false)
-function onColRowDragStart(key: string): void {
-  dragColRowKey.value = key
-}
-function onColRowDragEnd(): void {
-  dragColRowKey.value = null
-  dragOverColRowKey.value = null
-}
-function onColRowsDragOver(e: DragEvent): void {
-  if (!dragColRowKey.value) return
-  const target = resolveDropdownDragRow(e, 'data-col-row-key')
-  if (!target || target.key === dragColRowKey.value) return
-  e.preventDefault()
-  dragOverColRowKey.value = target.key
-  dragOverColRowAfter.value = target.after
-}
-function onColRowsDrop(e: DragEvent): void {
-  if (!dragColRowKey.value) return
-  const target = resolveDropdownDragRow(e, 'data-col-row-key')
-  if (!target) return
-  e.preventDefault()
-  if (target.key !== dragColRowKey.value) moveColumn(dragColRowKey.value, target.key, target.after)
-  dragColRowKey.value = null
-  dragOverColRowKey.value = null
-}
+const {
+  dragKey: dragColRowKey,
+  dragOverKey: dragOverColRowKey,
+  dragOverAfter: dragOverColRowAfter,
+  onRowDragStart: onColRowDragStart,
+  onRowDragEnd: onColRowDragEnd,
+  onDragOver: onColRowsDragOver,
+  onDrop: onColRowsDrop,
+} = useDropdownReorder('data-col-row-key', moveColumn)
 function onColRowKeyDown(event: KeyboardEvent, key: string): void {
   if (event.altKey && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {
     event.preventDefault()
