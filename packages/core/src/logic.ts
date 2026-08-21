@@ -21,6 +21,14 @@ export function getColumnValue<TRow extends object>(col: ColumnDefBase<TRow>, ro
   return col.value ? col.value(row) : asRecord(row)[col.key]
 }
 
+/** Indexes columns by key for O(1) lookup — shared by every function that resolves a raw filter/
+ * sort/group key back to its column definition. */
+function buildColByKey<TRow extends object>(
+  columns: ColumnDefBase<TRow>[],
+): Map<string, ColumnDefBase<TRow>> {
+  return new Map(columns.map((c) => [c.key, c]))
+}
+
 /**
  * Coerces an already-obtained raw value per `col.type`, so every type-aware comparison
  * (currently just sort) agrees on what a column's value *means* instead of each call site
@@ -142,7 +150,7 @@ export function processData<TRow extends object>(
   excludeFilters: Record<string, Set<string>> = {},
 ): TRow[] {
   let result = [...data]
-  const colByKey = new Map<string, ColumnDefBase<TRow>>(columns.map((c) => [c.key, c]))
+  const colByKey = buildColByKey(columns)
 
   for (const [key, vals] of Object.entries(filters)) {
     if (vals.size === 0) continue
@@ -215,7 +223,7 @@ export function groupData<TRow extends object>(
   emptyLabel = '(none)',
 ): GroupResult<TRow>[] {
   if (groupBy.length === 0) return [{ key: null, keyParts: [], rows: data }]
-  const colByKey = new Map<string, ColumnDefBase<TRow>>(columns.map((c) => [c.key, c]))
+  const colByKey = buildColByKey(columns)
   const groups: Record<string, { keyParts: string[]; rows: TRow[] }> = {}
   for (const row of data) {
     let combos: string[][] = [[]]
@@ -277,7 +285,7 @@ export function sortWithinGroups<TRow extends object>(
   groupBy: string[],
   columns: ColumnDefBase<TRow>[],
 ): GroupResult<TRow>[] {
-  const colByKey = new Map<string, ColumnDefBase<TRow>>(columns.map((c) => [c.key, c]))
+  const colByKey = buildColByKey(columns)
   const groupSorts = sorts.filter((s) => groupBy.includes(s.key))
   const withinGroupSorts = sorts.filter((s) => !groupBy.includes(s.key))
 
@@ -1079,7 +1087,7 @@ export function getOrderedColumns<TRow extends object>(
   order: string[],
 ): ColumnDefBase<TRow>[] {
   if (order.length === 0) return columns
-  const byKey = new Map(columns.map((c) => [c.key, c]))
+  const byKey = buildColByKey(columns)
   const ordered = order
     .map((k) => byKey.get(k))
     .filter((c): c is ColumnDefBase<TRow> => c !== undefined)
