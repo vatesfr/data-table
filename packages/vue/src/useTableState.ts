@@ -182,7 +182,9 @@ export function useTableState<TRow extends object>(
 
   const activeColumns = computed(() =>
     getOrderedColumns(columns.value, columnOrder.value).filter(
-      (c) => visibleCols.value.has(c.key) && !groupBy.value.includes(c.key),
+      (c) =>
+        visibleCols.value.has(c.key) &&
+        (!groupBy.value.includes(c.key) || c.keepVisibleWhenGrouped === true),
     ),
   )
 

@@ -119,6 +119,20 @@ export interface ColumnDefBase<TRow extends object = Record<string, unknown>> {
    * `format`/cell value, unaffected. Falls back to the raw bucket key string when omitted.
    */
   groupFormat?: (keyPart: string) => string
+  /**
+   * Keeps this column in the row cells even while it's in `groupBy`, instead of the default
+   * auto-hide (the group header already shows this column's value, so repeating it in every row
+   * is normally redundant). Set this when the header *doesn't* show the same thing the row would:
+   * a `groupValue`-bucketed column (the header only shows the bucket label, e.g. "3–10h" — the
+   * row's exact value, e.g. "4.3h", is otherwise lost entirely, visible nowhere), or a
+   * multi-value/array column (grouping fans a row out into one group per value — e.g. a "Tags"
+   * column with `["Roguelike", "Deckbuilder"]` shows up in both the "Roguelike" and "Deckbuilder"
+   * groups; hiding the column removes the only way to see a row's *other* values while looking at
+   * one particular group). Default: `false` (unchanged prior behavior). Not auto-detected from
+   * `groupValue`/array-valued cells, since `value` is an arbitrary function whose return shape
+   * isn't knowable from the column def alone — an explicit opt-in per column instead.
+   */
+  keepVisibleWhenGrouped?: boolean
   /** Aggregate function or built-in type shown in group header rows */
   aggregate?: AggregateType | ((rows: TRow[]) => unknown)
   /**

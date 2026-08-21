@@ -485,6 +485,41 @@ describe('useTableState — group remove/reorder', () => {
   })
 })
 
+describe('useTableState — keepVisibleWhenGrouped', () => {
+  const COLS_WITH_KEEP: ColumnDef<Row>[] = [
+    { key: 'id', label: 'ID', groupable: true },
+    { key: 'name', label: 'Name', groupable: true, keepVisibleWhenGrouped: true },
+    { key: 'score', label: 'Score', groupable: true },
+  ]
+
+  it('still hides a grouped column by default', () => {
+    const { result } = renderHook(() => useTableState(ROWS, COLS_WITH_KEEP))
+    act(() => {
+      result.current.group.toggle('score')
+    })
+    expect(result.current.columns.active.map((c) => c.key)).not.toContain('score')
+  })
+
+  it('keeps a grouped column in activeColumns when keepVisibleWhenGrouped is set', () => {
+    const { result } = renderHook(() => useTableState(ROWS, COLS_WITH_KEEP))
+    act(() => {
+      result.current.group.toggle('name')
+    })
+    expect(result.current.columns.active.map((c) => c.key)).toContain('name')
+  })
+
+  it('column reappears in activeColumns once ungrouped either way', () => {
+    const { result } = renderHook(() => useTableState(ROWS, COLS_WITH_KEEP))
+    act(() => {
+      result.current.group.toggle('name')
+    })
+    act(() => {
+      result.current.group.remove('name')
+    })
+    expect(result.current.columns.active.map((c) => c.key)).toContain('name')
+  })
+})
+
 describe('useTableState — pagination', () => {
   it('setPage navigates between pages', () => {
     const { result } = renderHook(() => useTableState(ROWS, COLS, { defaultPageSize: 2 }))

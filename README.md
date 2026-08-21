@@ -226,6 +226,7 @@ interface ColumnDefBase<TRow extends object> {
   sortable?: boolean // default: true
   filterable?: boolean // default: true
   groupable?: boolean // default: false
+  keepVisibleWhenGrouped?: boolean // default: false; keep this column's cells visible even while it's grouped
   multiMode?: 'and' | 'or' // match mode for array-valued columns in the filter checklist; default: 'or'
 }
 ```

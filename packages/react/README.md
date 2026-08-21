@@ -192,6 +192,12 @@ import { bucketNumericRange, formatNumericRange, bucketDatePart, formatDatePart 
 
 `groupValue(value, row)` returns the bucket key — return a value whose type matches `col.type` (a number for `type: 'number'`, a `parseDate`-parseable string for `type: 'date'`) so groups still sort correctly, the same type-aware comparison a plain groupBy column already gets. `groupFormat(keyPart)` renders that bucket key for the group header (`bucketNumericRange`'s lower bound alone, e.g. `40000`, usually isn't fit to display on its own); omit it to show the raw bucket key. Unlike a plain groupBy column, a bucketed column's group header doesn't call `render`/`format` — `groupFormat` is the only display hook for it. `bucketDatePart`/`formatDatePart` accept `'year' | 'month' | 'day'` granularity.
 
+A grouped column normally disappears from the row cells too, since its value is already shown in the group header — but that's a loss for a bucketed column (the header only shows `"40000–60000 USD"`, not the row's exact `47000`) or a multi-value column (a `["Roguelike", "Deckbuilder"]` row shows up in both groups, and hiding the column removes the only way to see its _other_ tags from within one group). Set `keepVisibleWhenGrouped: true` on such a column to keep it in the row cells even while grouped:
+
+```tsx
+{ key: 'salary', label: 'Salary', type: 'number', groupable: true, groupValue: bucketNumericRange(20000), keepVisibleWhenGrouped: true }
+```
+
 ## Aggregation
 
 ▶ [Try it in the demo](https://vatesfr.github.io/data-table/react/#full-table)
@@ -321,6 +327,7 @@ interface ColumnDef<TRow extends object> {
   searchable?: boolean // include this column in global search matching; default: true
   groupValue?: (value: unknown, row: TRow) => unknown // bucket a groupBy value into a coarser group key; see Grouped columns
   groupFormat?: (keyPart: string) => string // render a groupValue bucket key in the group header
+  keepVisibleWhenGrouped?: boolean // default: false; keep this column's cells visible even while it's grouped
   multiMode?: 'and' | 'or' // match mode for array-valued columns; default: 'or'
   aggregate?: 'sum' | 'count' | 'avg' | 'min' | 'max' | ((rows: TRow[]) => unknown) // see Aggregation
   render?: (value: unknown, row: TRow) => ReactNode

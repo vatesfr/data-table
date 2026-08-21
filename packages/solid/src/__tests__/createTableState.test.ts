@@ -297,6 +297,24 @@ describe('createTableState — grouping', () => {
       expect(table.columns.active().map((c) => c.key)).toEqual(['id', 'name', 'score'])
     })
   })
+
+  it('keepVisibleWhenGrouped keeps a grouped column in activeColumns', () => {
+    withRoot(() => {
+      const COLS_WITH_KEEP: ColumnDef<Row>[] = [
+        { key: 'id', label: 'ID' },
+        { key: 'name', label: 'Name', keepVisibleWhenGrouped: true },
+        { key: 'score', label: 'Score', type: 'number' },
+      ]
+      const table = createTableState(ROWS, COLS_WITH_KEEP)
+      table.group.toggle('score')
+      expect(table.columns.active().map((c) => c.key)).not.toContain('score')
+      table.group.toggle('score')
+      table.group.toggle('name')
+      expect(table.columns.active().map((c) => c.key)).toContain('name')
+      table.group.remove('name')
+      expect(table.columns.active().map((c) => c.key)).toContain('name')
+    })
+  })
 })
 
 describe('createTableState — search', () => {

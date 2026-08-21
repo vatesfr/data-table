@@ -247,7 +247,9 @@ export function createTableState<TRow extends object>(
 
   const activeColumns = createMemo(() =>
     getOrderedColumns(columns(), columnOrder()).filter(
-      (c) => visibleCols().has(c.key) && !groupBy().includes(c.key),
+      (c) =>
+        visibleCols().has(c.key) &&
+        (!groupBy().includes(c.key) || c.keepVisibleWhenGrouped === true),
     ),
   )
 

@@ -225,7 +225,8 @@ export function useTableState<TRow extends object>(
   const activeColumns = useMemo(
     () =>
       getOrderedColumns(columns, columnOrder).filter(
-        (c) => visibleCols.has(c.key) && !groupBy.includes(c.key),
+        (c) =>
+          visibleCols.has(c.key) && (!groupBy.includes(c.key) || c.keepVisibleWhenGrouped === true),
       ),
     [columns, columnOrder, visibleCols, groupBy],
   )
