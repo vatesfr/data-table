@@ -497,6 +497,30 @@ function formatRangeBound(n: number, col: { type?: string }): string {
   return col.type === 'date' ? new Date(n).toISOString().slice(0, 10) : String(n)
 }
 
+/**
+ * Consumes a pending-focus ref (see the `pendingSortFocusKey`/`pendingGroupFocusKey`/
+ * `pendingFilterColFocusKey` refs below) and focuses whichever element under `root` carries a
+ * matching value on one of `attrs` — a column/entry key can land on either of two possible
+ * data-attributes depending on which section (active vs. addable) it's currently rendered in.
+ * No-ops if the ref is already empty (nothing pending).
+ */
+function focusPendingKey(
+  root: HTMLElement,
+  ref: { current: string | null },
+  attrs: string[],
+): void {
+  if (!ref.current) return
+  const key = ref.current
+  ref.current = null
+  const selector = attrs.map((a) => `[${a}]`).join(', ')
+  for (const el of root.querySelectorAll<HTMLElement>(selector)) {
+    if (attrs.some((a) => el.getAttribute(a) === key)) {
+      el.focus()
+      break
+    }
+  }
+}
+
 const RANGE_SLIDER_STYLE_ATTR = 'data-dt-range-slider-styles'
 let rangeSliderStylesInjected = false
 
@@ -726,38 +750,9 @@ export function DataTableView<TRow extends object>({
   useLayoutEffect(() => {
     const root = rootRef.current
     if (!root) return
-    if (pendingSortFocusKey.current) {
-      const key = pendingSortFocusKey.current
-      pendingSortFocusKey.current = null
-      for (const el of root.querySelectorAll<HTMLElement>('[data-sort-key], [data-sort-add-key]')) {
-        if (el.dataset.sortKey === key || el.dataset.sortAddKey === key) {
-          el.focus()
-          break
-        }
-      }
-    }
-    if (pendingGroupFocusKey.current) {
-      const key = pendingGroupFocusKey.current
-      pendingGroupFocusKey.current = null
-      for (const el of root.querySelectorAll<HTMLElement>(
-        '[data-group-key], [data-group-add-key]',
-      )) {
-        if (el.dataset.groupKey === key || el.dataset.groupAddKey === key) {
-          el.focus()
-          break
-        }
-      }
-    }
-    if (pendingFilterColFocusKey.current) {
-      const key = pendingFilterColFocusKey.current
-      pendingFilterColFocusKey.current = null
-      for (const el of root.querySelectorAll<HTMLElement>('[data-filter-col-key]')) {
-        if (el.dataset.filterColKey === key) {
-          el.focus()
-          break
-        }
-      }
-    }
+    focusPendingKey(root, pendingSortFocusKey, ['data-sort-key', 'data-sort-add-key'])
+    focusPendingKey(root, pendingGroupFocusKey, ['data-group-key', 'data-group-add-key'])
+    focusPendingKey(root, pendingFilterColFocusKey, ['data-filter-col-key'])
   })
 
   // `table`'s own fields are namespaced by concern (see CLAUDE.md's "Namespaced TableState") —
