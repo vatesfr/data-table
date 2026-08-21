@@ -3,7 +3,7 @@ import { getSortIcon, getSortIndex, type SortEntry } from '@vates/data-table-cor
 import type { TableState } from '../createTableState'
 import type { ColumnDef } from '../types'
 import { Dropdown } from './Dropdown'
-import { resolveDropRow } from './dragReorder'
+import { createDragReorder } from './dragReorder'
 
 interface SortDropdownProps<TRow extends object> {
   table: TableState<TRow>
@@ -27,9 +27,15 @@ interface SortDropdownProps<TRow extends object> {
 export function SortDropdown<TRow extends object>(props: SortDropdownProps<TRow>) {
   const { table } = props
   const [searchTerm, setSearchTerm] = createSignal('')
-  const [dragKey, setDragKey] = createSignal<string | null>(null)
-  const [dragOverKey, setDragOverKey] = createSignal<string | null>(null)
-  const [dragOverAfter, setDragOverAfter] = createSignal(false)
+  const {
+    dragOverKey,
+    dragOverAfter,
+    setContainer,
+    onRowDragStart,
+    onRowDragEnd,
+    onDragOver: handleDragOver,
+    onDrop: handleDrop,
+  } = createDragReorder('data-sort-key', table.sort.move)
 
   const addableCols = createMemo(() => {
     const sorts = table.sort.entries()
@@ -40,33 +46,6 @@ export function SortDropdown<TRow extends object>(props: SortDropdownProps<TRow>
       .slice()
       .sort((a, b) => a.label.localeCompare(b.label))
   })
-
-  let rowsContainer: HTMLDivElement | undefined
-
-  function rowEls(): { key: string; el: HTMLElement }[] {
-    if (!rowsContainer) return []
-    return [...rowsContainer.querySelectorAll<HTMLElement>('[data-sort-key]')].map((el) => ({
-      key: el.dataset.sortKey!,
-      el,
-    }))
-  }
-
-  function handleDragOver(e: DragEvent): void {
-    e.preventDefault()
-    const hit = resolveDropRow(e.clientY, rowEls())
-    if (hit) {
-      setDragOverKey(hit.key)
-      setDragOverAfter(hit.after)
-    }
-  }
-  function handleDrop(e: DragEvent): void {
-    e.preventDefault()
-    const from = dragKey()
-    const hit = resolveDropRow(e.clientY, rowEls())
-    if (from && hit && hit.key !== from) table.sort.move(from, hit.key, hit.after)
-    setDragKey(null)
-    setDragOverKey(null)
-  }
 
   return (
     <Dropdown
@@ -98,7 +77,7 @@ export function SortDropdown<TRow extends object>(props: SortDropdownProps<TRow>
     >
       <Show when={table.sort.entries().length > 0}>
         <div class="dt-dd-section">{table.labels().activeSortsSection}</div>
-        <div ref={rowsContainer} onDragOver={handleDragOver} onDrop={handleDrop}>
+        <div ref={setContainer} onDragOver={handleDragOver} onDrop={handleDrop}>
           <For each={table.sort.entries()}>
             {(entry: SortEntry, i) => {
               const col = () => props.columns.find((c) => c.key === entry.key)
@@ -112,11 +91,8 @@ export function SortDropdown<TRow extends object>(props: SortDropdownProps<TRow>
                   draggable="true"
                   tabIndex={0}
                   data-sort-key={entry.key}
-                  onDragStart={() => setDragKey(entry.key)}
-                  onDragEnd={() => {
-                    setDragKey(null)
-                    setDragOverKey(null)
-                  }}
+                  onDragStart={() => onRowDragStart(entry.key)}
+                  onDragEnd={onRowDragEnd}
                   onClick={() => table.sort.toggleDir(entry.key)}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
