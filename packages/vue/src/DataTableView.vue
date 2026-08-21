@@ -1888,29 +1888,6 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
       </span>
     </div>
 
-    <!-- ── Pagination ── -->
-    <div v-if="pageSize > 0" class="dt__pagination">
-      <button class="dt__page-btn" :disabled="page === 1" @click="setPage(1)">«</button>
-      <button class="dt__page-btn" :disabled="page === 1" @click="setPage(page - 1)">‹</button>
-      <span class="dt__page-info">{{ L.pageOf(page, numPages) }}</span>
-      <button class="dt__page-btn" :disabled="page >= numPages" @click="setPage(page + 1)">
-        ›
-      </button>
-      <button class="dt__page-btn" :disabled="page >= numPages" @click="setPage(numPages)">
-        »
-      </button>
-      <span class="dt__rows-per-page-group">
-        <span class="dt__rows-per-page-label">{{ L.rowsPerPage }}:</span>
-        <select
-          class="dt__page-select"
-          :value="pageSize"
-          @change="setPageSize(Number(($event.target as HTMLSelectElement).value))"
-        >
-          <option v-for="n in pageSizeOptions" :key="n" :value="n">{{ n }}</option>
-        </select>
-      </span>
-    </div>
-
     <!-- ── Table ── -->
     <div class="dt__table-wrap">
       <table class="dt__table">
@@ -2084,6 +2061,29 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
           </template>
         </tbody>
       </table>
+    </div>
+
+    <!-- ── Pagination ── -->
+    <div v-if="pageSize > 0" class="dt__pagination">
+      <button class="dt__page-btn" :disabled="page === 1" @click="setPage(1)">«</button>
+      <button class="dt__page-btn" :disabled="page === 1" @click="setPage(page - 1)">‹</button>
+      <span class="dt__page-info">{{ L.pageOf(page, numPages) }}</span>
+      <button class="dt__page-btn" :disabled="page >= numPages" @click="setPage(page + 1)">
+        ›
+      </button>
+      <button class="dt__page-btn" :disabled="page >= numPages" @click="setPage(numPages)">
+        »
+      </button>
+      <span class="dt__rows-per-page-group">
+        <span class="dt__rows-per-page-label">{{ L.rowsPerPage }}:</span>
+        <select
+          class="dt__page-select"
+          :value="pageSize"
+          @change="setPageSize(Number(($event.target as HTMLSelectElement).value))"
+        >
+          <option v-for="n in pageSizeOptions" :key="n" :value="n">{{ n }}</option>
+        </select>
+      </span>
     </div>
   </div>
 </template>
