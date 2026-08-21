@@ -620,6 +620,43 @@ function RangeSlider({
   )
 }
 
+/**
+ * The Columns/Sort/Group/Filter dropdowns' own column-search box — narrows that dropdown's
+ * column list by label, with Escape clearing the term (stopping propagation so it doesn't also
+ * close the dropdown itself). `extraStyle` covers the one difference between call sites: the
+ * Filter dropdown's left pane merges in `S.filterColsSearch` instead of wrapping the input in
+ * `S.ddSearchRow` the way Columns/Sort/Group do.
+ */
+function DdSearchInput({
+  value,
+  onChange,
+  placeholder,
+  extraStyle,
+}: {
+  value: string
+  onChange: (value: string) => void
+  placeholder: string
+  extraStyle?: CSSProperties
+}) {
+  return (
+    <input
+      type="text"
+      data-dd-search
+      placeholder={placeholder}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape' && e.currentTarget.value !== '') {
+          e.preventDefault()
+          e.stopPropagation()
+          onChange('')
+        }
+      }}
+      style={{ ...S.ddSearch, ...extraStyle }}
+    />
+  )
+}
+
 const DEFAULT_VALUE_SORT: ValueSort = { by: 'alpha', dir: 'asc' }
 
 /**
@@ -1409,20 +1446,10 @@ export function DataTableView<TRow extends object>({
                 doubles as the drag-to-reorder surface, so its order carries meaning no
                 alphabetization should disturb. */}
             <div style={S.ddSearchRow}>
-              <input
-                type="text"
-                data-dd-search
-                placeholder={L.filterSearchPlaceholder}
+              <DdSearchInput
                 value={ddSearchTerms.cols ?? ''}
-                onChange={(e) => setDdSearchTerms({ ...ddSearchTerms, cols: e.target.value })}
-                onKeyDown={(e) => {
-                  if (e.key === 'Escape' && e.currentTarget.value !== '') {
-                    e.preventDefault()
-                    e.stopPropagation()
-                    setDdSearchTerms({ ...ddSearchTerms, cols: '' })
-                  }
-                }}
-                style={S.ddSearch}
+                onChange={(v) => setDdSearchTerms({ ...ddSearchTerms, cols: v })}
+                placeholder={L.filterSearchPlaceholder}
               />
             </div>
             <div style={S.ddSection}>{L.columnsSection}</div>
@@ -1587,20 +1614,10 @@ export function DataTableView<TRow extends object>({
                     keeps its own priority order and is never hidden by it, since it's a short,
                     already-visible list with its own remove/reorder controls. */}
                 <div style={S.ddSearchRow}>
-                  <input
-                    type="text"
-                    data-dd-search
-                    placeholder={L.filterSearchPlaceholder}
+                  <DdSearchInput
                     value={ddSearchTerms.sort ?? ''}
-                    onChange={(e) => setDdSearchTerms({ ...ddSearchTerms, sort: e.target.value })}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Escape' && e.currentTarget.value !== '') {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        setDdSearchTerms({ ...ddSearchTerms, sort: '' })
-                      }
-                    }}
-                    style={S.ddSearch}
+                    onChange={(v) => setDdSearchTerms({ ...ddSearchTerms, sort: v })}
+                    placeholder={L.filterSearchPlaceholder}
                   />
                 </div>
                 <div style={S.ddSection}>{L.sortSection}</div>
@@ -1727,22 +1744,10 @@ export function DataTableView<TRow extends object>({
                   {/* Same search + alphabetize treatment as Sort's add list above, for the same
                       reason. */}
                   <div style={S.ddSearchRow}>
-                    <input
-                      type="text"
-                      data-dd-search
-                      placeholder={L.filterSearchPlaceholder}
+                    <DdSearchInput
                       value={ddSearchTerms.group ?? ''}
-                      onChange={(e) =>
-                        setDdSearchTerms({ ...ddSearchTerms, group: e.target.value })
-                      }
-                      onKeyDown={(e) => {
-                        if (e.key === 'Escape' && e.currentTarget.value !== '') {
-                          e.preventDefault()
-                          e.stopPropagation()
-                          setDdSearchTerms({ ...ddSearchTerms, group: '' })
-                        }
-                      }}
-                      style={S.ddSearch}
+                      onChange={(v) => setDdSearchTerms({ ...ddSearchTerms, group: v })}
+                      placeholder={L.filterSearchPlaceholder}
                     />
                   </div>
                   <div style={S.ddSection}>{L.groupSection}</div>
@@ -1826,20 +1831,11 @@ export function DataTableView<TRow extends object>({
                       narrows the *values* shown in the right-hand detail pane for whichever
                       column is currently selected. No inherent order to preserve here (unlike
                       the Columns dropdown, this list isn't reorderable), so it's alphabetized. */}
-                  <input
-                    type="text"
-                    data-dd-search
-                    placeholder={L.filterSearchPlaceholder}
+                  <DdSearchInput
                     value={ddSearchTerms.filter ?? ''}
-                    onChange={(e) => setDdSearchTerms({ ...ddSearchTerms, filter: e.target.value })}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Escape' && e.currentTarget.value !== '') {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        setDdSearchTerms({ ...ddSearchTerms, filter: '' })
-                      }
-                    }}
-                    style={{ ...S.ddSearch, ...S.filterColsSearch }}
+                    onChange={(v) => setDdSearchTerms({ ...ddSearchTerms, filter: v })}
+                    placeholder={L.filterSearchPlaceholder}
+                    extraStyle={S.filterColsSearch}
                   />
                   {searchedFilterableCols.map((col) => {
                     const rf = rangeFilters[col.key]
