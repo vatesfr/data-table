@@ -1330,6 +1330,32 @@ describe('computeStringValueCounts', () => {
     expect(result['name']?.get('Game B')).toBe(1)
     expect(result['name']?.get('Game A')).toBeUndefined()
   })
+
+  it("does not narrow a date column's own counts by its own active rangeFilters entry", () => {
+    const cols = [{ key: 'released' as const, label: 'Released', type: 'date' as const }]
+    const games = [{ released: '2023-05-14' }, { released: '2024-01-01' }]
+    const rangeFilters = { released: { min: '2023-01-01', max: '2023-12-31' } }
+    const result = computeStringValueCounts(games, {}, rangeFilters, cols)
+    // Both dates would still show a count of 1 even though the range only covers 2023 —
+    // the column's own range must not narrow its own checklist.
+    expect(result['released']?.get('2023-05-14')).toBe(1)
+    expect(result['released']?.get('2024-01-01')).toBe(1)
+  })
+
+  it("narrows a column's counts by another column's active rangeFilters entry (faceted)", () => {
+    const cols = [
+      { key: 'name' as const, label: 'Name' },
+      { key: 'released' as const, label: 'Released', type: 'date' as const },
+    ]
+    const games = [
+      { name: 'Game A', released: '2023-05-14' },
+      { name: 'Game B', released: '2024-01-01' },
+    ]
+    const rangeFilters = { released: { min: '2023-01-01', max: '2023-12-31' } }
+    const result = computeStringValueCounts(games, {}, rangeFilters, cols, '(none)', ['name'])
+    expect(result['name']?.get('Game A')).toBe(1)
+    expect(result['name']?.get('Game B')).toBeUndefined()
+  })
 })
 
 // ─── filterValuesBySearch ───────────────────────────────────────────────────

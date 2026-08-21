@@ -451,7 +451,11 @@ export function computeStringValues<TRow extends object>(
  *
  * `excludeFilters` (see `cycleFilterValue`) is excluded from the facet baseline the same way as
  * `filters` — a column's own exclude selections don't narrow its own counts, only every other
- * column's include/exclude selections do.
+ * column's include/exclude selections do. `rangeFilters` gets the same treatment: a `type: 'date'`
+ * column can carry both a checklist (this function) and its own range filter (the two-thumb
+ * slider) at once, so that column's own active range must also be excluded from its own baseline
+ * — otherwise narrowing the range would shrink its own checklist counts instead of only every
+ * other column's.
  */
 export function computeStringValueCounts<TRow extends object>(
   data: TRow[],
@@ -473,10 +477,12 @@ export function computeStringValueCounts<TRow extends object>(
     delete otherFilters[col.key]
     const otherExcludeFilters = { ...excludeFilters }
     delete otherExcludeFilters[col.key]
+    const otherRangeFilters = { ...rangeFilters }
+    delete otherRangeFilters[col.key]
     const rows = processData(
       data,
       otherFilters,
-      rangeFilters,
+      otherRangeFilters,
       [],
       columns,
       emptyLabel,
