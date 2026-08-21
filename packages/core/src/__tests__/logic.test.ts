@@ -45,8 +45,6 @@ import {
   getSortIcon,
   getSortIndex,
   countActiveFilters,
-  countActiveSorts,
-  countActiveGroups,
   getOrderedColumns,
   reconcileVisibleColumns,
   reorderColumn,
@@ -2659,33 +2657,6 @@ describe('countActiveFilters', () => {
     const filters = { dept: new Set(['Eng']) }
     const excludeFilters = { tags: new Set(['RPG']) }
     expect(countActiveFilters(filters, {}, excludeFilters)).toBe(2)
-  })
-})
-
-// ─── countActiveSorts / countActiveGroups ────────────────────────────────────
-
-describe('countActiveSorts', () => {
-  it('returns 0 for no active sorts', () => {
-    expect(countActiveSorts([])).toBe(0)
-  })
-
-  it('returns the number of active sort entries', () => {
-    expect(
-      countActiveSorts([
-        { key: 'a', dir: 'asc' },
-        { key: 'b', dir: 'desc' },
-      ]),
-    ).toBe(2)
-  })
-})
-
-describe('countActiveGroups', () => {
-  it('returns 0 for no active groups', () => {
-    expect(countActiveGroups([])).toBe(0)
-  })
-
-  it('returns the number of active groupBy columns', () => {
-    expect(countActiveGroups(['dept', 'team'])).toBe(2)
   })
 })
 

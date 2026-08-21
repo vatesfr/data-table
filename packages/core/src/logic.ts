@@ -1405,15 +1405,3 @@ export function countActiveFilters(
   ])
   return keys.size + Object.values(rangeFilters).filter((v) => v.min !== '' || v.max !== '').length
 }
-
-// Trivial today (`sorts`/`groupBy` are already "one entry per active column", unlike `filters`'
-// include/exclude/range split above, which needs real dedup) — exported anyway for symmetry with
-// `countActiveFilters`, so a toolbar badge/active-bar count reads the same way for all three
-// concerns and stays correct for free if either array's shape ever grows a reason to need it.
-export function countActiveSorts(sorts: SortEntry[]): number {
-  return sorts.length
-}
-
-export function countActiveGroups(groupBy: string[]): number {
-  return groupBy.length
-}
