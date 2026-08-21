@@ -2013,7 +2013,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
             <template v-if="group.key === null || !groupCollapsed(group.key!)">
               <tr
                 v-for="(row, ri) in group.rows"
-                :key="(asRecord(row)[rowKey] as string | number) ?? ri"
+                :key="(asRecord(row)[rowKey] as string | number) ?? `${group.key}-${ri}`"
                 :ref="(el) => setItemRef(row, el as Element | null)"
                 :tabindex="
                   isRowNavEnabled ? (isFocusTarget({ kind: 'row', row }) ? 0 : -1) : undefined
