@@ -1,7 +1,6 @@
 import {
   createDataTable,
-  persistViewToLocalStorage,
-  syncViewToUrl,
+  persistView,
   resetView,
   bucketNumericRange,
   formatNumericRange,
@@ -496,17 +495,11 @@ type ViewStateTable = {
   onViewChange(cb: (view: TableViewState) => void): () => void
 }
 
-// Wires persistViewToLocalStorage + syncViewToUrl for one table and returns a single unsubscribe
-// covering both — called again after every locale-switch recreation (see below), since a fresh
-// table instance needs its own fresh subscriptions.
+// Wires persistView (persistViewToLocalStorage + syncViewToUrl combined) for one table and
+// returns its unsubscribe — called again after every locale-switch recreation (see below), since
+// a fresh table instance needs its own fresh subscriptions.
 function wireViewPersistence(table: ViewStateTable, key: keyof typeof VIEW_KEYS): () => void {
-  const { storageKey, paramName } = VIEW_KEYS[key]
-  const unpersist = persistViewToLocalStorage(table, storageKey)
-  const unsync = syncViewToUrl(table, { paramName })
-  return () => {
-    unpersist()
-    unsync()
-  }
+  return persistView(table, VIEW_KEYS[key]).unsubscribe
 }
 
 // ---- Page scaffold ----
