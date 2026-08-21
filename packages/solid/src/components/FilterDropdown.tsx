@@ -20,10 +20,9 @@ import {
 import type { TableState } from '../createTableState'
 import type { ColumnDef } from '../types'
 import { Dropdown } from './Dropdown'
-import { RangeSlider } from './RangeSlider'
+import { RangeInputs } from './RangeInputs'
 import { DateTreeItem } from './DateTreeItem'
 import { applyCheckboxState, deferCheckboxCorrection } from './checkboxSync'
-import { formatRangeBound } from './formatRangeBound'
 
 interface FilterDropdownProps<TRow extends object> {
   table: TableState<TRow>
@@ -392,42 +391,18 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
                     }
                   >
                     {/* --- Date tree --- */}
-                    <div style={{ padding: '4px 14px 8px' }}>
-                      <div style={{ display: 'flex', gap: '6px', 'align-items': 'center' }}>
-                        <input
-                          type="date"
-                          aria-label={table.labels().min}
-                          value={
-                            table.filter.ranges()[col().key]?.min ??
-                            (bounds() ? formatRangeBound(bounds()!.min, col()) : '')
-                          }
-                          onInput={(e) =>
-                            table.filter.setRange(col().key, 'min', e.currentTarget.value)
-                          }
-                        />
-                        <span class="dt-range-sep">–</span>
-                        <input
-                          type="date"
-                          aria-label={table.labels().max}
-                          value={
-                            table.filter.ranges()[col().key]?.max ??
-                            (bounds() ? formatRangeBound(bounds()!.max, col()) : '')
-                          }
-                          onInput={(e) =>
-                            table.filter.setRange(col().key, 'max', e.currentTarget.value)
-                          }
-                        />
-                      </div>
-                      <RangeSlider
-                        col={col()}
-                        rangeFilter={table.filter.ranges()[col().key]}
-                        bounds={bounds()}
-                        onCommit={(min, max) => {
-                          table.filter.setRange(col().key, 'min', min)
-                          table.filter.setRange(col().key, 'max', max)
-                        }}
-                      />
-                    </div>
+                    <RangeInputs
+                      col={col()}
+                      rangeFilter={table.filter.ranges()[col().key]}
+                      bounds={bounds()}
+                      minLabel={table.labels().min}
+                      maxLabel={table.labels().max}
+                      onChange={(kind, value) => table.filter.setRange(col().key, kind, value)}
+                      onSliderCommit={(min, max) => {
+                        table.filter.setRange(col().key, 'min', min)
+                        table.filter.setRange(col().key, 'max', max)
+                      }}
+                    />
                     <FilterSearchRow
                       checked={selectAllState().checked}
                       selectAllLabel={table.labels().selectAll}
@@ -459,46 +434,18 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
                 }
               >
                 {/* --- Number range --- */}
-                <div style={{ padding: '4px 14px 8px' }}>
-                  <div style={{ display: 'flex', gap: '6px', 'align-items': 'center' }}>
-                    <input
-                      type="text"
-                      inputmode="decimal"
-                      class="dt-range-input"
-                      placeholder={table.labels().min}
-                      value={
-                        table.filter.ranges()[col().key]?.min ??
-                        (bounds() ? formatRangeBound(bounds()!.min, col()) : '')
-                      }
-                      onInput={(e) =>
-                        table.filter.setRange(col().key, 'min', e.currentTarget.value)
-                      }
-                    />
-                    <span class="dt-range-sep">–</span>
-                    <input
-                      type="text"
-                      inputmode="decimal"
-                      class="dt-range-input"
-                      placeholder={table.labels().max}
-                      value={
-                        table.filter.ranges()[col().key]?.max ??
-                        (bounds() ? formatRangeBound(bounds()!.max, col()) : '')
-                      }
-                      onInput={(e) =>
-                        table.filter.setRange(col().key, 'max', e.currentTarget.value)
-                      }
-                    />
-                  </div>
-                  <RangeSlider
-                    col={col()}
-                    rangeFilter={table.filter.ranges()[col().key]}
-                    bounds={bounds()}
-                    onCommit={(min, max) => {
-                      table.filter.setRange(col().key, 'min', min)
-                      table.filter.setRange(col().key, 'max', max)
-                    }}
-                  />
-                </div>
+                <RangeInputs
+                  col={col()}
+                  rangeFilter={table.filter.ranges()[col().key]}
+                  bounds={bounds()}
+                  minLabel={table.labels().min}
+                  maxLabel={table.labels().max}
+                  onChange={(kind, value) => table.filter.setRange(col().key, kind, value)}
+                  onSliderCommit={(min, max) => {
+                    table.filter.setRange(col().key, 'min', min)
+                    table.filter.setRange(col().key, 'max', max)
+                  }}
+                />
               </Show>
             )}
           </Show>
