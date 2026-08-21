@@ -455,6 +455,20 @@ describe('useTableState — pagination', () => {
     expect(page.value).toBe(1)
   })
 
+  it('page self-clamps when numPages shrinks without an explicit setPage call', () => {
+    // e.g. a group being collapsed, or (as reproduced here) data shrinking — nothing calls
+    // setPage, so pagination.page must reflect the new, smaller numPages on its own rather
+    // than reporting a stale out-of-range page number.
+    const data = shallowRef(ROWS)
+    const table = useTableState(data, COLS, { defaultPageSize: 2 })
+    const { page, numPages, setPage } = table.pagination
+    setPage(2)
+    expect(page.value).toBe(2)
+    data.value = ROWS.slice(0, 2)
+    expect(numPages.value).toBe(1)
+    expect(page.value).toBe(1)
+  })
+
   it('setPage ignores NaN instead of corrupting page state', () => {
     const table = useTableState(ROWS, COLS, { defaultPageSize: 2 })
     const { page, setPage } = table.pagination

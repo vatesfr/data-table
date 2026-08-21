@@ -415,7 +415,7 @@ export function useTableState<TRow extends object>(
     },
 
     pagination: {
-      page,
+      page: clampedPage,
       pageSize,
       numPages,
       setPage: (p: number) => {
