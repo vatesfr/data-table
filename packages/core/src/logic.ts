@@ -108,6 +108,16 @@ function applyDir(cmp: number, dir: SortDir): number {
   return dir === 'asc' ? cmp : -cmp
 }
 
+/** Decomposes a `Date` into its zero-padded year/month/day string parts — shared by
+ * `bucketDatePart` and `computeDateTree`, which both build year/month/day keys from a `Date`. */
+function datePartsOf(d: Date): { y: string; m: string; day: string } {
+  return {
+    y: String(d.getFullYear()),
+    m: String(d.getMonth() + 1).padStart(2, '0'),
+    day: String(d.getDate()).padStart(2, '0'),
+  }
+}
+
 /**
  * Ready-made `ColumnDefBase.compare` for pinning a value — missing data, by default — to the end
  * of the sort regardless of the active ascending/descending direction (see `compare`'s `dir`
@@ -387,10 +397,8 @@ export function bucketDatePart(
   return (value: unknown) => {
     const t = parseDate(String(value))
     if (isNaN(t)) return String(value)
-    const d = new Date(t)
-    const y = d.getFullYear()
-    const m = String(d.getMonth() + 1).padStart(2, '0')
-    const day = part === 'day' ? String(d.getDate()).padStart(2, '0') : '01'
+    const { y, m, day: dayPart } = datePartsOf(new Date(t))
+    const day = part === 'day' ? dayPart : '01'
     return `${y}-${part === 'year' ? '01' : m}-${day}`
   }
 }
@@ -692,10 +700,7 @@ export function computeDateTree(
       invalid.push(v)
       continue
     }
-    const d = new Date(t)
-    const y = String(d.getFullYear())
-    const m = String(d.getMonth() + 1).padStart(2, '0')
-    const day = String(d.getDate()).padStart(2, '0')
+    const { y, m, day } = datePartsOf(new Date(t))
     if (!years.has(y)) years.set(y, new Map())
     const months = years.get(y)!
     if (!months.has(m)) months.set(m, new Map())
