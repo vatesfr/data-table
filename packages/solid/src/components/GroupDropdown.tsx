@@ -3,6 +3,7 @@ import type { TableState } from '../createTableState'
 import type { ColumnDef } from '../types'
 import { Dropdown } from './Dropdown'
 import { createDragReorder } from './dragReorder'
+import { alphabetizedByLabel } from './alphabetizedByLabel'
 
 interface GroupDropdownProps<TRow extends object> {
   table: TableState<TRow>
@@ -30,12 +31,8 @@ export function GroupDropdown<TRow extends object>(props: GroupDropdownProps<TRo
 
   const addableCols = createMemo(() => {
     const groupBy = table.group.by()
-    const term = searchTerm().trim().toLowerCase()
-    return props.groupableCols
-      .filter((c) => !groupBy.includes(c.key))
-      .filter((c) => !term || c.label.toLowerCase().includes(term))
-      .slice()
-      .sort((a, b) => a.label.localeCompare(b.label))
+    const notYetActive = props.groupableCols.filter((c) => !groupBy.includes(c.key))
+    return alphabetizedByLabel(notYetActive, searchTerm())
   })
 
   return (

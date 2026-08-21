@@ -4,6 +4,7 @@ import type { TableState } from '../createTableState'
 import type { ColumnDef } from '../types'
 import { Dropdown } from './Dropdown'
 import { createDragReorder } from './dragReorder'
+import { alphabetizedByLabel } from './alphabetizedByLabel'
 
 interface SortDropdownProps<TRow extends object> {
   table: TableState<TRow>
@@ -39,12 +40,10 @@ export function SortDropdown<TRow extends object>(props: SortDropdownProps<TRow>
 
   const addableCols = createMemo(() => {
     const sorts = table.sort.entries()
-    const term = searchTerm().trim().toLowerCase()
-    return props.columns
-      .filter((c) => c.sortable !== false && getSortIndex(sorts, c.key) === null)
-      .filter((c) => !term || c.label.toLowerCase().includes(term))
-      .slice()
-      .sort((a, b) => a.label.localeCompare(b.label))
+    const notYetActive = props.columns.filter(
+      (c) => c.sortable !== false && getSortIndex(sorts, c.key) === null,
+    )
+    return alphabetizedByLabel(notYetActive, searchTerm())
   })
 
   return (
