@@ -7,6 +7,15 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Added
+
+- `bucketLogRange(options?)`/`formatLogRange(options?, unit?, missingLabel?)` (core, re-exported from every adapter) — a ready-made `groupValue`/`groupFormat` pair for bucketing a `type: 'number'` column on a logarithmic scale, for a right-skewed column spanning several orders of magnitude (review counts, hours played, file sizes) where any single linear `bucketNumericRange` step is either too coarse for the long tail or too fine for the low end. `LogRangeOptions` (`{ base?, divisions?, min? }`) generalizes to a plain order-of-magnitude scale (`base: 10`, default `divisions: [1]`), octaves/binary doublings (`base: 2`), a half-decade "1-3-10" grid (`divisions: [1, 3]`), or any other per-`base`-cycle split (#18)
+- `numericRangeGroup(step, unit?, missingLabel?)`/`datePartGroup(part, parseDate?, missingLabel?)`/`logRangeGroup(options?, unit?, missingLabel?)` (core, re-exported from every adapter) — each bundles a bucketer with its matching formatter into one `{ groupValue, groupFormat }` pair from a single set of arguments, spreadable directly into a column def (`{ key: 'hoursPlayed', ...logRangeGroup({ divisions: [1, 3] }) }`), removing the config-divergence risk of passing the same `step`/`unit`/`part`/`options` to both halves separately (#18)
+
+### Fixed
+
+- `bucketNumericRange`/`bucketDatePart` now return `null` for a missing (`null`/`undefined`) value instead of silently coercing it — `bucketNumericRange` previously read `Number(null) === 0`, merging "no value" into the same group as a real, confirmed `0`; `bucketDatePart` previously read `String(null) === "null"`, surfacing the literal text `"null"` as a group header. `bucketNumericRange` also now returns `null` (rather than `NaN`) for a non-numeric value, since `NaN` previously flowed through to a group key that stringified to the literal visible text `"NaN"`. `formatNumericRange`/`formatDatePart` each gained a 3rd `missingLabel = '(none)'` parameter rendered for that group (#18)
+
 ## [0.10.0] - 2026-08-21
 
 ### Added

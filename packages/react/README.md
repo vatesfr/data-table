@@ -190,7 +190,33 @@ import { bucketNumericRange, formatNumericRange, bucketDatePart, formatDatePart 
 }
 ```
 
-`groupValue(value, row)` returns the bucket key — return a value whose type matches `col.type` (a number for `type: 'number'`, a `parseDate`-parseable string for `type: 'date'`) so groups still sort correctly, the same type-aware comparison a plain groupBy column already gets. `groupFormat(keyPart)` renders that bucket key for the group header (`bucketNumericRange`'s lower bound alone, e.g. `40000`, usually isn't fit to display on its own); omit it to show the raw bucket key. Unlike a plain groupBy column, a bucketed column's group header doesn't call `render`/`format` — `groupFormat` is the only display hook for it. `bucketDatePart`/`formatDatePart` accept `'year' | 'month' | 'day'` granularity.
+`groupValue(value, row)` returns the bucket key — return a value whose type matches `col.type` (a number for `type: 'number'`, a `parseDate`-parseable string for `type: 'date'`) so groups still sort correctly, the same type-aware comparison a plain groupBy column already gets. `groupFormat(keyPart)` renders that bucket key for the group header (`bucketNumericRange`'s lower bound alone, e.g. `40000`, usually isn't fit to display on its own); omit it to show the raw bucket key. Unlike a plain groupBy column, a bucketed column's group header doesn't call `render`/`format` — `groupFormat` is the only display hook for it. `bucketDatePart`/`formatDatePart` accept `'year' | 'month' | 'day'` granularity. Both bucketers return `null` for a missing (`null`/`undefined`) value rather than miscounting it (e.g. `Number(null) === 0` would otherwise merge "no value" into the real `0` bucket) — `groupFormat` renders that group as `'(none)'` by default, overridable via a 3rd `missingLabel` argument.
+
+For a right-skewed column spanning several orders of magnitude (review counts, hours played, file sizes), where a single linear step is either too coarse for the long tail or too fine for the low end, `bucketLogRange`/`formatLogRange` bucket on a log scale instead:
+
+```tsx
+import { bucketLogRange, formatLogRange } from '@vates/data-table-react'
+
+{
+  key: 'hoursPlayed',
+  label: 'Hours played',
+  type: 'number',
+  groupable: true,
+  groupValue: bucketLogRange({ divisions: [1, 3] }), // 47 -> 30 (a half-decade "1-3-10" grid)
+  groupFormat: formatLogRange({ divisions: [1, 3] }, 'h'), // "30–100h" in the group header
+}
+```
+
+`divisions` (default `[1]`, plain order-of-magnitude) lists the bucket starts within one power of `base` (default `10`) — `[1, 3]` above gives a half-decade grid, `[1, 2, 5]` the classic "1-2-5" grid; `base: 2` with the default `[1]` buckets by octave/binary doubling instead of decades. `min` (default `1`) collapses everything below it into one low bucket instead of extending the grid toward zero (`log` is undefined at/below `0` regardless) — pass `min: 0` to keep bucketing all the way down to (but not including) zero.
+
+Since `groupValue`/`groupFormat` need the same arguments (`step`/`unit`, `part`, or `options`/`unit`) passed twice, a typo or later edit to just one side silently produces a group header that disagrees with its own bucket's real boundaries. `numericRangeGroup`/`datePartGroup`/`logRangeGroup` remove that risk by bundling both from one call, spreadable directly into a column def:
+
+```tsx
+import { numericRangeGroup, logRangeGroup } from '@vates/data-table-react'
+
+{ key: 'salary', label: 'Salary', type: 'number', groupable: true, ...numericRangeGroup(20000, ' USD') }
+{ key: 'hoursPlayed', label: 'Hours played', type: 'number', groupable: true, ...logRangeGroup({ divisions: [1, 3] }, 'h') }
+```
 
 A grouped column normally disappears from the row cells too, since its value is already shown in the group header — but that's a loss for a bucketed column (the header only shows `"40000–60000 USD"`, not the row's exact `47000`) or a multi-value column (a `["Roguelike", "Deckbuilder"]` row shows up in both groups, and hiding the column removes the only way to see its _other_ tags from within one group). Set `keepVisibleWhenGrouped: true` on such a column to keep it in the row cells even while grouped:
 
