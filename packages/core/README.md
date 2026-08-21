@@ -97,10 +97,16 @@ toggleCollapse(collapsedGroups, key) // toggle a collapsed group
 isGroupCollapsed(collapsedGroups, key, defaultCollapsed?) // whether key is collapsed; collapsedGroups tracks manual toggles away from defaultCollapsed, not absolute state
 countActiveGroups(groupBy) // groupBy.length, exported for symmetry with countActiveFilters/countActiveSorts
 DatePart                              // 'year' | 'month' | 'day' — granularity for bucketDatePart/formatDatePart
-bucketNumericRange(step) // ready-made groupValue: rounds a number down to the start of its step-wide range
-formatNumericRange(step, unit?) // formats a bucketNumericRange key as "<lower>–<upper><unit>"
-bucketDatePart(part, parseDate?) // ready-made groupValue: truncates a date to the start of its enclosing year/month/day, as an ISO string
-formatDatePart(part) // formats a bucketDatePart key for display, e.g. "2024-05-01" -> "May 2024"
+bucketNumericRange(step) // ready-made groupValue: rounds a number down to the start of its step-wide range; null for a missing/non-numeric value
+formatNumericRange(step, unit?, missingLabel?) // formats a bucketNumericRange key as "<lower>–<upper><unit>"; missingLabel (default '(none)') for the missing-value group
+numericRangeGroup(step, unit?, missingLabel?) // { groupValue, groupFormat } pair from one set of args, spreadable into a column def
+bucketDatePart(part, parseDate?) // ready-made groupValue: truncates a date to the start of its enclosing year/month/day, as an ISO string; null for a missing value
+formatDatePart(part, missingLabel?) // formats a bucketDatePart key for display, e.g. "2024-05-01" -> "May 2024"; missingLabel (default '(none)') for the missing-value group
+datePartGroup(part, parseDate?, missingLabel?) // { groupValue, groupFormat } pair from one set of args
+LogRangeOptions                      // { base?, divisions?, min? } — see bucketLogRange
+bucketLogRange(options?) // ready-made groupValue: buckets on a log scale (base 10 decades by default; divisions splits each power of base, e.g. [1, 3] for a half-decade "1-3-10" grid); values < min (default 1) collapse into one low bucket, pass min: 0 to opt out
+formatLogRange(options?, unit?, missingLabel?) // formats a bucketLogRange key, with k/M magnitude suffixes and a "<<min>" label for the below-min bucket
+logRangeGroup(options?, unit?, missingLabel?) // { groupValue, groupFormat } pair from one set of args
 ```
 
 See [docs/grouped-columns.md](../../docs/grouped-columns.md) for the full mechanics (fan-out, aggregation, bucketing).

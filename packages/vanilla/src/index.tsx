@@ -4,8 +4,13 @@ import { createTableState, DataTableView } from '@vates/data-table-solid'
 import {
   bucketNumericRange,
   formatNumericRange,
+  numericRangeGroup,
   bucketDatePart,
   formatDatePart,
+  datePartGroup,
+  bucketLogRange,
+  formatLogRange,
+  logRangeGroup,
   compareMissingLast,
 } from '@vates/data-table-core'
 import type { GetRowId } from '@vates/data-table-core'
@@ -23,11 +28,21 @@ export type {
 export * from '@vates/data-table-core/locales'
 // Ready-made groupValue/groupFormat pairs for bucketing a continuous/high-cardinality column
 // (percentages, timestamps) into coarser groups — see `ColumnDefBase.groupValue` in the docs.
-export { bucketNumericRange, formatNumericRange, bucketDatePart, formatDatePart }
+export {
+  bucketNumericRange,
+  formatNumericRange,
+  numericRangeGroup,
+  bucketDatePart,
+  formatDatePart,
+  datePartGroup,
+  bucketLogRange,
+  formatLogRange,
+  logRangeGroup,
+}
 // Ready-made compare for pinning a value (missing data, by default) last regardless of sort
 // direction — see `ColumnDefBase.compare` in the docs.
 export { compareMissingLast }
-export type { DatePart } from '@vates/data-table-core'
+export type { DatePart, LogRangeOptions } from '@vates/data-table-core'
 
 // --- Factory ---
 

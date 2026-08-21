@@ -7,10 +7,8 @@ import {
   useUrlView,
   resetView,
   usePersistence,
-  bucketNumericRange,
-  formatNumericRange,
-  bucketDatePart,
-  formatDatePart,
+  numericRangeGroup,
+  datePartGroup,
   compareMissingLast,
   LABELS_EN,
   LABELS_FR,
@@ -30,7 +28,7 @@ interface Employee {
   name: string
   department: string
   role: string
-  salary: number
+  salary: number | null // null: payroll hasn't been finalized yet — bucketNumericRange/numericRangeGroup group these under their own "(none)" bucket instead of miscounting them as $0 (issue #18)
   joined: string
   status: string
   score: number | null // null: no performance review yet — compareMissingLast() keeps these last regardless of sort direction
@@ -87,7 +85,7 @@ const SAMPLE_DATA: Employee[] = [
     name: 'Eva Müller',
     department: 'Engineering',
     role: 'Junior Dev',
-    salary: 62000,
+    salary: null, // just joined, payroll not finalized yet
     joined: '2023-04-05',
     status: 'Active',
     score: null, // just joined, no review yet
@@ -312,18 +310,22 @@ const COLUMNS: ColumnDef<Employee>[] = [
     type: 'number',
     width: 110,
     format: (v) =>
-      Number(v).toLocaleString('en-US', {
-        style: 'currency',
-        currency: 'USD',
-        maximumFractionDigits: 0,
-      }),
+      v == null
+        ? '—'
+        : Number(v).toLocaleString('en-US', {
+            style: 'currency',
+            currency: 'USD',
+            maximumFractionDigits: 0,
+          }),
     aggregate: 'sum',
     // groupValue/groupFormat: a continuous column (near-unique per row) grouped by its exact
     // value would create one group per row — bucketing into $20k ranges makes it groupable
     // meaningfully. cell rendering/sort/filter above are untouched, still reading the real salary.
+    // numericRangeGroup bundles both from one call instead of passing `20000`/`' USD'` twice
+    // (issue #18); a null salary (Eva, just joined) lands in its own "(none)" group instead of
+    // being miscounted as $0.
     groupable: true,
-    groupValue: bucketNumericRange(20000),
-    groupFormat: formatNumericRange(20000, ' USD'),
+    ...numericRangeGroup(20000, ' USD'),
   },
   // type: 'date' gets a range filter (2 inputs + a slider) above a Year › Month › Day filter
   // tree, instead of a plain checklist — the range narrows the tree itself. Grouped by year (not
@@ -338,8 +340,7 @@ const COLUMNS: ColumnDef<Employee>[] = [
     width: 100,
     defaultSortDir: 'desc',
     groupable: true,
-    groupValue: bucketDatePart('year'),
-    groupFormat: formatDatePart('year'),
+    ...datePartGroup('year'),
   },
   // computed column: value is a function, so there's no matching 'tenure' property on Employee —
   // sort/filter/group/aggregate all work off the function's return value just like a real column
@@ -569,8 +570,10 @@ useUrlView(hugeTable, { paramName: VIEW_KEYS.huge.paramName })
 
 const SORT_COLS = ['name', 'salary', 'score'] as const
 
-function fmtSalary(n: number) {
-  return n.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })
+function fmtSalary(n: number | null) {
+  return n == null
+    ? '—'
+    : n.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })
 }
 </script>
 

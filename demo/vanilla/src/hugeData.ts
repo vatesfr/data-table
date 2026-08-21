@@ -1,4 +1,4 @@
-import type { ColumnDef } from '@vates/data-table-vanilla'
+import { logRangeGroup, type ColumnDef } from '@vates/data-table-vanilla'
 
 export interface HugeRow {
   id: number
@@ -160,6 +160,10 @@ export const HUGE_COLUMNS: ColumnDef<HugeRow>[] = [
     type: 'number',
     aggregate: 'sum',
     format: (v) => `$${Number(v).toFixed(2)}`,
+    // logRangeGroup: bucketing 100k rows on a log scale performs the same as bucketNumericRange
+    // (both are O(1) per row) — a good spot to exercise it at scale (issue #18).
+    groupable: true,
+    ...logRangeGroup({ divisions: [1, 3] }, '$'),
   },
   { key: 'orderDate', label: 'Order Date', type: 'date' },
 ]

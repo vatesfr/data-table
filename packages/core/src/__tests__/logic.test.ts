@@ -59,8 +59,13 @@ import {
   computeVirtualRange,
   bucketNumericRange,
   formatNumericRange,
+  numericRangeGroup,
   bucketDatePart,
   formatDatePart,
+  datePartGroup,
+  bucketLogRange,
+  formatLogRange,
+  logRangeGroup,
   compareMissingLast,
 } from '../logic'
 
@@ -890,8 +895,13 @@ describe('bucketNumericRange', () => {
     expect(bucket(0)).toBe(0)
   })
 
-  it('returns NaN for a non-numeric value', () => {
-    expect(bucketNumericRange(10)('abc')).toBeNaN()
+  it('returns null for a non-numeric value', () => {
+    expect(bucketNumericRange(10)('abc')).toBeNull()
+  })
+
+  it('returns null for a missing value, instead of coercing it to 0', () => {
+    expect(bucketNumericRange(10)(null)).toBeNull()
+    expect(bucketNumericRange(10)(undefined)).toBeNull()
   })
 })
 
@@ -903,6 +913,21 @@ describe('formatNumericRange', () => {
 
   it('returns the raw key unchanged when it is not numeric', () => {
     expect(formatNumericRange(10)('abc')).toBe('abc')
+  })
+
+  it('renders the missing-value bucket key as missingLabel', () => {
+    expect(formatNumericRange(10)('')).toBe('(none)')
+    expect(formatNumericRange(10, '', 'Unknown')('')).toBe('Unknown')
+  })
+})
+
+describe('numericRangeGroup', () => {
+  it('returns a matched groupValue/groupFormat pair', () => {
+    const { groupValue, groupFormat } = numericRangeGroup(10, '%')
+    expect(groupValue(47)).toBe(40)
+    expect(groupFormat(String(groupValue(47)))).toBe('40–50%')
+    expect(groupValue(null)).toBeNull()
+    expect(groupFormat('')).toBe('(none)')
   })
 })
 
@@ -924,6 +949,11 @@ describe('bucketDatePart', () => {
   it('returns the raw value unchanged when it does not parse as a date', () => {
     expect(bucketDatePart('month')('not-a-date')).toBe('not-a-date')
   })
+
+  it('returns null for a missing value, instead of the literal text "null"', () => {
+    expect(bucketDatePart('month')(null)).toBeNull()
+    expect(bucketDatePart('month')(undefined)).toBeNull()
+  })
 })
 
 describe('formatDatePart', () => {
@@ -939,6 +969,114 @@ describe('formatDatePart', () => {
 
   it('returns the raw key unchanged when it does not parse as a date', () => {
     expect(formatDatePart('month')('not-a-date')).toBe('not-a-date')
+  })
+
+  it('renders the missing-value bucket key as missingLabel', () => {
+    expect(formatDatePart('month')('')).toBe('(none)')
+    expect(formatDatePart('month', 'Unknown')('')).toBe('Unknown')
+  })
+})
+
+describe('datePartGroup', () => {
+  it('returns a matched groupValue/groupFormat pair', () => {
+    const { groupValue, groupFormat } = datePartGroup('month')
+    expect(groupValue('2024-05-14')).toBe('2024-05-01')
+    expect(groupFormat(groupValue('2024-05-14') as string)).toBe(
+      new Date('2024-05-01').toLocaleDateString(undefined, { month: 'long', year: 'numeric' }),
+    )
+    expect(groupValue(null)).toBeNull()
+    expect(groupFormat('')).toBe('(none)')
+  })
+})
+
+// ─── bucketLogRange / formatLogRange ──────────────────────────────────────────
+
+describe('bucketLogRange', () => {
+  it('buckets by plain order of magnitude with the default divisions ([1])', () => {
+    const bucket = bucketLogRange()
+    expect(bucket(1)).toBe(1)
+    expect(bucket(9)).toBe(1)
+    expect(bucket(10)).toBe(10)
+    expect(bucket(99)).toBe(10)
+    expect(bucket(100)).toBe(100)
+  })
+
+  it('supports a half-decade "1-3-10" grid via divisions', () => {
+    const bucket = bucketLogRange({ divisions: [1, 3] })
+    expect(bucket(1)).toBe(1)
+    expect(bucket(2.9)).toBe(1)
+    expect(bucket(3)).toBe(3)
+    expect(bucket(9)).toBe(3)
+    expect(bucket(10)).toBe(10)
+    expect(bucket(29)).toBe(10)
+    expect(bucket(30)).toBe(30)
+  })
+
+  it('supports a different base, e.g. octaves (base 2)', () => {
+    const bucket = bucketLogRange({ base: 2, min: 1 })
+    expect(bucket(1)).toBe(1)
+    expect(bucket(3)).toBe(2)
+    expect(bucket(4)).toBe(4)
+    expect(bucket(1023)).toBe(512)
+    expect(bucket(1024)).toBe(1024)
+  })
+
+  it('collapses values below min into a distinct sentinel bucket, not the missing-value one', () => {
+    const bucket = bucketLogRange({ min: 1 })
+    expect(bucket(0.5)).toBe(-Infinity)
+    expect(bucket(0)).toBe(-Infinity)
+    expect(bucket(-5)).toBe(-Infinity)
+    expect(bucket(null)).toBeNull()
+    expect(bucket(0.5)).not.toBe(bucket(null))
+  })
+
+  it('min: 0 opts out of the collapse bucket for any positive value, extending the grid down toward zero', () => {
+    const bucket = bucketLogRange({ min: 0 })
+    expect(bucket(0.5)).toBe(0.1)
+    expect(bucket(0.05)).toBe(0.01)
+    // zero/negative still have no log-scale bucket to extend into, regardless of min
+    expect(bucket(0)).toBe(-Infinity)
+    expect(bucket(-5)).toBe(-Infinity)
+  })
+
+  it('returns null for a missing or non-numeric value', () => {
+    const bucket = bucketLogRange()
+    expect(bucket(null)).toBeNull()
+    expect(bucket(undefined)).toBeNull()
+    expect(bucket('abc')).toBeNull()
+  })
+})
+
+describe('formatLogRange', () => {
+  it('formats a bucket key as "<lower>–<upper><unit>"', () => {
+    const format = formatLogRange({ divisions: [1, 3] })
+    expect(format('1')).toBe('1–3')
+    expect(format('3')).toBe('3–10')
+    expect(format('30')).toBe('30–100')
+  })
+
+  it('applies k/M magnitude suffixes', () => {
+    const format = formatLogRange()
+    expect(format('1000')).toBe('1k–10k')
+    expect(format('1000000')).toBe('1M–10M')
+  })
+
+  it('formats the below-min bucket as "<<min><unit>"', () => {
+    expect(formatLogRange({ min: 1 }, 'h')('-Infinity')).toBe('<1h')
+  })
+
+  it('renders the missing-value bucket key as missingLabel', () => {
+    expect(formatLogRange()('')).toBe('(none)')
+  })
+})
+
+describe('logRangeGroup', () => {
+  it('returns a matched groupValue/groupFormat pair', () => {
+    const { groupValue, groupFormat } = logRangeGroup({ divisions: [1, 3] }, 'h')
+    expect(groupValue(7)).toBe(3)
+    expect(groupFormat(String(groupValue(7)))).toBe('3–10h')
+    expect(groupValue(null)).toBeNull()
+    expect(groupFormat('')).toBe('(none)')
   })
 })
 
