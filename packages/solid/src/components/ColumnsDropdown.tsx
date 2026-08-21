@@ -2,7 +2,7 @@ import { For, createMemo, createSignal } from 'solid-js'
 import type { TableState } from '../createTableState'
 import type { ColumnDef } from '../types'
 import { Dropdown } from './Dropdown'
-import { resolveDropRow } from './dragReorder'
+import { createDragReorder } from './dragReorder'
 
 interface ColumnsDropdownProps<TRow extends object> {
   table: TableState<TRow>
@@ -21,9 +21,15 @@ interface ColumnsDropdownProps<TRow extends object> {
 export function ColumnsDropdown<TRow extends object>(props: ColumnsDropdownProps<TRow>) {
   const { table } = props
   const [searchTerm, setSearchTerm] = createSignal('')
-  const [dragKey, setDragKey] = createSignal<string | null>(null)
-  const [dragOverKey, setDragOverKey] = createSignal<string | null>(null)
-  const [dragOverAfter, setDragOverAfter] = createSignal(false)
+  const {
+    dragOverKey,
+    dragOverAfter,
+    setContainer,
+    onRowDragStart,
+    onRowDragEnd,
+    onDragOver: handleDragOver,
+    onDrop: handleDrop,
+  } = createDragReorder('data-col-row-key', table.columns.move)
 
   const orderedColumns = createMemo(() => table.columns.ordered())
   const searchedColumns = createMemo(() => {
@@ -32,31 +38,6 @@ export function ColumnsDropdown<TRow extends object>(props: ColumnsDropdownProps
       ? orderedColumns().filter((c) => c.label.toLowerCase().includes(term))
       : orderedColumns()
   })
-
-  let rowsContainer: HTMLDivElement | undefined
-  function rowEls(): { key: string; el: HTMLElement }[] {
-    if (!rowsContainer) return []
-    return [...rowsContainer.querySelectorAll<HTMLElement>('[data-col-row-key]')].map((el) => ({
-      key: el.dataset.colRowKey!,
-      el,
-    }))
-  }
-  function handleDragOver(e: DragEvent): void {
-    e.preventDefault()
-    const hit = resolveDropRow(e.clientY, rowEls())
-    if (hit) {
-      setDragOverKey(hit.key)
-      setDragOverAfter(hit.after)
-    }
-  }
-  function handleDrop(e: DragEvent): void {
-    e.preventDefault()
-    const from = dragKey()
-    const hit = resolveDropRow(e.clientY, rowEls())
-    if (from && hit && hit.key !== from) table.columns.move(from, hit.key, hit.after)
-    setDragKey(null)
-    setDragOverKey(null)
-  }
 
   return (
     <Dropdown
@@ -79,7 +60,7 @@ export function ColumnsDropdown<TRow extends object>(props: ColumnsDropdownProps
         />
       </div>
       <div class="dt-dd-section">{table.labels().columnsSection}</div>
-      <div ref={rowsContainer} onDragOver={handleDragOver} onDrop={handleDrop}>
+      <div ref={setContainer} onDragOver={handleDragOver} onDrop={handleDrop}>
         <For each={searchedColumns()}>
           {(col) => (
             <div
@@ -90,11 +71,8 @@ export function ColumnsDropdown<TRow extends object>(props: ColumnsDropdownProps
               }}
               draggable="true"
               data-col-row-key={col.key}
-              onDragStart={() => setDragKey(col.key)}
-              onDragEnd={() => {
-                setDragKey(null)
-                setDragOverKey(null)
-              }}
+              onDragStart={() => onRowDragStart(col.key)}
+              onDragEnd={onRowDragEnd}
             >
               <label class="dt-flex1">
                 <input

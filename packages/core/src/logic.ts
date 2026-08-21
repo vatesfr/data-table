@@ -21,6 +21,40 @@ export function getColumnValue<TRow extends object>(col: ColumnDefBase<TRow>, ro
   return col.value ? col.value(row) : asRecord(row)[col.key]
 }
 
+/** Indexes columns by key for O(1) lookup — shared by every function that resolves a raw filter/
+ * sort/group key back to its column definition. */
+function buildColByKey<TRow extends object>(
+  columns: ColumnDefBase<TRow>[],
+): Map<string, ColumnDefBase<TRow>> {
+  return new Map(columns.map((c) => [c.key, c]))
+}
+
+/**
+ * Resolves a row's value for a given key — via the column's own accessor (`getColumnValue`,
+ * which honors `col.value`) when a matching column exists, or a plain `row[key]` lookup when it
+ * doesn't (a filter/rangeFilter/groupBy key with no corresponding column definition still needs
+ * to resolve to *something*). Shared by every place `processData`/`groupData` look up a raw
+ * value from a possibly-absent column.
+ */
+function resolveValue<TRow extends object>(
+  col: ColumnDefBase<TRow> | undefined,
+  row: TRow,
+  key: string,
+): unknown {
+  return col ? getColumnValue(col, row) : asRecord(row)[key]
+}
+
+/** `resolveValue` followed by `multiValues` — the same pairing shows up everywhere a filter/group
+ * key needs to be read as a flat, deduped array of strings rather than a raw value. */
+function resolveMultiValues<TRow extends object>(
+  col: ColumnDefBase<TRow> | undefined,
+  row: TRow,
+  key: string,
+  emptyLabel: string,
+): string[] {
+  return multiValues(resolveValue(col, row, key), emptyLabel)
+}
+
 /**
  * Coerces an already-obtained raw value per `col.type`, so every type-aware comparison
  * (currently just sort) agrees on what a column's value *means* instead of each call site
@@ -68,6 +102,22 @@ function defaultCompare(a: unknown, b: unknown, _dir?: SortDir): number {
   return String(a ?? '').localeCompare(String(b ?? ''))
 }
 
+/** Flips a direction-naive comparator's result for a descending sort — the same "compute cmp,
+ * then negate it for desc" idiom repeated at every sort-ordering call site in this module. */
+function applyDir(cmp: number, dir: SortDir): number {
+  return dir === 'asc' ? cmp : -cmp
+}
+
+/** Decomposes a `Date` into its zero-padded year/month/day string parts — shared by
+ * `bucketDatePart` and `computeDateTree`, which both build year/month/day keys from a `Date`. */
+function datePartsOf(d: Date): { y: string; m: string; day: string } {
+  return {
+    y: String(d.getFullYear()),
+    m: String(d.getMonth() + 1).padStart(2, '0'),
+    day: String(d.getDate()).padStart(2, '0'),
+  }
+}
+
 /**
  * Ready-made `ColumnDefBase.compare` for pinning a value — missing data, by default — to the end
  * of the sort regardless of the active ascending/descending direction (see `compare`'s `dir`
@@ -89,7 +139,7 @@ export function compareMissingLast<T = unknown>(
     if (ma && mb) return 0
     if (ma || mb) {
       const rel = ma ? 1 : -1 // a missing → wants a after b
-      return dir === 'asc' ? rel : -rel // pre-cancels the sort's own direction flip
+      return applyDir(rel, dir) // pre-cancels the sort's own direction flip
     }
     return compare(a, b)
   }
@@ -125,7 +175,7 @@ function sortRows<TRow extends object>(
   decorated.sort((a, b) => {
     for (let i = 0; i < sorts.length; i++) {
       const cmp = compareFns[i](a.values[i], b.values[i], sorts[i].dir)
-      if (cmp !== 0) return sorts[i].dir === 'asc' ? cmp : -cmp
+      if (cmp !== 0) return applyDir(cmp, sorts[i].dir)
     }
     return 0
   })
@@ -142,14 +192,14 @@ export function processData<TRow extends object>(
   excludeFilters: Record<string, Set<string>> = {},
 ): TRow[] {
   let result = [...data]
-  const colByKey = new Map<string, ColumnDefBase<TRow>>(columns.map((c) => [c.key, c]))
+  const colByKey = buildColByKey(columns)
 
   for (const [key, vals] of Object.entries(filters)) {
     if (vals.size === 0) continue
     const col = colByKey.get(key)
     const mode = col?.multiMode ?? 'or'
     result = result.filter((row) => {
-      const rowValues = multiValues(col ? getColumnValue(col, row) : asRecord(row)[key], emptyLabel)
+      const rowValues = resolveMultiValues(col, row, key, emptyLabel)
       return mode === 'and'
         ? [...vals].every((v) => rowValues.includes(v))
         : [...vals].some((v) => rowValues.includes(v))
@@ -164,14 +214,14 @@ export function processData<TRow extends object>(
     if (vals.size === 0) continue
     const col = colByKey.get(key)
     result = result.filter((row) => {
-      const rowValues = multiValues(col ? getColumnValue(col, row) : asRecord(row)[key], emptyLabel)
+      const rowValues = resolveMultiValues(col, row, key, emptyLabel)
       return ![...vals].some((v) => rowValues.includes(v))
     })
   }
 
   for (const [key, range] of Object.entries(rangeFilters)) {
     const col = colByKey.get(key)
-    const rangeValue = (r: TRow) => (col ? getColumnValue(col, r) : asRecord(r)[key])
+    const rangeValue = (r: TRow) => resolveValue(col, r, key)
     if (col?.type === 'date') {
       // Bounds come from the range filter's native <input type="date">s, always ISO
       // `YYYY-MM-DD` — parsed with the default parser, not `col.parseDate`, since a column's
@@ -215,13 +265,13 @@ export function groupData<TRow extends object>(
   emptyLabel = '(none)',
 ): GroupResult<TRow>[] {
   if (groupBy.length === 0) return [{ key: null, keyParts: [], rows: data }]
-  const colByKey = new Map<string, ColumnDefBase<TRow>>(columns.map((c) => [c.key, c]))
+  const colByKey = buildColByKey(columns)
   const groups: Record<string, { keyParts: string[]; rows: TRow[] }> = {}
   for (const row of data) {
     let combos: string[][] = [[]]
     for (const g of groupBy) {
       const col = colByKey.get(g)
-      const raw = col ? getColumnValue(col, row) : asRecord(row)[g]
+      const raw = resolveValue(col, row, g)
       const bucketed = col?.groupValue ? col.groupValue(raw, row) : raw
       const values = multiValues(bucketed, emptyLabel)
       combos = combos.flatMap((combo) => values.map((v) => [...combo, v]))
@@ -277,7 +327,7 @@ export function sortWithinGroups<TRow extends object>(
   groupBy: string[],
   columns: ColumnDefBase<TRow>[],
 ): GroupResult<TRow>[] {
-  const colByKey = new Map<string, ColumnDefBase<TRow>>(columns.map((c) => [c.key, c]))
+  const colByKey = buildColByKey(columns)
   const groupSorts = sorts.filter((s) => groupBy.includes(s.key))
   const withinGroupSorts = sorts.filter((s) => !groupBy.includes(s.key))
 
@@ -298,7 +348,7 @@ export function sortWithinGroups<TRow extends object>(
         const va = col?.compare ? ka : comparableFromKeyPart(col, ka)
         const vb = col?.compare ? kb : comparableFromKeyPart(col, kb)
         const cmp = col?.compare ? col.compare(va, vb, dir) : defaultCompare(va, vb)
-        if (cmp !== 0) return dir === 'asc' ? cmp : -cmp
+        if (cmp !== 0) return applyDir(cmp, dir)
       }
       return 0
     })
@@ -347,10 +397,8 @@ export function bucketDatePart(
   return (value: unknown) => {
     const t = parseDate(String(value))
     if (isNaN(t)) return String(value)
-    const d = new Date(t)
-    const y = d.getFullYear()
-    const m = String(d.getMonth() + 1).padStart(2, '0')
-    const day = part === 'day' ? String(d.getDate()).padStart(2, '0') : '01'
+    const { y, m, day: dayPart } = datePartsOf(new Date(t))
+    const day = part === 'day' ? dayPart : '01'
     return `${y}-${part === 'year' ? '01' : m}-${day}`
   }
 }
@@ -451,7 +499,11 @@ export function computeStringValues<TRow extends object>(
  *
  * `excludeFilters` (see `cycleFilterValue`) is excluded from the facet baseline the same way as
  * `filters` — a column's own exclude selections don't narrow its own counts, only every other
- * column's include/exclude selections do.
+ * column's include/exclude selections do. `rangeFilters` gets the same treatment: a `type: 'date'`
+ * column can carry both a checklist (this function) and its own range filter (the two-thumb
+ * slider) at once, so that column's own active range must also be excluded from its own baseline
+ * — otherwise narrowing the range would shrink its own checklist counts instead of only every
+ * other column's.
  */
 export function computeStringValueCounts<TRow extends object>(
   data: TRow[],
@@ -473,10 +525,12 @@ export function computeStringValueCounts<TRow extends object>(
     delete otherFilters[col.key]
     const otherExcludeFilters = { ...excludeFilters }
     delete otherExcludeFilters[col.key]
+    const otherRangeFilters = { ...rangeFilters }
+    delete otherRangeFilters[col.key]
     const rows = processData(
       data,
       otherFilters,
-      rangeFilters,
+      otherRangeFilters,
       [],
       columns,
       emptyLabel,
@@ -519,6 +573,25 @@ export function filterValuesByCount(
   selected: Set<string>,
 ): string[] {
   return values.filter((v) => selected.has(v) || (counts.get(v) ?? 0) > 0)
+}
+
+/** Max values shown by name on an active-bar filter chip before falling back to a "+N more"
+ * suffix — see `summarizeFilterValues`. */
+export const FILTER_CHIP_MAX = 3
+
+/**
+ * Renders a filter chip's label body: the first `FILTER_CHIP_MAX` selected values joined by
+ * comma, or — once there are more than that — those plus a `moreValues(n)`-formatted suffix for
+ * the rest (`moreValues` is `DataTableLabels.moreValues`, passed in rather than imported so this
+ * stays framework-agnostic pure string logic with no dependency on where labels live).
+ */
+export function summarizeFilterValues(
+  vals: Set<string>,
+  moreValues: (n: number) => string,
+): string {
+  const arr = [...vals]
+  if (arr.length <= FILTER_CHIP_MAX) return arr.join(', ')
+  return `${arr.slice(0, FILTER_CHIP_MAX).join(', ')}, ${moreValues(arr.length - FILTER_CHIP_MAX)}`
 }
 
 /**
@@ -594,10 +667,10 @@ export function sortFilterValues(
   return [...values].sort((a, b) => {
     if (sort.by === 'count') {
       const cmp = (counts.get(a) ?? 0) - (counts.get(b) ?? 0)
-      return (sort.dir === 'desc' ? -cmp : cmp) || compare(a, b, 'asc')
+      return applyDir(cmp, sort.dir) || compare(a, b, 'asc')
     }
     const cmp = compare(a, b, sort.dir)
-    return sort.dir === 'desc' ? -cmp : cmp
+    return applyDir(cmp, sort.dir)
   })
 }
 
@@ -646,10 +719,7 @@ export function computeDateTree(
       invalid.push(v)
       continue
     }
-    const d = new Date(t)
-    const y = String(d.getFullYear())
-    const m = String(d.getMonth() + 1).padStart(2, '0')
-    const day = String(d.getDate()).padStart(2, '0')
+    const { y, m, day } = datePartsOf(new Date(t))
     if (!years.has(y)) years.set(y, new Map())
     const months = years.get(y)!
     if (!months.has(m)) months.set(m, new Map())
@@ -1073,7 +1143,7 @@ export function getOrderedColumns<TRow extends object>(
   order: string[],
 ): ColumnDefBase<TRow>[] {
   if (order.length === 0) return columns
-  const byKey = new Map(columns.map((c) => [c.key, c]))
+  const byKey = buildColByKey(columns)
   const ordered = order
     .map((k) => byKey.get(k))
     .filter((c): c is ColumnDefBase<TRow> => c !== undefined)
@@ -1398,16 +1468,4 @@ export function countActiveFilters(
       .map(([k]) => k),
   ])
   return keys.size + Object.values(rangeFilters).filter((v) => v.min !== '' || v.max !== '').length
-}
-
-// Trivial today (`sorts`/`groupBy` are already "one entry per active column", unlike `filters`'
-// include/exclude/range split above, which needs real dedup) — exported anyway for symmetry with
-// `countActiveFilters`, so a toolbar badge/active-bar count reads the same way for all three
-// concerns and stays correct for free if either array's shape ever grows a reason to need it.
-export function countActiveSorts(sorts: SortEntry[]): number {
-  return sorts.length
-}
-
-export function countActiveGroups(groupBy: string[]): number {
-  return groupBy.length
 }

@@ -2,7 +2,8 @@ import { For, Show, createMemo, createSignal } from 'solid-js'
 import type { TableState } from '../createTableState'
 import type { ColumnDef } from '../types'
 import { Dropdown } from './Dropdown'
-import { resolveDropRow } from './dragReorder'
+import { createDragReorder } from './dragReorder'
+import { alphabetizedByLabel } from './alphabetizedByLabel'
 
 interface GroupDropdownProps<TRow extends object> {
   table: TableState<TRow>
@@ -18,44 +19,21 @@ interface GroupDropdownProps<TRow extends object> {
 export function GroupDropdown<TRow extends object>(props: GroupDropdownProps<TRow>) {
   const { table } = props
   const [searchTerm, setSearchTerm] = createSignal('')
-  const [dragKey, setDragKey] = createSignal<string | null>(null)
-  const [dragOverKey, setDragOverKey] = createSignal<string | null>(null)
-  const [dragOverAfter, setDragOverAfter] = createSignal(false)
+  const {
+    dragOverKey,
+    dragOverAfter,
+    setContainer,
+    onRowDragStart,
+    onRowDragEnd,
+    onDragOver: handleDragOver,
+    onDrop: handleDrop,
+  } = createDragReorder('data-group-key', table.group.move)
 
   const addableCols = createMemo(() => {
     const groupBy = table.group.by()
-    const term = searchTerm().trim().toLowerCase()
-    return props.groupableCols
-      .filter((c) => !groupBy.includes(c.key))
-      .filter((c) => !term || c.label.toLowerCase().includes(term))
-      .slice()
-      .sort((a, b) => a.label.localeCompare(b.label))
+    const notYetActive = props.groupableCols.filter((c) => !groupBy.includes(c.key))
+    return alphabetizedByLabel(notYetActive, searchTerm())
   })
-
-  let rowsContainer: HTMLDivElement | undefined
-  function rowEls(): { key: string; el: HTMLElement }[] {
-    if (!rowsContainer) return []
-    return [...rowsContainer.querySelectorAll<HTMLElement>('[data-group-key]')].map((el) => ({
-      key: el.dataset.groupKey!,
-      el,
-    }))
-  }
-  function handleDragOver(e: DragEvent): void {
-    e.preventDefault()
-    const hit = resolveDropRow(e.clientY, rowEls())
-    if (hit) {
-      setDragOverKey(hit.key)
-      setDragOverAfter(hit.after)
-    }
-  }
-  function handleDrop(e: DragEvent): void {
-    e.preventDefault()
-    const from = dragKey()
-    const hit = resolveDropRow(e.clientY, rowEls())
-    if (from && hit && hit.key !== from) table.group.move(from, hit.key, hit.after)
-    setDragKey(null)
-    setDragOverKey(null)
-  }
 
   return (
     <Dropdown
@@ -87,7 +65,7 @@ export function GroupDropdown<TRow extends object>(props: GroupDropdownProps<TRo
     >
       <Show when={table.group.by().length > 0}>
         <div class="dt-dd-section">{table.labels().activeGroupsSection}</div>
-        <div ref={rowsContainer} onDragOver={handleDragOver} onDrop={handleDrop}>
+        <div ref={setContainer} onDragOver={handleDragOver} onDrop={handleDrop}>
           <For each={table.group.by()}>
             {(key, i) => {
               const col = () => props.groupableCols.find((c) => c.key === key)
@@ -101,11 +79,8 @@ export function GroupDropdown<TRow extends object>(props: GroupDropdownProps<TRo
                   draggable="true"
                   tabIndex={0}
                   data-group-key={key}
-                  onDragStart={() => setDragKey(key)}
-                  onDragEnd={() => {
-                    setDragKey(null)
-                    setDragOverKey(null)
-                  }}
+                  onDragStart={() => onRowDragStart(key)}
+                  onDragEnd={onRowDragEnd}
                   onKeyDown={(e) => {
                     if (e.altKey && e.key === 'ArrowUp') {
                       e.preventDefault()

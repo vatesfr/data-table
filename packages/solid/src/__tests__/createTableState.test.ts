@@ -74,6 +74,20 @@ describe('createTableState — initial state', () => {
       expect(table.pagination.numPages()).toBe(2)
     })
   })
+
+  it('page self-clamps when numPages shrinks without an explicit setPage call', () => {
+    withRoot(() => {
+      // e.g. a group being collapsed, or (as reproduced here) data shrinking via setData —
+      // nothing calls setPage, so pagination.page must reflect the new, smaller numPages on
+      // its own rather than reporting a stale out-of-range page number.
+      const table = createTableState(ROWS, COLS, { defaultPageSize: 2 })
+      table.pagination.setPage(2)
+      expect(table.pagination.page()).toBe(2)
+      table.setData(ROWS.slice(0, 2))
+      expect(table.pagination.numPages()).toBe(1)
+      expect(table.pagination.page()).toBe(1)
+    })
+  })
 })
 
 describe('createTableState — row selection', () => {

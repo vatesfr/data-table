@@ -539,6 +539,23 @@ describe('useTableState — pagination', () => {
     })
     expect(result.current.pagination.page).toBe(1)
   })
+
+  it('page self-clamps when numPages shrinks without an explicit setPage call', () => {
+    // e.g. a group being collapsed, or (as reproduced here) data shrinking — nothing calls
+    // setPage, so pagination.page must reflect the new, smaller numPages on its own rather
+    // than reporting a stale out-of-range page number.
+    const { result, rerender } = renderHook(
+      ({ data }) => useTableState(data, COLS, { defaultPageSize: 2 }),
+      { initialProps: { data: ROWS } },
+    )
+    act(() => {
+      result.current.pagination.setPage(2)
+    })
+    expect(result.current.pagination.page).toBe(2)
+    rerender({ data: ROWS.slice(0, 2) })
+    expect(result.current.pagination.numPages).toBe(1)
+    expect(result.current.pagination.page).toBe(1)
+  })
 })
 
 describe('useTableState — pagination with grouping', () => {

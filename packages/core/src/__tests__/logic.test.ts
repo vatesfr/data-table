@@ -45,8 +45,6 @@ import {
   getSortIcon,
   getSortIndex,
   countActiveFilters,
-  countActiveSorts,
-  countActiveGroups,
   getOrderedColumns,
   reconcileVisibleColumns,
   reorderColumn,
@@ -1329,6 +1327,32 @@ describe('computeStringValueCounts', () => {
     })
     expect(result['name']?.get('Game B')).toBe(1)
     expect(result['name']?.get('Game A')).toBeUndefined()
+  })
+
+  it("does not narrow a date column's own counts by its own active rangeFilters entry", () => {
+    const cols = [{ key: 'released' as const, label: 'Released', type: 'date' as const }]
+    const games = [{ released: '2023-05-14' }, { released: '2024-01-01' }]
+    const rangeFilters = { released: { min: '2023-01-01', max: '2023-12-31' } }
+    const result = computeStringValueCounts(games, {}, rangeFilters, cols)
+    // Both dates would still show a count of 1 even though the range only covers 2023 —
+    // the column's own range must not narrow its own checklist.
+    expect(result['released']?.get('2023-05-14')).toBe(1)
+    expect(result['released']?.get('2024-01-01')).toBe(1)
+  })
+
+  it("narrows a column's counts by another column's active rangeFilters entry (faceted)", () => {
+    const cols = [
+      { key: 'name' as const, label: 'Name' },
+      { key: 'released' as const, label: 'Released', type: 'date' as const },
+    ]
+    const games = [
+      { name: 'Game A', released: '2023-05-14' },
+      { name: 'Game B', released: '2024-01-01' },
+    ]
+    const rangeFilters = { released: { min: '2023-01-01', max: '2023-12-31' } }
+    const result = computeStringValueCounts(games, {}, rangeFilters, cols, '(none)', ['name'])
+    expect(result['name']?.get('Game A')).toBe(1)
+    expect(result['name']?.get('Game B')).toBeUndefined()
   })
 })
 
@@ -2633,33 +2657,6 @@ describe('countActiveFilters', () => {
     const filters = { dept: new Set(['Eng']) }
     const excludeFilters = { tags: new Set(['RPG']) }
     expect(countActiveFilters(filters, {}, excludeFilters)).toBe(2)
-  })
-})
-
-// ─── countActiveSorts / countActiveGroups ────────────────────────────────────
-
-describe('countActiveSorts', () => {
-  it('returns 0 for no active sorts', () => {
-    expect(countActiveSorts([])).toBe(0)
-  })
-
-  it('returns the number of active sort entries', () => {
-    expect(
-      countActiveSorts([
-        { key: 'a', dir: 'asc' },
-        { key: 'b', dir: 'desc' },
-      ]),
-    ).toBe(2)
-  })
-})
-
-describe('countActiveGroups', () => {
-  it('returns 0 for no active groups', () => {
-    expect(countActiveGroups([])).toBe(0)
-  })
-
-  it('returns the number of active groupBy columns', () => {
-    expect(countActiveGroups(['dept', 'team'])).toBe(2)
   })
 })
 

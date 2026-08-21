@@ -3,22 +3,13 @@ export { DataTableView } from './DataTableView'
 export { useTableState } from './useTableState'
 export type { TableState, UseTableStateOptions } from './useTableState'
 export { usePersistedView, useUrlView, resetView, usePersistence } from './persistence'
-export type {
-  ViewStateApi,
-  UseUrlViewOptions,
-  ResetViewOptions,
-  UsePersistenceOptions,
-} from './persistence'
 export type { ColumnDef, DataTableProps, DataTableViewProps } from './types'
 // Re-export core types & helpers that consumers need
 export type {
   DataTableLabels,
   SortEntry,
-  SortDir,
   RangeFilter,
-  ColumnDefBase,
   TableViewState,
-  DatePart,
   GetRowId,
 } from '@vates/data-table-core'
 export { DEFAULT_LABELS } from '@vates/data-table-core'

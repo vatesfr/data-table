@@ -4,7 +4,6 @@ import {
   useEffect,
   useLayoutEffect,
   type CSSProperties,
-  type DragEvent,
   type KeyboardEvent,
   type ReactNode,
 } from 'react'
@@ -35,12 +34,14 @@ import {
   computeVirtualRange,
   getSortIndex as getHeaderSortIndex,
   getSortIcon as getHeaderSortIcon,
+  summarizeFilterValues,
   type DateTreeNode,
   type ValueSort,
   type VisibleItem,
 } from '@vates/data-table-core'
 import { Dropdown } from './components/Dropdown'
 import { ToolbarBtn } from './components/ToolbarBtn'
+import { useDropdownReorder } from './hooks/useDropdownReorder'
 import type { ColumnDef, DataTableViewProps } from './types'
 
 // Fixed row height for the filter dropdown's virtualized checklist (see computeVirtualRange) —
@@ -489,43 +490,35 @@ function asRecord(row: object): Record<string, unknown> {
   return row as Record<string, unknown>
 }
 
-/**
- * Resolves the drop target for the Sort/Group/Columns dropdown drag-and-drop lists below: the
- * specific row under the cursor, and whether the dragged item should land before or after it.
- * Cursor position within the hovered row's own bounds decides before/after (top half vs bottom
- * half) so a row can be a valid "insert after" target too — including the *last* row, which
- * "insert before" alone could never reach. When the cursor isn't directly over any row (e.g.
- * past the last row, in the dead space below it, or over the dropdown's "add" section) it snaps
- * to the nearest edge row instead, so there's no dead zone that silently rejects the drop. `root`
- * is the dropdown panel (`e.currentTarget` from a handler bound there, not per-row) so it can see
- * every row via `attr`, a `data-*` attribute unique to that list's rows (e.g. `data-sort-key`).
- */
-function resolveDropdownDragRow(
-  root: HTMLElement,
-  e: DragEvent<HTMLElement>,
-  attr: string,
-): { key: string; after: boolean } | null {
-  const selector = `[${attr}]`
-  const rows = Array.from(root.querySelectorAll<HTMLElement>(selector))
-  if (rows.length === 0) return null
-  const readKey = (el: HTMLElement) => el.getAttribute(attr)!
-  const hit = (e.target as HTMLElement).closest<HTMLElement>(selector)
-  if (hit) {
-    const rect = hit.getBoundingClientRect()
-    return { key: readKey(hit), after: e.clientY > rect.top + rect.height / 2 }
-  }
-  const first = rows[0]
-  const last = rows[rows.length - 1]
-  if (e.clientY <= first.getBoundingClientRect().top) return { key: readKey(first), after: false }
-  if (e.clientY >= last.getBoundingClientRect().bottom) return { key: readKey(last), after: true }
-  return null
-}
-
 /** Formats a bound (epoch ms for a date column, a plain number otherwise) back into the string
  * shape `RangeFilter.min`/`.max` uses — shared by the slider's onChange and the plain min/max
  * inputs' own data-derived default value. */
 function formatRangeBound(n: number, col: { type?: string }): string {
   return col.type === 'date' ? new Date(n).toISOString().slice(0, 10) : String(n)
+}
+
+/**
+ * Consumes a pending-focus ref (see the `pendingSortFocusKey`/`pendingGroupFocusKey`/
+ * `pendingFilterColFocusKey` refs below) and focuses whichever element under `root` carries a
+ * matching value on one of `attrs` — a column/entry key can land on either of two possible
+ * data-attributes depending on which section (active vs. addable) it's currently rendered in.
+ * No-ops if the ref is already empty (nothing pending).
+ */
+function focusPendingKey(
+  root: HTMLElement,
+  ref: { current: string | null },
+  attrs: string[],
+): void {
+  if (!ref.current) return
+  const key = ref.current
+  ref.current = null
+  const selector = attrs.map((a) => `[${a}]`).join(', ')
+  for (const el of root.querySelectorAll<HTMLElement>(selector)) {
+    if (attrs.some((a) => el.getAttribute(a) === key)) {
+      el.focus()
+      break
+    }
+  }
 }
 
 const RANGE_SLIDER_STYLE_ATTR = 'data-dt-range-slider-styles'
@@ -651,6 +644,43 @@ function RangeSlider({
   )
 }
 
+/**
+ * The Columns/Sort/Group/Filter dropdowns' own column-search box — narrows that dropdown's
+ * column list by label, with Escape clearing the term (stopping propagation so it doesn't also
+ * close the dropdown itself). `extraStyle` covers the one difference between call sites: the
+ * Filter dropdown's left pane merges in `S.filterColsSearch` instead of wrapping the input in
+ * `S.ddSearchRow` the way Columns/Sort/Group do.
+ */
+function DdSearchInput({
+  value,
+  onChange,
+  placeholder,
+  extraStyle,
+}: {
+  value: string
+  onChange: (value: string) => void
+  placeholder: string
+  extraStyle?: CSSProperties
+}) {
+  return (
+    <input
+      type="text"
+      data-dd-search
+      placeholder={placeholder}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape' && e.currentTarget.value !== '') {
+          e.preventDefault()
+          e.stopPropagation()
+          onChange('')
+        }
+      }}
+      style={{ ...S.ddSearch, ...extraStyle }}
+    />
+  )
+}
+
 const DEFAULT_VALUE_SORT: ValueSort = { by: 'alpha', dir: 'asc' }
 
 /**
@@ -683,18 +713,6 @@ export function DataTableView<TRow extends object>({
   const rowRefs = useRef(new Map<TRow | string, HTMLTableRowElement>())
   const [dragColKey, setDragColKey] = useState<string | null>(null)
   const [dragOverColKey, setDragOverColKey] = useState<string | null>(null)
-  // Kept independent from dragColKey/dragOverColKey above (the <th> header drag state), even
-  // though both ultimately reorder columnOrder — mirrors vanilla giving each dropdown its own
-  // drag state instead of a shared one.
-  const [dragColRowKey, setDragColRowKey] = useState<string | null>(null)
-  const [dragOverColRowKey, setDragOverColRowKey] = useState<string | null>(null)
-  const [dragOverColRowAfter, setDragOverColRowAfter] = useState(false)
-  const [dragSortKey, setDragSortKey] = useState<string | null>(null)
-  const [dragOverSortKey, setDragOverSortKey] = useState<string | null>(null)
-  const [dragOverSortAfter, setDragOverSortAfter] = useState(false)
-  const [dragGroupKey, setDragGroupKey] = useState<string | null>(null)
-  const [dragOverGroupKey, setDragOverGroupKey] = useState<string | null>(null)
-  const [dragOverGroupAfter, setDragOverGroupAfter] = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const [filterActiveCol, setFilterActiveCol] = useState<string | null>(null)
   const [filterSearchTerms, setFilterSearchTerms] = useState<Record<string, string>>({})
@@ -732,38 +750,9 @@ export function DataTableView<TRow extends object>({
   useLayoutEffect(() => {
     const root = rootRef.current
     if (!root) return
-    if (pendingSortFocusKey.current) {
-      const key = pendingSortFocusKey.current
-      pendingSortFocusKey.current = null
-      for (const el of root.querySelectorAll<HTMLElement>('[data-sort-key], [data-sort-add-key]')) {
-        if (el.dataset.sortKey === key || el.dataset.sortAddKey === key) {
-          el.focus()
-          break
-        }
-      }
-    }
-    if (pendingGroupFocusKey.current) {
-      const key = pendingGroupFocusKey.current
-      pendingGroupFocusKey.current = null
-      for (const el of root.querySelectorAll<HTMLElement>(
-        '[data-group-key], [data-group-add-key]',
-      )) {
-        if (el.dataset.groupKey === key || el.dataset.groupAddKey === key) {
-          el.focus()
-          break
-        }
-      }
-    }
-    if (pendingFilterColFocusKey.current) {
-      const key = pendingFilterColFocusKey.current
-      pendingFilterColFocusKey.current = null
-      for (const el of root.querySelectorAll<HTMLElement>('[data-filter-col-key]')) {
-        if (el.dataset.filterColKey === key) {
-          el.focus()
-          break
-        }
-      }
-    }
+    focusPendingKey(root, pendingSortFocusKey, ['data-sort-key', 'data-sort-add-key'])
+    focusPendingKey(root, pendingGroupFocusKey, ['data-group-key', 'data-group-add-key'])
+    focusPendingKey(root, pendingFilterColFocusKey, ['data-filter-col-key'])
   })
 
   // `table`'s own fields are namespaced by concern (see CLAUDE.md's "Namespaced TableState") —
@@ -816,6 +805,38 @@ export function DataTableView<TRow extends object>({
     toggleCollapse: toggleGroupCollapse,
     clear: clearGroups,
   } = table.group
+
+  // Kept independent from dragColKey/dragOverColKey above (the <th> header drag state), even
+  // though both ultimately reorder columnOrder — mirrors vanilla giving each dropdown its own
+  // drag state instead of a shared one.
+  const {
+    dragKey: dragColRowKey,
+    dragOverKey: dragOverColRowKey,
+    dragOverAfter: dragOverColRowAfter,
+    onRowDragStart: onColRowDragStart,
+    onRowDragEnd: onColRowDragEnd,
+    onDragOver: onColRowsDragOver,
+    onDrop: onColRowsDrop,
+  } = useDropdownReorder('data-col-row-key', moveColumn)
+  const {
+    dragKey: dragSortKey,
+    dragOverKey: dragOverSortKey,
+    dragOverAfter: dragOverSortAfter,
+    onRowDragStart: onSortRowDragStart,
+    onRowDragEnd: onSortRowDragEnd,
+    onDragOver: onSortRowsDragOver,
+    onDrop: onSortRowsDrop,
+  } = useDropdownReorder('data-sort-key', moveSort)
+  const {
+    dragKey: dragGroupKey,
+    dragOverKey: dragOverGroupKey,
+    dragOverAfter: dragOverGroupAfter,
+    onRowDragStart: onGroupRowDragStart,
+    onRowDragEnd: onGroupRowDragEnd,
+    onDragOver: onGroupRowsDragOver,
+    onDrop: onGroupRowsDrop,
+  } = useDropdownReorder('data-group-key', moveGroup)
+
   const {
     all: selection,
     rows: selectedRows,
@@ -977,7 +998,9 @@ export function DataTableView<TRow extends object>({
   const groupableCols = columns.filter((c) => c.groupable === true)
   // Sort/Group dropdowns split into an "active" section (priority order, reorderable) and an
   // "add" section (everything else) — reordering only ever makes sense among active entries.
-  const addableSortCols = columns.filter((c) => getSortIndex(c.key) === null)
+  const addableSortCols = columns.filter(
+    (c) => c.sortable !== false && getSortIndex(c.key) === null,
+  )
   const addableGroupCols = groupableCols.filter((c) => !groupBy.includes(c.key))
   // Narrows a dropdown's own column list by label (see `ddSearchTerms`) — the Columns dropdown
   // keeps its own `orderedColumns` order untouched (it doubles as the drag-to-reorder surface,
@@ -1052,10 +1075,46 @@ export function DataTableView<TRow extends object>({
       />
     )
   }
-  // Unset min/max inputs default to this same bounds value (via formatRangeBound) rather than
-  // sitting empty — a blank box gives no hint of what range is even meaningful for this column,
-  // and it means the slider's own thumbs (which already fell back to these bounds) no longer
-  // visually disagree with the text inputs next to them.
+  // The plain min/max inputs (+ slider below them) for a number/date range filter — the two
+  // types differ only in <input type>, whether the label is a placeholder (number) or
+  // aria-label (date, since a native date input has no room for placeholder text) and the
+  // date input's own fixed width. Unset min/max default to `bounds` (via formatRangeBound)
+  // rather than sitting empty — a blank box gives no hint of what range is even meaningful for
+  // this column, and it means the slider's own thumbs (which already fell back to these bounds)
+  // no longer visually disagree with the text inputs next to them.
+  const renderRangeInputsFor = (
+    col: ColumnDef<TRow>,
+    bounds: { min: number; max: number } | null,
+  ) => {
+    const isDate = col.type === 'date'
+    const inputStyle = isDate ? { ...S.rangeInput, width: 118 } : S.rangeInput
+    const valueFor = (kind: 'min' | 'max') =>
+      rangeFilters[col.key]?.[kind] ?? (bounds ? formatRangeBound(bounds[kind], col) : '')
+    return (
+      <div style={{ padding: '4px 14px 8px' }}>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          <input
+            type={isDate ? 'date' : 'number'}
+            placeholder={isDate ? undefined : L.min}
+            aria-label={isDate ? L.min : undefined}
+            value={valueFor('min')}
+            onChange={(e) => setRangeFilter(col.key, 'min', e.target.value)}
+            style={inputStyle}
+          />
+          <span style={{ color: 'var(--color-text-tertiary)', fontSize: 12 }}>–</span>
+          <input
+            type={isDate ? 'date' : 'number'}
+            placeholder={isDate ? undefined : L.max}
+            aria-label={isDate ? L.max : undefined}
+            value={valueFor('max')}
+            onChange={(e) => setRangeFilter(col.key, 'max', e.target.value)}
+            style={inputStyle}
+          />
+        </div>
+        {renderRangeSliderFor(col, bounds)}
+      </div>
+    )
+  }
   const filterDetailBounds =
     filterDetailCol && (filterDetailCol.type === 'number' || filterDetailCol.type === 'date')
       ? computeValueBounds(data, filterDetailCol)
@@ -1401,13 +1460,6 @@ export function DataTableView<TRow extends object>({
   const cellValue = (row: TRow, col: ColumnDef<TRow>) =>
     formatValue(getColumnValue(col, row), row, col)
 
-  const FILTER_CHIP_MAX = 3
-  const summarizeFilterValues = (vals: Set<string>) => {
-    const arr = [...vals]
-    if (arr.length <= FILTER_CHIP_MAX) return arr.join(', ')
-    return `${arr.slice(0, FILTER_CHIP_MAX).join(', ')}, ${L.moreValues(arr.length - FILTER_CHIP_MAX)}`
-  }
-
   return (
     <div style={S.wrap} ref={rootRef}>
       <div style={S.toolbar}>
@@ -1417,43 +1469,18 @@ export function DataTableView<TRow extends object>({
             open={openColsDD}
             setOpen={setOpenColsDD}
             trigger={<ToolbarBtn active={openColsDD}>{L.columns}</ToolbarBtn>}
-            onDragOver={(e) => {
-              if (!dragColRowKey) return
-              const target = resolveDropdownDragRow(e.currentTarget, e, 'data-col-row-key')
-              if (!target || target.key === dragColRowKey) return
-              e.preventDefault()
-              setDragOverColRowKey(target.key)
-              setDragOverColRowAfter(target.after)
-            }}
-            onDrop={(e) => {
-              if (!dragColRowKey) return
-              const target = resolveDropdownDragRow(e.currentTarget, e, 'data-col-row-key')
-              if (!target) return
-              e.preventDefault()
-              if (target.key !== dragColRowKey) moveColumn(dragColRowKey, target.key, target.after)
-              setDragColRowKey(null)
-              setDragOverColRowKey(null)
-            }}
+            onDragOver={onColRowsDragOver}
+            onDrop={onColRowsDrop}
           >
             {/* Narrows the list below by label (see ddSearchTerms) — ordering itself is left
                 untouched (still orderedColumns, i.e. real table column order): this list also
                 doubles as the drag-to-reorder surface, so its order carries meaning no
                 alphabetization should disturb. */}
             <div style={S.ddSearchRow}>
-              <input
-                type="text"
-                data-dd-search
-                placeholder={L.filterSearchPlaceholder}
+              <DdSearchInput
                 value={ddSearchTerms.cols ?? ''}
-                onChange={(e) => setDdSearchTerms({ ...ddSearchTerms, cols: e.target.value })}
-                onKeyDown={(e) => {
-                  if (e.key === 'Escape' && e.currentTarget.value !== '') {
-                    e.preventDefault()
-                    e.stopPropagation()
-                    setDdSearchTerms({ ...ddSearchTerms, cols: '' })
-                  }
-                }}
-                style={S.ddSearch}
+                onChange={(v) => setDdSearchTerms({ ...ddSearchTerms, cols: v })}
+                placeholder={L.filterSearchPlaceholder}
               />
             </div>
             <div style={S.ddSection}>{L.columnsSection}</div>
@@ -1469,11 +1496,8 @@ export function DataTableView<TRow extends object>({
                 data-col-row-key={col.key}
                 data-dd-row
                 draggable
-                onDragStart={() => setDragColRowKey(col.key)}
-                onDragEnd={() => {
-                  setDragColRowKey(null)
-                  setDragOverColRowKey(null)
-                }}
+                onDragStart={() => onColRowDragStart(col.key)}
+                onDragEnd={onColRowDragEnd}
                 style={{
                   ...S.ddItem,
                   justifyContent: 'space-between',
@@ -1534,23 +1558,8 @@ export function DataTableView<TRow extends object>({
                 </button>
               )
             }
-            onDragOver={(e) => {
-              if (!dragSortKey) return
-              const target = resolveDropdownDragRow(e.currentTarget, e, 'data-sort-key')
-              if (!target || target.key === dragSortKey) return
-              e.preventDefault()
-              setDragOverSortKey(target.key)
-              setDragOverSortAfter(target.after)
-            }}
-            onDrop={(e) => {
-              if (!dragSortKey) return
-              const target = resolveDropdownDragRow(e.currentTarget, e, 'data-sort-key')
-              if (!target) return
-              e.preventDefault()
-              if (target.key !== dragSortKey) moveSort(dragSortKey, target.key, target.after)
-              setDragSortKey(null)
-              setDragOverSortKey(null)
-            }}
+            onDragOver={onSortRowsDragOver}
+            onDrop={onSortRowsDrop}
           >
             {sorts.length > 0 && (
               <>
@@ -1574,11 +1583,8 @@ export function DataTableView<TRow extends object>({
                       data-dd-row
                       draggable
                       tabIndex={0}
-                      onDragStart={() => setDragSortKey(entry.key)}
-                      onDragEnd={() => {
-                        setDragSortKey(null)
-                        setDragOverSortKey(null)
-                      }}
+                      onDragStart={() => onSortRowDragStart(entry.key)}
+                      onDragEnd={onSortRowDragEnd}
                       onClick={() => toggleSortDir(entry.key)}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' || e.key === ' ') {
@@ -1639,20 +1645,10 @@ export function DataTableView<TRow extends object>({
                     keeps its own priority order and is never hidden by it, since it's a short,
                     already-visible list with its own remove/reorder controls. */}
                 <div style={S.ddSearchRow}>
-                  <input
-                    type="text"
-                    data-dd-search
-                    placeholder={L.filterSearchPlaceholder}
+                  <DdSearchInput
                     value={ddSearchTerms.sort ?? ''}
-                    onChange={(e) => setDdSearchTerms({ ...ddSearchTerms, sort: e.target.value })}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Escape' && e.currentTarget.value !== '') {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        setDdSearchTerms({ ...ddSearchTerms, sort: '' })
-                      }
-                    }}
-                    style={S.ddSearch}
+                    onChange={(v) => setDdSearchTerms({ ...ddSearchTerms, sort: v })}
+                    placeholder={L.filterSearchPlaceholder}
                   />
                 </div>
                 <div style={S.ddSection}>{L.sortSection}</div>
@@ -1706,23 +1702,8 @@ export function DataTableView<TRow extends object>({
                   </button>
                 )
               }
-              onDragOver={(e) => {
-                if (!dragGroupKey) return
-                const target = resolveDropdownDragRow(e.currentTarget, e, 'data-group-key')
-                if (!target || target.key === dragGroupKey) return
-                e.preventDefault()
-                setDragOverGroupKey(target.key)
-                setDragOverGroupAfter(target.after)
-              }}
-              onDrop={(e) => {
-                if (!dragGroupKey) return
-                const target = resolveDropdownDragRow(e.currentTarget, e, 'data-group-key')
-                if (!target) return
-                e.preventDefault()
-                if (target.key !== dragGroupKey) moveGroup(dragGroupKey, target.key, target.after)
-                setDragGroupKey(null)
-                setDragOverGroupKey(null)
-              }}
+              onDragOver={onGroupRowsDragOver}
+              onDrop={onGroupRowsDrop}
             >
               {groupBy.length > 0 && (
                 <>
@@ -1742,11 +1723,8 @@ export function DataTableView<TRow extends object>({
                         data-dd-row
                         draggable
                         tabIndex={0}
-                        onDragStart={() => setDragGroupKey(key)}
-                        onDragEnd={() => {
-                          setDragGroupKey(null)
-                          setDragOverGroupKey(null)
-                        }}
+                        onDragStart={() => onGroupRowDragStart(key)}
+                        onDragEnd={onGroupRowDragEnd}
                         onKeyDown={(e) => {
                           if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
                             e.preventDefault()
@@ -1797,22 +1775,10 @@ export function DataTableView<TRow extends object>({
                   {/* Same search + alphabetize treatment as Sort's add list above, for the same
                       reason. */}
                   <div style={S.ddSearchRow}>
-                    <input
-                      type="text"
-                      data-dd-search
-                      placeholder={L.filterSearchPlaceholder}
+                    <DdSearchInput
                       value={ddSearchTerms.group ?? ''}
-                      onChange={(e) =>
-                        setDdSearchTerms({ ...ddSearchTerms, group: e.target.value })
-                      }
-                      onKeyDown={(e) => {
-                        if (e.key === 'Escape' && e.currentTarget.value !== '') {
-                          e.preventDefault()
-                          e.stopPropagation()
-                          setDdSearchTerms({ ...ddSearchTerms, group: '' })
-                        }
-                      }}
-                      style={S.ddSearch}
+                      onChange={(v) => setDdSearchTerms({ ...ddSearchTerms, group: v })}
+                      placeholder={L.filterSearchPlaceholder}
                     />
                   </div>
                   <div style={S.ddSection}>{L.groupSection}</div>
@@ -1896,20 +1862,11 @@ export function DataTableView<TRow extends object>({
                       narrows the *values* shown in the right-hand detail pane for whichever
                       column is currently selected. No inherent order to preserve here (unlike
                       the Columns dropdown, this list isn't reorderable), so it's alphabetized. */}
-                  <input
-                    type="text"
-                    data-dd-search
-                    placeholder={L.filterSearchPlaceholder}
+                  <DdSearchInput
                     value={ddSearchTerms.filter ?? ''}
-                    onChange={(e) => setDdSearchTerms({ ...ddSearchTerms, filter: e.target.value })}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Escape' && e.currentTarget.value !== '') {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        setDdSearchTerms({ ...ddSearchTerms, filter: '' })
-                      }
-                    }}
-                    style={{ ...S.ddSearch, ...S.filterColsSearch }}
+                    onChange={(v) => setDdSearchTerms({ ...ddSearchTerms, filter: v })}
+                    placeholder={L.filterSearchPlaceholder}
+                    extraStyle={S.filterColsSearch}
                   />
                   {searchedFilterableCols.map((col) => {
                     const rf = rangeFilters[col.key]
@@ -1954,82 +1911,11 @@ export function DataTableView<TRow extends object>({
                 <div style={S.filterDetail} data-filter-detail>
                   {filterDetailCol &&
                     (filterDetailCol.type === 'number' ? (
-                      <div style={{ padding: '4px 14px 8px' }}>
-                        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                          <input
-                            type="number"
-                            placeholder={L.min}
-                            value={
-                              rangeFilters[filterDetailCol.key]?.min ??
-                              (filterDetailBounds
-                                ? formatRangeBound(filterDetailBounds.min, filterDetailCol)
-                                : '')
-                            }
-                            onChange={(e) =>
-                              setRangeFilter(filterDetailCol.key, 'min', e.target.value)
-                            }
-                            style={S.rangeInput}
-                          />
-                          <span style={{ color: 'var(--color-text-tertiary)', fontSize: 12 }}>
-                            –
-                          </span>
-                          <input
-                            type="number"
-                            placeholder={L.max}
-                            value={
-                              rangeFilters[filterDetailCol.key]?.max ??
-                              (filterDetailBounds
-                                ? formatRangeBound(filterDetailBounds.max, filterDetailCol)
-                                : '')
-                            }
-                            onChange={(e) =>
-                              setRangeFilter(filterDetailCol.key, 'max', e.target.value)
-                            }
-                            style={S.rangeInput}
-                          />
-                        </div>
-                        {renderRangeSliderFor(filterDetailCol, filterDetailBounds)}
-                      </div>
+                      renderRangeInputsFor(filterDetailCol, filterDetailBounds)
                     ) : (
                       <>
-                        {filterDetailCol.type === 'date' && (
-                          <div style={{ padding: '4px 14px 8px' }}>
-                            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                              <input
-                                type="date"
-                                aria-label={L.min}
-                                value={
-                                  rangeFilters[filterDetailCol.key]?.min ??
-                                  (filterDetailBounds
-                                    ? formatRangeBound(filterDetailBounds.min, filterDetailCol)
-                                    : '')
-                                }
-                                onChange={(e) =>
-                                  setRangeFilter(filterDetailCol.key, 'min', e.target.value)
-                                }
-                                style={{ ...S.rangeInput, width: 118 }}
-                              />
-                              <span style={{ color: 'var(--color-text-tertiary)', fontSize: 12 }}>
-                                –
-                              </span>
-                              <input
-                                type="date"
-                                aria-label={L.max}
-                                value={
-                                  rangeFilters[filterDetailCol.key]?.max ??
-                                  (filterDetailBounds
-                                    ? formatRangeBound(filterDetailBounds.max, filterDetailCol)
-                                    : '')
-                                }
-                                onChange={(e) =>
-                                  setRangeFilter(filterDetailCol.key, 'max', e.target.value)
-                                }
-                                style={{ ...S.rangeInput, width: 118 }}
-                              />
-                            </div>
-                            {renderRangeSliderFor(filterDetailCol, filterDetailBounds)}
-                          </div>
-                        )}
+                        {filterDetailCol.type === 'date' &&
+                          renderRangeInputsFor(filterDetailCol, filterDetailBounds)}
                         <div style={S.filterSearchRow}>
                           {filterDetailValues.length > 0 && (
                             <input
@@ -2307,7 +2193,8 @@ export function DataTableView<TRow extends object>({
                   }}
                   style={{ ...S.chipBody, ...S.chipFilter }}
                 >
-                  {columns.find((c) => c.key === key)?.label}: {summarizeFilterValues(vals)}
+                  {columns.find((c) => c.key === key)?.label}:{' '}
+                  {summarizeFilterValues(vals, L.moreValues)}
                 </button>
                 <button
                   type="button"
@@ -2337,7 +2224,8 @@ export function DataTableView<TRow extends object>({
                   }}
                   style={{ ...S.chipBody, ...S.chipExclude }}
                 >
-                  {columns.find((c) => c.key === key)?.label}: ≠ {summarizeFilterValues(vals)}
+                  {columns.find((c) => c.key === key)?.label}: ≠{' '}
+                  {summarizeFilterValues(vals, L.moreValues)}
                 </button>
                 <button
                   type="button"
@@ -2449,9 +2337,12 @@ export function DataTableView<TRow extends object>({
                       // Shift-click: add this column to the multi-sort (or flip its direction if
                       // it's already in it) — never removes, so it can't surprise-clear a sort or
                       // bump a column to the end of the priority stack; that's the chip ×/dropdown's job.
-                      onClick={(e) =>
-                        e.shiftKey ? appendOrToggleSort(col.key) : replaceSort(col.key)
-                      }
+                      // No-op entirely when the column opts out via sortable: false.
+                      onClick={(e) => {
+                        if (col.sortable === false) return
+                        if (e.shiftKey) appendOrToggleSort(col.key)
+                        else replaceSort(col.key)
+                      }}
                     >
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                         {col.label}
@@ -2560,7 +2451,9 @@ export function DataTableView<TRow extends object>({
                 !isCollapsed &&
                   rows.map((row, ri) => (
                     <tr
-                      key={rowKey ? String(asRecord(row)[rowKey] ?? ri) : ri}
+                      key={String(
+                        rowKey ? (asRecord(row)[rowKey] ?? `${gkey}-${ri}`) : `${gkey}-${ri}`,
+                      )}
                       ref={(el) => {
                         if (el) rowRefs.current.set(row, el)
                         else rowRefs.current.delete(row)

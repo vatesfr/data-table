@@ -28,14 +28,27 @@ function stringifyValue(v: unknown): string {
   return String(v ?? '')
 }
 
+// Cell rendering priority (see CLAUDE.md's "Cell rendering priority"), applied uniformly to data
+// cells, group-header cells, and aggregate cells: col.render(value, contextRow) → col.format(...)
+// → fallback(value). col.render returns a real DOM Node — Solid can render an arbitrary Node as
+// a JSX child directly, so (unlike the old innerHTML-string version) no placeholder-and-patch
+// mechanism is needed at all here: this is a clean simplification the Solid migration gets for
+// free. `fallback` defaults to `stringifyValue` (joins array values with ", "); the group-header
+// caller below passes a plain `String(v ?? '')` instead, since its own `value` is already
+// resolved to a single string keyPart rather than a possibly-array raw value.
+function renderCell<TRow extends object>(
+  col: ColumnDef<TRow>,
+  value: unknown,
+  contextRow: TRow,
+  fallback: (v: unknown) => string = stringifyValue,
+): Node | string {
+  if (col.render) return col.render(value, contextRow)
+  if (col.format) return col.format(value, contextRow)
+  return fallback(value)
+}
+
 function cellValue<TRow extends object>(col: ColumnDef<TRow>, row: TRow): Node | string {
-  const value = getColumnValue(col, row)
-  // col.render returns a real DOM Node — Solid can render an arbitrary Node as a JSX child
-  // directly, so (unlike the old innerHTML-string version) no placeholder-and-patch mechanism is
-  // needed at all here: this is a clean simplification the Solid migration gets for free.
-  if (col.render) return col.render(value, row)
-  if (col.format) return col.format(value, row)
-  return stringifyValue(value)
+  return renderCell(col, getColumnValue(col, row), row)
 }
 
 function aggValue<TRow extends object>(
@@ -44,12 +57,7 @@ function aggValue<TRow extends object>(
   sampleRow: TRow,
 ): Node | string {
   if (!col.aggregate) return ''
-  const v = computeAggregate(col, rows)
-  // render applies uniformly to data cells, group-header cells, and aggregate cells (see
-  // CLAUDE.md's "Cell rendering priority") — this branch was missing here, so a custom `render`
-  // on an aggregate column was silently ignored while it worked everywhere else.
-  if (col.render) return col.render(v, sampleRow)
-  return col.format ? col.format(v, sampleRow) : stringifyValue(v)
+  return renderCell(col, computeAggregate(col, rows), sampleRow)
 }
 
 // Table header + body: sortable/draggable header cells, group headers (collapse toggle,
@@ -209,9 +217,10 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
     applyCheckboxState(selectAllEl, allSelected(), someSelected())
   })
 
-  function handleHeaderClick(key: string, e: MouseEvent): void {
-    if (e.shiftKey) table.sort.appendOrToggle(key)
-    else table.sort.replace(key)
+  function handleHeaderClick(col: ColumnDef<TRow>, e: MouseEvent): void {
+    if (col.sortable === false) return
+    if (e.shiftKey) table.sort.appendOrToggle(col.key)
+    else table.sort.replace(col.key)
   }
 
   return (
@@ -255,7 +264,7 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
                       setDragColKey(null)
                       setDragOverColKey(null)
                     }}
-                    onClick={(e) => handleHeaderClick(col.key, e)}
+                    onClick={(e) => handleHeaderClick(col, e)}
                   >
                     <span class="dt-th-inner">
                       {col.label}{' '}
@@ -506,9 +515,7 @@ function renderGroupCellValue<TRow extends object>(
   if (!col) return String(keyPart ?? '')
   const raw = getColumnValue(col, sampleRow)
   const value = Array.isArray(raw) ? keyPart : raw
-  if (col.render) return col.render(value, sampleRow)
-  if (col.format) return col.format(value, sampleRow)
-  return String(value ?? '')
+  return renderCell(col, value, sampleRow, (v) => String(v ?? ''))
 }
 
 interface DataRowProps<TRow extends object> {

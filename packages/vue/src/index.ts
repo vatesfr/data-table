@@ -13,11 +13,9 @@ export type { ColumnDef, DataTableProps, DataTableViewProps } from './types'
 export type {
   DataTableLabels,
   SortEntry,
-  SortDir,
   RangeFilter,
   ColumnDefBase,
   TableViewState,
-  DatePart,
   GetRowId,
 } from '@vates/data-table-core'
 export { DEFAULT_LABELS } from '@vates/data-table-core'

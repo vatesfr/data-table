@@ -1,14 +1,5 @@
 <script setup lang="ts" generic="TRow extends object">
-import {
-  computed,
-  onUpdated,
-  ref,
-  shallowRef,
-  watch,
-  nextTick,
-  useSlots,
-  getCurrentInstance,
-} from 'vue'
+import { computed, ref, shallowRef, watch, nextTick, useSlots } from 'vue'
 import {
   computeAggregate,
   computeStringValueCounts,
@@ -35,6 +26,7 @@ import {
   computeVirtualRange,
   getSortIndex as getHeaderSortIndex,
   getSortIcon as getHeaderSortIcon,
+  summarizeFilterValues,
   type PagedGroup,
   type DateTreeNode,
   type ValueSort,
@@ -44,8 +36,10 @@ import type { ColumnDef, DataTableViewInternalProps } from './types'
 import Dropdown from './components/Dropdown.vue'
 import ToolbarBtn from './components/ToolbarBtn.vue'
 import DateTreeItem from './components/DateTreeItem.vue'
-import RangeSlider from './components/RangeSlider.vue'
+import RangeInputs from './components/RangeInputs.vue'
 import { vIndeterminate } from './directives/vIndeterminate'
+import { useDropdownReorder } from './composables/useDropdownReorder'
+import { useSelfDetectedListener } from './composables/useSelfDetectedListener'
 
 const props = withDefaults(defineProps<DataTableViewInternalProps<TRow>>(), { rowKey: 'id' })
 
@@ -64,15 +58,9 @@ const slots = useSlots()
 // passes its own listener-presence check through explicitly via `rowClickable` — falling back
 // to self-detection here only when `<DataTableView>` is used directly, with no such prop.
 //
-// `vnode.props` isn't itself a reactive read, so a plain `computed` over it only re-runs when
-// `props.rowClickable` changes — self-detection would otherwise stay frozen at whatever it saw
-// on the very first evaluation. `selfDetected` is a ref re-derived in `onUpdated` (which runs
-// after every re-render, by which point `vnode.props` reflects the latest incoming listener)
-// instead, so a caller adding/removing `@row-click` after mount is picked up on the next render.
-const selfDetectedRowClickable = ref(!!getCurrentInstance()?.vnode.props?.onRowClick)
-onUpdated(() => {
-  selfDetectedRowClickable.value = !!getCurrentInstance()?.vnode.props?.onRowClick
-})
+// See useSelfDetectedListener for why this needs onUpdated rather than a plain computed over
+// vnode.props directly.
+const selfDetectedRowClickable = useSelfDetectedListener('onRowClick')
 const isRowClickable = computed(() => props.rowClickable ?? selfDetectedRowClickable.value)
 
 function handleRowClick(row: TRow, event: MouseEvent | KeyboardEvent) {
@@ -351,6 +339,15 @@ function ddSearchTerm(dd: string): string {
 function setDdSearchTerm(dd: string, term: string): void {
   ddSearchTerms.value = { ...ddSearchTerms.value, [dd]: term }
 }
+// Narrows `cols` by label substring (case-insensitive), then alphabetizes — the shared shape of
+// the Filter dropdown's left pane and Sort/Group's addable lists below, none of which have any
+// existing order of their own worth preserving (unlike the Columns dropdown's own
+// searchedOrderedColumns above, which keeps its real table/drag order for exactly that reason).
+function alphabetizedByLabel<T extends { label: string }>(cols: T[], term: string): T[] {
+  const t = term.trim().toLowerCase()
+  const list = t ? cols.filter((c) => c.label.toLowerCase().includes(t)) : cols
+  return list.slice().sort((a, b) => a.label.localeCompare(b.label))
+}
 // The Columns dropdown keeps `orderedColumns`'s real table/drag order unchanged — it doubles as
 // the drag-to-reorder surface, so alphabetizing would conflict with that order's own meaning.
 const searchedOrderedColumns = computed(() => {
@@ -361,13 +358,9 @@ const searchedOrderedColumns = computed(() => {
 })
 // The Filter dropdown's left column pane has no reorder concept of its own, so — like Sort/Group's
 // addable lists below — it's alphabetized to make a long list easier to scan.
-const searchedFilterableCols = computed(() => {
-  const term = ddSearchTerm('filter').trim().toLowerCase()
-  const list = term
-    ? filterableCols.value.filter((c) => c.label.toLowerCase().includes(term))
-    : filterableCols.value
-  return list.slice().sort((a, b) => a.label.localeCompare(b.label))
-})
+const searchedFilterableCols = computed(() =>
+  alphabetizedByLabel(filterableCols.value, ddSearchTerm('filter')),
+)
 const filterActiveCol = ref<string | null>(null)
 const filterSearchTerms = ref<Record<string, string>>({})
 const filterSelectionAnchor = ref<Record<string, string>>({})
@@ -655,13 +648,6 @@ function cellText(row: TRow, col: ColumnDef<TRow>): string {
   return formatValue(getColumnValue(col, row), row, col)
 }
 
-const FILTER_CHIP_MAX = 3
-function summarizeFilterValues(vals: Set<string>): string {
-  const arr = [...vals]
-  if (arr.length <= FILTER_CHIP_MAX) return arr.join(', ')
-  return `${arr.slice(0, FILTER_CHIP_MAX).join(', ')}, ${L.value.moreValues(arr.length - FILTER_CHIP_MAX)}`
-}
-
 function findCol(key: string): ColumnDef<TRow> | undefined {
   return props.columns.find((c) => c.key === key)
 }
@@ -728,15 +714,18 @@ function headerSortLabel(key: string): string {
 // Plain click: sort by this column alone, discarding other active sorts. Shift-click: add this
 // column to the multi-sort (or flip its direction if it's already in it) — never removes, so it
 // can't surprise-clear a sort or bump a column to the end of the priority stack; that's the chip
-// ×/dropdown's job.
-function onHeaderSortClick(key: string, event: MouseEvent): void {
-  if (event.shiftKey) appendOrToggleSort(key)
-  else replaceSort(key)
+// ×/dropdown's job. No-op entirely when the column opts out via sortable: false.
+function onHeaderSortClick(col: ColumnDef<TRow>, event: MouseEvent): void {
+  if (col.sortable === false) return
+  if (event.shiftKey) appendOrToggleSort(col.key)
+  else replaceSort(col.key)
 }
 
 // Sort/Group dropdowns split into an "active" section (priority order, reorderable) and an
 // "add" section (everything else) — reordering only ever makes sense among active entries.
-const addableSortCols = computed(() => props.columns.filter((c) => getSortIndex(c.key) === null))
+const addableSortCols = computed(() =>
+  props.columns.filter((c) => c.sortable !== false && getSortIndex(c.key) === null),
+)
 const addableGroupCols = computed(() =>
   groupableCols.value.filter((c) => !groupBy.value.includes(c.key)),
 )
@@ -744,20 +733,12 @@ const addableGroupCols = computed(() =>
 // priority order and is never hidden by a search term, since it's a short, already-visible list
 // with its own remove/reorder controls. The addable list itself carries no ordering meaning (none
 // of these are sorted/grouped yet), so it's alphabetized instead of raw column-definition order.
-const searchedAddableSortCols = computed(() => {
-  const term = ddSearchTerm('sort').trim().toLowerCase()
-  const list = term
-    ? addableSortCols.value.filter((c) => c.label.toLowerCase().includes(term))
-    : addableSortCols.value
-  return list.slice().sort((a, b) => a.label.localeCompare(b.label))
-})
-const searchedAddableGroupCols = computed(() => {
-  const term = ddSearchTerm('group').trim().toLowerCase()
-  const list = term
-    ? addableGroupCols.value.filter((c) => c.label.toLowerCase().includes(term))
-    : addableGroupCols.value
-  return list.slice().sort((a, b) => a.label.localeCompare(b.label))
-})
+const searchedAddableSortCols = computed(() =>
+  alphabetizedByLabel(addableSortCols.value, ddSearchTerm('sort')),
+)
+const searchedAddableGroupCols = computed(() =>
+  alphabetizedByLabel(addableGroupCols.value, ddSearchTerm('group')),
+)
 
 // Activating an addable Sort/Group column (or removing an active one) moves its row into a
 // *different* v-for list — Vue's keyed reconciliation can't preserve focus across that (the
@@ -773,15 +754,23 @@ function setAddableSortRef(key: string, el: Element | null): void {
   if (el) addableSortRefs.set(key, el as HTMLElement)
   else addableSortRefs.delete(key)
 }
-async function onAddSort(key: string): Promise<void> {
-  toggleSort(key)
+// Runs `action`, then focuses whatever `key` maps to in `refMap` once the resulting DOM update
+// has committed — the shared shape behind every "activate/remove an addable Sort/Group entry (or
+// open its dropdown from a chip) and refocus the row it moved to" handler below.
+async function activateAndFocus(
+  action: () => void,
+  refMap: Map<string, HTMLElement>,
+  key: string,
+): Promise<void> {
+  action()
   await nextTick()
-  sortRowRefs.get(key)?.focus()
+  refMap.get(key)?.focus()
 }
-async function onRemoveSortClick(key: string): Promise<void> {
-  removeSort(key)
-  await nextTick()
-  addableSortRefs.get(key)?.focus()
+function onAddSort(key: string): Promise<void> {
+  return activateAndFocus(() => toggleSort(key), sortRowRefs, key)
+}
+function onRemoveSortClick(key: string): Promise<void> {
+  return activateAndFocus(() => removeSort(key), addableSortRefs, key)
 }
 
 const groupRowRefs = new Map<string, HTMLElement>()
@@ -794,15 +783,11 @@ function setAddableGroupRef(key: string, el: Element | null): void {
   if (el) addableGroupRefs.set(key, el as HTMLElement)
   else addableGroupRefs.delete(key)
 }
-async function onAddGroup(key: string): Promise<void> {
-  toggleGroup(key)
-  await nextTick()
-  groupRowRefs.get(key)?.focus()
+function onAddGroup(key: string): Promise<void> {
+  return activateAndFocus(() => toggleGroup(key), groupRowRefs, key)
 }
-async function onRemoveGroupClick(key: string): Promise<void> {
-  removeGroup(key)
-  await nextTick()
-  addableGroupRefs.get(key)?.focus()
+function onRemoveGroupClick(key: string): Promise<void> {
+  return activateAndFocus(() => removeGroup(key), addableGroupRefs, key)
 }
 
 // Active-bar group chip body (see "Active-bar chip click actions"): opens the Group dropdown and
@@ -813,76 +798,22 @@ async function onRemoveGroupClick(key: string): Promise<void> {
 // it is the most useful available action. `groupDropdownRef` is read from plain script here (not
 // a template expression), so — unlike the inline `@keydown` handlers wired directly in the
 // template — `.value` is needed (see the comment on onDropdownKeydown's own `dropdown` param).
-async function onOpenGroupEntry(key: string): Promise<void> {
-  groupDropdownRef.value?.open()
-  await nextTick()
-  groupRowRefs.get(key)?.focus()
-}
-
-/**
- * Resolves the drop target for the Sort/Group/Columns dropdown drag-and-drop lists below: the
- * specific row under the cursor, and whether the dragged item should land before or after it.
- * Cursor position within the hovered row's own bounds decides before/after (top half vs bottom
- * half) so a row can be a valid "insert after" target too — including the *last* row, which
- * "insert before" alone could never reach. When the cursor isn't directly over any row (e.g.
- * past the last row, in the dead space below it, or over the dropdown's "add" section) it snaps
- * to the nearest edge row instead, so there's no dead zone that silently rejects the drop. `e` is
- * expected to be handled at the Dropdown panel level (`e.currentTarget` is the panel, not a
- * row), so it can see every row via `attr`, a `data-*` attribute unique to that list's rows.
- */
-function resolveDropdownDragRow(
-  e: DragEvent,
-  attr: string,
-): { key: string; after: boolean } | null {
-  const root = e.currentTarget as HTMLElement
-  const selector = `[${attr}]`
-  const rows = Array.from(root.querySelectorAll<HTMLElement>(selector))
-  if (rows.length === 0) return null
-  const readKey = (el: HTMLElement) => el.getAttribute(attr)!
-  const hit = (e.target as HTMLElement).closest<HTMLElement>(selector)
-  if (hit) {
-    const rect = hit.getBoundingClientRect()
-    return { key: readKey(hit), after: e.clientY > rect.top + rect.height / 2 }
-  }
-  const first = rows[0]
-  const last = rows[rows.length - 1]
-  if (e.clientY <= first.getBoundingClientRect().top) return { key: readKey(first), after: false }
-  if (e.clientY >= last.getBoundingClientRect().bottom) return { key: readKey(last), after: true }
-  return null
+function onOpenGroupEntry(key: string): Promise<void> {
+  return activateAndFocus(() => groupDropdownRef.value?.open(), groupRowRefs, key)
 }
 
 // Drag-and-drop reordering for the Sort dropdown's active entries — kept as its own independent
 // state (rather than reusing dragColKey/dragOverColKey above), mirroring how each dropdown gets
 // its own drag state instead of a shared one.
-const dragSortKey = ref<string | null>(null)
-const dragOverSortKey = ref<string | null>(null)
-const dragOverSortAfter = ref(false)
-function onSortDragStart(key: string): void {
-  dragSortKey.value = key
-}
-function onSortDragEnd(): void {
-  dragSortKey.value = null
-  dragOverSortKey.value = null
-}
-// @dragover/@drop for the whole active-sorts list — bound to the Dropdown panel (via its
-// forwarded $attrs) rather than per-row, so a drop past the last row still resolves.
-function onSortRowsDragOver(e: DragEvent): void {
-  if (!dragSortKey.value) return
-  const target = resolveDropdownDragRow(e, 'data-sort-key')
-  if (!target || target.key === dragSortKey.value) return
-  e.preventDefault()
-  dragOverSortKey.value = target.key
-  dragOverSortAfter.value = target.after
-}
-function onSortRowsDrop(e: DragEvent): void {
-  if (!dragSortKey.value) return
-  const target = resolveDropdownDragRow(e, 'data-sort-key')
-  if (!target) return
-  e.preventDefault()
-  if (target.key !== dragSortKey.value) moveSort(dragSortKey.value, target.key, target.after)
-  dragSortKey.value = null
-  dragOverSortKey.value = null
-}
+const {
+  dragKey: dragSortKey,
+  dragOverKey: dragOverSortKey,
+  dragOverAfter: dragOverSortAfter,
+  onRowDragStart: onSortDragStart,
+  onRowDragEnd: onSortDragEnd,
+  onDragOver: onSortRowsDragOver,
+  onDrop: onSortRowsDrop,
+} = useDropdownReorder('data-sort-key', moveSort)
 // Alt+↑/↓ mirrors the drag gesture for keyboard-only reorder; Enter/Space mirrors the row's own
 // click (toggle direction) since a plain div gets no free keyboard activation the way a real
 // <button> would (unlike the add-list, which renders real buttons and needs no handler here).
@@ -898,33 +829,15 @@ function onSortRowKeyDown(event: KeyboardEvent, key: string): void {
 
 // Same as above, for the Group dropdown's active entries — a group entry has nothing to toggle
 // on click (no direction), so only Alt+↑/↓ reorder applies.
-const dragGroupKey = ref<string | null>(null)
-const dragOverGroupKey = ref<string | null>(null)
-const dragOverGroupAfter = ref(false)
-function onGroupDragStart(key: string): void {
-  dragGroupKey.value = key
-}
-function onGroupDragEnd(): void {
-  dragGroupKey.value = null
-  dragOverGroupKey.value = null
-}
-function onGroupRowsDragOver(e: DragEvent): void {
-  if (!dragGroupKey.value) return
-  const target = resolveDropdownDragRow(e, 'data-group-key')
-  if (!target || target.key === dragGroupKey.value) return
-  e.preventDefault()
-  dragOverGroupKey.value = target.key
-  dragOverGroupAfter.value = target.after
-}
-function onGroupRowsDrop(e: DragEvent): void {
-  if (!dragGroupKey.value) return
-  const target = resolveDropdownDragRow(e, 'data-group-key')
-  if (!target) return
-  e.preventDefault()
-  if (target.key !== dragGroupKey.value) moveGroup(dragGroupKey.value, target.key, target.after)
-  dragGroupKey.value = null
-  dragOverGroupKey.value = null
-}
+const {
+  dragKey: dragGroupKey,
+  dragOverKey: dragOverGroupKey,
+  dragOverAfter: dragOverGroupAfter,
+  onRowDragStart: onGroupDragStart,
+  onRowDragEnd: onGroupDragEnd,
+  onDragOver: onGroupRowsDragOver,
+  onDrop: onGroupRowsDrop,
+} = useDropdownReorder('data-group-key', moveGroup)
 function onGroupRowKeyDown(event: KeyboardEvent, key: string): void {
   if (event.altKey && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {
     event.preventDefault()
@@ -935,33 +848,15 @@ function onGroupRowKeyDown(event: KeyboardEvent, key: string): void {
 // Drag-and-drop reordering for the Columns dropdown's rows — replaces the old ▲▼ buttons. The
 // row itself gets no tabindex: the checkbox inside is already a native Tab stop, so a second one
 // on the row would just be a redundant, visually-identical stop for the same rectangle.
-const dragColRowKey = ref<string | null>(null)
-const dragOverColRowKey = ref<string | null>(null)
-const dragOverColRowAfter = ref(false)
-function onColRowDragStart(key: string): void {
-  dragColRowKey.value = key
-}
-function onColRowDragEnd(): void {
-  dragColRowKey.value = null
-  dragOverColRowKey.value = null
-}
-function onColRowsDragOver(e: DragEvent): void {
-  if (!dragColRowKey.value) return
-  const target = resolveDropdownDragRow(e, 'data-col-row-key')
-  if (!target || target.key === dragColRowKey.value) return
-  e.preventDefault()
-  dragOverColRowKey.value = target.key
-  dragOverColRowAfter.value = target.after
-}
-function onColRowsDrop(e: DragEvent): void {
-  if (!dragColRowKey.value) return
-  const target = resolveDropdownDragRow(e, 'data-col-row-key')
-  if (!target) return
-  e.preventDefault()
-  if (target.key !== dragColRowKey.value) moveColumn(dragColRowKey.value, target.key, target.after)
-  dragColRowKey.value = null
-  dragOverColRowKey.value = null
-}
+const {
+  dragKey: dragColRowKey,
+  dragOverKey: dragOverColRowKey,
+  dragOverAfter: dragOverColRowAfter,
+  onRowDragStart: onColRowDragStart,
+  onRowDragEnd: onColRowDragEnd,
+  onDragOver: onColRowsDragOver,
+  onDrop: onColRowsDrop,
+} = useDropdownReorder('data-col-row-key', moveColumn)
 function onColRowKeyDown(event: KeyboardEvent, key: string): void {
   if (event.altKey && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {
     event.preventDefault()
@@ -1564,99 +1459,51 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
             </div>
             <div class="dt__filter-detail">
               <template v-if="filterDetailCol">
-                <div v-if="filterDetailCol.type === 'number'" class="dt__range">
-                  <div class="dt__range-inputs">
-                    <input
-                      type="number"
-                      :placeholder="L.min"
-                      :value="
-                        rangeFilters[filterDetailCol.key]?.min ??
-                        (filterDetailBounds
-                          ? formatRangeBound(filterDetailBounds.min, filterDetailCol)
-                          : '')
-                      "
-                      @input="
-                        setRangeFilter(
-                          filterDetailCol.key,
-                          'min',
-                          ($event.target as HTMLInputElement).value,
-                        )
-                      "
-                      class="dt__range-input"
-                    />
-                    <span class="dt__range-sep">–</span>
-                    <input
-                      type="number"
-                      :placeholder="L.max"
-                      :value="
-                        rangeFilters[filterDetailCol.key]?.max ??
-                        (filterDetailBounds
-                          ? formatRangeBound(filterDetailBounds.max, filterDetailCol)
-                          : '')
-                      "
-                      @input="
-                        setRangeFilter(
-                          filterDetailCol.key,
-                          'max',
-                          ($event.target as HTMLInputElement).value,
-                        )
-                      "
-                      class="dt__range-input"
-                    />
-                  </div>
-                  <RangeSlider
-                    v-if="filterDetailSlider"
-                    v-bind="filterDetailSlider"
-                    @change="(lo, hi) => onRangeSliderChange(filterDetailCol!, lo, hi)"
-                  />
-                </div>
+                <RangeInputs
+                  v-if="filterDetailCol.type === 'number'"
+                  :is-date="false"
+                  :min="
+                    rangeFilters[filterDetailCol.key]?.min ??
+                    (filterDetailBounds
+                      ? formatRangeBound(filterDetailBounds.min, filterDetailCol)
+                      : '')
+                  "
+                  :max="
+                    rangeFilters[filterDetailCol.key]?.max ??
+                    (filterDetailBounds
+                      ? formatRangeBound(filterDetailBounds.max, filterDetailCol)
+                      : '')
+                  "
+                  :min-label="L.min"
+                  :max-label="L.max"
+                  :slider="filterDetailSlider"
+                  @update:min="setRangeFilter(filterDetailCol.key, 'min', $event)"
+                  @update:max="setRangeFilter(filterDetailCol.key, 'max', $event)"
+                  @slider-change="(lo, hi) => onRangeSliderChange(filterDetailCol!, lo, hi)"
+                />
                 <template v-else>
-                  <div v-if="filterDetailCol.type === 'date'" class="dt__range">
-                    <div class="dt__range-inputs">
-                      <input
-                        type="date"
-                        :aria-label="L.min"
-                        :value="
-                          rangeFilters[filterDetailCol.key]?.min ??
-                          (filterDetailBounds
-                            ? formatRangeBound(filterDetailBounds.min, filterDetailCol)
-                            : '')
-                        "
-                        @input="
-                          setRangeFilter(
-                            filterDetailCol.key,
-                            'min',
-                            ($event.target as HTMLInputElement).value,
-                          )
-                        "
-                        class="dt__range-input dt__range-input--date"
-                      />
-                      <span class="dt__range-sep">–</span>
-                      <input
-                        type="date"
-                        :aria-label="L.max"
-                        :value="
-                          rangeFilters[filterDetailCol.key]?.max ??
-                          (filterDetailBounds
-                            ? formatRangeBound(filterDetailBounds.max, filterDetailCol)
-                            : '')
-                        "
-                        @input="
-                          setRangeFilter(
-                            filterDetailCol.key,
-                            'max',
-                            ($event.target as HTMLInputElement).value,
-                          )
-                        "
-                        class="dt__range-input dt__range-input--date"
-                      />
-                    </div>
-                    <RangeSlider
-                      v-if="filterDetailSlider"
-                      v-bind="filterDetailSlider"
-                      @change="(lo, hi) => onRangeSliderChange(filterDetailCol!, lo, hi)"
-                    />
-                  </div>
+                  <RangeInputs
+                    v-if="filterDetailCol.type === 'date'"
+                    :is-date="true"
+                    :min="
+                      rangeFilters[filterDetailCol.key]?.min ??
+                      (filterDetailBounds
+                        ? formatRangeBound(filterDetailBounds.min, filterDetailCol)
+                        : '')
+                    "
+                    :max="
+                      rangeFilters[filterDetailCol.key]?.max ??
+                      (filterDetailBounds
+                        ? formatRangeBound(filterDetailBounds.max, filterDetailCol)
+                        : '')
+                    "
+                    :min-label="L.min"
+                    :max-label="L.max"
+                    :slider="filterDetailSlider"
+                    @update:min="setRangeFilter(filterDetailCol.key, 'min', $event)"
+                    @update:max="setRangeFilter(filterDetailCol.key, 'max', $event)"
+                    @slider-change="(lo, hi) => onRangeSliderChange(filterDetailCol!, lo, hi)"
+                  />
                   <div class="dt__filter-search-row">
                     <input
                       v-if="filterDetailValues.length > 0"
@@ -1838,7 +1685,8 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
         <template v-for="[key, vals] in Object.entries(filters)" :key="key">
           <span v-if="vals.size > 0" class="dt__chip dt__chip--info">
             <button type="button" class="dt__chip-body" @click="onOpenFilterCol(key)">
-              {{ columns.find((c) => c.key === key)?.label }}: {{ summarizeFilterValues(vals) }}
+              {{ columns.find((c) => c.key === key)?.label }}:
+              {{ summarizeFilterValues(vals, L.moreValues) }}
             </button>
             <button
               type="button"
@@ -1857,7 +1705,8 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
         <template v-for="[key, vals] in Object.entries(excludeFilters)" :key="`exclude-${key}`">
           <span v-if="vals.size > 0" class="dt__chip dt__chip--danger">
             <button type="button" class="dt__chip-body" @click="onOpenFilterCol(key)">
-              {{ columns.find((c) => c.key === key)?.label }}: ≠ {{ summarizeFilterValues(vals) }}
+              {{ columns.find((c) => c.key === key)?.label }}: ≠
+              {{ summarizeFilterValues(vals, L.moreValues) }}
             </button>
             <button
               type="button"
@@ -1916,7 +1765,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
               @dragover.prevent="onColDragOver(col.key)"
               @drop.prevent="onColDrop(col.key)"
               @dragend="onColDragEnd"
-              @click="onHeaderSortClick(col.key, $event)"
+              @click="onHeaderSortClick(col, $event)"
             >
               {{ col.label }}
               <span
@@ -2013,7 +1862,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
             <template v-if="group.key === null || !groupCollapsed(group.key!)">
               <tr
                 v-for="(row, ri) in group.rows"
-                :key="(asRecord(row)[rowKey] as string | number) ?? ri"
+                :key="(asRecord(row)[rowKey] as string | number) ?? `${group.key}-${ri}`"
                 :ref="(el) => setItemRef(row, el as Element | null)"
                 :tabindex="
                   isRowNavEnabled ? (isFocusTarget({ kind: 'row', row }) ? 0 : -1) : undefined
@@ -2429,33 +2278,6 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
 }
 .dt__dd-item--exclude input[type='checkbox'] {
   accent-color: var(--color-text-danger);
-}
-
-/* Range filter */
-.dt__range {
-  padding: 4px 14px 8px;
-}
-.dt__range-inputs {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-}
-.dt__range-sep {
-  font-size: 12px;
-  color: var(--color-text-tertiary);
-}
-.dt__range-input {
-  width: 80px;
-  padding: 3px 6px;
-  font-size: 12px;
-  border: 0.5px solid var(--color-border-secondary);
-  border-radius: 4px;
-  font-family: inherit;
-  background: transparent;
-  color: inherit;
-}
-.dt__range-input--date {
-  width: 118px;
 }
 
 /* Chips — .dt__chip is just a flex wrapper now; the actual padding/background/border live on

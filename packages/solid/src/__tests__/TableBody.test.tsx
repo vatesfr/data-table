@@ -107,6 +107,28 @@ describe('TableBody — header sorting', () => {
     dispose()
   })
 
+  it('sortable: false makes a header click/shift-click a no-op', () => {
+    const cols: ColumnDef<Row>[] = [
+      { key: 'name', label: 'Name', sortable: false },
+      { key: 'score', label: 'Score', type: 'number' },
+    ]
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    let table!: ReturnType<typeof createTableState<Row>>
+    const dispose = createRoot((d) => {
+      table = createTableState(ROWS, cols)
+      render(() => <TableBody table={table} columns={cols} />, container)
+      return d
+    })
+    const nameHeader = [...container.querySelectorAll('th')].find((th) =>
+      th.textContent?.includes('Name'),
+    )!
+    nameHeader.click()
+    nameHeader.dispatchEvent(new MouseEvent('click', { bubbles: true, shiftKey: true }))
+    expect(table.sort.entries()).toEqual([])
+    dispose()
+  })
+
   it('drag-and-drop on headers reorders columns', () => {
     const { container, table, dispose } = mount()
     stubRects(container, 'th[data-col-key]')
