@@ -1679,6 +1679,47 @@ export function paginateVisibleItems<TRow extends object>(
 }
 
 /**
+ * Computes the item to focus when row-nav keyboard navigation crosses a page boundary — either
+ * stepping to the adjacent page (an Arrow key at the current page's first/last item) or jumping
+ * via Ctrl/Cmd+Home/End to the true first/last item across *all* pages. Shared by every adapter's
+ * row-level keyboard nav (see "Keyboard navigation" -> "Crossing page boundaries" in the docs) —
+ * previously duplicated near-verbatim between React's and Vue's own `DataTableView`.
+ *
+ * Returns `null` when there's nowhere to go: already on the first/last page for an `'edge'` step,
+ * or the target page's own slice happens to be empty (e.g. every row on it is filtered out of
+ * nav — see `rowNavEnabled`). `rowNavEnabled` mirrors the same "hide rows when the table isn't
+ * otherwise interactive" filter every adapter already applies to its own `navigableItems`.
+ */
+export function getCrossPageFocusTarget<TRow extends object>(
+  visibleItems: VisibleItem<TRow>[],
+  currentPage: number,
+  numPages: number,
+  pageSize: number,
+  mode: { kind: 'edge'; delta: 1 | -1 } | { kind: 'jump'; toEnd: boolean },
+  rowNavEnabled: boolean,
+): { targetPage: number; item: VisibleItem<TRow> } | null {
+  const itemsForPage = (p: number): VisibleItem<TRow>[] =>
+    paginateVisibleItems(visibleItems, p, pageSize).filter(
+      (item) => item.kind === 'group' || rowNavEnabled,
+    )
+  if (mode.kind === 'edge') {
+    if (mode.delta === 1) {
+      if (currentPage >= numPages) return null
+      const item = itemsForPage(currentPage + 1)[0]
+      return item ? { targetPage: currentPage + 1, item } : null
+    }
+    if (currentPage <= 1) return null
+    const items = itemsForPage(currentPage - 1)
+    const item = items[items.length - 1]
+    return item ? { targetPage: currentPage - 1, item } : null
+  }
+  const targetPage = mode.toEnd ? numPages : 1
+  const items = itemsForPage(targetPage)
+  const item = mode.toEnd ? items[items.length - 1] : items[0]
+  return item ? { targetPage, item } : null
+}
+
+/**
  * The "Rows per page" dropdown's option list, guaranteed to include `pageSize` itself — a plain
  * `<select>` bound to a value absent from its own `<option>`s (e.g. `defaultPageSize: 5` against
  * the default `[10, 20, 50, 100]` choices) silently shows the wrong option as selected, since the
@@ -1770,6 +1811,30 @@ export function computeVirtualRange(
     offsetY: startIndex * itemHeight,
     totalHeight: totalCount * itemHeight,
   }
+}
+
+/**
+ * Given a virtualized list's current scroll position and a target row index, returns the
+ * `scrollTop` needed to bring that row into `computeVirtualRange`'s own mounted window, or `null`
+ * if the target's already fully within the plain (non-overscan) viewport and no scroll is
+ * needed. Shared by every adapter's virtualized-checklist keyboard nav — previously duplicated
+ * in React's `focusChecklistIndex` — for the "Up/Down/Home/End must reach a value outside the
+ * currently-mounted window" case (see "The flat checklist is virtualized" in the docs).
+ */
+export function getVirtualScrollTarget(
+  scrollTop: number,
+  viewportHeight: number,
+  itemHeight: number,
+  targetIndex: number,
+): number | null {
+  const rowTop = targetIndex * itemHeight
+  let nextScrollTop = scrollTop
+  if (rowTop < scrollTop) nextScrollTop = rowTop
+  else if (rowTop + itemHeight > scrollTop + viewportHeight) {
+    nextScrollTop = rowTop + itemHeight - viewportHeight
+  }
+  nextScrollTop = Math.max(0, nextScrollTop)
+  return nextScrollTop !== scrollTop ? nextScrollTop : null
 }
 
 export function countActiveFilters(

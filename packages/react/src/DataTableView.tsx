@@ -33,6 +33,8 @@ import {
   paginateVisibleItems,
   mergePageSizeOptions,
   computeVirtualRange,
+  getVirtualScrollTarget,
+  getCrossPageFocusTarget,
   getSortIndex as getHeaderSortIndex,
   getSortIcon as getHeaderSortIcon,
   summarizeFilterValues,
@@ -956,13 +958,8 @@ export function DataTableView<TRow extends object>({
   }
 
   // Arrow-key/Ctrl+Home/Ctrl+End navigation can target an item that isn't on the current page —
-  // `visibleItems` (from `table`) already covers the *full* filtered/grouped dataset, so jumping
-  // to an arbitrary page is just slicing it again (with the same continuation-header handling as
-  // the current page), no re-grouping needed.
-  const visibleItemsForPage = (p: number): VisibleItem<TRow>[] =>
-    paginateVisibleItems(visibleItems, p, pageSize).filter(
-      (item) => item.kind === 'group' || rowNavEnabled,
-    )
+  // `visibleItems` (from `table`) already covers the *full* filtered/grouped dataset, so crossing
+  // to an arbitrary page's first/last item is core's `getCrossPageFocusTarget` (shared with Vue).
 
   // Changing `page` re-renders asynchronously, so an item on the new page can't be focused until
   // after that render commits — this records the target and a `useEffect` below picks it up.
@@ -989,22 +986,21 @@ export function DataTableView<TRow extends object>({
           e.preventDefault()
           if (e.shiftKey && selectable && next.kind === 'row') toggleRowSelection(next.row, true)
           focusItem(next)
-        } else if (delta === 1 && page < numPages) {
-          const next = visibleItemsForPage(page + 1)[0]
-          if (next) {
+        } else {
+          const crossing = getCrossPageFocusTarget(
+            visibleItems,
+            page,
+            numPages,
+            pageSize,
+            { kind: 'edge', delta },
+            rowNavEnabled,
+          )
+          if (crossing) {
             e.preventDefault()
-            if (e.shiftKey && selectable && next.kind === 'row') toggleRowSelection(next.row, true)
-            pendingFocusTarget.current = next
-            setPage(page + 1)
-          }
-        } else if (delta === -1 && page > 1) {
-          const prevItems = visibleItemsForPage(page - 1)
-          const next = prevItems[prevItems.length - 1]
-          if (next) {
-            e.preventDefault()
-            if (e.shiftKey && selectable && next.kind === 'row') toggleRowSelection(next.row, true)
-            pendingFocusTarget.current = next
-            setPage(page - 1)
+            if (e.shiftKey && selectable && crossing.item.kind === 'row')
+              toggleRowSelection(crossing.item.row, true)
+            pendingFocusTarget.current = crossing.item
+            setPage(crossing.targetPage)
           }
         }
         break
@@ -1012,16 +1008,22 @@ export function DataTableView<TRow extends object>({
       case 'Home':
       case 'End': {
         if (e.ctrlKey || e.metaKey) {
-          const targetPage = e.key === 'Home' ? 1 : numPages
-          const targetItems = targetPage === page ? navigableItems : visibleItemsForPage(targetPage)
-          const next = e.key === 'Home' ? targetItems[0] : targetItems[targetItems.length - 1]
-          if (next) {
+          const crossing = getCrossPageFocusTarget(
+            visibleItems,
+            page,
+            numPages,
+            pageSize,
+            { kind: 'jump', toEnd: e.key === 'End' },
+            rowNavEnabled,
+          )
+          if (crossing) {
             e.preventDefault()
-            if (e.shiftKey && selectable && next.kind === 'row') toggleRowSelection(next.row, true)
-            if (targetPage === page) focusItem(next)
+            if (e.shiftKey && selectable && crossing.item.kind === 'row')
+              toggleRowSelection(crossing.item.row, true)
+            if (crossing.targetPage === page) focusItem(crossing.item)
             else {
-              pendingFocusTarget.current = next
-              setPage(targetPage)
+              pendingFocusTarget.current = crossing.item
+              setPage(crossing.targetPage)
             }
           }
           break
@@ -1297,14 +1299,13 @@ export function DataTableView<TRow extends object>({
   const focusChecklistIndex = (targetIdx: number) => {
     if (targetIdx < 0 || targetIdx >= filterDetailValues.length) return
     const value = filterDetailValues[targetIdx]
-    const rowTop = targetIdx * FILTER_LIST_ITEM_HEIGHT
-    let newScrollTop = filterListScrollTop
-    if (rowTop < filterListScrollTop) newScrollTop = rowTop
-    else if (rowTop + FILTER_LIST_ITEM_HEIGHT > filterListScrollTop + FILTER_LIST_VIEWPORT_HEIGHT) {
-      newScrollTop = rowTop + FILTER_LIST_ITEM_HEIGHT - FILTER_LIST_VIEWPORT_HEIGHT
-    }
-    newScrollTop = Math.max(0, newScrollTop)
-    if (newScrollTop !== filterListScrollTop) {
+    const newScrollTop = getVirtualScrollTarget(
+      filterListScrollTop,
+      FILTER_LIST_VIEWPORT_HEIGHT,
+      FILTER_LIST_ITEM_HEIGHT,
+      targetIdx,
+    )
+    if (newScrollTop !== null) {
       pendingFilterValueFocus.current = value
       if (filterListRef.current) filterListRef.current.scrollTop = newScrollTop
       setFilterListScrollTop(newScrollTop)

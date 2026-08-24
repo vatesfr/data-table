@@ -25,6 +25,8 @@ import {
   paginateVisibleItems,
   mergePageSizeOptions,
   computeVirtualRange,
+  getVirtualScrollTarget,
+  getCrossPageFocusTarget,
   getSortIndex as getHeaderSortIndex,
   getSortIcon as getHeaderSortIcon,
   summarizeFilterValues,
@@ -208,14 +210,8 @@ function focusItem(target: VisibleItem<TRow>): void {
 }
 
 // Arrow-key/Ctrl+Home/Ctrl+End navigation can target an item that isn't on the current page —
-// `visibleItems` (from `table`) already covers the *full* filtered/grouped dataset, so jumping to
-// an arbitrary page is just slicing it again (with the same continuation-header handling as the
-// current page), no re-grouping needed.
-function visibleItemsForPage(p: number): VisibleItem<TRow>[] {
-  return paginateVisibleItems(visibleItems.value, p, pageSize.value).filter(
-    (item) => item.kind === 'group' || isRowNavEnabled.value,
-  )
-}
+// `visibleItems` (from `table`) already covers the *full* filtered/grouped dataset, so crossing
+// to an arbitrary page's first/last item is core's `getCrossPageFocusTarget` (shared with React).
 
 // Changing `page` re-renders asynchronously, so an item on the new page can't be focused until
 // after that render commits — this records the target and the `watch` below (flush: 'post',
@@ -248,24 +244,21 @@ function handleKeyDown(event: KeyboardEvent, target: VisibleItem<TRow>): void {
         if (event.shiftKey && props.selectable && next.kind === 'row')
           toggleRowSelection(next.row, true)
         focusItem(next)
-      } else if (delta === 1 && page.value < numPages.value) {
-        const next = visibleItemsForPage(page.value + 1)[0]
-        if (next) {
+      } else {
+        const crossing = getCrossPageFocusTarget(
+          visibleItems.value,
+          page.value,
+          numPages.value,
+          pageSize.value,
+          { kind: 'edge', delta },
+          isRowNavEnabled.value,
+        )
+        if (crossing) {
           event.preventDefault()
-          if (event.shiftKey && props.selectable && next.kind === 'row')
-            toggleRowSelection(next.row, true)
-          pendingFocusTarget = next
-          setPage(page.value + 1)
-        }
-      } else if (delta === -1 && page.value > 1) {
-        const prevItems = visibleItemsForPage(page.value - 1)
-        const next = prevItems[prevItems.length - 1]
-        if (next) {
-          event.preventDefault()
-          if (event.shiftKey && props.selectable && next.kind === 'row')
-            toggleRowSelection(next.row, true)
-          pendingFocusTarget = next
-          setPage(page.value - 1)
+          if (event.shiftKey && props.selectable && crossing.item.kind === 'row')
+            toggleRowSelection(crossing.item.row, true)
+          pendingFocusTarget = crossing.item
+          setPage(crossing.targetPage)
         }
       }
       break
@@ -273,18 +266,23 @@ function handleKeyDown(event: KeyboardEvent, target: VisibleItem<TRow>): void {
     case 'Home':
     case 'End': {
       if (event.ctrlKey || event.metaKey) {
-        const targetPage = event.key === 'Home' ? 1 : numPages.value
-        const targetItems = targetPage === page.value ? items : visibleItemsForPage(targetPage)
-        const next = event.key === 'Home' ? targetItems[0] : targetItems[targetItems.length - 1]
-        if (next) {
+        const crossing = getCrossPageFocusTarget(
+          visibleItems.value,
+          page.value,
+          numPages.value,
+          pageSize.value,
+          { kind: 'jump', toEnd: event.key === 'End' },
+          isRowNavEnabled.value,
+        )
+        if (crossing) {
           event.preventDefault()
-          if (event.shiftKey && props.selectable && next.kind === 'row')
-            toggleRowSelection(next.row, true)
-          if (targetPage === page.value) {
-            focusItem(next)
+          if (event.shiftKey && props.selectable && crossing.item.kind === 'row')
+            toggleRowSelection(crossing.item.row, true)
+          if (crossing.targetPage === page.value) {
+            focusItem(crossing.item)
           } else {
-            pendingFocusTarget = next
-            setPage(targetPage)
+            pendingFocusTarget = crossing.item
+            setPage(crossing.targetPage)
           }
         }
         break
@@ -1101,16 +1099,13 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
               return
             }
             event.preventDefault()
-            const rowTop = targetIdx * FILTER_LIST_VIRTUAL_ITEM_HEIGHT
-            let newScrollTop = filterListScrollTop.value
-            if (rowTop < newScrollTop) newScrollTop = rowTop
-            else if (
-              rowTop + FILTER_LIST_VIRTUAL_ITEM_HEIGHT >
-              newScrollTop + FILTER_LIST_VIEWPORT_HEIGHT
-            ) {
-              newScrollTop = rowTop + FILTER_LIST_VIRTUAL_ITEM_HEIGHT - FILTER_LIST_VIEWPORT_HEIGHT
-            }
-            newScrollTop = Math.max(0, newScrollTop)
+            const newScrollTop =
+              getVirtualScrollTarget(
+                filterListScrollTop.value,
+                FILTER_LIST_VIEWPORT_HEIGHT,
+                FILTER_LIST_VIRTUAL_ITEM_HEIGHT,
+                targetIdx,
+              ) ?? filterListScrollTop.value
             filterListScrollTop.value = newScrollTop
             if (filterListRef.value) filterListRef.value.scrollTop = newScrollTop
             const targetValue = values[targetIdx]

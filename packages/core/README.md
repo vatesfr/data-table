@@ -69,6 +69,7 @@ sumDateTreeNodeCount(node, counts)                    // sum facet counts (compu
 findDateTreeNode(nodes, path)                         // depth-first lookup of a node by its path
 selectDateRange(allValues, anchorNode, targetNode, parseDate?) // shift-click range selection over the tree, as a chronological interval (not rendered-row order)
 computeVirtualRange(scrollTop, viewportHeight, itemHeight, totalCount, overscan?) // VirtualRange { startIndex, endIndex, offsetY, totalHeight } for a fixed-row-height windowed checklist render
+getVirtualScrollTarget(scrollTop, viewportHeight, itemHeight, targetIndex) // scrollTop needed to bring targetIndex into computeVirtualRange's mounted window, or null if already visible
 normalizeForSearch(s) // lowercase + strip diacritics, e.g. "Öoo" -> "ooo" (used by filterValuesBySearch and searchData)
 ```
 
@@ -160,6 +161,7 @@ getVisibleRows(groups, collapsedGroups, defaultCollapsed?) // flatten groupData'
 isSameVisibleItem(a, b) // whether a and b are the same navigable target — rows by object identity, groups by key
 indexOfVisibleItem(items, target) // index of target within items, or -1 if target is null/absent
 paginateVisibleItems(visibleItems, page, pageSize) // per-page slice of visibleItems for keyboard nav, with a synthetic continuation header prepended when the page starts mid-group
+getCrossPageFocusTarget(visibleItems, currentPage, numPages, pageSize, mode, rowNavEnabled) // { targetPage, item } to focus when row-nav keyboard crosses a page boundary (an edge Arrow step, or a Ctrl/Cmd+Home/End jump), or null if there's nowhere to go
 ```
 
 See [docs/keyboard-navigation.md](../../docs/keyboard-navigation.md) for the roving-tabindex mechanism and per-adapter wiring. See also [docs/dropdown-keyboard-nav.md](../../docs/dropdown-keyboard-nav.md) for the separate dropdown-panel (Columns/Sort/Group/Filter) keyboard nav.

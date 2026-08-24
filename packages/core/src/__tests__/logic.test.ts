@@ -8,6 +8,7 @@ import {
   getVisibleRows,
   paginateVisibleGroups,
   paginateVisibleItems,
+  getCrossPageFocusTarget,
   mergePageSizeOptions,
   isSameVisibleItem,
   indexOfVisibleItem,
@@ -61,6 +62,7 @@ import {
   getValueSortIcon,
   getDateSortIcon,
   computeVirtualRange,
+  getVirtualScrollTarget,
   bucketNumericRange,
   formatNumericRange,
   numericRangeGroup,
@@ -1328,6 +1330,57 @@ describe('paginateVisibleItems', () => {
       { kind: 'row', row: ROWS[2], groupKey: null },
       { kind: 'row', row: ROWS[3], groupKey: null },
     ])
+  })
+})
+
+// ─── getCrossPageFocusTarget ────────────────────────────────────────────────────
+
+describe('getCrossPageFocusTarget', () => {
+  // 6 plain rows, ungrouped, pageSize 2 -> 3 pages of [A,B] [C,D] [E,F].
+  const visible: ReturnType<typeof getVisibleRows> = [
+    { kind: 'row', row: ROWS[0], groupKey: null },
+    { kind: 'row', row: ROWS[1], groupKey: null },
+    { kind: 'row', row: ROWS[2], groupKey: null },
+    { kind: 'row', row: ROWS[3], groupKey: null },
+    { kind: 'row', row: ROWS[0], groupKey: null },
+    { kind: 'row', row: ROWS[1], groupKey: null },
+  ]
+
+  it("edge/+1 steps to the next page's first item", () => {
+    const result = getCrossPageFocusTarget(visible, 1, 3, 2, { kind: 'edge', delta: 1 }, true)
+    expect(result).toEqual({ targetPage: 2, item: visible[2] })
+  })
+
+  it("edge/-1 steps to the previous page's last item", () => {
+    const result = getCrossPageFocusTarget(visible, 2, 3, 2, { kind: 'edge', delta: -1 }, true)
+    expect(result).toEqual({ targetPage: 1, item: visible[1] })
+  })
+
+  it('edge/+1 returns null on the last page', () => {
+    expect(getCrossPageFocusTarget(visible, 3, 3, 2, { kind: 'edge', delta: 1 }, true)).toBeNull()
+  })
+
+  it('edge/-1 returns null on the first page', () => {
+    expect(getCrossPageFocusTarget(visible, 1, 3, 2, { kind: 'edge', delta: -1 }, true)).toBeNull()
+  })
+
+  it('jump/toEnd=false targets the true first item on page 1, regardless of current page', () => {
+    const result = getCrossPageFocusTarget(visible, 3, 3, 2, { kind: 'jump', toEnd: false }, true)
+    expect(result).toEqual({ targetPage: 1, item: visible[0] })
+  })
+
+  it('jump/toEnd=true targets the true last item on the last page', () => {
+    const result = getCrossPageFocusTarget(visible, 1, 3, 2, { kind: 'jump', toEnd: true }, true)
+    expect(result).toEqual({ targetPage: 3, item: visible[5] })
+  })
+
+  it('jump when already on the target page still resolves (caller decides whether a page change is needed)', () => {
+    const result = getCrossPageFocusTarget(visible, 1, 3, 2, { kind: 'jump', toEnd: false }, true)
+    expect(result?.targetPage).toBe(1)
+  })
+
+  it('rowNavEnabled=false filters out row items, so an all-row target page resolves to null', () => {
+    expect(getCrossPageFocusTarget(visible, 1, 3, 2, { kind: 'edge', delta: 1 }, false)).toBeNull()
   })
 })
 
@@ -3126,5 +3179,27 @@ describe('computeVirtualRange', () => {
     const range = computeVirtualRange(0, 260, 32, 3, 5)
     expect(range.startIndex).toBe(0)
     expect(range.endIndex).toBe(3)
+  })
+})
+
+// ─── getVirtualScrollTarget ─────────────────────────────────────────────────────
+
+describe('getVirtualScrollTarget', () => {
+  it('returns null when the target row is already fully within the viewport', () => {
+    // viewport [0, 260), item height 32 -> rows 0-7 fully visible at scrollTop 0.
+    expect(getVirtualScrollTarget(0, 260, 32, 3)).toBeNull()
+  })
+
+  it('scrolls up to the row itself when the target is above the viewport', () => {
+    expect(getVirtualScrollTarget(320, 260, 32, 2)).toBe(64) // row 2 top = 2*32
+  })
+
+  it('scrolls down just enough to bring the row fully into view when below the viewport', () => {
+    // viewport shows rows 0-7 at scrollTop 0; row 10 (top 320, bottom 352) is below it.
+    expect(getVirtualScrollTarget(0, 260, 32, 10)).toBe(352 - 260) // bottom - viewportHeight
+  })
+
+  it('scrolls back to 0 when the target is the first row and the list is only slightly scrolled', () => {
+    expect(getVirtualScrollTarget(5, 260, 32, 0)).toBe(0)
   })
 })
