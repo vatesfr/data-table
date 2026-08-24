@@ -1259,6 +1259,68 @@ export function setFilterMode(
 }
 
 /**
+ * Whether `key` currently has any active filter — a checklist include/exclude value, or a set
+ * range. Shared by the Filter dropdown's left-pane clear button/indicator and
+ * `orderFilterColumnsByActive` below, so all three adapters check "is this column filtered"
+ * exactly one way.
+ */
+export function columnHasActiveFilter(
+  key: string,
+  filters: Record<string, Set<string>>,
+  excludeFilters: Record<string, Set<string>>,
+  rangeFilters: Record<string, RangeFilter>,
+): boolean {
+  const rf = rangeFilters[key]
+  return (
+    (filters[key]?.size ?? 0) > 0 ||
+    (excludeFilters[key]?.size ?? 0) > 0 ||
+    (rf !== undefined && (rf.min !== '' || rf.max !== ''))
+  )
+}
+
+/**
+ * Orders the Filter dropdown's left-pane column list with active-filter columns first, then the
+ * rest — both groups alphabetical by `label` — as a snapshot key list to apply once a dropdown
+ * opens (see "column ordering" in docs/filter-dropdown.md for why this is a snapshot rather than
+ * a live sort: reordering while a filter is being toggled with the panel still open would move a
+ * row out from under the pointer mid-interaction, which every adapter avoids by only ever calling
+ * this function at the moment the dropdown opens, not on every filter change).
+ */
+export function orderFilterColumnsByActive<TRow extends object>(
+  columns: ColumnDefBase<TRow>[],
+  filters: Record<string, Set<string>>,
+  excludeFilters: Record<string, Set<string>>,
+  rangeFilters: Record<string, RangeFilter>,
+): string[] {
+  const sorted = columns.slice().sort((a, b) => a.label.localeCompare(b.label))
+  const isActive = (c: ColumnDefBase<TRow>) =>
+    columnHasActiveFilter(c.key, filters, excludeFilters, rangeFilters)
+  return [...sorted.filter(isActive), ...sorted.filter((c) => !isActive(c))].map((c) => c.key)
+}
+
+/**
+ * Applies an `orderFilterColumnsByActive` snapshot to a (possibly search-narrowed) column list —
+ * a column absent from `orderKeys` (e.g. added to `columns` after the dropdown was opened, or no
+ * snapshot taken yet) sorts after every snapshotted one, alongside its own alphabetical fallback.
+ * `orderKeys: null` means "no snapshot yet" (the dropdown has never been opened this session) and
+ * falls back to plain alphabetical order.
+ */
+export function applyColumnOrderSnapshot<TRow extends object>(
+  columns: ColumnDefBase<TRow>[],
+  orderKeys: string[] | null,
+): ColumnDefBase<TRow>[] {
+  if (!orderKeys) return columns.slice().sort((a, b) => a.label.localeCompare(b.label))
+  const indexOf = (key: string) => {
+    const i = orderKeys.indexOf(key)
+    return i === -1 ? orderKeys.length : i
+  }
+  return columns.slice().sort((a, b) => {
+    const diff = indexOf(a.key) - indexOf(b.key)
+    return diff !== 0 ? diff : a.label.localeCompare(b.label)
+  })
+}
+
+/**
  * Detects whether a column's values are array-shaped in at least one row of `data` — the same
  * "is this a multi-value column" question `multiValues`/`col.multiMode` answer implicitly at
  * filter/group time, exposed here so a UI can decide whether an any/all toggle is meaningful to

@@ -34,6 +34,9 @@ import {
   cycleFilterValue,
   clearExcludeValues,
   setFilterMode,
+  columnHasActiveFilter,
+  orderFilterColumnsByActive,
+  applyColumnOrderSnapshot,
   isMultiValueColumn,
   selectRange,
   isRowSelected,
@@ -2650,6 +2653,103 @@ describe('setFilterMode', () => {
     const result = setFilterMode({ dept: 'and' }, 'tags', 'and')
     expect(result['dept']).toBe('and')
     expect(result['tags']).toBe('and')
+  })
+})
+
+// ─── columnHasActiveFilter ──────────────────────────────────────────────────
+
+describe('columnHasActiveFilter', () => {
+  it('is false with no filters at all', () => {
+    expect(columnHasActiveFilter('dept', {}, {}, {})).toBe(false)
+  })
+
+  it('is true when the column has an include value', () => {
+    expect(columnHasActiveFilter('dept', { dept: new Set(['Eng']) }, {}, {})).toBe(true)
+  })
+
+  it('is true when the column has an exclude value', () => {
+    expect(columnHasActiveFilter('dept', {}, { dept: new Set(['Eng']) }, {})).toBe(true)
+  })
+
+  it('is false for an empty Set (cleared but present key)', () => {
+    expect(columnHasActiveFilter('dept', { dept: new Set() }, { dept: new Set() }, {})).toBe(false)
+  })
+
+  it('is true when the column has a min or max range bound set', () => {
+    expect(columnHasActiveFilter('score', {}, {}, { score: { min: '80', max: '' } })).toBe(true)
+    expect(columnHasActiveFilter('score', {}, {}, { score: { min: '', max: '100' } })).toBe(true)
+  })
+
+  it('is false for a range entry with both bounds empty', () => {
+    expect(columnHasActiveFilter('score', {}, {}, { score: { min: '', max: '' } })).toBe(false)
+  })
+
+  it('does not confuse one column with another', () => {
+    expect(columnHasActiveFilter('score', { dept: new Set(['Eng']) }, {}, {})).toBe(false)
+  })
+})
+
+// ─── orderFilterColumnsByActive / applyColumnOrderSnapshot ─────────────────
+
+describe('orderFilterColumnsByActive', () => {
+  const COLS = [
+    { key: 'name', label: 'Name' },
+    { key: 'dept', label: 'Dept' },
+    { key: 'score', label: 'Score' },
+    { key: 'joined', label: 'Joined' },
+  ]
+
+  it('is plain alphabetical order when nothing is active', () => {
+    expect(orderFilterColumnsByActive(COLS, {}, {}, {})).toEqual([
+      'dept',
+      'joined',
+      'name',
+      'score',
+    ])
+  })
+
+  it('puts active-filter columns first, alphabetical within each group', () => {
+    const order = orderFilterColumnsByActive(
+      COLS,
+      { score: new Set(['90']) },
+      {},
+      { joined: { min: '2023-01-01', max: '' } },
+    )
+    expect(order).toEqual(['joined', 'score', 'dept', 'name'])
+  })
+})
+
+describe('applyColumnOrderSnapshot', () => {
+  const COLS = [
+    { key: 'name', label: 'Name' },
+    { key: 'dept', label: 'Dept' },
+    { key: 'score', label: 'Score' },
+  ]
+
+  it('falls back to alphabetical order when no snapshot was taken (null)', () => {
+    expect(applyColumnOrderSnapshot(COLS, null).map((c) => c.key)).toEqual([
+      'dept',
+      'name',
+      'score',
+    ])
+  })
+
+  it('orders columns per the snapshot', () => {
+    expect(applyColumnOrderSnapshot(COLS, ['score', 'dept', 'name']).map((c) => c.key)).toEqual([
+      'score',
+      'dept',
+      'name',
+    ])
+  })
+
+  it('sorts a column absent from the snapshot after every snapshotted one', () => {
+    // 'score' wasn't in the snapshot (e.g. added to `columns` after the dropdown opened) — it
+    // sorts after 'dept'/'name', alphabetically among any other such stragglers.
+    expect(applyColumnOrderSnapshot(COLS, ['dept', 'name']).map((c) => c.key)).toEqual([
+      'dept',
+      'name',
+      'score',
+    ])
   })
 })
 
