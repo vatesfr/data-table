@@ -16,6 +16,7 @@ When there are multiple valid approaches to a request, present the options and t
 - Write descriptive commit messages that explain the _why_, not just the _what_. Use a short subject line and a body when context is needed.
 - If a commit fixes a bug reported in a GitHub issue, include a closing keyword (e.g. `Fixes #N` / `Closes #N`) in the commit body. If the issue number isn't known, ask before committing rather than omitting it.
 - Only create a dedicated branch and close it with a merge commit when a feature's development required multiple commits; otherwise commit directly to `main`.
+- While iterating on a commit (or run of commits) that hasn't been pushed yet, don't stack a new commit for each round of fixes/review feedback — amend the existing commit, or squash (`git reset --soft <parent>`, then recommit) if several unpushed commits already cover the same feature. Unpushed history isn't shared, so there's no cost to rewriting it, and it keeps history to one clean commit per logical feature instead of a string of "fix review comment" commits nobody outside the session ever saw individually. Once a commit is pushed, treat it as shared and stop rewriting it — go back to a normal atomic commit per logical change.
 
 ## Commands
 
