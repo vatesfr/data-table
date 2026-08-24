@@ -38,6 +38,9 @@ import {
   getSortIndex as getHeaderSortIndex,
   getSortIcon as getHeaderSortIcon,
   summarizeFilterValues,
+  columnHasActiveFilter,
+  orderFilterColumnsByActive,
+  applyColumnOrderSnapshot,
   type DateTreeNode,
   type ValueSort,
   type VisibleItem,
@@ -400,6 +403,10 @@ const S = {
     borderRight: '0.5px solid var(--color-border-tertiary)',
     padding: '4px 0',
   } as CSSProperties,
+  // flex/minWidth/overflow here (not ddItemButton's own width: '100%') is what makes this button
+  // share its row with the clear button below instead of claiming the whole row's width — see
+  // filterColRow/filterColClear. Spread *after* ddItemButton at the call site so these win over
+  // ddItemButton's width: '100%'.
   filterColItem: {
     display: 'flex',
     alignItems: 'center',
@@ -409,14 +416,34 @@ const S = {
     fontSize: 13,
     cursor: 'pointer',
     color: 'var(--color-text-primary)',
+    flex: '1 1 auto',
+    minWidth: 0,
+    overflow: 'hidden',
+    boxSizing: 'border-box',
   } as CSSProperties,
-  filterColItemActive: { background: 'var(--color-background-secondary)', fontWeight: 500 },
-  filterColDot: {
-    width: 6,
-    height: 6,
-    borderRadius: '50%',
-    background: 'var(--color-text-info)',
+  filterColItemActive: { fontWeight: 500 } as CSSProperties,
+  filterColLabel: {
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+  } as CSSProperties,
+  // The row (not the item button alone) carries the selected-column background — see the render
+  // site's own comment for why: it needs to span the clear button too, not stop short of it.
+  filterColRow: { display: 'flex', alignItems: 'stretch' } as CSSProperties,
+  filterColRowActive: { background: 'var(--color-background-secondary)' } as CSSProperties,
+  // Replaces the old plain active-filter dot — see the render site's own comment.
+  filterColClear: {
     flexShrink: 0,
+    display: 'flex',
+    alignItems: 'center',
+    padding: '0 10px',
+    fontSize: 13,
+    lineHeight: 1,
+    cursor: 'pointer',
+    color: 'var(--color-text-tertiary)',
+    border: 'none',
+    background: 'none',
+    fontFamily: 'inherit',
   } as CSSProperties,
   // A flex column (not just `flex: 1`) so the checklist/date-tree child below can `flex: 1` to
   // fill whatever height `.filterCols` (the column list) ends up stretching this to via the
@@ -1085,9 +1112,28 @@ export function DataTableView<TRow extends object>({
   const searchedAddableGroupCols = searchCols(addableGroupCols, ddSearchTerms.group ?? '')
     .slice()
     .sort((a, b) => a.label.localeCompare(b.label))
-  const searchedFilterableCols = searchCols(filterableCols, ddSearchTerms.filter ?? '')
-    .slice()
-    .sort((a, b) => a.label.localeCompare(b.label))
+  // Snapshot of the left pane's column order, taken only at the moment the Filter dropdown opens
+  // — active-filter columns first, then the rest (see `orderFilterColumnsByActive`'s own doc
+  // comment, core, for why this is a snapshot rather than a live sort: reordering while a filter
+  // is toggled with the panel still open would move a row out from under the pointer
+  // mid-interaction). Comparing `openFilterDD` against the previous render is React's own
+  // documented pattern for "adjust state when a prop changes" — same shape as
+  // `filterListResetKey`/`prevColumnKeys` elsewhere in this file — rather than an effect, so the
+  // very first render with the panel open already has the fresh snapshot.
+  const [filterColOrderKeys, setFilterColOrderKeys] = useState<string[] | null>(null)
+  const [prevOpenFilterDD, setPrevOpenFilterDD] = useState(openFilterDD)
+  if (openFilterDD !== prevOpenFilterDD) {
+    setPrevOpenFilterDD(openFilterDD)
+    if (openFilterDD) {
+      setFilterColOrderKeys(
+        orderFilterColumnsByActive(filterableCols, filters, excludeFilters, rangeFilters),
+      )
+    }
+  }
+  const searchedFilterableCols = applyColumnOrderSnapshot(
+    searchCols(filterableCols, ddSearchTerms.filter ?? ''),
+    filterColOrderKeys,
+  )
   const filterActiveKey =
     filterActiveCol && filterableCols.some((c) => c.key === filterActiveCol)
       ? filterActiveCol
@@ -1334,8 +1380,25 @@ export function DataTableView<TRow extends object>({
   const handleFilterPanelKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     if (e.altKey) return
     const targetEl = e.target as HTMLElement
+    const filterColBtn = targetEl.closest<HTMLElement>('[data-filter-col-key]')
 
-    if (targetEl.closest('[data-filter-col-key]') && e.key === 'ArrowRight') {
+    // Delete/Backspace on a focused left-pane column row clears that column's filter — the
+    // keyboard equivalent of clicking its × clear button. Guarded to an actually-active column
+    // so pressing it on an inert row is a true no-op (no page-reset churn from clearColumnFilter's
+    // unconditional setPageState(1)).
+    if ((e.key === 'Delete' || e.key === 'Backspace') && filterColBtn) {
+      const key = filterColBtn.dataset.filterColKey
+      const col = key && filterableCols.find((c) => c.key === key)
+      if (col && columnHasActiveFilter(col.key, filters, excludeFilters, rangeFilters)) {
+        e.preventDefault()
+        clearColumnFilter(col.key, 'include')
+        clearColumnFilter(col.key, 'exclude')
+        clearColumnFilter(col.key, 'range')
+      }
+      return
+    }
+
+    if (filterColBtn && e.key === 'ArrowRight') {
       e.preventDefault()
       e.stopPropagation()
       e.currentTarget
@@ -1996,8 +2059,11 @@ export function DataTableView<TRow extends object>({
                 <div style={S.filterCols} data-filter-cols>
                   {/* Narrows the column list itself — separate from filterSearchTerms, which
                       narrows the *values* shown in the right-hand detail pane for whichever
-                      column is currently selected. No inherent order to preserve here (unlike
-                      the Columns dropdown, this list isn't reorderable), so it's alphabetized. */}
+                      column is currently selected. Order follows filterColOrderKeys (a snapshot
+                      taken when the dropdown opens — active-filter columns first, then the rest,
+                      alphabetized within each group) instead of a plain alphabetize, since
+                      active-filter columns are the ones most worth finding at a glance in a long
+                      list. */}
                   <DdSearchInput
                     value={ddSearchTerms.filter ?? ''}
                     onChange={(v) => setDdSearchTerms({ ...ddSearchTerms, filter: v })}
@@ -2005,42 +2071,76 @@ export function DataTableView<TRow extends object>({
                     extraStyle={S.filterColsSearch}
                   />
                   {searchedFilterableCols.map((col) => {
-                    const rf = rangeFilters[col.key]
-                    // A date column can have both an active checklist selection (tree) *and* an
-                    // active range filter above it at once — either one alone should light the
-                    // dot, not just whichever one a plain type-based ternary happened to check.
-                    const hasActive =
-                      (filters[col.key]?.size ?? 0) > 0 ||
-                      (excludeFilters[col.key]?.size ?? 0) > 0 ||
-                      (rf !== undefined && (rf.min !== '' || rf.max !== ''))
+                    const hasActive = columnHasActiveFilter(
+                      col.key,
+                      filters,
+                      excludeFilters,
+                      rangeFilters,
+                    )
                     return (
-                      // A real <button> (not a div) so it's a native Tab stop and Enter/Space
-                      // "click" it for free — same fix as the Sort/Group add-lists above; this
-                      // had the identical gap. `onFocus` (not just `onClick`) is what actually
-                      // shows this column's detail pane — a listbox/radiogroup-style "focus
-                      // follows selection", so arrow-key nav or Tab landing here needs no
-                      // separate Enter/Space "activate" step; a click still works the same way,
-                      // since focusing a button on click fires the same event. Guarded against
-                      // re-selecting the already-active column so focusing it back (e.g. via
-                      // ArrowLeft from the right pane) doesn't trigger a pointless state update.
-                      <button
+                      // The row (not the item button alone) carries the selected-column
+                      // highlight, so it spans the clear button too instead of stopping short of
+                      // it (see S.filterColRowActive) — a <button> can't contain another
+                      // interactive element, so the clear button below is a sibling, not nested.
+                      <div
                         key={col.key}
-                        type="button"
-                        data-filter-col-key={col.key}
-                        data-dd-row
-                        onFocus={() => {
-                          if (col.key !== filterActiveKey) setFilterActiveCol(col.key)
-                        }}
-                        onClick={() => setFilterActiveCol(col.key)}
+                        data-filter-row-key={col.key}
                         style={{
-                          ...S.filterColItem,
-                          ...S.ddItemButton,
-                          ...(col.key === filterActiveKey ? S.filterColItemActive : {}),
+                          ...S.filterColRow,
+                          ...(col.key === filterActiveKey ? S.filterColRowActive : {}),
                         }}
                       >
-                        <span>{col.label}</span>
-                        {hasActive && <span style={S.filterColDot} />}
-                      </button>
+                        {/* A real <button> (not a div) so it's a native Tab stop and Enter/Space
+                            "click" it for free — same fix as the Sort/Group add-lists above; this
+                            had the identical gap. `onFocus` (not just `onClick`) is what actually
+                            shows this column's detail pane — a listbox/radiogroup-style "focus
+                            follows selection", so arrow-key nav or Tab landing here needs no
+                            separate Enter/Space "activate" step; a click still works the same way,
+                            since focusing a button on click fires the same event. Guarded against
+                            re-selecting the already-active column so focusing it back (e.g. via
+                            ArrowLeft from the right pane) doesn't trigger a pointless state
+                            update. Delete/Backspace clearing the column's filter is handled by
+                            handleFilterPanelKeyDown (bound on the whole panel), not here — same
+                            action as the clear button below, reachable without leaving the row. */}
+                        <button
+                          type="button"
+                          data-filter-col-key={col.key}
+                          data-dd-row
+                          onFocus={() => {
+                            if (col.key !== filterActiveKey) setFilterActiveCol(col.key)
+                          }}
+                          onClick={() => setFilterActiveCol(col.key)}
+                          style={{
+                            ...S.ddItemButton,
+                            ...S.filterColItem,
+                            ...(col.key === filterActiveKey ? S.filterColItemActive : {}),
+                          }}
+                        >
+                          <span style={S.filterColLabel}>{col.label}</span>
+                        </button>
+                        {/* Replaces the plain active-filter dot: a one-click way to drop this
+                            column's filter without opening it first, matching the toolbar's own
+                            per-dropdown × buttons (see "Toolbar clear buttons" in CLAUDE.md). */}
+                        {hasActive && (
+                          <button
+                            type="button"
+                            title={L.clearColumnFilter}
+                            aria-label={L.clearColumnFilter}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              // Clears every kind at once — this button means "drop this
+                              // column's filter entirely", unlike the active-bar's own
+                              // per-kind chips.
+                              clearColumnFilter(col.key, 'include')
+                              clearColumnFilter(col.key, 'exclude')
+                              clearColumnFilter(col.key, 'range')
+                            }}
+                            style={S.filterColClear}
+                          >
+                            ×
+                          </button>
+                        )}
+                      </div>
                     )
                   })}
                 </div>

@@ -351,7 +351,7 @@ describe('DataTable — filter dropdown', () => {
     expect(container.querySelectorAll('tbody tr')).toHaveLength(1) // only Alice (90) remains
   })
 
-  it('marks the column with a dot and an active-bar chip once a range filter is set', () => {
+  it('marks the column with a clear button and an active-bar chip once a range filter is set', () => {
     const { getByText, getAllByText, getByPlaceholderText, container } = render(
       <DataTable data={ROWS} columns={FILTER_COLS} rowKey="id" />,
     )
@@ -359,10 +359,11 @@ describe('DataTable — filter dropdown', () => {
     const scoreItem = getAllByText('Score').find((el) => el.closest('th') === null)!
     fireEvent.click(scoreItem)
     fireEvent.change(getByPlaceholderText('Min'), { target: { value: '80' } })
-    // The dot is a second <span> sibling of the label, rendered only when the column has an
-    // active filter — before this fix a range-only filter left the button with just the 1
-    // label span, even though the range itself was active.
-    expect(scoreItem.parentElement?.querySelectorAll('span')).toHaveLength(2)
+    // The clear button is a sibling <button> of the column button, rendered only when the
+    // column has an active filter — before this fix a range-only filter left it with no clear
+    // button at all, even though the range itself was active.
+    const row = scoreItem.closest('[data-filter-row-key]')!
+    expect(row.querySelectorAll('button')).toHaveLength(2)
     const chip = [...container.querySelectorAll('span')].find((el) =>
       el.textContent?.includes('Score: 80'),
     )
@@ -998,14 +999,15 @@ describe('DataTable — date filter tree', () => {
     expect(Number(thumbs[0].max)).toBe(new Date('2023-05-20').getTime())
   })
 
-  it('marks the date column with a dot and an active-bar chip once a range filter is set, with no checkbox ticked', () => {
+  it('marks the date column with a clear button and an active-bar chip once a range filter is set, with no checkbox ticked', () => {
     const { getByText, getAllByText, getByLabelText, container } = render(
       <DataTable data={DATE_ROWS} columns={DATE_COLS} rowKey="id" />,
     )
     fireEvent.click(getByText('Filter'))
     fireEvent.change(getByLabelText('Min'), { target: { value: '2022-01-01' } })
     const releasedItem = getAllByText('Released').find((el) => el.closest('th') === null)!
-    expect(releasedItem.parentElement?.querySelectorAll('span')).toHaveLength(2)
+    const row = releasedItem.closest('[data-filter-row-key]')!
+    expect(row.querySelectorAll('button')).toHaveLength(2)
     const chip = [...container.querySelectorAll('span')].find((el) =>
       el.textContent?.includes('Released: 2022-01-01'),
     )
@@ -1589,6 +1591,120 @@ describe('DataTable — filter column selector keyboard access', () => {
     const btn = nameItem.closest('button')
     expect(btn).not.toBeNull()
     expect(btn!.tabIndex).toBe(0)
+  })
+})
+
+describe('DataTable — filter column ordering & clear button', () => {
+  interface OrderRow {
+    id: number
+    name: string
+    dept: string
+    score: number
+    joined: string
+  }
+  const ORDER_COLS: ColumnDef<OrderRow>[] = [
+    { key: 'name', label: 'Name', filterable: true },
+    { key: 'dept', label: 'Dept', filterable: true },
+    { key: 'score', label: 'Score', filterable: true, type: 'number' },
+    { key: 'joined', label: 'Joined', filterable: true, type: 'date' },
+  ]
+  const ORDER_ROWS: OrderRow[] = [
+    { id: 1, name: 'Alice', dept: 'Eng', score: 90, joined: '2023-01-15' },
+    { id: 2, name: 'Bob', dept: 'HR', score: 60, joined: '2023-06-20' },
+  ]
+
+  function filterColLabels(container: HTMLElement): string[] {
+    return [...container.querySelectorAll<HTMLElement>('[data-filter-row-key]')].map(
+      (row) => row.querySelector('[data-filter-col-key]')?.textContent ?? '',
+    )
+  }
+
+  function rowFor(container: HTMLElement, label: string): HTMLElement {
+    return [...container.querySelectorAll<HTMLElement>('[data-filter-row-key]')].find((row) =>
+      row.textContent?.includes(label),
+    )!
+  }
+
+  it('is plain alphabetical order with nothing active', () => {
+    const { getByText, container } = render(
+      <DataTable data={ORDER_ROWS} columns={ORDER_COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Filter'))
+    expect(filterColLabels(container)).toEqual(['Dept', 'Joined', 'Name', 'Score'])
+  })
+
+  it('does not reorder mid-session when a filter is toggled while the panel stays open', () => {
+    const { getByText, getByPlaceholderText, container } = render(
+      <DataTable data={ORDER_ROWS} columns={ORDER_COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Filter'))
+    fireEvent.click(rowFor(container, 'Score').querySelector('[data-filter-col-key]')!)
+    fireEvent.change(getByPlaceholderText('Min'), { target: { value: '80' } })
+    expect(filterColLabels(container)).toEqual(['Dept', 'Joined', 'Name', 'Score'])
+  })
+
+  it('moves active-filter columns to the top on the next open', () => {
+    const { getByText, getByPlaceholderText, container } = render(
+      <DataTable data={ORDER_ROWS} columns={ORDER_COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Filter'))
+    fireEvent.click(rowFor(container, 'Score').querySelector('[data-filter-col-key]')!)
+    fireEvent.change(getByPlaceholderText('Min'), { target: { value: '80' } })
+    fireEvent.click(getByText('Filter')) // close
+    fireEvent.click(getByText('Filter')) // reopen — snapshot re-taken
+    expect(filterColLabels(container)).toEqual(['Score', 'Dept', 'Joined', 'Name'])
+  })
+
+  it('shows a clear button only for a column with an active filter', () => {
+    const { getByText, getByPlaceholderText, container } = render(
+      <DataTable data={ORDER_ROWS} columns={ORDER_COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Filter'))
+    expect(rowFor(container, 'Score').querySelectorAll('button')).toHaveLength(1)
+    fireEvent.click(rowFor(container, 'Score').querySelector('[data-filter-col-key]')!)
+    fireEvent.change(getByPlaceholderText('Min'), { target: { value: '80' } })
+    expect(rowFor(container, 'Score').querySelectorAll('button')).toHaveLength(2)
+  })
+
+  it('clear button removes the filter without opening that column', () => {
+    const { getByText, getByPlaceholderText, queryByPlaceholderText, container } = render(
+      <DataTable data={ORDER_ROWS} columns={ORDER_COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Filter'))
+    fireEvent.click(rowFor(container, 'Score').querySelector('[data-filter-col-key]')!)
+    fireEvent.change(getByPlaceholderText('Min'), { target: { value: '80' } })
+    fireEvent.click(rowFor(container, 'Name').querySelector('[data-filter-col-key]')!) // switch away
+    const scoreRow = rowFor(container, 'Score')
+    fireEvent.click(scoreRow.querySelectorAll('button')[1]) // the clear button
+    expect(scoreRow.querySelectorAll('button')).toHaveLength(1)
+    // Still showing Name's pane (a checklist, no Min/Max inputs), not reopened onto Score's.
+    expect(queryByPlaceholderText('Min')).toBeNull()
+  })
+
+  it('Delete on a focused, active column row clears its filter', () => {
+    const { getByText, getByPlaceholderText, container } = render(
+      <DataTable data={ORDER_ROWS} columns={ORDER_COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Filter'))
+    const scoreBtn = rowFor(container, 'Score').querySelector<HTMLButtonElement>(
+      '[data-filter-col-key]',
+    )!
+    fireEvent.click(scoreBtn)
+    fireEvent.change(getByPlaceholderText('Min'), { target: { value: '80' } })
+    fireEvent.keyDown(scoreBtn, { key: 'Delete' })
+    expect(rowFor(container, 'Score').querySelectorAll('button')).toHaveLength(1)
+  })
+
+  it('Backspace on a focused, inactive column row is a no-op', () => {
+    const { getByText, container } = render(
+      <DataTable data={ORDER_ROWS} columns={ORDER_COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Filter'))
+    const deptBtn = rowFor(container, 'Dept').querySelector<HTMLButtonElement>(
+      '[data-filter-col-key]',
+    )!
+    fireEvent.keyDown(deptBtn, { key: 'Backspace' })
+    expect(rowFor(container, 'Dept').querySelectorAll('button')).toHaveLength(1)
   })
 })
 
