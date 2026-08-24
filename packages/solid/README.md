@@ -115,7 +115,7 @@ const table = createTableState(data, columns, { getRowId: (row) => row.id })
 
 ## Known limitations
 
-Deliberate simplifications vs. React/Vue, none of which affect mouse/touch interaction: the flat filter checklist isn't virtualized yet; roving Up/Down/Home/End nav inside an open dropdown, dropdown focus-on-open, and Sort/Group's activate/remove focus retention aren't implemented; the Filter dropdown's Left/Right pane-crossing nav isn't implemented; `TableBody`'s Home/End only jump within the current page. See [docs/solid-package.md](../../docs/solid-package.md) for the full detail.
+Full keyboard-nav and virtualization parity with React/Vue: the flat filter checklist is virtualized, roving Up/Down/Home/End nav inside an open dropdown, dropdown focus-on-open, Sort/Group's activate/remove focus retention, the Filter dropdown's Left/Right pane-crossing nav, and `TableBody`'s cross-page Home/End/Arrow nav are all implemented. See [docs/solid-package.md](../../docs/solid-package.md) for the full detail.
 
 ## License
 

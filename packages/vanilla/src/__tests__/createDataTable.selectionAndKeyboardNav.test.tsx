@@ -382,15 +382,91 @@ describe('createDataTable — keyboard navigation', () => {
     expect(() => keydown(first, 'Enter')).not.toThrow()
   })
 
-  it('ArrowDown/ArrowUp stay within the current page (no cross-page nav)', () => {
-    const { container } = mount({ data: ROWS6, selectable: true, defaultPageSize: 2 })
+  it("ArrowDown on a page's last row crosses into the next page's first row", () => {
+    const { container, table } = mount({ data: ROWS6, selectable: true, defaultPageSize: 2 })
     const [, last] = dataRows(container)
     last.focus()
     keydown(last, 'ArrowDown')
-    // No third row exists on this page (pageSize 2) — focus/tabindex stay put rather than
-    // crossing onto the next page (cross-page nav is deferred, see TableBody.tsx doc comment).
+    expect(table.getViewState().page).toBe(2)
+    expect(document.activeElement).toBe(dataRows(container)[0])
+    expect(document.activeElement!.textContent).toContain('Clara')
+  })
+
+  it("ArrowUp on a page's first row crosses into the previous page's last row", () => {
+    const { container, table } = mount({ data: ROWS6, selectable: true, defaultPageSize: 2 })
+    table.setViewState({ page: 2 })
+    const [first] = dataRows(container)
+    first.focus()
+    keydown(first, 'ArrowUp')
+    expect(table.getViewState().page).toBeUndefined() // page 1 is the default, omitted
+    expect(document.activeElement).toBe(dataRows(container)[1])
+    expect(document.activeElement!.textContent).toContain('Bob')
+  })
+
+  it('ArrowDown does nothing on the last row of the last page', () => {
+    const { container, table } = mount({ data: ROWS6, selectable: true, defaultPageSize: 2 })
+    table.setViewState({ page: 3 })
+    const [, last] = dataRows(container)
+    last.focus()
+    keydown(last, 'ArrowDown')
+    expect(table.getViewState().page).toBe(3)
     expect(document.activeElement).toBe(last)
-    expect(dataRows(container)).toHaveLength(2)
+  })
+
+  it('plain Home/End stay within the current page', () => {
+    const { container, table } = mount({ data: ROWS6, selectable: true, defaultPageSize: 2 })
+    const [first] = dataRows(container)
+    first.focus()
+    keydown(first, 'End')
+    expect(table.getViewState().page).toBeUndefined()
+    expect(document.activeElement).toBe(dataRows(container)[1])
+  })
+
+  it('Ctrl+End jumps to the true last row across all pages', () => {
+    const { container, table } = mount({ data: ROWS6, selectable: true, defaultPageSize: 2 })
+    const [first] = dataRows(container)
+    first.focus()
+    keydown(first, 'End', { ctrlKey: true })
+    expect(table.getViewState().page).toBe(3)
+    expect(document.activeElement!.textContent).toContain('Frank')
+  })
+
+  it('Cmd+Home (metaKey) jumps to the true first row across all pages', () => {
+    const { container, table } = mount({ data: ROWS6, selectable: true, defaultPageSize: 2 })
+    table.setViewState({ page: 3 })
+    const [first] = dataRows(container)
+    first.focus()
+    keydown(first, 'Home', { metaKey: true })
+    expect(table.getViewState().page).toBeUndefined()
+    expect(document.activeElement!.textContent).toContain('Alice')
+  })
+
+  it('Shift+ArrowDown extends selection to the next row, same as a shift-click', () => {
+    const { container, table } = mount({ selectable: true })
+    const [first] = dataRows(container)
+    first.focus()
+    keydown(first, ' ') // select Alice, sets the range anchor
+    keydown(document.activeElement!, 'ArrowDown', { shiftKey: true })
+    expect(
+      table
+        .getSelection()
+        .map((r) => r.name)
+        .sort(),
+    ).toEqual(['Alice', 'Bob'])
+  })
+
+  it('Shift+ArrowDown across a page boundary also extends the selection onto the next page', () => {
+    const { container, table } = mount({ data: ROWS6, selectable: true, defaultPageSize: 2 })
+    const [, last] = dataRows(container)
+    last.focus()
+    keydown(last, ' ') // select Bob, sets the range anchor
+    keydown(document.activeElement!, 'ArrowDown', { shiftKey: true })
+    expect(
+      table
+        .getSelection()
+        .map((r) => r.name)
+        .sort(),
+    ).toEqual(['Bob', 'Clara'])
   })
 })
 
@@ -457,37 +533,12 @@ describe('createDataTable — keyboard navigation with grouping', () => {
   })
 })
 
-// PRUNED:
-// - 'End moves the roving tabindex to the last row' — Home/End keyboard navigation is not
-//   implemented at all in the new TableBody.tsx (only ArrowUp/ArrowDown/Space/Enter are handled in
-//   DataRow's/GroupHeaderRow's onKeyDown); this is a real gap beyond the documented "cross-page nav
-//   is deferred" simplification (the doc comment claims "Up/Down/Home/End here operate within the
-//   current page only", but Home/End have no handler at all, in-page or otherwise) — FLAGGED AS A
-//   LIKELY REGRESSION, not silently worked around.
-// - 'ArrowDown on the last row of a page moves to the first row of the next page' — cross-page
-//   keyboard nav is deferred (see TableBody.tsx doc comment); adapted into a same-page-only test
-//   above instead ('ArrowDown/ArrowUp stay within the current page').
-// - 'ArrowUp on the first row of a page moves to the last row of the previous page' — same reason
-//   as above (cross-page nav deferred).
-// - 'Ctrl+End jumps to the true last row across all pages' — Home/End (and Ctrl+Home/Ctrl+End) are
-//   unimplemented entirely (see first bullet); also specifically a cross-page mechanism.
-// - 'Ctrl+Home jumps to the true first row across all pages' — same as above.
-// - 'Shift+ArrowDown across a page boundary extends the selection onto the next page' — cross-page
-//   keyboard nav is deferred.
-// - 'Ctrl+End from a group header jumps to the true last row across all groups' — Ctrl+End/Home is
-//   unimplemented (see first bullet), and this test also spans multiple groups the same way
-//   cross-page nav spans multiple pages.
-// - 'Shift+ArrowDown extends the selection range like a shift-click would' — REAL BUG, not a
-//   documented simplification: DataRow's onKeyDown in TableBody.tsx only reads `e.shiftKey` for
-//   the ' ' (Space) case, never for 'ArrowDown'/'ArrowUp' — so Shift+Arrow range-selects nothing;
-//   it just moves focus like a plain arrow key. CLAUDE.md's "Keyboard navigation" section
-//   documents Shift+ArrowUp/Down as extending the selection range, and this is not in
-//   TableBody.tsx's own "simplification vs. the fuller documented behavior" doc comment (which
-//   only calls out cross-page nav) — flagging as a likely unintentional regression rather than a
-//   deferred feature.
-// - 'Shift+ArrowDown across a page boundary extends the selection onto the next page' — pruned for
-//   two independent reasons: cross-page nav is deferred, AND (see bullet above) Shift+Arrow range
-//   selection isn't wired up at all yet regardless of page boundaries.
+// UPDATE: the bullets that used to live here ('End moves the roving tabindex to the last row',
+// cross-page ArrowDown/ArrowUp/Ctrl+Home/Ctrl+End, and Shift+Arrow range selection — including
+// across a page boundary) turned out to already work, or now do after the Solid/vanilla keyboard-
+// nav parity work (see CLAUDE.md's "Keyboard navigation" and `docs/keyboard-navigation.md`'s
+// "Crossing page boundaries") — real tests for all of them now live in the "keyboard navigation"
+// describe block above instead of being pruned.
 //
 // ADDITIONAL REAL BUG FOUND (tests adapted rather than pruned, see inline comments above):
 // Collapsing/expanding a group via Enter loses DOM focus entirely (activeElement becomes <body>)

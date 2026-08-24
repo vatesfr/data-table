@@ -36,6 +36,7 @@ function mount(
     selectable?: boolean
     onRowClick?: (r: Row, e: unknown) => void
     defaultGroupsCollapsed?: boolean
+    defaultPageSize?: number
   } = {},
 ) {
   const container = document.createElement('div')
@@ -44,6 +45,7 @@ function mount(
   const dispose = createRoot((d) => {
     table = createTableState(ROWS, COLS, {
       defaultGroupsCollapsed: opts.defaultGroupsCollapsed,
+      defaultPageSize: opts.defaultPageSize,
     })
     render(
       () => (
@@ -368,6 +370,115 @@ describe('TableBody — keyboard navigation', () => {
     // <body> (which a full remount, e.g. from a reference-keyed `<For>`, would cause).
     expect(document.activeElement).toBe(groupRow)
     expect(groupRow.getAttribute('aria-expanded')).toBe('false')
+    dispose()
+  })
+})
+
+describe('TableBody — keyboard navigation across pages', () => {
+  it('ArrowDown at the last row of a page crosses into the next page and updates pagination.page', () => {
+    const { container, table, dispose } = mount({ selectable: true, defaultPageSize: 2 })
+    const row2 = container.querySelector<HTMLElement>('tbody tr[data-row-key="2"]')! // last on page 1
+    row2.focus()
+    row2.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }),
+    )
+    expect(table.pagination.page()).toBe(2)
+    expect(document.activeElement).toBe(container.querySelector('tbody tr[data-row-key="3"]'))
+    dispose()
+  })
+
+  it('ArrowUp at the first row of a page crosses into the previous page, focusing its last row', () => {
+    const { container, table, dispose } = mount({ selectable: true, defaultPageSize: 2 })
+    table.pagination.setPage(2)
+    const row3 = container.querySelector<HTMLElement>('tbody tr[data-row-key="3"]')! // first on page 2
+    row3.focus()
+    row3.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true, cancelable: true }),
+    )
+    expect(table.pagination.page()).toBe(1)
+    expect(document.activeElement).toBe(container.querySelector('tbody tr[data-row-key="2"]'))
+    dispose()
+  })
+
+  it('ArrowDown does nothing at the last row of the last page (no page to cross into)', () => {
+    const { container, table, dispose } = mount({ selectable: true, defaultPageSize: 2 })
+    table.pagination.setPage(2)
+    const row3 = container.querySelector<HTMLElement>('tbody tr[data-row-key="3"]')!
+    row3.focus()
+    row3.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }),
+    )
+    expect(table.pagination.page()).toBe(2)
+    expect(document.activeElement).toBe(row3)
+    dispose()
+  })
+
+  it('plain Home/End stay scoped to the current page', () => {
+    const { container, table, dispose } = mount({ selectable: true, defaultPageSize: 2 })
+    const row1 = container.querySelector<HTMLElement>('tbody tr[data-row-key="1"]')!
+    row1.focus()
+    row1.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'End', bubbles: true, cancelable: true }),
+    )
+    expect(table.pagination.page()).toBe(1)
+    expect(document.activeElement).toBe(container.querySelector('tbody tr[data-row-key="2"]'))
+    dispose()
+  })
+
+  it('Ctrl+End jumps to the true last row across all pages', () => {
+    const { container, table, dispose } = mount({ selectable: true, defaultPageSize: 2 })
+    const row1 = container.querySelector<HTMLElement>('tbody tr[data-row-key="1"]')!
+    row1.focus()
+    row1.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'End',
+        ctrlKey: true,
+        bubbles: true,
+        cancelable: true,
+      }),
+    )
+    expect(table.pagination.page()).toBe(2)
+    expect(document.activeElement).toBe(container.querySelector('tbody tr[data-row-key="3"]'))
+    dispose()
+  })
+
+  it('Cmd+Home (metaKey) jumps to the true first row across all pages', () => {
+    const { container, table, dispose } = mount({ selectable: true, defaultPageSize: 2 })
+    table.pagination.setPage(2)
+    const row3 = container.querySelector<HTMLElement>('tbody tr[data-row-key="3"]')!
+    row3.focus()
+    row3.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'Home',
+        metaKey: true,
+        bubbles: true,
+        cancelable: true,
+      }),
+    )
+    expect(table.pagination.page()).toBe(1)
+    expect(document.activeElement).toBe(container.querySelector('tbody tr[data-row-key="1"]'))
+    dispose()
+  })
+
+  it('Shift+ArrowDown across a page boundary also extends selection to the crossed-into row', () => {
+    const { container, table, dispose } = mount({ selectable: true, defaultPageSize: 2 })
+    const row2 = container.querySelector<HTMLElement>('tbody tr[data-row-key="2"]')!
+    row2.focus()
+    table.selection.toggle(ROWS[1]) // anchor = Bob
+    row2.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'ArrowDown',
+        shiftKey: true,
+        bubbles: true,
+        cancelable: true,
+      }),
+    )
+    expect(
+      table.selection
+        .rows()
+        .map((r) => r.name)
+        .sort(),
+    ).toEqual(['Bob', 'Clara'])
     dispose()
   })
 })
