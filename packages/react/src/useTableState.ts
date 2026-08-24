@@ -19,6 +19,7 @@ import {
   setFilterValues as _setFilterValues,
   cycleFilterValue as _cycleFilterValue,
   clearExcludeValues as _clearExcludeValues,
+  setFilterMode as _setFilterMode,
   selectRange,
   isRowSelected,
   getSelectedRows,
@@ -136,6 +137,11 @@ export function useTableState<TRow extends object>(
     excludeFilters: Record<string, Set<string>>
   }>({ filters: {}, excludeFilters: {} })
   const { filters, excludeFilters } = filterState
+  // Per-column runtime override of `col.multiMode` ("any"/"all" checklist match) — see
+  // `setFilterMode`. Kept as its own state atom rather than folded into `filterState` above:
+  // unlike `filters`/`excludeFilters`, no action ever needs to read both this and them together
+  // to decide its next value.
+  const [filterModes, setFilterModes] = useState<Record<string, 'and' | 'or'>>({})
   const [rangeFilters, setRangeFilters] = useState<Record<string, RangeFilter>>({})
   const [groupBy, setGroupBy] = useState<string[]>([])
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set())
@@ -173,8 +179,19 @@ export function useTableState<TRow extends object>(
         columns,
         L.emptyValue,
         excludeFilters,
+        filterModes,
       ),
-    [data, searchQuery, columns, filters, rangeFilters, sorts, L.emptyValue, excludeFilters],
+    [
+      data,
+      searchQuery,
+      columns,
+      filters,
+      rangeFilters,
+      sorts,
+      L.emptyValue,
+      excludeFilters,
+      filterModes,
+    ],
   )
 
   // Grouping runs over the *full* filtered/sorted data, not a page's slice, so pagination (below)
@@ -302,8 +319,11 @@ export function useTableState<TRow extends object>(
       include: filters,
       exclude: excludeFilters,
       ranges: rangeFilters,
+      modes: filterModes,
       activeCount: activeFilterCount,
       valueMap: stringValueMap,
+      setMode: (key: string, mode: 'and' | 'or') =>
+        setFilterModes((prev) => _setFilterMode(prev, key, mode)),
       toggleAll: (key: string, values: string[]) => {
         // The master checkbox's own checked/indeterminate state reflects `filters` only (no
         // visual concept of exclusion) — so only the "select all ON" branch should ever touch
@@ -372,6 +392,7 @@ export function useTableState<TRow extends object>(
       },
       clear: () => {
         setFilterState({ filters: {}, excludeFilters: {} })
+        setFilterModes({})
         setRangeFilters({})
         setPageState(1)
       },
@@ -459,6 +480,7 @@ export function useTableState<TRow extends object>(
     clearAll: () => {
       setSorts([])
       setFilterState({ filters: {}, excludeFilters: {} })
+      setFilterModes({})
       setRangeFilters({})
       setGroupBy([])
       setCollapsedGroups(new Set())
@@ -480,6 +502,7 @@ export function useTableState<TRow extends object>(
       const excludeFilterEntries = Object.entries(excludeFilters).filter(([, v]) => v.size > 0)
       if (excludeFilterEntries.length)
         view.excludeFilters = Object.fromEntries(excludeFilterEntries.map(([k, v]) => [k, [...v]]))
+      if (Object.keys(filterModes).length) view.filterModes = filterModes
       const rangeEntries = Object.entries(rangeFilters).filter(
         ([, r]) => r.min !== '' || r.max !== '',
       )
@@ -508,6 +531,7 @@ export function useTableState<TRow extends object>(
           Object.entries(view.excludeFilters ?? {}).map(([k, v]) => [k, new Set(v)]),
         ),
       })
+      setFilterModes(view.filterModes ?? {})
       setRangeFilters(view.rangeFilters ?? {})
       setGroupBy(view.groupBy ?? [])
       setCollapsedGroups(new Set(view.collapsedGroups ?? []))

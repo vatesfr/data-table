@@ -19,6 +19,7 @@ import {
   setFilterValues as _setFilterValues,
   cycleFilterValue as _cycleFilterValue,
   clearExcludeValues as _clearExcludeValues,
+  setFilterMode as _setFilterMode,
   selectRange,
   isRowSelected,
   getSelectedRows,
@@ -109,6 +110,10 @@ export function useTableState<TRow extends object>(
   // a separate Set per column, mutually exclusive with `filters` (a value is never in both at
   // once) by `cycleFilterValue`/`clearExcludeValues`.
   const excludeFilters = shallowRef<Record<string, Set<string>>>({})
+  // Per-column runtime override of `col.multiMode` ("any"/"all" checklist match) — see
+  // `setFilterMode`. Kept as its own ref rather than folded into `filters`/`excludeFilters`
+  // above: no action ever needs to read both this and them together to decide its next value.
+  const filterModes = shallowRef<Record<string, 'and' | 'or'>>({})
   const rangeFilters = shallowRef<Record<string, RangeFilter>>({})
   const groupBy = shallowRef<string[]>([])
   const collapsedGroups = shallowRef<Set<string>>(new Set())
@@ -142,6 +147,7 @@ export function useTableState<TRow extends object>(
       columns.value,
       L.value.emptyValue,
       excludeFilters.value,
+      filterModes.value,
     ),
   )
 
@@ -265,8 +271,12 @@ export function useTableState<TRow extends object>(
       include: filters,
       exclude: excludeFilters,
       ranges: rangeFilters,
+      modes: filterModes,
       activeCount: activeFilterCount,
       valueMap: stringValueMap,
+      setMode: (key: string, mode: 'and' | 'or') => {
+        filterModes.value = _setFilterMode(filterModes.value, key, mode)
+      },
       toggleAll: (key: string, values: string[]) => {
         // The master checkbox's own checked/indeterminate state reflects `filters` only (no
         // visual concept of exclusion) — so only the "select all ON" branch should ever touch
@@ -327,6 +337,7 @@ export function useTableState<TRow extends object>(
       clear: () => {
         filters.value = {}
         excludeFilters.value = {}
+        filterModes.value = {}
         rangeFilters.value = {}
         page.value = 1
       },
@@ -415,6 +426,7 @@ export function useTableState<TRow extends object>(
       sorts.value = []
       filters.value = {}
       excludeFilters.value = {}
+      filterModes.value = {}
       rangeFilters.value = {}
       groupBy.value = []
       collapsedGroups.value = new Set()
@@ -438,6 +450,7 @@ export function useTableState<TRow extends object>(
       )
       if (excludeFilterEntries.length)
         view.excludeFilters = Object.fromEntries(excludeFilterEntries.map(([k, v]) => [k, [...v]]))
+      if (Object.keys(filterModes.value).length) view.filterModes = filterModes.value
       const rangeEntries = Object.entries(rangeFilters.value).filter(
         ([, r]) => r.min !== '' || r.max !== '',
       )
@@ -463,6 +476,7 @@ export function useTableState<TRow extends object>(
       excludeFilters.value = Object.fromEntries(
         Object.entries(view.excludeFilters ?? {}).map(([k, v]) => [k, new Set(v)]),
       )
+      filterModes.value = view.filterModes ?? {}
       rangeFilters.value = view.rangeFilters ?? {}
       groupBy.value = view.groupBy ?? []
       collapsedGroups.value = new Set(view.collapsedGroups ?? [])

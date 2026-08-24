@@ -520,6 +520,91 @@ describe('DataTable — exclude filters (tri-state checklist)', () => {
   })
 })
 
+describe('DataTable — any/all filter match mode', () => {
+  interface Game {
+    id: number
+    name: string
+    tags: string[]
+  }
+  const GAME_COLS: ColumnDef<Game>[] = [
+    { key: 'name', label: 'Name', filterable: false },
+    { key: 'tags', label: 'Tags', filterable: true },
+  ]
+  const GAMES: Game[] = [
+    { id: 1, name: 'Game A', tags: ['Action', 'RPG'] },
+    { id: 2, name: 'Game B', tags: ['Action', 'Adventure'] },
+    { id: 3, name: 'Game C', tags: ['RPG'] },
+  ]
+
+  function names(container: HTMLElement): string[] {
+    return [...container.querySelectorAll('tbody tr td:first-child')].map(
+      (td) => td.textContent ?? '',
+    )
+  }
+
+  it('is shown as a segmented Any/All control for an array-valued column, both options always present', () => {
+    const { getByText, getByLabelText, container } = render(
+      <DataTable data={GAMES} columns={GAME_COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Filter'))
+    const anyBtn = getByText('Any') as HTMLButtonElement
+    const allBtn = getByText('All') as HTMLButtonElement
+    // "Any" (the default) starts engaged, "All" doesn't — neither is a passive non-state, so
+    // both remain visible the whole time, unlike a single button whose label/state would change.
+    expect(anyBtn.getAttribute('aria-pressed')).toBe('true')
+    expect(allBtn.getAttribute('aria-pressed')).toBe('false')
+
+    fireEvent.click(getByLabelText('Action', { exact: false }))
+    fireEvent.click(getByLabelText('RPG', { exact: false }))
+    expect(names(container).sort()).toEqual(['Game A', 'Game B', 'Game C'])
+
+    fireEvent.click(allBtn)
+    expect(anyBtn.getAttribute('aria-pressed')).toBe('false')
+    expect(allBtn.getAttribute('aria-pressed')).toBe('true')
+    expect(names(container)).toEqual(['Game A'])
+
+    // Clicking "Any" again sets it back directly (not a re-click-to-cycle-back toggle).
+    fireEvent.click(anyBtn)
+    expect(names(container).sort()).toEqual(['Game A', 'Game B', 'Game C'])
+  })
+
+  it('is not shown for a plain scalar column', () => {
+    const cols: ColumnDef<Game>[] = [{ key: 'name', label: 'Name', filterable: true }]
+    const { getByText, queryByText } = render(<DataTable data={GAMES} columns={cols} rowKey="id" />)
+    fireEvent.click(getByText('Filter'))
+    expect(queryByText('Any')).toBeNull()
+    expect(queryByText('All')).toBeNull()
+  })
+
+  it("flipping one column's match mode updates another column's facet counts", () => {
+    const cols: ColumnDef<Game>[] = [
+      { key: 'name', label: 'Name', filterable: true },
+      { key: 'tags', label: 'Tags', filterable: true },
+    ]
+    const { getByText, getByLabelText, queryByLabelText, container } = render(
+      <DataTable data={GAMES} columns={cols} rowKey="id" />,
+    )
+    const selectCol = (key: string) =>
+      fireEvent.click(container.querySelector(`[data-filter-col-key="${key}"]`)!)
+
+    fireEvent.click(getByText('Filter'))
+    selectCol('tags')
+    fireEvent.click(getByLabelText('Action', { exact: false }))
+    fireEvent.click(getByLabelText('RPG', { exact: false }))
+
+    fireEvent.click(getByText('All'))
+    selectCol('name')
+    // Only Game A has both Action and RPG, so Game B/C never match the "all" narrowing and
+    // drop out of Name's faceted checklist entirely.
+    expect(queryByLabelText('Game B', { exact: false })).toBeNull()
+
+    selectCol('tags')
+    fireEvent.click(getByText('Any'))
+    selectCol('name')
+    expect(queryByLabelText('Game B', { exact: false })).not.toBeNull()
+  })
+})
+
 describe('DataTable — virtualized filter checklist', () => {
   const MANY_COLS: ColumnDef<Row>[] = [{ key: 'name', label: 'Name', filterable: true }]
   const MANY_ROWS: Row[] = Array.from({ length: 500 }, (_, i) => ({

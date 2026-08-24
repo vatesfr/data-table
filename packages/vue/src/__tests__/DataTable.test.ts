@@ -593,6 +593,103 @@ describe('DataTable — exclude filters (tri-state checklist)', () => {
   })
 })
 
+describe('DataTable — any/all filter match mode', () => {
+  interface Game {
+    id: number
+    name: string
+    tags: string[]
+  }
+  const GAME_COLS: ColumnDef<Game>[] = [
+    { key: 'name', label: 'Name', filterable: false },
+    { key: 'tags', label: 'Tags', filterable: true },
+  ]
+  const GAMES: Game[] = [
+    { id: 1, name: 'Game A', tags: ['Action', 'RPG'] },
+    { id: 2, name: 'Game B', tags: ['Action', 'Adventure'] },
+    { id: 3, name: 'Game C', tags: ['RPG'] },
+  ]
+
+  function tagCheckbox(wrapper: ReturnType<typeof mount>, value: string) {
+    return wrapper
+      .findAll('.dt__dd-item')
+      .find((el) => el.text().startsWith(value))!
+      .find('input[type="checkbox"]')
+  }
+
+  function names(wrapper: ReturnType<typeof mount>): string[] {
+    return wrapper.findAll('tbody tr td:first-child').map((td) => td.text())
+  }
+
+  function matchModeBtn(wrapper: ReturnType<typeof mount>, label: 'Any' | 'All') {
+    return wrapper.findAll('.dt__filter-match-mode').find((el) => el.text() === label)!
+  }
+
+  function selectFilterCol(wrapper: ReturnType<typeof mount>, label: string) {
+    return wrapper
+      .findAll('.dt__filter-col-item')
+      .find((el) => el.text() === label)!
+      .trigger('click')
+  }
+
+  it('is shown as a segmented Any/All control for an array-valued column, both options always present', async () => {
+    const wrapper = mount(DataTable, { props: { data: GAMES, columns: GAME_COLS, rowKey: 'id' } })
+    const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
+    await filterBtn.trigger('click')
+
+    const anyBtn = matchModeBtn(wrapper, 'Any')
+    const allBtn = matchModeBtn(wrapper, 'All')
+    // "Any" (the default) starts engaged, "All" doesn't — neither is a passive non-state, so
+    // both remain visible the whole time, unlike a single button whose label/state would change.
+    expect(anyBtn.attributes('aria-pressed')).toBe('true')
+    expect(allBtn.attributes('aria-pressed')).toBe('false')
+
+    await tagCheckbox(wrapper, 'Action').trigger('click')
+    await tagCheckbox(wrapper, 'RPG').trigger('click')
+    expect(names(wrapper).sort()).toEqual(['Game A', 'Game B', 'Game C'])
+
+    await allBtn.trigger('click')
+    expect(matchModeBtn(wrapper, 'Any').attributes('aria-pressed')).toBe('false')
+    expect(matchModeBtn(wrapper, 'All').attributes('aria-pressed')).toBe('true')
+    expect(names(wrapper)).toEqual(['Game A'])
+
+    // Clicking "Any" again sets it back directly (not a re-click-to-cycle-back toggle).
+    await matchModeBtn(wrapper, 'Any').trigger('click')
+    expect(names(wrapper).sort()).toEqual(['Game A', 'Game B', 'Game C'])
+  })
+
+  it('is not shown for a plain scalar column', async () => {
+    const cols: ColumnDef<Game>[] = [{ key: 'name', label: 'Name', filterable: true }]
+    const wrapper = mount(DataTable, { props: { data: GAMES, columns: cols, rowKey: 'id' } })
+    const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
+    await filterBtn.trigger('click')
+    expect(wrapper.findAll('.dt__filter-match-mode')).toHaveLength(0)
+  })
+
+  it("flipping one column's match mode updates another column's facet counts", async () => {
+    const cols: ColumnDef<Game>[] = [
+      { key: 'name', label: 'Name', filterable: true },
+      { key: 'tags', label: 'Tags', filterable: true },
+    ]
+    const wrapper = mount(DataTable, { props: { data: GAMES, columns: cols, rowKey: 'id' } })
+    const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
+    await filterBtn.trigger('click')
+    await selectFilterCol(wrapper, 'Tags')
+    await tagCheckbox(wrapper, 'Action').trigger('click')
+    await tagCheckbox(wrapper, 'RPG').trigger('click')
+
+    await matchModeBtn(wrapper, 'All').trigger('click')
+    await selectFilterCol(wrapper, 'Name')
+    // Only Game A has both Action and RPG, so Game B/C never match the "all" narrowing and
+    // drop out of Name's faceted checklist entirely.
+    expect(wrapper.findAll('.dt__dd-item').some((el) => el.text().startsWith('Game B'))).toBe(false)
+
+    await selectFilterCol(wrapper, 'Tags')
+    await matchModeBtn(wrapper, 'Any').trigger('click')
+    await selectFilterCol(wrapper, 'Name')
+    expect(wrapper.findAll('.dt__dd-item').some((el) => el.text().startsWith('Game B'))).toBe(true)
+  })
+})
+
 describe('DataTable — virtualized filter checklist', () => {
   const MANY_COLS: ColumnDef<Row>[] = [{ key: 'name', label: 'Name', filterable: true }]
   const MANY_ROWS: Row[] = Array.from({ length: 500 }, (_, i) => ({

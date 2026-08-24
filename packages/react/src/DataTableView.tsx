@@ -10,6 +10,7 @@ import {
 import {
   computeAggregate,
   computeStringValueCounts,
+  isMultiValueColumn,
   getColumnValue,
   filterValuesBySearch,
   filterValuesByCount,
@@ -504,6 +505,29 @@ const S = {
     fontFamily: 'inherit',
     whiteSpace: 'nowrap',
   } as CSSProperties,
+  // Any/all match-mode segmented control — two buttons sharing valueSortBtn's base look (spread
+  // in at the JSX call site, same composition pattern as e.g. renderRangeInputsFor's `inputStyle`
+  // above, since a plain object literal can't reference its own other properties). `--left`/
+  // `--right` only override the corner radii (and drop the shared middle border on the left one)
+  // so the pair reads as one merged pill; `--active` mirrors filterColItemActive's own "engaged"
+  // treatment so whichever of Any/All is currently in effect looks consistent with the rest of
+  // the UI's existing active-state convention.
+  filterMatchModeGroup: {
+    display: 'inline-flex',
+    flexShrink: 0,
+  } as CSSProperties,
+  filterMatchModeLeft: {
+    borderRadius: '6px 0 0 6px',
+    borderRight: 'none',
+  } as CSSProperties,
+  filterMatchModeRight: {
+    borderRadius: '0 6px 6px 0',
+  } as CSSProperties,
+  filterMatchModeActive: {
+    background: 'var(--color-background-secondary)',
+    color: 'var(--color-text-primary)',
+    fontWeight: 500,
+  } as CSSProperties,
   dateTreeToggle: {
     width: 14,
     flexShrink: 0,
@@ -810,8 +834,10 @@ export function DataTableView<TRow extends object>({
     include: filters,
     exclude: excludeFilters,
     ranges: rangeFilters,
+    modes: filterModes,
     activeCount: activeFilterCount,
     valueMap: stringValueMap,
+    setMode: setFilterMode,
     toggleAll: toggleFilterAll,
     setValues: setFilterValues,
     cycleValue: cycleFilterValue,
@@ -1084,6 +1110,7 @@ export function DataTableView<TRow extends object>({
     L.emptyValue,
     filterActiveKey ? [filterActiveKey] : [],
     excludeFilters,
+    filterModes,
   )
   // Bounds are the column's actual min/max across the full, unfiltered `data` (not
   // filtered/processed data) — see computeValueBounds — so they don't shift under a mid-drag
@@ -1157,6 +1184,16 @@ export function DataTableView<TRow extends object>({
     filterDetailCol && (filterDetailCol.type === 'number' || filterDetailCol.type === 'date')
       ? computeValueBounds(data, filterDetailCol)
       : null
+  // Any/all match-mode control — only meaningful for a column whose values are actually
+  // array-shaped in the data (see isMultiValueColumn's own doc comment), and only for the
+  // string checklist, not the date tree (mirrors Solid's FilterDropdown.tsx).
+  const isMultiValueFilterCol =
+    filterDetailCol && filterDetailCol.type !== 'date' && filterDetailCol.type !== 'number'
+      ? isMultiValueColumn(data, filterDetailCol, filterDetailCol.key)
+      : false
+  const filterMatchMode = filterDetailCol
+    ? (filterModes[filterDetailCol.key] ?? filterDetailCol.multiMode ?? 'or')
+    : 'or'
   const valueSortFor = (key: string) =>
     filterValueSort[key] ??
     columns.find((c) => c.key === key)?.defaultValueSort ??
@@ -2062,6 +2099,38 @@ export function DataTableView<TRow extends object>({
                               ? getDateSortIcon(valueSortFor(filterDetailCol.key).dir)
                               : getValueSortIcon(valueSortFor(filterDetailCol.key))}
                           </button>
+                          {isMultiValueFilterCol && (
+                            <div style={S.filterMatchModeGroup} role="group">
+                              <button
+                                type="button"
+                                onClick={() => setFilterMode(filterDetailCol.key, 'or')}
+                                title={L.filterMatchAny}
+                                aria-label={L.filterMatchAny}
+                                aria-pressed={filterMatchMode === 'or'}
+                                style={{
+                                  ...S.valueSortBtn,
+                                  ...S.filterMatchModeLeft,
+                                  ...(filterMatchMode === 'or' ? S.filterMatchModeActive : {}),
+                                }}
+                              >
+                                {L.filterMatchAny}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setFilterMode(filterDetailCol.key, 'and')}
+                                title={L.filterMatchAll}
+                                aria-label={L.filterMatchAll}
+                                aria-pressed={filterMatchMode === 'and'}
+                                style={{
+                                  ...S.valueSortBtn,
+                                  ...S.filterMatchModeRight,
+                                  ...(filterMatchMode === 'and' ? S.filterMatchModeActive : {}),
+                                }}
+                              >
+                                {L.filterMatchAll}
+                              </button>
+                            </div>
+                          )}
                         </div>
                         {filterDetailCol.type === 'date' ? (
                           <div style={S.filterDateTreeWrap}>

@@ -70,7 +70,7 @@ const COLUMNS: ColumnDef<Employee>[] = [
 
 A column whose cell value is an array — tags, genres, categories — is detected automatically, no flag required:
 
-- The filter checklist lists each individual item instead of the stringified whole array (`"Action,RPG"` becomes separate `"Action"` and `"RPG"` entries), and a row matches if it contains any selected item (`multiMode: 'or'`, the default) or all of them (`multiMode: 'and'`).
+- The filter checklist lists each individual item instead of the stringified whole array (`"Action,RPG"` becomes separate `"Action"` and `"RPG"` entries), and a row matches if it contains any selected item (`multiMode: 'or'`, the default) or all of them (`multiMode: 'and'`). The checklist also gets a runtime "Any"/"All" segmented control the user can switch at any time, overriding `multiMode`'s own default for that session.
 - Grouping by an array column fans a row out into one group per item — a row tagged `['Action', 'RPG']` appears under both the "Action" and "RPG" groups. `render`/`format` receive the single item being grouped on, not the whole array.
 - A row with an empty array (`tags: []`) is bucketed under a labeled placeholder — `(none)` by default, customizable via the `emptyValue` label — instead of a blank checklist entry or an unlabeled group.
 - Cells without a custom `render`/`format` display the array joined with `, `.

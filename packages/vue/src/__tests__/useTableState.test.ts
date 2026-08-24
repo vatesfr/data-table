@@ -900,6 +900,61 @@ describe('useTableState — multi-value (array) columns', () => {
   })
 })
 
+describe('useTableState — filter.setMode (any/all match)', () => {
+  const THREE_GAMES: Game[] = [...GAMES, { id: 3, name: 'Game C', tags: ['RPG'] }]
+
+  it('defaults to "or" (union) semantics with no override', () => {
+    const table = useTableState(THREE_GAMES, GAME_COLS)
+    table.filter.setValues('tags', ['Action', 'RPG'], true)
+    expect(table.processedData.value.map((g) => g.name)).toEqual(['Game A', 'Game B', 'Game C'])
+  })
+
+  it('setMode sets a column directly to "and" (intersection) semantics', () => {
+    const table = useTableState(THREE_GAMES, GAME_COLS)
+    table.filter.setValues('tags', ['Action', 'RPG'], true)
+    table.filter.setMode('tags', 'and')
+    expect(table.filter.modes.value['tags']).toBe('and')
+    expect(table.processedData.value.map((g) => g.name)).toEqual(['Game A'])
+    table.filter.setMode('tags', 'or')
+    expect(table.filter.modes.value['tags']).toBe('or')
+    expect(table.processedData.value.map((g) => g.name)).toEqual(['Game A', 'Game B', 'Game C'])
+  })
+
+  it("overrides the column's own multiMode default", () => {
+    const cols: ColumnDef<Game>[] = [
+      { key: 'name', label: 'Name' },
+      { key: 'tags', label: 'Tags', filterable: true, multiMode: 'and' },
+    ]
+    const table = useTableState(THREE_GAMES, cols)
+    table.filter.setValues('tags', ['Action', 'RPG'], true)
+    expect(table.processedData.value.map((g) => g.name)).toEqual(['Game A'])
+    table.filter.setMode('tags', 'or')
+    expect(table.processedData.value.map((g) => g.name)).toEqual(['Game A', 'Game B', 'Game C'])
+  })
+
+  it('filter.clear() and clearAll() reset any overridden modes', () => {
+    const table = useTableState(THREE_GAMES, GAME_COLS)
+    table.filter.setMode('tags', 'and')
+    table.filter.clear()
+    expect(table.filter.modes.value).toEqual({})
+
+    table.filter.setMode('tags', 'and')
+    table.clearAll()
+    expect(table.filter.modes.value).toEqual({})
+  })
+
+  it('round-trips an overridden filter mode via getViewState/setViewState', () => {
+    const table = useTableState(THREE_GAMES, GAME_COLS)
+    table.filter.setMode('tags', 'and')
+    const view = table.getViewState()
+    expect(view.filterModes).toEqual({ tags: 'and' })
+
+    const table2 = useTableState(THREE_GAMES, GAME_COLS)
+    table2.setViewState(view)
+    expect(table2.filter.modes.value).toEqual({ tags: 'and' })
+  })
+})
+
 describe('useTableState — computed columns', () => {
   const COMPUTED_COLS: ColumnDef<Row>[] = [
     ...COLS,

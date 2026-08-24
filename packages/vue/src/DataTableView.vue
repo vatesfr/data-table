@@ -3,6 +3,7 @@ import { computed, ref, shallowRef, watch, nextTick, useSlots } from 'vue'
 import {
   computeAggregate,
   computeStringValueCounts,
+  isMultiValueColumn,
   getColumnValue,
   filterValuesBySearch,
   filterValuesByCount,
@@ -98,8 +99,10 @@ const {
   include: filters,
   exclude: excludeFilters,
   ranges: rangeFilters,
+  modes: filterModes,
   activeCount: activeFilterCount,
   valueMap: stringValueMap,
+  setMode: setFilterMode,
   toggleAll: toggleFilterAll,
   setValues: setFilterValues,
   cycleValue: cycleFilterValue,
@@ -429,6 +432,7 @@ const stringValueCounts = computed(() =>
     L.value.emptyValue,
     filterDetailCol.value ? [filterDetailCol.value.key] : [],
     excludeFilters.value,
+    filterModes.value,
   ),
 )
 // A date column can have both an active checklist selection (tree) *and* an active range filter
@@ -496,6 +500,19 @@ const filterDetailBounds = computed(() => {
   const col = filterDetailCol.value
   if (!col || (col.type !== 'number' && col.type !== 'date')) return null
   return computeValueBounds(props.data, col)
+})
+// Any/all match-mode control — only meaningful for a column whose values are actually
+// array-shaped in the data (see isMultiValueColumn's own doc comment), and only for the string
+// checklist, not the date tree (mirrors Solid's FilterDropdown.tsx).
+const isMultiValueFilterCol = computed(() => {
+  const col = filterDetailCol.value
+  if (!col || col.type === 'date' || col.type === 'number') return false
+  return isMultiValueColumn(props.data, col, col.key)
+})
+const filterMatchMode = computed(() => {
+  const col = filterDetailCol.value
+  if (!col) return 'or' as const
+  return filterModes.value[col.key] ?? col.multiMode ?? 'or'
 })
 function rangeSliderFor(
   col: ColumnDef<TRow>,
@@ -1603,6 +1620,34 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                           : getValueSortIcon(valueSortFor(filterDetailCol.key))
                       }}
                     </button>
+                    <div
+                      v-if="isMultiValueFilterCol"
+                      class="dt__filter-match-mode-group"
+                      role="group"
+                    >
+                      <button
+                        type="button"
+                        class="dt__value-sort-btn dt__filter-match-mode dt__filter-match-mode--left"
+                        :class="{ 'dt__filter-match-mode--active': filterMatchMode === 'or' }"
+                        :title="L.filterMatchAny"
+                        :aria-label="L.filterMatchAny"
+                        :aria-pressed="filterMatchMode === 'or'"
+                        @click="setFilterMode(filterDetailCol.key, 'or')"
+                      >
+                        {{ L.filterMatchAny }}
+                      </button>
+                      <button
+                        type="button"
+                        class="dt__value-sort-btn dt__filter-match-mode dt__filter-match-mode--right"
+                        :class="{ 'dt__filter-match-mode--active': filterMatchMode === 'and' }"
+                        :title="L.filterMatchAll"
+                        :aria-label="L.filterMatchAll"
+                        :aria-pressed="filterMatchMode === 'and'"
+                        @click="setFilterMode(filterDetailCol.key, 'and')"
+                      >
+                        {{ L.filterMatchAll }}
+                      </button>
+                    </div>
                   </div>
                   <div v-if="filterDetailCol.type === 'date'" class="dt__date-tree-wrap">
                     <DateTreeItem
@@ -2350,6 +2395,22 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
   color: var(--color-text-secondary);
   font-family: inherit;
   white-space: nowrap;
+}
+.dt__filter-match-mode-group {
+  display: inline-flex;
+  flex-shrink: 0;
+}
+.dt__filter-match-mode--left {
+  border-radius: 6px 0 0 6px;
+  border-right: none;
+}
+.dt__filter-match-mode--right {
+  border-radius: 0 6px 6px 0;
+}
+.dt__filter-match-mode--active {
+  background: var(--color-background-secondary);
+  color: var(--color-text-primary);
+  font-weight: 500;
 }
 .dt__sort-idx {
   width: 18px;

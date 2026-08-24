@@ -989,6 +989,83 @@ describe('useTableState — multi-value (array) columns', () => {
   })
 })
 
+describe('useTableState — filter.setMode (any/all match)', () => {
+  it('defaults to "or" (union) semantics with no override', () => {
+    const { result } = renderHook(() => useTableState(GAMES, GAME_COLS))
+    act(() => {
+      result.current.filter.setValues('tags', ['Action', 'RPG'], true)
+    })
+    expect(result.current.processedData.map((g) => g.name)).toEqual(['Game A', 'Game B'])
+  })
+
+  it('setMode sets a column directly to "and" (intersection) semantics', () => {
+    const { result } = renderHook(() => useTableState(GAMES, GAME_COLS))
+    act(() => {
+      result.current.filter.setValues('tags', ['Action', 'RPG'], true)
+    })
+    act(() => {
+      result.current.filter.setMode('tags', 'and')
+    })
+    expect(result.current.filter.modes['tags']).toBe('and')
+    expect(result.current.processedData.map((g) => g.name)).toEqual(['Game A'])
+    act(() => {
+      result.current.filter.setMode('tags', 'or')
+    })
+    expect(result.current.filter.modes['tags']).toBe('or')
+    expect(result.current.processedData.map((g) => g.name)).toEqual(['Game A', 'Game B'])
+  })
+
+  it("overrides the column's own multiMode default", () => {
+    const cols: ColumnDef<Game>[] = [
+      { key: 'name', label: 'Name' },
+      { key: 'tags', label: 'Tags', filterable: true, multiMode: 'and' },
+    ]
+    const { result } = renderHook(() => useTableState(GAMES, cols))
+    act(() => {
+      result.current.filter.setValues('tags', ['Action', 'RPG'], true)
+    })
+    expect(result.current.processedData.map((g) => g.name)).toEqual(['Game A'])
+    act(() => {
+      result.current.filter.setMode('tags', 'or')
+    })
+    expect(result.current.processedData.map((g) => g.name)).toEqual(['Game A', 'Game B'])
+  })
+
+  it('filter.clear() and clearAll() reset any overridden modes', () => {
+    const { result } = renderHook(() => useTableState(GAMES, GAME_COLS))
+    act(() => {
+      result.current.filter.setMode('tags', 'and')
+    })
+    act(() => {
+      result.current.filter.clear()
+    })
+    expect(result.current.filter.modes).toEqual({})
+
+    act(() => {
+      result.current.filter.setMode('tags', 'and')
+    })
+    act(() => {
+      result.current.clearAll()
+    })
+    expect(result.current.filter.modes).toEqual({})
+  })
+
+  it('round-trips an overridden filter mode via getViewState/setViewState', () => {
+    const { result } = renderHook(() => useTableState(GAMES, GAME_COLS))
+    act(() => {
+      result.current.filter.setMode('tags', 'and')
+    })
+    const view = result.current.getViewState()
+    expect(view.filterModes).toEqual({ tags: 'and' })
+
+    const { result: result2 } = renderHook(() => useTableState(GAMES, GAME_COLS))
+    act(() => {
+      result2.current.setViewState(view)
+    })
+    expect(result2.current.filter.modes).toEqual({ tags: 'and' })
+  })
+})
+
 describe('useTableState — computed columns', () => {
   const COMPUTED_COLS: ColumnDef<Row>[] = [
     ...COLS,
