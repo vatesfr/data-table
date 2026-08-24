@@ -193,7 +193,9 @@ describe('createDataTable', () => {
     const scoreColItem = [...container.querySelectorAll<HTMLElement>('.dt-filter-col-item')].find(
       (b) => b.textContent?.includes('Score'),
     )!
-    expect(scoreColItem.querySelector('.dt-filter-col-dot')).toBeTruthy()
+    expect(
+      scoreColItem.closest('.dt-filter-col-row')?.querySelector('.dt-filter-col-clear'),
+    ).toBeTruthy()
     const chip = container.querySelector('.dt-chip--filter')!
     expect(chip.textContent).toContain('Score')
     expect(chip.textContent).toContain('80')
@@ -398,7 +400,9 @@ describe('createDataTable', () => {
     const releasedColItem = [
       ...container.querySelectorAll<HTMLElement>('.dt-filter-col-item'),
     ].find((b) => b.textContent?.includes('Released'))!
-    expect(releasedColItem.querySelector('.dt-filter-col-dot')).toBeTruthy()
+    expect(
+      releasedColItem.closest('.dt-filter-col-row')?.querySelector('.dt-filter-col-clear'),
+    ).toBeTruthy()
     const chip = container.querySelector('.dt-chip--filter')!
     expect(chip.textContent).toContain('Released')
     expect(chip.textContent).toContain('2022-01-01')

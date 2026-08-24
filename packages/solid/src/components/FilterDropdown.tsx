@@ -1,4 +1,12 @@
-import { For, Show, createEffect, createMemo, createSignal } from 'solid-js'
+import {
+  For,
+  Show,
+  createEffect,
+  createMemo,
+  createRenderEffect,
+  createSignal,
+  untrack,
+} from 'solid-js'
 import {
   computeStringValueCounts,
   filterValuesBySearch,
@@ -144,18 +152,73 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
   const { table } = props
   const filterableCols = createMemo(() => props.columns.filter((c) => c.filterable !== false))
 
+  // Whether `col` currently has any active filter (checklist include/exclude or a set range) —
+  // shared by the left-pane per-row indicator/clear button below and the open-time ordering
+  // snapshot (see `orderKeys` below).
+  function hasActiveFilter(col: ColumnDef<TRow>): boolean {
+    const rf = table.filter.ranges()[col.key]
+    return (
+      (table.filter.include()[col.key]?.size ?? 0) > 0 ||
+      (table.filter.exclude()[col.key]?.size ?? 0) > 0 ||
+      (rf !== undefined && (rf.min !== '' || rf.max !== ''))
+    )
+  }
+
   const [activeKey, setActiveKey] = createSignal<string | null>(null)
   // Narrows the left pane's *column list* — a separate concern from `searchTerms` below, which
   // narrows the active column's *values* in the right detail pane (see CLAUDE.md's "Dropdown
   // column search and keyboard navigation").
   const [colSearchTerm, setColSearchTerm] = createSignal('')
+
+  // Snapshot of the left pane's column order, captured only at the moment the dropdown opens —
+  // active-filter columns first, then the rest, both alphabetically within their own group. Per
+  // user preference: reordering live (as filters are toggled while the panel stays open) is more
+  // jarring than useful, so the order is frozen for the whole open session and only re-taken on
+  // the next open. `null` while closed/never opened, meaning "no snapshot yet, fall back to plain
+  // alpha order".
+  const [orderKeys, setOrderKeys] = createSignal<string[] | null>(null)
+  let wasOpen = false
+  // createRenderEffect (not createEffect): must resolve synchronously in the same update flush
+  // that flips the panel's `<Show>` open, so the very first render of the left-pane list already
+  // reads the fresh snapshot instead of one stale tick of plain alpha order — same reasoning as
+  // `data`/`columns`' own accessor-tracking effects in createTableState.ts.
+  createRenderEffect(() => {
+    const open = props.isOpen
+    if (open && !wasOpen) {
+      const sorted = filterableCols()
+        .slice()
+        .sort((a, b) => a.label.localeCompare(b.label))
+      // Untracked: this must not re-run (and thus can't accidentally reorder mid-session) just
+      // because a filter changes while the panel is open — only `props.isOpen`'s own transition
+      // to `true` should ever produce a new snapshot.
+      setOrderKeys(
+        untrack(() => {
+          const active = sorted.filter(hasActiveFilter)
+          const inactive = sorted.filter((c) => !hasActiveFilter(c))
+          return [...active, ...inactive].map((c) => c.key)
+        }),
+      )
+    }
+    wasOpen = open
+  })
+
   const searchedFilterableCols = createMemo(() => {
     const term = colSearchTerm().trim().toLowerCase()
-    return (
-      term ? filterableCols().filter((c) => c.label.toLowerCase().includes(term)) : filterableCols()
-    )
-      .slice()
-      .sort((a, b) => a.label.localeCompare(b.label))
+    const cols = term
+      ? filterableCols().filter((c) => c.label.toLowerCase().includes(term))
+      : filterableCols()
+    const order = orderKeys()
+    if (!order) return cols.slice().sort((a, b) => a.label.localeCompare(b.label))
+    // A column absent from the snapshot (added to `columns` after the dropdown was opened) sorts
+    // after every snapshotted one, alongside its own alphabetical fallback.
+    const indexOf = (key: string) => {
+      const i = order.indexOf(key)
+      return i === -1 ? order.length : i
+    }
+    return cols.slice().sort((a, b) => {
+      const diff = indexOf(a.key) - indexOf(b.key)
+      return diff !== 0 ? diff : a.label.localeCompare(b.label)
+    })
   })
   const [searchTerms, setSearchTerms] = createSignal<Record<string, string>>({})
   const [valueSorts, setValueSorts] = createSignal<Record<string, ValueSort>>({})
@@ -544,27 +607,42 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
           />
           <For each={searchedFilterableCols()}>
             {(col) => {
-              const hasActive = createMemo(() => {
-                const rf = table.filter.ranges()[col.key]
-                return (
-                  (table.filter.include()[col.key]?.size ?? 0) > 0 ||
-                  (table.filter.exclude()[col.key]?.size ?? 0) > 0 ||
-                  (rf !== undefined && (rf.min !== '' || rf.max !== ''))
-                )
-              })
+              const hasActive = createMemo(() => hasActiveFilter(col))
               return (
-                <button
-                  type="button"
-                  class={`dt-filter-col-item${activeCol()?.key === col.key ? ' dt-filter-col-item--active' : ''}`}
-                  data-dd-row
-                  data-filter-col-key={col.key}
-                  onClick={() => setActiveKey(col.key)}
-                >
-                  <span>{col.label}</span>
+                <div class="dt-filter-col-row">
+                  <button
+                    type="button"
+                    class={`dt-filter-col-item${activeCol()?.key === col.key ? ' dt-filter-col-item--active' : ''}`}
+                    data-dd-row
+                    data-filter-col-key={col.key}
+                    onClick={() => setActiveKey(col.key)}
+                  >
+                    <span>{col.label}</span>
+                  </button>
+                  {/* Replaces the plain active-filter dot: a one-click way to drop this column's
+                      filter without opening it first, matching the toolbar's own per-dropdown ×
+                      buttons — see CLAUDE.md's "Toolbar clear buttons". A sibling of the column
+                      button rather than nested inside it, since a <button> can't contain another
+                      interactive element. */}
                   <Show when={hasActive()}>
-                    <span class="dt-filter-col-dot" />
+                    <button
+                      type="button"
+                      class="dt-filter-col-clear"
+                      title={table.labels().clearColumnFilter}
+                      aria-label={table.labels().clearColumnFilter}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        // Clears every kind at once — this button means "drop this column's
+                        // filter entirely", unlike the active-bar's own per-kind chips.
+                        table.filter.clearColumn(col.key, 'include')
+                        table.filter.clearColumn(col.key, 'exclude')
+                        table.filter.clearColumn(col.key, 'range')
+                      }}
+                    >
+                      ×
+                    </button>
                   </Show>
-                </button>
+                </div>
               )
             }}
           </For>

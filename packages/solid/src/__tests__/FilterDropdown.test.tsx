@@ -30,24 +30,26 @@ function mount() {
   const container = document.createElement('div')
   document.body.appendChild(container)
   let table!: ReturnType<typeof createTableState<Row>>
+  let setIsOpen!: (open: boolean) => void
   const dispose = createRoot((d) => {
     table = createTableState(ROWS, COLS)
-    const [isOpen, setIsOpen] = createSignal(true)
+    const [isOpen, setIsOpenSignal] = createSignal(true)
+    setIsOpen = setIsOpenSignal
     render(
       () => (
         <FilterDropdown
           table={table}
           columns={COLS}
           isOpen={isOpen()}
-          onToggle={() => setIsOpen((o) => !o)}
-          onClose={() => setIsOpen(false)}
+          onToggle={() => setIsOpenSignal((o) => !o)}
+          onClose={() => setIsOpenSignal(false)}
         />
       ),
       container,
     )
     return d
   })
-  return { container, table, dispose }
+  return { container, table, dispose, setIsOpen }
 }
 
 function selectCol(container: HTMLElement, label: string): void {
@@ -67,13 +69,56 @@ describe('FilterDropdown — column selection', () => {
     dispose()
   })
 
-  it('shows a dot marker for a column with an active filter', () => {
+  it('shows a clear button for a column with an active filter', () => {
     const { container, table, dispose } = mount()
+    expect(
+      [...container.querySelectorAll('.dt-filter-col-row')]
+        .find((r) => r.textContent?.includes('Name'))!
+        .querySelector('.dt-filter-col-clear'),
+    ).toBeNull()
     table.filter.cycleValue('name', 'Alice')
-    const nameBtn = [...container.querySelectorAll('.dt-filter-col-item')].find((b) =>
-      b.textContent?.includes('Name'),
+    const row = [...container.querySelectorAll('.dt-filter-col-row')].find((r) =>
+      r.textContent?.includes('Name'),
     )!
-    expect(nameBtn.querySelector('.dt-filter-col-dot')).not.toBeNull()
+    expect(row.querySelector('.dt-filter-col-clear')).not.toBeNull()
+    dispose()
+  })
+
+  it('clear button removes the column filter without opening it', () => {
+    const { container, table, dispose } = mount()
+    table.filter.cycleValue('score', '90')
+    selectCol(container, 'Name') // switch active detail pane away from Score
+    const row = [...container.querySelectorAll('.dt-filter-col-row')].find((r) =>
+      r.textContent?.includes('Score'),
+    )!
+    row.querySelector<HTMLButtonElement>('.dt-filter-col-clear')!.click()
+    expect(table.filter.include().score?.size ?? 0).toBe(0)
+    expect(container.querySelector('.dt-filter-list')).not.toBeNull() // still showing Name's pane
+    dispose()
+  })
+})
+
+describe('FilterDropdown — column ordering', () => {
+  it('moves active-filter columns to the top only when the dropdown (re)opens', () => {
+    const { container, table, dispose } = mount()
+    const labelOrder = () =>
+      [...container.querySelectorAll('.dt-filter-col-item')].map((b) => b.textContent)
+    expect(labelOrder()).toEqual(['Dept', 'Joined', 'Name', 'Score']) // plain alpha order, nothing active yet
+
+    table.filter.cycleValue('score', '90')
+    // Still open — the just-activated column must not jump to the top mid-session.
+    expect(labelOrder()).toEqual(['Dept', 'Joined', 'Name', 'Score'])
+    dispose()
+  })
+
+  it('reorders active-filter columns to the top on the next open', () => {
+    const { container, table, dispose, setIsOpen } = mount()
+    table.filter.cycleValue('score', '90')
+    setIsOpen(false)
+    setIsOpen(true)
+    const labelOrder = () =>
+      [...container.querySelectorAll('.dt-filter-col-item')].map((b) => b.textContent)
+    expect(labelOrder()).toEqual(['Score', 'Dept', 'Joined', 'Name'])
     dispose()
   })
 })

@@ -188,6 +188,8 @@ export interface DataTableLabels {
   min: string
   max: string
   clearFilters: string
+  /** Title/aria-label for the Filter dropdown's left-pane per-column clear button (replaces the plain active-filter dot) */
+  clearColumnFilter: string
   /** Filter checklist's any/all toggle button text + title while in "any" (union, default) mode */
   filterMatchAny: string
   /** Filter checklist's any/all toggle button text + title while in "all" (intersection) mode */
