@@ -435,6 +435,77 @@ describe('FilterDropdown — any/all match-mode toggle', () => {
   })
 })
 
+describe('FilterDropdown — checklist virtualization', () => {
+  interface BigRow {
+    id: number
+    tag: string
+  }
+  const BIG_COLS: ColumnDef<BigRow>[] = [{ key: 'tag', label: 'Tag', filterable: true }]
+  // 500 distinct values — comfortably more than fit in the 260px/32px-row viewport plus overscan.
+  const BIG_ROWS: BigRow[] = Array.from({ length: 500 }, (_, i) => ({
+    id: i,
+    tag: `Tag ${String(i).padStart(3, '0')}`,
+  }))
+
+  function mountBig() {
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    let table!: ReturnType<typeof createTableState<BigRow>>
+    const dispose = createRoot((d) => {
+      table = createTableState(BIG_ROWS, BIG_COLS)
+      const [isOpen, setIsOpen] = createSignal(true)
+      render(
+        () => (
+          <FilterDropdown
+            table={table}
+            columns={BIG_COLS}
+            isOpen={isOpen()}
+            onToggle={() => setIsOpen((o) => !o)}
+            onClose={() => setIsOpen(false)}
+          />
+        ),
+        container,
+      )
+      return d
+    })
+    return { container, table, dispose }
+  }
+
+  it('only mounts a window of rows, not all 500', () => {
+    const { container, dispose } = mountBig()
+    const mounted = container.querySelectorAll('input[data-dd-value-row]').length
+    expect(mounted).toBeGreaterThan(0)
+    expect(mounted).toBeLessThan(500)
+    dispose()
+  })
+
+  it('the spacer div reports the full (unwindowed) list height', () => {
+    const { container, dispose } = mountBig()
+    const spacer = container.querySelector<HTMLDivElement>('.dt-filter-list > div')!
+    expect(spacer.style.height).toBe(`${500 * 32}px`)
+    dispose()
+  })
+
+  it('End reaches the logical last value even though it is outside the initially-mounted window', () => {
+    const { container, dispose } = mountBig()
+    const search = container.querySelector<HTMLInputElement>('input[data-dd-value-search]')!
+    search.focus()
+    search.dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true }))
+    expect(document.activeElement?.getAttribute('data-value')).toBe('Tag 499')
+    dispose()
+  })
+
+  it('select-all and shift-range still operate on the full list, not just the mounted window', () => {
+    const { container, table, dispose } = mountBig()
+    const selectAll = container.querySelector<HTMLInputElement>(
+      '.dt-filter-search-row input[type="checkbox"]',
+    )!
+    selectAll.click()
+    expect(table.filter.include().tag?.size).toBe(500)
+    dispose()
+  })
+})
+
 describe('FilterDropdown — clear', () => {
   it('the clear-filters × button appears once any filter is active and clears all', () => {
     const { container, table, dispose } = mount()

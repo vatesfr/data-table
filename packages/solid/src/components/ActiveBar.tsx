@@ -31,8 +31,9 @@ function summarizeFilterValues<TRow extends object>(
 //
 // A group/filter chip's body opens the relevant dropdown (via onOpenGroup/onOpenFilter) *and*
 // focuses that specific entry's row inside it — see DataTableView.tsx's own onOpenGroup/
-// onOpenFilter handlers for how (Solid's synchronous reactivity means the dropdown's DOM already
-// exists by the time that handler's next line runs, no pending-focus indirection needed).
+// onOpenFilter handlers for how (a queueMicrotask, queued after Dropdown's own already-scheduled
+// focus-on-open microtask so this one runs last and wins — see Dropdown.tsx's own comment on why
+// that can't be done synchronously).
 export function ActiveBar<TRow extends object>(props: ActiveBarProps<TRow>) {
   const { table } = props
 

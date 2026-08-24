@@ -201,7 +201,7 @@ describe('DataTable — Sort/Group activate/remove focus retention', () => {
 })
 
 describe('DataTable — active-bar chip click actions', () => {
-  it("clicking a group chip's body opens the Group dropdown, focused on that entry's row", () => {
+  it("clicking a group chip's body opens the Group dropdown, focused on that entry's row", async () => {
     const { container, dispose } = mount()
     clickButtonByText(container, 'Group')
     clickButtonByText(container, 'Dept')
@@ -215,7 +215,116 @@ describe('DataTable — active-bar chip click actions', () => {
     const groupMark = container.querySelector<HTMLButtonElement>('.dt-chip-group-mark')!
     groupMark.click()
     expect(container.querySelector('.dt-dd')).not.toBeNull()
+    // The chip's own focus override is queued in a microtask *after* Dropdown's own already-
+    // scheduled focus-on-open, specifically so it runs last and wins the race — see
+    // DataTableView.tsx's onOpenGroup. One awaited tick drains both.
+    await tick()
     expect(document.activeElement).toBe(container.querySelector('[data-group-key="dept"]'))
+    dispose()
+  })
+
+  it("clicking a filter chip's body opens the Filter dropdown, focused on that column's detail pane", async () => {
+    const { container, dispose } = mount()
+    clickButtonByText(container, 'Filter')
+    container.querySelector<HTMLElement>('[data-filter-col-key="score"]')!.click()
+    container.querySelector<HTMLInputElement>('input.dt-range-input')!.value = '70'
+    container
+      .querySelector<HTMLInputElement>('input.dt-range-input')!
+      .dispatchEvent(new Event('input', { bubbles: true }))
+    // Close the dropdown so the chip click has to reopen it, landing back on "Score" specifically
+    // rather than whatever column the panel last happened to show.
+    clickButtonByText(container, 'Filter')
+    expect(container.querySelector('.dt-dd')).toBeNull()
+
+    const chip = [...container.querySelectorAll('.dt-chip-body')].find((el) =>
+      el.textContent?.includes('Score'),
+    )!
+    ;(chip as HTMLButtonElement).click()
+    await tick()
+    expect(document.activeElement).toBe(container.querySelector('[data-filter-col-key="score"]'))
+    // The column selection itself follows focus (no separate "which column" state to push) —
+    // confirmed by the right pane now showing Score's own range controls.
+    expect(container.querySelector('input.dt-range-input')).not.toBeNull()
+    dispose()
+  })
+})
+
+describe('DataTable — filter dropdown left/right pane navigation', () => {
+  it('ArrowRight on the left column list enters the right detail pane', () => {
+    const { container, dispose } = mount()
+    clickButtonByText(container, 'Filter')
+    const nameCol = container.querySelector<HTMLElement>('[data-filter-col-key="name"]')!
+    nameCol.focus()
+    nameCol.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }))
+    // The select-all checkbox renders before the search box in DOM order but isn't part of the
+    // right pane's own nav focusable-set (same "sits beside the list, not part of it" reasoning
+    // as the generic dropdowns' own search-adjacent controls) — the value-search box is first.
+    expect(document.activeElement).toBe(
+      container.querySelector('.dt-filter-detail input[data-dd-value-search]'),
+    )
+    dispose()
+  })
+
+  it('ArrowLeft from a checklist row returns focus to the active column button', () => {
+    const { container, dispose } = mount()
+    clickButtonByText(container, 'Filter')
+    container.querySelector<HTMLElement>('[data-filter-col-key="name"]')!.click()
+    const row = container.querySelector<HTMLInputElement>('input[data-dd-value-row]')!
+    row.focus()
+    row.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }))
+    expect(document.activeElement).toBe(container.querySelector('[data-filter-col-key="name"]'))
+    dispose()
+  })
+
+  it('ArrowLeft does not hijack cursor movement in the value-search text box', () => {
+    const { container, dispose } = mount()
+    clickButtonByText(container, 'Filter')
+    container.querySelector<HTMLElement>('[data-filter-col-key="name"]')!.click()
+    const search = container.querySelector<HTMLInputElement>('input[data-dd-value-search]')!
+    search.focus()
+    search.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }))
+    // Still focused in the search box — the event was left alone for native cursor movement.
+    expect(document.activeElement).toBe(search)
+    dispose()
+  })
+
+  it('ArrowDown/ArrowUp move between checklist rows in the filter detail pane', () => {
+    const { container, dispose } = mount()
+    clickButtonByText(container, 'Filter')
+    container.querySelector<HTMLElement>('[data-filter-col-key="name"]')!.click()
+    const rows = [...container.querySelectorAll<HTMLInputElement>('input[data-dd-value-row]')]
+    rows[0].focus()
+    rows[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }))
+    expect(document.activeElement).toBe(rows[1])
+    rows[1].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }))
+    expect(document.activeElement).toBe(rows[0])
+    dispose()
+  })
+
+  it('Home/End jump to the first/last checklist row, skipping the value-search box', () => {
+    const { container, dispose } = mount()
+    clickButtonByText(container, 'Filter')
+    container.querySelector<HTMLElement>('[data-filter-col-key="name"]')!.click()
+    const search = container.querySelector<HTMLInputElement>('input[data-dd-value-search]')!
+    const rows = [...container.querySelectorAll<HTMLInputElement>('input[data-dd-value-row]')]
+    search.focus()
+    search.dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true }))
+    expect(document.activeElement).toBe(rows[rows.length - 1])
+    search.dispatchEvent(new KeyboardEvent('keydown', { key: 'Home', bubbles: true }))
+    expect(document.activeElement).toBe(rows[0])
+    dispose()
+  })
+})
+
+describe('DataTable — filter dropdown "focus follows selection"', () => {
+  it('focusing a different column in the left pane updates the right pane immediately, with no Enter/Space needed', () => {
+    const { container, dispose } = mount()
+    clickButtonByText(container, 'Filter')
+    container.querySelector<HTMLElement>('[data-filter-col-key="score"]')!.focus()
+    expect(container.querySelector('input.dt-range-input')).not.toBeNull()
+    container.querySelector<HTMLElement>('[data-filter-col-key="name"]')!.focus()
+    expect(container.querySelector('input.dt-range-input')).toBeNull()
+    expect(container.querySelector('.dt-filter-list')).not.toBeNull()
     dispose()
   })
 })

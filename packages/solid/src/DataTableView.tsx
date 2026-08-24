@@ -101,16 +101,28 @@ export function DataTableView<TRow extends object>(props: DataTableViewProps<TRo
         totalRows={table.data().length}
         onOpenGroup={(key) => {
           setOpenDropdown('group')
-          // Solid's synchronous reactivity means the panel and its rows already exist by this
-          // next line — Dropdown's own focus-on-open already ran (focusing the search box or
-          // first row); this overrides it to the specific entry the chip identifies. Scoped
-          // globally rather than to this table's own root (no existing ref for that) — a
-          // practically negligible risk of matching a different table's dropdown, only if two
-          // tables' Group dropdowns were opened this way at the exact same instant with an
-          // overlapping column key.
-          document.querySelector<HTMLElement>(`[data-group-key="${key}"]`)?.focus()
+          // Dropdown's own focus-on-open runs in a queueMicrotask (not synchronously — see
+          // Dropdown.tsx's own comment), since its panel's ref callback fires before
+          // `props.children` exists underneath it. This override has to run in a *later*-queued
+          // microtask of its own, or Dropdown's already-scheduled one would win the race and
+          // steal focus back to the search box/first row after this line runs. Scoped globally
+          // rather than to this table's own root (no existing ref for that) — a practically
+          // negligible risk of matching a different table's dropdown, only if two tables' Group
+          // dropdowns were opened this way at the exact same instant with an overlapping key.
+          queueMicrotask(() => {
+            document.querySelector<HTMLElement>(`[data-group-key="${key}"]`)?.focus()
+          })
         }}
-        onOpenFilter={() => setOpenDropdown('filter')}
+        onOpenFilter={(key) => {
+          setOpenDropdown('filter')
+          // Same later-queued-microtask reasoning as onOpenGroup above. Focusing the column
+          // button is enough on its own — FilterDropdown's own delegated `focusin` listener
+          // (see "focus follows selection" in FilterDropdown.tsx) picks it up and selects that
+          // column in the detail pane, no separate "which column" state to set from here.
+          queueMicrotask(() => {
+            document.querySelector<HTMLElement>(`[data-filter-col-key="${key}"]`)?.focus()
+          })
+        }}
       />
       <TableBody
         table={table}

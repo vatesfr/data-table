@@ -15,6 +15,8 @@ import {
   findDateTreeNode,
   selectRange,
   isMultiValueColumn,
+  computeVirtualRange,
+  getVirtualScrollTarget,
   type ValueSort,
   type DateTreeNode,
 } from '@vates/data-table-core'
@@ -34,6 +36,13 @@ interface FilterDropdownProps<TRow extends object> {
 }
 
 const DEFAULT_VALUE_SORT: ValueSort = { by: 'alpha', dir: 'asc' }
+// Checklist virtualization (see "Checklist virtualization" below): a fixed per-row height so the
+// windowing math is exact, and an assumed viewport height safe because `.dt-filter-panel`'s own
+// `max-height: 380px` bounds how much taller the checklist can ever grow past this default —
+// comfortably inside the 5-row/160px overscan `computeVirtualRange` already renders each side, so
+// the mounted window always covers the real visible box. Matches React/Vue's own constants.
+const FILTER_LIST_ITEM_HEIGHT = 32
+const FILTER_LIST_VIEWPORT_HEIGHT = 260
 
 interface FilterSearchRowProps {
   checked: boolean
@@ -79,6 +88,7 @@ function FilterSearchRow(props: FilterSearchRowProps) {
       <input
         type="text"
         class="dt-dd-search"
+        data-dd-value-search
         placeholder={props.searchPlaceholder}
         value={props.searchValue}
         onInput={(e) => props.onSearchInput(e.currentTarget.value)}
@@ -122,16 +132,14 @@ function FilterSearchRow(props: FilterSearchRowProps) {
 
 // Master-detail filter panel (see CLAUDE.md's "Filter dropdown"): a left pane listing every
 // filterable column (dot-marked when active), a right pane showing the selected column's
-// controls — checklist (string), range + slider (number), or a Year›Month›Day tree + range +
-// slider (date).
+// controls — checklist (string, virtualized — see "Checklist virtualization" above), range +
+// slider (number), or a Year›Month›Day tree + range + slider (date, never virtualized — every
+// currently-expanded row is already naturally hierarchical/collapsed by default).
 //
-// Simplifications vs. the fuller documented behavior, noted rather than silently dropped:
-// - The flat checklist is NOT virtualized/windowed here — every narrowed value gets a real DOM
-//   node. `computeVirtualRange` exists in core for this and can be layered on later; it's a pure
-//   rendering-cost optimization for very high-cardinality columns; it doesn't change behavior.
-// - Shift-range selection (both the flat checklist and the date tree) is implemented; the panel's
-//   own generic roving Up/Down/Home/End keyboard nav (beyond native Tab order) is deferred, same
-//   as noted in Dropdown.tsx.
+// Implements pane-crossing (ArrowRight/ArrowLeft between the left column list and the right
+// detail pane), right-pane Up/Down/Home/End nav, and focus-follows-selection, at parity with
+// React/Vue — see `handlePanelKeyDown`/`focusChecklistIndex` below and the `onFocusIn` on
+// `.dt-filter-cols`.
 export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<TRow>) {
   const { table } = props
   const filterableCols = createMemo(() => props.columns.filter((c) => c.filterable !== false))
@@ -229,6 +237,31 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
     )
   })
 
+  // --- Checklist virtualization ---
+  // A column with thousands of distinct values (a customer name, an order ID) would otherwise
+  // mount one <label>/<input> per value regardless of scroll position — see CLAUDE.md's
+  // "Performance" and "The flat checklist is virtualized in React and Vue" in the docs. Solid's
+  // own version of this, windowing filterDetailValues() the same way.
+  let filterListEl: HTMLDivElement | undefined
+  const [scrollTop, setScrollTop] = createSignal(0)
+  // Resets scroll to 0 whenever the active column or its search term changes — matches React/
+  // Vue's own reset trigger (a stale scroll position from a previous column/search makes no
+  // sense against a freshly-narrowed list).
+  createEffect(() => {
+    void activeCol()?.key
+    void searchTerm()
+    setScrollTop(0)
+    if (filterListEl) filterListEl.scrollTop = 0
+  })
+  const filterListVirtualRange = createMemo(() =>
+    computeVirtualRange(
+      scrollTop(),
+      FILTER_LIST_VIEWPORT_HEIGHT,
+      FILTER_LIST_ITEM_HEIGHT,
+      filterDetailValues().length,
+    ),
+  )
+
   function setSearchTerm(key: string, term: string): void {
     setSearchTerms((prev) => ({ ...prev, [key]: term }))
   }
@@ -320,6 +353,133 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
     setAnchor(col.key, node.path)
   }
 
+  // --- Left/right pane-crossing + right-pane row nav (Up/Down/Home/End) ---
+  // A separate handler from Dropdown.tsx's own generic roving nav (which only ever reaches this
+  // panel's left-pane `.dt-filter-col-item` buttons via `data-dd-row`) — this one needs to reach
+  // into filter-specific DOM (the right-pane checklist/date-tree) that the generic handler knows
+  // nothing about. Bound on `.dt-filter-panel` itself, a descendant of Dropdown's own panel, so it
+  // runs *before* the generic handler via bubbling — deliberately not calling
+  // preventDefault/stopPropagation for a key it doesn't itself handle, so a plain ArrowUp/Down/
+  // Home/End on a left-pane button still reaches Dropdown.tsx's own handler untouched.
+  let panelEl: HTMLDivElement | undefined
+  function isEditableTarget(el: Element | null): boolean {
+    return el instanceof HTMLInputElement && ['text', 'number', 'date', 'range'].includes(el.type)
+  }
+  function detailFocusables(detailEl: Element): HTMLElement[] {
+    return Array.from(
+      detailEl.querySelectorAll<HTMLElement>(
+        'input[data-dd-value-search], input[data-dd-value-row], .dt-date-tree-wrap input[type="checkbox"]',
+      ),
+    )
+  }
+  function handlePanelKeyDown(e: KeyboardEvent): void {
+    if (!panelEl) return
+    const target = e.target as HTMLElement
+    if (e.key === 'ArrowRight' && target.matches('.dt-filter-col-item')) {
+      const detailEl = panelEl.querySelector('.dt-filter-detail')
+      const first = detailEl && detailFocusables(detailEl)[0]
+      if (first) {
+        e.preventDefault()
+        first.focus()
+      }
+      return
+    }
+    const detailEl = target.closest('.dt-filter-detail')
+    if (!detailEl) return
+    if (e.key === 'ArrowLeft') {
+      if (isEditableTarget(document.activeElement)) return
+      const activeColBtn = panelEl.querySelector<HTMLElement>(
+        '.dt-filter-cols .dt-filter-col-item--active',
+      )
+      if (activeColBtn) {
+        e.preventDefault()
+        activeColBtn.focus()
+      }
+      return
+    }
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Home' && e.key !== 'End') return
+
+    // The flat checklist is virtualized (see "Checklist virtualization" below) — only a
+    // scrolled-into-view window of rows actually exists in the DOM, so Up/Down/Home/End need to
+    // reach a *logical* value that isn't necessarily mounted, via filterDetailValues() (the full
+    // narrowed list) rather than a DOM query. Falls through to the generic DOM-order nav below in
+    // two cases, same as React/Vue's own version: moving Up out of the very first row (there's no
+    // row above it — the previous stop is the search box instead, itself always mounted so plain
+    // DOM order already gets there), and starting from the search box itself (ArrowDown to row 0
+    // is likewise always mounted). The date tree has no such window, so it always uses the
+    // generic path.
+    const col = activeCol()
+    if (col && col.type !== 'date' && col.type !== 'number') {
+      const values = filterDetailValues()
+      const active = document.activeElement
+      const activeValue =
+        active instanceof HTMLInputElement && active.matches('input[data-dd-value-row]')
+          ? active.dataset.value
+          : undefined
+      let targetIdx: number | null = null
+      if (e.key === 'Home') targetIdx = 0
+      else if (e.key === 'End') targetIdx = values.length - 1
+      else if (activeValue !== undefined) {
+        const curIdx = values.indexOf(activeValue)
+        targetIdx = e.key === 'ArrowDown' ? curIdx + 1 : curIdx - 1
+      }
+      if (targetIdx !== null) {
+        const fallsThrough = targetIdx < 0 && e.key === 'ArrowUp' && activeValue !== undefined
+        if (!fallsThrough) {
+          if (targetIdx < 0 || targetIdx >= values.length) {
+            e.preventDefault()
+            return
+          }
+          e.preventDefault()
+          focusChecklistIndex(targetIdx, values)
+          return
+        }
+      }
+    }
+
+    const focusables = detailFocusables(detailEl)
+    const active = document.activeElement as HTMLElement | null
+    const idx = active ? focusables.indexOf(active) : -1
+    if (idx === -1) return
+    if (e.key === 'Home' || e.key === 'End') {
+      const rowFocusables = focusables.filter((el) => !el.matches('input[data-dd-value-search]'))
+      if (rowFocusables.length === 0) return
+      e.preventDefault()
+      ;(e.key === 'Home' ? rowFocusables[0] : rowFocusables[rowFocusables.length - 1]).focus()
+      return
+    }
+    const nextIdx = e.key === 'ArrowDown' ? idx + 1 : idx - 1
+    if (nextIdx < 0 || nextIdx >= focusables.length) return
+    e.preventDefault()
+    focusables[nextIdx].focus()
+  }
+
+  // Scrolls (if needed) and focuses the checklist row at `values[targetIdx]` — the scroll-then-
+  // focus dance a virtualized list needs when the target isn't in the currently-mounted window.
+  // Solid's DOM update for the new window is synchronous within this same call (same reasoning
+  // as the Sort/Group activate/remove focus retention elsewhere in this codebase), so no
+  // pending-ref/effect indirection is needed: set scrollTop, then focus, in the same tick.
+  function focusChecklistIndex(targetIdx: number, values: string[]): void {
+    const value = values[targetIdx]
+    const nextScrollTop = getVirtualScrollTarget(
+      scrollTop(),
+      FILTER_LIST_VIEWPORT_HEIGHT,
+      FILTER_LIST_ITEM_HEIGHT,
+      targetIdx,
+    )
+    if (nextScrollTop !== null) {
+      if (filterListEl) filterListEl.scrollTop = nextScrollTop
+      setScrollTop(nextScrollTop)
+    }
+    if (!filterListEl) return
+    for (const cb of filterListEl.querySelectorAll<HTMLInputElement>('input[data-dd-value-row]')) {
+      if (cb.dataset.value === value) {
+        cb.focus()
+        break
+      }
+    }
+  }
+
   return (
     <Dropdown
       isOpen={props.isOpen}
@@ -361,8 +521,19 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
         return false
       }}
     >
-      <div class="dt-filter-panel">
-        <div class="dt-filter-cols">
+      <div class="dt-filter-panel" ref={panelEl} onKeyDown={handlePanelKeyDown}>
+        <div
+          class="dt-filter-cols"
+          // Listbox/radiogroup-style: focusing a column button by any means (click, Tab, the
+          // arrow-nav above) drives which column's detail pane shows — not just an explicit
+          // click/activate step. `focusin` (unlike `focus`) bubbles, so one delegated listener
+          // here covers every column button without per-row wiring.
+          onFocusIn={(e) => {
+            const key = (e.target as HTMLElement).closest<HTMLElement>('.dt-filter-col-item')
+              ?.dataset.filterColKey
+            if (key) setActiveKey(key)
+          }}
+        >
           <input
             type="text"
             class="dt-dd-search dt-filter-cols-search"
@@ -425,45 +596,81 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
                           matchAllLabel={table.labels().filterMatchAll}
                           onSetMatchMode={(mode) => table.filter.setMode(col().key, mode)}
                         />
-                        <div class="dt-filter-list">
-                          <For each={filterDetailValues()}>
-                            {(value) => {
-                              const included = () =>
-                                table.filter.include()[col().key]?.has(value) ?? false
-                              const excluded = () =>
-                                table.filter.exclude()[col().key]?.has(value) ?? false
-                              const count = () => stringValueCounts().get(value) ?? 0
-                              let el: HTMLInputElement | undefined
-                              createEffect(() => {
-                                applyCheckboxState(el, included(), excluded())
-                              })
-                              return (
-                                <label class="dt-dd-item">
-                                  <input
-                                    type="checkbox"
-                                    checked={included()}
-                                    ref={el}
-                                    onClick={(e) => {
-                                      e.preventDefault()
-                                      handleValueClick(value, (e as MouseEvent).shiftKey)
-                                      deferCheckboxCorrection(el, () => ({
-                                        checked: included(),
-                                        indeterminate: excluded(),
-                                      }))
-                                    }}
-                                  />
-                                  <span class="dt-flex1">
-                                    {col().renderFilterLabel
-                                      ? col().renderFilterLabel!(value)
-                                      : value}
-                                  </span>
-                                  <span class="dt-filter-count" aria-hidden="true">
-                                    {count()}
-                                  </span>
-                                </label>
-                              )
+                        <div
+                          class="dt-filter-list"
+                          ref={filterListEl}
+                          onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
+                        >
+                          {/* Spacer sized to the *full* (unwindowed) list so the real scrollbar
+                              still reports the true item count's size; the inner div positions
+                              just the mounted window at its real offset within that spacer. */}
+                          <div
+                            style={{
+                              height: `${filterListVirtualRange().totalHeight}px`,
+                              position: 'relative',
                             }}
-                          </For>
+                          >
+                            <div
+                              style={{
+                                position: 'absolute',
+                                top: `${filterListVirtualRange().offsetY}px`,
+                                left: 0,
+                                right: 0,
+                              }}
+                            >
+                              <For
+                                each={filterDetailValues().slice(
+                                  filterListVirtualRange().startIndex,
+                                  filterListVirtualRange().endIndex,
+                                )}
+                              >
+                                {(value) => {
+                                  const included = () =>
+                                    table.filter.include()[col().key]?.has(value) ?? false
+                                  const excluded = () =>
+                                    table.filter.exclude()[col().key]?.has(value) ?? false
+                                  const count = () => stringValueCounts().get(value) ?? 0
+                                  let el: HTMLInputElement | undefined
+                                  createEffect(() => {
+                                    applyCheckboxState(el, included(), excluded())
+                                  })
+                                  return (
+                                    <label
+                                      class="dt-dd-item"
+                                      style={{
+                                        height: `${FILTER_LIST_ITEM_HEIGHT}px`,
+                                        'box-sizing': 'border-box',
+                                      }}
+                                    >
+                                      <input
+                                        type="checkbox"
+                                        data-dd-value-row
+                                        data-value={value}
+                                        checked={included()}
+                                        ref={el}
+                                        onClick={(e) => {
+                                          e.preventDefault()
+                                          handleValueClick(value, (e as MouseEvent).shiftKey)
+                                          deferCheckboxCorrection(el, () => ({
+                                            checked: included(),
+                                            indeterminate: excluded(),
+                                          }))
+                                        }}
+                                      />
+                                      <span class="dt-flex1">
+                                        {col().renderFilterLabel
+                                          ? col().renderFilterLabel!(value)
+                                          : value}
+                                      </span>
+                                      <span class="dt-filter-count" aria-hidden="true">
+                                        {count()}
+                                      </span>
+                                    </label>
+                                  )
+                                }}
+                              </For>
+                            </div>
+                          </div>
                         </div>
                       </>
                     }
