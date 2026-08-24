@@ -25,6 +25,9 @@ import {
   isMultiValueColumn,
   computeVirtualRange,
   getVirtualScrollTarget,
+  columnHasActiveFilter,
+  orderFilterColumnsByActive,
+  applyColumnOrderSnapshot,
   type ValueSort,
   type DateTreeNode,
 } from '@vates/data-table-core'
@@ -152,15 +155,14 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
   const { table } = props
   const filterableCols = createMemo(() => props.columns.filter((c) => c.filterable !== false))
 
-  // Whether `col` currently has any active filter (checklist include/exclude or a set range) —
-  // shared by the left-pane per-row indicator/clear button below and the open-time ordering
-  // snapshot (see `orderKeys` below).
+  // Whether `col` currently has any active filter — shared by the left-pane per-row clear
+  // button below and the open-time ordering snapshot (see `orderKeys` below).
   function hasActiveFilter(col: ColumnDef<TRow>): boolean {
-    const rf = table.filter.ranges()[col.key]
-    return (
-      (table.filter.include()[col.key]?.size ?? 0) > 0 ||
-      (table.filter.exclude()[col.key]?.size ?? 0) > 0 ||
-      (rf !== undefined && (rf.min !== '' || rf.max !== ''))
+    return columnHasActiveFilter(
+      col.key,
+      table.filter.include(),
+      table.filter.exclude(),
+      table.filter.ranges(),
     )
   }
 
@@ -171,11 +173,9 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
   const [colSearchTerm, setColSearchTerm] = createSignal('')
 
   // Snapshot of the left pane's column order, captured only at the moment the dropdown opens —
-  // active-filter columns first, then the rest, both alphabetically within their own group. Per
-  // user preference: reordering live (as filters are toggled while the panel stays open) is more
-  // jarring than useful, so the order is frozen for the whole open session and only re-taken on
-  // the next open. `null` while closed/never opened, meaning "no snapshot yet, fall back to plain
-  // alpha order".
+  // see `orderFilterColumnsByActive`'s own doc comment (core) for why this is a snapshot rather
+  // than a live sort. `null` while closed/never opened, meaning "no snapshot yet, fall back to
+  // plain alpha order" (see `applyColumnOrderSnapshot`).
   const [orderKeys, setOrderKeys] = createSignal<string[] | null>(null)
   let wasOpen = false
   // createRenderEffect (not createEffect): must resolve synchronously in the same update flush
@@ -185,18 +185,18 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
   createRenderEffect(() => {
     const open = props.isOpen
     if (open && !wasOpen) {
-      const sorted = filterableCols()
-        .slice()
-        .sort((a, b) => a.label.localeCompare(b.label))
       // Untracked: this must not re-run (and thus can't accidentally reorder mid-session) just
       // because a filter changes while the panel is open — only `props.isOpen`'s own transition
       // to `true` should ever produce a new snapshot.
       setOrderKeys(
-        untrack(() => {
-          const active = sorted.filter(hasActiveFilter)
-          const inactive = sorted.filter((c) => !hasActiveFilter(c))
-          return [...active, ...inactive].map((c) => c.key)
-        }),
+        untrack(() =>
+          orderFilterColumnsByActive(
+            filterableCols(),
+            table.filter.include(),
+            table.filter.exclude(),
+            table.filter.ranges(),
+          ),
+        ),
       )
     }
     wasOpen = open
@@ -207,18 +207,7 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
     const cols = term
       ? filterableCols().filter((c) => c.label.toLowerCase().includes(term))
       : filterableCols()
-    const order = orderKeys()
-    if (!order) return cols.slice().sort((a, b) => a.label.localeCompare(b.label))
-    // A column absent from the snapshot (added to `columns` after the dropdown was opened) sorts
-    // after every snapshotted one, alongside its own alphabetical fallback.
-    const indexOf = (key: string) => {
-      const i = order.indexOf(key)
-      return i === -1 ? order.length : i
-    }
-    return cols.slice().sort((a, b) => {
-      const diff = indexOf(a.key) - indexOf(b.key)
-      return diff !== 0 ? diff : a.label.localeCompare(b.label)
-    })
+    return applyColumnOrderSnapshot(cols, orderKeys())
   })
   const [searchTerms, setSearchTerms] = createSignal<Record<string, string>>({})
   const [valueSorts, setValueSorts] = createSignal<Record<string, ValueSort>>({})
