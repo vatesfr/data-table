@@ -49,11 +49,17 @@ export function ColumnsDropdown<TRow extends object>(props: ColumnsDropdownProps
           {table.labels().columns}
         </button>
       }
+      onEscapeClearable={() => {
+        if (!searchTerm()) return false
+        setSearchTerm('')
+        return true
+      }}
     >
       <div class="dt-dd-search-row">
         <input
           type="text"
           class="dt-dd-search"
+          data-dd-search
           placeholder={table.labels().filterSearchPlaceholder}
           value={searchTerm()}
           onInput={(e) => setSearchTerm(e.currentTarget.value)}
@@ -70,6 +76,7 @@ export function ColumnsDropdown<TRow extends object>(props: ColumnsDropdownProps
                 'dt-dd-item--drag-over-after': dragOverKey() === col.key && dragOverAfter(),
               }}
               draggable="true"
+              data-dd-row
               data-col-row-key={col.key}
               onDragStart={() => onRowDragStart(col.key)}
               onDragEnd={onRowDragEnd}

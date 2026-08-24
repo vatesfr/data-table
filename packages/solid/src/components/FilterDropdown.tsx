@@ -347,12 +347,26 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
           </button>
         </Show>
       }
+      onEscapeClearable={() => {
+        const active = document.activeElement
+        if (active?.matches?.('.dt-filter-cols-search') && colSearchTerm()) {
+          setColSearchTerm('')
+          return true
+        }
+        const col = activeCol()
+        if (col && searchTerms()[col.key]) {
+          setSearchTerm(col.key, '')
+          return true
+        }
+        return false
+      }}
     >
       <div class="dt-filter-panel">
         <div class="dt-filter-cols">
           <input
             type="text"
             class="dt-dd-search dt-filter-cols-search"
+            data-dd-search
             placeholder={table.labels().filterSearchPlaceholder}
             value={colSearchTerm()}
             onInput={(e) => setColSearchTerm(e.currentTarget.value)}
@@ -371,6 +385,8 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
                 <button
                   type="button"
                   class={`dt-filter-col-item${activeCol()?.key === col.key ? ' dt-filter-col-item--active' : ''}`}
+                  data-dd-row
+                  data-filter-col-key={col.key}
                   onClick={() => setActiveKey(col.key)}
                 >
                   <span>{col.label}</span>

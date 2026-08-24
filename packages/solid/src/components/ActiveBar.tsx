@@ -8,7 +8,7 @@ interface ActiveBarProps<TRow extends object> {
   columns: ColumnDef<TRow>[]
   groupableCols: ColumnDef<TRow>[]
   totalRows: number
-  onOpenGroup: () => void
+  onOpenGroup: (key: string) => void
   onOpenFilter: (key: string) => void
 }
 
@@ -29,10 +29,10 @@ function summarizeFilterValues<TRow extends object>(
 // and filter (include/exclude/range each get their own, since a column can carry more than one at
 // once), followed by row-count/group-count stats pinned at the far right.
 //
-// Simplification vs. the fuller documented behavior: a group/filter chip's body opens the
-// relevant dropdown (via onOpenGroup/onOpenFilter) but doesn't additionally focus that specific
-// entry's row inside it — the fancier "focus follows chip click" behavior is deferred alongside
-// the other roving-focus niceties noted in Dropdown.tsx/TableBody.tsx.
+// A group/filter chip's body opens the relevant dropdown (via onOpenGroup/onOpenFilter) *and*
+// focuses that specific entry's row inside it — see DataTableView.tsx's own onOpenGroup/
+// onOpenFilter handlers for how (Solid's synchronous reactivity means the dropdown's DOM already
+// exists by the time that handler's next line runs, no pending-focus indirection needed).
 export function ActiveBar<TRow extends object>(props: ActiveBarProps<TRow>) {
   const { table } = props
 
@@ -63,7 +63,7 @@ export function ActiveBar<TRow extends object>(props: ActiveBarProps<TRow>) {
               when={sortEntry()}
               fallback={
                 <span class="dt-chip">
-                  <button type="button" class="dt-chip-body" onClick={props.onOpenGroup}>
+                  <button type="button" class="dt-chip-body" onClick={() => props.onOpenGroup(key)}>
                     {col()?.label ?? key}
                   </button>
                   <button type="button" class="dt-chip-x" onClick={() => table.group.remove(key)}>
@@ -87,7 +87,7 @@ export function ActiveBar<TRow extends object>(props: ActiveBarProps<TRow>) {
                   type="button"
                   class="dt-chip-group-mark"
                   aria-label={table.labels().group}
-                  onClick={props.onOpenGroup}
+                  onClick={() => props.onOpenGroup(key)}
                 >
                   ⊞
                 </button>

@@ -28,6 +28,18 @@ interface SortDropdownProps<TRow extends object> {
 export function SortDropdown<TRow extends object>(props: SortDropdownProps<TRow>) {
   const { table } = props
   const [searchTerm, setSearchTerm] = createSignal('')
+  // Activating an addable column (moving it into the active section) or removing an active one
+  // (moving it back to addable) re-renders a structurally different part of the tree — the
+  // element that had focus is gone, so focus would silently drop to <body> without this. Solid's
+  // signal writes (table.sort.toggle/remove) update the DOM synchronously within this same
+  // handler, so the new element already exists by the time `.focus()` runs right after — no
+  // pending-ref/effect indirection needed the way React/Vue's async re-render requires. The panel
+  // element (via `closest`, no ref of our own needed) must be resolved *before* the mutating call
+  // for the "remove" direction — the clicked × button is itself removed from the DOM as a
+  // synchronous side effect of that call, so `.closest()` on it afterward would find nothing.
+  function panelOf(el: HTMLElement): ParentNode | null {
+    return el.closest('.dt-dd')
+  }
   const {
     dragOverKey,
     dragOverAfter,
@@ -93,6 +105,11 @@ export function SortDropdown<TRow extends object>(props: SortDropdownProps<TRow>
           </button>
         </Show>
       }
+      onEscapeClearable={() => {
+        if (!searchTerm()) return false
+        setSearchTerm('')
+        return true
+      }}
     >
       <Show when={groupEntries().length > 0}>
         <div class="dt-dd-section">{table.labels().groupOrderSection}</div>
@@ -107,6 +124,7 @@ export function SortDropdown<TRow extends object>(props: SortDropdownProps<TRow>
               <div
                 class="dt-dd-item dt-dd-item--col dt-dd-item--sortrow dt-dd-item--locked"
                 tabIndex={0}
+                data-dd-row
                 onClick={() => table.sort.toggleDir(entry.key)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
@@ -126,7 +144,9 @@ export function SortDropdown<TRow extends object>(props: SortDropdownProps<TRow>
                   draggable={false}
                   onClick={(e) => {
                     e.stopPropagation()
+                    const panel = panelOf(e.currentTarget)
                     table.sort.remove(entry.key)
+                    panel?.querySelector<HTMLElement>(`[data-col-key="${entry.key}"]`)?.focus()
                   }}
                 >
                   ×
@@ -151,6 +171,7 @@ export function SortDropdown<TRow extends object>(props: SortDropdownProps<TRow>
                   }}
                   draggable="true"
                   tabIndex={0}
+                  data-dd-row
                   data-sort-key={entry.key}
                   onDragStart={() => onRowDragStart(entry.key)}
                   onDragEnd={onRowDragEnd}
@@ -183,7 +204,9 @@ export function SortDropdown<TRow extends object>(props: SortDropdownProps<TRow>
                     draggable={false}
                     onClick={(e) => {
                       e.stopPropagation()
+                      const panel = panelOf(e.currentTarget)
                       table.sort.remove(entry.key)
+                      panel?.querySelector<HTMLElement>(`[data-col-key="${entry.key}"]`)?.focus()
                     }}
                   >
                     ×
@@ -199,6 +222,7 @@ export function SortDropdown<TRow extends object>(props: SortDropdownProps<TRow>
           <input
             type="text"
             class="dt-dd-search"
+            data-dd-search
             placeholder={table.labels().filterSearchPlaceholder}
             value={searchTerm()}
             onInput={(e) => setSearchTerm(e.currentTarget.value)}
@@ -210,7 +234,13 @@ export function SortDropdown<TRow extends object>(props: SortDropdownProps<TRow>
             <button
               type="button"
               class="dt-dd-item dt-dd-item--click"
-              onClick={() => table.sort.toggle(col.key)}
+              data-dd-row
+              data-col-key={col.key}
+              onClick={(e) => {
+                const panel = panelOf(e.currentTarget)
+                table.sort.toggle(col.key)
+                panel?.querySelector<HTMLElement>(`[data-sort-key="${col.key}"]`)?.focus()
+              }}
             >
               <span class="dt-flex1">{col.label}</span>
             </button>

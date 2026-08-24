@@ -61,6 +61,14 @@ describe('GroupDropdown', () => {
     dispose()
   })
 
+  it('activating an addable column keeps focus on its new active row, synchronously', () => {
+    const { container, dispose } = mount()
+    const btn = [...container.querySelectorAll('button')].find((b) => b.textContent === 'Dept')!
+    btn.click()
+    expect(document.activeElement).toBe(container.querySelector('[data-group-key="dept"]'))
+    dispose()
+  })
+
   it('remove button removes just that group entry', () => {
     const { container, table, dispose } = mount()
     table.group.toggle('dept')
@@ -70,6 +78,17 @@ describe('GroupDropdown', () => {
       .querySelector<HTMLButtonElement>('.dt-item-remove')!
       .click()
     expect(table.group.by()).toEqual(['team'])
+    dispose()
+  })
+
+  it('removing an active column returns focus to its addable button, synchronously', () => {
+    const { container, table, dispose } = mount()
+    table.group.toggle('dept')
+    container
+      .querySelector<HTMLElement>('[data-group-key="dept"]')!
+      .querySelector<HTMLButtonElement>('.dt-item-remove')!
+      .click()
+    expect(document.activeElement).toBe(container.querySelector('[data-col-key="dept"]'))
     dispose()
   })
 

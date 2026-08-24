@@ -62,6 +62,11 @@ export function GroupDropdown<TRow extends object>(props: GroupDropdownProps<TRo
           </button>
         </Show>
       }
+      onEscapeClearable={() => {
+        if (!searchTerm()) return false
+        setSearchTerm('')
+        return true
+      }}
     >
       <Show when={table.group.by().length > 0}>
         <div class="dt-dd-section">{table.labels().activeGroupsSection}</div>
@@ -78,6 +83,7 @@ export function GroupDropdown<TRow extends object>(props: GroupDropdownProps<TRo
                   }}
                   draggable="true"
                   tabIndex={0}
+                  data-dd-row
                   data-group-key={key}
                   onDragStart={() => onRowDragStart(key)}
                   onDragEnd={onRowDragEnd}
@@ -97,7 +103,15 @@ export function GroupDropdown<TRow extends object>(props: GroupDropdownProps<TRo
                     type="button"
                     class="dt-item-remove"
                     draggable={false}
-                    onClick={() => table.group.remove(key)}
+                    onClick={(e) => {
+                      // Panel must be resolved *before* the mutating call — this button is
+                      // itself removed from the DOM as a synchronous side effect of it, so
+                      // `.closest()` on it afterward would find nothing (see SortDropdown.tsx's
+                      // own version of this same pattern).
+                      const panel = e.currentTarget.closest('.dt-dd')
+                      table.group.remove(key)
+                      panel?.querySelector<HTMLElement>(`[data-col-key="${key}"]`)?.focus()
+                    }}
                   >
                     ×
                   </button>
@@ -112,6 +126,7 @@ export function GroupDropdown<TRow extends object>(props: GroupDropdownProps<TRo
           <input
             type="text"
             class="dt-dd-search"
+            data-dd-search
             placeholder={table.labels().filterSearchPlaceholder}
             value={searchTerm()}
             onInput={(e) => setSearchTerm(e.currentTarget.value)}
@@ -123,7 +138,13 @@ export function GroupDropdown<TRow extends object>(props: GroupDropdownProps<TRo
             <button
               type="button"
               class="dt-dd-item dt-dd-item--click"
-              onClick={() => table.group.toggle(col.key)}
+              data-dd-row
+              data-col-key={col.key}
+              onClick={(e) => {
+                const panel = e.currentTarget.closest('.dt-dd')
+                table.group.toggle(col.key)
+                panel?.querySelector<HTMLElement>(`[data-group-key="${col.key}"]`)?.focus()
+              }}
             >
               <span class="dt-flex1">{col.label}</span>
             </button>

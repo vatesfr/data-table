@@ -99,7 +99,17 @@ export function DataTableView<TRow extends object>(props: DataTableViewProps<TRo
         columns={table.columns.list()}
         groupableCols={groupableCols()}
         totalRows={table.data().length}
-        onOpenGroup={() => setOpenDropdown('group')}
+        onOpenGroup={(key) => {
+          setOpenDropdown('group')
+          // Solid's synchronous reactivity means the panel and its rows already exist by this
+          // next line — Dropdown's own focus-on-open already ran (focusing the search box or
+          // first row); this overrides it to the specific entry the chip identifies. Scoped
+          // globally rather than to this table's own root (no existing ref for that) — a
+          // practically negligible risk of matching a different table's dropdown, only if two
+          // tables' Group dropdowns were opened this way at the exact same instant with an
+          // overlapping column key.
+          document.querySelector<HTMLElement>(`[data-group-key="${key}"]`)?.focus()
+        }}
         onOpenFilter={() => setOpenDropdown('filter')}
       />
       <TableBody

@@ -64,6 +64,16 @@ describe('SortDropdown', () => {
     dispose()
   })
 
+  it('activating an addable column keeps focus on its new active row (Solid updates synchronously, no pending-ref indirection needed)', () => {
+    const { container, dispose } = mount()
+    const btn = [...container.querySelectorAll('button')].find((b) => b.textContent === 'Score')!
+    btn.click()
+    // Assert synchronously, right after .click() returns — no await/tick — to actually prove the
+    // DOM update and focus both landed within the same call stack.
+    expect(document.activeElement).toBe(container.querySelector('[data-sort-key="score"]'))
+    dispose()
+  })
+
   it('clicking an active row toggles its direction', () => {
     const { container, table, dispose } = mount()
     table.sort.toggle('score')
@@ -80,6 +90,33 @@ describe('SortDropdown', () => {
     const row = container.querySelector<HTMLElement>('[data-sort-key="name"]')!
     row.querySelector<HTMLButtonElement>('.dt-item-remove')!.click()
     expect(table.sort.entries()).toEqual([{ key: 'score', dir: 'asc' }])
+    dispose()
+  })
+
+  it('removing an active column returns focus to its addable button, synchronously', () => {
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const dispose = createRoot((d) => {
+      const table = createTableState(ROWS, COLS)
+      table.sort.toggle('name')
+      const [isOpen, setIsOpen] = createSignal(true)
+      render(
+        () => (
+          <SortDropdown
+            table={table}
+            columns={COLS}
+            isOpen={isOpen()}
+            onToggle={() => setIsOpen((o) => !o)}
+            onClose={() => setIsOpen(false)}
+          />
+        ),
+        container,
+      )
+      return d
+    })
+    const row = container.querySelector<HTMLElement>('[data-sort-key="name"]')!
+    row.querySelector<HTMLButtonElement>('.dt-item-remove')!.click()
+    expect(document.activeElement).toBe(container.querySelector('[data-col-key="name"]'))
     dispose()
   })
 

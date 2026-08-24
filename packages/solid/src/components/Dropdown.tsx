@@ -9,19 +9,44 @@ interface DropdownProps {
    * toolbar's per-dropdown × clear buttons (CLAUDE.md's "Toolbar clear buttons"). */
   extraTrigger?: JSX.Element
   children: JSX.Element
+  /**
+   * Escape clears a non-empty search term first (focus stays put), only closing the dropdown on
+   * a second press or when there was nothing to clear — each dropdown wires its own search-clear
+   * action here (it may own more than one search box, e.g. the Filter dropdown's column search
+   * and its per-column value search; the callback itself decides which one Escape's own moment
+   * actually applies to, checking `document.activeElement`). Returns whether it actually cleared
+   * something. Omitted for a panel with no search box at all.
+   */
+  onEscapeClearable?: () => boolean
+}
+
+// `data-dd-search` marks a dropdown's own column-search `<input>` (Columns/Sort/Group's addable
+// list, Filter's left pane); `data-dd-row` marks every other row this nav should reach (a column
+// checkbox row, a Sort/Group active or addable entry, a Filter column-selector button). Mirrors
+// react/components/Dropdown.tsx's `DD_NAV_SELECTOR`/`ddFocusableFor`/`ddNavFocusables` exactly —
+// deliberately generic, since Dropdown has no idea which concrete dropdown it's rendering, only
+// that its children may carry these two markers. The Filter dropdown's own right-pane value
+// search/checklist get separate `data-dd-value-search`/`data-dd-value-row` markers instead (see
+// FilterDropdown.tsx) — a distinct focusable-set with its own nav, not covered by this one.
+const DD_NAV_SELECTOR = 'input[data-dd-search], [data-dd-row]'
+
+function ddFocusableFor(el: HTMLElement): HTMLElement | null {
+  return el.matches('input, button, [tabindex]')
+    ? el
+    : el.querySelector<HTMLElement>('input, button, [tabindex]')
+}
+
+function ddNavFocusables(panel: HTMLElement): HTMLElement[] {
+  return Array.from(panel.querySelectorAll<HTMLElement>(DD_NAV_SELECTOR))
+    .map(ddFocusableFor)
+    .filter((el): el is HTMLElement => el !== null)
 }
 
 // Generic dropdown shell shared by Columns/Sort/Group/Filter — mirrors react/components/Dropdown.tsx
-// and vue/components/Dropdown.vue's role. Handles: open/close, outside-click-to-close, Escape-to-close,
-// and viewport clamping (translateX so a wide panel opened near the right edge doesn't render
-// off-screen — see CLAUDE.md's "Dropdown viewport clamping").
-//
-// Simplification vs. the fuller documented behavior (noted here rather than silently dropped):
-// the generic column-search roving Up/Down/Home/End keyboard nav described in "Dropdown column
-// search and keyboard navigation" is not implemented in this first pass — panel contents are
-// still fully reachable via native Tab order (every row is a real <button>/focusable element),
-// just not via dedicated arrow-key roving yet. Flagged as a follow-up once the full view is
-// assembled and there's a concrete set of panels to validate it against.
+// and vue/components/Dropdown.vue's role. Handles: open/close, outside-click-to-close,
+// Escape-clears-search-then-closes, focus-follows-open, roving Up/Down/Home/End nav across the
+// panel's own search box + rows, and viewport clamping (translateX so a wide panel opened near
+// the right edge doesn't render off-screen — see CLAUDE.md's "Dropdown viewport clamping").
 export function Dropdown(props: DropdownProps) {
   let wrapRef: HTMLDivElement | undefined
   let panelRef: HTMLDivElement | undefined
@@ -40,12 +65,46 @@ export function Dropdown(props: DropdownProps) {
     if (!props.isOpen) return
     if (wrapRef && !wrapRef.contains(e.target as Node)) props.onClose()
   }
+
+  // Roving Up/Down/Home/End nav across the panel's own search box + rows (see DD_NAV_SELECTOR
+  // above), plus Escape. A distinct concern from any Alt+↑/↓ reorder or Enter/Space toggle a row
+  // itself implements — those don't stopPropagation, so this still runs after them via bubbling,
+  // but its own `e.altKey` guard keeps it from ever acting on their modifier combo. Scoped to
+  // elements this panel actually recognizes (`focusables.indexOf(active) !== -1`) so it never
+  // interferes with unrelated controls elsewhere in the panel (e.g. the Filter dropdown's
+  // right-hand detail pane, which implements its own nav — see FilterDropdown.tsx — including
+  // native Left/Right/Up/Down/Home/End on its own range inputs/slider that must keep working
+  // unmolested).
   function handleKeyDown(e: KeyboardEvent): void {
     if (e.key === 'Escape') {
       e.stopPropagation()
+      if (props.onEscapeClearable?.()) return
       props.onClose()
+      // The trigger is always the first <button> in DOM order (trigger renders before
+      // extraTrigger, which renders before the panel) — same technique react's own Dropdown uses.
+      wrapRef?.querySelector<HTMLElement>('button')?.focus()
+      return
     }
+    if (e.altKey) return
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Home' && e.key !== 'End') return
+    if (!panelRef) return
+    const focusables = ddNavFocusables(panelRef)
+    const rowFocusables = focusables.filter((el) => !el.matches('input[data-dd-search]'))
+    const active = document.activeElement as HTMLElement | null
+    if (!active || focusables.indexOf(active) === -1) return
+    if (e.key === 'Home' || e.key === 'End') {
+      if (rowFocusables.length === 0) return
+      e.preventDefault()
+      ;(e.key === 'Home' ? rowFocusables[0] : rowFocusables[rowFocusables.length - 1]).focus()
+      return
+    }
+    const idx = focusables.indexOf(active)
+    const nextIdx = e.key === 'ArrowDown' ? idx + 1 : idx - 1
+    if (nextIdx < 0 || nextIdx >= focusables.length) return
+    e.preventDefault()
+    focusables[nextIdx].focus()
   }
+
   onMount(() => {
     document.addEventListener('click', handleDocClick, true)
     onCleanup(() => document.removeEventListener('click', handleDocClick, true))
@@ -72,9 +131,26 @@ export function Dropdown(props: DropdownProps) {
           class={`dt-dd${flipUp() ? ' dt-dd--up' : ''}`}
           ref={(el) => {
             panelRef = el
-            // Measure after the panel's real content is laid out — a ref callback fires at
-            // insertion time, before the browser has computed layout for this frame.
-            queueMicrotask(() => panelRef && clampToViewport(panelRef))
+            // A ref callback fires at this element's own insertion time — before `props.children`
+            // (passed down from Columns/Sort/Group/Filter, several component boundaries away) has
+            // actually been resolved and appended underneath it. Querying for a search box/row
+            // synchronously here found nothing every time (confirmed by a failing test) — same
+            // underlying reason the viewport-clamp measurement below already needs to wait a
+            // microtask, just for DOM presence instead of layout.
+            queueMicrotask(() => {
+              if (!panelRef) return
+              // Opening a dropdown should hand it focus immediately — its own search box if it
+              // has one (preferred regardless of where it sits in the DOM, e.g. Sort/Group's
+              // search box renders *after* the active-entries section but is still the preferred
+              // landing spot), else the first row (e.g. Sort with every column already sorted has
+              // no addable section and therefore no search box).
+              const search = panelRef.querySelector<HTMLElement>('input[data-dd-search]')
+              if (search) search.focus()
+              else ddNavFocusables(panelRef)[0]?.focus()
+              // Measure after the panel's real content is laid out — same microtask, since both
+              // now depend on the same "children actually exist" precondition.
+              clampToViewport(panelRef)
+            })
           }}
           style={{ transform: translateX() ? `translateX(${translateX()}px)` : undefined }}
         >
