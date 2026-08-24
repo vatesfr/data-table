@@ -96,6 +96,30 @@ describe('FilterDropdown — column selection', () => {
     expect(container.querySelector('.dt-filter-list')).not.toBeNull() // still showing Name's pane
     dispose()
   })
+
+  it('Delete on a focused, active column row clears its filter (same as the × button)', () => {
+    const { container, table, dispose } = mount()
+    table.filter.cycleValue('score', '90')
+    const scoreBtn = [...container.querySelectorAll<HTMLButtonElement>('.dt-filter-col-item')].find(
+      (b) => b.textContent?.includes('Score'),
+    )!
+    scoreBtn.focus()
+    scoreBtn.dispatchEvent(new KeyboardEvent('keydown', { key: 'Delete', bubbles: true }))
+    expect(table.filter.include().score?.size ?? 0).toBe(0)
+    dispose()
+  })
+
+  it('Backspace on a focused, inactive column row is a no-op', () => {
+    const { container, table, dispose } = mount()
+    const deptBtn = [...container.querySelectorAll<HTMLButtonElement>('.dt-filter-col-item')].find(
+      (b) => b.textContent?.includes('Dept'),
+    )!
+    deptBtn.focus()
+    deptBtn.dispatchEvent(new KeyboardEvent('keydown', { key: 'Backspace', bubbles: true }))
+    expect(table.filter.include().dept?.size ?? 0).toBe(0)
+    expect(table.pagination.page()).toBe(1)
+    dispose()
+  })
 })
 
 describe('FilterDropdown — column ordering', () => {

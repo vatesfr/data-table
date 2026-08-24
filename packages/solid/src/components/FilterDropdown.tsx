@@ -438,6 +438,21 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
   function handlePanelKeyDown(e: KeyboardEvent): void {
     if (!panelEl) return
     const target = e.target as HTMLElement
+    // Delete/Backspace on a focused left-pane column row clears that column's filter — the
+    // keyboard equivalent of clicking its `×` clear button (see `hasActiveFilter`/the render
+    // below). Guarded to an actually-active column so pressing it on an inert row is a true no-op
+    // (no page-reset churn from `table.filter.clearColumn`'s unconditional `setPageState(1)`).
+    if ((e.key === 'Delete' || e.key === 'Backspace') && target.matches('.dt-filter-col-item')) {
+      const key = target.dataset.filterColKey
+      const col = key && filterableCols().find((c) => c.key === key)
+      if (col && hasActiveFilter(col)) {
+        e.preventDefault()
+        table.filter.clearColumn(col.key, 'include')
+        table.filter.clearColumn(col.key, 'exclude')
+        table.filter.clearColumn(col.key, 'range')
+      }
+      return
+    }
     if (e.key === 'ArrowRight' && target.matches('.dt-filter-col-item')) {
       const detailEl = panelEl.querySelector('.dt-filter-detail')
       const first = detailEl && detailFocusables(detailEl)[0]
