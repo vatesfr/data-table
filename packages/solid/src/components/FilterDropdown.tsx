@@ -623,11 +623,17 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
           <For each={searchedFilterableCols()}>
             {(col) => {
               const hasActive = createMemo(() => hasActiveFilter(col))
+              const isSelected = createMemo(() => activeCol()?.key === col.key)
               return (
-                <div class="dt-filter-col-row">
+                // The row (not just the item button) carries the selected/hover background, so
+                // the highlight spans the clear button too instead of stopping short of it —
+                // `.dt-filter-col-item--active` stays on the button as well, purely so
+                // `handlePanelKeyDown`'s ArrowLeft refocus lookup and the button's own
+                // font-weight bump still have something to key off.
+                <div class={`dt-filter-col-row${isSelected() ? ' dt-filter-col-row--active' : ''}`}>
                   <button
                     type="button"
-                    class={`dt-filter-col-item${activeCol()?.key === col.key ? ' dt-filter-col-item--active' : ''}`}
+                    class={`dt-filter-col-item${isSelected() ? ' dt-filter-col-item--active' : ''}`}
                     data-dd-row
                     data-filter-col-key={col.key}
                     onClick={() => setActiveKey(col.key)}
