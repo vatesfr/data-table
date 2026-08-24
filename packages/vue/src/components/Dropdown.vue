@@ -24,8 +24,12 @@ function toggle() {
 // return focus to its trigger without needing to hoist `isOpen` itself into the parent. `open` is
 // used the same way by the active-bar chips (see "Active-bar chip click actions") — a Group/Filter
 // chip's body opens straight to that entry/column rather than requiring the dropdown to be
-// reopened and re-navigated by hand.
+// reopened and re-navigated by hand. `isOpen` itself is also exposed (read-only in spirit — no
+// consumer should assign it directly, `open`/`close` exist for that) so a consumer can `watch` it
+// reactively, e.g. the Filter dropdown's column-ordering snapshot (DataTableView.vue), which needs
+// to know exactly when the dropdown transitions closed→open without hoisting the state itself.
 defineExpose({
+  isOpen,
   open: () => {
     isOpen.value = true
   },

@@ -30,6 +30,9 @@ import {
   getSortIndex as getHeaderSortIndex,
   getSortIcon as getHeaderSortIcon,
   summarizeFilterValues,
+  columnHasActiveFilter,
+  orderFilterColumnsByActive,
+  applyColumnOrderSnapshot,
   type PagedGroup,
   type DateTreeNode,
   type ValueSort,
@@ -374,10 +377,41 @@ const searchedOrderedColumns = computed(() => {
     ? orderedColumns.value.filter((c) => c.label.toLowerCase().includes(term))
     : orderedColumns.value
 })
-// The Filter dropdown's left column pane has no reorder concept of its own, so — like Sort/Group's
-// addable lists below — it's alphabetized to make a long list easier to scan.
+// Declared here (rather than alongside its sibling colsDropdownRef/sortDropdownRef/
+// groupDropdownRef further down) because the watch right below needs it, and `<script setup>`
+// top-level consts execute in source order — referencing it before this point would hit the TDZ.
+const filterDropdownRef = ref<InstanceType<typeof Dropdown> | null>(null)
+// Snapshot of the Filter dropdown's left-pane column order, taken only at the moment the
+// dropdown opens — active-filter columns first, then the rest (see `orderFilterColumnsByActive`'s
+// own doc comment, core, for why this is a snapshot rather than a live sort: reordering while a
+// filter is toggled with the panel still open would move a row out from under the pointer
+// mid-interaction). `filterDropdownRef.value?.isOpen` is watched (rather than hoisting `isOpen`
+// itself here) since Dropdown.vue already owns that state — see its own `isOpen` export.
+const filterColOrderKeys = ref<string[] | null>(null)
+watch(
+  () => filterDropdownRef.value?.isOpen,
+  (open, prevOpen) => {
+    if (open && !prevOpen) {
+      filterColOrderKeys.value = orderFilterColumnsByActive(
+        filterableCols.value,
+        filters.value,
+        excludeFilters.value,
+        rangeFilters.value,
+      )
+    }
+  },
+)
+// Order follows filterColOrderKeys (falling back to plain alphabetical before the dropdown's
+// first open — see applyColumnOrderSnapshot) instead of a plain alphabetize, since active-filter
+// columns are the ones most worth finding at a glance in a long list.
 const searchedFilterableCols = computed(() =>
-  alphabetizedByLabel(filterableCols.value, ddSearchTerm('filter')),
+  applyColumnOrderSnapshot(
+    filterableCols.value.filter((c) => {
+      const term = ddSearchTerm('filter').trim().toLowerCase()
+      return term ? c.label.toLowerCase().includes(term) : true
+    }),
+    filterColOrderKeys.value,
+  ),
 )
 const filterActiveCol = ref<string | null>(null)
 const filterSearchTerms = ref<Record<string, string>>({})
@@ -437,12 +471,15 @@ const stringValueCounts = computed(() =>
 // above it at once — either one alone should light the dot, not just whichever one a plain
 // type-based branch happened to check.
 function hasActiveColFilter(col: ColumnDef<TRow>): boolean {
-  const rf = rangeFilters.value[col.key]
-  return (
-    (filters.value[col.key]?.size ?? 0) > 0 ||
-    (excludeFilters.value[col.key]?.size ?? 0) > 0 ||
-    (rf !== undefined && (rf.min !== '' || rf.max !== ''))
-  )
+  return columnHasActiveFilter(col.key, filters.value, excludeFilters.value, rangeFilters.value)
+}
+// Clears every kind at once — the left pane's clear button (and Delete/Backspace, see
+// onFilterDropdownKeydown) means "drop this column's filter entirely", unlike the active-bar's
+// own per-kind chips.
+function clearColFilter(key: string): void {
+  clearColumnFilter(key, 'include')
+  clearColumnFilter(key, 'exclude')
+  clearColumnFilter(key, 'range')
 }
 function valueSortFor(key: string): ValueSort {
   return filterValueSort.value[key] ?? findCol(key)?.defaultValueSort ?? DEFAULT_VALUE_SORT
@@ -916,7 +953,8 @@ function clearSearchQuery(): void {
 const colsDropdownRef = ref<InstanceType<typeof Dropdown> | null>(null)
 const sortDropdownRef = ref<InstanceType<typeof Dropdown> | null>(null)
 const groupDropdownRef = ref<InstanceType<typeof Dropdown> | null>(null)
-const filterDropdownRef = ref<InstanceType<typeof Dropdown> | null>(null)
+// filterDropdownRef itself is declared much earlier (see the filterColOrderKeys watch above) —
+// this comment marks where it'd otherwise sit, alongside its siblings above.
 
 // The row-list selector shared by the Columns/Sort/Group dropdowns and the Filter dropdown's own
 // left column pane. `button.dt__dd-item--clickable` (not just `.dt__dd-item--clickable`) is
@@ -1023,6 +1061,20 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
     const targetEl = event.target as HTMLElement
     const filterColBtn = targetEl.closest<HTMLElement>('.dt__filter-col-item')
     const filterDetail = targetEl.closest<HTMLElement>('.dt__filter-detail')
+
+    // Delete/Backspace on a focused left-pane column row clears that column's filter — the
+    // keyboard equivalent of clicking its × clear button. Guarded to an actually-active column so
+    // pressing it on an inert row is a true no-op (no page-reset churn from clearColumnFilter's
+    // unconditional setPageState(1)).
+    if (filterColBtn && (event.key === 'Delete' || event.key === 'Backspace')) {
+      const key = filterColBtn.dataset.filterColKey
+      const col = key && filterableCols.value.find((c) => c.key === key)
+      if (col && hasActiveColFilter(col)) {
+        event.preventDefault()
+        clearColFilter(col.key)
+      }
+      return
+    }
 
     if (filterColBtn && event.key === 'ArrowRight') {
       event.preventDefault()
@@ -1511,26 +1563,55 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                 @input="setDdSearchTerm('filter', ($event.target as HTMLInputElement).value)"
               />
               <!--
-                A real <button> (not a div) so it's a native Tab stop and Enter/Space "click" it
-                for free — same fix as the Sort/Group add-lists above; this had the identical gap.
-                @focus is what actually drives the detail pane (see onFilterColFocus) — a
-                listbox/radiogroup-style "focus follows selection" so arrowing/Tabbing here needs
-                no separate Enter/Space "activate" step; @click stays wired too (harmlessly
-                redundant, since focusing a button on click already fires @focus first).
+                The row (not the item button alone) carries the selected-column highlight, so it
+                spans the clear button too instead of stopping short of it — see
+                .dt__filter-col-row/--active below. A <button> can't contain another interactive
+                element, so the clear button is a sibling, not nested.
               -->
-              <button
+              <div
                 v-for="col in searchedFilterableCols"
                 :key="col.key"
-                :ref="(el) => setFilterColRef(col.key, el as Element | null)"
-                type="button"
-                class="dt__filter-col-item"
-                :class="{ 'dt__filter-col-item--active': col.key === filterActiveKey }"
-                @focus="onFilterColFocus(col.key)"
-                @click="selectFilterCol(col.key)"
+                class="dt__filter-col-row"
+                :class="{ 'dt__filter-col-row--active': col.key === filterActiveKey }"
               >
-                <span>{{ col.label }}</span>
-                <span v-if="hasActiveColFilter(col)" class="dt__filter-col-dot" />
-              </button>
+                <!--
+                  A real <button> (not a div) so it's a native Tab stop and Enter/Space "click" it
+                  for free — same fix as the Sort/Group add-lists above; this had the identical
+                  gap. @focus is what actually drives the detail pane (see onFilterColFocus) — a
+                  listbox/radiogroup-style "focus follows selection" so arrowing/Tabbing here
+                  needs no separate Enter/Space "activate" step; @click stays wired too (harmlessly
+                  redundant, since focusing a button on click already fires @focus first).
+                  Delete/Backspace clearing the column's filter is handled by
+                  onFilterDropdownKeydown (bound on the whole panel), not here — same action as
+                  the clear button below, reachable without leaving the row.
+                -->
+                <button
+                  :ref="(el) => setFilterColRef(col.key, el as Element | null)"
+                  type="button"
+                  :data-filter-col-key="col.key"
+                  class="dt__filter-col-item"
+                  :class="{ 'dt__filter-col-item--active': col.key === filterActiveKey }"
+                  @focus="onFilterColFocus(col.key)"
+                  @click="selectFilterCol(col.key)"
+                >
+                  <span class="dt__filter-col-label">{{ col.label }}</span>
+                </button>
+                <!--
+                  Replaces the plain active-filter dot: a one-click way to drop this column's
+                  filter without opening it first, matching the toolbar's own per-dropdown ×
+                  buttons (see "Toolbar clear buttons" in CLAUDE.md).
+                -->
+                <button
+                  v-if="hasActiveColFilter(col)"
+                  type="button"
+                  class="dt__filter-col-clear"
+                  :title="L.clearColumnFilter"
+                  :aria-label="L.clearColumnFilter"
+                  @click.stop="clearColFilter(col.key)"
+                >
+                  ×
+                </button>
+              </div>
             </div>
             <div class="dt__filter-detail">
               <template v-if="filterDetailCol">
@@ -2268,6 +2349,19 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
   border-right: 0.5px solid var(--color-border-tertiary);
   padding: 4px 0;
 }
+.dt__filter-col-row {
+  display: flex;
+  align-items: stretch;
+}
+/* Hover/active highlight lives on the row (not the item button alone) so it spans the clear
+   button too, instead of stopping short of it and leaving a gap that reads like a rendering
+   glitch. */
+.dt__filter-col-row:hover,
+.dt__filter-col-row--active {
+  background: var(--color-background-secondary);
+}
+/* flex/min-width/overflow here (not width: 100%) is what makes this button share its row with
+   the clear button instead of claiming the whole row's width — see .dt__filter-col-clear. */
 .dt__filter-col-item {
   display: flex;
   align-items: center;
@@ -2282,22 +2376,35 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
   font-family: inherit;
   text-align: left;
   margin: 0;
-  width: 100%;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
   box-sizing: border-box;
 }
-.dt__filter-col-item:hover {
-  background: var(--color-background-secondary);
-}
 .dt__filter-col-item--active {
-  background: var(--color-background-secondary);
   font-weight: 500;
 }
-.dt__filter-col-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--color-text-info);
+.dt__filter-col-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Replaces the old plain active-filter dot — see the template's own comment. */
+.dt__filter-col-clear {
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--color-text-tertiary);
+  border: none;
+  background: none;
+  font-family: inherit;
+}
+.dt__filter-col-clear:hover {
+  color: var(--color-text-primary);
 }
 /* A flex column (not just flex: 1) so the checklist/date-tree child below can flex: 1 to fill
    whatever height .dt__filter-cols (the column list) ends up stretching this to via the row's

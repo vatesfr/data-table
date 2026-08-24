@@ -447,7 +447,7 @@ describe('DataTable — filter dropdown', () => {
     expect(wrapper.findAll('tbody tr')).toHaveLength(1) // only Alice (90) remains
   })
 
-  it('marks the column with a dot and an active-bar chip once a range filter is set', async () => {
+  it('marks the column with a clear button and an active-bar chip once a range filter is set', async () => {
     const wrapper = mount(DataTable, { props: { data: ROWS, columns: FILTER_COLS, rowKey: 'id' } })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
@@ -456,7 +456,10 @@ describe('DataTable — filter dropdown', () => {
       .find((el) => el.text().includes('Score'))!
     await scoreItem.trigger('click')
     await wrapper.find('input[placeholder="Min"]').setValue('80')
-    expect(scoreItem.find('.dt__filter-col-dot').exists()).toBe(true)
+    const scoreRow = wrapper
+      .findAll('.dt__filter-col-row')
+      .find((el) => el.text().includes('Score'))!
+    expect(scoreRow.find('.dt__filter-col-clear').exists()).toBe(true)
     const chip = wrapper.findAll('.dt__chip--info').find((el) => el.text().includes('Score'))
     expect(chip?.text()).toContain('80')
   })
@@ -1081,17 +1084,17 @@ describe('DataTable — date filter tree', () => {
     )
   })
 
-  it('marks the date column with a dot and an active-bar chip once a range filter is set, with no checkbox ticked', async () => {
+  it('marks the date column with a clear button and an active-bar chip once a range filter is set, with no checkbox ticked', async () => {
     const wrapper = mount(DataTable, {
       props: { data: DATE_ROWS, columns: DATE_COLS, rowKey: 'id' },
     })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
     await wrapper.findAll('input[type="date"]')[0].setValue('2022-01-01')
-    const releasedItem = wrapper
-      .findAll('.dt__filter-col-item')
+    const releasedRow = wrapper
+      .findAll('.dt__filter-col-row')
       .find((el) => el.text().includes('Released'))!
-    expect(releasedItem.find('.dt__filter-col-dot').exists()).toBe(true)
+    expect(releasedRow.find('.dt__filter-col-clear').exists()).toBe(true)
     const chip = wrapper.findAll('.dt__chip--info').find((el) => el.text().includes('Released'))
     expect(chip?.text()).toContain('2022-01-01')
   })
@@ -1721,6 +1724,120 @@ describe('DataTable — filter column selector keyboard access', () => {
       .findAll('.dt__filter-col-item')
       .find((el) => el.text().includes('Name'))!
     expect(nameItem.element.tagName).toBe('BUTTON')
+  })
+})
+
+describe('DataTable — filter column ordering & clear button', () => {
+  interface OrderRow {
+    id: number
+    name: string
+    dept: string
+    score: number
+    joined: string
+  }
+  const ORDER_COLS: ColumnDef<OrderRow>[] = [
+    { key: 'name', label: 'Name', filterable: true },
+    { key: 'dept', label: 'Dept', filterable: true },
+    { key: 'score', label: 'Score', filterable: true, type: 'number' },
+    { key: 'joined', label: 'Joined', filterable: true, type: 'date' },
+  ]
+  const ORDER_ROWS: OrderRow[] = [
+    { id: 1, name: 'Alice', dept: 'Eng', score: 90, joined: '2023-01-15' },
+    { id: 2, name: 'Bob', dept: 'HR', score: 60, joined: '2023-06-20' },
+  ]
+
+  function filterColLabels(wrapper: ReturnType<typeof mount>): string[] {
+    return wrapper
+      .findAll('.dt__filter-col-row')
+      .map((row) => row.find('.dt__filter-col-item').text())
+  }
+
+  function rowFor(wrapper: ReturnType<typeof mount>, label: string) {
+    return wrapper.findAll('.dt__filter-col-row').find((row) => row.text().includes(label))!
+  }
+
+  async function openFilter(wrapper: ReturnType<typeof mount>) {
+    await wrapper
+      .findAll('button')
+      .find((b) => b.text() === 'Filter')!
+      .trigger('click')
+  }
+
+  it('is plain alphabetical order with nothing active', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ORDER_ROWS, columns: ORDER_COLS, rowKey: 'id' },
+    })
+    await openFilter(wrapper)
+    expect(filterColLabels(wrapper)).toEqual(['Dept', 'Joined', 'Name', 'Score'])
+  })
+
+  it('does not reorder mid-session when a filter is toggled while the panel stays open', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ORDER_ROWS, columns: ORDER_COLS, rowKey: 'id' },
+    })
+    await openFilter(wrapper)
+    await rowFor(wrapper, 'Score').find('.dt__filter-col-item').trigger('click')
+    await wrapper.find('input[placeholder="Min"]').setValue('80')
+    expect(filterColLabels(wrapper)).toEqual(['Dept', 'Joined', 'Name', 'Score'])
+  })
+
+  it('moves active-filter columns to the top on the next open', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ORDER_ROWS, columns: ORDER_COLS, rowKey: 'id' },
+    })
+    await openFilter(wrapper)
+    await rowFor(wrapper, 'Score').find('.dt__filter-col-item').trigger('click')
+    await wrapper.find('input[placeholder="Min"]').setValue('80')
+    await openFilter(wrapper) // close
+    await openFilter(wrapper) // reopen — snapshot re-taken
+    expect(filterColLabels(wrapper)).toEqual(['Score', 'Dept', 'Joined', 'Name'])
+  })
+
+  it('shows a clear button only for a column with an active filter', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ORDER_ROWS, columns: ORDER_COLS, rowKey: 'id' },
+    })
+    await openFilter(wrapper)
+    expect(rowFor(wrapper, 'Score').find('.dt__filter-col-clear').exists()).toBe(false)
+    await rowFor(wrapper, 'Score').find('.dt__filter-col-item').trigger('click')
+    await wrapper.find('input[placeholder="Min"]').setValue('80')
+    expect(rowFor(wrapper, 'Score').find('.dt__filter-col-clear').exists()).toBe(true)
+  })
+
+  it('clear button removes the filter without opening that column', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ORDER_ROWS, columns: ORDER_COLS, rowKey: 'id' },
+    })
+    await openFilter(wrapper)
+    await rowFor(wrapper, 'Score').find('.dt__filter-col-item').trigger('click')
+    await wrapper.find('input[placeholder="Min"]').setValue('80')
+    await rowFor(wrapper, 'Name').find('.dt__filter-col-item').trigger('click') // switch away
+    await rowFor(wrapper, 'Score').find('.dt__filter-col-clear').trigger('click')
+    expect(rowFor(wrapper, 'Score').find('.dt__filter-col-clear').exists()).toBe(false)
+    // Still showing Name's pane (a checklist, no Min/Max inputs), not reopened onto Score's.
+    expect(wrapper.find('input[placeholder="Min"]').exists()).toBe(false)
+  })
+
+  it('Delete on a focused, active column row clears its filter', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ORDER_ROWS, columns: ORDER_COLS, rowKey: 'id' },
+    })
+    await openFilter(wrapper)
+    const scoreBtn = rowFor(wrapper, 'Score').find('.dt__filter-col-item')
+    await scoreBtn.trigger('click')
+    await wrapper.find('input[placeholder="Min"]').setValue('80')
+    await scoreBtn.trigger('keydown', { key: 'Delete' })
+    expect(rowFor(wrapper, 'Score').find('.dt__filter-col-clear').exists()).toBe(false)
+  })
+
+  it('Backspace on a focused, inactive column row is a no-op', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ORDER_ROWS, columns: ORDER_COLS, rowKey: 'id' },
+    })
+    await openFilter(wrapper)
+    const deptBtn = rowFor(wrapper, 'Dept').find('.dt__filter-col-item')
+    await deptBtn.trigger('keydown', { key: 'Backspace' })
+    expect(rowFor(wrapper, 'Dept').find('.dt__filter-col-clear').exists()).toBe(false)
   })
 })
 
