@@ -188,6 +188,10 @@ export interface DataTableLabels {
   min: string
   max: string
   clearFilters: string
+  /** Filter checklist's any/all toggle button text + title while in "any" (union, default) mode */
+  filterMatchAny: string
+  /** Filter checklist's any/all toggle button text + title while in "all" (intersection) mode */
+  filterMatchAll: string
   group: string
   /** Heading over the already-active group-by entries (priority order) in the Group dropdown */
   activeGroupsSection: string

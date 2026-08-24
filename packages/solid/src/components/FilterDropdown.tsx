@@ -14,6 +14,7 @@ import {
   selectDateRange,
   findDateTreeNode,
   selectRange,
+  isMultiValueColumn,
   type ValueSort,
   type DateTreeNode,
 } from '@vates/data-table-core'
@@ -43,7 +44,19 @@ interface FilterSearchRowProps {
   searchValue: string
   onSearchInput: (value: string) => void
   sortIcon: string
+  sortLabel: string
   onSortClick: () => void
+  // Any/all match-mode control — only meaningful for a genuinely array-valued column (see
+  // `isMultiValueColumn`), so the caller passes these only when that's the case; omitted
+  // entirely (rather than always rendered and disabled) for a plain scalar column, where
+  // "match all selected values" could never match more than one value at a time anyway.
+  // Rendered as two buttons rather than one cycling button — see FilterDropdown's own comment
+  // on `matchMode`/`onSetMatchMode` for why "Any"/"All" both need to be visible, equal-weight
+  // options rather than one being a default/passive non-state.
+  matchMode?: 'and' | 'or'
+  matchAnyLabel?: string
+  matchAllLabel?: string
+  onSetMatchMode?: (mode: 'and' | 'or') => void
 }
 
 // Select-all checkbox + value search input + sort-order toggle — shared by the string checklist
@@ -70,9 +83,39 @@ function FilterSearchRow(props: FilterSearchRowProps) {
         value={props.searchValue}
         onInput={(e) => props.onSearchInput(e.currentTarget.value)}
       />
-      <button type="button" onClick={props.onSortClick}>
+      <button
+        type="button"
+        class="dt-value-sort-btn"
+        title={props.sortLabel}
+        aria-label={props.sortLabel}
+        onClick={props.onSortClick}
+      >
         {props.sortIcon}
       </button>
+      <Show when={props.matchMode}>
+        <div class="dt-filter-match-mode-group" role="group">
+          <button
+            type="button"
+            class={`dt-value-sort-btn dt-filter-match-mode dt-filter-match-mode--left${props.matchMode === 'or' ? ' dt-filter-match-mode--active' : ''}`}
+            title={props.matchAnyLabel}
+            aria-label={props.matchAnyLabel}
+            aria-pressed={props.matchMode === 'or'}
+            onClick={() => props.onSetMatchMode?.('or')}
+          >
+            {props.matchAnyLabel}
+          </button>
+          <button
+            type="button"
+            class={`dt-value-sort-btn dt-filter-match-mode dt-filter-match-mode--right${props.matchMode === 'and' ? ' dt-filter-match-mode--active' : ''}`}
+            title={props.matchAllLabel}
+            aria-label={props.matchAllLabel}
+            aria-pressed={props.matchMode === 'and'}
+            onClick={() => props.onSetMatchMode?.('and')}
+          >
+            {props.matchAllLabel}
+          </button>
+        </div>
+      </Show>
     </div>
   )
 }
@@ -137,6 +180,7 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
         table.labels().emptyValue,
         [col.key],
         table.filter.exclude(),
+        table.filter.modes(),
       )[col.key] ?? new Map()
     )
   })
@@ -144,6 +188,19 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
   const bounds = createMemo(() => {
     const col = activeCol()
     return col ? computeValueBounds(table.data(), col) : null
+  })
+
+  // Any/all match mode — only surfaced in the UI for a column whose values are actually
+  // array-shaped in the data (see `isMultiValueColumn`'s own doc comment for why a plain scalar
+  // column has no meaningful "all" mode to switch to).
+  const isMultiValueCol = createMemo(() => {
+    const col = activeCol()
+    return col ? isMultiValueColumn(table.data(), col, col.key) : false
+  })
+  const matchMode = createMemo(() => {
+    const col = activeCol()
+    if (!col) return 'or' as const
+    return table.filter.modes()[col.key] ?? col.multiMode ?? 'or'
   })
 
   const filterDetailValues = createMemo(() => {
@@ -345,7 +402,12 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
                           searchValue={searchTerm()}
                           onSearchInput={(v) => setSearchTerm(col().key, v)}
                           sortIcon={getValueSortIcon(valueSort())}
+                          sortLabel={table.labels().sortValues}
                           onSortClick={cycleSort}
+                          matchMode={isMultiValueCol() ? matchMode() : undefined}
+                          matchAnyLabel={table.labels().filterMatchAny}
+                          matchAllLabel={table.labels().filterMatchAll}
+                          onSetMatchMode={(mode) => table.filter.setMode(col().key, mode)}
                         />
                         <div class="dt-filter-list">
                           <For each={filterDetailValues()}>
@@ -412,6 +474,7 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
                       searchValue={searchTerm()}
                       onSearchInput={(v) => setSearchTerm(col().key, v)}
                       sortIcon={getDateSortIcon(valueSort().dir)}
+                      sortLabel={table.labels().sortValues}
                       onSortClick={cycleSort}
                     />
                     <div class="dt-date-tree-wrap">

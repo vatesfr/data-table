@@ -345,6 +345,96 @@ describe('FilterDropdown — renderFilterLabel', () => {
   })
 })
 
+describe('FilterDropdown — any/all match-mode toggle', () => {
+  interface GameRow {
+    id: number
+    name: string
+    tags: string[]
+  }
+  const GAME_COLS: ColumnDef<GameRow>[] = [
+    { key: 'name', label: 'Name', filterable: true },
+    { key: 'tags', label: 'Tags', filterable: true },
+  ]
+  const GAMES: GameRow[] = [
+    { id: 1, name: 'Game A', tags: ['Action', 'RPG'] },
+    { id: 2, name: 'Game B', tags: ['Action', 'Adventure'] },
+    { id: 3, name: 'Game C', tags: ['RPG'] },
+  ]
+
+  function mountGames() {
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    let table!: ReturnType<typeof createTableState<GameRow>>
+    const dispose = createRoot((d) => {
+      table = createTableState(GAMES, GAME_COLS)
+      const [isOpen, setIsOpen] = createSignal(true)
+      render(
+        () => (
+          <FilterDropdown
+            table={table}
+            columns={GAME_COLS}
+            isOpen={isOpen()}
+            onToggle={() => setIsOpen((o) => !o)}
+            onClose={() => setIsOpen(false)}
+          />
+        ),
+        container,
+      )
+      return d
+    })
+    return { container, table, dispose }
+  }
+
+  it('is shown as a segmented Any/All control for an array-valued column, both options always present', () => {
+    const { container, table, dispose } = mountGames()
+    selectCol(container, 'Tags')
+    const [anyBtn, allBtn] = [
+      ...container.querySelectorAll<HTMLButtonElement>('.dt-filter-match-mode'),
+    ]
+    expect(anyBtn?.textContent).toBe('Any')
+    expect(allBtn?.textContent).toBe('All')
+    // "Any" (the default) starts engaged, "All" doesn't — neither is a passive non-state, so
+    // both remain visible the whole time, unlike a single button whose label/state would change.
+    expect(anyBtn.getAttribute('aria-pressed')).toBe('true')
+    expect(anyBtn.classList.contains('dt-filter-match-mode--active')).toBe(true)
+    expect(allBtn.getAttribute('aria-pressed')).toBe('false')
+    expect(allBtn.classList.contains('dt-filter-match-mode--active')).toBe(false)
+
+    table.filter.setValues('tags', ['Action', 'RPG'], true)
+    allBtn.click()
+    expect(table.filter.modes().tags).toBe('and')
+    expect(table.processedData().map((r) => r.name)).toEqual(['Game A'])
+    expect(anyBtn.getAttribute('aria-pressed')).toBe('false')
+    expect(anyBtn.classList.contains('dt-filter-match-mode--active')).toBe(false)
+    expect(allBtn.getAttribute('aria-pressed')).toBe('true')
+    expect(allBtn.classList.contains('dt-filter-match-mode--active')).toBe(true)
+
+    // Clicking "Any" again sets it back directly (not a re-click-to-cycle-back toggle).
+    anyBtn.click()
+    expect(table.filter.modes().tags).toBe('or')
+    dispose()
+  })
+
+  it('the sort-order toggle button has a title/aria-label, matching React/Vue', () => {
+    const { container, dispose } = mountGames()
+    selectCol(container, 'Tags')
+    const sortBtn = [...container.querySelectorAll<HTMLButtonElement>('.dt-value-sort-btn')].find(
+      (b) => !b.classList.contains('dt-filter-match-mode'),
+    )!
+    expect(sortBtn).not.toBeUndefined()
+    expect(sortBtn.getAttribute('aria-label')).toBeTruthy()
+    expect(sortBtn.getAttribute('title')).toBeTruthy()
+    dispose()
+  })
+
+  it('is not shown for a plain scalar column', () => {
+    const { container, dispose } = mountGames()
+    selectCol(container, 'Name')
+    expect(container.querySelector('.dt-filter-match-mode')).toBeNull()
+    dispose()
+  })
+})
+
 describe('FilterDropdown — clear', () => {
   it('the clear-filters × button appears once any filter is active and clears all', () => {
     const { container, table, dispose } = mount()

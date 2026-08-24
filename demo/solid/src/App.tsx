@@ -415,7 +415,10 @@ const COLUMNS: ColumnDef<Employee>[] = [
   // are dropped), click a third time to clear it — try excluding "Leadership" to hide everyone
   // who has it. defaultValueSort: a skill checklist reads better "most common first" than
   // alphabetically — the sort-order toggle still cycles through all 4 states from here, this
-  // just picks where it starts.
+  // just picks where it starts. Because Skills is array-valued, its checklist also gets an
+  // Any/All match-mode button (next to the sort toggle): "Any" matches a row with at least one
+  // selected skill (union, the default), "All" requires every selected skill to be present
+  // (intersection) — try selecting "Leadership" + "Mentoring" and toggling to All.
   {
     key: 'skills',
     label: 'Skills',

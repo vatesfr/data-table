@@ -19,6 +19,7 @@ import {
   setFilterValues as _setFilterValues,
   cycleFilterValue as _cycleFilterValue,
   clearExcludeValues as _clearExcludeValues,
+  setFilterMode as _setFilterMode,
   selectRange,
   isRowSelected,
   getSelectedRows,
@@ -186,6 +187,11 @@ export function createTableState<TRow extends object>(
   }>({ filters: {}, excludeFilters: {} })
   const filters = () => filterState().filters
   const excludeFilters = () => filterState().excludeFilters
+  // Per-column runtime override of `col.multiMode` ("any"/"all" checklist match) — see
+  // `setFilterMode`. Kept as its own signal rather than folded into `filterState` above:
+  // unlike `filters`/`excludeFilters`, no action ever needs to read both this and them together
+  // to decide its next value.
+  const [filterModes, setFilterModes] = createSignal<Record<string, 'and' | 'or'>>({})
   const [rangeFilters, setRangeFilters] = createSignal<Record<string, RangeFilter>>({})
   const [groupBy, setGroupBy] = createSignal<string[]>([])
   const [collapsedGroups, setCollapsedGroups] = createSignal<Set<string>>(new Set())
@@ -207,6 +213,7 @@ export function createTableState<TRow extends object>(
       columns(),
       L().emptyValue,
       excludeFilters(),
+      filterModes(),
     ),
   )
 
@@ -328,8 +335,11 @@ export function createTableState<TRow extends object>(
       include: filters,
       exclude: excludeFilters,
       ranges: rangeFilters,
+      modes: filterModes,
       activeCount: activeFilterCount,
       valueMap: stringValueMap,
+      setMode: (key: string, mode: 'and' | 'or') =>
+        setFilterModes((prev) => _setFilterMode(prev, key, mode)),
       toggleAll: (key: string, values: string[]) => {
         // Only the "select all ON" branch touches excludeFilters (every listed value is about to
         // become included, and a value can't be in both sets at once) — "deselect all" only
@@ -382,6 +392,7 @@ export function createTableState<TRow extends object>(
       },
       clear: () => {
         setFilterState({ filters: {}, excludeFilters: {} })
+        setFilterModes({})
         setRangeFilters({})
         setPageState(1)
       },
@@ -486,6 +497,7 @@ export function createTableState<TRow extends object>(
     clearAll: () => {
       setSorts([])
       setFilterState({ filters: {}, excludeFilters: {} })
+      setFilterModes({})
       setRangeFilters({})
       setGroupBy([])
       setCollapsedGroups(new Set<string>())
@@ -509,6 +521,8 @@ export function createTableState<TRow extends object>(
       const excludeFilterEntries = Object.entries(excludeFilters()).filter(([, v]) => v.size > 0)
       if (excludeFilterEntries.length)
         view.excludeFilters = Object.fromEntries(excludeFilterEntries.map(([k, v]) => [k, [...v]]))
+      const fm = filterModes()
+      if (Object.keys(fm).length) view.filterModes = fm
       const rangeEntries = Object.entries(rangeFilters()).filter(
         ([, r]) => r.min !== '' || r.max !== '',
       )
@@ -539,6 +553,7 @@ export function createTableState<TRow extends object>(
           Object.entries(view.excludeFilters ?? {}).map(([k, v]) => [k, new Set(v)]),
         ),
       })
+      setFilterModes(view.filterModes ?? {})
       setRangeFilters(view.rangeFilters ?? {})
       setGroupBy(view.groupBy ?? [])
       setCollapsedGroups(new Set(view.collapsedGroups ?? []))

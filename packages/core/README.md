@@ -21,7 +21,7 @@ SortEntry                           // { key: string; dir: 'asc' | 'desc' }
 RangeFilter                         // { min: string; max: string }
 ValueSort                           // { by: 'alpha' | 'count'; dir: 'asc' | 'desc' } — a filter checklist's value sort order
 DataTableLabels                     // all UI strings + 4 pluralization functions + emptyValue
-TableViewState                      // serializable snapshot of visibleCols/columnOrder/sorts/filters/excludeFilters/rangeFilters/groupBy/collapsedGroups/page/pageSize/searchQuery (not selection)
+TableViewState                      // serializable snapshot of visibleCols/columnOrder/sorts/filters/excludeFilters/filterModes/rangeFilters/groupBy/collapsedGroups/page/pageSize/searchQuery (not selection)
 DEFAULT_LABELS                      // English defaults (alias for LABELS_EN)
 LABELS_EN                           // English
 LABELS_FR                           // French
@@ -35,11 +35,13 @@ LABELS_PT                           // Portuguese
 #### Filtering
 
 ```ts
-processData(data, filters, rangeFilters, sorts, columns, emptyLabel?, excludeFilters?) // filter + sort rows; columns needed for array-valued (multiMode) filters and computed columns, emptyLabel for empty-array rows (default '(none)'), excludeFilters for "not one of these" values
+processData(data, filters, rangeFilters, sorts, columns, emptyLabel?, excludeFilters?, filterModes?) // filter + sort rows; columns needed for array-valued (multiMode) filters and computed columns, emptyLabel for empty-array rows (default '(none)'), excludeFilters for "not one of these" values, filterModes for a per-column runtime any/all override (see setFilterMode)
 computeStringValues(data, columns, emptyLabel?) // build filter value lists; array values are flattened and deduped, empty arrays contribute emptyLabel
-computeStringValueCounts(data, filters, rangeFilters, columns, emptyLabel?, targetKeys?, excludeFilters?) // per-value facet counts (rows matching every *other* active filter); targetKeys scopes computation to just the columns needed, for performance
+computeStringValueCounts(data, filters, rangeFilters, columns, emptyLabel?, targetKeys?, excludeFilters?, filterModes?) // per-value facet counts (rows matching every *other* active filter); targetKeys scopes computation to just the columns needed, for performance
 cycleFilterValue(filters, excludeFilters, key, value) // cycle a checklist value neutral → include → exclude → neutral
 clearExcludeValues(excludeFilters, key, values) // remove values from key's exclude set, keeping cycleFilterValue's "never in both sets" invariant after a batch include action
+setFilterMode(filterModes, key, mode) // set a column's runtime checklist match to 'or' (any, default) or 'and' (all) — the user-facing counterpart to ColumnDefBase.multiMode, which only ever sets the default
+isMultiValueColumn(data, col, key) // true if at least one row's value for key is an array — lets a UI decide whether an any/all toggle is meaningful to show at all
 filterValuesBySearch(values, term) // narrow a checklist's values by a case- and diacritic-insensitive substring
 filterValuesByRange(values, range, parseDate?) // narrow a date column's checklist/tree values to those within range's bounds (filterValuesBySearch's sibling, for the range filter above a date tree)
 filterValuesByCount(values, counts, selected) // drop checklist values with a facet count of 0, except already-selected ones

@@ -287,6 +287,71 @@ describe('createTableState — filtering', () => {
   })
 })
 
+describe('createTableState — filter.setMode (any/all match)', () => {
+  interface GameRow {
+    id: number
+    name: string
+    tags: string[]
+  }
+  const GAME_COLS: ColumnDef<GameRow>[] = [
+    { key: 'name', label: 'Name' },
+    { key: 'tags', label: 'Tags', filterable: true },
+  ]
+  const GAMES: GameRow[] = [
+    { id: 1, name: 'Game A', tags: ['Action', 'RPG'] },
+    { id: 2, name: 'Game B', tags: ['Action', 'Adventure'] },
+    { id: 3, name: 'Game C', tags: ['RPG'] },
+  ]
+
+  it('defaults to "or" (union) semantics with no override', () => {
+    withRoot(() => {
+      const table = createTableState(GAMES, GAME_COLS)
+      table.filter.setValues('tags', ['Action', 'Adventure'], true)
+      expect(table.processedData().map((r) => r.name)).toEqual(['Game A', 'Game B'])
+    })
+  })
+
+  it('setMode sets a column directly to "and" (intersection) semantics', () => {
+    withRoot(() => {
+      const table = createTableState(GAMES, GAME_COLS)
+      table.filter.setValues('tags', ['Action', 'RPG'], true)
+      expect(table.processedData().map((r) => r.name)).toEqual(['Game A', 'Game B', 'Game C'])
+      table.filter.setMode('tags', 'and')
+      expect(table.filter.modes().tags).toBe('and')
+      expect(table.processedData().map((r) => r.name)).toEqual(['Game A'])
+      table.filter.setMode('tags', 'or')
+      expect(table.filter.modes().tags).toBe('or')
+    })
+  })
+
+  it("overrides the column's own multiMode default", () => {
+    withRoot(() => {
+      const cols: ColumnDef<GameRow>[] = [
+        { key: 'name', label: 'Name' },
+        { key: 'tags', label: 'Tags', filterable: true, multiMode: 'and' },
+      ]
+      const table = createTableState(GAMES, cols)
+      table.filter.setValues('tags', ['Action', 'RPG'], true)
+      expect(table.processedData().map((r) => r.name)).toEqual(['Game A'])
+      table.filter.setMode('tags', 'or')
+      expect(table.processedData().map((r) => r.name)).toEqual(['Game A', 'Game B', 'Game C'])
+    })
+  })
+
+  it('filter.clear() and clearAll() reset any overridden modes', () => {
+    withRoot(() => {
+      const table = createTableState(GAMES, GAME_COLS)
+      table.filter.setMode('tags', 'and')
+      table.filter.clear()
+      expect(table.filter.modes()).toEqual({})
+
+      table.filter.setMode('tags', 'and')
+      table.clearAll()
+      expect(table.filter.modes()).toEqual({})
+    })
+  })
+})
+
 describe('createTableState — grouping', () => {
   it('toggleGroup removes the grouped column from activeColumns', () => {
     withRoot(() => {
@@ -368,6 +433,19 @@ describe('createTableState — view state persistence', () => {
     withRoot(() => {
       const table = createTableState(ROWS, COLS)
       expect(table.getViewState()).toEqual({})
+    })
+  })
+
+  it('round-trips an overridden filter mode via getViewState/setViewState', () => {
+    withRoot(() => {
+      const table = createTableState(ROWS, COLS)
+      table.filter.setMode('name', 'and')
+      const view = table.getViewState()
+      expect(view.filterModes).toEqual({ name: 'and' })
+
+      const table2 = createTableState(ROWS, COLS)
+      table2.setViewState(view)
+      expect(table2.filter.modes()).toEqual({ name: 'and' })
     })
   })
 })

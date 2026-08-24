@@ -190,6 +190,12 @@ export function processData<TRow extends object>(
   columns: ColumnDefBase<TRow>[],
   emptyLabel = '(none)',
   excludeFilters: Record<string, Set<string>> = {},
+  // Per-column runtime override of `col.multiMode`, keyed the same way as `filters` — lets a
+  // user flip a multi-value column's checklist between "any" (union) and "all" (intersection)
+  // from the UI (see `setFilterMode`) without touching the developer-set column default.
+  // Falls back to `col?.multiMode ?? 'or'` for any key with no override, so this is purely
+  // additive: a caller that never passes it gets today's exact behavior.
+  filterModes: Record<string, 'and' | 'or'> = {},
 ): TRow[] {
   let result = [...data]
   const colByKey = buildColByKey(columns)
@@ -197,7 +203,7 @@ export function processData<TRow extends object>(
   for (const [key, vals] of Object.entries(filters)) {
     if (vals.size === 0) continue
     const col = colByKey.get(key)
-    const mode = col?.multiMode ?? 'or'
+    const mode = filterModes[key] ?? col?.multiMode ?? 'or'
     result = result.filter((row) => {
       const rowValues = resolveMultiValues(col, row, key, emptyLabel)
       return mode === 'and'
@@ -705,6 +711,14 @@ export function computeStringValues<TRow extends object>(
  * slider) at once, so that column's own active range must also be excluded from its own baseline
  * — otherwise narrowing the range would shrink its own checklist counts instead of only every
  * other column's.
+ *
+ * `filterModes` (see `setFilterMode`) is passed straight through to the narrowing `processData`
+ * call, unfiltered by column — unlike `filters`/`excludeFilters`/`rangeFilters`, a column's own
+ * any/all mode has no bearing on *its own* baseline (only whether its own selected values are
+ * excluded matters, not how they'd combine), so there's nothing to delete here. It matters for
+ * every *other* column's contribution to that baseline: without it, toggling some other column
+ * to "all" would silently keep narrowing this column's counts as if that other column were still
+ * in its default "any" mode.
  */
 export function computeStringValueCounts<TRow extends object>(
   data: TRow[],
@@ -714,6 +728,7 @@ export function computeStringValueCounts<TRow extends object>(
   emptyLabel = '(none)',
   targetKeys?: string[],
   excludeFilters: Record<string, Set<string>> = {},
+  filterModes: Record<string, 'and' | 'or'> = {},
 ): Record<string, Map<string, number>> {
   const map: Record<string, Map<string, number>> = {}
   let cols = columns.filter((c) => c.type !== 'number' && c.filterable !== false)
@@ -736,6 +751,7 @@ export function computeStringValueCounts<TRow extends object>(
       columns,
       emptyLabel,
       otherExcludeFilters,
+      filterModes,
     )
     const counts = new Map<string, number>()
     for (const row of rows) {
@@ -1224,6 +1240,37 @@ export function clearExcludeValues(
   const next = new Set(excludeFilters[key] ?? [])
   values.forEach((v) => next.delete(v))
   return { ...excludeFilters, [key]: next }
+}
+
+/**
+ * Sets a column's runtime filter match mode to "any" (union) or "all" (intersection) — the
+ * user-facing counterpart to `col.multiMode`, which only ever sets the *default*. Takes the
+ * target mode directly rather than flipping whatever's current, since the UI is a two-option
+ * segmented control (both "Any" and "All" always visible, exactly one shown engaged) rather than
+ * a single button cycling between them — each option's own click handler already knows which
+ * mode it wants, with no need to read the current one first.
+ */
+export function setFilterMode(
+  filterModes: Record<string, 'and' | 'or'>,
+  key: string,
+  mode: 'and' | 'or',
+): Record<string, 'and' | 'or'> {
+  return { ...filterModes, [key]: mode }
+}
+
+/**
+ * Detects whether a column's values are array-shaped in at least one row of `data` — the same
+ * "is this a multi-value column" question `multiValues`/`col.multiMode` answer implicitly at
+ * filter/group time, exposed here so a UI can decide whether an any/all toggle is meaningful to
+ * show at all: for a plain scalar column, a row can only ever carry one value, so "all selected
+ * values" can only ever match zero or one row and the toggle would just be confusing dead weight.
+ */
+export function isMultiValueColumn<TRow extends object>(
+  data: TRow[],
+  col: ColumnDefBase<TRow> | undefined,
+  key: string,
+): boolean {
+  return data.some((row) => Array.isArray(resolveValue(col, row, key)))
 }
 
 /**

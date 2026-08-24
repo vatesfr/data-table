@@ -32,6 +32,8 @@ import {
   setFilterValues,
   cycleFilterValue,
   clearExcludeValues,
+  setFilterMode,
+  isMultiValueColumn,
   selectRange,
   isRowSelected,
   getSelectedRows,
@@ -477,6 +479,36 @@ describe('processData', () => {
     const cols = [{ key: 'tags' as const, label: 'Tags', multiMode: 'and' as const }]
     const result = processData(GAMES, { tags: new Set(['Action', 'RPG']) }, {}, [], cols)
     expect(result.map((r) => r.name)).toEqual(['Game A'])
+  })
+
+  it("filterModes overrides col.multiMode's default for the given key", () => {
+    // No `multiMode` on the column at all — the override is what supplies 'and' here.
+    const result = processData(
+      GAMES,
+      { tags: new Set(['Action', 'RPG']) },
+      {},
+      [],
+      [],
+      '(none)',
+      {},
+      { tags: 'and' },
+    )
+    expect(result.map((r) => r.name)).toEqual(['Game A'])
+  })
+
+  it('filterModes can override a column-level "and" default back to "or"', () => {
+    const cols = [{ key: 'tags' as const, label: 'Tags', multiMode: 'and' as const }]
+    const result = processData(
+      GAMES,
+      { tags: new Set(['Adventure', 'RPG']) },
+      {},
+      [],
+      cols,
+      '(none)',
+      {},
+      { tags: 'or' },
+    )
+    expect(result.map((r) => r.name)).toEqual(['Game A', 'Game B', 'Game C'])
   })
 
   it('matches rows with an empty array against the "(none)" bucket by default', () => {
@@ -1537,6 +1569,35 @@ describe('computeStringValueCounts', () => {
     expect(result['name']?.get('Game A')).toBeUndefined()
   })
 
+  it("narrows a column's counts by another column's filterModes override (faceted)", () => {
+    const cols = [
+      { key: 'name' as const, label: 'Name' },
+      { key: 'tags' as const, label: 'Tags' },
+    ]
+    const filters = { tags: new Set(['Action', 'RPG']) }
+    // Default 'or': every game has at least one of Action/RPG, so all three remain.
+    const orResult = computeStringValueCounts(GAMES, filters, {}, cols, '(none)', ['name'])
+    expect(orResult['name']?.get('Game A')).toBe(1)
+    expect(orResult['name']?.get('Game B')).toBe(1)
+    expect(orResult['name']?.get('Game C')).toBe(1)
+    // filterModes overrides tags to 'and': only Game A has both, so it's the only one left.
+    const andResult = computeStringValueCounts(
+      GAMES,
+      filters,
+      {},
+      cols,
+      '(none)',
+      ['name'],
+      {},
+      {
+        tags: 'and',
+      },
+    )
+    expect(andResult['name']?.get('Game A')).toBe(1)
+    expect(andResult['name']?.get('Game B')).toBeUndefined()
+    expect(andResult['name']?.get('Game C')).toBeUndefined()
+  })
+
   it("does not narrow a date column's own counts by its own active rangeFilters entry", () => {
     const cols = [{ key: 'released' as const, label: 'Released', type: 'date' as const }]
     const games = [{ released: '2023-05-14' }, { released: '2024-01-01' }]
@@ -2509,6 +2570,54 @@ describe('clearExcludeValues', () => {
     const initial = { dept: new Set(['HR']) }
     const result = clearExcludeValues(initial, 'tags', ['RPG'])
     expect(result['dept'].has('HR')).toBe(true)
+  })
+})
+
+// ─── setFilterMode ──────────────────────────────────────────────────────────
+
+describe('setFilterMode', () => {
+  it('sets a key with no prior entry', () => {
+    const result = setFilterMode({}, 'tags', 'and')
+    expect(result['tags']).toBe('and')
+  })
+
+  it('overwrites an existing entry', () => {
+    const once = setFilterMode({}, 'tags', 'and')
+    const twice = setFilterMode(once, 'tags', 'or')
+    expect(twice['tags']).toBe('or')
+  })
+
+  it('setting the same mode twice is idempotent', () => {
+    const once = setFilterMode({}, 'tags', 'and')
+    const twice = setFilterMode(once, 'tags', 'and')
+    expect(twice['tags']).toBe('and')
+  })
+
+  it('preserves other keys', () => {
+    const result = setFilterMode({ dept: 'and' }, 'tags', 'and')
+    expect(result['dept']).toBe('and')
+    expect(result['tags']).toBe('and')
+  })
+})
+
+// ─── isMultiValueColumn ─────────────────────────────────────────────────────────
+
+describe('isMultiValueColumn', () => {
+  it('is true when at least one row has an array value for the column', () => {
+    expect(isMultiValueColumn(GAMES, undefined, 'tags')).toBe(true)
+  })
+
+  it('is false for a plain scalar column', () => {
+    expect(isMultiValueColumn(GAMES, undefined, 'name')).toBe(false)
+  })
+
+  it('is false for an empty dataset', () => {
+    expect(isMultiValueColumn([], undefined, 'tags')).toBe(false)
+  })
+
+  it('resolves the value through a column with a `value` accessor', () => {
+    const col = { key: 'tagCount', label: 'Tags', value: (row: Game) => row.tags }
+    expect(isMultiValueColumn(GAMES, col, 'tagCount')).toBe(true)
   })
 })
 

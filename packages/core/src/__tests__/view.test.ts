@@ -9,6 +9,7 @@ describe('encodeViewState / decodeViewState', () => {
       sorts: [{ key: 'salary', dir: 'desc' }],
       filters: { dept: ['Eng', 'HR'] },
       excludeFilters: { tags: ['RPG'] },
+      filterModes: { tags: 'and' },
       rangeFilters: { salary: { min: '50000', max: '' } },
       groupBy: ['dept'],
       collapsedGroups: ['Eng'],
@@ -29,12 +30,18 @@ describe('encodeViewState / decodeViewState', () => {
       sorts: [],
       filters: { dept: [] },
       excludeFilters: { tags: [] },
+      filterModes: {},
       rangeFilters: { salary: { min: '', max: '' } },
       page: 1,
       pageSize: 0,
       searchQuery: '',
     }
     expect(decodeViewState(encodeViewState(view))).toEqual({})
+  })
+
+  it('round-trips both "and" and "or" filterModes entries', () => {
+    const view: TableViewState = { filterModes: { tags: 'and', category: 'or' } }
+    expect(decodeViewState(encodeViewState(view))).toEqual(view)
   })
 
   it('produces a short URL-safe string', () => {

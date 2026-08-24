@@ -106,6 +106,10 @@ ${renderThemeCss()}
 .dt-dd-search{flex:1;padding:5px 8px;font-size:12px;border:0.5px solid var(--color-border-secondary,#dddcd8);border-radius:6px;background:transparent;color:inherit;font-family:inherit;box-sizing:border-box}
 .dt-filter-select-all{flex-shrink:0;margin:0}
 .dt-value-sort-btn{flex-shrink:0;padding:4px 7px;font-size:11px;background:none;border:0.5px solid var(--color-border-secondary,#dddcd8);border-radius:6px;cursor:pointer;color:var(--color-text-secondary,#6b6a66);font-family:inherit;white-space:nowrap}
+.dt-filter-match-mode-group{display:inline-flex;flex-shrink:0}
+.dt-filter-match-mode--left{border-radius:6px 0 0 6px;border-right:none}
+.dt-filter-match-mode--right{border-radius:0 6px 6px 0}
+.dt-filter-match-mode--active{background:var(--color-background-secondary,#f7f6f3);color:var(--color-text-primary,#1a1916);font-weight:500}
 .dt-date-tree-item{display:flex;align-items:center;gap:8px;padding:5px 14px;font-size:13px;color:var(--color-text-primary,#1a1916);cursor:pointer}
 .dt-date-tree-toggle{width:14px;flex-shrink:0;text-align:center;font-size:10px;color:var(--color-text-tertiary,#9b9a96)}
 .dt-date-tree-toggle--branch{cursor:pointer}
