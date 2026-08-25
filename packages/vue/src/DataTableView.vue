@@ -812,7 +812,12 @@ const searchedAddableGroupCols = computed(() =>
 // Activating an addable Sort/Group column (or removing an active one) moves its row into a
 // *different* v-for list — Vue's keyed reconciliation can't preserve focus across that (the
 // element that had focus is genuinely removed, a structurally new one takes its place elsewhere),
-// so each side is refocused explicitly via a ref map, mirroring vanilla's identical fix.
+// so each side is refocused explicitly via a ref map, mirroring vanilla's identical fix. The same
+// ref maps also back the Alt+↑/↓ reorder handlers below: reordering keeps a row in the *same*
+// v-for list (no structurally-new element), yet Vue's keyed reconciliation still drops focus when
+// it moves the DOM node to its new position (confirmed empirically) — `activateAndFocus` fixes
+// both cases identically, since it just refocuses whatever `refMap` resolves `key` to now,
+// regardless of whether the underlying element was replaced or merely repositioned.
 const sortRowRefs = new Map<string, HTMLElement>()
 const addableSortRefs = new Map<string, HTMLElement>()
 function setSortRowRef(key: string, el: Element | null): void {
@@ -825,7 +830,8 @@ function setAddableSortRef(key: string, el: Element | null): void {
 }
 // Runs `action`, then focuses whatever `key` maps to in `refMap` once the resulting DOM update
 // has committed — the shared shape behind every "activate/remove an addable Sort/Group entry (or
-// open its dropdown from a chip) and refocus the row it moved to" handler below.
+// open its dropdown from a chip), or reorder an active one via Alt+↑/↓, and (re)focus the row it
+// ends up at" handler below.
 async function activateAndFocus(
   action: () => void,
   refMap: Map<string, HTMLElement>,
@@ -886,6 +892,10 @@ const {
 // Alt+↑/↓ mirrors the drag gesture for keyboard-only reorder; Enter/Space mirrors the row's own
 // click (toggle direction) since a plain div gets no free keyboard activation the way a real
 // <button> would (unlike the add-list, which renders real buttons and needs no handler here).
+// The Alt+↑/↓ branch reuses `activateAndFocus`/`sortRowRefs` above — unlike activate/remove, the
+// row stays in the *same* v-for list across a reorder, but Vue's keyed reconciliation still drops
+// focus when it moves the DOM node to its new position (confirmed empirically), so an explicit
+// refocus is needed here too, not just when a row crosses between lists.
 function onSortRowKeyDown(event: KeyboardEvent, key: string): void {
   if (event.key === 'Enter' || event.key === ' ') {
     event.preventDefault()
@@ -900,7 +910,7 @@ function onSortRowKeyDown(event: KeyboardEvent, key: string): void {
     const delta = event.key === 'ArrowUp' ? -1 : 1
     const idx = list.findIndex((s) => s.key === key)
     const neighbor = list[idx + delta]
-    if (neighbor) moveSort(key, neighbor.key, delta > 0)
+    if (neighbor) activateAndFocus(() => moveSort(key, neighbor.key, delta > 0), sortRowRefs, key)
   }
 }
 
@@ -918,7 +928,8 @@ const {
 function onGroupRowKeyDown(event: KeyboardEvent, key: string): void {
   if (event.altKey && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {
     event.preventDefault()
-    moveGroupBy(key, event.key === 'ArrowUp' ? -1 : 1)
+    const delta = event.key === 'ArrowUp' ? -1 : 1
+    activateAndFocus(() => moveGroupBy(key, delta), groupRowRefs, key)
   }
 }
 
@@ -934,10 +945,20 @@ const {
   onDragOver: onColRowsDragOver,
   onDrop: onColRowsDrop,
 } = useDropdownReorder('data-col-row-key', moveColumn)
+// Same `activateAndFocus` reasoning as Sort/Group above — Alt+↑/↓ keeps the checkbox in the same
+// v-for list, but Vue's keyed reconciliation still drops focus when it repositions the DOM node.
+// This dropdown has no existing activate/remove ref map to reuse (visibility toggling never moves
+// a row between lists), so `colRowRefs` exists purely for this reorder case.
+const colRowRefs = new Map<string, HTMLElement>()
+function setColRowRef(key: string, el: Element | null): void {
+  if (el) colRowRefs.set(key, el as HTMLElement)
+  else colRowRefs.delete(key)
+}
 function onColRowKeyDown(event: KeyboardEvent, key: string): void {
   if (event.altKey && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {
     event.preventDefault()
-    moveColumnBy(key, event.key === 'ArrowUp' ? -1 : 1)
+    const delta = event.key === 'ArrowUp' ? -1 : 1
+    activateAndFocus(() => moveColumnBy(key, delta), colRowRefs, key)
   }
 }
 
@@ -1178,6 +1199,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
             <label class="dt__dd-item--clickable dt__flex1">
               <input
                 type="checkbox"
+                :ref="(el) => setColRowRef(col.key, el as Element | null)"
                 :checked="visibleCols.has(col.key)"
                 @change="toggleColVisibility(col.key)"
                 @keydown="onColRowKeyDown($event, col.key)"

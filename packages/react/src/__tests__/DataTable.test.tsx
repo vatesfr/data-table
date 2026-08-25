@@ -1223,10 +1223,15 @@ describe('DataTable — sort dropdown', () => {
     fireEvent.click(ddCopyOf(getAllByText, 'Score').closest('button')!)
 
     const scoreRow = draggableRows(container)[1]
+    scoreRow.focus()
     fireEvent.keyDown(scoreRow, { key: 'ArrowUp', altKey: true })
     const after = draggableRows(container)
     expect(after[0].textContent).toContain('Score')
     expect(after[1].textContent).toContain('Name')
+    // React keeps the same DOM node in place across this reorder (stable `key`), so focus stays
+    // put with no explicit refocus needed — unlike Vue/Solid, which lose it here and need one
+    // (see their own equivalent tests/fix).
+    expect(document.activeElement).toBe(after[0])
   })
 })
 
@@ -1442,6 +1447,24 @@ describe('DataTable — group dropdown', () => {
     expect(after[1].textContent).toContain('Name')
   })
 
+  it('Alt+ArrowUp on a focused active group row reorders priority and keeps focus', () => {
+    const { getByText, getAllByText, container } = render(
+      <DataTable data={ROWS} columns={GROUP_COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Group'))
+    fireEvent.click(ddCopyOf(getAllByText, 'Name').closest('button')!)
+    fireEvent.click(ddCopyOf(getAllByText, 'Score').closest('button')!)
+
+    const scoreRow = draggableRows(container)[1]
+    scoreRow.focus()
+    fireEvent.keyDown(scoreRow, { key: 'ArrowUp', altKey: true })
+    const after = draggableRows(container)
+    expect(after[0].textContent).toContain('Score')
+    expect(after[1].textContent).toContain('Name')
+    // Same stable-`key` reasoning as the Sort/Columns equivalents above.
+    expect(document.activeElement).toBe(after[0])
+  })
+
   it('dropping past the last active group row moves the dragged row to the end', () => {
     const cols: ColumnDef<Row>[] = [
       ...GROUP_COLS,
@@ -1526,9 +1549,16 @@ describe('DataTable — columns dropdown', () => {
     const checkboxes = [
       ...container.querySelectorAll<HTMLInputElement>('[draggable] input[type="checkbox"]'),
     ]
+    checkboxes[1].focus()
     fireEvent.keyDown(checkboxes[1], { key: 'ArrowUp', altKey: true })
     let headers = [...container.querySelectorAll('th')].map((th) => th.textContent)
     expect(headers[0]).toContain('Score')
+    // Same reasoning as the Sort dropdown's equivalent test above — React keeps the same
+    // checkbox node in place across the reorder, so focus stays put with no explicit refocus.
+    const after = [
+      ...container.querySelectorAll<HTMLInputElement>('[draggable] input[type="checkbox"]'),
+    ]
+    expect(document.activeElement).toBe(after[0])
 
     fireEvent.click(checkboxes[0])
     headers = [...container.querySelectorAll('th')].map((th) => th.textContent)

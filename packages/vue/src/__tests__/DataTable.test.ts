@@ -2596,6 +2596,67 @@ describe('DataTable — dropdown column search and keyboard navigation', () => {
     )
   })
 
+  // Regression: Alt+ArrowUp/Down reordered the row correctly but Vue's keyed reconciliation
+  // dropped focus to <body> when it repositioned the DOM node, even though it stayed in the same
+  // v-for list the whole time (unlike activate/remove above, which moves a row between two
+  // different lists) — confirmed empirically, and fixed the same way for Sort/Group/Columns.
+  it('Alt+ArrowUp on a focused active sort row keeps focus on the moved row', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS, columns: THREE_COLS, rowKey: 'id' },
+      attachTo: document.body,
+    })
+    await openDd(wrapper, 'Sort')
+    await wrapper
+      .findAll('button.dt__dd-item--clickable')
+      .find((el) => el.text() === 'Name')!
+      .trigger('click')
+    await wrapper
+      .findAll('button.dt__dd-item--clickable')
+      .find((el) => el.text() === 'Score')!
+      .trigger('click')
+    const rows = wrapper.findAll('.dt__dd-item--sortrow')
+    ;(rows[1].element as HTMLElement).focus()
+    await rows[1].trigger('keydown', { key: 'ArrowUp', altKey: true })
+    const after = wrapper.findAll('.dt__dd-item--sortrow')
+    expect(after[0].text()).toContain('Score')
+    expect(document.activeElement).toBe(after[0].element)
+  })
+
+  it('Alt+ArrowUp on a focused active group row keeps focus on the moved row', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS, columns: THREE_COLS, rowKey: 'id' },
+      attachTo: document.body,
+    })
+    await openDd(wrapper, 'Group')
+    await wrapper
+      .findAll('button.dt__dd-item--clickable')
+      .find((el) => el.text() === 'Name')!
+      .trigger('click')
+    await wrapper
+      .findAll('button.dt__dd-item--clickable')
+      .find((el) => el.text() === 'Score')!
+      .trigger('click')
+    const rows = wrapper.findAll('.dt__dd-item--grouprow')
+    ;(rows[1].element as HTMLElement).focus()
+    await rows[1].trigger('keydown', { key: 'ArrowUp', altKey: true })
+    const after = wrapper.findAll('.dt__dd-item--grouprow')
+    expect(after[0].text()).toContain('Score')
+    expect(document.activeElement).toBe(after[0].element)
+  })
+
+  it('Alt+ArrowDown on a focused column checkbox keeps focus on the moved row', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS, columns: THREE_COLS, rowKey: 'id' },
+      attachTo: document.body,
+    })
+    await openDd(wrapper, 'Columns')
+    const checkboxes = wrapper.findAll('.dt__dd-item--colrow input[type="checkbox"]')
+    ;(checkboxes[0].element as HTMLElement).focus()
+    await checkboxes[0].trigger('keydown', { key: 'ArrowDown', altKey: true })
+    const after = wrapper.findAll('.dt__dd-item--colrow input[type="checkbox"]')
+    expect(document.activeElement).toBe(after[1].element)
+  })
+
   it('ArrowRight on the left column list enters the right detail pane', async () => {
     const wrapper = mount(DataTable, {
       props: { data: ROWS, columns: THREE_COLS, rowKey: 'id' },
