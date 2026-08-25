@@ -7,7 +7,31 @@
 
 Framework-agnostic core logic for [data-table](../../README.md). Zero runtime dependencies.
 
-You don't need this package directly if you're using `@vates/data-table-react` or `@vates/data-table-vue` — it is bundled into both adapters. Use it only if you're building your own adapter.
+You don't need this package directly if you're using `@vates/data-table-react`, `@vates/data-table-vue`, `@vates/data-table-solid`, or `@vates/data-table-vanilla` — it is bundled into every adapter. Use it only if you're building your own adapter.
+
+## Public API surface
+
+`@vates/data-table-core`'s main (`.`) entry point is deliberately small — just the types and pure helper functions a consumer of an adapter package might reasonably need directly (e.g. to build a `groupValue`/`groupFormat` bucketer, or type a custom column def). It exports exactly:
+
+```ts
+// types
+;(DataTableLabels, SortEntry, RangeFilter, ColumnDefBase, ValueSort, AggregateType)
+;(DatePart, LogRangeOptions, GetRowId)
+TableViewState
+
+// values
+DEFAULT_LABELS
+;(bucketNumericRange, formatNumericRange, numericRangeGroup)
+;(bucketDatePart, formatDatePart, datePartGroup)
+;(bucketLogRange, formatLogRange, logRangeGroup)
+compareMissingLast
+
+// + every named locale export from `./locales` (LABELS_EN, LABELS_FR, LABELS_ES, LABELS_DE, LABELS_PT)
+```
+
+Everything else described below the fold in this README — `processData`, `groupData`, selection/keyboard-nav/pagination helpers, `encodeViewState`/`decodeViewState`, view-persistence helpers, and more — lives in **`@vates/data-table-core/internal`** instead. That sub-path exists solely so the adapter packages can share implementation code with each other while building their own `useTableState`/`createTableState`/persistence layer; it is **not a supported public API** and may change shape without a major version bump. If you're consuming one of the adapter packages, get what you need from that adapter directly rather than reaching into `@vates/data-table-core` or `@vates/data-table-core/internal` yourself.
+
+`@vates/data-table-core/locales` and `@vates/data-table-core/theme` are unaffected by this split — see their own sections below.
 
 ## What's inside
 

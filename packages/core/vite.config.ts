@@ -10,7 +10,7 @@ export default defineConfig({
         index: resolve(import.meta.dirname, 'src/index.ts'),
         locales: resolve(import.meta.dirname, 'src/locales.ts'),
         theme: resolve(import.meta.dirname, 'src/theme.ts'),
-        dropdownDomUtils: resolve(import.meta.dirname, 'src/dropdownDomUtils.ts'),
+        internal: resolve(import.meta.dirname, 'src/internal.ts'),
       },
       name: 'DataTableCore',
       formats: ['es', 'cjs'],
