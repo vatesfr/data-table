@@ -14,6 +14,10 @@
 
 export * from './logic'
 export * from './dropdownDomUtils'
+// `DateTreeNode` (types.ts) isn't produced by any exported `types.ts` re-export elsewhere — the
+// date-tree filter (computeDateTree/getDateTreeNodeState/etc., all internal) is the only thing
+// that needs it, and every adapter's own date-tree component types against it.
+export type { DateTreeNode } from './types'
 
 export { encodeViewState, decodeViewState, buildViewStateSnapshot, resolveViewState } from './view'
 export type { ViewStateSnapshotInput, ResolvedViewState, TableViewState } from './view'
