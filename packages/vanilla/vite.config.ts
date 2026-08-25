@@ -22,11 +22,16 @@ export default defineConfig({
       // details (see package.json: both are devDependencies, not runtime ones), so a non-Solid
       // consumer never needs to install either themselves. Only @vates/data-table-core, the one
       // dependency genuinely shared across every adapter package, stays external.
-      external: ['@vates/data-table-core', '@vates/data-table-core/theme'],
+      external: [
+        '@vates/data-table-core',
+        '@vates/data-table-core/theme',
+        '@vates/data-table-core/dropdownDomUtils',
+      ],
       output: {
         globals: {
           '@vates/data-table-core': 'DataTableCore',
           '@vates/data-table-core/theme': 'DataTableCore',
+          '@vates/data-table-core/dropdownDomUtils': 'DataTableCore',
         },
       },
     },

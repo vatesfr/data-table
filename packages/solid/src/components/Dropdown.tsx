@@ -1,4 +1,8 @@
 import { type JSX, Show, createSignal, onCleanup, onMount } from 'solid-js'
+import {
+  computeDropdownClampOffset,
+  ddNavFocusables,
+} from '@vates/data-table-core/dropdownDomUtils'
 
 interface DropdownProps {
   isOpen: boolean
@@ -22,25 +26,13 @@ interface DropdownProps {
 
 // `data-dd-search` marks a dropdown's own column-search `<input>` (Columns/Sort/Group's addable
 // list, Filter's left pane); `data-dd-row` marks every other row this nav should reach (a column
-// checkbox row, a Sort/Group active or addable entry, a Filter column-selector button). Mirrors
-// react/components/Dropdown.tsx's `DD_NAV_SELECTOR`/`ddFocusableFor`/`ddNavFocusables` exactly —
-// deliberately generic, since Dropdown has no idea which concrete dropdown it's rendering, only
-// that its children may carry these two markers. The Filter dropdown's own right-pane value
-// search/checklist get separate `data-dd-value-search`/`data-dd-value-row` markers instead (see
-// FilterDropdown.tsx) — a distinct focusable-set with its own nav, not covered by this one.
-const DD_NAV_SELECTOR = 'input[data-dd-search], [data-dd-row]'
-
-function ddFocusableFor(el: HTMLElement): HTMLElement | null {
-  return el.matches('input, button, [tabindex]')
-    ? el
-    : el.querySelector<HTMLElement>('input, button, [tabindex]')
-}
-
-function ddNavFocusables(panel: HTMLElement): HTMLElement[] {
-  return Array.from(panel.querySelectorAll<HTMLElement>(DD_NAV_SELECTOR))
-    .map(ddFocusableFor)
-    .filter((el): el is HTMLElement => el !== null)
-}
+// checkbox row, a Sort/Group active or addable entry, a Filter column-selector button). Handled by
+// core's `ddNavFocusables` (`@vates/data-table-core/dropdownDomUtils`, using its default
+// `DD_NAV_SELECTOR`), shared with react/components/Dropdown.tsx's identical usage — deliberately
+// generic, since Dropdown has no idea which concrete dropdown it's rendering, only that its
+// children may carry these two markers. The Filter dropdown's own right-pane value search/checklist
+// get separate `data-dd-value-search`/`data-dd-value-row` markers instead (see FilterDropdown.tsx)
+// — a distinct focusable-set with its own nav, not covered by this one.
 
 // Generic dropdown shell shared by Columns/Sort/Group/Filter — mirrors react/components/Dropdown.tsx
 // and vue/components/Dropdown.vue's role. Handles: open/close, outside-click-to-close,
@@ -112,12 +104,9 @@ export function Dropdown(props: DropdownProps) {
 
   function clampToViewport(el: HTMLDivElement): void {
     const rect = el.getBoundingClientRect()
-    const margin = 8
-    let dx = 0
-    if (rect.right > window.innerWidth - margin) dx = window.innerWidth - margin - rect.right
-    if (rect.left + dx < margin) dx = margin - rect.left
+    const { dx, flipUp } = computeDropdownClampOffset(rect, window.innerWidth, window.innerHeight)
     setTranslateX(dx)
-    setFlipUp(rect.bottom > window.innerHeight - margin)
+    setFlipUp(flipUp)
   }
 
   return (

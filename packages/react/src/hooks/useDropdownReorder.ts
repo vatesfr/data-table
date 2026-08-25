@@ -1,15 +1,13 @@
 import { useState, type DragEvent } from 'react'
+import { resolveDropRow } from '@vates/data-table-core/dropdownDomUtils'
 
 /**
  * Resolves a drag-and-drop reorder gesture inside a dropdown panel's list (Columns/Sort/Group) to
- * a specific row under the cursor, and whether the dragged item should land before or after it.
- * Cursor position within the hovered row's own bounds decides before/after (top half vs bottom
- * half) so a row can be a valid "insert after" target too — including the *last* row, which
- * "insert before" alone could never reach. When the cursor isn't directly over any row (e.g.
- * past the last row, in the dead space below it, or over the dropdown's "add" section) it snaps
- * to the nearest edge row instead, so there's no dead zone that silently rejects the drop. `root`
- * is the dropdown panel (`e.currentTarget` from a handler bound there, not per-row) so it can see
- * every row via `attr`, a `data-*` attribute unique to that list's rows (e.g. `data-sort-key`).
+ * a specific row under the cursor, and whether the dragged item should land before or after it —
+ * a thin adapter over core's `resolveDropRow` (see its own doc comment for the actual hit-test
+ * behavior, including the dead-zone rejection). `root` is the dropdown panel (`e.currentTarget`
+ * from a handler bound there, not per-row) so it can see every row via `attr`, a `data-*` attribute
+ * unique to that list's rows (e.g. `data-sort-key`).
  */
 export function resolveDropdownDragRow(
   root: HTMLElement,
@@ -17,19 +15,12 @@ export function resolveDropdownDragRow(
   attr: string,
 ): { key: string; after: boolean } | null {
   const selector = `[${attr}]`
-  const rows = Array.from(root.querySelectorAll<HTMLElement>(selector))
-  if (rows.length === 0) return null
-  const readKey = (el: HTMLElement) => el.getAttribute(attr)!
+  const rows = Array.from(root.querySelectorAll<HTMLElement>(selector)).map((el) => ({
+    key: el.getAttribute(attr)!,
+    rect: el.getBoundingClientRect(),
+  }))
   const hit = (e.target as HTMLElement).closest<HTMLElement>(selector)
-  if (hit) {
-    const rect = hit.getBoundingClientRect()
-    return { key: readKey(hit), after: e.clientY > rect.top + rect.height / 2 }
-  }
-  const first = rows[0]
-  const last = rows[rows.length - 1]
-  if (e.clientY <= first.getBoundingClientRect().top) return { key: readKey(first), after: false }
-  if (e.clientY >= last.getBoundingClientRect().bottom) return { key: readKey(last), after: true }
-  return null
+  return resolveDropRow(e.clientY, rows, hit?.getAttribute(attr))
 }
 
 /**

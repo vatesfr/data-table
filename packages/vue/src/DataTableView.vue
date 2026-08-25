@@ -50,6 +50,7 @@ import RangeInputs from './components/RangeInputs.vue'
 import { vIndeterminate } from './directives/vIndeterminate'
 import { useDropdownReorder } from './composables/useDropdownReorder'
 import { useSelfDetectedListener } from './composables/useSelfDetectedListener'
+import { ddNavFocusables } from '@vates/data-table-core/dropdownDomUtils'
 
 const props = withDefaults(defineProps<DataTableViewInternalProps<TRow>>(), { rowKey: 'id' })
 
@@ -957,20 +958,11 @@ const DD_ROW_SELECTOR =
  */
 function handleRovingListKeydown(event: KeyboardEvent, root: HTMLElement): boolean {
   if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return false
-  const navEls = Array.from(
-    root.querySelectorAll<HTMLElement>(`input[data-dd-search], ${DD_ROW_SELECTOR}`),
-  )
-  // Each element's own focusable target: the search input, a real <button>, or an explicit
-  // tabindex="0" div is used directly (sortrow/grouprow/add-buttons/filter-col buttons); a colrow
-  // div has neither (its checkbox is the actual Tab stop) so its first focusable descendant is
-  // used instead.
-  const all = navEls
-    .map((el) =>
-      el.matches('input, button, [tabindex]')
-        ? el
-        : el.querySelector<HTMLElement>('input, button, [tabindex]'),
-    )
-    .filter((el): el is HTMLElement => el !== null)
+  // `ddNavFocusables` (core's `dropdownDomUtils`) resolves each matched element down to its own
+  // focusable target: the search input, a real <button>, or an explicit tabindex="0" div is used
+  // directly (sortrow/grouprow/add-buttons/filter-col buttons); a colrow div has neither (its
+  // checkbox is the actual Tab stop) so its first focusable descendant is used instead.
+  const all = ddNavFocusables(root, `input[data-dd-search], ${DD_ROW_SELECTOR}`)
   const rows = all.filter((el) => !el.hasAttribute('data-dd-search'))
   const active = document.activeElement as HTMLElement | null
   if (!active || all.indexOf(active) === -1) return false

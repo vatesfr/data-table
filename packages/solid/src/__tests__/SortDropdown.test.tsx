@@ -141,6 +141,52 @@ describe('SortDropdown', () => {
     dispose()
   })
 
+  // D12 regression: a cursor position that isn't over any row's own rect (a dead-zone gap between
+  // non-adjacent rows) must reject the drop rather than snapping to the nearest row — matching
+  // React/Vue's own resolveDropdownDragRow behavior (fixed here via the shared, extracted
+  // resolveDropRow, which Solid previously didn't use).
+  it('drag-and-drop rejects a drop in a dead-zone gap between non-adjacent rows', () => {
+    const { container, table, dispose } = mount()
+    table.sort.toggle('name')
+    table.sort.appendOrToggle('score')
+    const nameRow = container.querySelector<HTMLElement>('[data-sort-key="name"]')!
+    const scoreRow = container.querySelector<HTMLElement>('[data-sort-key="score"]')!
+    // A real gap between the two rows' rects (30–50), unlike stubRects' contiguous layout.
+    nameRow.getBoundingClientRect = () =>
+      ({ top: 0, bottom: 30, left: 0, right: 100, height: 30, width: 100 }) as DOMRect
+    scoreRow.getBoundingClientRect = () =>
+      ({ top: 50, bottom: 80, left: 0, right: 100, height: 30, width: 100 }) as DOMRect
+
+    nameRow.dispatchEvent(new MouseEvent('dragstart', { bubbles: true }))
+    scoreRow.dispatchEvent(new MouseEvent('dragover', { bubbles: true, clientY: 40 }))
+    expect(scoreRow.classList.contains('dt-dd-item--drag-over')).toBe(false)
+    expect(scoreRow.classList.contains('dt-dd-item--drag-over-after')).toBe(false)
+    scoreRow.dispatchEvent(new MouseEvent('drop', { bubbles: true, clientY: 40 }))
+
+    // No reorder happened — the drop was rejected.
+    expect(table.sort.entries().map((s) => s.key)).toEqual(['name', 'score'])
+    dispose()
+  })
+
+  // D13 regression: hovering the dragged row itself must not highlight/act on it — matching
+  // React's own onDragOver guard, which Solid previously lacked.
+  it('drag-and-drop does not highlight the dragged row when hovering itself', () => {
+    const { container, table, dispose } = mount()
+    table.sort.toggle('name')
+    table.sort.appendOrToggle('score')
+    stubRects(container, '[data-sort-key]')
+
+    const nameRow = container.querySelector<HTMLElement>('[data-sort-key="name"]')!
+    nameRow.dispatchEvent(new MouseEvent('dragstart', { bubbles: true }))
+    // name row is the first row (index 0), rect top=0/bottom=30 per stubRects.
+    nameRow.dispatchEvent(new MouseEvent('dragover', { bubbles: true, clientY: 10 }))
+    expect(nameRow.classList.contains('dt-dd-item--drag-over')).toBe(false)
+    expect(nameRow.classList.contains('dt-dd-item--drag-over-after')).toBe(false)
+
+    expect(table.sort.entries().map((s) => s.key)).toEqual(['name', 'score'])
+    dispose()
+  })
+
   it('search narrows the addable list only, not the active section', () => {
     const { container, table, dispose } = mount()
     table.sort.toggle('id')

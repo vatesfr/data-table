@@ -1,30 +1,11 @@
 import { createSignal } from 'solid-js'
+import { resolveDropRow } from '@vates/data-table-core/dropdownDomUtils'
 
 // Shared drag-and-drop row resolution for the Sort/Group/Columns dropdown lists (see CLAUDE.md's
-// "Drag-and-drop reordering inside the Sort/Group/Columns dropdown lists"). Given a dragover/drop
-// event and the list of candidate rows, returns which row is targeted and whether the drop should
-// land before or after it (resolved from the cursor's position within the row's own bounds, so
-// the *last* row in a list can become an "insert after" target too — a plain closest-row-only
-// design could only ever mean "insert before"). When the cursor isn't over any row at all (dead
-// space below the last row), it snaps to the nearest edge row instead of returning null — the
-// caller must still call preventDefault() in that case, or the browser treats an uncommitted
-// dragover as an invalid drop target and silently swallows the eventual drop.
-export function resolveDropRow(
-  clientY: number,
-  rows: { key: string; el: HTMLElement }[],
-): { key: string; after: boolean } | null {
-  if (rows.length === 0) return null
-  for (const { key, el } of rows) {
-    const rect = el.getBoundingClientRect()
-    if (clientY >= rect.top && clientY <= rect.bottom) {
-      return { key, after: clientY > rect.top + rect.height / 2 }
-    }
-  }
-  const first = rows[0]
-  const last = rows[rows.length - 1]
-  if (clientY < first.el.getBoundingClientRect().top) return { key: first.key, after: false }
-  return { key: last.key, after: true }
-}
+// "Drag-and-drop reordering inside the Sort/Group/Columns dropdown lists") lives in core's
+// `resolveDropRow` (`@vates/data-table-core/dropdownDomUtils`) now — see its own doc comment for
+// the hit-test behavior, including the dead-zone rejection (a row not directly under the cursor,
+// and outside the first/last row's own edge, rejects the drop instead of guessing).
 
 /**
  * Drag state + handlers for one dropdown panel's reorderable list (Columns/Sort/Group rows) —
@@ -47,11 +28,11 @@ export function createDragReorder(
   const [dragOverAfter, setDragOverAfter] = createSignal(false)
   let rowsContainer: HTMLDivElement | undefined
 
-  function rowEls(): { key: string; el: HTMLElement }[] {
+  function rowRects(): { key: string; rect: DOMRect }[] {
     if (!rowsContainer) return []
     return [...rowsContainer.querySelectorAll<HTMLElement>(`[${attr}]`)].map((el) => ({
       key: el.getAttribute(attr)!,
-      el,
+      rect: el.getBoundingClientRect(),
     }))
   }
 
@@ -68,17 +49,20 @@ export function createDragReorder(
       setDragOverKey(null)
     },
     onDragOver: (e: DragEvent) => {
+      const from = dragKey()
+      if (!from) return
+      // Skip highlighting/preventDefault when the resolved target is the dragged row itself —
+      // matches React/Vue's own onDragOver guard.
+      const hit = resolveDropRow(e.clientY, rowRects())
+      if (!hit || hit.key === from) return
       e.preventDefault()
-      const hit = resolveDropRow(e.clientY, rowEls())
-      if (hit) {
-        setDragOverKey(hit.key)
-        setDragOverAfter(hit.after)
-      }
+      setDragOverKey(hit.key)
+      setDragOverAfter(hit.after)
     },
     onDrop: (e: DragEvent) => {
       e.preventDefault()
       const from = dragKey()
-      const hit = resolveDropRow(e.clientY, rowEls())
+      const hit = resolveDropRow(e.clientY, rowRects())
       if (from && hit && hit.key !== from) move(from, hit.key, hit.after)
       setDragKey(null)
       setDragOverKey(null)

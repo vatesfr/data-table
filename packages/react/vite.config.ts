@@ -16,13 +16,20 @@ export default defineConfig({
       formats: ['es', 'umd'],
     },
     rollupOptions: {
-      external: ['react', 'react/jsx-runtime', 'react-dom', '@vates/data-table-core'],
+      external: [
+        'react',
+        'react/jsx-runtime',
+        'react-dom',
+        '@vates/data-table-core',
+        '@vates/data-table-core/dropdownDomUtils',
+      ],
       output: {
         globals: {
           react: 'React',
           'react/jsx-runtime': 'ReactJSXRuntime',
           'react-dom': 'ReactDOM',
           '@vates/data-table-core': 'DataTableCore',
+          '@vates/data-table-core/dropdownDomUtils': 'DataTableCore',
         },
       },
     },

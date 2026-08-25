@@ -6,6 +6,10 @@ import {
   type KeyboardEvent,
   type ReactNode,
 } from 'react'
+import {
+  computeDropdownClampOffset,
+  ddNavFocusables,
+} from '@vates/data-table-core/dropdownDomUtils'
 
 export interface DropdownProps {
   trigger: ReactNode
@@ -27,25 +31,13 @@ export interface DropdownProps {
 
 // The panel's roving Up/Down/Home/End nav (see the keydown handler below) and its focus-on-open
 // behavior (see the layout effect below) both need the same "ordered list of this panel's own
-// focusable row/search elements" — shared here so the two stay in sync. `data-dd-search` marks a
+// focusable row/search elements" — `ddNavFocusables` (core's `dropdownDomUtils`, using its default
+// `DD_NAV_SELECTOR`) provides this, shared with Solid's identical usage. `data-dd-search` marks a
 // dropdown's own column-search input (Columns/Sort/Group's addable list/Filter's left pane, see
 // DataTableView.tsx); `data-dd-row` marks every other row this nav should reach (a column
 // checkbox row, a Sort/Group active or addable entry, a Filter column-selector button). This is
 // deliberately generic — Dropdown has no idea which concrete dropdown it's rendering, only that
 // its children may carry these two markers.
-const DD_NAV_SELECTOR = 'input[data-dd-search], [data-dd-row]'
-
-function ddFocusableFor(el: HTMLElement): HTMLElement | null {
-  return el.matches('input, button, [tabindex]')
-    ? el
-    : el.querySelector<HTMLElement>('input, button, [tabindex]')
-}
-
-function ddNavFocusables(panel: HTMLElement): HTMLElement[] {
-  return Array.from(panel.querySelectorAll<HTMLElement>(DD_NAV_SELECTOR))
-    .map(ddFocusableFor)
-    .filter((el): el is HTMLElement => el !== null)
-}
 
 export function Dropdown({
   trigger,
@@ -77,13 +69,10 @@ export function Dropdown({
     if (!open) return
     const panel = panelRef.current
     if (!panel) return
-    const margin = 8
     const rect = panel.getBoundingClientRect()
-    let dx = 0
-    if (rect.right > window.innerWidth - margin) dx = window.innerWidth - margin - rect.right
-    if (rect.left + dx < margin) dx = margin - rect.left
+    const { dx, flipUp } = computeDropdownClampOffset(rect, window.innerWidth, window.innerHeight)
     if (dx !== 0) panel.style.transform = `translateX(${dx}px)`
-    if (rect.bottom > window.innerHeight - margin) {
+    if (flipUp) {
       panel.style.top = 'auto'
       panel.style.marginTop = '0'
       panel.style.bottom = '100%'

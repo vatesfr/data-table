@@ -16,11 +16,12 @@ export default defineConfig({
       formats: ['es', 'umd'],
     },
     rollupOptions: {
-      external: ['vue', '@vates/data-table-core'],
+      external: ['vue', '@vates/data-table-core', '@vates/data-table-core/dropdownDomUtils'],
       output: {
         globals: {
           vue: 'Vue',
           '@vates/data-table-core': 'DataTableCore',
+          '@vates/data-table-core/dropdownDomUtils': 'DataTableCore',
         },
       },
     },

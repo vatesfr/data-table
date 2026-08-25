@@ -43,6 +43,11 @@
       "import": "./dist/theme.js",
       "require": "./dist/theme.cjs",
       "types": "./dist/theme.d.ts"
+    },
+    "./dropdownDomUtils": {
+      "import": "./dist/dropdownDomUtils.js",
+      "require": "./dist/dropdownDomUtils.cjs",
+      "types": "./dist/dropdownDomUtils.d.ts"
     }
   },
   "files": [

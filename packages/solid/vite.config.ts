@@ -23,12 +23,18 @@ export default defineConfig({
       // cost bytes, Solid's reactivity tracking is module-scoped, so a signal created by one copy
       // is invisible to a computation running in the other. solid-js must stay a real peer/external
       // dependency here, same as react/react-dom in packages/react.
-      external: ['solid-js', '@vates/data-table-core', '@vates/data-table-core/theme'],
+      external: [
+        'solid-js',
+        '@vates/data-table-core',
+        '@vates/data-table-core/theme',
+        '@vates/data-table-core/dropdownDomUtils',
+      ],
       output: {
         globals: {
           'solid-js': 'Solid',
           '@vates/data-table-core': 'DataTableCore',
           '@vates/data-table-core/theme': 'DataTableCore',
+          '@vates/data-table-core/dropdownDomUtils': 'DataTableCore',
         },
       },
     },
