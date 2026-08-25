@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { defineComponent, h, nextTick } from 'vue'
 import { mount } from '@vue/test-utils'
-import { encodeViewState, decodeViewState } from '@vates/data-table-core'
+import { encodeViewState, decodeViewState } from '@vates/data-table-core/internal'
 import { useTableState } from '../useTableState'
 import { usePersistedView, useUrlView, resetView, usePersistence } from '../persistence'
 import type { ColumnDef } from '../types'

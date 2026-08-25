@@ -1,5 +1,5 @@
 import { ref } from 'vue'
-import { resolveDropRow } from '@vates/data-table-core/dropdownDomUtils'
+import { resolveDropRow } from '@vates/data-table-core/internal'
 
 /**
  * Resolves the drop target for the Sort/Group/Columns dropdown drag-and-drop lists: the specific

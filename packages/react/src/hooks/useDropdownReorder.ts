@@ -1,5 +1,5 @@
 import { useState, type DragEvent } from 'react'
-import { resolveDropRow } from '@vates/data-table-core/dropdownDomUtils'
+import { resolveDropRow } from '@vates/data-table-core/internal'
 
 /**
  * Resolves a drag-and-drop reorder gesture inside a dropdown panel's list (Columns/Sort/Group) to

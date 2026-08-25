@@ -1,5 +1,5 @@
 import { For, Show, createMemo } from 'solid-js'
-import { getSortIcon } from '@vates/data-table-core'
+import { getSortIcon } from '@vates/data-table-core/internal'
 import type { TableState } from '../createTableState'
 import type { ColumnDef } from '../types'
 

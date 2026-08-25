@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { encodeViewState, decodeViewState } from '@vates/data-table-core'
+import { encodeViewState, decodeViewState } from '@vates/data-table-core/internal'
 import { createDataTable } from '../index'
 import { persistViewToLocalStorage, syncViewToUrl, resetView, persistView } from '../persistence'
 import type { ColumnDef } from '../types'

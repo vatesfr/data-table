@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
-import { encodeViewState, decodeViewState } from '@vates/data-table-core'
+import { encodeViewState, decodeViewState } from '@vates/data-table-core/internal'
 import { useTableState } from '../useTableState'
 import { usePersistedView, useUrlView, resetView, usePersistence } from '../persistence'
 import type { ColumnDef } from '../types'

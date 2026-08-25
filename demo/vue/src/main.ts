@@ -1,5 +1,5 @@
 import { createApp } from 'vue'
-import { renderThemeCss } from '@vates/data-table-core/theme'
+import { renderThemeCss } from '@vates/data-table-vue/theme'
 import App from './App.vue'
 
 // Defines the --color-* tokens DataTableView reads — see the "Theming" section in the README

@@ -1,4 +1,5 @@
-import { formatRangeBound, type RangeFilter } from '@vates/data-table-core'
+import type { RangeFilter } from '@vates/data-table-core'
+import { formatRangeBound } from '@vates/data-table-core/internal'
 import type { ColumnDef } from '../types'
 import { RangeSlider } from './RangeSlider'
 

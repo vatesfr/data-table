@@ -11,7 +11,8 @@
     "paths": {
       "@vates/data-table-core": ["../../packages/core/src/index.ts"],
       "@vates/data-table-core/theme": ["../../packages/core/src/theme.ts"],
-      "@vates/data-table-vue": ["../../packages/vue/src/index.ts"]
+      "@vates/data-table-vue": ["../../packages/vue/src/index.ts"],
+      "@vates/data-table-vue/theme": ["../../packages/vue/src/theme.ts"]
     }
   },
   "include": ["src"]

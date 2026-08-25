@@ -7,7 +7,7 @@ import {
   resetView as resetViewCore,
   type ViewStateApi,
   type ResetViewOptions,
-} from '@vates/data-table-core'
+} from '@vates/data-table-core/internal'
 
 // Solid's own equivalent of react/vue's usePersistedView/useUrlView/usePersistence, built on the
 // exact same getViewState()/setViewState() primitive this package's own createTableState also

@@ -11,6 +11,11 @@ export default defineConfig({
   ],
   build: {
     lib: {
+      // Only the main entry point here — a UMD build (this package's `main` field, so it still
+      // works as a plain <script> global) can't have more than one entry point (Rollup
+      // restriction), so the `/theme` sub-path re-export is built by a separate
+      // `vite.theme.config.ts` pass instead (es+cjs only, no umd) — see that file and this
+      // package.json's `build` script.
       entry: resolve(import.meta.dirname, 'src/index.ts'),
       name: 'DataTableSolid',
       fileName: 'data-table-solid',
@@ -23,18 +28,12 @@ export default defineConfig({
       // cost bytes, Solid's reactivity tracking is module-scoped, so a signal created by one copy
       // is invisible to a computation running in the other. solid-js must stay a real peer/external
       // dependency here, same as react/react-dom in packages/react.
-      external: [
-        'solid-js',
-        '@vates/data-table-core',
-        '@vates/data-table-core/theme',
-        '@vates/data-table-core/dropdownDomUtils',
-      ],
+      external: ['solid-js', '@vates/data-table-core', '@vates/data-table-core/internal'],
       output: {
         globals: {
           'solid-js': 'Solid',
           '@vates/data-table-core': 'DataTableCore',
-          '@vates/data-table-core/theme': 'DataTableCore',
-          '@vates/data-table-core/dropdownDomUtils': 'DataTableCore',
+          '@vates/data-table-core/internal': 'DataTableCore',
         },
       },
     },

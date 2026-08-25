@@ -1,5 +1,5 @@
 import { For, Show } from 'solid-js'
-import { mergePageSizeOptions } from '@vates/data-table-core'
+import { mergePageSizeOptions } from '@vates/data-table-core/internal'
 import type { TableState } from '../createTableState'
 
 interface PaginationProps<TRow extends object> {

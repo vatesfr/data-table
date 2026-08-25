@@ -45,11 +45,10 @@ import {
   columnHasActiveFilter,
   orderFilterColumnsByActive,
   applyColumnOrderSnapshot,
-  type DateTreeNode,
-  type ValueSort,
   type VisibleItem,
-  type SortEntry,
-} from '@vates/data-table-core'
+  type DateTreeNode,
+} from '@vates/data-table-core/internal'
+import type { ValueSort, SortEntry } from '@vates/data-table-core'
 import { Dropdown } from './components/Dropdown'
 import { ToolbarBtn } from './components/ToolbarBtn'
 import { useDropdownReorder } from './hooks/useDropdownReorder'

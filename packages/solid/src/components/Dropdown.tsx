@@ -1,8 +1,5 @@
 import { type JSX, Show, createSignal, onCleanup, onMount } from 'solid-js'
-import {
-  computeDropdownClampOffset,
-  ddNavFocusables,
-} from '@vates/data-table-core/dropdownDomUtils'
+import { computeDropdownClampOffset, ddNavFocusables } from '@vates/data-table-core/internal'
 
 interface DropdownProps {
   isOpen: boolean

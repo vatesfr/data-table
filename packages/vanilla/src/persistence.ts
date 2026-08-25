@@ -6,8 +6,8 @@ import {
   resetView as resetViewCore,
   type ViewStateApi as CoreViewStateApi,
   type ResetViewOptions,
-  type TableViewState,
-} from '@vates/data-table-core'
+} from '@vates/data-table-core/internal'
+import type { TableViewState } from '@vates/data-table-core'
 
 export interface ViewStateApi extends CoreViewStateApi {
   onViewChange(cb: (view: TableViewState) => void): () => void

@@ -1,5 +1,12 @@
 import { createSignal, createMemo, createRenderEffect, type Accessor } from 'solid-js'
 import {
+  DEFAULT_LABELS,
+  type SortEntry,
+  type RangeFilter,
+  type DataTableLabels,
+  type TableViewState,
+} from '@vates/data-table-core'
+import {
   processData,
   searchData,
   groupData,
@@ -36,15 +43,10 @@ import {
   getSortIcon as _getSortIcon,
   getSortIndex as _getSortIndex,
   countActiveFilters,
-  DEFAULT_LABELS,
-  type SortEntry,
-  type RangeFilter,
-  type DataTableLabels,
-  type TableViewState,
   type GetRowId,
   buildViewStateSnapshot,
   resolveViewState,
-} from '@vates/data-table-core'
+} from '@vates/data-table-core/internal'
 import type { ColumnDef } from './types'
 
 // Resolves a value that may be given either directly or as a reactive accessor — the same

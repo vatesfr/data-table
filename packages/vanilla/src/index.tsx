@@ -17,7 +17,14 @@ import type { GetRowId } from '@vates/data-table-core'
 import type { ColumnDef, DataTableOptions, DataTableInstance } from './types'
 
 export type { ColumnDef, DataTableOptions, DataTableInstance }
-export type { DataTableLabels, TableViewState, GetRowId } from '@vates/data-table-core'
+export type {
+  DataTableLabels,
+  TableViewState,
+  GetRowId,
+  SortEntry,
+  RangeFilter,
+} from '@vates/data-table-core'
+export { DEFAULT_LABELS } from '@vates/data-table-core'
 export { persistViewToLocalStorage, syncViewToUrl, resetView, persistView } from './persistence'
 export type {
   ViewStateApi,

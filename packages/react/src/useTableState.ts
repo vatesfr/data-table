@@ -36,14 +36,16 @@ import {
   getSortIcon as _getSortIcon,
   getSortIndex as _getSortIndex,
   countActiveFilters,
+  buildViewStateSnapshot,
+  resolveViewState,
+} from '@vates/data-table-core/internal'
+import {
   DEFAULT_LABELS,
   type SortEntry,
   type RangeFilter,
   type DataTableLabels,
   type TableViewState,
   type GetRowId,
-  buildViewStateSnapshot,
-  resolveViewState,
 } from '@vates/data-table-core'
 import type { ColumnDef } from './types'
 

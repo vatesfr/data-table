@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { createRoot } from 'solid-js'
-import { encodeViewState, decodeViewState } from '@vates/data-table-core'
+import { encodeViewState, decodeViewState } from '@vates/data-table-core/internal'
 import { createTableState } from '../createTableState'
 import { usePersistedView, useUrlView, resetView, usePersistence } from '../persistence'
 import type { ColumnDef } from '../types'

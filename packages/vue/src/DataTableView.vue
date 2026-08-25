@@ -37,11 +37,10 @@ import {
   applyColumnOrderSnapshot,
   alphabetizedByLabel,
   type PagedGroup,
-  type DateTreeNode,
-  type ValueSort,
   type VisibleItem,
-  type SortEntry,
-} from '@vates/data-table-core'
+  type DateTreeNode,
+} from '@vates/data-table-core/internal'
+import { type ValueSort, type SortEntry } from '@vates/data-table-core'
 import type { ColumnDef, DataTableViewInternalProps } from './types'
 import Dropdown from './components/Dropdown.vue'
 import ToolbarBtn from './components/ToolbarBtn.vue'

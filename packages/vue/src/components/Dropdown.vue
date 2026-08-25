@@ -1,9 +1,6 @@
 <script setup lang="ts">
 import { ref, watch, onMounted, onUnmounted } from 'vue'
-import {
-  computeDropdownClampOffset,
-  ddNavFocusables,
-} from '@vates/data-table-core/dropdownDomUtils'
+import { computeDropdownClampOffset, ddNavFocusables } from '@vates/data-table-core/internal'
 
 // Listeners like @dragover/@drop passed to <Dropdown> are meant for the menu panel itself (so a
 // drag-and-drop reorder list inside can resolve a drop that lands past its last row / in

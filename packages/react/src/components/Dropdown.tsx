@@ -6,10 +6,7 @@ import {
   type KeyboardEvent,
   type ReactNode,
 } from 'react'
-import {
-  computeDropdownClampOffset,
-  ddNavFocusables,
-} from '@vates/data-table-core/dropdownDomUtils'
+import { computeDropdownClampOffset, ddNavFocusables } from '@vates/data-table-core/internal'
 
 export interface DropdownProps {
   trigger: ReactNode

@@ -8,7 +8,7 @@ import {
   isSameVisibleItem,
   getCrossPageFocusTarget,
   type VisibleItem,
-} from '@vates/data-table-core'
+} from '@vates/data-table-core/internal'
 import type { TableState } from '../createTableState'
 import type { ColumnDef } from '../types'
 import { applyCheckboxState } from './checkboxSync'

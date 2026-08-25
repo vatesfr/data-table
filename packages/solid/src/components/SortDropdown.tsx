@@ -1,10 +1,6 @@
 import { For, Show, createMemo, createSignal } from 'solid-js'
-import {
-  alphabetizedByLabel,
-  getSortIcon,
-  getSortIndex,
-  type SortEntry,
-} from '@vates/data-table-core'
+import type { SortEntry } from '@vates/data-table-core'
+import { alphabetizedByLabel, getSortIcon, getSortIndex } from '@vates/data-table-core/internal'
 import type { TableState } from '../createTableState'
 import type { ColumnDef } from '../types'
 import { Dropdown } from './Dropdown'

@@ -1,5 +1,5 @@
 import { createSignal } from 'solid-js'
-import { resolveDropRow } from '@vates/data-table-core/dropdownDomUtils'
+import { resolveDropRow } from '@vates/data-table-core/internal'
 
 // Shared drag-and-drop row resolution for the Sort/Group/Columns dropdown lists (see CLAUDE.md's
 // "Drag-and-drop reordering inside the Sort/Group/Columns dropdown lists") lives in core's

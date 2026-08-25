@@ -34,6 +34,11 @@
       "import": "./dist/data-table-react.js",
       "require": "./dist/data-table-react.umd.cjs",
       "types": "./dist/index.d.ts"
+    },
+    "./theme": {
+      "import": "./dist/theme.js",
+      "require": "./dist/theme.cjs",
+      "types": "./dist/theme.d.ts"
     }
   },
   "files": [
@@ -42,7 +47,7 @@
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "vite build",
+    "build": "vite build && vite build --config vite.theme.config.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "type-check": "tsc --noEmit",

@@ -11,6 +11,11 @@ export default defineConfig({
   ],
   build: {
     lib: {
+      // Only the main entry point here — a UMD/IIFE build (needed so this package still works as a
+      // plain <script> global, unlike core/react/vue/solid which only ever ship es+cjs) can't have
+      // more than one entry point (Rollup restriction), so the `/theme` sub-path re-export is built
+      // by a separate `vite.theme.config.ts` pass instead (es+cjs only, no umd) — see that file and
+      // this package.json's `build` script.
       entry: resolve(import.meta.dirname, 'src/index.tsx'),
       name: 'DataTableVanilla',
       fileName: 'data-table-vanilla',
@@ -25,13 +30,13 @@ export default defineConfig({
       external: [
         '@vates/data-table-core',
         '@vates/data-table-core/theme',
-        '@vates/data-table-core/dropdownDomUtils',
+        '@vates/data-table-core/internal',
       ],
       output: {
         globals: {
           '@vates/data-table-core': 'DataTableCore',
           '@vates/data-table-core/theme': 'DataTableCore',
-          '@vates/data-table-core/dropdownDomUtils': 'DataTableCore',
+          '@vates/data-table-core/internal': 'DataTableCore',
         },
       },
     },

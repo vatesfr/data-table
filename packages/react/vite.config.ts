@@ -10,6 +10,11 @@ export default defineConfig({
   ],
   build: {
     lib: {
+      // Only the main entry point here — a UMD build (this package's `main` field, so it still
+      // works as a plain <script> global) can't have more than one entry point (Rollup
+      // restriction), so the `/theme` sub-path re-export is built by a separate
+      // `vite.theme.config.ts` pass instead (es+cjs only, no umd) — see that file and this
+      // package.json's `build` script.
       entry: resolve(import.meta.dirname, 'src/index.ts'),
       name: 'DataTableReact',
       fileName: 'data-table-react',
@@ -21,7 +26,7 @@ export default defineConfig({
         'react/jsx-runtime',
         'react-dom',
         '@vates/data-table-core',
-        '@vates/data-table-core/dropdownDomUtils',
+        '@vates/data-table-core/internal',
       ],
       output: {
         globals: {
@@ -29,7 +34,7 @@ export default defineConfig({
           'react/jsx-runtime': 'ReactJSXRuntime',
           'react-dom': 'ReactDOM',
           '@vates/data-table-core': 'DataTableCore',
-          '@vates/data-table-core/dropdownDomUtils': 'DataTableCore',
+          '@vates/data-table-core/internal': 'DataTableCore',
         },
       },
     },

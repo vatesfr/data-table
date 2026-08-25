@@ -9,6 +9,10 @@ export type {
   DataTableLabels,
   SortEntry,
   RangeFilter,
+  ColumnDefBase,
+  ValueSort,
+  AggregateType,
+  DatePart,
   TableViewState,
   GetRowId,
 } from '@vates/data-table-core'

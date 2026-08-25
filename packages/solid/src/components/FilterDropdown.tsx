@@ -7,6 +7,7 @@ import {
   createSignal,
   untrack,
 } from 'solid-js'
+import type { ValueSort } from '@vates/data-table-core'
 import {
   computeStringValueCounts,
   filterValuesBySearch,
@@ -28,9 +29,8 @@ import {
   columnHasActiveFilter,
   orderFilterColumnsByActive,
   applyColumnOrderSnapshot,
-  type ValueSort,
   type DateTreeNode,
-} from '@vates/data-table-core'
+} from '@vates/data-table-core/internal'
 import type { TableState } from '../createTableState'
 import type { ColumnDef } from '../types'
 import { Dropdown } from './Dropdown'

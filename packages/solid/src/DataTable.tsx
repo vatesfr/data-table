@@ -2,7 +2,8 @@ import { createEffect, on } from 'solid-js'
 import { createTableState } from './createTableState'
 import { DataTableView, type DataTableViewProps } from './DataTableView'
 import type { ColumnDef } from './types'
-import type { DataTableLabels, GetRowId } from '@vates/data-table-core'
+import type { DataTableLabels } from '@vates/data-table-core'
+import type { GetRowId } from '@vates/data-table-core/internal'
 
 export interface DataTableProps<TRow extends object> extends Omit<
   DataTableViewProps<TRow>,

@@ -1,9 +1,6 @@
 import { Show } from 'solid-js'
-import {
-  computeRangeSliderGeometry,
-  formatRangeBound,
-  type RangeFilter,
-} from '@vates/data-table-core'
+import type { RangeFilter } from '@vates/data-table-core'
+import { computeRangeSliderGeometry, formatRangeBound } from '@vates/data-table-core/internal'
 import type { ColumnDef } from '../types'
 
 interface RangeSliderProps<TRow extends object> {
