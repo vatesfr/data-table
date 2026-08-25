@@ -120,6 +120,26 @@ describe('SortDropdown', () => {
     dispose()
   })
 
+  it('Alt+ArrowUp/Down reorders active entries and keeps focus on the moved row', () => {
+    const { container, table, dispose } = mount()
+    table.sort.toggle('name')
+    table.sort.appendOrToggle('score')
+    const scoreRow = container.querySelector<HTMLElement>('[data-sort-key="score"]')!
+    scoreRow.focus()
+    scoreRow.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'ArrowUp',
+        altKey: true,
+        bubbles: true,
+        cancelable: true,
+      }),
+    )
+    expect(table.sort.entries().map((s) => s.key)).toEqual(['score', 'name'])
+    // Regression: focus used to drop to <body> after this reorder.
+    expect(document.activeElement).toBe(container.querySelector('[data-sort-key="score"]'))
+    dispose()
+  })
+
   it('drag-and-drop reorders active entries', () => {
     const { container, table, dispose } = mount()
     table.sort.toggle('name')

@@ -90,10 +90,17 @@ export function GroupDropdown<TRow extends object>(props: GroupDropdownProps<TRo
                   onKeyDown={(e) => {
                     if (e.altKey && e.key === 'ArrowUp') {
                       e.preventDefault()
+                      const panel = e.currentTarget.closest('.dt-dd')
                       table.group.moveBy(key, -1)
+                      // Focus drops to <body> after this reorder without an explicit refocus
+                      // (confirmed empirically) — refocus by key, same pattern used for
+                      // activate/remove below.
+                      panel?.querySelector<HTMLElement>(`[data-group-key="${key}"]`)?.focus()
                     } else if (e.altKey && e.key === 'ArrowDown') {
                       e.preventDefault()
+                      const panel = e.currentTarget.closest('.dt-dd')
                       table.group.moveBy(key, 1)
+                      panel?.querySelector<HTMLElement>(`[data-group-key="${key}"]`)?.focus()
                     }
                   }}
                 >

@@ -89,10 +89,21 @@ export function ColumnsDropdown<TRow extends object>(props: ColumnsDropdownProps
                   onKeyDown={(e) => {
                     if (e.altKey && e.key === 'ArrowUp') {
                       e.preventDefault()
+                      const panel = e.currentTarget.closest('.dt-dd')
                       table.columns.moveBy(col.key, -1)
+                      // Focus drops to <body> after this reorder without an explicit refocus
+                      // (confirmed empirically) — refocus the checkbox by its row's key, same
+                      // reasoning as Sort/GroupDropdown's own Alt+Arrow handlers.
+                      panel
+                        ?.querySelector<HTMLElement>(`[data-col-row-key="${col.key}"] input`)
+                        ?.focus()
                     } else if (e.altKey && e.key === 'ArrowDown') {
                       e.preventDefault()
+                      const panel = e.currentTarget.closest('.dt-dd')
                       table.columns.moveBy(col.key, 1)
+                      panel
+                        ?.querySelector<HTMLElement>(`[data-col-row-key="${col.key}"] input`)
+                        ?.focus()
                     }
                   }}
                 />{' '}

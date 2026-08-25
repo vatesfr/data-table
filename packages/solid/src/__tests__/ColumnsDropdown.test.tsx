@@ -112,4 +112,36 @@ describe('ColumnsDropdown', () => {
     expect(table.columns.active().map((c) => c.key)).toEqual(['name', 'id', 'score'])
     dispose()
   })
+
+  it('Alt+ArrowDown/ArrowUp keeps focus on the moved row instead of dropping to <body>', () => {
+    const { container, dispose } = mount()
+    const idCheckbox = container.querySelector<HTMLInputElement>(
+      '[data-col-row-key="id"] input[type="checkbox"]',
+    )!
+    idCheckbox.focus()
+    idCheckbox.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'ArrowDown',
+        altKey: true,
+        bubbles: true,
+        cancelable: true,
+      }),
+    )
+    // "id" is now the checkbox of the row at its new position — same node, moved.
+    expect(document.activeElement).toBe(
+      container.querySelector('[data-col-row-key="id"] input[type="checkbox"]'),
+    )
+    document.activeElement!.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'ArrowUp',
+        altKey: true,
+        bubbles: true,
+        cancelable: true,
+      }),
+    )
+    expect(document.activeElement).toBe(
+      container.querySelector('[data-col-row-key="id"] input[type="checkbox"]'),
+    )
+    dispose()
+  })
 })

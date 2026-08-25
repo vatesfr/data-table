@@ -92,6 +92,26 @@ describe('GroupDropdown', () => {
     dispose()
   })
 
+  it('Alt+ArrowUp/Down reorders active group entries and keeps focus on the moved row', () => {
+    const { container, table, dispose } = mount()
+    table.group.toggle('dept')
+    table.group.toggle('team')
+    const teamRow = container.querySelector<HTMLElement>('[data-group-key="team"]')!
+    teamRow.focus()
+    teamRow.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'ArrowUp',
+        altKey: true,
+        bubbles: true,
+        cancelable: true,
+      }),
+    )
+    expect(table.group.by()).toEqual(['team', 'dept'])
+    // Regression: focus used to drop to <body> after this reorder.
+    expect(document.activeElement).toBe(container.querySelector('[data-group-key="team"]'))
+    dispose()
+  })
+
   it('drag-and-drop reorders active group entries', () => {
     const { container, table, dispose } = mount()
     table.group.toggle('dept')

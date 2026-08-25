@@ -189,7 +189,15 @@ export function SortDropdown<TRow extends object>(props: SortDropdownProps<TRow>
                       const list = nonGroupEntries()
                       const delta = e.key === 'ArrowUp' ? -1 : 1
                       const neighbor = list[i() + delta]
-                      if (neighbor) table.sort.move(entry.key, neighbor.key, delta > 0)
+                      if (!neighbor) return
+                      const panel = panelOf(e.currentTarget)
+                      table.sort.move(entry.key, neighbor.key, delta > 0)
+                      // Focus drops to <body> after this reorder without an explicit refocus —
+                      // confirmed empirically (unlike activate/remove, where the same-node-identity
+                      // reasoning above actually holds). Refocus by key, same pattern as every
+                      // other row mutation in this file, rather than relying on `e.currentTarget`
+                      // still being the right element post-reorder.
+                      panel?.querySelector<HTMLElement>(`[data-sort-key="${entry.key}"]`)?.focus()
                     }
                   }}
                 >
