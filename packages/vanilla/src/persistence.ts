@@ -1,10 +1,19 @@
-import { encodeViewState, decodeViewState, type TableViewState } from '@vates/data-table-core'
+import {
+  loadViewFromStorage,
+  saveOrClearViewInStorage,
+  readViewFromUrlParam,
+  writeViewToUrlParam,
+  resetView as resetViewCore,
+  type ViewStateApi as CoreViewStateApi,
+  type ResetViewOptions,
+  type TableViewState,
+} from '@vates/data-table-core'
 
-export interface ViewStateApi {
-  getViewState(): TableViewState
-  setViewState(view: TableViewState): void
+export interface ViewStateApi extends CoreViewStateApi {
   onViewChange(cb: (view: TableViewState) => void): () => void
 }
+
+export type { ResetViewOptions }
 
 /**
  * Loads a persisted view from `localStorage` and saves it back on every subsequent change.
@@ -12,8 +21,7 @@ export interface ViewStateApi {
  * call it alongside `table.destroy()`.
  */
 export function persistViewToLocalStorage(table: ViewStateApi, storageKey: string): () => void {
-  const stored = localStorage.getItem(storageKey)
-  const view = stored ? decodeViewState(stored) : undefined
+  const view = loadViewFromStorage(storageKey)
   if (view) table.setViewState(view)
 
   return table.onViewChange((view) => {
@@ -21,8 +29,7 @@ export function persistViewToLocalStorage(table: ViewStateApi, storageKey: strin
     // defaults removes the key entirely rather than storing an encoded-but-empty blob, so
     // `resetView`'s own `removeItem` (or a plain "clear all" that lands back on the defaults)
     // isn't immediately undone by this listener's next fire.
-    if (Object.keys(view).length === 0) localStorage.removeItem(storageKey)
-    else localStorage.setItem(storageKey, encodeViewState(view))
+    saveOrClearViewInStorage(storageKey, view)
   })
 }
 
@@ -44,9 +51,7 @@ export function syncViewToUrl(table: ViewStateApi, options?: SyncViewToUrlOption
   // matters when combined with persistViewToLocalStorage: a plain reload with no `view` param
   // should keep the localStorage-restored view, not clobber it with an empty one.
   function applyFromUrl(): void {
-    const encoded = new URLSearchParams(window.location.search).get(paramName)
-    if (!encoded) return
-    const view = decodeViewState(encoded)
+    const view = readViewFromUrlParam(paramName)
     if (view) table.setViewState(view)
   }
 
@@ -54,25 +59,13 @@ export function syncViewToUrl(table: ViewStateApi, options?: SyncViewToUrlOption
   window.addEventListener('popstate', applyFromUrl)
 
   const unsubscribe = table.onViewChange((view) => {
-    const params = new URLSearchParams(window.location.search)
-    if (Object.keys(view).length === 0) params.delete(paramName)
-    else params.set(paramName, encodeViewState(view))
-    const query = params.toString()
-    const url = `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash}`
-    window.history.replaceState(null, '', url)
+    writeViewToUrlParam(paramName, view)
   })
 
   return () => {
     window.removeEventListener('popstate', applyFromUrl)
     unsubscribe()
   }
-}
-
-export interface ResetViewOptions {
-  /** localStorage key passed to `persistViewToLocalStorage` for this table, if any. */
-  storageKey?: string
-  /** Query string parameter name passed to `syncViewToUrl` for this table. Default: 'view'. */
-  paramName?: string
 }
 
 /**
@@ -82,16 +75,7 @@ export interface ResetViewOptions {
  * only one, or neither).
  */
 export function resetView(table: ViewStateApi, options?: ResetViewOptions): void {
-  table.setViewState({})
-  if (options?.storageKey) localStorage.removeItem(options.storageKey)
-  const paramName = options?.paramName ?? 'view'
-  const params = new URLSearchParams(window.location.search)
-  if (params.has(paramName)) {
-    params.delete(paramName)
-    const query = params.toString()
-    const url = `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash}`
-    window.history.replaceState(null, '', url)
-  }
+  resetViewCore(table, options)
 }
 
 export type PersistViewOptions = ResetViewOptions

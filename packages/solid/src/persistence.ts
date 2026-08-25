@@ -1,5 +1,13 @@
 import { createEffect, on, onCleanup } from 'solid-js'
-import { encodeViewState, decodeViewState, type TableViewState } from '@vates/data-table-core'
+import {
+  loadViewFromStorage,
+  saveOrClearViewInStorage,
+  readViewFromUrlParam,
+  writeViewToUrlParam,
+  resetView as resetViewCore,
+  type ViewStateApi,
+  type ResetViewOptions,
+} from '@vates/data-table-core'
 
 // Solid's own equivalent of react/vue's usePersistedView/useUrlView/usePersistence, built on the
 // exact same getViewState()/setViewState() primitive this package's own createTableState also
@@ -8,10 +16,7 @@ import { encodeViewState, decodeViewState, type TableViewState } from '@vates/da
 // these are the same concept under the same API — cross-adapter consistency wins here over strict
 // per-framework naming convention.
 
-export interface ViewStateApi {
-  getViewState(): TableViewState
-  setViewState(view: TableViewState): void
-}
+export type { ViewStateApi, ResetViewOptions }
 
 /**
  * Loads a persisted view from `localStorage` once and saves it back on every subsequent change.
@@ -22,8 +27,7 @@ export interface ViewStateApi {
 export function usePersistedView(table: ViewStateApi, storageKey: string | undefined): void {
   if (!storageKey) return
 
-  const stored = localStorage.getItem(storageKey)
-  const view = stored ? decodeViewState(stored) : undefined
+  const view = loadViewFromStorage(storageKey)
   if (view) table.setViewState(view)
 
   // `on(..., { defer: true })` skips the run that would otherwise fire right after the hydration
@@ -36,8 +40,7 @@ export function usePersistedView(table: ViewStateApi, storageKey: string | undef
         // construction-time defaults removes the key entirely rather than storing an
         // encoded-but-empty blob, so resetView's own removeItem isn't immediately undone by
         // this effect's next run.
-        if (Object.keys(v).length === 0) localStorage.removeItem(storageKey)
-        else localStorage.setItem(storageKey, encodeViewState(v))
+        saveOrClearViewInStorage(storageKey, v)
       },
       { defer: true },
     ),
@@ -61,9 +64,7 @@ export function useUrlView(table: ViewStateApi, options?: UseUrlViewOptions): vo
   // composing with usePersistedView above: a plain reload with no `view` param should keep the
   // localStorage-restored view, not clobber it with an empty one.
   function applyFromUrl(): void {
-    const encoded = new URLSearchParams(window.location.search).get(paramName)
-    if (!encoded) return
-    const view = decodeViewState(encoded)
+    const view = readViewFromUrlParam(paramName)
     if (view) table.setViewState(view)
   }
   applyFromUrl()
@@ -74,23 +75,11 @@ export function useUrlView(table: ViewStateApi, options?: UseUrlViewOptions): vo
     on(
       () => table.getViewState(),
       (view) => {
-        const params = new URLSearchParams(window.location.search)
-        if (Object.keys(view).length === 0) params.delete(paramName)
-        else params.set(paramName, encodeViewState(view))
-        const query = params.toString()
-        const url = `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash}`
-        window.history.replaceState(null, '', url)
+        writeViewToUrlParam(paramName, view)
       },
       { defer: true },
     ),
   )
-}
-
-export interface ResetViewOptions {
-  /** localStorage key passed to `usePersistedView` for this table, if any. */
-  storageKey?: string
-  /** Query string parameter name passed to `useUrlView` for this table. Default: 'view'. */
-  paramName?: string
 }
 
 /**
@@ -98,16 +87,7 @@ export interface ResetViewOptions {
  * `useUrlView` persisted for it — pass the same `storageKey`/`paramName` given to those.
  */
 export function resetView(table: ViewStateApi, options?: ResetViewOptions): void {
-  table.setViewState({})
-  if (options?.storageKey) localStorage.removeItem(options.storageKey)
-  const paramName = options?.paramName ?? 'view'
-  const params = new URLSearchParams(window.location.search)
-  if (params.has(paramName)) {
-    params.delete(paramName)
-    const query = params.toString()
-    const url = `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash}`
-    window.history.replaceState(null, '', url)
-  }
+  resetViewCore(table, options)
 }
 
 export type UsePersistenceOptions = ResetViewOptions
