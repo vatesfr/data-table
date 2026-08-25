@@ -12,18 +12,17 @@ import {
   toggleSort as _toggleSort,
   replaceSort as _replaceSort,
   appendOrToggleSort as _appendOrToggleSort,
+  getDefaultSortDir,
   moveSortBy as _moveSortBy,
   reorderSort as _reorderSort,
   toggleSortDir as _toggleSortDir,
-  toggleFilterAll as _toggleFilterAll,
+  toggleAllFilterState,
   setFilterValues as _setFilterValues,
   cycleFilterValue as _cycleFilterValue,
   clearExcludeValues as _clearExcludeValues,
   setFilterMode as _setFilterMode,
-  selectRange,
-  isRowSelected,
   getSelectedRows,
-  toggleRowInSelection,
+  toggleSelectionShiftAware,
   toggleAllInSelection,
   reconcileSelection,
   toggleGroupBy,
@@ -81,8 +80,7 @@ export function useTableState<TRow extends object>(
   const defaultGroupsCollapsed = computed(() => options.value.defaultGroupsCollapsed ?? true)
   const getRowId = computed(() => options.value.getRowId)
 
-  const defaultSortDirFor = (key: string) =>
-    columns.value.find((c) => c.key === key)?.defaultSortDir ?? 'asc'
+  const defaultSortDirFor = (key: string) => getDefaultSortDir(columns.value, key)
 
   // shallowRef, not ref: every write below replaces the whole Set/array wholesale (never mutated
   // in place), the same "always replaced" pattern that already justifies `selection`/
@@ -287,10 +285,9 @@ export function useTableState<TRow extends object>(
         // "deselect all" branch leaves `excludeFilters` completely alone — it only clears values
         // the checkbox showed as selected, which by that same invariant can never include an
         // already-excluded value.
-        const willSelectAll = !values.some((v) => filters.value[key]?.has(v))
-        filters.value = _toggleFilterAll(filters.value, key, values)
-        if (willSelectAll)
-          excludeFilters.value = _clearExcludeValues(excludeFilters.value, key, values)
+        const next = toggleAllFilterState(filters.value, excludeFilters.value, key, values)
+        filters.value = next.filters
+        excludeFilters.value = next.excludeFilters
         page.value = 1
       },
       setValues: (key: string, values: string[], selected: boolean) => {
@@ -380,16 +377,14 @@ export function useTableState<TRow extends object>(
       all: selection,
       rows: selectedRows,
       toggle: (row: TRow, shiftKey = false) => {
-        if (shiftKey && selectionAnchor.value) {
-          const next = new Set(selection.value)
-          const shouldSelect = !isRowSelected(next, row, getRowId.value)
-          const range = selectRange(processedData.value, selectionAnchor.value, row)
-          if (shouldSelect) range.forEach((r) => next.add(r))
-          else range.forEach((r) => next.delete(r))
-          selection.value = next
-        } else {
-          selection.value = toggleRowInSelection(selection.value, row, getRowId.value)
-        }
+        selection.value = toggleSelectionShiftAware(
+          selection.value,
+          row,
+          shiftKey,
+          selectionAnchor.value,
+          processedData.value,
+          getRowId.value,
+        )
         selectionAnchor.value = row
       },
       toggleAll: (rows: TRow[]) => {

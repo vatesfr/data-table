@@ -12,18 +12,17 @@ import {
   toggleSort as _toggleSort,
   replaceSort as _replaceSort,
   appendOrToggleSort as _appendOrToggleSort,
+  getDefaultSortDir,
   moveSortBy as _moveSortBy,
   reorderSort as _reorderSort,
   toggleSortDir as _toggleSortDir,
-  toggleFilterAll as _toggleFilterAll,
+  toggleAllFilterState,
   setFilterValues as _setFilterValues,
   cycleFilterValue as _cycleFilterValue,
   clearExcludeValues as _clearExcludeValues,
   setFilterMode as _setFilterMode,
-  selectRange,
-  isRowSelected,
   getSelectedRows,
-  toggleRowInSelection,
+  toggleSelectionShiftAware,
   toggleAllInSelection,
   reconcileSelection,
   toggleGroupBy,
@@ -201,8 +200,7 @@ export function createTableState<TRow extends object>(
   const [pageSize, setPageSizeState] = createSignal(defaultPageSize ?? 0)
   const [searchQuery, setSearchQueryState] = createSignal('')
 
-  const defaultSortDirFor = (key: string) =>
-    columns().find((c) => c.key === key)?.defaultSortDir ?? 'asc'
+  const defaultSortDirFor = (key: string) => getDefaultSortDir(columns(), key)
 
   const stringValueMap = createMemo(() => computeStringValues(data(), columns(), L().emptyValue))
 
@@ -346,15 +344,9 @@ export function createTableState<TRow extends object>(
         // Only the "select all ON" branch touches excludeFilters (every listed value is about to
         // become included, and a value can't be in both sets at once) — "deselect all" only
         // clears what the checkbox actually showed as selected.
-        setFilterState((prev) => {
-          const willSelectAll = !values.some((v) => prev.filters[key]?.has(v))
-          return {
-            filters: _toggleFilterAll(prev.filters, key, values),
-            excludeFilters: willSelectAll
-              ? _clearExcludeValues(prev.excludeFilters, key, values)
-              : prev.excludeFilters,
-          }
-        })
+        setFilterState((prev) =>
+          toggleAllFilterState(prev.filters, prev.excludeFilters, key, values),
+        )
         setPageState(1)
       },
       setValues: (key: string, values: string[], selected: boolean) => {
@@ -438,18 +430,9 @@ export function createTableState<TRow extends object>(
       rows: selectedRows,
       toggle: (row: TRow, shiftKey = false) => {
         const rowId = getOptions().getRowId
-        setSelection((prev) => {
-          const anchor = selectionAnchor()
-          if (shiftKey && anchor) {
-            const next = new Set(prev)
-            const shouldSelect = !isRowSelected(next, row, rowId)
-            const range = selectRange(processedData(), anchor, row)
-            if (shouldSelect) range.forEach((r) => next.add(r))
-            else range.forEach((r) => next.delete(r))
-            return next
-          }
-          return toggleRowInSelection(prev, row, rowId)
-        })
+        setSelection((prev) =>
+          toggleSelectionShiftAware(prev, row, shiftKey, selectionAnchor(), processedData(), rowId),
+        )
         // Solid's Setter overloads can't tell `row` (typed TRow, whose `object` constraint
         // structurally overlaps Function) apart from a functional updater — the standard Solid
         // workaround is wrapping the plain value in a thunk.

@@ -1042,6 +1042,20 @@ export function selectDateRange(
 }
 
 /**
+ * Looks up `key`'s `defaultSortDir` in `columns` (default `'asc'` when the column has none, or
+ * isn't found at all) — the resolved 3rd `defaultDir` argument every `toggleSort`/`replaceSort`/
+ * `appendOrToggleSort`/`insertGroupSort` call site needs. Every adapter's `sort.toggle`/
+ * `sort.replace`/`sort.appendOrToggle`/`group.toggle` action calls this once at the call site
+ * rather than repeating the inline `columns.find(...)`.
+ */
+export function getDefaultSortDir<TRow extends object>(
+  columns: ColumnDefBase<TRow>[],
+  key: string,
+): SortDir {
+  return columns.find((c) => c.key === key)?.defaultSortDir ?? 'asc'
+}
+
+/**
  * Cycles `key`'s sort entry through `defaultDir` → its opposite → removed (default `defaultDir`:
  * `'asc'`, so `none → asc → desc → none`) — a column with `defaultSortDir: 'desc'` instead cycles
  * `none → desc → asc → none`, so its first click lands on whichever direction is actually useful
@@ -1232,6 +1246,31 @@ export function cycleFilterValue(
  * and unaware of `excludeFilters`, so a caller that also tracks exclusion calls this right
  * alongside them rather than those two growing an extra parameter each.
  */
+/**
+ * Full "select all"/"deselect all" sequence for a filter checklist's master checkbox — computes
+ * `willSelectAll` (true when none of `values` are currently included), calls `toggleFilterAll`,
+ * and — only on the select-all branch, since a value can't be in both sets at once (see
+ * `cycleFilterValue`) — clears `values` out of `excludeFilters` for `key` too via
+ * `clearExcludeValues`. The "deselect all" branch leaves `excludeFilters` untouched: it only
+ * clears what the checkbox showed as selected, which by that same invariant can never include an
+ * already-excluded value. Every adapter's `filter.toggleAll` action reduces to just this call plus
+ * applying the two returned records to its own state.
+ */
+export function toggleAllFilterState(
+  filters: Record<string, Set<string>>,
+  excludeFilters: Record<string, Set<string>>,
+  key: string,
+  values: string[],
+): { filters: Record<string, Set<string>>; excludeFilters: Record<string, Set<string>> } {
+  const willSelectAll = !values.some((v) => filters[key]?.has(v))
+  return {
+    filters: toggleFilterAll(filters, key, values),
+    excludeFilters: willSelectAll
+      ? clearExcludeValues(excludeFilters, key, values)
+      : excludeFilters,
+  }
+}
+
 export function clearExcludeValues(
   excludeFilters: Record<string, Set<string>>,
   key: string,
@@ -1406,6 +1445,34 @@ export function toggleRowInSelection<TRow>(
   }
   next.add(row)
   return next
+}
+
+/**
+ * Full `selection.toggle(row, shiftKey?)` sequence shared by every adapter: a shift-click with an
+ * existing `anchor` range-selects via `selectRange` over `processedData` (the full filtered/sorted
+ * order, not just the current page), deciding select-vs-deselect from the clicked row's own
+ * checked state before the click (`shouldSelect = !isRowSelected(...)`); anything else falls
+ * through to a plain `toggleRowInSelection`. Anchor bookkeeping is deliberately NOT done here —
+ * it's adapter-local state (a plain variable/signal/ref, not part of the public `TableState`), so
+ * each adapter sets its own anchor to `row` after calling this.
+ */
+export function toggleSelectionShiftAware<TRow extends object>(
+  selection: Set<TRow>,
+  row: TRow,
+  shiftKey: boolean | undefined,
+  anchor: TRow | null,
+  processedData: TRow[],
+  getRowId?: GetRowId<TRow>,
+): Set<TRow> {
+  if (shiftKey && anchor) {
+    const next = new Set(selection)
+    const shouldSelect = !isRowSelected(next, row, getRowId)
+    const range = selectRange(processedData, anchor, row)
+    if (shouldSelect) range.forEach((r) => next.add(r))
+    else range.forEach((r) => next.delete(r))
+    return next
+  }
+  return toggleRowInSelection(selection, row, getRowId)
 }
 
 export function toggleAllInSelection<TRow>(
