@@ -43,6 +43,8 @@ import {
   type DataTableLabels,
   type TableViewState,
   type GetRowId,
+  buildViewStateSnapshot,
+  resolveViewState,
 } from '@vates/data-table-core'
 import type { ColumnDef } from './types'
 
@@ -434,55 +436,42 @@ export function useTableState<TRow extends object>(
       searchQuery.value = ''
     },
 
-    getViewState: (): TableViewState => {
-      const view: TableViewState = {}
-      const allKeys = columns.value.map((c) => c.key)
-      const isDefaultVisible =
-        visibleCols.value.size === allKeys.length && allKeys.every((k) => visibleCols.value.has(k))
-      if (!isDefaultVisible) view.visibleCols = [...visibleCols.value]
-      if (columnOrder.value.length) view.columnOrder = columnOrder.value
-      if (sorts.value.length) view.sorts = sorts.value
-      const filterEntries = Object.entries(filters.value).filter(([, v]) => v.size > 0)
-      if (filterEntries.length)
-        view.filters = Object.fromEntries(filterEntries.map(([k, v]) => [k, [...v]]))
-      const excludeFilterEntries = Object.entries(excludeFilters.value).filter(
-        ([, v]) => v.size > 0,
-      )
-      if (excludeFilterEntries.length)
-        view.excludeFilters = Object.fromEntries(excludeFilterEntries.map(([k, v]) => [k, [...v]]))
-      if (Object.keys(filterModes.value).length) view.filterModes = filterModes.value
-      const rangeEntries = Object.entries(rangeFilters.value).filter(
-        ([, r]) => r.min !== '' || r.max !== '',
-      )
-      if (rangeEntries.length) view.rangeFilters = Object.fromEntries(rangeEntries)
-      if (groupBy.value.length) view.groupBy = groupBy.value
-      if (collapsedGroups.value.size) view.collapsedGroups = [...collapsedGroups.value]
-      if (page.value !== 1) view.page = page.value
-      if (pageSize.value !== (options.value.defaultPageSize ?? 0)) view.pageSize = pageSize.value
-      if (searchQuery.value) view.searchQuery = searchQuery.value
-      return view
-    },
+    getViewState: (): TableViewState =>
+      buildViewStateSnapshot({
+        visibleCols: visibleCols.value,
+        columnOrder: columnOrder.value,
+        sorts: sorts.value,
+        filters: filters.value,
+        excludeFilters: excludeFilters.value,
+        filterModes: filterModes.value,
+        rangeFilters: rangeFilters.value,
+        groupBy: groupBy.value,
+        collapsedGroups: collapsedGroups.value,
+        page: page.value,
+        pageSize: pageSize.value,
+        searchQuery: searchQuery.value,
+        columns: columns.value,
+        defaultPageSize: options.value.defaultPageSize,
+      }),
     setViewState: (view: TableViewState) => {
-      const validVisible = view.visibleCols?.filter((k) => columns.value.some((c) => c.key === k))
-      visibleCols.value = validVisible?.length
-        ? new Set(validVisible)
-        : new Set(options.value.defaultVisibleColumns ?? columns.value.map((c) => c.key))
-      columnOrder.value =
-        view.columnOrder?.filter((k) => columns.value.some((c) => c.key === k)) ?? []
-      sorts.value = view.sorts ?? []
-      filters.value = Object.fromEntries(
-        Object.entries(view.filters ?? {}).map(([k, v]) => [k, new Set(v)]),
+      const resolved = resolveViewState(
+        view,
+        columns.value,
+        options.value.defaultVisibleColumns,
+        options.value.defaultPageSize,
       )
-      excludeFilters.value = Object.fromEntries(
-        Object.entries(view.excludeFilters ?? {}).map(([k, v]) => [k, new Set(v)]),
-      )
-      filterModes.value = view.filterModes ?? {}
-      rangeFilters.value = view.rangeFilters ?? {}
-      groupBy.value = view.groupBy ?? []
-      collapsedGroups.value = new Set(view.collapsedGroups ?? [])
-      page.value = view.page ?? 1
-      pageSize.value = view.pageSize ?? options.value.defaultPageSize ?? 0
-      searchQuery.value = view.searchQuery ?? ''
+      visibleCols.value = resolved.visibleCols
+      columnOrder.value = resolved.columnOrder
+      sorts.value = resolved.sorts
+      filters.value = resolved.filters
+      excludeFilters.value = resolved.excludeFilters
+      filterModes.value = resolved.filterModes
+      rangeFilters.value = resolved.rangeFilters
+      groupBy.value = resolved.groupBy
+      collapsedGroups.value = resolved.collapsedGroups
+      page.value = resolved.page
+      pageSize.value = resolved.pageSize
+      searchQuery.value = resolved.searchQuery
     },
   }
 }

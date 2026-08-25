@@ -43,6 +43,8 @@ import {
   type DataTableLabels,
   type TableViewState,
   type GetRowId,
+  buildViewStateSnapshot,
+  resolveViewState,
 } from '@vates/data-table-core'
 import type { ColumnDef } from './types'
 
@@ -486,56 +488,36 @@ export function useTableState<TRow extends object>(
       setSearchQueryState('')
     },
 
-    getViewState: (): TableViewState => {
-      const view: TableViewState = {}
-      const allKeys = columns.map((c) => c.key)
-      const isDefaultVisible =
-        visibleCols.size === allKeys.length && allKeys.every((k) => visibleCols.has(k))
-      if (!isDefaultVisible) view.visibleCols = [...visibleCols]
-      if (columnOrder.length) view.columnOrder = columnOrder
-      if (sorts.length) view.sorts = sorts
-      const filterEntries = Object.entries(filters).filter(([, v]) => v.size > 0)
-      if (filterEntries.length)
-        view.filters = Object.fromEntries(filterEntries.map(([k, v]) => [k, [...v]]))
-      const excludeFilterEntries = Object.entries(excludeFilters).filter(([, v]) => v.size > 0)
-      if (excludeFilterEntries.length)
-        view.excludeFilters = Object.fromEntries(excludeFilterEntries.map(([k, v]) => [k, [...v]]))
-      if (Object.keys(filterModes).length) view.filterModes = filterModes
-      const rangeEntries = Object.entries(rangeFilters).filter(
-        ([, r]) => r.min !== '' || r.max !== '',
-      )
-      if (rangeEntries.length) view.rangeFilters = Object.fromEntries(rangeEntries)
-      if (groupBy.length) view.groupBy = groupBy
-      if (collapsedGroups.size) view.collapsedGroups = [...collapsedGroups]
-      if (page !== 1) view.page = page
-      if (pageSize !== (defaultPageSize ?? 0)) view.pageSize = pageSize
-      if (searchQuery) view.searchQuery = searchQuery
-      return view
-    },
+    getViewState: (): TableViewState =>
+      buildViewStateSnapshot({
+        visibleCols,
+        columnOrder,
+        sorts,
+        filters,
+        excludeFilters,
+        filterModes,
+        rangeFilters,
+        groupBy,
+        collapsedGroups,
+        page,
+        pageSize,
+        searchQuery,
+        columns,
+        defaultPageSize,
+      }),
     setViewState: (view: TableViewState) => {
-      const validVisible = view.visibleCols?.filter((k) => columns.some((c) => c.key === k))
-      setVisibleCols(
-        validVisible?.length
-          ? new Set(validVisible)
-          : new Set(defaultVisibleColumns ?? columns.map((c) => c.key)),
-      )
-      setColumnOrder(view.columnOrder?.filter((k) => columns.some((c) => c.key === k)) ?? [])
-      setSorts(view.sorts ?? [])
-      setFilterState({
-        filters: Object.fromEntries(
-          Object.entries(view.filters ?? {}).map(([k, v]) => [k, new Set(v)]),
-        ),
-        excludeFilters: Object.fromEntries(
-          Object.entries(view.excludeFilters ?? {}).map(([k, v]) => [k, new Set(v)]),
-        ),
-      })
-      setFilterModes(view.filterModes ?? {})
-      setRangeFilters(view.rangeFilters ?? {})
-      setGroupBy(view.groupBy ?? [])
-      setCollapsedGroups(new Set(view.collapsedGroups ?? []))
-      setPageState(view.page ?? 1)
-      setPageSizeState(view.pageSize ?? defaultPageSize ?? 0)
-      setSearchQueryState(view.searchQuery ?? '')
+      const resolved = resolveViewState(view, columns, defaultVisibleColumns, defaultPageSize)
+      setVisibleCols(resolved.visibleCols)
+      setColumnOrder(resolved.columnOrder)
+      setSorts(resolved.sorts)
+      setFilterState({ filters: resolved.filters, excludeFilters: resolved.excludeFilters })
+      setFilterModes(resolved.filterModes)
+      setRangeFilters(resolved.rangeFilters)
+      setGroupBy(resolved.groupBy)
+      setCollapsedGroups(resolved.collapsedGroups)
+      setPageState(resolved.page)
+      setPageSizeState(resolved.pageSize)
+      setSearchQueryState(resolved.searchQuery)
     },
   }
 }

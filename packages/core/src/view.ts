@@ -1,4 +1,4 @@
-import type { SortEntry, RangeFilter } from './types'
+import type { SortEntry, RangeFilter, ColumnDefBase } from './types'
 
 /**
  * Serializable snapshot of table configuration — everything a user can change through the UI
@@ -198,5 +198,132 @@ export function decodeViewState(encoded: string): TableViewState | undefined {
     return fromWire(JSON.parse(utf8Decode(base64UrlToBytes(encoded))) as WireViewState)
   } catch {
     return undefined
+  }
+}
+
+/** The bag of current plain state values `buildViewStateSnapshot` reads `getViewState()` from. */
+export interface ViewStateSnapshotInput<TRow extends object = Record<string, unknown>> {
+  visibleCols: Set<string>
+  columnOrder: string[]
+  sorts: SortEntry[]
+  filters: Record<string, Set<string>>
+  excludeFilters: Record<string, Set<string>>
+  filterModes: Record<string, 'and' | 'or'>
+  rangeFilters: Record<string, RangeFilter>
+  groupBy: string[]
+  collapsedGroups: Set<string>
+  page: number
+  pageSize: number
+  searchQuery: string
+  columns: ColumnDefBase<TRow>[]
+  defaultPageSize?: number
+}
+
+/**
+ * Builds a `TableViewState` snapshot from a bag of current plain state values, omitting any
+ * field that's already at its default — shared by every adapter's `getViewState()`.
+ */
+export function buildViewStateSnapshot<TRow extends object = Record<string, unknown>>(
+  input: ViewStateSnapshotInput<TRow>,
+): TableViewState {
+  const {
+    visibleCols,
+    columnOrder,
+    sorts,
+    filters,
+    excludeFilters,
+    filterModes,
+    rangeFilters,
+    groupBy,
+    collapsedGroups,
+    page,
+    pageSize,
+    searchQuery,
+    columns,
+    defaultPageSize,
+  } = input
+  const view: TableViewState = {}
+  const allKeys = columns.map((c) => c.key)
+  const isDefaultVisible =
+    visibleCols.size === allKeys.length && allKeys.every((k) => visibleCols.has(k))
+  if (!isDefaultVisible) view.visibleCols = [...visibleCols]
+  if (columnOrder.length) view.columnOrder = columnOrder
+  if (sorts.length) view.sorts = sorts
+  const filterEntries = Object.entries(filters).filter(([, v]) => v.size > 0)
+  if (filterEntries.length)
+    view.filters = Object.fromEntries(filterEntries.map(([k, v]) => [k, [...v]]))
+  const excludeFilterEntries = Object.entries(excludeFilters).filter(([, v]) => v.size > 0)
+  if (excludeFilterEntries.length)
+    view.excludeFilters = Object.fromEntries(excludeFilterEntries.map(([k, v]) => [k, [...v]]))
+  if (Object.keys(filterModes).length) view.filterModes = filterModes
+  const rangeEntries = Object.entries(rangeFilters).filter(([, r]) => r.min !== '' || r.max !== '')
+  if (rangeEntries.length) view.rangeFilters = Object.fromEntries(rangeEntries)
+  if (groupBy.length) view.groupBy = groupBy
+  if (collapsedGroups.size) view.collapsedGroups = [...collapsedGroups]
+  if (page !== 1) view.page = page
+  if (pageSize !== (defaultPageSize ?? 0)) view.pageSize = pageSize
+  if (searchQuery) view.searchQuery = searchQuery
+  return view
+}
+
+/** The fully-defaulted plain values `resolveViewState` produces for `setViewState(view)` to apply. */
+export interface ResolvedViewState {
+  visibleCols: Set<string>
+  columnOrder: string[]
+  sorts: SortEntry[]
+  filters: Record<string, Set<string>>
+  excludeFilters: Record<string, Set<string>>
+  filterModes: Record<string, 'and' | 'or'>
+  rangeFilters: Record<string, RangeFilter>
+  groupBy: string[]
+  collapsedGroups: Set<string>
+  page: number
+  pageSize: number
+  searchQuery: string
+}
+
+/**
+ * Resolves a partial `TableViewState` (as passed to `setViewState`) plus the current `columns`
+ * and optional `defaultVisibleColumns`/`defaultPageSize` into the fully-defaulted plain values
+ * each adapter writes back into its own state — shared by every adapter's `setViewState(view)`.
+ */
+export function resolveViewState<TRow extends object = Record<string, unknown>>(
+  view: TableViewState,
+  columns: ColumnDefBase<TRow>[],
+  defaultVisibleColumns?: string[],
+  defaultPageSize?: number,
+): ResolvedViewState {
+  const validVisible = view.visibleCols?.filter((k) => columns.some((c) => c.key === k))
+  const visibleCols = validVisible?.length
+    ? new Set(validVisible)
+    : new Set(defaultVisibleColumns ?? columns.map((c) => c.key))
+  const columnOrder = view.columnOrder?.filter((k) => columns.some((c) => c.key === k)) ?? []
+  const sorts = view.sorts ?? []
+  const filters = Object.fromEntries(
+    Object.entries(view.filters ?? {}).map(([k, v]) => [k, new Set(v)]),
+  )
+  const excludeFilters = Object.fromEntries(
+    Object.entries(view.excludeFilters ?? {}).map(([k, v]) => [k, new Set(v)]),
+  )
+  const filterModes = view.filterModes ?? {}
+  const rangeFilters = view.rangeFilters ?? {}
+  const groupBy = view.groupBy ?? []
+  const collapsedGroups = new Set(view.collapsedGroups ?? [])
+  const page = view.page ?? 1
+  const pageSize = view.pageSize ?? defaultPageSize ?? 0
+  const searchQuery = view.searchQuery ?? ''
+  return {
+    visibleCols,
+    columnOrder,
+    sorts,
+    filters,
+    excludeFilters,
+    filterModes,
+    rangeFilters,
+    groupBy,
+    collapsedGroups,
+    page,
+    pageSize,
+    searchQuery,
   }
 }
