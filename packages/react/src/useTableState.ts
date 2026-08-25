@@ -33,6 +33,7 @@ import {
   getOrderedColumns,
   reorderColumn as _reorderColumn,
   moveColumnBy as _moveColumnBy,
+  reconcileVisibleColumns,
   getSortIcon as _getSortIcon,
   getSortIndex as _getSortIndex,
   countActiveFilters,
@@ -106,21 +107,18 @@ export function useTableState<TRow extends object>(
   // override — the same reconciliation @vates/data-table-solid's own `columns.set` needed, just
   // reached here via a changed argument instead of an explicit setter call.
   const columnKeys = columns.map((c) => c.key)
-  const [prevColumnKeys, setPrevColumnKeys] = useState(columnKeys)
-  if (!sameKeySet(prevColumnKeys, columnKeys)) {
-    setPrevColumnKeys(columnKeys)
-    const prevKeySet = new Set(prevColumnKeys)
-    setVisibleCols((prevVisible) => {
-      const next = new Set<string>()
-      for (const key of columnKeys) {
-        if (prevKeySet.has(key)) {
-          if (prevVisible.has(key)) next.add(key)
-        } else {
-          next.add(key)
-        }
-      }
-      return next
-    })
+  const [prevColumns, setPrevColumns] = useState(columns)
+  if (
+    !sameKeySet(
+      prevColumns.map((c) => c.key),
+      columnKeys,
+    )
+  ) {
+    const prevColumnsForReconcile = prevColumns
+    setPrevColumns(columns)
+    setVisibleCols((prevVisible) =>
+      reconcileVisibleColumns(prevColumnsForReconcile, columns, prevVisible),
+    )
   }
 
   const [columnOrder, setColumnOrder] = useState<string[]>([])
