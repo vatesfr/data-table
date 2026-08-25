@@ -50,7 +50,6 @@ import RangeInputs from './components/RangeInputs.vue'
 import { vIndeterminate } from './directives/vIndeterminate'
 import { useDropdownReorder } from './composables/useDropdownReorder'
 import { useSelfDetectedListener } from './composables/useSelfDetectedListener'
-import { ddNavFocusables } from '@vates/data-table-core/dropdownDomUtils'
 
 const props = withDefaults(defineProps<DataTableViewInternalProps<TRow>>(), { rowKey: 'id' })
 
@@ -365,6 +364,23 @@ function ddSearchTerm(dd: string): string {
 function setDdSearchTerm(dd: string, term: string): void {
   ddSearchTerms.value = { ...ddSearchTerms.value, [dd]: term }
 }
+// `Dropdown`'s own Escape handling (see components/Dropdown.vue) clears a non-empty search term
+// before closing — this is the Columns/Sort/Group dropdowns' shared callback for that, one bound
+// instance per dropdown id since `onEscapeClearable` takes no arguments of its own. The Filter
+// dropdown needs a different callback (see filterEscapeClearable below), since it has a second,
+// per-column value search term to check too.
+function makeDdEscapeClearable(dd: string): () => boolean {
+  return () => {
+    if (ddSearchTerm(dd) !== '') {
+      setDdSearchTerm(dd, '')
+      return true
+    }
+    return false
+  }
+}
+const colsEscapeClearable = makeDdEscapeClearable('cols')
+const sortEscapeClearable = makeDdEscapeClearable('sort')
+const groupEscapeClearable = makeDdEscapeClearable('group')
 // The Columns dropdown keeps `orderedColumns`'s real table/drag order unchanged — it doubles as
 // the drag-to-reorder surface, so alphabetizing would conflict with that order's own meaning.
 const searchedOrderedColumns = computed(() => {
@@ -373,9 +389,9 @@ const searchedOrderedColumns = computed(() => {
     ? orderedColumns.value.filter((c) => c.label.toLowerCase().includes(term))
     : orderedColumns.value
 })
-// Declared here (rather than alongside its sibling colsDropdownRef/sortDropdownRef/
-// groupDropdownRef further down) because the watch right below needs it, and `<script setup>`
-// top-level consts execute in source order — referencing it before this point would hit the TDZ.
+// Declared here (rather than alongside its sibling groupDropdownRef further down) because the
+// watch right below needs it, and `<script setup>` top-level consts execute in source order —
+// referencing it before this point would hit the TDZ.
 const filterDropdownRef = ref<InstanceType<typeof Dropdown> | null>(null)
 // Snapshot of the Filter dropdown's left-pane column order, taken only at the moment the
 // dropdown opens — active-filter columns first, then the rest (see `orderFilterColumnsByActive`'s
@@ -850,8 +866,8 @@ function onRemoveGroupClick(key: string): Promise<void> {
 // template — Vue's keyed reconciliation keeps that same <button> in place across the re-render,
 // so it needs no explicit refocus at all, unlike this one), so opening the dropdown straight to
 // it is the most useful available action. `groupDropdownRef` is read from plain script here (not
-// a template expression), so — unlike the inline `@keydown` handlers wired directly in the
-// template — `.value` is needed (see the comment on onDropdownKeydown's own `dropdown` param).
+// a template expression), so `.value` is needed, unlike a template expression referencing the
+// same top-level ref, which Vue's `<script setup>` compiler auto-unwraps.
 function onOpenGroupEntry(key: string): Promise<void> {
   return activateAndFocus(() => groupDropdownRef.value?.open(), groupRowRefs, key)
 }
@@ -933,95 +949,33 @@ function clearSearchQuery(): void {
 }
 
 // ── Dropdown column search + keyboard navigation ──
-// Refs to each dropdown's own component instance, so Escape (see onDropdownKeydown below) can
-// close it and refocus its trigger button without hoisting `isOpen` out of Dropdown.vue itself.
-const colsDropdownRef = ref<InstanceType<typeof Dropdown> | null>(null)
-const sortDropdownRef = ref<InstanceType<typeof Dropdown> | null>(null)
+// Escape (clear a non-empty column-search term first, then close on a second press) and the
+// roving Up/Down/Home/End row-list nav are both now owned by Dropdown.vue itself (see its own
+// `onEscapeClearable`/`rowSelector`/`navRoot` props) — this file only supplies each dropdown's own
+// escape-clear callback (colsEscapeClearable/sortEscapeClearable/groupEscapeClearable above,
+// filterEscapeClearable below) and, for the Filter dropdown only, the extra pane-crossing nav
+// that Dropdown's own generic base nav doesn't cover (see onFilterDropdownKeydown below).
+// `groupDropdownRef`'s own component instance is still needed here — not for Escape/nav anymore,
+// but for the active-bar group chip's "open straight to this entry" action (onOpenGroupEntry).
 const groupDropdownRef = ref<InstanceType<typeof Dropdown> | null>(null)
 // filterDropdownRef itself is declared much earlier (see the filterColOrderKeys watch above) —
-// this comment marks where it'd otherwise sit, alongside its siblings above.
+// this comment marks where it'd otherwise sit, alongside its sibling above.
 
-// The row-list selector shared by the Columns/Sort/Group dropdowns and the Filter dropdown's own
-// left column pane. `button.dt__dd-item--clickable` (not just `.dt__dd-item--clickable`) is
-// deliberately tag-scoped — that class is also used by the Columns row's inner <label> and by the
-// Filter value-checklist's row <label>s, both of which must NOT be swept up here: the Columns
-// checkbox is already reached via `.dt__dd-item--colrow`'s own descendant lookup below, and the
-// checklist has its own separate, differently-scoped nav in onFilterDropdownKeydown.
-const DD_ROW_SELECTOR =
-  '.dt__dd-item--colrow, .dt__dd-item--sortrow, .dt__dd-item--grouprow, button.dt__dd-item--clickable, .dt__filter-col-item'
-
-/**
- * Roving Up/Down/Home/End across a dropdown row list (search input + rows), in actual DOM/visual
- * order — not the search input pinned to the front, which would misorder Sort/Group (whose
- * active-entries section renders *above* the search box: active → search → addable, not
- * "search → active → addable"). Returns whether it handled (and preventDefault'd) the key.
- */
-function handleRovingListKeydown(event: KeyboardEvent, root: HTMLElement): boolean {
-  if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return false
-  // `ddNavFocusables` (core's `dropdownDomUtils`) resolves each matched element down to its own
-  // focusable target: the search input, a real <button>, or an explicit tabindex="0" div is used
-  // directly (sortrow/grouprow/add-buttons/filter-col buttons); a colrow div has neither (its
-  // checkbox is the actual Tab stop) so its first focusable descendant is used instead.
-  const all = ddNavFocusables(root, `input[data-dd-search], ${DD_ROW_SELECTOR}`)
-  const rows = all.filter((el) => !el.hasAttribute('data-dd-search'))
-  const active = document.activeElement as HTMLElement | null
-  if (!active || all.indexOf(active) === -1) return false
-  let target: HTMLElement | undefined
-  if (event.key === 'Home' || event.key === 'End') {
-    if (rows.length === 0) return false
-    target = event.key === 'Home' ? rows[0] : rows[rows.length - 1]
-  } else {
-    const idx = all.indexOf(active)
-    const nextIdx = event.key === 'ArrowDown' ? idx + 1 : idx - 1
-    if (nextIdx < 0 || nextIdx >= all.length) return false
-    target = all[nextIdx]
+// The Filter dropdown's own Escape callback: unlike Columns/Sort/Group (a single column-search
+// term), it has a second, per-column value-search term to check too — see filterSearchTerms.
+function filterEscapeClearable(): boolean {
+  if (ddSearchTerm('filter') !== '') {
+    setDdSearchTerm('filter', '')
+    return true
   }
-  event.preventDefault()
-  // If `target` is a `.dt__filter-col-item`, focusing it fires `onFilterColFocus` (bound in the
-  // template), which is what actually shows its detail pane — see the comment there.
-  target.focus()
-  return true
-}
-
-/**
- * Escape (clear a non-empty column-search term first, then close on a second press) + the roving
- * row-list nav above, shared by the Columns/Sort/Group dropdowns' panels and — via
- * onFilterDropdownKeydown below — the Filter dropdown's own left column pane.
- */
-function onDropdownKeydown(
-  dd: string,
-  // Note: no `.value` here — this is called from an inline template handler
-  // (`(e) => onDropdownKeydown('cols', colsDropdownRef, e)`), and Vue's <script setup> template
-  // compiler auto-unwraps a top-level ref referenced in the template, so what actually arrives
-  // here is already the Dropdown instance (or null), not the Ref wrapper around it.
-  dropdown: InstanceType<typeof Dropdown> | null,
-  event: KeyboardEvent,
-): void {
-  if (event.altKey) return
-  const menu = event.currentTarget as HTMLElement
-  if (event.key === 'Escape') {
-    event.preventDefault()
-    if (ddSearchTerm(dd) !== '') {
-      setDdSearchTerm(dd, '')
-      return
+  if (filterDetailCol.value) {
+    const valueSearchTerm = filterSearchTerms.value[filterDetailCol.value.key] ?? ''
+    if (valueSearchTerm !== '') {
+      setFilterSearchTerm(filterDetailCol.value.key, '')
+      return true
     }
-    if (dd === 'filter' && filterDetailCol.value) {
-      const valueSearchTerm = filterSearchTerms.value[filterDetailCol.value.key] ?? ''
-      if (valueSearchTerm !== '') {
-        setFilterSearchTerm(filterDetailCol.value.key, '')
-        return
-      }
-    }
-    dropdown?.close()
-    dropdown?.focusTrigger()
-    return
   }
-  // The Filter dropdown's left pane lives inside a bigger panel that also contains the right
-  // detail pane — scope the row query to just `.dt__filter-cols` so `DD_ROW_SELECTOR` (which
-  // includes `.dt__filter-col-item`) can't also sweep up anything from the right pane.
-  const root =
-    dd === 'filter' ? (menu.querySelector<HTMLElement>('.dt__filter-cols') ?? menu) : menu
-  handleRovingListKeydown(event, root)
+  return false
 }
 
 const FILTER_LIST_VIRTUAL_ITEM_HEIGHT = FILTER_LIST_ITEM_HEIGHT
@@ -1029,11 +983,14 @@ const FILTER_LIST_VIRTUAL_ITEM_HEIGHT = FILTER_LIST_ITEM_HEIGHT
 /**
  * Filter dropdown only: Left/Right crosses between the left column pane and the right detail
  * pane, and the right pane's own rows (value checklist / date tree) get the same Up/Down/Home/End
- * nav as every other dropdown's row list. Falls through to onDropdownKeydown (Escape + the left
- * pane's own roving nav) for everything this doesn't handle itself.
+ * nav as every other dropdown's row list. This is layered on top of Dropdown.vue's own generic
+ * Escape/base-nav handling (wired via its `on-escape-clearable`/`nav-root` props on the Filter
+ * `<Dropdown>` below), not a replacement for it — the generic nav is scoped to `.dt__filter-cols`
+ * (the left pane only, via `nav-root`), so it never conflicts with the right-pane handling here.
  */
 async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
-  if (!event.altKey) {
+  if (event.altKey) return
+  {
     const targetEl = event.target as HTMLElement
     const filterColBtn = targetEl.closest<HTMLElement>('.dt__filter-col-item')
     const filterDetail = targetEl.closest<HTMLElement>('.dt__filter-detail')
@@ -1167,10 +1124,6 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
       return
     }
   }
-  // Called from plain script (not a template expression), so — unlike the inline template
-  // handlers wired to onDropdownKeydown directly (`(e) => onDropdownKeydown('cols', ...)`, where
-  // Vue's <script setup> auto-unwrap already resolves the ref) — `.value` is needed here.
-  onDropdownKeydown('filter', filterDropdownRef.value, event)
 }
 </script>
 
@@ -1181,10 +1134,9 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
       <div class="dt__toolbar-actions">
         <!-- Columns -->
         <Dropdown
-          ref="colsDropdownRef"
           @dragover="onColRowsDragOver"
           @drop="onColRowsDrop"
-          @keydown="(e: KeyboardEvent) => onDropdownKeydown('cols', colsDropdownRef, e)"
+          :on-escape-clearable="colsEscapeClearable"
         >
           <template #trigger="{ open }">
             <ToolbarBtn :active="open">{{ L.columns }}</ToolbarBtn>
@@ -1246,7 +1198,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
           ref="groupDropdownRef"
           @dragover="onGroupRowsDragOver"
           @drop="onGroupRowsDrop"
-          @keydown="(e: KeyboardEvent) => onDropdownKeydown('group', groupDropdownRef, e)"
+          :on-escape-clearable="groupEscapeClearable"
         >
           <template #trigger="{ open }">
             <ToolbarBtn :active="open || groupBy.length > 0" :grouped="groupBy.length > 0">
@@ -1331,10 +1283,9 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
 
         <!-- Sort -->
         <Dropdown
-          ref="sortDropdownRef"
           @dragover="onSortRowsDragOver"
           @drop="onSortRowsDrop"
-          @keydown="(e: KeyboardEvent) => onDropdownKeydown('sort', sortDropdownRef, e)"
+          :on-escape-clearable="sortEscapeClearable"
         >
           <template #trigger="{ open }">
             <ToolbarBtn :active="open || sorts.length > 0" :grouped="sorts.length > 0">
@@ -1503,6 +1454,8 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
           v-if="filterableCols.length > 0"
           ref="filterDropdownRef"
           @keydown="onFilterDropdownKeydown"
+          :on-escape-clearable="filterEscapeClearable"
+          nav-root=".dt__filter-cols"
         >
           <template #trigger="{ open }">
             <ToolbarBtn :active="open || activeFilterCount > 0" :grouped="activeFilterCount > 0">
