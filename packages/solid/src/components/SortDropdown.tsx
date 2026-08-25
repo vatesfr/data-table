@@ -1,10 +1,14 @@
 import { For, Show, createMemo, createSignal } from 'solid-js'
-import { getSortIcon, getSortIndex, type SortEntry } from '@vates/data-table-core'
+import {
+  alphabetizedByLabel,
+  getSortIcon,
+  getSortIndex,
+  type SortEntry,
+} from '@vates/data-table-core'
 import type { TableState } from '../createTableState'
 import type { ColumnDef } from '../types'
 import { Dropdown } from './Dropdown'
 import { createDragReorder } from './dragReorder'
-import { alphabetizedByLabel } from './alphabetizedByLabel'
 
 interface SortDropdownProps<TRow extends object> {
   table: TableState<TRow>

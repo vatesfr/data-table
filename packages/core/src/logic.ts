@@ -812,6 +812,17 @@ export function summarizeFilterValues(
 }
 
 /**
+ * Narrows `cols` by label substring (case-insensitive), then alphabetizes — the shared tail of
+ * the Sort/Group dropdowns' own `addableCols` (each additionally filters out columns already
+ * active in the sort/group before this runs, which is why that part stays separate).
+ */
+export function alphabetizedByLabel<T extends { label: string }>(cols: T[], term: string): T[] {
+  const t = term.trim().toLowerCase()
+  const list = t ? cols.filter((c) => c.label.toLowerCase().includes(t)) : cols
+  return list.slice().sort((a, b) => a.label.localeCompare(b.label))
+}
+
+/**
  * Numeric bounds of a column's actual values across `data` — the slider's own `min`/`max`, so it
  * always spans exactly what's in the dataset. Deliberately computed from the full, unfiltered
  * `data` rather than `processedData`, so the slider's own range doesn't shrink out from under a
@@ -836,6 +847,41 @@ export function computeValueBounds<TRow extends object>(
     if (t > max) max = t
   }
   return min <= max ? { min, max } : null
+}
+
+/** Converts a bound (epoch ms for `type: 'date'`, a plain number otherwise) back into the string
+ * shape `RangeFilter.min`/`.max` expects. Shared by the range slider's thumb commit and the plain
+ * min/max inputs' default-to-bounds display — both consumers of a column's numeric/date bounds,
+ * so they'd otherwise drift out of sync with each other. */
+export function formatRangeBound<TRow extends object>(n: number, col: ColumnDefBase<TRow>): string {
+  return col.type === 'date' ? new Date(n).toISOString().slice(0, 10) : String(n)
+}
+
+/**
+ * Pure numeric derivation for the "2 inputs + a slider" range control: given the currently active
+ * `range` filter (if any) and the column's data `bounds`, resolves the slider's own `low`/`high`
+ * thumb positions (already sorted — `range.min`/`.max` empty strings fall back to `bounds`),
+ * `step` (one day in ms for a date column, `'any'` otherwise), and each thumb's fill percentage
+ * along the track. Callers are expected to only invoke this when `bounds` is non-degenerate
+ * (`bounds.min < bounds.max`) — a zero-span `bounds` falls back to `pctLo`/`pctHi` of `0` rather
+ * than dividing by zero, but this case shouldn't arise in practice since every adapter hides the
+ * slider entirely when the column has no real range to show.
+ */
+export function computeRangeSliderGeometry(
+  range: RangeFilter | undefined,
+  bounds: { min: number; max: number },
+  isDate: boolean,
+): { low: number; high: number; step: number | 'any'; pctLo: number; pctHi: number } {
+  const toNum = (v: string) => (isDate ? new Date(v).getTime() : Number(v))
+  const rawLow = range?.min ? toNum(range.min) : bounds.min
+  const rawHigh = range?.max ? toNum(range.max) : bounds.max
+  const low = Math.min(rawLow, rawHigh)
+  const high = Math.max(rawLow, rawHigh)
+  const step = isDate ? 24 * 60 * 60 * 1000 : 'any'
+  const span = bounds.max - bounds.min
+  const pctLo = span ? ((low - bounds.min) / span) * 100 : 0
+  const pctHi = span ? ((high - bounds.min) / span) * 100 : 0
+  return { low, high, step, pctLo, pctHi }
 }
 
 /**
@@ -978,6 +1024,19 @@ export function computeDateTree(
   if (invalid.length > 0)
     nodes.push({ key: emptyLabel, path: emptyLabel, values: invalid, children: [] })
   return nodes
+}
+
+/**
+ * Depth-based label for a date-tree node (see `computeDateTree`): year nodes (depth 0) and day
+ * nodes (depth 2) render as plain (non-zero-padded) numbers, month nodes (depth 1) as a localized
+ * long month name ("May", not "05"). A non-numeric key (the `emptyLabel` leaf for unparseable
+ * values, which sits at depth 0) is left as its raw key rather than coerced through `Number`.
+ */
+export function formatDateTreeLabel(key: string, depth: number): string {
+  if (depth === 1)
+    return new Date(2000, Number(key) - 1, 1).toLocaleDateString(undefined, { month: 'long' })
+  if ((depth === 0 || depth === 2) && /^\d+$/.test(key)) return String(Number(key))
+  return key
 }
 
 /** Checked/unchecked/indeterminate state of a date-tree node given the column's currently selected filter values. */

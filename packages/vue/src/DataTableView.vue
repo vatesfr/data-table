@@ -9,6 +9,8 @@ import {
   filterValuesByCount,
   filterValuesByRange,
   computeValueBounds,
+  computeRangeSliderGeometry,
+  formatRangeBound,
   sortFilterValues,
   cycleValueSort,
   toggleSortDir as toggleValueSortDir,
@@ -33,6 +35,7 @@ import {
   columnHasActiveFilter,
   orderFilterColumnsByActive,
   applyColumnOrderSnapshot,
+  alphabetizedByLabel,
   type PagedGroup,
   type DateTreeNode,
   type ValueSort,
@@ -361,15 +364,6 @@ function ddSearchTerm(dd: string): string {
 function setDdSearchTerm(dd: string, term: string): void {
   ddSearchTerms.value = { ...ddSearchTerms.value, [dd]: term }
 }
-// Narrows `cols` by label substring (case-insensitive), then alphabetizes — the shared shape of
-// the Filter dropdown's left pane and Sort/Group's addable lists below, none of which have any
-// existing order of their own worth preserving (unlike the Columns dropdown's own
-// searchedOrderedColumns above, which keeps its real table/drag order for exactly that reason).
-function alphabetizedByLabel<T extends { label: string }>(cols: T[], term: string): T[] {
-  const t = term.trim().toLowerCase()
-  const list = t ? cols.filter((c) => c.label.toLowerCase().includes(t)) : cols
-  return list.slice().sort((a, b) => a.label.localeCompare(b.label))
-}
 // The Columns dropdown keeps `orderedColumns`'s real table/drag order unchanged — it doubles as
 // the drag-to-reorder surface, so alphabetizing would conflict with that order's own meaning.
 const searchedOrderedColumns = computed(() => {
@@ -523,12 +517,6 @@ function countFor(col: ColumnDef<TRow>, value: string): number {
 // just because some other filter narrowed the row set. null when the column has no parseable
 // values at all, or all its values are identical (nothing to bound a slider to) — callers hide
 // the slider in that case, the two plain min/max inputs above it keep working regardless.
-// Formats a bound (epoch ms for a date column, a plain number otherwise) back into the string
-// shape `RangeFilter.min`/`.max` uses — shared by the slider's onChange and the plain min/max
-// inputs' own data-derived default value.
-function formatRangeBound(n: number, col: ColumnDef<TRow>): string {
-  return col.type === 'date' ? new Date(n).toISOString().slice(0, 10) : String(n)
-}
 // Single memoized source for filterDetailCol's own data bounds, shared by the slider config below
 // and by the plain min/max inputs' own default value — filterDetailCol changes identity whenever
 // the active column switches, so this recomputes exactly when needed and no more.
@@ -556,17 +544,8 @@ function rangeSliderFor(
 ): { min: number; max: number; low: number; high: number; step: number | 'any' } | null {
   if (!bounds || bounds.min >= bounds.max) return null
   const rf = rangeFilters.value[col.key]
-  const isDate = col.type === 'date'
-  const toNum = (v: string) => (isDate ? new Date(v).getTime() : Number(v))
-  const low = rf?.min ? toNum(rf.min) : bounds.min
-  const high = rf?.max ? toNum(rf.max) : bounds.max
-  return {
-    min: bounds.min,
-    max: bounds.max,
-    low: Math.min(low, high),
-    high: Math.max(low, high),
-    step: isDate ? 24 * 60 * 60 * 1000 : 'any',
-  }
+  const geo = computeRangeSliderGeometry(rf, bounds, col.type === 'date')
+  return { min: bounds.min, max: bounds.max, low: geo.low, high: geo.high, step: geo.step }
 }
 // Single memoized source for filterDetailCol's own slider config, mirroring filterDetailValues
 // below — filterDetailCol changes identity whenever the active column switches, so this

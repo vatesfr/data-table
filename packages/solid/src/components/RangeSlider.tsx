@@ -1,7 +1,10 @@
 import { Show } from 'solid-js'
-import type { RangeFilter } from '@vates/data-table-core'
+import {
+  computeRangeSliderGeometry,
+  formatRangeBound,
+  type RangeFilter,
+} from '@vates/data-table-core'
 import type { ColumnDef } from '../types'
-import { formatRangeBound } from './formatRangeBound'
 
 interface RangeSliderProps<TRow extends object> {
   col: ColumnDef<TRow>
@@ -29,18 +32,13 @@ interface RangeSliderProps<TRow extends object> {
 // evaluated once at setup time would freeze on whatever the first column's bounds happened to be.
 export function RangeSlider<TRow extends object>(props: RangeSliderProps<TRow>) {
   const isDate = () => props.col.type === 'date'
-  const toNum = (v: string) => (isDate() ? new Date(v).getTime() : Number(v))
-  const low = () =>
-    props.rangeFilter?.min ? toNum(props.rangeFilter.min) : (props.bounds?.min ?? 0)
-  const high = () =>
-    props.rangeFilter?.max ? toNum(props.rangeFilter.max) : (props.bounds?.max ?? 0)
-  const lo = () => Math.min(low(), high())
-  const hi = () => Math.max(low(), high())
+  const geo = () =>
+    computeRangeSliderGeometry(props.rangeFilter, props.bounds ?? { min: 0, max: 0 }, isDate())
+  const lo = () => geo().low
+  const hi = () => geo().high
   const step = () => (isDate() ? String(24 * 60 * 60 * 1000) : 'any')
-  const pctLo = () =>
-    props.bounds ? ((lo() - props.bounds.min) / (props.bounds.max - props.bounds.min)) * 100 : 0
-  const pctHi = () =>
-    props.bounds ? ((hi() - props.bounds.min) / (props.bounds.max - props.bounds.min)) * 100 : 0
+  const pctLo = () => geo().pctLo
+  const pctHi = () => geo().pctHi
 
   let thumbA: HTMLInputElement | undefined
   let thumbB: HTMLInputElement | undefined

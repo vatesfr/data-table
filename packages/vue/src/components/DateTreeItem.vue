@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import {
+  formatDateTreeLabel,
   getDateTreeNodeState,
   sumDateTreeNodeCount,
   type DateTreeNode,
@@ -33,10 +34,7 @@ function isExpanded(node: DateTreeNode): boolean {
 }
 
 function label(node: DateTreeNode): string {
-  if (props.depth === 1)
-    return new Date(2000, Number(node.key) - 1, 1).toLocaleDateString(undefined, { month: 'long' })
-  if (props.depth === 2) return String(Number(node.key))
-  return node.key
+  return formatDateTreeLabel(node.key, props.depth)
 }
 </script>
 

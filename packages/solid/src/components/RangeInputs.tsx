@@ -1,6 +1,5 @@
-import type { RangeFilter } from '@vates/data-table-core'
+import { formatRangeBound, type RangeFilter } from '@vates/data-table-core'
 import type { ColumnDef } from '../types'
-import { formatRangeBound } from './formatRangeBound'
 import { RangeSlider } from './RangeSlider'
 
 interface RangeInputsProps<TRow extends object> {

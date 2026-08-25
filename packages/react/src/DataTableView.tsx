@@ -16,6 +16,10 @@ import {
   filterValuesByCount,
   filterValuesByRange,
   computeValueBounds,
+  computeRangeSliderGeometry,
+  formatRangeBound,
+  alphabetizedByLabel,
+  formatDateTreeLabel,
   sortFilterValues,
   cycleValueSort,
   toggleSortDir as toggleValueSortDir,
@@ -570,13 +574,6 @@ function asRecord(row: object): Record<string, unknown> {
   return row as Record<string, unknown>
 }
 
-/** Formats a bound (epoch ms for a date column, a plain number otherwise) back into the string
- * shape `RangeFilter.min`/`.max` uses — shared by the slider's onChange and the plain min/max
- * inputs' own data-derived default value. */
-function formatRangeBound(n: number, col: { type?: string }): string {
-  return col.type === 'date' ? new Date(n).toISOString().slice(0, 10) : String(n)
-}
-
 /**
  * Consumes a pending-focus ref (see the `pendingSortFocusKey`/`pendingGroupFocusKey`/
  * `pendingFilterColFocusKey` refs below) and focuses whichever element under `root` carries a
@@ -649,12 +646,16 @@ function RangeSlider({
   low,
   high,
   step,
+  pctLo,
+  pctHi,
   onChange,
 }: {
   bounds: { min: number; max: number }
   low: number
   high: number
   step: number | 'any'
+  pctLo: number
+  pctHi: number
   onChange: (low: number, high: number) => void
 }) {
   useEffect(() => {
@@ -662,8 +663,6 @@ function RangeSlider({
   }, [])
   const handleThumb = (raw: number, other: number) =>
     onChange(Math.min(raw, other), Math.max(raw, other))
-  const pctLo = ((low - bounds.min) / (bounds.max - bounds.min)) * 100
-  const pctHi = ((high - bounds.min) / (bounds.max - bounds.min)) * 100
   const thumbStyle: CSSProperties = {
     position: 'absolute',
     left: 0,
@@ -1106,12 +1105,8 @@ export function DataTableView<TRow extends object>({
     return t ? cols.filter((c) => c.label.toLowerCase().includes(t)) : cols
   }
   const searchedOrderedColumns = searchCols(orderedColumns, ddSearchTerms.cols ?? '')
-  const searchedAddableSortCols = searchCols(addableSortCols, ddSearchTerms.sort ?? '')
-    .slice()
-    .sort((a, b) => a.label.localeCompare(b.label))
-  const searchedAddableGroupCols = searchCols(addableGroupCols, ddSearchTerms.group ?? '')
-    .slice()
-    .sort((a, b) => a.label.localeCompare(b.label))
+  const searchedAddableSortCols = alphabetizedByLabel(addableSortCols, ddSearchTerms.sort ?? '')
+  const searchedAddableGroupCols = alphabetizedByLabel(addableGroupCols, ddSearchTerms.group ?? '')
   // Snapshot of the left pane's column order, taken only at the moment the Filter dropdown opens
   // — active-filter columns first, then the rest (see `orderFilterColumnsByActive`'s own doc
   // comment, core, for why this is a snapshot rather than a live sort: reordering while a filter
@@ -1171,16 +1166,15 @@ export function DataTableView<TRow extends object>({
   ) => {
     if (!bounds || bounds.min >= bounds.max) return null
     const rf = rangeFilters[col.key]
-    const isDate = col.type === 'date'
-    const toNum = (v: string) => (isDate ? new Date(v).getTime() : Number(v))
-    const low = rf?.min ? toNum(rf.min) : bounds.min
-    const high = rf?.max ? toNum(rf.max) : bounds.max
+    const geo = computeRangeSliderGeometry(rf, bounds, col.type === 'date')
     return (
       <RangeSlider
         bounds={bounds}
-        low={Math.min(low, high)}
-        high={Math.max(low, high)}
-        step={isDate ? 24 * 60 * 60 * 1000 : 'any'}
+        low={geo.low}
+        high={geo.high}
+        step={geo.step}
+        pctLo={geo.pctLo}
+        pctHi={geo.pctHi}
         onChange={(lo, hi) => {
           setRangeFilter(col.key, 'min', formatRangeBound(lo, col))
           setRangeFilter(col.key, 'max', formatRangeBound(hi, col))
@@ -1520,9 +1514,6 @@ export function DataTableView<TRow extends object>({
       else next.add(path)
       return { ...prev, [colKey]: next }
     })
-  const monthName = (m: string) =>
-    new Date(2000, Number(m) - 1, 1).toLocaleDateString(undefined, { month: 'long' })
-
   const renderDateTreeNodes = (
     nodes: DateTreeNode[],
     colKey: string,
@@ -1534,8 +1525,7 @@ export function DataTableView<TRow extends object>({
       const state = getDateTreeNodeState(node, filters[colKey] ?? new Set())
       const isLeaf = node.children.length === 0
       const expanded = isDateNodeExpanded(colKey, node.path, searchActive)
-      const label =
-        depth === 1 ? monthName(node.key) : depth === 2 ? String(Number(node.key)) : node.key
+      const label = formatDateTreeLabel(node.key, depth)
       return (
         <div key={node.path}>
           <label style={{ ...S.ddItem, paddingLeft: 14 + depth * 16 }}>

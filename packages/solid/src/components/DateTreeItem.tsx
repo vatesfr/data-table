@@ -1,5 +1,6 @@
 import { For, Show, createEffect } from 'solid-js'
 import {
+  formatDateTreeLabel,
   getDateTreeNodeState,
   sumDateTreeNodeCount,
   type DateTreeNode,
@@ -21,9 +22,6 @@ interface DateTreeItemProps {
   onToggleNode: (node: DateTreeNode, shiftKey: boolean) => void
 }
 
-const monthName = (m: string): string =>
-  new Date(2000, Number(m) - 1, 1).toLocaleDateString(undefined, { month: 'long' })
-
 // Recursive Year › Month › Day tree node (see CLAUDE.md's date-tree section). Self-imports for
 // recursion — mirrors vue/components/DateTreeItem.vue's own self-import pattern (safer than
 // filename-based self-reference across build setups).
@@ -36,12 +34,7 @@ export function DateTreeItem(props: DateTreeItemProps) {
   // long month name ("May", not "05"); day nodes (depth 2) as a plain (non-zero-padded) number —
   // matches the old vanilla renderer's own depth-based formatting. Anything deeper, or a
   // non-numeric key (the emptyLabel leaf for unparseable values), is left as its raw key.
-  const label = () => {
-    const key = props.node.key
-    if (props.depth === 1) return monthName(key)
-    if ((props.depth === 0 || props.depth === 2) && /^\d+$/.test(key)) return String(Number(key))
-    return key
-  }
+  const label = () => formatDateTreeLabel(props.node.key, props.depth)
 
   // `.indeterminate` has no JSX/attribute equivalent — it's a DOM-only imperative property, so
   // it needs an effect re-applying it whenever `state()` changes, not a one-shot ref callback
