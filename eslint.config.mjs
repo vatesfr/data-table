@@ -34,4 +34,19 @@ export default tseslint.config(
     files: ['packages/vanilla/**/*.tsx', 'packages/solid/**/*.tsx'],
     rules: { 'no-unassigned-vars': 'off' },
   },
+  // `@vates/data-table-core` (and its sub-paths) is internal-only, shared between the adapter
+  // packages themselves — a consumer of `@vates/data-table-react`/`-vue`/`-solid`/`-vanilla`
+  // should never need to import core directly (see packages/core/README.md's "Public API
+  // surface"). Demo apps are written the same way a real consumer would use these packages, so
+  // this catches a demo regressing back to a direct core import (as `demo/react`/`demo/vue`
+  // used to for `renderThemeCss`, before each adapter grew its own `/theme` re-export).
+  {
+    files: ['demo/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        { patterns: [{ group: ['@vates/data-table-core', '@vates/data-table-core/*'] }] },
+      ],
+    },
+  },
 )
