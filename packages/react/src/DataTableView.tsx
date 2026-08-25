@@ -1565,8 +1565,12 @@ export function DataTableView<TRow extends object>({
                 const anchorNode =
                   anchor != null ? findDateTreeNode(filterDetailTree, anchor) : null
                 if (e.shiftKey && anchorNode) {
+                  const shouldSelect = state !== 'checked'
                   const values = selectDateRange(filterDetailValues, anchorNode, node, parseDate)
-                  setFilterValues(colKey, values, state !== 'checked')
+                  setFilterValues(colKey, values, shouldSelect)
+                  // Same "only clear exclusions when selecting" guard as the flat checklist's
+                  // shift-click handler above.
+                  if (shouldSelect) clearExcludeValues(colKey, values)
                 } else {
                   toggleFilterAll(colKey, node.values)
                 }

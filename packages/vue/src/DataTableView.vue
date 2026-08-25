@@ -312,10 +312,11 @@ function handleKeyDown(event: KeyboardEvent, target: VisibleItem<TRow>): void {
       }
       break
     case 'Enter':
-      event.preventDefault()
       if (target.kind === 'group') {
+        event.preventDefault()
         toggleGroupCollapse(target.key)
-      } else {
+      } else if (isRowClickable.value) {
+        event.preventDefault()
         handleRowClick(target.row, event)
       }
       break
@@ -687,8 +688,12 @@ function onDateNodeClick(col: ColumnDef<TRow>, node: DateTreeNode, event: MouseE
   const anchorNode = anchor != null ? findDateTreeNode(filterDetailTree.value, anchor) : null
   const state = getDateTreeNodeState(node, filters.value[key] ?? new Set())
   if (event.shiftKey && anchorNode) {
+    const shouldSelect = state !== 'checked'
     const values = selectDateRange(filteredValuesFor(col), anchorNode, node, col.parseDate)
-    setFilterValues(key, values, state !== 'checked')
+    setFilterValues(key, values, shouldSelect)
+    // Shift-range selection stays include-only (see the docs) — clear the swept range out of the
+    // exclude set too, so a previously-excluded value doesn't end up in both.
+    if (shouldSelect) clearExcludeValues(key, values)
   } else {
     toggleFilterAll(key, node.values)
   }
