@@ -879,7 +879,7 @@ export function sortFilterValues(
   values: string[],
   counts: Map<string, number>,
   sort: ValueSort,
-  compare: (a: string, b: string, dir: SortDir) => number = (a, b) => a.localeCompare(b),
+  compare: (a: string, b: string, dir: SortDir) => number = defaultCompare,
 ): string[] {
   return [...values].sort((a, b) => {
     if (sort.by === 'count') {
