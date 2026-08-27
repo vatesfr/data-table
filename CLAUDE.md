@@ -10,6 +10,14 @@ Do not re-read a file that was already read in the current session unless it may
 
 When there are multiple valid approaches to a request, present the options and trade-offs first and wait for a choice before starting implementation.
 
+For non-trivial changes (multiple files, non-obvious design decisions, refactors), outline a brief plan and get confirmation before implementing. Trivial/obvious edits can proceed directly.
+
+When asked a question, answer it — don't jump straight to implementing. Stay in scope: only make the changes asked for, and flag other issues noticed rather than fixing them unprompted.
+
+Match the existing code style and conventions in the file/project rather than imposing personal preference; don't reformat unrelated code. Ask before adding a new dependency; prefer what's already in use.
+
+Suggest relevant Claude Code plugins, skills, or agents when they'd help with the task at hand.
+
 ## Git workflow
 
 - Make commits atomic: each commit should represent one logical change and pass tests on its own.
@@ -17,6 +25,8 @@ When there are multiple valid approaches to a request, present the options and t
 - If a commit fixes a bug reported in a GitHub issue, include a closing keyword (e.g. `Fixes #N` / `Closes #N`) in the commit body. If the issue number isn't known, ask before committing rather than omitting it.
 - Only create a dedicated branch and close it with a merge commit when a feature's development required multiple commits; otherwise commit directly to `main`.
 - While iterating on a commit (or run of commits) that hasn't been pushed yet, don't stack a new commit for each round of fixes/review feedback — amend the existing commit, or squash (`git reset --soft <parent>`, then recommit) if several unpushed commits already cover the same feature. Unpushed history isn't shared, so there's no cost to rewriting it, and it keeps history to one clean commit per logical feature instead of a string of "fix review comment" commits nobody outside the session ever saw individually. Once a commit is pushed, treat it as shared and stop rewriting it — go back to a normal atomic commit per logical change.
+- Only commit or push when explicitly asked to.
+- Never commit secrets, credentials, API keys, or `.env` values.
 
 ## Commands
 
@@ -37,10 +47,12 @@ npm run bench -w packages/core   # run core logic benchmarks at 10k/100k/500k ro
 After implementing any new feature:
 
 1. Review existing tests to see if they need updating; add new tests if the feature isn't covered.
-2. Run `npm run test` to verify nothing regressed.
+2. Run `npm run test` to verify nothing regressed — report actual results, not assumptions.
 3. Run `npm run type-check` to verify no type errors.
 4. Update the demos (`demo/react`, `demo/vue`, `demo/solid`, and `demo/vanilla`) to showcase the new feature if applicable.
-5. Update any affected Markdown files (CLAUDE.md, READMEs).
+5. Update any affected Markdown files. Prefer updating a package/docs Markdown file over this one; link to it from CLAUDE.md instead of duplicating its content here.
+
+A husky pre-commit hook (`.husky/pre-commit`) already runs `lint-staged`, `type-check`, `test`, `build`, and `size` on every commit — the manual steps above are for catching problems early, not a substitute for it.
 
 ## Architecture
 
