@@ -2,9 +2,10 @@ import { For, Show, createMemo, createSignal } from 'solid-js'
 import { columnMatchesSearch, groupColumnsByCategory } from '@vates/data-table-core/internal'
 import type { TableState } from '../createTableState'
 import type { ColumnDef } from '../types'
-import { CategorySubmenu } from './CategorySubmenu'
 import { Dropdown } from './Dropdown'
 import { createDragReorder } from './dragReorder'
+import { AddableColumnRow, CategorizedColumnList, DropdownSearchRow } from './DropdownParts'
+import { withPanelRefocus } from './dropdownRowActions'
 
 interface ColumnsDropdownProps<TRow extends object> {
   table: TableState<TRow>
@@ -37,11 +38,11 @@ interface ColumnsDropdownProps<TRow extends object> {
 // Unlike Sort/Group's addable lists, Available is deliberately NOT alphabetized, and its
 // categories are NOT re-sorted after groupColumnsByCategory — this dropdown has never alphabetized
 // anything (its whole identity is "shows real column/definition order"), so Available keeps that
-// same principle instead of adopting Sort/Group's own alphabetical convention.
+// same principle instead of adopting Sort/Group's own alphabetical convention (see
+// categorizedAlphabetizedByLabel, core — the shared helper Sort/Group use instead of this).
 export function ColumnsDropdown<TRow extends object>(props: ColumnsDropdownProps<TRow>) {
   const { table } = props
   const [searchTerm, setSearchTerm] = createSignal('')
-  const [openCategory, setOpenCategory] = createSignal<string | null>(null)
   const {
     dragOverKey,
     dragOverAfter,
@@ -64,28 +65,6 @@ export function ColumnsDropdown<TRow extends object>(props: ColumnsDropdownProps
     return available.filter((c) => columnMatchesSearch(c, searchTerm()))
   })
   const categorizedAvailable = createMemo(() => groupColumnsByCategory(searchedAvailable()))
-
-  // One addable-column row — shared by the flat uncategorized list and each category submenu. See
-  // SortDropdown.tsx's identical AddableColRow comment for why this is a document-wide query
-  // rather than a `.closest('.dt-dd')`-scoped one: a click here can originate inside a portaled
-  // CategorySubmenu, which isn't a DOM descendant of the panel.
-  function AvailableColRow(rowProps: { col: ColumnDef<TRow> }) {
-    const col = rowProps.col
-    return (
-      <button
-        type="button"
-        class="dt-dd-item dt-dd-item--click"
-        data-dd-row
-        data-col-key={col.key}
-        onClick={() => {
-          table.columns.toggleVisibility(col.key)
-          document.querySelector<HTMLElement>(`[data-col-row-key="${col.key}"]`)?.focus()
-        }}
-      >
-        <span class="dt-flex1">{col.label}</span>
-      </button>
-    )
-  }
 
   return (
     <Dropdown
@@ -122,14 +101,16 @@ export function ColumnsDropdown<TRow extends object>(props: ColumnsDropdownProps
               onKeyDown={(e) => {
                 if (e.altKey && e.key === 'ArrowUp') {
                   e.preventDefault()
-                  table.columns.moveVisibleBy(col.key, -1)
                   // Focus drops to <body> after this reorder without an explicit refocus (same
                   // empirically-confirmed behavior as Sort/GroupDropdown's own Alt+Arrow handlers).
-                  document.querySelector<HTMLElement>(`[data-col-row-key="${col.key}"]`)?.focus()
+                  withPanelRefocus(e.currentTarget, `[data-col-row-key="${col.key}"]`, () =>
+                    table.columns.moveVisibleBy(col.key, -1),
+                  )
                 } else if (e.altKey && e.key === 'ArrowDown') {
                   e.preventDefault()
-                  table.columns.moveVisibleBy(col.key, 1)
-                  document.querySelector<HTMLElement>(`[data-col-row-key="${col.key}"]`)?.focus()
+                  withPanelRefocus(e.currentTarget, `[data-col-row-key="${col.key}"]`, () =>
+                    table.columns.moveVisibleBy(col.key, 1),
+                  )
                 }
               }}
             >
@@ -140,7 +121,6 @@ export function ColumnsDropdown<TRow extends object>(props: ColumnsDropdownProps
                 draggable={false}
                 onClick={(e) => {
                   e.stopPropagation()
-                  table.columns.toggleVisibility(col.key)
                   // The column reappears in Available either as its own addable row, or — if
                   // categorized — inside a *closed* submenu with no addable row of its own
                   // rendered yet, so the submenu's own trigger is the right thing to focus instead
@@ -148,7 +128,9 @@ export function ColumnsDropdown<TRow extends object>(props: ColumnsDropdownProps
                   const selector = col.category
                     ? `.dt-dd-category-trigger[data-category-name="${col.category}"]`
                     : `[data-col-key="${col.key}"]`
-                  document.querySelector<HTMLElement>(selector)?.focus()
+                  withPanelRefocus(e.currentTarget, selector, () =>
+                    table.columns.toggleVisibility(col.key),
+                  )
                 }}
               >
                 ×
@@ -158,32 +140,28 @@ export function ColumnsDropdown<TRow extends object>(props: ColumnsDropdownProps
         </For>
       </div>
       <Show when={searchedAvailable().length > 0}>
-        <div class="dt-dd-search-row">
-          <input
-            type="text"
-            class="dt-dd-search"
-            data-dd-search
-            placeholder={table.labels().filterSearchPlaceholder}
-            value={searchTerm()}
-            onInput={(e) => setSearchTerm(e.currentTarget.value)}
-          />
-        </div>
+        <DropdownSearchRow
+          value={searchTerm()}
+          onInput={setSearchTerm}
+          placeholder={table.labels().filterSearchPlaceholder}
+        />
         <div class="dt-dd-section">{table.labels().availableColumnsSection}</div>
-        <For each={categorizedAvailable().uncategorized}>
-          {(col) => <AvailableColRow col={col} />}
-        </For>
-        <For each={categorizedAvailable().categories}>
-          {(category) => (
-            <CategorySubmenu
-              name={category.name}
-              isOpen={openCategory() === category.name}
-              onOpen={() => setOpenCategory(category.name)}
-              onClose={() => setOpenCategory((c) => (c === category.name ? null : c))}
-            >
-              <For each={category.columns}>{(col) => <AvailableColRow col={col} />}</For>
-            </CategorySubmenu>
+        <CategorizedColumnList
+          uncategorized={categorizedAvailable().uncategorized}
+          categories={categorizedAvailable().categories}
+          row={(col) => (
+            <AddableColumnRow
+              col={col}
+              onClick={() => {
+                // See DropdownParts.tsx's AddableColumnRow / SortDropdown.tsx's identical comment:
+                // a document-wide query, not a `.closest('.dt-dd')`-scoped one, since this click
+                // can originate inside a portaled CategorySubmenu.
+                table.columns.toggleVisibility(col.key)
+                document.querySelector<HTMLElement>(`[data-col-row-key="${col.key}"]`)?.focus()
+              }}
+            />
           )}
-        </For>
+        />
       </Show>
     </Dropdown>
   )

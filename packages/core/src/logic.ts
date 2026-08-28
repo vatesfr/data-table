@@ -887,6 +887,26 @@ export function groupColumnsByCategory<T extends { category?: string }>(
 }
 
 /**
+ * `alphabetizedByLabel` + `groupColumnsByCategory`, with the resulting `categories` themselves
+ * also re-sorted alphabetically by name — the exact "search, alphabetize, bucket by category"
+ * pipeline Sort's and Group's own addable-column lists both need identically (their own dropdowns
+ * have no "already active" columns left to preserve order for, unlike the Columns dropdown or
+ * Filter's left pane — see those two's own reasoning for why they deliberately do *not* use this).
+ * Extracted here specifically because it was duplicated byte-for-byte between
+ * `SortDropdown.tsx`/`GroupDropdown.tsx`'s own `categorizedAddableCols` memos.
+ */
+export function categorizedAlphabetizedByLabel<T extends { label: string; category?: string }>(
+  cols: T[],
+  term: string,
+): { uncategorized: T[]; categories: ColumnCategory<T>[] } {
+  const { uncategorized, categories } = groupColumnsByCategory(alphabetizedByLabel(cols, term))
+  return {
+    uncategorized,
+    categories: categories.slice().sort((a, b) => a.name.localeCompare(b.name)),
+  }
+}
+
+/**
  * Numeric bounds of a column's actual values across `data` — the slider's own `min`/`max`, so it
  * always spans exactly what's in the dataset. Deliberately computed from the full, unfiltered
  * `data` rather than `processedData`, so the slider's own range doesn't shrink out from under a

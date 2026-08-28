@@ -1,10 +1,17 @@
 import { For, Show, createMemo, createSignal } from 'solid-js'
-import { alphabetizedByLabel, groupColumnsByCategory } from '@vates/data-table-core/internal'
+import { categorizedAlphabetizedByLabel } from '@vates/data-table-core/internal'
 import type { TableState } from '../createTableState'
 import type { ColumnDef } from '../types'
-import { CategorySubmenu } from './CategorySubmenu'
 import { Dropdown } from './Dropdown'
 import { createDragReorder } from './dragReorder'
+import {
+  AddableColumnRow,
+  CategorizedColumnList,
+  DropdownClearButton,
+  DropdownSearchRow,
+  DropdownTriggerButton,
+} from './DropdownParts'
+import { withPanelRefocus } from './dropdownRowActions'
 
 interface GroupDropdownProps<TRow extends object> {
   table: TableState<TRow>
@@ -20,8 +27,6 @@ interface GroupDropdownProps<TRow extends object> {
 export function GroupDropdown<TRow extends object>(props: GroupDropdownProps<TRow>) {
   const { table } = props
   const [searchTerm, setSearchTerm] = createSignal('')
-  // See SortDropdown.tsx's identical comment on its own openCategory.
-  const [openCategory, setOpenCategory] = createSignal<string | null>(null)
   const {
     dragOverKey,
     dragOverAfter,
@@ -34,40 +39,11 @@ export function GroupDropdown<TRow extends object>(props: GroupDropdownProps<TRo
 
   const addableCols = createMemo(() => {
     const groupBy = table.group.by()
-    const notYetActive = props.groupableCols.filter((c) => !groupBy.includes(c.key))
-    return alphabetizedByLabel(notYetActive, searchTerm())
+    return props.groupableCols.filter((c) => !groupBy.includes(c.key))
   })
-  // See SortDropdown.tsx's identical comment on its own categorizedAddableCols.
-  const categorizedAddableCols = createMemo(() => {
-    const { uncategorized, categories } = groupColumnsByCategory(addableCols())
-    return {
-      uncategorized,
-      categories: categories.slice().sort((a, b) => a.name.localeCompare(b.name)),
-    }
-  })
-
-  // One addable-column row — shared by the flat uncategorized list and each category submenu. A
-  // click here can originate *inside* a portaled CategorySubmenu (see that file's own comment),
-  // where `.closest('.dt-dd')` finds nothing — the submenu isn't a DOM descendant of the panel at
-  // all. Looked up via `document.querySelector` instead, safe because only one dropdown panel is
-  // ever open at a time (see SortDropdown.tsx's identical `AddableColRow` comment).
-  function AddableColRow(rowProps: { col: ColumnDef<TRow> }) {
-    const col = rowProps.col
-    return (
-      <button
-        type="button"
-        class="dt-dd-item dt-dd-item--click"
-        data-dd-row
-        data-col-key={col.key}
-        onClick={() => {
-          table.group.toggle(col.key)
-          document.querySelector<HTMLElement>(`[data-group-key="${col.key}"]`)?.focus()
-        }}
-      >
-        <span class="dt-flex1">{col.label}</span>
-      </button>
-    )
-  }
+  const categorizedAddableCols = createMemo(() =>
+    categorizedAlphabetizedByLabel(addableCols(), searchTerm()),
+  )
 
   return (
     <Dropdown
@@ -75,26 +51,18 @@ export function GroupDropdown<TRow extends object>(props: GroupDropdownProps<TRo
       onToggle={props.onToggle}
       onClose={props.onClose}
       trigger={
-        <button
-          type="button"
-          class={`dt-btn${table.group.by().length > 0 ? ' dt-btn--active dt-btn--grouped' : ''}`}
+        <DropdownTriggerButton
+          active={table.group.by().length > 0}
+          label={table.labels().group}
           onClick={props.onToggle}
-        >
-          {table.labels().group}
-        </button>
+        />
       }
       extraTrigger={
-        <Show when={table.group.by().length > 0}>
-          <button
-            type="button"
-            class="dt-btn-clear"
-            title={table.labels().clearGroups}
-            aria-label={table.labels().clearGroups}
-            onClick={table.group.clear}
-          >
-            ×
-          </button>
-        </Show>
+        <DropdownClearButton
+          show={table.group.by().length > 0}
+          label={table.labels().clearGroups}
+          onClear={table.group.clear}
+        />
       }
       onEscapeClearable={() => {
         if (!searchTerm()) return false
@@ -124,17 +92,16 @@ export function GroupDropdown<TRow extends object>(props: GroupDropdownProps<TRo
                   onKeyDown={(e) => {
                     if (e.altKey && e.key === 'ArrowUp') {
                       e.preventDefault()
-                      const panel = e.currentTarget.closest('.dt-dd')
-                      table.group.moveBy(key, -1)
                       // Focus drops to <body> after this reorder without an explicit refocus
-                      // (confirmed empirically) — refocus by key, same pattern used for
-                      // activate/remove below.
-                      panel?.querySelector<HTMLElement>(`[data-group-key="${key}"]`)?.focus()
+                      // (confirmed empirically).
+                      withPanelRefocus(e.currentTarget, `[data-group-key="${key}"]`, () =>
+                        table.group.moveBy(key, -1),
+                      )
                     } else if (e.altKey && e.key === 'ArrowDown') {
                       e.preventDefault()
-                      const panel = e.currentTarget.closest('.dt-dd')
-                      table.group.moveBy(key, 1)
-                      panel?.querySelector<HTMLElement>(`[data-group-key="${key}"]`)?.focus()
+                      withPanelRefocus(e.currentTarget, `[data-group-key="${key}"]`, () =>
+                        table.group.moveBy(key, 1),
+                      )
                     }
                   }}
                 >
@@ -144,15 +111,11 @@ export function GroupDropdown<TRow extends object>(props: GroupDropdownProps<TRo
                     type="button"
                     class="dt-item-remove"
                     draggable={false}
-                    onClick={(e) => {
-                      // Panel must be resolved *before* the mutating call — this button is
-                      // itself removed from the DOM as a synchronous side effect of it, so
-                      // `.closest()` on it afterward would find nothing (see SortDropdown.tsx's
-                      // own version of this same pattern).
-                      const panel = e.currentTarget.closest('.dt-dd')
-                      table.group.remove(key)
-                      panel?.querySelector<HTMLElement>(`[data-col-key="${key}"]`)?.focus()
-                    }}
+                    onClick={(e) =>
+                      withPanelRefocus(e.currentTarget, `[data-col-key="${key}"]`, () =>
+                        table.group.remove(key),
+                      )
+                    }
                   >
                     ×
                   </button>
@@ -163,32 +126,25 @@ export function GroupDropdown<TRow extends object>(props: GroupDropdownProps<TRo
         </div>
       </Show>
       <Show when={addableCols().length > 0}>
-        <div class="dt-dd-search-row">
-          <input
-            type="text"
-            class="dt-dd-search"
-            data-dd-search
-            placeholder={table.labels().filterSearchPlaceholder}
-            value={searchTerm()}
-            onInput={(e) => setSearchTerm(e.currentTarget.value)}
-          />
-        </div>
+        <DropdownSearchRow
+          value={searchTerm()}
+          onInput={setSearchTerm}
+          placeholder={table.labels().filterSearchPlaceholder}
+        />
         <div class="dt-dd-section">{table.labels().groupSection}</div>
-        <For each={categorizedAddableCols().uncategorized}>
-          {(col) => <AddableColRow col={col} />}
-        </For>
-        <For each={categorizedAddableCols().categories}>
-          {(category) => (
-            <CategorySubmenu
-              name={category.name}
-              isOpen={openCategory() === category.name}
-              onOpen={() => setOpenCategory(category.name)}
-              onClose={() => setOpenCategory((c) => (c === category.name ? null : c))}
-            >
-              <For each={category.columns}>{(col) => <AddableColRow col={col} />}</For>
-            </CategorySubmenu>
+        <CategorizedColumnList
+          uncategorized={categorizedAddableCols().uncategorized}
+          categories={categorizedAddableCols().categories}
+          row={(col) => (
+            <AddableColumnRow
+              col={col}
+              onClick={() => {
+                table.group.toggle(col.key)
+                document.querySelector<HTMLElement>(`[data-group-key="${col.key}"]`)?.focus()
+              }}
+            />
           )}
-        </For>
+        />
       </Show>
     </Dropdown>
   )

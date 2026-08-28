@@ -55,6 +55,7 @@ import {
   countActiveFilters,
   getOrderedColumns,
   groupColumnsByCategory,
+  categorizedAlphabetizedByLabel,
   columnMatchesSearch,
   alphabetizedByLabel,
   reconcileVisibleColumns,
@@ -3044,6 +3045,28 @@ describe('groupColumnsByCategory', () => {
     ]
     const result = groupColumnsByCategory(cols)
     expect(result.categories[0].columns.map((c) => c.key)).toEqual(['b', 'a'])
+  })
+})
+
+describe('categorizedAlphabetizedByLabel', () => {
+  const COLS = [
+    { key: 'id', label: 'ID' },
+    { key: 'name', label: 'Name', category: 'Info' },
+    { key: 'score', label: 'Score', category: 'Numbers' },
+    { key: 'salary', label: 'Salary', category: 'Numbers' },
+  ]
+
+  it('alphabetizes uncategorized columns and categories both', () => {
+    const result = categorizedAlphabetizedByLabel(COLS, '')
+    expect(result.uncategorized.map((c) => c.key)).toEqual(['id'])
+    expect(result.categories.map((c) => c.name)).toEqual(['Info', 'Numbers'])
+    expect(result.categories[1].columns.map((c) => c.key)).toEqual(['salary', 'score'])
+  })
+
+  it('filters by search term first (label or category), same as alphabetizedByLabel', () => {
+    const result = categorizedAlphabetizedByLabel(COLS, 'Numbers')
+    expect(result.uncategorized).toEqual([])
+    expect(result.categories.map((c) => c.name)).toEqual(['Numbers'])
   })
 })
 

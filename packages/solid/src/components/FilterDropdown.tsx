@@ -39,6 +39,7 @@ import { Dropdown } from './Dropdown'
 import { RangeInputs } from './RangeInputs'
 import { DateTreeItem } from './DateTreeItem'
 import { applyCheckboxState, deferCheckboxCorrection } from './checkboxSync'
+import { DropdownClearButton, DropdownTriggerButton } from './DropdownParts'
 
 interface FilterDropdownProps<TRow extends object> {
   table: TableState<TRow>
@@ -634,26 +635,18 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
       onToggle={props.onToggle}
       onClose={props.onClose}
       trigger={
-        <button
-          type="button"
-          class={`dt-btn${table.filter.activeCount() > 0 ? ' dt-btn--active dt-btn--grouped' : ''}`}
+        <DropdownTriggerButton
+          active={table.filter.activeCount() > 0}
+          label={table.labels().filter}
           onClick={props.onToggle}
-        >
-          {table.labels().filter}
-        </button>
+        />
       }
       extraTrigger={
-        <Show when={table.filter.activeCount() > 0}>
-          <button
-            type="button"
-            class="dt-btn-clear"
-            title={table.labels().clearFilters}
-            aria-label={table.labels().clearFilters}
-            onClick={table.filter.clear}
-          >
-            ×
-          </button>
-        </Show>
+        <DropdownClearButton
+          show={table.filter.activeCount() > 0}
+          label={table.labels().clearFilters}
+          onClear={table.filter.clear}
+        />
       }
       onEscapeClearable={() => {
         const active = document.activeElement
