@@ -33,6 +33,7 @@ import {
   reconcileVisibleColumns,
   reorderColumn as _reorderColumn,
   moveColumnBy as _moveColumnBy,
+  moveVisibleColumnBy as _moveVisibleColumnBy,
   getSortIcon as _getSortIcon,
   getSortIndex as _getSortIndex,
   countActiveFilters,
@@ -249,6 +250,13 @@ export function useTableState<TRow extends object>(
       moveBy: (key: string, delta: number) => {
         const base = columnOrder.value.length ? columnOrder.value : columns.value.map((c) => c.key)
         columnOrder.value = _moveColumnBy(base, key, delta)
+      },
+      // See moveVisibleColumnBy's own doc comment (core) — the Columns dropdown's "Visible
+      // columns" section's own Alt+↑/↓, which must skip over hidden columns rather than swap with
+      // whichever key is textually adjacent in columnOrder.
+      moveVisibleBy: (key: string, delta: number) => {
+        const base = columnOrder.value.length ? columnOrder.value : columns.value.map((c) => c.key)
+        columnOrder.value = _moveVisibleColumnBy(base, visibleCols.value, key, delta)
       },
     },
 

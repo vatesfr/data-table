@@ -36,6 +36,10 @@ import {
   orderFilterColumnsByActive,
   applyColumnOrderSnapshot,
   alphabetizedByLabel,
+  columnMatchesSearch,
+  groupColumnsByCategory,
+  categorizedAlphabetizedByLabel,
+  moveVisibleColumnBy as _moveVisibleColumnBy,
   type PagedGroup,
   type VisibleItem,
   type DateTreeNode,
@@ -43,6 +47,7 @@ import {
 import { type ValueSort, type SortEntry } from '@vates/data-table-core'
 import type { ColumnDef, DataTableViewInternalProps } from './types'
 import Dropdown from './components/Dropdown.vue'
+import CategorySubmenu from './components/CategorySubmenu.vue'
 import ToolbarBtn from './components/ToolbarBtn.vue'
 import DateTreeItem from './components/DateTreeItem.vue'
 import RangeInputs from './components/RangeInputs.vue'
@@ -89,6 +94,7 @@ const {
   toggleVisibility: toggleColVisibility,
   move: moveColumn,
   moveBy: moveColumnBy,
+  moveVisibleBy: moveVisibleColumnBy,
 } = props.table.columns
 const {
   entries: sorts,
@@ -801,13 +807,22 @@ const addableGroupCols = computed(() =>
 // Search narrows each addable list only — the active-entries section above keeps its own
 // priority order and is never hidden by a search term, since it's a short, already-visible list
 // with its own remove/reorder controls. The addable list itself carries no ordering meaning (none
-// of these are sorted/grouped yet), so it's alphabetized instead of raw column-definition order.
-const searchedAddableSortCols = computed(() =>
-  alphabetizedByLabel(addableSortCols.value, ddSearchTerm('sort')),
+// of these are sorted/grouped yet), so it's alphabetized instead of raw column-definition order —
+// and, via `categorizedAlphabetizedByLabel` (core, which also matches by category), bucketed by
+// `ColumnDefBase.category`: a category collapses into a `CategorySubmenu` flyout trigger instead
+// of a flat run of individual rows (see CLAUDE.md's "Column categories").
+const categorizedAddableSortCols = computed(() =>
+  categorizedAlphabetizedByLabel(addableSortCols.value, ddSearchTerm('sort')),
 )
-const searchedAddableGroupCols = computed(() =>
-  alphabetizedByLabel(addableGroupCols.value, ddSearchTerm('group')),
+const categorizedAddableGroupCols = computed(() =>
+  categorizedAlphabetizedByLabel(addableGroupCols.value, ddSearchTerm('group')),
 )
+// Which category submenu is open, one independent value per dropdown — a single shared ref (not
+// one per CategorySubmenu instance) so opening one always closes any other that was open in the
+// same dropdown, see CategorySubmenu.vue's own doc.
+const openSortCategory = ref<string | null>(null)
+const openGroupCategory = ref<string | null>(null)
+const openColsCategory = ref<string | null>(null)
 
 // Activating an addable Sort/Group column (or removing an active one) moves its row into a
 // *different* v-for list — Vue's keyed reconciliation can't preserve focus across that (the
@@ -911,6 +926,11 @@ function onSortRowKeyDown(event: KeyboardEvent, key: string): void {
     const idx = list.findIndex((s) => s.key === key)
     const neighbor = list[idx + delta]
     if (neighbor) activateAndFocus(() => moveSort(key, neighbor.key, delta > 0), sortRowRefs, key)
+  } else if (event.key === 'Delete' || event.key === 'Backspace') {
+    // Keyboard equivalent of this row's own × button — matches the Filter dropdown's identical
+    // Delete/Backspace-on-a-focused-active-row shortcut.
+    event.preventDefault()
+    onRemoveSortClick(key)
   }
 }
 
@@ -930,6 +950,11 @@ function onGroupRowKeyDown(event: KeyboardEvent, key: string): void {
     event.preventDefault()
     const delta = event.key === 'ArrowUp' ? -1 : 1
     activateAndFocus(() => moveGroupBy(key, delta), groupRowRefs, key)
+  } else if (event.key === 'Delete' || event.key === 'Backspace') {
+    // Keyboard equivalent of this row's own × button — matches the Filter dropdown's identical
+    // Delete/Backspace-on-a-focused-active-row shortcut.
+    event.preventDefault()
+    onRemoveGroupClick(key)
   }
 }
 
@@ -1290,7 +1315,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
             </div>
             <div class="dt__dd-section">{{ L.groupSection }}</div>
             <button
-              v-for="col in searchedAddableGroupCols"
+              v-for="col in categorizedAddableGroupCols.uncategorized"
               :key="col.key"
               :ref="(el) => setAddableGroupRef(col.key, el as Element | null)"
               type="button"
@@ -1299,6 +1324,27 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
             >
               <span class="dt__flex1">{{ col.label }}</span>
             </button>
+            <CategorySubmenu
+              v-for="category in categorizedAddableGroupCols.categories"
+              :key="category.name"
+              :name="category.name"
+              :is-open="openGroupCategory === category.name"
+              @open="openGroupCategory = category.name"
+              @close="
+                openGroupCategory = openGroupCategory === category.name ? null : openGroupCategory
+              "
+            >
+              <button
+                v-for="col in category.columns"
+                :key="col.key"
+                :ref="(el) => setAddableGroupRef(col.key, el as Element | null)"
+                type="button"
+                class="dt__dd-item dt__dd-item--clickable"
+                @click="onAddGroup(col.key)"
+              >
+                <span class="dt__flex1">{{ col.label }}</span>
+              </button>
+            </CategorySubmenu>
           </template>
         </Dropdown>
 
@@ -1341,7 +1387,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
             <div
               v-for="(entry, i) in groupSortEntries"
               :key="entry.key"
-              class="dt__dd-item dt__dd-item--col dt__dd-item--sortrow"
+              class="dt__dd-item dt__dd-item--col dt__dd-item--sortrow dt__dd-item--locked"
               tabindex="0"
               @click="toggleSortDir(entry.key)"
               @keydown="
@@ -1349,6 +1395,13 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                   if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault()
                     toggleSortDir(entry.key)
+                  } else if (e.key === 'Delete' || e.key === 'Backspace') {
+                    // Keyboard equivalent of this row's own × button — matches the Filter
+                    // dropdown's identical Delete/Backspace-on-a-focused-active-row shortcut.
+                    // This row isn't draggable/reorderable, but removing its sort entry still
+                    // needs the same focus hand-off as any other (see onRemoveSortClick).
+                    e.preventDefault()
+                    onRemoveSortClick(entry.key)
                   }
                 }
               "
@@ -1360,7 +1413,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                 type="button"
                 class="dt__item-remove"
                 draggable="false"
-                @click.stop="removeSort(entry.key)"
+                @click.stop="onRemoveSortClick(entry.key)"
               >
                 ×
               </button>
@@ -1433,7 +1486,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
               (which need custom keyboard handling anyway for Alt+↑/↓ reorder).
             -->
             <button
-              v-for="col in searchedAddableSortCols"
+              v-for="col in categorizedAddableSortCols.uncategorized"
               :key="col.key"
               :ref="(el) => setAddableSortRef(col.key, el as Element | null)"
               type="button"
@@ -1442,6 +1495,27 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
             >
               <span class="dt__flex1">{{ col.label }}</span>
             </button>
+            <CategorySubmenu
+              v-for="category in categorizedAddableSortCols.categories"
+              :key="category.name"
+              :name="category.name"
+              :is-open="openSortCategory === category.name"
+              @open="openSortCategory = category.name"
+              @close="
+                openSortCategory = openSortCategory === category.name ? null : openSortCategory
+              "
+            >
+              <button
+                v-for="col in category.columns"
+                :key="col.key"
+                :ref="(el) => setAddableSortRef(col.key, el as Element | null)"
+                type="button"
+                class="dt__dd-item dt__dd-item--clickable"
+                @click="onAddSort(col.key)"
+              >
+                <span class="dt__flex1">{{ col.label }}</span>
+              </button>
+            </CategorySubmenu>
           </template>
         </Dropdown>
 
@@ -2240,7 +2314,8 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
 .dt__dd-item--clickable {
   cursor: pointer;
 }
-.dt__dd-item--clickable:hover {
+.dt__dd-item--clickable:hover,
+.dt__dd-item--clickable:focus {
   background: var(--color-background-secondary);
 }
 .dt__dd-item--col {
@@ -2249,12 +2324,35 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
 .dt__dd-item--sortrow {
   cursor: pointer;
 }
-.dt__dd-item--sortrow:hover {
+.dt__dd-item--sortrow:hover,
+.dt__dd-item--sortrow:focus {
   background: var(--color-background-secondary);
 }
 .dt__dd-item--grouprow,
 .dt__dd-item--colrow {
   cursor: grab;
+}
+/* Sort/Group/Columns' active rows only ever got the browser's native focus outline, no
+   background — unlike the Filter dropdown's own left-pane column row, which tints its background
+   on selection (see .dt__filter-col-row--active further down) as well as outlining the focused
+   button inside it. Matched here for the same reason: an outline alone is a much fainter "this is
+   the currently focused row" cue than a filled background. --grouprow/--colrow had no hover
+   feedback at all before this either (grab-cursor rows, no --clickable), gaining both. */
+.dt__dd-item--grouprow:hover,
+.dt__dd-item--grouprow:focus,
+.dt__dd-item--colrow:hover,
+.dt__dd-item--colrow:focus {
+  background: var(--color-background-secondary);
+}
+/* A "Group order" row (see the Sort dropdown template above) is still clickable to toggle
+   direction, just not draggable/Alt+Arrow-reorderable — its own section heading + hint text
+   already explain why, so this only needs to cancel --sortrow's hover highlight (a cue that
+   dragging would do something here, which it wouldn't), not restyle the row into looking
+   disabled. Must come after .dt__dd-item--sortrow:hover above to win the cascade on the shared
+   hover background; :focus is deliberately left alone (the row is still keyboard-toggleable, so
+   focus stays a meaningful cue there). */
+.dt__dd-item--locked:hover {
+  background: none;
 }
 .dt__dd-item--dragging {
   opacity: 0.4;

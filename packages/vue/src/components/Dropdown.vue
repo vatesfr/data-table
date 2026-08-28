@@ -80,6 +80,12 @@ defineExpose({
 })
 
 function onMousedown(e: MouseEvent) {
+  // A click inside an open category submenu (see CategorySubmenu.vue) must not count as
+  // "outside" — it's teleported straight to document.body, not a DOM descendant of
+  // `containerRef`, for reasons explained in that component's own top comment (escaping the
+  // panel's scrollable overflow), so `containerRef.value.contains()` alone can't see it.
+  const target = e.target as Element
+  if (target.closest?.('[data-category-submenu]')) return
   if (containerRef.value && !containerRef.value.contains(e.target as Node)) {
     isOpen.value = false
   }

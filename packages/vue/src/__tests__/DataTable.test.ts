@@ -2773,6 +2773,158 @@ describe('DataTable — dropdown column search and keyboard navigation', () => {
   })
 })
 
+const CATEGORIZED_COLS: ColumnDef<Row>[] = [
+  { key: 'name', label: 'Name', category: 'Info', groupable: true },
+  { key: 'score', label: 'Score', type: 'number', category: 'Numbers', groupable: true },
+  { key: 'id', label: 'Id', type: 'number', groupable: true },
+]
+
+function openDdByLabel(wrapper: ReturnType<typeof mount>, label: string) {
+  return wrapper
+    .findAll('button')
+    .find((b) => b.text() === label)!
+    .trigger('click')
+}
+function triggerFor(wrapper: ReturnType<typeof mount>, name: string) {
+  return wrapper.findAll('[data-category-name]').find((el) => el.text().includes(name))!
+}
+
+// Category triggers also carry `.dt__dd-item--clickable` (for styling/Dropdown.vue's own
+// row-selector nav) — this excludes them, isolating the flat addable buttons the trigger itself
+// isn't one of.
+function plainAddableButtons(wrapper: ReturnType<typeof mount>) {
+  return wrapper.findAll('button.dt__dd-item--clickable:not([data-category-name])')
+}
+
+describe('DataTable — Sort dropdown column categories', () => {
+  it('renders uncategorized addable columns as plain rows and categorized ones under a submenu trigger', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS, columns: CATEGORIZED_COLS, rowKey: 'id' },
+    })
+    await openDdByLabel(wrapper, 'Sort')
+    expect(plainAddableButtons(wrapper).map((el) => el.text())).toEqual(['Id']) // Name/Score are categorized, not addable rows themselves
+    expect(wrapper.findAll('[data-category-name]').map((el) => el.text())).toEqual([
+      'Info▸',
+      'Numbers▸',
+    ]) // alphabetized, same as this list's other ordering
+  })
+
+  it('opens the submenu on click and adds a sort from a row inside it', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS, columns: CATEGORIZED_COLS, rowKey: 'id' },
+      attachTo: document.body,
+    })
+    await openDdByLabel(wrapper, 'Sort')
+    const trigger = triggerFor(wrapper, 'Numbers')
+    expect(document.querySelector('[data-category-submenu]')).toBeNull()
+
+    await trigger.trigger('click')
+    expect(trigger.attributes('aria-expanded')).toBe('true')
+    const submenu = document.querySelector<HTMLElement>('[data-category-submenu]')!
+    expect(submenu).not.toBeNull()
+    const scoreBtn = [...submenu.querySelectorAll('button')].find(
+      (b) => b.textContent === 'Score',
+    ) as HTMLButtonElement
+    scoreBtn.click()
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('[data-sort-key="score"]').exists()).toBe(true)
+    wrapper.unmount()
+  })
+
+  // Regression: the addable button's own ref-map refocus (activateAndFocus) doesn't depend on the
+  // click's own DOM origin — unlike Solid's original `.closest('.dt-dd')` bug, this stayed
+  // portal/teleport-safe by construction.
+  it('activating a column from inside the submenu refocuses its new active row, not <body>', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS, columns: CATEGORIZED_COLS, rowKey: 'id' },
+      attachTo: document.body,
+    })
+    await openDdByLabel(wrapper, 'Sort')
+    const trigger = triggerFor(wrapper, 'Numbers')
+    await trigger.trigger('click')
+    const submenu = document.querySelector<HTMLElement>('[data-category-submenu]')!
+    const scoreBtn = [...submenu.querySelectorAll('button')].find(
+      (b) => b.textContent === 'Score',
+    ) as HTMLButtonElement
+    scoreBtn.click()
+    await wrapper.vm.$nextTick()
+    expect(document.activeElement).toBe(wrapper.find('[data-sort-key="score"]').element)
+    wrapper.unmount()
+  })
+
+  it('opening one category submenu closes the previously open sibling (only one open at a time)', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS, columns: CATEGORIZED_COLS, rowKey: 'id' },
+      attachTo: document.body,
+    })
+    await openDdByLabel(wrapper, 'Sort')
+    const infoTrigger = triggerFor(wrapper, 'Info')
+    const numbersTrigger = triggerFor(wrapper, 'Numbers')
+
+    await infoTrigger.trigger('click')
+    expect(infoTrigger.attributes('aria-expanded')).toBe('true')
+    expect(document.querySelectorAll('[data-category-submenu]').length).toBe(1)
+
+    await numbersTrigger.trigger('click')
+    expect(triggerFor(wrapper, 'Info').attributes('aria-expanded')).toBe('false')
+    expect(triggerFor(wrapper, 'Numbers').attributes('aria-expanded')).toBe('true')
+    expect(document.querySelectorAll('[data-category-submenu]').length).toBe(1)
+    wrapper.unmount()
+  })
+
+  it('Escape closes the submenu and refocuses the trigger, without closing the whole dropdown', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS, columns: CATEGORIZED_COLS, rowKey: 'id' },
+      attachTo: document.body,
+    })
+    await openDdByLabel(wrapper, 'Sort')
+    const trigger = triggerFor(wrapper, 'Info')
+    await trigger.trigger('click')
+    const submenu = document.querySelector<HTMLElement>('[data-category-submenu]')!
+    const firstRow = submenu.querySelector<HTMLElement>('button')!
+    firstRow.focus()
+    firstRow.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    await wrapper.vm.$nextTick()
+    expect(document.querySelector('[data-category-submenu]')).toBeNull()
+    expect(document.activeElement).toBe(trigger.element)
+    // The dropdown panel itself is still open — only the submenu closed.
+    expect(wrapper.find('.dropdown__menu').exists()).toBe(true)
+    wrapper.unmount()
+  })
+})
+
+describe('DataTable — Group dropdown column categories', () => {
+  it('renders uncategorized addable columns as plain rows and categorized ones under a submenu trigger', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS, columns: CATEGORIZED_COLS, rowKey: 'id' },
+    })
+    await openDdByLabel(wrapper, 'Group')
+    expect(plainAddableButtons(wrapper).map((el) => el.text())).toEqual(['Id'])
+    expect(wrapper.findAll('[data-category-name]').map((el) => el.text())).toEqual([
+      'Info▸',
+      'Numbers▸',
+    ])
+  })
+
+  it('opens the submenu on click and adds a group from a row inside it', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS, columns: CATEGORIZED_COLS, rowKey: 'id' },
+      attachTo: document.body,
+    })
+    await openDdByLabel(wrapper, 'Group')
+    const trigger = triggerFor(wrapper, 'Info')
+    await trigger.trigger('click')
+    const submenu = document.querySelector<HTMLElement>('[data-category-submenu]')!
+    const nameBtn = [...submenu.querySelectorAll('button')].find(
+      (b) => b.textContent === 'Name',
+    ) as HTMLButtonElement
+    nameBtn.click()
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('[data-group-key="name"]').exists()).toBe(true)
+    wrapper.unmount()
+  })
+})
+
 describe('DataTable — active-bar chip click actions', () => {
   const THREE_COLS: ColumnDef<Row>[] = [
     { key: 'name', label: 'Name', filterable: true, groupable: true },

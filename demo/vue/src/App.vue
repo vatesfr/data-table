@@ -292,6 +292,12 @@ const COLUMNS: ColumnDef<Employee>[] = [
   // sortable: false + filterable: false — no sort/filter UI; hidden by default via initialViewState.visibleCols
   { key: 'id', label: 'ID', type: 'number', width: 60, sortable: false, filterable: false },
   { key: 'name', label: 'Name', type: 'string', width: 160 },
+  // category: groups this column under a named section in the Columns/Sort/Group dropdowns'
+  // column lists (a submenu) and the Filter dropdown's left pane (a collapsible section) — useful
+  // once a table has enough columns that a flat list is hard to scan. Department/Role/Salary/
+  // Joined are grouped under "Work" below, Score/Tier/Skills under "Performance"; Name/Tenure/
+  // Status are left uncategorized and render as plain rows alongside the category entries.
+  //
   // groupable: true — slot #cell-department / #filter-department / #group-department override rendering
   {
     key: 'department',
@@ -299,9 +305,10 @@ const COLUMNS: ColumnDef<Employee>[] = [
     type: 'string',
     width: 130,
     groupable: true,
+    category: 'Work',
     format: (v) => String(v),
   },
-  { key: 'role', label: 'Role', type: 'string', width: 140, groupable: true },
+  { key: 'role', label: 'Role', type: 'string', width: 140, groupable: true, category: 'Work' },
   // format: plain string — the numeric range filter (2 inputs + a slider) is automatic for
   // type: 'number'
   {
@@ -325,6 +332,7 @@ const COLUMNS: ColumnDef<Employee>[] = [
     // (issue #18); a null salary (Eva, just joined) lands in its own "(none)" group instead of
     // being miscounted as $0.
     groupable: true,
+    category: 'Work',
     // header shows only the $20k bucket, not the exact salary — keep the column visible
     // when grouped so the real value stays visible on each row.
     keepVisibleWhenGrouped: true,
@@ -343,6 +351,7 @@ const COLUMNS: ColumnDef<Employee>[] = [
     width: 100,
     defaultSortDir: 'desc',
     groupable: true,
+    category: 'Work',
     // header shows only the year, not the exact join date — keep the column visible when
     // grouped so the real date stays visible on each row.
     keepVisibleWhenGrouped: true,
@@ -365,7 +374,14 @@ const COLUMNS: ColumnDef<Employee>[] = [
   // reviewed employee's row last in the Score sort regardless of direction — null naturally
   // sorts first ascending / last descending otherwise, flipping depending on the toggle rather
   // than staying put.
-  { key: 'score', label: 'Score', type: 'number', width: 80, compare: compareMissingLast() },
+  {
+    key: 'score',
+    label: 'Score',
+    type: 'number',
+    width: 80,
+    category: 'Performance',
+    compare: compareMissingLast(),
+  },
   // computed column (value) + compare (issue #15): bucket a continuous score into an ordered
   // enum and sort it by rank, not alphabetically — see TIER_ORDER above, wrapped in
   // compareMissingLast() so a not-yet-reviewed employee's empty tier ('') still sorts last in
@@ -378,6 +394,7 @@ const COLUMNS: ColumnDef<Employee>[] = [
       (a, b) => TIER_ORDER.indexOf(String(a)) - TIER_ORDER.indexOf(String(b)),
     ),
     groupable: true,
+    category: 'Performance',
     width: 90,
   },
   // array-valued column: filter checklist lists individual skills, grouping fans a row into
@@ -397,6 +414,7 @@ const COLUMNS: ColumnDef<Employee>[] = [
     label: 'Skills',
     width: 180,
     groupable: true,
+    category: 'Performance',
     keepVisibleWhenGrouped: true,
     defaultValueSort: { by: 'count', dir: 'desc' },
   },
