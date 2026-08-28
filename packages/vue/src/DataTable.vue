@@ -41,10 +41,9 @@ const table = useTableState(
   () => props.data,
   () => props.columns,
   () => ({
-    defaultVisibleColumns: props.defaultVisibleColumns,
     labels: props.labels,
-    defaultPageSize: props.defaultPageSize,
     defaultGroupsCollapsed: props.defaultGroupsCollapsed,
+    initialViewState: props.initialViewState,
     getRowId: props.getRowId,
   }),
 )

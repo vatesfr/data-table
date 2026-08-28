@@ -459,7 +459,7 @@ describe('createDataTable — column visibility', () => {
   })
 
   it('cannot hide the last visible column', () => {
-    const { container } = mount({ defaultVisibleColumns: ['name'] })
+    const { container } = mount({ initialViewState: { visibleCols: ['name'] } })
     openDropdown(container, 'Columns')
     click(container.querySelector<HTMLElement>('[data-col-row-key="name"] input[type="checkbox"]')!)
     expect(colHeaders(container)).toContain('Name')

@@ -361,7 +361,7 @@ describe('createDataTable (grouping, group dropdown, pagination+grouping, search
     createDataTable(container, {
       data: ROWS,
       columns: COLS,
-      defaultPageSize: 2,
+      initialViewState: { pageSize: 2 },
       defaultGroupsCollapsed: false,
     })
     groupByDept(container)
@@ -376,7 +376,7 @@ describe('createDataTable (grouping, group dropdown, pagination+grouping, search
     createDataTable(container, {
       data: ROWS,
       columns: COLS,
-      defaultPageSize: 2,
+      initialViewState: { pageSize: 2 },
       defaultGroupsCollapsed: false,
     })
     groupByDept(container)
@@ -647,6 +647,17 @@ describe('createDataTable (grouping, group dropdown, pagination+grouping, search
     const instance = createDataTable(container, { data: ROWS, columns: COLS })
     instance.setViewState({ visibleCols: ['nonexistent'] })
     expect(colHeaders(container)).toEqual(expect.arrayContaining(['Name', 'Score', 'Dept']))
+  })
+
+  it('setViewState({}) restores initialViewState instead of clearing to empty (GitHub issue #20)', () => {
+    const instance = createDataTable(container, {
+      data: ROWS,
+      columns: COLS,
+      initialViewState: { sorts: [{ key: 'score', dir: 'desc' }] },
+    })
+    instance.setViewState({ sorts: [{ key: 'name', dir: 'asc' }], page: 2 }) // diverge
+    instance.setViewState({})
+    expect(instance.getViewState()).toEqual({})
   })
 })
 

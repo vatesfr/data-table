@@ -123,8 +123,12 @@ describe('createDataTable', () => {
     expect(container.innerHTML).toContain('90')
   })
 
-  it('respects defaultVisibleColumns', () => {
-    createDataTable(container, { data: ROWS, columns: COLS, defaultVisibleColumns: ['name'] })
+  it('respects initialViewState.visibleCols', () => {
+    createDataTable(container, {
+      data: ROWS,
+      columns: COLS,
+      initialViewState: { visibleCols: ['name'] },
+    })
     const headers = colHeaders(container)
     expect(headers).toContain('Name')
     expect(headers).not.toContain('Score')

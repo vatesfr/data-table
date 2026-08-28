@@ -420,27 +420,27 @@ describe('createDataTable', () => {
 
   // --- pagination ---
 
-  it('defaultPageSize limits rows per page', () => {
-    createDataTable(container, { data: ROWS, columns: COLS, defaultPageSize: 2 })
+  it('initialViewState.pageSize limits rows per page', () => {
+    createDataTable(container, { data: ROWS, columns: COLS, initialViewState: { pageSize: 2 } })
     expect(container.querySelectorAll('tbody tr')).toHaveLength(2)
   })
 
   it('page-next shows the next page', () => {
-    createDataTable(container, { data: ROWS, columns: COLS, defaultPageSize: 2 })
+    createDataTable(container, { data: ROWS, columns: COLS, initialViewState: { pageSize: 2 } })
     const [, , next] = [...container.querySelectorAll<HTMLButtonElement>('.dt-page-btn')]
     click(next)
     expect(container.innerHTML).toContain('Clara')
   })
 
   it('page-last jumps to the last page', () => {
-    createDataTable(container, { data: ROWS, columns: COLS, defaultPageSize: 2 })
+    createDataTable(container, { data: ROWS, columns: COLS, initialViewState: { pageSize: 2 } })
     const [, , , last] = [...container.querySelectorAll<HTMLButtonElement>('.dt-page-btn')]
     click(last)
     expect(container.innerHTML).toContain('David')
   })
 
   it('page-first returns to page 1', () => {
-    createDataTable(container, { data: ROWS, columns: COLS, defaultPageSize: 2 })
+    createDataTable(container, { data: ROWS, columns: COLS, initialViewState: { pageSize: 2 } })
     const [first, , , last] = [...container.querySelectorAll<HTMLButtonElement>('.dt-page-btn')]
     click(last)
     click(first)
@@ -448,13 +448,13 @@ describe('createDataTable', () => {
   })
 
   it('pageSize 0 renders all rows without pagination controls', () => {
-    createDataTable(container, { data: ROWS, columns: COLS, defaultPageSize: 0 })
+    createDataTable(container, { data: ROWS, columns: COLS, initialViewState: { pageSize: 0 } })
     expect(container.querySelectorAll('tbody tr')).toHaveLength(4)
     expect(container.querySelector('.dt-pagination')).toBeNull()
   })
 
-  it('the rows-per-page dropdown includes and selects a custom defaultPageSize not among the defaults', () => {
-    createDataTable(container, { data: ROWS, columns: COLS, defaultPageSize: 2 })
+  it('the rows-per-page dropdown includes and selects a custom initialViewState.pageSize not among the defaults', () => {
+    createDataTable(container, { data: ROWS, columns: COLS, initialViewState: { pageSize: 2 } })
     const select = container.querySelector<HTMLSelectElement>('.dt-page-select')!
     expect([...select.options].map((o) => o.value)).toEqual(['2', '10', '20', '50', '100'])
     expect(select.value).toBe('2')

@@ -50,11 +50,21 @@ import {
 import type { ColumnDef } from './types'
 
 export interface UseTableStateOptions<TRow extends object = Record<string, unknown>> {
-  defaultVisibleColumns?: string[]
   labels?: Partial<DataTableLabels>
-  defaultPageSize?: number
   /** Whether newly-grouped groups start collapsed. Defaults to `true`; pass `false` to start expanded. */
   defaultGroupsCollapsed?: boolean
+  /**
+   * Construction-time defaults for every other view concern (visible columns, column order,
+   * sort, filters, grouping, page/pageSize, search) — a fresh table starts here, and `resetView`
+   * restores it. Any field left unset falls back to that field's own ordinary empty default (all
+   * columns visible, no sort, page 1, etc). Grouping a column with no matching sort entry here
+   * gets one inserted automatically (the same thing interactive grouping already does), so
+   * `initialViewState: { groupBy: ['status'] }` alone is enough for a deterministic group order.
+   * Seed-only (read once, untracked) — same as `defaultVisibleColumns`/`defaultPageSize` were
+   * before this replaced them, unlike `labels`/`defaultGroupsCollapsed`/`getRowId`, which stay
+   * live/reactive.
+   */
+  initialViewState?: TableViewState
   /**
    * Opt-in row identity for selection. By default, selection tracks rows by object identity — a
    * refetch or re-map of `data` that produces new row objects (even with identical content)
@@ -84,13 +94,18 @@ export function useTableState<TRow extends object>(
 
   const defaultSortDirFor = (key: string) => getDefaultSortDir(columns.value, key)
 
+  // Computed once at setup (plain `const`, not reactive) rather than re-derived per field below
+  // — the same `resolveViewState({}, ...)` call `resetView`/`setViewState({})` make, so "what a
+  // fresh table starts at" and "what a reset restores" can never drift apart. Read once and not
+  // recomputed on a later `columns`/`options` change, matching `initialViewState`'s own seed-only
+  // contract above.
+  const initial = resolveViewState({}, columns.value, options.value.initialViewState)
+
   // shallowRef, not ref: every write below replaces the whole Set/array wholesale (never mutated
   // in place), the same "always replaced" pattern that already justifies `selection`/
   // `selectionAnchor` using shallowRef further down — no need to pay for Vue's deep-reactive Proxy
   // wrapping on every `.value` access when nothing ever reads/writes through nested reactivity.
-  const visibleCols = shallowRef<Set<string>>(
-    new Set(options.value.defaultVisibleColumns ?? columns.value.map((c) => c.key)),
-  )
+  const visibleCols = shallowRef<Set<string>>(initial.visibleCols)
 
   // Reconciles visibleCols (via core's reconcileVisibleColumns — see its own doc comment for the
   // full reasoning) whenever `columns` itself changes to a different key set. Needed because
@@ -105,25 +120,25 @@ export function useTableState<TRow extends object>(
 
   // All shallowRef, same "always replaced wholesale, never mutated in place" reasoning as
   // `visibleCols` above.
-  const columnOrder = shallowRef<string[]>([])
-  const sorts = shallowRef<SortEntry[]>([])
-  const filters = shallowRef<Record<string, Set<string>>>({})
+  const columnOrder = shallowRef<string[]>(initial.columnOrder)
+  const sorts = shallowRef<SortEntry[]>(initial.sorts)
+  const filters = shallowRef<Record<string, Set<string>>>(initial.filters)
   // "Not one of these values" filters for multi-value columns — see `cycleFilterValue`. Kept as
   // a separate Set per column, mutually exclusive with `filters` (a value is never in both at
   // once) by `cycleFilterValue`/`clearExcludeValues`.
-  const excludeFilters = shallowRef<Record<string, Set<string>>>({})
+  const excludeFilters = shallowRef<Record<string, Set<string>>>(initial.excludeFilters)
   // Per-column runtime override of `col.multiMode` ("any"/"all" checklist match) — see
   // `setFilterMode`. Kept as its own ref rather than folded into `filters`/`excludeFilters`
   // above: no action ever needs to read both this and them together to decide its next value.
-  const filterModes = shallowRef<Record<string, 'and' | 'or'>>({})
-  const rangeFilters = shallowRef<Record<string, RangeFilter>>({})
-  const groupBy = shallowRef<string[]>([])
-  const collapsedGroups = shallowRef<Set<string>>(new Set())
-  const page = ref(1)
-  const pageSize = ref(options.value.defaultPageSize ?? 0)
+  const filterModes = shallowRef<Record<string, 'and' | 'or'>>(initial.filterModes)
+  const rangeFilters = shallowRef<Record<string, RangeFilter>>(initial.rangeFilters)
+  const groupBy = shallowRef<string[]>(initial.groupBy)
+  const collapsedGroups = shallowRef<Set<string>>(initial.collapsedGroups)
+  const page = ref(initial.page)
+  const pageSize = ref(initial.pageSize)
   const selection = shallowRef<Set<TRow>>(new Set())
   const selectionAnchor = shallowRef<TRow | null>(null)
-  const searchQuery = ref('')
+  const searchQuery = ref(initial.searchQuery)
 
   // Reconciles `selection`'s stored row references whenever `data` changes — same trigger as
   // visibleCols' own reconciliation above (a `watch`, since useTableState is only called once per
@@ -448,15 +463,10 @@ export function useTableState<TRow extends object>(
         pageSize: pageSize.value,
         searchQuery: searchQuery.value,
         columns: columns.value,
-        defaultPageSize: options.value.defaultPageSize,
+        initialViewState: options.value.initialViewState,
       }),
     setViewState: (view: TableViewState) => {
-      const resolved = resolveViewState(
-        view,
-        columns.value,
-        options.value.defaultVisibleColumns,
-        options.value.defaultPageSize,
-      )
+      const resolved = resolveViewState(view, columns.value, options.value.initialViewState)
       visibleCols.value = resolved.visibleCols
       columnOrder.value = resolved.columnOrder
       sorts.value = resolved.sorts

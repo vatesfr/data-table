@@ -1,4 +1,9 @@
-import type { ColumnDefBase, DataTableLabels, GetRowId } from '@vates/data-table-core'
+import type {
+  ColumnDefBase,
+  DataTableLabels,
+  GetRowId,
+  TableViewState,
+} from '@vates/data-table-core'
 import type { TableState } from './useTableState'
 
 // Vue uses scoped slots instead of render functions — no extra fields needed.
@@ -41,11 +46,11 @@ export interface DataTableProps<TRow extends object = Record<string, unknown>> e
   DataTableViewProps<TRow>,
   'table'
 > {
-  defaultVisibleColumns?: string[]
   labels?: Partial<DataTableLabels>
-  defaultPageSize?: number
   /** Whether newly-grouped groups start collapsed. Defaults to `true`; pass `false` to start expanded. */
   defaultGroupsCollapsed?: boolean
+  /** See `UseTableStateOptions.initialViewState`'s own doc comment. */
+  initialViewState?: TableViewState
   /**
    * Opt-in row identity for selection — see `UseTableStateOptions.getRowId`'s own doc comment for
    * the full reasoning. Omit to keep the default object-identity behavior.

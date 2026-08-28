@@ -194,8 +194,8 @@ function groupCollapsed(key: string): boolean {
 // page boundary contributes a second ("continued") chunk that shouldn't be double-counted.
 const pageGroupCount = computed(() => new Set(groupedData.value.map((g) => g.key)).size)
 
-// A plain <select> bound to a value absent from its own options (e.g. a custom defaultPageSize
-// not in the four defaults) silently shows the wrong option as selected — merge the current
+// A plain <select> bound to a value absent from its own options (e.g. a custom initialViewState
+// pageSize not in the four defaults) silently shows the wrong option as selected — merge the current
 // pageSize in so the dropdown always reflects it.
 const pageSizeOptions = computed(() => mergePageSizeOptions([10, 20, 50, 100], pageSize.value))
 

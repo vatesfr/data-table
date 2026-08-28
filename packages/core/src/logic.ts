@@ -1663,14 +1663,15 @@ export function getOrderedColumns<TRow extends object>(
  * setColumns`, or a `columns` prop/ref changing to a different key set in React's/Vue's own
  * `useTableState` (each adapter reaches this from a different trigger — an explicit setter call
  * vs. a changed argument — but needs the identical reconciliation once it happens). `visibleCols`
- * is normally seeded once (from `defaultVisibleColumns`, or every initial column) and otherwise
- * only ever mutated by `toggleColVisibility`; left unreconciled, a `nextColumns` with no overlap
- * in `prevColumns` (e.g. a consumer swapping to a different data schema entirely while keeping
- * the same table/component instance) would leave every column filtered out as "not visible" —
- * `activeColumns` is filtered by `visibleCols` — and the table would silently render with none at
- * all. A column present in both `prevColumns` and `nextColumns` keeps whatever visibility choice
- * it had; a column only in `nextColumns` (genuinely new) starts visible by default, the same
- * default used when no `defaultVisibleColumns` override is given at construction. This also
+ * is normally seeded once (from `initialViewState.visibleCols`, or every initial column) and
+ * otherwise only ever mutated by `toggleColVisibility`; left unreconciled, a `nextColumns` with no
+ * overlap in `prevColumns` (e.g. a consumer swapping to a different data schema entirely while
+ * keeping the same table/component instance) would leave every column filtered out as "not
+ * visible" — `activeColumns` is filtered by `visibleCols` — and the table would silently render
+ * with none at all. A column present in both `prevColumns` and `nextColumns` keeps whatever
+ * visibility choice it had; a column only in `nextColumns` (genuinely new) starts visible by
+ * default, the same default used when no `initialViewState.visibleCols` override is given at
+ * construction. This also
  * covers a fully disjoint replacement for free: with nothing carried over to preserve, every
  * column in `nextColumns` counts as "new" and ends up visible.
  */
@@ -1909,11 +1910,11 @@ export function getCrossPageFocusTarget<TRow extends object>(
 
 /**
  * The "Rows per page" dropdown's option list, guaranteed to include `pageSize` itself — a plain
- * `<select>` bound to a value absent from its own `<option>`s (e.g. `defaultPageSize: 5` against
- * the default `[10, 20, 50, 100]` choices) silently shows the wrong option as selected, since the
- * browser falls back to the first one rather than leaving nothing selected. Inserting the current
- * value keeps the dropdown honest for any custom `defaultPageSize`/`setPageSize` call, not just
- * the four defaults.
+ * `<select>` bound to a value absent from its own `<option>`s (e.g. `initialViewState: { pageSize:
+ * 5 }` against the default `[10, 20, 50, 100]` choices) silently shows the wrong option as
+ * selected, since the browser falls back to the first one rather than leaving nothing selected.
+ * Inserting the current value keeps the dropdown honest for any custom
+ * `initialViewState.pageSize`/`setPageSize` call, not just the four defaults.
  */
 export function mergePageSizeOptions(options: number[], pageSize: number): number[] {
   if (options.includes(pageSize)) return options

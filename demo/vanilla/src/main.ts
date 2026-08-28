@@ -424,7 +424,7 @@ const DEFAULT_VISIBLE = [
 ]
 
 // Each secondary section only needs a couple of columns to make its point — a narrower
-// defaultVisibleColumns keeps each table visually distinct instead of repeating the same
+// initialViewState.visibleCols keeps each table visually distinct instead of repeating the same
 // 10-column table everywhere. The persisted table keeps more, since reordering needs several
 // columns to be meaningful.
 const SELECTION_VISIBLE = ['name', 'department', 'salary']
@@ -711,8 +711,7 @@ const table1 = createDataTable<Employee>(document.getElementById('table1')!, {
   data: SAMPLE_DATA,
   columns: COLUMNS,
   rowKey: 'id',
-  defaultVisibleColumns: DEFAULT_VISIBLE,
-  defaultPageSize: 5,
+  initialViewState: { visibleCols: DEFAULT_VISIBLE, pageSize: 5 },
   labels: LOCALES[currentLocale],
 })
 wireViewPersistence(table1, 'full')
@@ -725,8 +724,7 @@ const table2 = createDataTable<Employee>(document.getElementById('table2')!, {
   data: SAMPLE_DATA,
   columns: COLUMNS,
   rowKey: 'id',
-  defaultVisibleColumns: SELECTION_VISIBLE,
-  defaultPageSize: 5,
+  initialViewState: { visibleCols: SELECTION_VISIBLE, pageSize: 5 },
   labels: LOCALES[currentLocale],
   selectable: true,
   onSelectionChange(rows) {
@@ -753,8 +751,7 @@ const tableClick = createDataTable<Employee>(document.getElementById('table-clic
   data: SAMPLE_DATA,
   columns: COLUMNS,
   rowKey: 'id',
-  defaultVisibleColumns: CLICK_VISIBLE,
-  defaultPageSize: 5,
+  initialViewState: { visibleCols: CLICK_VISIBLE, pageSize: 5 },
   labels: LOCALES[currentLocale],
   onRowClick(row) {
     clickBanner.style.display = 'block'
@@ -769,8 +766,7 @@ const tablePersist = createDataTable<Employee>(document.getElementById('table-pe
   data: SAMPLE_DATA,
   columns: COLUMNS,
   rowKey: 'id',
-  defaultVisibleColumns: PERSISTED_VISIBLE,
-  defaultPageSize: 5,
+  initialViewState: { visibleCols: PERSISTED_VISIBLE, pageSize: 5 },
   labels: LOCALES[currentLocale],
 })
 wireViewPersistence(tablePersist, 'persisted')
@@ -783,7 +779,7 @@ const table3 = createDataTable<Employee>(document.getElementById('table3')!, {
   data: dynamicData,
   columns: COLUMNS,
   rowKey: 'id',
-  defaultVisibleColumns: DYNAMIC_VISIBLE,
+  initialViewState: { visibleCols: DYNAMIC_VISIBLE },
   labels: LOCALES[currentLocale],
 })
 wireViewPersistence(table3, 'dynamic')
@@ -819,7 +815,7 @@ const tableHuge = createDataTable(document.getElementById('table-huge')!, {
   data: HUGE_DATA,
   columns: HUGE_COLUMNS,
   rowKey: 'id',
-  defaultPageSize: 100,
+  initialViewState: { pageSize: 100 },
 })
 wireViewPersistence(tableHuge, 'huge')
 
