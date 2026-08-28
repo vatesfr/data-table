@@ -34,6 +34,9 @@ interface SortDropdownProps<TRow extends object> {
 export function SortDropdown<TRow extends object>(props: SortDropdownProps<TRow>) {
   const { table } = props
   const [searchTerm, setSearchTerm] = createSignal('')
+  // Which category submenu is open — a single shared value (not one signal per CategorySubmenu)
+  // so opening one always closes any other that was open, see CategorySubmenu.tsx's own doc.
+  const [openCategory, setOpenCategory] = createSignal<string | null>(null)
   // Activating an addable column (moving it into the active section) or removing an active one
   // (moving it back to addable) re-renders a structurally different part of the tree — the
   // element that had focus is gone, so focus would silently drop to <body> without this. Solid's
@@ -278,7 +281,12 @@ export function SortDropdown<TRow extends object>(props: SortDropdownProps<TRow>
         </For>
         <For each={categorizedAddableCols().categories}>
           {(category) => (
-            <CategorySubmenu name={category.name}>
+            <CategorySubmenu
+              name={category.name}
+              isOpen={openCategory() === category.name}
+              onOpen={() => setOpenCategory(category.name)}
+              onClose={() => setOpenCategory((c) => (c === category.name ? null : c))}
+            >
               <For each={category.columns}>{(col) => <AddableColRow col={col} />}</For>
             </CategorySubmenu>
           )}

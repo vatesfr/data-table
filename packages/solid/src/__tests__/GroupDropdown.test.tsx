@@ -61,10 +61,13 @@ function mountCategorized() {
   const container = document.createElement('div')
   document.body.appendChild(container)
   let table!: ReturnType<typeof createTableState<Row>>
+  // See SortDropdown.test.tsx's identical comment on its own mountCategorized — a CategorySubmenu
+  // portals to document.body, so render()'s own disposer must be captured and called too.
+  let disposeView!: () => void
   const dispose = createRoot((d) => {
     table = createTableState(ROWS, CATEGORIZED_GROUPABLE)
     const [isOpen] = createSignal(true)
-    render(
+    disposeView = render(
       () => (
         <GroupDropdown
           table={table}
@@ -78,7 +81,14 @@ function mountCategorized() {
     )
     return d
   })
-  return { container, table, dispose }
+  return {
+    container,
+    table,
+    dispose: () => {
+      disposeView()
+      dispose()
+    },
+  }
 }
 
 describe('GroupDropdown — column categories', () => {

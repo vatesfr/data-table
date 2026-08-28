@@ -20,6 +20,8 @@ interface GroupDropdownProps<TRow extends object> {
 export function GroupDropdown<TRow extends object>(props: GroupDropdownProps<TRow>) {
   const { table } = props
   const [searchTerm, setSearchTerm] = createSignal('')
+  // See SortDropdown.tsx's identical comment on its own openCategory.
+  const [openCategory, setOpenCategory] = createSignal<string | null>(null)
   const {
     dragOverKey,
     dragOverAfter,
@@ -174,7 +176,12 @@ export function GroupDropdown<TRow extends object>(props: GroupDropdownProps<TRo
         </For>
         <For each={categorizedAddableCols().categories}>
           {(category) => (
-            <CategorySubmenu name={category.name}>
+            <CategorySubmenu
+              name={category.name}
+              isOpen={openCategory() === category.name}
+              onOpen={() => setOpenCategory(category.name)}
+              onClose={() => setOpenCategory((c) => (c === category.name ? null : c))}
+            >
               <For each={category.columns}>{(col) => <AddableColRow col={col} />}</For>
             </CategorySubmenu>
           )}

@@ -58,17 +58,26 @@ function mount() {
 const CATEGORIZED_COLS: ColumnDef<Row>[] = [
   { key: 'id', label: 'ID' },
   { key: 'name', label: 'Name', category: 'Info' },
-  { key: 'score', label: 'Score', type: 'number', category: 'Info' },
+  { key: 'score', label: 'Score', type: 'number', category: 'Numbers' },
 ]
 
 function mountCategorized() {
   const container = document.createElement('div')
   document.body.appendChild(container)
   let table!: ReturnType<typeof createTableState<Row>>
+  // A CategorySubmenu's flyout is rendered through a <Portal> straight to document.body (see
+  // CategorySubmenu.tsx) — render()'s own internal root isn't a child of the outer createRoot
+  // (same gotcha packages/vanilla/src/index.tsx's own `disposeView`/`dispose` pair documents), so
+  // its returned disposer must be captured and called too, or a submenu left open at the end of a
+  // test leaks its portaled DOM node into every test that runs after it (confirmed empirically:
+  // a bare `dispose()` alone left `.dt-dd-submenu` in the DOM, polluting document-level queries in
+  // later tests — regular, non-portaled content never surfaced this, since it's scoped under
+  // `container`, itself just as undisposed but harmlessly so).
+  let disposeView!: () => void
   const dispose = createRoot((d) => {
     table = createTableState(ROWS, CATEGORIZED_COLS)
     const [isOpen] = createSignal(true)
-    render(
+    disposeView = render(
       () => (
         <SortDropdown
           table={table}
@@ -82,7 +91,20 @@ function mountCategorized() {
     )
     return d
   })
-  return { container, table, dispose }
+  return {
+    container,
+    table,
+    dispose: () => {
+      disposeView()
+      dispose()
+    },
+  }
+}
+
+function triggerFor(container: HTMLElement, name: string): HTMLButtonElement {
+  return [...container.querySelectorAll<HTMLButtonElement>('.dt-dd-category-trigger')].find((b) =>
+    b.textContent?.includes(name),
+  )!
 }
 
 describe('SortDropdown — column categories', () => {
@@ -91,13 +113,15 @@ describe('SortDropdown — column categories', () => {
     expect(
       [...container.querySelectorAll('button[data-col-key]')].map((b) => b.textContent),
     ).toEqual(['ID']) // Name/Score are categorized, not addable rows themselves
-    expect(container.querySelector('.dt-dd-category-trigger')?.textContent).toContain('Info')
+    expect(
+      [...container.querySelectorAll('.dt-dd-category-trigger')].map((b) => b.textContent),
+    ).toEqual(['Info▸', 'Numbers▸']) // alphabetized, same as this list's other ordering
     dispose()
   })
 
   it('opens the submenu on click and adds a sort from a row inside it', () => {
     const { container, table, dispose } = mountCategorized()
-    const trigger = container.querySelector<HTMLButtonElement>('.dt-dd-category-trigger')!
+    const trigger = triggerFor(container, 'Numbers')
     expect(document.querySelector('.dt-dd-submenu')).toBeNull()
 
     trigger.click()
@@ -112,9 +136,26 @@ describe('SortDropdown — column categories', () => {
     dispose()
   })
 
+  it('opening one category submenu closes the previously open sibling (only one open at a time)', () => {
+    const { container, dispose } = mountCategorized()
+    const infoTrigger = triggerFor(container, 'Info')
+    const numbersTrigger = triggerFor(container, 'Numbers')
+
+    infoTrigger.click()
+    expect(infoTrigger.getAttribute('aria-expanded')).toBe('true')
+    expect(document.querySelectorAll('.dt-dd-submenu').length).toBe(1)
+
+    numbersTrigger.click()
+    expect(infoTrigger.getAttribute('aria-expanded')).toBe('false')
+    expect(numbersTrigger.getAttribute('aria-expanded')).toBe('true')
+    // Still just one submenu in the DOM — Info's closed, not left open alongside Numbers'.
+    expect(document.querySelectorAll('.dt-dd-submenu').length).toBe(1)
+    dispose()
+  })
+
   it('Escape closes the submenu and refocuses the trigger, without closing the whole dropdown', () => {
     const { container, dispose } = mountCategorized()
-    const trigger = container.querySelector<HTMLButtonElement>('.dt-dd-category-trigger')!
+    const trigger = triggerFor(container, 'Info')
     trigger.click()
     const submenu = document.querySelector<HTMLElement>('.dt-dd-submenu')!
     const firstRow = submenu.querySelector<HTMLElement>('[data-dd-row]')!
