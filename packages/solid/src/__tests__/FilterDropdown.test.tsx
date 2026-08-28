@@ -122,6 +122,68 @@ describe('FilterDropdown — column selection', () => {
   })
 })
 
+const CATEGORIZED_COLS: ColumnDef<Row>[] = [
+  { key: 'name', label: 'Name', filterable: true },
+  { key: 'dept', label: 'Dept', filterable: true, category: 'Org' },
+  { key: 'score', label: 'Score', filterable: true, type: 'number', category: 'Org' },
+  { key: 'joined', label: 'Joined', filterable: true, type: 'date' },
+]
+
+function mountCategorized() {
+  const container = document.createElement('div')
+  document.body.appendChild(container)
+  let table!: ReturnType<typeof createTableState<Row>>
+  const dispose = createRoot((d) => {
+    table = createTableState(ROWS, CATEGORIZED_COLS)
+    const [isOpen] = createSignal(true)
+    render(
+      () => (
+        <FilterDropdown
+          table={table}
+          columns={CATEGORIZED_COLS}
+          isOpen={isOpen()}
+          onToggle={() => {}}
+          onClose={() => {}}
+        />
+      ),
+      container,
+    )
+    return d
+  })
+  return { container, table, dispose }
+}
+
+describe('FilterDropdown — column categories', () => {
+  it('renders uncategorized columns as plain rows and categorized ones under a section header', () => {
+    const { container, dispose } = mountCategorized()
+    const itemLabels = [...container.querySelectorAll('.dt-filter-col-item span')].map(
+      (s) => s.textContent,
+    )
+    expect(itemLabels).toEqual(['Joined', 'Name', 'Dept', 'Score']) // uncategorized (alpha) first, then category
+    expect(container.querySelector('.dt-filter-category-header')?.textContent).toContain('Org')
+    dispose()
+  })
+
+  it('starts expanded and collapses/expands its columns on header click', () => {
+    const { container, dispose } = mountCategorized()
+    const header = container.querySelector<HTMLButtonElement>('.dt-filter-category-header')!
+    const colLabel = () =>
+      [...container.querySelectorAll('.dt-filter-col-item span')].map((s) => s.textContent)
+
+    expect(header.getAttribute('aria-expanded')).toBe('true')
+    expect(colLabel()).toEqual(['Joined', 'Name', 'Dept', 'Score'])
+
+    header.click()
+    expect(header.getAttribute('aria-expanded')).toBe('false')
+    expect(colLabel()).toEqual(['Joined', 'Name']) // Dept/Score hidden, uncategorized unaffected
+
+    header.click()
+    expect(header.getAttribute('aria-expanded')).toBe('true')
+    expect(colLabel()).toEqual(['Joined', 'Name', 'Dept', 'Score'])
+    dispose()
+  })
+})
+
 describe('FilterDropdown — column ordering', () => {
   it('moves active-filter columns to the top only when the dropdown (re)opens', () => {
     const { container, table, dispose } = mount()

@@ -302,16 +302,22 @@ const COLUMNS: ColumnDef<Employee>[] = [
   // groupable + render: a real DOM node badge (this package's ColumnDef.render returns a Node, not
   // JSX — see components/Badge.ts). renderFilterLabel mirrors it in the filter checklist, so the
   // same badge shows there instead of the raw string.
+  // category: groups this column under a named section in the Columns/Sort/Group dropdowns'
+  // column lists (a submenu) and the Filter dropdown's left pane (a collapsible section) — useful
+  // once a table has enough columns that a flat list is hard to scan. Department/Role/Salary/
+  // Joined are grouped under "Work" below, Score/Tier/Skills under "Performance"; Name/Tenure/
+  // Status are left uncategorized and render as plain rows alongside the category entries.
   {
     key: 'department',
     label: 'Department',
     type: 'string',
     width: 130,
     groupable: true,
+    category: 'Work',
     render: (v) => badge(String(v), DEPT_COLORS),
     renderFilterLabel: (v) => badge(v, DEPT_COLORS),
   },
-  { key: 'role', label: 'Role', type: 'string', width: 140, groupable: true },
+  { key: 'role', label: 'Role', type: 'string', width: 140, groupable: true, category: 'Work' },
   // format: plain string — use this when no custom node is needed; the numeric range filter (2
   // inputs + a slider) is automatic for type: 'number'
   {
@@ -335,6 +341,7 @@ const COLUMNS: ColumnDef<Employee>[] = [
     // (issue #18); a null salary (Eva, just joined) lands in its own "(none)" group instead of
     // being miscounted as $0.
     groupable: true,
+    category: 'Work',
     // header shows only the $20k bucket, not the exact salary — keep the column visible
     // when grouped so the real value stays visible on each row.
     keepVisibleWhenGrouped: true,
@@ -353,6 +360,7 @@ const COLUMNS: ColumnDef<Employee>[] = [
     width: 100,
     defaultSortDir: 'desc',
     groupable: true,
+    category: 'Work',
     // header shows only the year, not the exact join date — keep the column visible when
     // grouped so the real date stays visible on each row.
     keepVisibleWhenGrouped: true,
@@ -389,6 +397,7 @@ const COLUMNS: ColumnDef<Employee>[] = [
     label: 'Score',
     type: 'number',
     width: 80,
+    category: 'Performance',
     compare: compareMissingLast(),
     render: (v) => (v == null ? muted('No review yet') : scoreBar(Number(v))),
   },
@@ -405,6 +414,7 @@ const COLUMNS: ColumnDef<Employee>[] = [
     ),
     groupable: true,
     width: 90,
+    category: 'Performance',
     render: (v) => (v ? badge(String(v), TIER_COLORS) : muted('—')),
   },
   // array-valued column: filter checklist lists individual skills, grouping fans a row into
@@ -424,6 +434,7 @@ const COLUMNS: ColumnDef<Employee>[] = [
     label: 'Skills',
     width: 180,
     groupable: true,
+    category: 'Performance',
     keepVisibleWhenGrouped: true,
     defaultValueSort: { by: 'count', dir: 'desc' },
   },

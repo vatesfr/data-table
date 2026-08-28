@@ -29,6 +29,7 @@ import {
   columnHasActiveFilter,
   orderFilterColumnsByActive,
   applyColumnOrderSnapshot,
+  groupColumnsByCategory,
   type DateTreeNode,
 } from '@vates/data-table-core/internal'
 import type { TableState } from '../createTableState'
@@ -209,6 +210,26 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
       : filterableCols()
     return applyColumnOrderSnapshot(cols, orderKeys())
   })
+
+  // Buckets the (already searched/ordered) left-pane column list by `ColumnDefBase.category` —
+  // see CLAUDE.md's "Column categories" section. Uncategorized columns render as plain rows,
+  // exactly as before this feature existed; each category renders as its own collapsible
+  // section instead of a flyout submenu (unlike Columns/Sort/Group) — a submenu would need
+  // ArrowRight, already taken here for left-pane→detail-pane crossing (see `handlePanelKeyDown`).
+  const categorizedFilterCols = createMemo(() => groupColumnsByCategory(searchedFilterableCols()))
+  // Which categories are collapsed — absence means expanded, so a category never seen before
+  // (including every category on first open) starts expanded, matching "categories start open,
+  // user collapses the ones they don't need" rather than requiring the user to expand everything
+  // just to find a column. Session-local UI state, not persisted (same tier as `filterActiveCol`).
+  const [collapsedCategories, setCollapsedCategories] = createSignal<Set<string>>(new Set())
+  function toggleCategoryCollapsed(name: string): void {
+    setCollapsedCategories((prev) => {
+      const next = new Set(prev)
+      if (next.has(name)) next.delete(name)
+      else next.add(name)
+      return next
+    })
+  }
   const [searchTerms, setSearchTerms] = createSignal<Record<string, string>>({})
   const [valueSorts, setValueSorts] = createSignal<Record<string, ValueSort>>({})
   const [selectionAnchors, setSelectionAnchors] = createSignal<Record<string, string>>({})
@@ -547,6 +568,54 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
     }
   }
 
+  // One left-pane column row — shared by the flat uncategorized list and each category section
+  // below, so the two render identically apart from indentation.
+  function FilterColRow(rowProps: { col: ColumnDef<TRow> }) {
+    const col = rowProps.col
+    const hasActive = createMemo(() => hasActiveFilter(col))
+    const isSelected = createMemo(() => activeCol()?.key === col.key)
+    return (
+      // The row (not just the item button) carries the selected/hover background, so the
+      // highlight spans the clear button too instead of stopping short of it —
+      // `.dt-filter-col-item--active` stays on the button as well, purely so
+      // `handlePanelKeyDown`'s ArrowLeft refocus lookup and the button's own font-weight bump
+      // still have something to key off.
+      <div class={`dt-filter-col-row${isSelected() ? ' dt-filter-col-row--active' : ''}`}>
+        <button
+          type="button"
+          class={`dt-filter-col-item${isSelected() ? ' dt-filter-col-item--active' : ''}`}
+          data-dd-row
+          data-filter-col-key={col.key}
+          onClick={() => setActiveKey(col.key)}
+        >
+          <span>{col.label}</span>
+        </button>
+        {/* Replaces the plain active-filter dot: a one-click way to drop this column's filter
+            without opening it first, matching the toolbar's own per-dropdown × buttons — see
+            CLAUDE.md's "Toolbar clear buttons". A sibling of the column button rather than
+            nested inside it, since a <button> can't contain another interactive element. */}
+        <Show when={hasActive()}>
+          <button
+            type="button"
+            class="dt-filter-col-clear"
+            title={table.labels().clearColumnFilter}
+            aria-label={table.labels().clearColumnFilter}
+            onClick={(e) => {
+              e.stopPropagation()
+              // Clears every kind at once — this button means "drop this column's filter
+              // entirely", unlike the active-bar's own per-kind chips.
+              table.filter.clearColumn(col.key, 'include')
+              table.filter.clearColumn(col.key, 'exclude')
+              table.filter.clearColumn(col.key, 'range')
+            }}
+          >
+            ×
+          </button>
+        </Show>
+      </div>
+    )
+  }
+
   return (
     <Dropdown
       isOpen={props.isOpen}
@@ -609,48 +678,28 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
             value={colSearchTerm()}
             onInput={(e) => setColSearchTerm(e.currentTarget.value)}
           />
-          <For each={searchedFilterableCols()}>
-            {(col) => {
-              const hasActive = createMemo(() => hasActiveFilter(col))
-              const isSelected = createMemo(() => activeCol()?.key === col.key)
+          <For each={categorizedFilterCols().uncategorized}>
+            {(col) => <FilterColRow col={col} />}
+          </For>
+          <For each={categorizedFilterCols().categories}>
+            {(category) => {
+              const isCollapsed = createMemo(() => collapsedCategories().has(category.name))
               return (
-                // The row (not just the item button) carries the selected/hover background, so
-                // the highlight spans the clear button too instead of stopping short of it —
-                // `.dt-filter-col-item--active` stays on the button as well, purely so
-                // `handlePanelKeyDown`'s ArrowLeft refocus lookup and the button's own
-                // font-weight bump still have something to key off.
-                <div class={`dt-filter-col-row${isSelected() ? ' dt-filter-col-row--active' : ''}`}>
+                <div class="dt-filter-category">
                   <button
                     type="button"
-                    class={`dt-filter-col-item${isSelected() ? ' dt-filter-col-item--active' : ''}`}
+                    class="dt-filter-category-header"
                     data-dd-row
-                    data-filter-col-key={col.key}
-                    onClick={() => setActiveKey(col.key)}
+                    aria-expanded={!isCollapsed()}
+                    onClick={() => toggleCategoryCollapsed(category.name)}
                   >
-                    <span>{col.label}</span>
+                    <span class="dt-filter-category-toggle">{isCollapsed() ? '▶' : '▼'}</span>
+                    <span class="dt-flex1">{category.name}</span>
                   </button>
-                  {/* Replaces the plain active-filter dot: a one-click way to drop this column's
-                      filter without opening it first, matching the toolbar's own per-dropdown ×
-                      buttons — see CLAUDE.md's "Toolbar clear buttons". A sibling of the column
-                      button rather than nested inside it, since a <button> can't contain another
-                      interactive element. */}
-                  <Show when={hasActive()}>
-                    <button
-                      type="button"
-                      class="dt-filter-col-clear"
-                      title={table.labels().clearColumnFilter}
-                      aria-label={table.labels().clearColumnFilter}
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        // Clears every kind at once — this button means "drop this column's
-                        // filter entirely", unlike the active-bar's own per-kind chips.
-                        table.filter.clearColumn(col.key, 'include')
-                        table.filter.clearColumn(col.key, 'exclude')
-                        table.filter.clearColumn(col.key, 'range')
-                      }}
-                    >
-                      ×
-                    </button>
+                  <Show when={!isCollapsed()}>
+                    <div class="dt-filter-category-cols">
+                      <For each={category.columns}>{(col) => <FilterColRow col={col} />}</For>
+                    </div>
                   </Show>
                 </div>
               )

@@ -102,6 +102,10 @@ ${renderThemeCss()}
 .dt-filter-col-item--active{font-weight:500}
 .dt-filter-col-clear{flex-shrink:0;display:flex;align-items:center;padding:0 10px;font-size:13px;line-height:1;cursor:pointer;color:var(--color-text-tertiary,#9b9a96);border:none;background:none;font-family:inherit}
 .dt-filter-col-clear:hover{color:var(--color-text-primary,#1a1916)}
+.dt-filter-category-header{display:flex;align-items:center;gap:6px;width:100%;padding:7px 10px;font-size:13px;font-weight:500;cursor:pointer;color:var(--color-text-secondary,#6b6a66);border:none;background:none;font-family:inherit;text-align:left;margin:0;box-sizing:border-box}
+.dt-filter-category-header:hover{background:var(--color-background-secondary,#f7f6f3)}
+.dt-filter-category-toggle{flex-shrink:0;font-size:10px;color:var(--color-text-tertiary,#9b9a96)}
+.dt-filter-category-cols .dt-filter-col-item{padding-left:22px}
 .dt-filter-detail{flex:1;padding:6px 0;min-width:220px;display:flex;flex-direction:column;min-height:0}
 .dt-filter-list{overflow-y:auto;flex:1;min-height:0}
 .dt-date-tree-wrap{overflow-y:auto;flex:1;min-height:0}
