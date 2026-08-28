@@ -7,6 +7,14 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-08-28
+
+### Changed
+
+- **BREAKING (all four adapters):** `defaultVisibleColumns`/`defaultPageSize` construction options replaced by a single `initialViewState?: TableViewState` option, covering every view concern (visible columns, column order, sort, filters, grouping, page/pageSize, search) uniformly. `resetView`/`setViewState({})` now restore this value instead of clearing to empty — closing a gap where a construction-time sort/filter/group default had no equivalent option and was silently lost on every reset (#20). Grouping a column via `initialViewState.groupBy` with no matching `sorts` entry auto-inserts one (mirroring what interactive `group.toggle` already does), unless `view.groupBy` is passed explicitly to `setViewState` (which respects that view's own `sorts`, or lack of one, as given). `getViewState()`'s own default-omission check now compares every field against what a reset would actually restore, instead of an independent "is this field non-empty" rule — this also fixes a latent bug where `visibleCols` was compared against every column rather than the real construction default.
+
+## [0.11.0] - 2026-08-21
+
 ### Added
 
 - Grouping a column now auto-inserts a matching sort entry for it (ascending by default), so groups have a defined order right away instead of an arbitrary one (#17). The entry is an ordinary, user-removable/reversible sort — not tracked state — positioned after any earlier grouped columns' entries and before everything else, so multi-level nesting priority matches `groupBy`'s own order. Ungrouping does _not_ remove it (a deliberate scope cut); reordering an active group re-syncs its sort priority to match. `insertGroupSort`/`reorderGroupSorts` (core, internal — wired automatically by each adapter's `group.toggle`/`group.move`/`group.moveBy` actions, same as `toggleGroupBy`) are the two new primitives behind this.
@@ -27,9 +35,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - `bucketNumericRange`/`bucketDatePart` now return `null` for a missing (`null`/`undefined`) value instead of silently coercing it — `bucketNumericRange` previously read `Number(null) === 0`, merging "no value" into the same group as a real, confirmed `0`; `bucketDatePart` previously read `String(null) === "null"`, surfacing the literal text `"null"` as a group header. `bucketNumericRange` also now returns `null` (rather than `NaN`) for a non-numeric value, since `NaN` previously flowed through to a group key that stringified to the literal visible text `"NaN"`. `formatNumericRange`/`formatDatePart` each gained a 3rd `missingLabel = '(none)'` parameter rendered for that group (#18)
 - Solid/Vue: the merged group+sort active-bar pill rendered as two visually disconnected chips instead of one seamless pill — the sort-remove ×'s border-square-off relied on a `:first-of-type` selector that never matched, since `:first-of-type` counts by tag name and the pill's chip-body segment is itself a `<button>` and its actual first child. Replaced with an adjacent-sibling selector that targets the sort-remove × unambiguously. React was unaffected, since it applies the equivalent override as an inline style on that element directly rather than through a CSS selector.
 
-## [Unreleased]
-
-## [0.11.0] - 2026-08-21
+## [0.10.0] - 2026-08-21
 
 ### Added
 
