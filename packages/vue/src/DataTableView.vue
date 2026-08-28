@@ -386,13 +386,23 @@ function makeDdEscapeClearable(dd: string): () => boolean {
 const colsEscapeClearable = makeDdEscapeClearable('cols')
 const sortEscapeClearable = makeDdEscapeClearable('sort')
 const groupEscapeClearable = makeDdEscapeClearable('group')
-// The Columns dropdown keeps `orderedColumns`'s real table/drag order unchanged — it doubles as
-// the drag-to-reorder surface, so alphabetizing would conflict with that order's own meaning.
-const searchedOrderedColumns = computed(() => {
-  const term = ddSearchTerm('cols').trim().toLowerCase()
-  return term
-    ? orderedColumns.value.filter((c) => c.label.toLowerCase().includes(term))
-    : orderedColumns.value
+// Columns dropdown: "Visible columns" (every column the user has chosen to show — visibleCols,
+// not activeColumns, so a column merely hidden *by grouping* still counts as visible here) is the
+// draggable/Alt+↑↓-reorderable list this dropdown always was; unaffected by search, matching
+// Sort/Group (search narrows only what's being added, not what's already active). "Available
+// columns" (hidden columns, click to show) is search-narrowed and bucketed by category — but,
+// unlike Sort/Group's addable lists, deliberately NOT alphabetized: this dropdown's whole identity
+// is "shows real column/definition order," so Available keeps that same order instead of adopting
+// Sort/Group's alphabetical convention (see categorizedAlphabetizedByLabel above, which this
+// intentionally doesn't use).
+const visibleOrderedColumns = computed(() =>
+  orderedColumns.value.filter((c) => visibleCols.value.has(c.key)),
+)
+const categorizedAvailableCols = computed(() => {
+  const available = orderedColumns.value.filter((c) => !visibleCols.value.has(c.key))
+  return groupColumnsByCategory(
+    available.filter((c) => columnMatchesSearch(c, ddSearchTerm('cols'))),
+  )
 })
 // Declared here (rather than alongside its sibling groupDropdownRef further down) because the
 // watch right below needs it, and `<script setup>` top-level consts execute in source order —
@@ -958,9 +968,7 @@ function onGroupRowKeyDown(event: KeyboardEvent, key: string): void {
   }
 }
 
-// Drag-and-drop reordering for the Columns dropdown's rows — replaces the old ▲▼ buttons. The
-// row itself gets no tabindex: the checkbox inside is already a native Tab stop, so a second one
-// on the row would just be a redundant, visually-identical stop for the same rectangle.
+// Drag-and-drop reordering for the Columns dropdown's Visible rows — replaces the old ▲▼ buttons.
 const {
   dragKey: dragColRowKey,
   dragOverKey: dragOverColRowKey,
@@ -970,20 +978,53 @@ const {
   onDragOver: onColRowsDragOver,
   onDrop: onColRowsDrop,
 } = useDropdownReorder('data-col-row-key', moveColumn)
-// Same `activateAndFocus` reasoning as Sort/Group above — Alt+↑/↓ keeps the checkbox in the same
-// v-for list, but Vue's keyed reconciliation still drops focus when it repositions the DOM node.
-// This dropdown has no existing activate/remove ref map to reuse (visibility toggling never moves
-// a row between lists), so `colRowRefs` exists purely for this reorder case.
+// Same `activateAndFocus` reasoning as Sort/Group above — showing/hiding a column moves its row
+// between the Visible/Available lists (a structurally new element), and Alt+↑/↓ keeps it in the
+// same list yet Vue's keyed reconciliation still drops focus when it repositions the DOM node —
+// both need an explicit refocus via a ref map.
 const colRowRefs = new Map<string, HTMLElement>()
+const addableColRefs = new Map<string, HTMLElement>()
 function setColRowRef(key: string, el: Element | null): void {
   if (el) colRowRefs.set(key, el as HTMLElement)
   else colRowRefs.delete(key)
 }
-function onColRowKeyDown(event: KeyboardEvent, key: string): void {
+function setAddableColRef(key: string, el: Element | null): void {
+  if (el) addableColRefs.set(key, el as HTMLElement)
+  else addableColRefs.delete(key)
+}
+// One CategorySubmenu component instance per category, keyed by category name — lets `hideColumn`
+// below focus a category's own trigger button (via the instance's exposed `triggerRef`) when a
+// hidden column reappears inside a *closed* submenu with no addable row of its own rendered yet.
+const categorySubmenuRefs = new Map<string, { triggerRef: HTMLButtonElement | null }>()
+function setCategorySubmenuRef(name: string, el: unknown): void {
+  if (el) categorySubmenuRefs.set(name, el as { triggerRef: HTMLButtonElement | null })
+  else categorySubmenuRefs.delete(name)
+}
+// Shows `key`, refocusing its new Visible row (colRowRefs) — the same activate/remove reasoning
+// as Sort/Group's onAddSort/onAddGroup above.
+function showColumn(key: string): Promise<void> {
+  return activateAndFocus(() => toggleColVisibility(key), colRowRefs, key)
+}
+// Hides `col`, refocusing whatever it reappears as in Available — shared by a visible row's own ×
+// button and its Delete/Backspace keyboard equivalent. Unlike Sort/Group's activate/remove (always
+// the same ref map), the refocus target here depends on whether `col` is categorized, so this
+// can't just reuse `activateAndFocus` as-is.
+async function hideColumn(col: ColumnDef<TRow>): Promise<void> {
+  toggleColVisibility(col.key)
+  await nextTick()
+  if (col.category) categorySubmenuRefs.get(col.category)?.triggerRef?.focus()
+  else addableColRefs.get(col.key)?.focus()
+}
+function onColRowKeyDown(event: KeyboardEvent, key: string, col: ColumnDef<TRow>): void {
   if (event.altKey && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {
     event.preventDefault()
     const delta = event.key === 'ArrowUp' ? -1 : 1
-    activateAndFocus(() => moveColumnBy(key, delta), colRowRefs, key)
+    activateAndFocus(() => moveVisibleColumnBy(key, delta), colRowRefs, key)
+  } else if (event.key === 'Delete' || event.key === 'Backspace') {
+    // Keyboard equivalent of this row's own × button — matches the Filter dropdown's identical
+    // Delete/Backspace-on-a-focused-active-row shortcut.
+    event.preventDefault()
+    hideColumn(col)
   }
 }
 
@@ -1177,7 +1218,14 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
     <!-- ── Toolbar ── -->
     <div class="dt__toolbar">
       <div class="dt__toolbar-actions">
-        <!-- Columns -->
+        <!-- Columns — "Visible columns" (every shown column, draggable/Alt+↑↓-reorderable, in
+             real table order) above "Available columns" (hidden columns, click to show; a
+             categorized one collapses into a CategorySubmenu). Mirrors the Sort/Group
+             active/addable split above — a checkbox no longer fit once "shown" and "hidden"
+             needed visually distinct rows (draggable + remove vs. plain click-to-add), the same
+             reason Sort/Group never used one either. Reordering only ever happens within
+             Visible — Available is click-only, so nesting it into category submenus (impossible
+             for Visible, since submenu rows can't also be a drag surface) creates no conflict. -->
         <Dropdown
           @dragover="onColRowsDragOver"
           @drop="onColRowsDrop"
@@ -1186,30 +1234,15 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
           <template #trigger="{ open }">
             <ToolbarBtn :active="open">{{ L.columns }}</ToolbarBtn>
           </template>
-          <!--
-            Search box narrows the list below by label — see `ddSearchTerms`. Ordering itself is
-            left untouched (still `orderedColumns`, i.e. real table column order): this list also
-            doubles as the drag-to-reorder surface, so its order carries meaning no
-            alphabetization should disturb.
-          -->
-          <div class="dt__dd-search-row">
-            <input
-              type="text"
-              class="dt__dd-search"
-              data-dd-search
-              :placeholder="L.filterSearchPlaceholder"
-              :value="ddSearchTerm('cols')"
-              @input="setDdSearchTerm('cols', ($event.target as HTMLInputElement).value)"
-            />
-          </div>
           <div class="dt__dd-section">{{ L.columnsSection }}</div>
           <!--
             @dragover/@drop are handled at the Dropdown panel level (see above), not per-row —
             that's what lets a drop past the last row still resolve to a valid target.
           -->
           <div
-            v-for="col in searchedOrderedColumns"
+            v-for="col in visibleOrderedColumns"
             :key="col.key"
+            :ref="(el) => setColRowRef(col.key, el as Element | null)"
             :data-col-row-key="col.key"
             class="dt__dd-item dt__dd-item--col dt__dd-item--colrow"
             :class="{
@@ -1218,20 +1251,74 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
               'dt__dd-item--drag-over-after': dragOverColRowKey === col.key && dragOverColRowAfter,
             }"
             draggable="true"
+            tabindex="0"
             @dragstart="onColRowDragStart(col.key)"
             @dragend="onColRowDragEnd"
+            @keydown="onColRowKeyDown($event, col.key, col)"
           >
-            <label class="dt__dd-item--clickable dt__flex1">
-              <input
-                type="checkbox"
-                :ref="(el) => setColRowRef(col.key, el as Element | null)"
-                :checked="visibleCols.has(col.key)"
-                @change="toggleColVisibility(col.key)"
-                @keydown="onColRowKeyDown($event, col.key)"
-              />
-              {{ col.label }}
-            </label>
+            <span class="dt__flex1">{{ col.label }}</span>
+            <button
+              type="button"
+              class="dt__item-remove"
+              draggable="false"
+              @click.stop="hideColumn(col)"
+            >
+              ×
+            </button>
           </div>
+          <template
+            v-if="
+              categorizedAvailableCols.uncategorized.length > 0 ||
+              categorizedAvailableCols.categories.length > 0
+            "
+          >
+            <!-- Narrows Available only, matching Sort/Group (search never touches the active
+                 section) — the Columns dropdown's own real-order principle (see the computed's
+                 own comment) still applies here, unaffected by search. -->
+            <div class="dt__dd-search-row">
+              <input
+                type="text"
+                class="dt__dd-search"
+                data-dd-search
+                :placeholder="L.filterSearchPlaceholder"
+                :value="ddSearchTerm('cols')"
+                @input="setDdSearchTerm('cols', ($event.target as HTMLInputElement).value)"
+              />
+            </div>
+            <div class="dt__dd-section">{{ L.availableColumnsSection }}</div>
+            <button
+              v-for="col in categorizedAvailableCols.uncategorized"
+              :key="col.key"
+              :ref="(el) => setAddableColRef(col.key, el as Element | null)"
+              type="button"
+              class="dt__dd-item dt__dd-item--clickable"
+              @click="showColumn(col.key)"
+            >
+              <span class="dt__flex1">{{ col.label }}</span>
+            </button>
+            <CategorySubmenu
+              v-for="category in categorizedAvailableCols.categories"
+              :key="category.name"
+              :ref="(el) => setCategorySubmenuRef(category.name, el)"
+              :name="category.name"
+              :is-open="openColsCategory === category.name"
+              @open="openColsCategory = category.name"
+              @close="
+                openColsCategory = openColsCategory === category.name ? null : openColsCategory
+              "
+            >
+              <button
+                v-for="col in category.columns"
+                :key="col.key"
+                :ref="(el) => setAddableColRef(col.key, el as Element | null)"
+                type="button"
+                class="dt__dd-item dt__dd-item--clickable"
+                @click="showColumn(col.key)"
+              >
+                <span class="dt__flex1">{{ col.label }}</span>
+              </button>
+            </CategorySubmenu>
+          </template>
         </Dropdown>
 
         <!-- Group before Sort — data is grouped first, then ordered (groups themselves, then
