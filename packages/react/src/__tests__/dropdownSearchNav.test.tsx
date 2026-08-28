@@ -44,6 +44,24 @@ describe('DataTable — dropdown column search', () => {
     expect(rowLabels).toEqual(['Score'])
   })
 
+  it('the Columns dropdown search box also matches by category, surfacing every column filed under it', () => {
+    const categorizedCols: ColumnDef<Row>[] = [
+      { key: 'name', label: 'Name', category: 'Info' },
+      { key: 'score', label: 'Score', type: 'number', category: 'Info' },
+      { key: 'dept', label: 'Dept', type: 'string' },
+    ]
+    const { getByText, container } = render(
+      <DataTable data={ROWS} columns={categorizedCols} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Columns'))
+    const search = container.querySelector<HTMLInputElement>('input[data-dd-search]')!
+    fireEvent.change(search, { target: { value: 'Info' } })
+    const rowLabels = [...container.querySelectorAll('[data-col-row-key] label')].map((l) =>
+      l.textContent?.trim(),
+    )
+    expect(rowLabels).toEqual(['Name', 'Score']) // neither label contains "Info" — only category does
+  })
+
   it('the Sort dropdown search box narrows only the addable list, alphabetized, leaving active sorts untouched', () => {
     const { getByText, getAllByText, container } = render(
       <DataTable data={ROWS} columns={COLS} rowKey="id" />,
@@ -62,6 +80,23 @@ describe('DataTable — dropdown column search', () => {
     ).toEqual(['Score'])
     // The active-sorts section (Dept) stays visible regardless of the search term.
     expect(container.querySelector('[data-sort-key="dept"]')).not.toBeNull()
+  })
+
+  it('the Sort dropdown search box also matches by category (via alphabetizedByLabel, core)', () => {
+    const categorizedCols: ColumnDef<Row>[] = [
+      { key: 'name', label: 'Name', category: 'Info' },
+      { key: 'score', label: 'Score', type: 'number', category: 'Info' },
+      { key: 'dept', label: 'Dept', type: 'string' },
+    ]
+    const { getByText, container } = render(
+      <DataTable data={ROWS} columns={categorizedCols} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Sort'))
+    const search = container.querySelector<HTMLInputElement>('input[data-dd-search]')!
+    fireEvent.change(search, { target: { value: 'Info' } })
+    expect(
+      [...container.querySelectorAll('button[data-sort-add-key]')].map((b) => b.textContent),
+    ).toEqual(['Name', 'Score']) // neither label contains "Info" — only category does
   })
 
   it('the Group dropdown search box narrows the addable list', () => {
@@ -86,6 +121,25 @@ describe('DataTable — dropdown column search', () => {
         (el) => el.textContent,
       ),
     ).toEqual(['Score'])
+  })
+
+  it('the Filter dropdown search box also matches by category, surfacing every column filed under it', () => {
+    const categorizedCols: ColumnDef<Row>[] = [
+      { key: 'name', label: 'Name', filterable: true },
+      { key: 'score', label: 'Score', type: 'number', filterable: true, category: 'Org' },
+      { key: 'dept', label: 'Dept', type: 'string', filterable: true, category: 'Org' },
+    ]
+    const { getByText, container } = render(
+      <DataTable data={ROWS} columns={categorizedCols} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Filter'))
+    const search = container.querySelector<HTMLInputElement>('input[data-dd-search]')!
+    fireEvent.change(search, { target: { value: 'Org' } })
+    expect(
+      [...container.querySelectorAll('[data-filter-col-key] span:first-child')].map(
+        (el) => el.textContent,
+      ),
+    ).toEqual(['Dept', 'Score']) // neither label contains "Org" — only category does
   })
 })
 

@@ -45,6 +45,7 @@ import {
   columnHasActiveFilter,
   orderFilterColumnsByActive,
   applyColumnOrderSnapshot,
+  columnMatchesSearch,
   type VisibleItem,
   type DateTreeNode,
 } from '@vates/data-table-core/internal'
@@ -1093,16 +1094,18 @@ export function DataTableView<TRow extends object>({
     (c) => c.sortable !== false && getSortIndex(c.key) === null,
   )
   const addableGroupCols = groupableCols.filter((c) => !groupBy.includes(c.key))
-  // Narrows a dropdown's own column list by label (see `ddSearchTerms`) — the Columns dropdown
-  // keeps its own `orderedColumns` order untouched (it doubles as the drag-to-reorder surface,
-  // so its order carries meaning no alphabetization should disturb); Sort/Group's addable lists
-  // and the Filter dropdown's left pane have no such order to preserve (none of these columns
-  // are sorted/grouped/filtered yet), so they're alphabetized by label to make a long list
-  // easier to scan.
-  const searchCols = <T extends { label: string }>(cols: T[], term: string): T[] => {
-    const t = term.trim().toLowerCase()
-    return t ? cols.filter((c) => c.label.toLowerCase().includes(t)) : cols
-  }
+  // Narrows a dropdown's own column list by label *or category* (see `ddSearchTerms` and
+  // `columnMatchesSearch`, core — typing a category name surfaces every column filed under it,
+  // not just one whose own label contains the term) — the Columns dropdown keeps its own
+  // `orderedColumns` order untouched (it doubles as the drag-to-reorder surface, so its order
+  // carries meaning no alphabetization should disturb); Sort/Group's addable lists and the Filter
+  // dropdown's left pane have no such order to preserve (none of these columns are sorted/
+  // grouped/filtered yet), so they're alphabetized by label to make a long list easier to scan
+  // (via `alphabetizedByLabel`, core, which already matches by category the same way).
+  const searchCols = <T extends { label: string; category?: string }>(
+    cols: T[],
+    term: string,
+  ): T[] => cols.filter((c) => columnMatchesSearch(c, term))
   const searchedOrderedColumns = searchCols(orderedColumns, ddSearchTerms.cols ?? '')
   const searchedAddableSortCols = alphabetizedByLabel(addableSortCols, ddSearchTerms.sort ?? '')
   const searchedAddableGroupCols = alphabetizedByLabel(addableGroupCols, ddSearchTerms.group ?? '')
