@@ -416,6 +416,7 @@ interface ColumnDef<TRow extends object> {
 | `getSelection()`                            | Current selection (by object identity), including rows hidden by a filter        |
 | `setSelection(rows: TRow[])`                | Replaces the selection outright — e.g. to pre-select rows on load                |
 | `clearSelection()`                          | Empties the selection — e.g. to wire an external "Clear selection" button        |
+| `getProcessedData()`                        | Current rows after search/filters/sort, before grouping/pagination               |
 | `setRowKey(key: keyof TRow & string)`       | Changes the row DOM-key property after construction                              |
 | `setSelectable(value: boolean)`             | Toggles whether rows show selection checkboxes after construction                |
 | `setOnRowClick(cb \| undefined)`            | Changes (or clears) the row-click callback after construction                    |

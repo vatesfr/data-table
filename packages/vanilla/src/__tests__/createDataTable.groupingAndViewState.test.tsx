@@ -659,6 +659,45 @@ describe('createDataTable (grouping, group dropdown, pagination+grouping, search
     instance.setViewState({})
     expect(instance.getViewState()).toEqual({})
   })
+
+  // --- getProcessedData (GitHub issue #22) ---
+
+  it('getProcessedData returns all rows, unsorted/unfiltered, by default', () => {
+    const instance = createDataTable(container, { data: ROWS, columns: COLS })
+    expect(instance.getProcessedData()).toEqual(ROWS)
+  })
+
+  it('getProcessedData reflects search + filter + sort', () => {
+    const instance = createDataTable(container, { data: ROWS, columns: COLS })
+    click(container.querySelector<HTMLElement>('th[data-col-key="score"]')!) // sort by score asc
+    setInput(container.querySelector<HTMLInputElement>('.dt-search-input')!, 'e') // dept "Eng" only
+    expect(instance.getProcessedData().map((r) => r.name)).toEqual(['Clara', 'Alice'])
+  })
+
+  it('getProcessedData stays in flat row order across grouping and pagination', () => {
+    const instance = createDataTable(container, {
+      data: ROWS,
+      columns: COLS,
+      initialViewState: { pageSize: 2 },
+    })
+    groupByDept(container)
+    click(pageButton(container, '›')) // page 2 — a display slice, shouldn't affect this
+    // Groups Eng/HR each fan out to their own header, but getProcessedData stays the plain
+    // filtered/sorted row list — no headers, no per-group re-chunking. Grouping also auto-inserts
+    // a matching sort entry (issue #17), so rows land dept-grouped (Eng before HR) rather than in
+    // original ROWS order.
+    expect(instance.getProcessedData().map((r) => r.name)).toEqual([
+      'Alice',
+      'Clara',
+      'Bob',
+      'David',
+    ])
+  })
+
+  it('getProcessedData returns a fresh array each call, not a live reference', () => {
+    const instance = createDataTable(container, { data: ROWS, columns: COLS })
+    expect(instance.getProcessedData()).not.toBe(instance.getProcessedData())
+  })
 })
 
 // PRUNED:

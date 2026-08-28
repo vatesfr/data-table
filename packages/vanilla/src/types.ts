@@ -81,6 +81,13 @@ export interface DataTableInstance<TRow extends object = Record<string, unknown>
   setSelection(rows: TRow[]): void
   /** Empties the selection — e.g. to wire an external "Clear selection" button. */
   clearSelection(): void
+  /**
+   * Current rows after search + filters + sort, before grouping/pagination — the same value
+   * React/Vue/Solid expose as `table.processedData`. Useful for deriving a "current linear order"
+   * independent of display-only grouping (which can fan a multi-value row out into more than one
+   * bucket) or pagination (a display slice, not a reordering) — e.g. prev/next-row navigation.
+   */
+  getProcessedData(): TRow[]
   /** Changes the row DOM-key property after construction — see `DataTableOptions.rowKey`. */
   setRowKey(key: keyof TRow & string): void
   /** Toggles whether rows show selection checkboxes after construction. */
