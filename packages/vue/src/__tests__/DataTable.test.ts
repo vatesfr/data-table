@@ -2969,6 +2969,74 @@ describe('DataTable — Group dropdown column categories', () => {
   })
 })
 
+describe('DataTable — Filter dropdown column categories', () => {
+  const categorizedCols: ColumnDef<Row>[] = [
+    { key: 'name', label: 'Name', filterable: true },
+    { key: 'score', label: 'Score', type: 'number', filterable: true, category: 'Org' },
+    { key: 'id', label: 'Id', type: 'number', filterable: true, category: 'Org' },
+  ]
+
+  it('starts collapsed and expands/collapses its columns on header click', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS, columns: categorizedCols, rowKey: 'id' },
+    })
+    await openDdByLabel(wrapper, 'Filter')
+    const header = wrapper.find('[data-filter-category-header="Org"]')
+    const colLabels = () =>
+      wrapper.findAll('[data-filter-col-key] span:first-child').map((el) => el.text())
+
+    expect(header.attributes('aria-expanded')).toBe('false')
+    expect(colLabels()).toEqual(['Name'])
+
+    await header.trigger('click')
+    expect(wrapper.find('[data-filter-category-header="Org"]').attributes('aria-expanded')).toBe(
+      'true',
+    )
+    expect(colLabels()).toEqual(['Name', 'Id', 'Score'])
+
+    await wrapper.find('[data-filter-category-header="Org"]').trigger('click')
+    expect(wrapper.find('[data-filter-category-header="Org"]').attributes('aria-expanded')).toBe(
+      'false',
+    )
+    expect(colLabels()).toEqual(['Name'])
+  })
+
+  it('auto-expands a category that has an active filter when the dropdown opens', async () => {
+    const wrapper = mount(DataTable, {
+      props: {
+        data: ROWS,
+        columns: categorizedCols,
+        rowKey: 'id',
+        initialViewState: { filters: { score: ['90'] } },
+      },
+    })
+    await openDdByLabel(wrapper, 'Filter')
+    const header = wrapper.find('[data-filter-category-header="Org"]')
+    expect(header.attributes('aria-expanded')).toBe('true')
+    expect(
+      wrapper.findAll('[data-filter-col-key] span:first-child').map((el) => el.text()),
+    ).toEqual(['Name', 'Score', 'Id']) // Score sorts first — active-filtered-first ordering
+  })
+
+  it('the search box also matches by category, surfacing every column filed under it', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS, columns: categorizedCols, rowKey: 'id' },
+    })
+    await openDdByLabel(wrapper, 'Filter')
+    const search = wrapper.find('.dropdown__menu input.dt__dd-search')
+    await search.setValue('Org')
+    // The category header itself surfaces — neither Id nor Score's own label contains "Org",
+    // only the category does. Its columns are collapsed by default (no active filter), so
+    // expanding it is what actually confirms both matched columns are really in there.
+    const header = wrapper.find('[data-filter-category-header="Org"]')
+    expect(header.exists()).toBe(true)
+    await header.trigger('click')
+    expect(
+      wrapper.findAll('[data-filter-col-key] span:first-child').map((el) => el.text()),
+    ).toEqual(['Id', 'Score']) // neither label contains "Org" — only category does
+  })
+})
+
 describe('DataTable — Columns dropdown Visible/Available split', () => {
   interface VRow {
     id: number

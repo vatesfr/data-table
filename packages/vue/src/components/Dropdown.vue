@@ -17,12 +17,13 @@ defineOptions({ inheritAttrs: false })
 // The row-list selector shared by the Columns/Sort/Group dropdowns and the Filter dropdown's own
 // left column pane (see each dropdown's own template in DataTableView.vue for what these classes
 // mark: a column checkbox row, a Sort/Group active or addable entry, a Filter column-selector
-// button). `button.dt__dd-item--clickable` (not just `.dt__dd-item--clickable`) is deliberately
-// tag-scoped — that class is also used by the Columns row's inner <label> and by the Filter
-// value-checklist's row <label>s, both of which must NOT be swept up here: the checklist has its
-// own separate, differently-scoped nav (see onFilterDropdownKeydown in DataTableView.vue).
+// button, a Filter category header). `button.dt__dd-item--clickable` (not just
+// `.dt__dd-item--clickable`) is deliberately tag-scoped — that class is also used by the Columns
+// row's inner <label> and by the Filter value-checklist's row <label>s, both of which must NOT be
+// swept up here: the checklist has its own separate, differently-scoped nav (see
+// onFilterDropdownKeydown in DataTableView.vue).
 const DEFAULT_ROW_SELECTOR =
-  '.dt__dd-item--colrow, .dt__dd-item--sortrow, .dt__dd-item--grouprow, button.dt__dd-item--clickable, .dt__filter-col-item'
+  '.dt__dd-item--colrow, .dt__dd-item--sortrow, .dt__dd-item--grouprow, button.dt__dd-item--clickable, .dt__filter-col-item, .dt__filter-category-header'
 
 const props = withDefaults(
   defineProps<{

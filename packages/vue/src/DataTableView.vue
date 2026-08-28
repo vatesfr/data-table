@@ -415,6 +415,20 @@ const filterDropdownRef = ref<InstanceType<typeof Dropdown> | null>(null)
 // mid-interaction). `filterDropdownRef.value?.isOpen` is watched (rather than hoisting `isOpen`
 // itself here) since Dropdown.vue already owns that state — see its own `isOpen` export.
 const filterColOrderKeys = ref<string[] | null>(null)
+// Which categories are collapsed (see CLAUDE.md's "Column categories"). Seeded the same way as
+// filterColOrderKeys above — a snapshot taken only on the closed→open transition, not recomputed
+// live while the panel stays open (so toggling a category by hand isn't fought by an unrelated
+// filter change elsewhere). Collapsed by default (matching Columns/Sort/Group's own category
+// submenus, which always start closed), except a category containing an active filter at the
+// moment the panel opens starts expanded instead — so opening the dropdown never hides the very
+// filter you're currently using behind a collapsed section with no visual sign why.
+const collapsedCategories = ref<Set<string>>(new Set())
+function toggleCategoryCollapsed(name: string): void {
+  const next = new Set(collapsedCategories.value)
+  if (next.has(name)) next.delete(name)
+  else next.add(name)
+  collapsedCategories.value = next
+}
 watch(
   () => filterDropdownRef.value?.isOpen,
   (open, prevOpen) => {
@@ -425,6 +439,14 @@ watch(
         excludeFilters.value,
         rangeFilters.value,
       )
+      const startCollapsed = new Set<string>()
+      for (const category of groupColumnsByCategory(filterableCols.value).categories) {
+        const hasActiveInCategory = category.columns.some((c) =>
+          columnHasActiveFilter(c.key, filters.value, excludeFilters.value, rangeFilters.value),
+        )
+        if (!hasActiveInCategory) startCollapsed.add(category.name)
+      }
+      collapsedCategories.value = startCollapsed
     }
   },
 )
@@ -433,13 +455,16 @@ watch(
 // columns are the ones most worth finding at a glance in a long list.
 const searchedFilterableCols = computed(() =>
   applyColumnOrderSnapshot(
-    filterableCols.value.filter((c) => {
-      const term = ddSearchTerm('filter').trim().toLowerCase()
-      return term ? c.label.toLowerCase().includes(term) : true
-    }),
+    filterableCols.value.filter((c) => columnMatchesSearch(c, ddSearchTerm('filter'))),
     filterColOrderKeys.value,
   ),
 )
+// Buckets the (already searched/ordered) left-pane column list by category. Deliberately NOT
+// re-sorted alphabetically afterward — searchedFilterableCols is already active-filtered-first-
+// then-alphabetical (see its own comment above), not purely alphabetical, so re-sorting categories
+// here would undo that active-first bubbling for whichever category contains the column currently
+// being filtered on.
+const categorizedFilterCols = computed(() => groupColumnsByCategory(searchedFilterableCols.value))
 const filterActiveCol = ref<string | null>(null)
 const filterSearchTerms = ref<Record<string, string>>({})
 const filterSelectionAnchor = ref<Record<string, string>>({})
@@ -1679,50 +1704,104 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                 .dt__filter-col-row/--active below. A <button> can't contain another interactive
                 element, so the clear button is a sibling, not nested.
               -->
-              <div
-                v-for="col in searchedFilterableCols"
-                :key="col.key"
-                class="dt__filter-col-row"
-                :class="{ 'dt__filter-col-row--active': col.key === filterActiveKey }"
-              >
-                <!--
-                  A real <button> (not a div) so it's a native Tab stop and Enter/Space "click" it
-                  for free — same fix as the Sort/Group add-lists above; this had the identical
-                  gap. @focus is what actually drives the detail pane (see onFilterColFocus) — a
-                  listbox/radiogroup-style "focus follows selection" so arrowing/Tabbing here
-                  needs no separate Enter/Space "activate" step; @click stays wired too (harmlessly
-                  redundant, since focusing a button on click already fires @focus first).
-                  Delete/Backspace clearing the column's filter is handled by
-                  onFilterDropdownKeydown (bound on the whole panel), not here — same action as
-                  the clear button below, reachable without leaving the row.
-                -->
-                <button
-                  :ref="(el) => setFilterColRef(col.key, el as Element | null)"
-                  type="button"
-                  :data-filter-col-key="col.key"
-                  class="dt__filter-col-item"
-                  :class="{ 'dt__filter-col-item--active': col.key === filterActiveKey }"
-                  @focus="onFilterColFocus(col.key)"
-                  @click="selectFilterCol(col.key)"
+              <template v-for="col in categorizedFilterCols.uncategorized" :key="col.key">
+                <div
+                  class="dt__filter-col-row"
+                  :class="{ 'dt__filter-col-row--active': col.key === filterActiveKey }"
                 >
-                  <span class="dt__filter-col-label">{{ col.label }}</span>
-                </button>
-                <!--
-                  Replaces the plain active-filter dot: a one-click way to drop this column's
-                  filter without opening it first, matching the toolbar's own per-dropdown ×
-                  buttons (see "Toolbar clear buttons" in CLAUDE.md).
-                -->
+                  <!--
+                    A real <button> (not a div) so it's a native Tab stop and Enter/Space "click"
+                    it for free — same fix as the Sort/Group add-lists above; this had the
+                    identical gap. @focus is what actually drives the detail pane (see
+                    onFilterColFocus) — a listbox/radiogroup-style "focus follows selection" so
+                    arrowing/Tabbing here needs no separate Enter/Space "activate" step; @click
+                    stays wired too (harmlessly redundant, since focusing a button on click
+                    already fires @focus first). Delete/Backspace clearing the column's filter is
+                    handled by onFilterDropdownKeydown (bound on the whole panel), not here — same
+                    action as the clear button below, reachable without leaving the row.
+                  -->
+                  <button
+                    :ref="(el) => setFilterColRef(col.key, el as Element | null)"
+                    type="button"
+                    :data-filter-col-key="col.key"
+                    class="dt__filter-col-item"
+                    :class="{ 'dt__filter-col-item--active': col.key === filterActiveKey }"
+                    @focus="onFilterColFocus(col.key)"
+                    @click="selectFilterCol(col.key)"
+                  >
+                    <span class="dt__filter-col-label">{{ col.label }}</span>
+                  </button>
+                  <!--
+                    Replaces the plain active-filter dot: a one-click way to drop this column's
+                    filter without opening it first, matching the toolbar's own per-dropdown ×
+                    buttons (see "Toolbar clear buttons" in CLAUDE.md).
+                  -->
+                  <button
+                    v-if="hasActiveColFilter(col)"
+                    type="button"
+                    class="dt__filter-col-clear"
+                    :title="L.clearColumnFilter"
+                    :aria-label="L.clearColumnFilter"
+                    @click.stop="clearColFilter(col.key)"
+                  >
+                    ×
+                  </button>
+                </div>
+              </template>
+              <!--
+                A category collapses its columns into a section instead of a flyout submenu
+                (unlike Columns/Sort/Group) — ArrowRight is already taken here for left-pane→
+                detail-pane crossing (see onFilterDropdownKeydown). Collapsed by default, except a
+                category with an active filter at the moment the panel opens (see
+                collapsedCategories' own comment above).
+              -->
+              <template v-for="category in categorizedFilterCols.categories" :key="category.name">
                 <button
-                  v-if="hasActiveColFilter(col)"
                   type="button"
-                  class="dt__filter-col-clear"
-                  :title="L.clearColumnFilter"
-                  :aria-label="L.clearColumnFilter"
-                  @click.stop="clearColFilter(col.key)"
+                  class="dt__filter-category-header"
+                  :data-filter-category-header="category.name"
+                  :aria-expanded="!collapsedCategories.has(category.name)"
+                  @click="toggleCategoryCollapsed(category.name)"
                 >
-                  ×
+                  <span class="dt__flex1">{{ category.name }}</span>
+                  <span class="dt__filter-category-toggle">
+                    {{ collapsedCategories.has(category.name) ? '▸' : '▾' }}
+                  </span>
                 </button>
-              </div>
+                <div
+                  v-if="!collapsedCategories.has(category.name)"
+                  class="dt__filter-category-cols"
+                >
+                  <div
+                    v-for="col in category.columns"
+                    :key="col.key"
+                    class="dt__filter-col-row"
+                    :class="{ 'dt__filter-col-row--active': col.key === filterActiveKey }"
+                  >
+                    <button
+                      :ref="(el) => setFilterColRef(col.key, el as Element | null)"
+                      type="button"
+                      :data-filter-col-key="col.key"
+                      class="dt__filter-col-item"
+                      :class="{ 'dt__filter-col-item--active': col.key === filterActiveKey }"
+                      @focus="onFilterColFocus(col.key)"
+                      @click="selectFilterCol(col.key)"
+                    >
+                      <span class="dt__filter-col-label">{{ col.label }}</span>
+                    </button>
+                    <button
+                      v-if="hasActiveColFilter(col)"
+                      type="button"
+                      class="dt__filter-col-clear"
+                      :title="L.clearColumnFilter"
+                      :aria-label="L.clearColumnFilter"
+                      @click.stop="clearColFilter(col.key)"
+                    >
+                      ×
+                    </button>
+                  </div>
+                </div>
+              </template>
             </div>
             <div class="dt__filter-detail">
               <template v-if="filterDetailCol">
@@ -2540,6 +2619,36 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
 }
 .dt__filter-col-clear:hover {
   color: var(--color-text-primary);
+}
+/* A category collapses its columns into a section instead of a flyout submenu (unlike
+   Columns/Sort/Group) — ArrowRight is already taken here for left-pane→detail-pane crossing. */
+.dt__filter-category-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 7px 10px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  color: var(--color-text-secondary);
+  border: none;
+  background: none;
+  font-family: inherit;
+  text-align: left;
+  margin: 0;
+  box-sizing: border-box;
+}
+.dt__filter-category-header:hover {
+  background: var(--color-background-secondary);
+}
+.dt__filter-category-toggle {
+  flex-shrink: 0;
+  font-size: 10px;
+  color: var(--color-text-tertiary);
+}
+.dt__filter-category-cols .dt__filter-col-item {
+  padding-left: 22px;
 }
 /* A flex column (not just flex: 1) so the checklist/date-tree child below can flex: 1 to fill
    whatever height .dt__filter-cols (the column list) ends up stretching this to via the row's
