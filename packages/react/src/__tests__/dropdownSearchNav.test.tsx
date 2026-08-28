@@ -487,6 +487,98 @@ describe('DataTable — Sort/Group activate/remove focus retention', () => {
   })
 })
 
+describe('DataTable — Delete/Backspace on a focused active row (Sort/Group/Columns)', () => {
+  it('Delete on a focused active Sort row removes it, same as its × button', () => {
+    const { getByText, getAllByText, container } = render(
+      <DataTable data={ROWS} columns={COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Sort'))
+    fireEvent.click(ddCopyOf(getAllByText, 'Name'))
+    fireEvent.click(ddCopyOf(getAllByText, 'Score'))
+    const row = container.querySelector<HTMLElement>('[data-sort-key="name"]')!
+    fireEvent.keyDown(row, { key: 'Delete' })
+    expect(container.querySelectorAll('[data-sort-key]')).toHaveLength(1)
+    expect(container.querySelector('[data-sort-key="score"]')).not.toBeNull()
+  })
+
+  it('Delete on a focused, non-draggable "Group order" row removes that sort entry too', () => {
+    const { getByText, getAllByText, container } = render(
+      <DataTable data={ROWS} columns={COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Group'))
+    fireEvent.click(ddCopyOf(getAllByText, 'Dept'))
+    fireEvent.click(getByText('Group')) // close
+    fireEvent.click(getByText('Sort'))
+    fireEvent.click(ddCopyOf(getAllByText, 'Score'))
+    // The "Group order" row (dept) has no data-sort-key — it's not draggable/reorderable — so it's
+    // isolated by exclusion from the active-sorts section's own data-sort-key rows.
+    const groupOrderRow = [...container.querySelectorAll<HTMLElement>('[tabindex="0"]')].find(
+      (el) => el.textContent?.includes('Dept') && !el.hasAttribute('data-sort-key'),
+    )!
+    fireEvent.keyDown(groupOrderRow, { key: 'Delete' })
+    expect(container.querySelector('[data-sort-key="dept"]')).toBeNull()
+    expect(container.querySelector('[data-sort-key="score"]')).not.toBeNull()
+  })
+
+  it('Backspace on a focused active Group row removes it, same as its × button', () => {
+    const { getByText, getAllByText, container } = render(
+      <DataTable data={ROWS} columns={COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Group'))
+    fireEvent.click(ddCopyOf(getAllByText, 'Dept'))
+    const row = container.querySelector<HTMLElement>('[data-group-key="dept"]')!
+    fireEvent.keyDown(row, { key: 'Backspace' })
+    expect(container.querySelector('[data-group-key="dept"]')).toBeNull()
+  })
+
+  it('Delete on a focused visible Columns row hides it, same as its × button', () => {
+    const { getByText, container } = render(<DataTable data={ROWS} columns={COLS} rowKey="id" />)
+    fireEvent.click(getByText('Columns'))
+    const row = container.querySelector<HTMLElement>('[data-col-row-key="name"]')!
+    fireEvent.keyDown(row, { key: 'Delete' })
+    expect(container.querySelector('[data-col-row-key="name"]')).toBeNull()
+    expect(container.querySelector('button[data-col-key="name"]')).not.toBeNull()
+  })
+})
+
+describe('DataTable — Sort/Group/Columns active-row hover/focus background', () => {
+  it('a Sort active row gets a background tint on hover and on focus, not just the native outline', () => {
+    const { getByText, getAllByText, container } = render(
+      <DataTable data={ROWS} columns={COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Sort'))
+    fireEvent.click(ddCopyOf(getAllByText, 'Name'))
+    // Activating a column refocuses its new active row (see the activate/remove focus-retention
+    // block above), so it already carries the focus background at this point.
+    const row = container.querySelector<HTMLElement>('[data-sort-key="name"]')!
+    expect(row.style.background).toBe('var(--color-background-secondary)')
+    fireEvent.blur(row)
+    expect(row.style.background).toBe('')
+    fireEvent.mouseEnter(row)
+    expect(row.style.background).toBe('var(--color-background-secondary)')
+    fireEvent.mouseLeave(row)
+    expect(row.style.background).toBe('')
+    fireEvent.focus(row)
+    expect(row.style.background).toBe('var(--color-background-secondary)')
+  })
+
+  it('a Group active row and a Columns visible row get the same hover/focus background', () => {
+    const { getByText, getAllByText, container } = render(
+      <DataTable data={ROWS} columns={COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Group'))
+    fireEvent.click(ddCopyOf(getAllByText, 'Dept'))
+    const groupRow = container.querySelector<HTMLElement>('[data-group-key="dept"]')!
+    fireEvent.mouseEnter(groupRow)
+    expect(groupRow.style.background).toBe('var(--color-background-secondary)')
+
+    fireEvent.click(getByText('Columns'))
+    const colRow = container.querySelector<HTMLElement>('[data-col-row-key="name"]')!
+    fireEvent.focus(colRow)
+    expect(colRow.style.background).toBe('var(--color-background-secondary)')
+  })
+})
+
 const CATEGORIZED_COLS: ColumnDef<Row>[] = [
   { key: 'name', label: 'Name', category: 'Info', groupable: true },
   { key: 'score', label: 'Score', type: 'number', category: 'Numbers', groupable: true },

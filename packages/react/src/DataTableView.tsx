@@ -888,6 +888,29 @@ export function DataTableView<TRow extends object>({
   const [openSortCategory, setOpenSortCategory] = useState<string | null>(null)
   const [openGroupCategory, setOpenGroupCategory] = useState<string | null>(null)
   const [openColsCategory, setOpenColsCategory] = useState<string | null>(null)
+  // Sort/Group/Columns' active rows only ever got the browser's native focus outline, no
+  // background — unlike the Filter dropdown's own left-pane column row, which tints its
+  // background on selection (see filterColRowActive) as well as outlining the focused button
+  // inside it. Matched here for the same reason: an outline alone is a much fainter "this is the
+  // currently focused/hovered row" cue than a filled background. Unlike Filter's own persistent
+  // "selected column" state, this is purely transient hover/focus feedback — since these rows'
+  // styling is plain inline CSSProperties (no stylesheet to hold a :hover/:focus rule the way
+  // Solid's CSS classes do), it's tracked as plain state instead, the same
+  // onMouseEnter/onMouseLeave pattern already used for the table body's own hoveredRow. Only one
+  // dropdown is ever open at a time, so a single pair of keys (not one per dropdown) is enough.
+  const [hoveredDdRowKey, setHoveredDdRowKey] = useState<string | null>(null)
+  const [focusedDdRowKey, setFocusedDdRowKey] = useState<string | null>(null)
+  function ddRowHighlighted(key: string): boolean {
+    return hoveredDdRowKey === key || focusedDdRowKey === key
+  }
+  function ddRowHoverFocusHandlers(key: string) {
+    return {
+      onMouseEnter: () => setHoveredDdRowKey(key),
+      onMouseLeave: () => setHoveredDdRowKey((k) => (k === key ? null : k)),
+      onFocus: () => setFocusedDdRowKey(key),
+      onBlur: () => setFocusedDdRowKey((k) => (k === key ? null : k)),
+    }
+  }
 
   // `table`'s own fields are namespaced by concern (see CLAUDE.md's "Namespaced TableState") —
   // destructured here into the same bare local names this component's ~2600 lines already use
@@ -1821,11 +1844,15 @@ export function DataTableView<TRow extends object>({
                     hideColumn(col)
                   }
                 }}
+                {...ddRowHoverFocusHandlers(col.key)}
                 style={{
                   ...S.ddItem,
                   justifyContent: 'space-between',
                   cursor: 'grab',
                   opacity: dragColRowKey === col.key ? 0.4 : 1,
+                  background: ddRowHighlighted(col.key)
+                    ? 'var(--color-background-secondary)'
+                    : undefined,
                   boxShadow:
                     dragOverColRowKey === col.key
                       ? `inset 0 ${dragOverColRowAfter ? '-2px' : '2px'} 0 var(--color-text-primary)`
@@ -1955,13 +1982,24 @@ export function DataTableView<TRow extends object>({
                           if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
                             e.preventDefault()
                             moveGroupBy(key, e.key === 'ArrowUp' ? -1 : 1)
+                          } else if (e.key === 'Delete' || e.key === 'Backspace') {
+                            // Keyboard equivalent of this row's own × button — matches the
+                            // Filter dropdown's identical Delete/Backspace-on-a-focused-active-
+                            // row shortcut.
+                            e.preventDefault()
+                            pendingGroupFocusKey.current = key
+                            removeGroup(key)
                           }
                         }}
+                        {...ddRowHoverFocusHandlers(key)}
                         style={{
                           ...S.ddItem,
                           justifyContent: 'space-between',
                           cursor: 'grab',
                           opacity: dragGroupKey === key ? 0.4 : 1,
+                          background: ddRowHighlighted(key)
+                            ? 'var(--color-background-secondary)'
+                            : undefined,
                           boxShadow:
                             dragOverGroupKey === key
                               ? `inset 0 ${dragOverGroupAfter ? '-2px' : '2px'} 0 var(--color-text-primary)`
@@ -2097,9 +2135,24 @@ export function DataTableView<TRow extends object>({
                         if (e.key === 'Enter' || e.key === ' ') {
                           e.preventDefault()
                           toggleSortDir(entry.key)
+                        } else if (e.key === 'Delete' || e.key === 'Backspace') {
+                          // Keyboard equivalent of this row's own × button — matches the Filter
+                          // dropdown's identical Delete/Backspace-on-a-focused-active-row
+                          // shortcut. This row isn't draggable/reorderable, but removing its
+                          // sort entry still needs the same focus hand-off as any other.
+                          e.preventDefault()
+                          pendingSortFocusKey.current = entry.key
+                          removeSort(entry.key)
                         }
                       }}
-                      style={{ ...S.ddItem, justifyContent: 'space-between' }}
+                      {...ddRowHoverFocusHandlers(entry.key)}
+                      style={{
+                        ...S.ddItem,
+                        justifyContent: 'space-between',
+                        background: ddRowHighlighted(entry.key)
+                          ? 'var(--color-background-secondary)'
+                          : undefined,
+                      }}
                     >
                       <span
                         style={{
@@ -2120,6 +2173,7 @@ export function DataTableView<TRow extends object>({
                         draggable={false}
                         onClick={(e) => {
                           e.stopPropagation()
+                          pendingSortFocusKey.current = entry.key
                           removeSort(entry.key)
                         }}
                         style={S.itemRemove}
@@ -2169,12 +2223,23 @@ export function DataTableView<TRow extends object>({
                           const delta = e.key === 'ArrowUp' ? -1 : 1
                           const neighbor = nonGroupSortEntries[i + delta]
                           if (neighbor) moveSort(entry.key, neighbor.key, delta > 0)
+                        } else if (e.key === 'Delete' || e.key === 'Backspace') {
+                          // Keyboard equivalent of this row's own × button — matches the Filter
+                          // dropdown's identical Delete/Backspace-on-a-focused-active-row
+                          // shortcut.
+                          e.preventDefault()
+                          pendingSortFocusKey.current = entry.key
+                          removeSort(entry.key)
                         }
                       }}
+                      {...ddRowHoverFocusHandlers(entry.key)}
                       style={{
                         ...S.ddItem,
                         justifyContent: 'space-between',
                         opacity: dragSortKey === entry.key ? 0.4 : 1,
+                        background: ddRowHighlighted(entry.key)
+                          ? 'var(--color-background-secondary)'
+                          : undefined,
                         boxShadow:
                           dragOverSortKey === entry.key
                             ? `inset 0 ${dragOverSortAfter ? '-2px' : '2px'} 0 var(--color-text-primary)`
