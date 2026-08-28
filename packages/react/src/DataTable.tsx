@@ -6,20 +6,18 @@ export function DataTable<TRow extends object>({
   data,
   columns,
   rowKey,
-  defaultVisibleColumns,
   labels,
-  defaultPageSize,
   defaultGroupsCollapsed,
+  initialViewState,
   getRowId,
   selectable,
   onSelectionChange,
   onRowClick,
 }: DataTableProps<TRow>) {
   const table = useTableState(data, columns, {
-    defaultVisibleColumns,
     labels,
-    defaultPageSize,
     defaultGroupsCollapsed,
+    initialViewState,
     getRowId,
   })
 

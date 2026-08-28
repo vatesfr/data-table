@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { createDataTable } from '../index'
 import type { ColumnDef } from '../types'
+import type { TableViewState } from '@vates/data-table-core'
 
 interface Row {
   id: number
@@ -71,7 +72,7 @@ function mount(
     selectable: boolean
     onSelectionChange: (rows: Row[]) => void
     onRowClick: (row: Row, e: MouseEvent | KeyboardEvent) => void
-    defaultPageSize: number
+    initialViewState: TableViewState
     defaultGroupsCollapsed: boolean
     getRowId: (row: Row) => number
   }> = {},
@@ -84,7 +85,7 @@ function mount(
     selectable: opts.selectable,
     onSelectionChange: opts.onSelectionChange,
     onRowClick: opts.onRowClick,
-    defaultPageSize: opts.defaultPageSize,
+    initialViewState: opts.initialViewState,
     defaultGroupsCollapsed: opts.defaultGroupsCollapsed,
     getRowId: opts.getRowId,
   })
@@ -383,7 +384,11 @@ describe('createDataTable — keyboard navigation', () => {
   })
 
   it("ArrowDown on a page's last row crosses into the next page's first row", () => {
-    const { container, table } = mount({ data: ROWS6, selectable: true, defaultPageSize: 2 })
+    const { container, table } = mount({
+      data: ROWS6,
+      selectable: true,
+      initialViewState: { pageSize: 2 },
+    })
     const [, last] = dataRows(container)
     last.focus()
     keydown(last, 'ArrowDown')
@@ -393,7 +398,11 @@ describe('createDataTable — keyboard navigation', () => {
   })
 
   it("ArrowUp on a page's first row crosses into the previous page's last row", () => {
-    const { container, table } = mount({ data: ROWS6, selectable: true, defaultPageSize: 2 })
+    const { container, table } = mount({
+      data: ROWS6,
+      selectable: true,
+      initialViewState: { pageSize: 2 },
+    })
     table.setViewState({ page: 2 })
     const [first] = dataRows(container)
     first.focus()
@@ -404,7 +413,11 @@ describe('createDataTable — keyboard navigation', () => {
   })
 
   it('ArrowDown does nothing on the last row of the last page', () => {
-    const { container, table } = mount({ data: ROWS6, selectable: true, defaultPageSize: 2 })
+    const { container, table } = mount({
+      data: ROWS6,
+      selectable: true,
+      initialViewState: { pageSize: 2 },
+    })
     table.setViewState({ page: 3 })
     const [, last] = dataRows(container)
     last.focus()
@@ -414,7 +427,11 @@ describe('createDataTable — keyboard navigation', () => {
   })
 
   it('plain Home/End stay within the current page', () => {
-    const { container, table } = mount({ data: ROWS6, selectable: true, defaultPageSize: 2 })
+    const { container, table } = mount({
+      data: ROWS6,
+      selectable: true,
+      initialViewState: { pageSize: 2 },
+    })
     const [first] = dataRows(container)
     first.focus()
     keydown(first, 'End')
@@ -423,7 +440,11 @@ describe('createDataTable — keyboard navigation', () => {
   })
 
   it('Ctrl+End jumps to the true last row across all pages', () => {
-    const { container, table } = mount({ data: ROWS6, selectable: true, defaultPageSize: 2 })
+    const { container, table } = mount({
+      data: ROWS6,
+      selectable: true,
+      initialViewState: { pageSize: 2 },
+    })
     const [first] = dataRows(container)
     first.focus()
     keydown(first, 'End', { ctrlKey: true })
@@ -432,7 +453,11 @@ describe('createDataTable — keyboard navigation', () => {
   })
 
   it('Cmd+Home (metaKey) jumps to the true first row across all pages', () => {
-    const { container, table } = mount({ data: ROWS6, selectable: true, defaultPageSize: 2 })
+    const { container, table } = mount({
+      data: ROWS6,
+      selectable: true,
+      initialViewState: { pageSize: 2 },
+    })
     table.setViewState({ page: 3 })
     const [first] = dataRows(container)
     first.focus()
@@ -456,7 +481,11 @@ describe('createDataTable — keyboard navigation', () => {
   })
 
   it('Shift+ArrowDown across a page boundary also extends the selection onto the next page', () => {
-    const { container, table } = mount({ data: ROWS6, selectable: true, defaultPageSize: 2 })
+    const { container, table } = mount({
+      data: ROWS6,
+      selectable: true,
+      initialViewState: { pageSize: 2 },
+    })
     const [, last] = dataRows(container)
     last.focus()
     keydown(last, ' ') // select Bob, sets the range anchor

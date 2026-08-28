@@ -40,11 +40,11 @@ export interface DataTableOptions<TRow extends object = Record<string, unknown>>
    * libraries' "row key" prop, this one has no bearing on selection/sort/filter state.
    */
   rowKey?: keyof TRow & string
-  defaultVisibleColumns?: string[]
   labels?: Partial<DataTableLabels>
-  defaultPageSize?: number
   /** Whether newly-grouped groups start collapsed. Defaults to `true`; pass `false` to start expanded. */
   defaultGroupsCollapsed?: boolean
+  /** See `@vates/data-table-solid`'s `CreateTableStateOptions.initialViewState` doc comment. */
+  initialViewState?: TableViewState
   /**
    * Opt-in row identity for selection — see `@vates/data-table-solid`'s `CreateTableStateOptions.
    * getRowId` doc comment for the full reasoning. Omit to keep the default object-identity

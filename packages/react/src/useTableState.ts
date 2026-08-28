@@ -50,11 +50,18 @@ import {
 import type { ColumnDef } from './types'
 
 export interface UseTableStateOptions<TRow extends object = Record<string, unknown>> {
-  defaultVisibleColumns?: string[]
   labels?: Partial<DataTableLabels>
-  defaultPageSize?: number
   /** Whether newly-grouped groups start collapsed. Defaults to `true`; pass `false` to start expanded. */
   defaultGroupsCollapsed?: boolean
+  /**
+   * Construction-time defaults for every other view concern (visible columns, column order,
+   * sort, filters, grouping, page/pageSize, search) — a fresh table starts here, and `resetView`
+   * restores it. Any field left unset falls back to that field's own ordinary empty default (all
+   * columns visible, no sort, page 1, etc). Grouping a column with no matching sort entry here
+   * gets one inserted automatically (the same thing interactive grouping already does), so
+   * `initialViewState: { groupBy: ['status'] }` alone is enough for a deterministic group order.
+   */
+  initialViewState?: TableViewState
   /**
    * Opt-in row identity for selection. By default, selection tracks rows by object identity — a
    * refetch or re-map of `data` that produces new row objects (even with identical content)
@@ -84,17 +91,21 @@ export function useTableState<TRow extends object>(
   options?: UseTableStateOptions<TRow>,
 ) {
   const {
-    defaultVisibleColumns,
     labels: labelOverrides,
-    defaultPageSize,
     defaultGroupsCollapsed = true,
+    initialViewState,
     getRowId,
   } = options ?? {}
   const L = { ...DEFAULT_LABELS, ...labelOverrides }
 
-  const [visibleCols, setVisibleCols] = useState<Set<string>>(
-    () => new Set(defaultVisibleColumns ?? columns.map((c) => c.key)),
-  )
+  // Computed once (lazy useState initializer, discarded setter) rather than recomputed per
+  // field below — the same `resolveViewState({}, ...)` call `resetView`/`setViewState({})` make,
+  // so "what a fresh table starts at" and "what a reset restores" can never drift apart. Seeded
+  // once and not recomputed on a later `columns`/`initialViewState` change, same as
+  // `defaultVisibleColumns`/`defaultPageSize` were already seed-only before this replaced them.
+  const [initial] = useState(() => resolveViewState({}, columns, initialViewState))
+
+  const [visibleCols, setVisibleCols] = useState<Set<string>>(() => initial.visibleCols)
 
   // Reconciles visibleCols whenever the `columns` argument itself changes to a different key
   // set across renders — comparing against the previous render (React's own documented pattern
@@ -106,7 +117,7 @@ export function useTableState<TRow extends object>(
   // shows) would leave every column filtered out as "not visible" — activeColumns below is
   // filtered by visibleCols — and the table would silently render with none at all. A column
   // that already existed keeps whatever visibility choice it had; a genuinely new column starts
-  // visible by default, the same default this hook already uses with no defaultVisibleColumns
+  // visible by default, the same default this hook already uses with no `initialViewState`
   // override — the same reconciliation @vates/data-table-solid's own `columns.set` needed, just
   // reached here via a changed argument instead of an explicit setter call.
   const columnKeys = columns.map((c) => c.key)
@@ -124,8 +135,8 @@ export function useTableState<TRow extends object>(
     )
   }
 
-  const [columnOrder, setColumnOrder] = useState<string[]>([])
-  const [sorts, setSorts] = useState<SortEntry[]>([])
+  const [columnOrder, setColumnOrder] = useState<string[]>(() => initial.columnOrder)
+  const [sorts, setSorts] = useState<SortEntry[]>(() => initial.sorts)
   // `filters` (include) and `excludeFilters` — "not one of these values" for multi-value columns,
   // see `filter.cycleValue` — are combined into one state atom rather than two separate `useState`
   // calls: several actions (`filter.cycleValue`, the exclude-aware branch of `filter.toggleAll`)
@@ -136,21 +147,25 @@ export function useTableState<TRow extends object>(
   const [filterState, setFilterState] = useState<{
     filters: Record<string, Set<string>>
     excludeFilters: Record<string, Set<string>>
-  }>({ filters: {}, excludeFilters: {} })
+  }>(() => ({ filters: initial.filters, excludeFilters: initial.excludeFilters }))
   const { filters, excludeFilters } = filterState
   // Per-column runtime override of `col.multiMode` ("any"/"all" checklist match) — see
   // `setFilterMode`. Kept as its own state atom rather than folded into `filterState` above:
   // unlike `filters`/`excludeFilters`, no action ever needs to read both this and them together
   // to decide its next value.
-  const [filterModes, setFilterModes] = useState<Record<string, 'and' | 'or'>>({})
-  const [rangeFilters, setRangeFilters] = useState<Record<string, RangeFilter>>({})
-  const [groupBy, setGroupBy] = useState<string[]>([])
-  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set())
-  const [page, setPageState] = useState(1)
-  const [pageSize, setPageSizeState] = useState(defaultPageSize ?? 0)
+  const [filterModes, setFilterModes] = useState<Record<string, 'and' | 'or'>>(
+    () => initial.filterModes,
+  )
+  const [rangeFilters, setRangeFilters] = useState<Record<string, RangeFilter>>(
+    () => initial.rangeFilters,
+  )
+  const [groupBy, setGroupBy] = useState<string[]>(() => initial.groupBy)
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(() => initial.collapsedGroups)
+  const [page, setPageState] = useState(() => initial.page)
+  const [pageSize, setPageSizeState] = useState(() => initial.pageSize)
   const [selection, setSelection] = useState<Set<TRow>>(new Set())
   const [selectionAnchor, setSelectionAnchor] = useState<TRow | null>(null)
-  const [searchQuery, setSearchQueryState] = useState('')
+  const [searchQuery, setSearchQueryState] = useState(() => initial.searchQuery)
 
   // Reconciles `selection`'s stored row references against a changed `data` argument, same
   // "adjust state when a prop changes" render-time pattern as visibleCols/columnKeys above —
@@ -489,10 +504,10 @@ export function useTableState<TRow extends object>(
         pageSize,
         searchQuery,
         columns,
-        defaultPageSize,
+        initialViewState,
       }),
     setViewState: (view: TableViewState) => {
-      const resolved = resolveViewState(view, columns, defaultVisibleColumns, defaultPageSize)
+      const resolved = resolveViewState(view, columns, initialViewState)
       setVisibleCols(resolved.visibleCols)
       setColumnOrder(resolved.columnOrder)
       setSorts(resolved.sorts)

@@ -1888,9 +1888,9 @@ describe('DataTable — keyboard navigation across pages', () => {
     fireEvent.click([...container.querySelectorAll('button')].find((b) => b.textContent === '›')!)
   }
 
-  it('the rows-per-page dropdown includes and selects a custom defaultPageSize not among the defaults', () => {
+  it('the rows-per-page dropdown includes and selects a custom initialViewState.pageSize not among the defaults', () => {
     const { container } = render(
-      <DataTable data={ROWS6} columns={COLS} rowKey="id" defaultPageSize={2} />,
+      <DataTable data={ROWS6} columns={COLS} rowKey="id" initialViewState={{ pageSize: 2 }} />,
     )
     const select = container.querySelector('select')!
     expect([...select.options].map((o) => o.value)).toEqual(['2', '10', '20', '50', '100'])
@@ -1899,7 +1899,13 @@ describe('DataTable — keyboard navigation across pages', () => {
 
   it('ArrowDown on the last row of a page moves to the first row of the next page', () => {
     const { container } = render(
-      <DataTable data={ROWS6} columns={COLS} rowKey="id" selectable defaultPageSize={2} />,
+      <DataTable
+        data={ROWS6}
+        columns={COLS}
+        rowKey="id"
+        selectable
+        initialViewState={{ pageSize: 2 }}
+      />,
     )
     const [, last] = dataRows(container)
     last.focus()
@@ -1912,7 +1918,13 @@ describe('DataTable — keyboard navigation across pages', () => {
 
   it('ArrowUp on the first row of a page moves to the last row of the previous page', () => {
     const { container } = render(
-      <DataTable data={ROWS6} columns={COLS} rowKey="id" selectable defaultPageSize={2} />,
+      <DataTable
+        data={ROWS6}
+        columns={COLS}
+        rowKey="id"
+        selectable
+        initialViewState={{ pageSize: 2 }}
+      />,
     )
     clickNextPage(container)
     const [first] = dataRows(container)
@@ -1928,7 +1940,13 @@ describe('DataTable — keyboard navigation across pages', () => {
 
   it('Ctrl+End jumps to the true last row across all pages', () => {
     const { container } = render(
-      <DataTable data={ROWS6} columns={COLS} rowKey="id" selectable defaultPageSize={2} />,
+      <DataTable
+        data={ROWS6}
+        columns={COLS}
+        rowKey="id"
+        selectable
+        initialViewState={{ pageSize: 2 }}
+      />,
     )
     const [first] = dataRows(container)
     first.focus()
@@ -1942,7 +1960,13 @@ describe('DataTable — keyboard navigation across pages', () => {
 
   it('Ctrl+Home jumps to the true first row across all pages', () => {
     const { container } = render(
-      <DataTable data={ROWS6} columns={COLS} rowKey="id" selectable defaultPageSize={2} />,
+      <DataTable
+        data={ROWS6}
+        columns={COLS}
+        rowKey="id"
+        selectable
+        initialViewState={{ pageSize: 2 }}
+      />,
     )
     const [first] = dataRows(container)
     first.focus()
@@ -1957,7 +1981,13 @@ describe('DataTable — keyboard navigation across pages', () => {
 
   it('Shift+ArrowDown across a page boundary extends the selection onto the next page', () => {
     const { container } = render(
-      <DataTable data={ROWS6} columns={COLS} rowKey="id" selectable defaultPageSize={2} />,
+      <DataTable
+        data={ROWS6}
+        columns={COLS}
+        rowKey="id"
+        selectable
+        initialViewState={{ pageSize: 2 }}
+      />,
     )
     const [, last] = dataRows(container)
     const lastCheckbox = last.querySelector('input[type="checkbox"]') as HTMLInputElement
@@ -2144,7 +2174,7 @@ describe('DataTable — keyboard navigation with grouping', () => {
         data={GROUP_ROWS}
         columns={GROUP_COLS}
         rowKey="id"
-        defaultPageSize={2}
+        initialViewState={{ pageSize: 2 }}
         defaultGroupsCollapsed={false}
       />,
     )
@@ -2161,7 +2191,7 @@ describe('DataTable — keyboard navigation with grouping', () => {
         data={GROUP_ROWS}
         columns={GROUP_COLS}
         rowKey="id"
-        defaultPageSize={2}
+        initialViewState={{ pageSize: 2 }}
         defaultGroupsCollapsed={false}
       />,
     )

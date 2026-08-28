@@ -86,7 +86,7 @@ describe('DataTable — v-model:page / v-model:search-query', () => {
       score: i,
     }))
     const wrapper = mount(DataTable, {
-      props: { data: manyRows, columns: COLS, rowKey: 'id', defaultPageSize: 10 },
+      props: { data: manyRows, columns: COLS, rowKey: 'id', initialViewState: { pageSize: 10 } },
     })
     const nextBtn = wrapper.findAll('.dt__page-btn').find((b) => b.text() === '›')!
     await nextBtn.trigger('click')
@@ -108,7 +108,13 @@ describe('DataTable — v-model:page / v-model:search-query', () => {
       score: i,
     }))
     const wrapper = mount(DataTable, {
-      props: { data: manyRows, columns: COLS, rowKey: 'id', defaultPageSize: 10, page: 3 },
+      props: {
+        data: manyRows,
+        columns: COLS,
+        rowKey: 'id',
+        initialViewState: { pageSize: 10 },
+        page: 3,
+      },
     })
     expect(wrapper.find('.dt__page-info').text()).toBe('Page 3 of 3')
   })
@@ -128,7 +134,13 @@ describe('DataTable — v-model:page / v-model:search-query', () => {
       score: i,
     }))
     const wrapper = mount(DataTable, {
-      props: { data: manyRows, columns: COLS, rowKey: 'id', defaultPageSize: 10, page: 1 },
+      props: {
+        data: manyRows,
+        columns: COLS,
+        rowKey: 'id',
+        initialViewState: { pageSize: 10 },
+        page: 1,
+      },
     })
     await wrapper.setProps({ page: 2 })
     expect(wrapper.find('.dt__page-info').text()).toContain('2')
@@ -714,7 +726,12 @@ describe('DataTable — virtualized filter checklist', () => {
 
   it('renders a different slice of values after scrolling', async () => {
     const wrapper = mount(DataTable, {
-      props: { data: MANY_ROWS, columns: MANY_COLS, rowKey: 'id', defaultPageSize: 10 },
+      props: {
+        data: MANY_ROWS,
+        columns: MANY_COLS,
+        rowKey: 'id',
+        initialViewState: { pageSize: 10 },
+      },
     })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
@@ -2030,9 +2047,9 @@ describe('DataTable — keyboard navigation across pages', () => {
     await btn.trigger('click')
   }
 
-  it('the rows-per-page dropdown includes and selects a custom defaultPageSize not among the defaults', () => {
+  it('the rows-per-page dropdown includes and selects a custom initialViewState.pageSize not among the defaults', () => {
     const wrapper = mount(DataTable, {
-      props: { data: ROWS6, columns: COLS, rowKey: 'id', defaultPageSize: 2 },
+      props: { data: ROWS6, columns: COLS, rowKey: 'id', initialViewState: { pageSize: 2 } },
     })
     const select = wrapper.find('select').element as HTMLSelectElement
     expect([...select.options].map((o) => o.value)).toEqual(['2', '10', '20', '50', '100'])
@@ -2041,7 +2058,13 @@ describe('DataTable — keyboard navigation across pages', () => {
 
   it('ArrowDown on the last row of a page moves to the first row of the next page', async () => {
     const wrapper = mount(DataTable, {
-      props: { data: ROWS6, columns: COLS, rowKey: 'id', selectable: true, defaultPageSize: 2 },
+      props: {
+        data: ROWS6,
+        columns: COLS,
+        rowKey: 'id',
+        selectable: true,
+        initialViewState: { pageSize: 2 },
+      },
       attachTo: document.body,
     })
     const [, last] = dataRows(wrapper)
@@ -2056,7 +2079,13 @@ describe('DataTable — keyboard navigation across pages', () => {
 
   it('ArrowUp on the first row of a page moves to the last row of the previous page', async () => {
     const wrapper = mount(DataTable, {
-      props: { data: ROWS6, columns: COLS, rowKey: 'id', selectable: true, defaultPageSize: 2 },
+      props: {
+        data: ROWS6,
+        columns: COLS,
+        rowKey: 'id',
+        selectable: true,
+        initialViewState: { pageSize: 2 },
+      },
       attachTo: document.body,
     })
     await clickNextPage(wrapper)
@@ -2074,7 +2103,13 @@ describe('DataTable — keyboard navigation across pages', () => {
 
   it('Ctrl+End jumps to the true last row across all pages', async () => {
     const wrapper = mount(DataTable, {
-      props: { data: ROWS6, columns: COLS, rowKey: 'id', selectable: true, defaultPageSize: 2 },
+      props: {
+        data: ROWS6,
+        columns: COLS,
+        rowKey: 'id',
+        selectable: true,
+        initialViewState: { pageSize: 2 },
+      },
       attachTo: document.body,
     })
     const [first] = dataRows(wrapper)
@@ -2090,7 +2125,13 @@ describe('DataTable — keyboard navigation across pages', () => {
 
   it('Ctrl+Home jumps to the true first row across all pages', async () => {
     const wrapper = mount(DataTable, {
-      props: { data: ROWS6, columns: COLS, rowKey: 'id', selectable: true, defaultPageSize: 2 },
+      props: {
+        data: ROWS6,
+        columns: COLS,
+        rowKey: 'id',
+        selectable: true,
+        initialViewState: { pageSize: 2 },
+      },
       attachTo: document.body,
     })
     const [first] = dataRows(wrapper)
@@ -2107,7 +2148,13 @@ describe('DataTable — keyboard navigation across pages', () => {
 
   it('Shift+ArrowDown across a page boundary extends the selection onto the next page', async () => {
     const wrapper = mount(DataTable, {
-      props: { data: ROWS6, columns: COLS, rowKey: 'id', selectable: true, defaultPageSize: 2 },
+      props: {
+        data: ROWS6,
+        columns: COLS,
+        rowKey: 'id',
+        selectable: true,
+        initialViewState: { pageSize: 2 },
+      },
       attachTo: document.body,
     })
     const [, last] = dataRows(wrapper)
@@ -2354,7 +2401,7 @@ describe('DataTable — pagination with grouping', () => {
         data: GROUP_ROWS,
         columns: GROUP_COLS,
         rowKey: 'id',
-        defaultPageSize: 2,
+        initialViewState: { pageSize: 2 },
         defaultGroupsCollapsed: false,
       },
     })
@@ -2371,7 +2418,7 @@ describe('DataTable — pagination with grouping', () => {
         data: GROUP_ROWS,
         columns: GROUP_COLS,
         rowKey: 'id',
-        defaultPageSize: 2,
+        initialViewState: { pageSize: 2 },
         defaultGroupsCollapsed: false,
       },
     })

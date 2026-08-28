@@ -323,19 +323,18 @@ Drag a column header to reorder it, or drag a row (or press Alt+ArrowUp/Alt+Arro
 
 ## `DataTable` props
 
-| Prop                     | Type                                                                                                | Default | Description                                                        |
-| ------------------------ | --------------------------------------------------------------------------------------------------- | ------- | ------------------------------------------------------------------ |
-| `data`                   | `TRow[]`                                                                                            | —       | Row data                                                           |
-| `columns`                | `ColumnDef<TRow>[]`                                                                                 | —       | Column definitions                                                 |
-| `rowKey`                 | `keyof TRow & string`                                                                               | —       | React list key only — not selection identity                       |
-| `defaultVisibleColumns`  | `string[]`                                                                                          | all     | Initially visible column keys                                      |
-| `labels`                 | `Partial<DataTableLabels>`                                                                          | English | UI string overrides                                                |
-| `defaultPageSize`        | `number`                                                                                            | 0 (off) | Initial rows per page; 0 disables pagination                       |
-| `defaultGroupsCollapsed` | `boolean`                                                                                           | `true`  | Whether newly-grouped groups start collapsed                       |
-| `getRowId`               | `(row: TRow) => string \| number`                                                                   | —       | Opt-in id-based selection identity (see "Row selection" above)     |
-| `selectable`             | `boolean`                                                                                           | `false` | Show checkbox column for row selection                             |
-| `onSelectionChange`      | `(rows: TRow[]) => void`                                                                            | —       | Called when selection changes                                      |
-| `onRowClick`             | `(row: TRow, event: MouseEvent<HTMLTableRowElement> \| KeyboardEvent<HTMLTableRowElement>) => void` | —       | Called when a data row is clicked, or on Enter with keyboard focus |
+| Prop                     | Type                                                                                                | Default | Description                                                                                               |
+| ------------------------ | --------------------------------------------------------------------------------------------------- | ------- | --------------------------------------------------------------------------------------------------------- |
+| `data`                   | `TRow[]`                                                                                            | —       | Row data                                                                                                  |
+| `columns`                | `ColumnDef<TRow>[]`                                                                                 | —       | Column definitions                                                                                        |
+| `rowKey`                 | `keyof TRow & string`                                                                               | —       | React list key only — not selection identity                                                              |
+| `labels`                 | `Partial<DataTableLabels>`                                                                          | English | UI string overrides                                                                                       |
+| `defaultGroupsCollapsed` | `boolean`                                                                                           | `true`  | Whether newly-grouped groups start collapsed                                                              |
+| `initialViewState`       | `TableViewState`                                                                                    | `{}`    | Construction-time defaults for columns/sort/filters/grouping/page/search — also what `resetView` restores |
+| `getRowId`               | `(row: TRow) => string \| number`                                                                   | —       | Opt-in id-based selection identity (see "Row selection" above)                                            |
+| `selectable`             | `boolean`                                                                                           | `false` | Show checkbox column for row selection                                                                    |
+| `onSelectionChange`      | `(rows: TRow[]) => void`                                                                            | —       | Called when selection changes                                                                             |
+| `onRowClick`             | `(row: TRow, event: MouseEvent<HTMLTableRowElement> \| KeyboardEvent<HTMLTableRowElement>) => void` | —       | Called when a data row is clicked, or on Enter with keyboard focus                                        |
 
 ## Column definition
 
@@ -375,10 +374,13 @@ If you need to build a custom layout, use the hook directly:
 import { useTableState, type ColumnDef } from '@vates/data-table-react'
 
 const table = useTableState(data, columns, {
-  defaultVisibleColumns,
   labels: labelOverrides,
-  defaultPageSize,
   defaultGroupsCollapsed, // default true — pass false to start groups expanded
+  initialViewState: {
+    visibleCols: DEFAULT_VISIBLE,
+    pageSize: 20,
+    sorts: [{ key: 'name', dir: 'asc' }],
+  },
 })
 
 const {
@@ -489,15 +491,14 @@ import { useTableState, usePersistence, DataTableView } from '@vates/data-table-
 
 function EmployeeTable() {
   const table = useTableState(employees, COLUMNS, {
-    defaultVisibleColumns: DEFAULT_VISIBLE,
-    defaultPageSize: 20,
+    initialViewState: { visibleCols: DEFAULT_VISIBLE, pageSize: 20 },
   })
   usePersistence(table, { storageKey: 'employee-table-view', paramName: 'view' })
   return <DataTableView table={table} data={employees} columns={COLUMNS} rowKey="id" />
 }
 ```
 
-`DataTableView` takes the same props as `<DataTable>` minus `defaultVisibleColumns`/`labels`/`defaultPageSize` (those only make sense at `useTableState` construction time) plus `table`. In fact, `<DataTable>` is implemented as exactly this — a thin wrapper that calls `useTableState` and renders `<DataTableView table={table} .../>`.
+`DataTableView` takes the same props as `<DataTable>` minus `labels`/`defaultGroupsCollapsed`/`initialViewState` (those only make sense at `useTableState` construction time) plus `table`. In fact, `<DataTable>` is implemented as exactly this — a thin wrapper that calls `useTableState` and renders `<DataTableView table={table} .../>`.
 
 ## i18n
 

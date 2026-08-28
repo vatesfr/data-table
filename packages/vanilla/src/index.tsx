@@ -82,9 +82,9 @@ export function createDataTable<TRow extends object>(
   // own props lazily (a signal call passed directly as a JSX prop stays live through Solid's
   // compiled prop getters, the same mechanism that already keeps `table` itself live), and
   // `labels`/`defaultGroupsCollapsed`/`getRowId` because `createTableState` now accepts its whole
-  // `options` argument as an Accessor (see that package's own doc comment). `defaultVisibleColumns`/
-  // `defaultPageSize` stay plain, one-time values — `createTableState` only ever seeds from them
-  // once regardless, matching every other adapter's documented frozen behavior for those two.
+  // `options` argument as an Accessor (see that package's own doc comment). `initialViewState`
+  // stays a plain, one-time value — `createTableState` only ever seeds from it once regardless,
+  // matching every other adapter's documented frozen behavior for it.
   const [rowKey, setRowKeySignal] = createSignal(options.rowKey)
   const [selectable, setSelectableSignal] = createSignal(options.selectable ?? false)
   // `onRowClick`/`getRowId` are themselves functions, so Solid's setter overloads can't tell them
@@ -100,10 +100,9 @@ export function createDataTable<TRow extends object>(
   createRoot((d) => {
     dispose = d
     table = createTableState(options.data, options.columns, () => ({
-      defaultVisibleColumns: options.defaultVisibleColumns,
       labels: labels(),
-      defaultPageSize: options.defaultPageSize,
       defaultGroupsCollapsed: defaultGroupsCollapsed(),
+      initialViewState: options.initialViewState,
       getRowId: getRowId(),
     }))
 

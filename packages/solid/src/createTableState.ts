@@ -58,15 +58,21 @@ function access<T>(value: T | Accessor<T>): T {
 }
 
 export interface CreateTableStateOptions<TRow extends object = Record<string, unknown>> {
-  /** Seed-only: read once at construction to build the initial `visibleCols` set. See `labels`/
-   * `defaultGroupsCollapsed`/`getRowId` below for the fields that *do* stay live when `options`
-   * itself is given as an Accessor. */
-  defaultVisibleColumns?: string[]
   labels?: Partial<DataTableLabels>
-  /** Seed-only — see `defaultVisibleColumns` above. */
-  defaultPageSize?: number
   /** Whether newly-grouped groups start collapsed. Defaults to `true`; pass `false` to start expanded. */
   defaultGroupsCollapsed?: boolean
+  /**
+   * Construction-time defaults for every other view concern (visible columns, column order,
+   * sort, filters, grouping, page/pageSize, search) — a fresh table starts here, and `resetView`
+   * restores it. Any field left unset falls back to that field's own ordinary empty default (all
+   * columns visible, no sort, page 1, etc). Grouping a column with no matching sort entry here
+   * gets one inserted automatically (the same thing interactive grouping already does), so
+   * `initialViewState: { groupBy: ['status'] }` alone is enough for a deterministic group order.
+   * Seed-only: read once at construction, regardless of whether `options` itself is given as an
+   * Accessor. See `labels`/`defaultGroupsCollapsed`/`getRowId` below for the fields that *do*
+   * stay live in that case.
+   */
+  initialViewState?: TableViewState
   /**
    * Opt-in row identity for selection. By default, selection tracks rows by object identity — a
    * refetch or re-map of `data` that produces new row objects (even with identical content)
@@ -126,20 +132,22 @@ export function createTableState<TRow extends object>(
   // reading `getOptions().getRowId` (etc.) after that is just ordinary property access — same
   // approach Vue's own `useTableState` takes with its whole `options` argument.
   const getOptions = (): CreateTableStateOptions<TRow> => access(options) ?? {}
-  // `defaultVisibleColumns`/`defaultPageSize` stay seed-only regardless of whether `options` is
-  // reactive — read once, untracked, right now, to build each signal's initial value. `labels`/
+  // `initialViewState` stays seed-only regardless of whether `options` is reactive — read once,
+  // untracked, right now, to build each signal's initial value (the same
+  // `resolveViewState({}, ...)` call `resetView`/`setViewState({})` make, so "what a fresh table
+  // starts at" and "what a reset restores" can never drift apart). `labels`/
   // `defaultGroupsCollapsed`/`getRowId` (read via `getOptions()` at their own use sites below,
   // inside a memo or fresh at each call) are the fields that actually stay live.
-  const { defaultVisibleColumns, defaultPageSize } = getOptions()
-  const L = createMemo(() => ({ ...DEFAULT_LABELS, ...getOptions().labels }))
+  const { initialViewState } = getOptions()
 
   const resolvedInitialColumns = access(initialColumns)
+  const initial = resolveViewState({}, resolvedInitialColumns, initialViewState)
+  const L = createMemo(() => ({ ...DEFAULT_LABELS, ...getOptions().labels }))
+
   const [data, _setData] = createSignal<TRow[]>(access(initialData))
   const [columns, _setColumns] = createSignal<ColumnDef<TRow>[]>(resolvedInitialColumns)
 
-  const [visibleCols, setVisibleCols] = createSignal<Set<string>>(
-    new Set(defaultVisibleColumns ?? resolvedInitialColumns.map((c) => c.key)),
-  )
+  const [visibleCols, setVisibleCols] = createSignal<Set<string>>(initial.visibleCols)
   const [selection, setSelection] = createSignal<Set<TRow>>(new Set())
   const [selectionAnchor, setSelectionAnchor] = createSignal<TRow | null>(null)
 
@@ -178,8 +186,8 @@ export function createTableState<TRow extends object>(
     createRenderEffect(() => setColumns((initialColumns as Accessor<ColumnDef<TRow>[]>)()))
   }
 
-  const [columnOrder, setColumnOrder] = createSignal<string[]>([])
-  const [sorts, setSorts] = createSignal<SortEntry[]>([])
+  const [columnOrder, setColumnOrder] = createSignal<string[]>(initial.columnOrder)
+  const [sorts, setSorts] = createSignal<SortEntry[]>(initial.sorts)
   // `filters` (include) and `excludeFilters` ("not one of these values", see `cycleFilterValue`)
   // are combined into one signal rather than two independent ones, for the same reason as React's
   // `useTableState`: several actions need to read *both* current maps together to decide the next
@@ -187,20 +195,24 @@ export function createTableState<TRow extends object>(
   const [filterState, setFilterState] = createSignal<{
     filters: Record<string, Set<string>>
     excludeFilters: Record<string, Set<string>>
-  }>({ filters: {}, excludeFilters: {} })
+  }>({ filters: initial.filters, excludeFilters: initial.excludeFilters })
   const filters = () => filterState().filters
   const excludeFilters = () => filterState().excludeFilters
   // Per-column runtime override of `col.multiMode` ("any"/"all" checklist match) — see
   // `setFilterMode`. Kept as its own signal rather than folded into `filterState` above:
   // unlike `filters`/`excludeFilters`, no action ever needs to read both this and them together
   // to decide its next value.
-  const [filterModes, setFilterModes] = createSignal<Record<string, 'and' | 'or'>>({})
-  const [rangeFilters, setRangeFilters] = createSignal<Record<string, RangeFilter>>({})
-  const [groupBy, setGroupBy] = createSignal<string[]>([])
-  const [collapsedGroups, setCollapsedGroups] = createSignal<Set<string>>(new Set())
-  const [page, setPageState] = createSignal(1)
-  const [pageSize, setPageSizeState] = createSignal(defaultPageSize ?? 0)
-  const [searchQuery, setSearchQueryState] = createSignal('')
+  const [filterModes, setFilterModes] = createSignal<Record<string, 'and' | 'or'>>(
+    initial.filterModes,
+  )
+  const [rangeFilters, setRangeFilters] = createSignal<Record<string, RangeFilter>>(
+    initial.rangeFilters,
+  )
+  const [groupBy, setGroupBy] = createSignal<string[]>(initial.groupBy)
+  const [collapsedGroups, setCollapsedGroups] = createSignal<Set<string>>(initial.collapsedGroups)
+  const [page, setPageState] = createSignal(initial.page)
+  const [pageSize, setPageSizeState] = createSignal(initial.pageSize)
+  const [searchQuery, setSearchQueryState] = createSignal(initial.searchQuery)
 
   const defaultSortDirFor = (key: string) => getDefaultSortDir(columns(), key)
 
@@ -507,10 +519,10 @@ export function createTableState<TRow extends object>(
         pageSize: pageSize(),
         searchQuery: searchQuery(),
         columns: columns(),
-        defaultPageSize,
+        initialViewState,
       }),
     setViewState: (view: TableViewState) => {
-      const resolved = resolveViewState(view, columns(), defaultVisibleColumns, defaultPageSize)
+      const resolved = resolveViewState(view, columns(), initialViewState)
       setVisibleCols(resolved.visibleCols)
       setColumnOrder(resolved.columnOrder)
       setSorts(resolved.sorts)

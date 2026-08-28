@@ -37,8 +37,8 @@ describe('useTableState — initial state', () => {
     expect(activeColumns.value).toHaveLength(3)
   })
 
-  it('respects defaultVisibleColumns option', () => {
-    const table = useTableState(ROWS, COLS, { defaultVisibleColumns: ['id', 'name'] })
+  it('respects initialViewState.visibleCols option', () => {
+    const table = useTableState(ROWS, COLS, { initialViewState: { visibleCols: ['id', 'name'] } })
     const { active: activeColumns } = table.columns
     expect(activeColumns.value.map((c) => c.key)).toEqual(['id', 'name'])
   })
@@ -49,12 +49,25 @@ describe('useTableState — initial state', () => {
     expect(pagedData.value).toHaveLength(4)
   })
 
-  it('respects defaultPageSize option', () => {
-    const table = useTableState(ROWS, COLS, { defaultPageSize: 2 })
+  it('respects initialViewState.pageSize option', () => {
+    const table = useTableState(ROWS, COLS, { initialViewState: { pageSize: 2 } })
     const { pagedData } = table
     const { numPages } = table.pagination
     expect(pagedData.value).toHaveLength(2)
     expect(numPages.value).toBe(2)
+  })
+
+  it('respects initialViewState.sorts option', () => {
+    const table = useTableState(ROWS, COLS, {
+      initialViewState: { sorts: [{ key: 'score', dir: 'desc' }] },
+    })
+    expect(table.sort.entries.value).toEqual([{ key: 'score', dir: 'desc' }])
+  })
+
+  it('respects initialViewState.groupBy option and auto-inserts a matching sort for it', () => {
+    const table = useTableState(ROWS, COLS, { initialViewState: { groupBy: ['name'] } })
+    expect(table.group.by.value).toEqual(['name'])
+    expect(table.sort.entries.value).toEqual([{ key: 'name', dir: 'asc' }])
   })
 })
 
@@ -233,7 +246,7 @@ describe('useTableState — column visibility', () => {
 
   it('toggleColVisibility shows a hidden column', () => {
     const table = useTableState(ROWS, COLS, {
-      defaultVisibleColumns: ['id'],
+      initialViewState: { visibleCols: ['id'] },
     })
     const { active: activeColumns, toggleVisibility: toggleColVisibility } = table.columns
     toggleColVisibility('name')
@@ -242,7 +255,7 @@ describe('useTableState — column visibility', () => {
 
   it('cannot hide the last visible column', () => {
     const table = useTableState(ROWS, COLS, {
-      defaultVisibleColumns: ['id'],
+      initialViewState: { visibleCols: ['id'] },
     })
     const { active: activeColumns, toggleVisibility: toggleColVisibility } = table.columns
     toggleColVisibility('id')
@@ -455,7 +468,7 @@ describe('useTableState — keepVisibleWhenGrouped', () => {
 
 describe('useTableState — pagination', () => {
   it('setPage navigates between pages', () => {
-    const table = useTableState(ROWS, COLS, { defaultPageSize: 2 })
+    const table = useTableState(ROWS, COLS, { initialViewState: { pageSize: 2 } })
     const { pagedData } = table
     const { page, setPage } = table.pagination
     setPage(2)
@@ -464,21 +477,21 @@ describe('useTableState — pagination', () => {
   })
 
   it('setPage clamps to numPages', () => {
-    const table = useTableState(ROWS, COLS, { defaultPageSize: 2 })
+    const table = useTableState(ROWS, COLS, { initialViewState: { pageSize: 2 } })
     const { page, setPage } = table.pagination
     setPage(100)
     expect(page.value).toBe(2)
   })
 
   it('setPage clamps to 1 at minimum', () => {
-    const table = useTableState(ROWS, COLS, { defaultPageSize: 2 })
+    const table = useTableState(ROWS, COLS, { initialViewState: { pageSize: 2 } })
     const { page, setPage } = table.pagination
     setPage(-5)
     expect(page.value).toBe(1)
   })
 
   it('setPageSize resets page to 1', () => {
-    const table = useTableState(ROWS, COLS, { defaultPageSize: 2 })
+    const table = useTableState(ROWS, COLS, { initialViewState: { pageSize: 2 } })
     const { page, setPage, setPageSize } = table.pagination
     setPage(2)
     setPageSize(3)
@@ -490,7 +503,7 @@ describe('useTableState — pagination', () => {
     // setPage, so pagination.page must reflect the new, smaller numPages on its own rather
     // than reporting a stale out-of-range page number.
     const data = shallowRef(ROWS)
-    const table = useTableState(data, COLS, { defaultPageSize: 2 })
+    const table = useTableState(data, COLS, { initialViewState: { pageSize: 2 } })
     const { page, numPages, setPage } = table.pagination
     setPage(2)
     expect(page.value).toBe(2)
@@ -500,7 +513,7 @@ describe('useTableState — pagination', () => {
   })
 
   it('setPage ignores NaN instead of corrupting page state', () => {
-    const table = useTableState(ROWS, COLS, { defaultPageSize: 2 })
+    const table = useTableState(ROWS, COLS, { initialViewState: { pageSize: 2 } })
     const { page, setPage } = table.pagination
     setPage(2)
     setPage(NaN)
@@ -508,7 +521,7 @@ describe('useTableState — pagination', () => {
   })
 
   it('setPageSize ignores NaN instead of breaking pagination', () => {
-    const table = useTableState(ROWS, COLS, { defaultPageSize: 2 })
+    const table = useTableState(ROWS, COLS, { initialViewState: { pageSize: 2 } })
     const { pageSize, numPages, setPageSize } = table.pagination
     setPageSize(NaN)
     expect(pageSize.value).toBe(2)
@@ -535,7 +548,7 @@ describe('useTableState — pagination with grouping', () => {
 
   it('counts header rows toward numPages, growing when expanded vs. the 4 data rows alone', () => {
     const table = useTableState(DEPT_ROWS, DEPT_COLS, {
-      defaultPageSize: 2,
+      initialViewState: { pageSize: 2 },
       defaultGroupsCollapsed: false,
     })
     const { numPages } = table.pagination
@@ -547,7 +560,7 @@ describe('useTableState — pagination with grouping', () => {
 
   it("splits an expanded group's rows across a page boundary and repeats its header as a continued chunk", () => {
     const table = useTableState(DEPT_ROWS, DEPT_COLS, {
-      defaultPageSize: 2,
+      initialViewState: { pageSize: 2 },
       defaultGroupsCollapsed: false,
     })
     const { groupedData } = table
@@ -579,7 +592,7 @@ describe('useTableState — pagination with grouping', () => {
   it("backfills a collapsed group's rows from the full group instead of whatever page its header lands on", () => {
     // defaultGroupsCollapsed defaults to true
     const table = useTableState(DEPT_ROWS, DEPT_COLS, {
-      defaultPageSize: 2,
+      initialViewState: { pageSize: 2 },
     })
     const { groupedData } = table
     const { numPages } = table.pagination
@@ -595,7 +608,7 @@ describe('useTableState — pagination with grouping', () => {
 
   it('pagedData reflects the data rows actually visible on the page, not a flat pageSize slice', () => {
     const table = useTableState(DEPT_ROWS, DEPT_COLS, {
-      defaultPageSize: 2,
+      initialViewState: { pageSize: 2 },
       defaultGroupsCollapsed: false,
     })
     const { pagedData } = table
@@ -608,7 +621,7 @@ describe('useTableState — pagination with grouping', () => {
 
 describe('useTableState — filters reset page', () => {
   it('cycleFilterValue resets page to 1', () => {
-    const table = useTableState(ROWS, COLS, { defaultPageSize: 2 })
+    const table = useTableState(ROWS, COLS, { initialViewState: { pageSize: 2 } })
     const { page, setPage } = table.pagination
     const { cycleValue: cycleFilterValue } = table.filter
     setPage(2)
@@ -617,7 +630,7 @@ describe('useTableState — filters reset page', () => {
   })
 
   it('setRangeFilter resets page to 1', () => {
-    const table = useTableState(ROWS, COLS, { defaultPageSize: 2 })
+    const table = useTableState(ROWS, COLS, { initialViewState: { pageSize: 2 } })
     const { page, setPage } = table.pagination
     const { setRange: setRangeFilter } = table.filter
     setPage(2)
@@ -626,7 +639,7 @@ describe('useTableState — filters reset page', () => {
   })
 
   it('clearFilters resets page to 1', () => {
-    const table = useTableState(ROWS, COLS, { defaultPageSize: 2 })
+    const table = useTableState(ROWS, COLS, { initialViewState: { pageSize: 2 } })
     const { page, setPage } = table.pagination
     const { clear: clearFilters } = table.filter
     setPage(2)
@@ -635,7 +648,7 @@ describe('useTableState — filters reset page', () => {
   })
 
   it('toggleFilterAll resets page to 1', () => {
-    const table = useTableState(ROWS, COLS, { defaultPageSize: 2 })
+    const table = useTableState(ROWS, COLS, { initialViewState: { pageSize: 2 } })
     const { page, setPage } = table.pagination
     const { toggleAll: toggleFilterAll } = table.filter
     setPage(2)
@@ -810,7 +823,7 @@ describe('useTableState — search', () => {
   })
 
   it('setSearchQuery resets page to 1', () => {
-    const table = useTableState(ROWS, COLS, { defaultPageSize: 2 })
+    const table = useTableState(ROWS, COLS, { initialViewState: { pageSize: 2 } })
     const { page, setPage } = table.pagination
     const { setQuery: setSearchQuery } = table.search
     setPage(2)
@@ -1066,6 +1079,18 @@ describe('useTableState — view state', () => {
     const { active: activeColumns } = table.columns
     setViewState({ visibleCols: ['nonexistent'] })
     expect(activeColumns.value.map((c) => c.key)).toEqual(['id', 'name', 'score'])
+  })
+
+  it('setViewState({}) restores initialViewState instead of clearing to empty (GitHub issue #20)', () => {
+    const table = useTableState(ROWS, COLS, {
+      initialViewState: { sorts: [{ key: 'score', dir: 'desc' }] },
+    })
+    const { toggle: toggleSort, entries: sorts } = table.sort
+    toggleSort('name') // diverge from the construction default
+    expect(sorts.value).not.toEqual([{ key: 'score', dir: 'desc' }])
+    table.setViewState({})
+    expect(sorts.value).toEqual([{ key: 'score', dir: 'desc' }])
+    expect(table.getViewState()).toEqual({})
   })
 
   it('getViewState captures columnOrder and setViewState round-trips it', () => {

@@ -289,7 +289,7 @@ const TIER_COLORS = {
 }
 
 const COLUMNS: ColumnDef<Employee>[] = [
-  // sortable: false + filterable: false — no sort/filter UI; hidden by default via defaultVisibleColumns
+  // sortable: false + filterable: false — no sort/filter UI; hidden by default via initialViewState.visibleCols
   { key: 'id', label: 'ID', type: 'number', width: 60, sortable: false, filterable: false },
   { key: 'name', label: 'Name', type: 'string', width: 160 },
   // groupable: true — slot #cell-department / #filter-department / #group-department override rendering
@@ -417,7 +417,7 @@ const DEFAULT_VISIBLE = [
 ]
 
 // Row selection/click only need a couple of columns to make their point — a narrower
-// defaultVisibleColumns keeps each section visually distinct instead of repeating the same
+// initialViewState.visibleCols keeps each section visually distinct instead of repeating the same
 // 10-column table. The persisted table keeps more, since reordering needs several columns to
 // be meaningful.
 const SELECTION_VISIBLE = ['name', 'department', 'salary']
@@ -540,8 +540,7 @@ useUrlView(table, { paramName: VIEW_KEYS.custom.paramName })
 // VIEW_KEYS.persisted object feeds all three, so its storageKey/paramName can't drift out of
 // sync between them.
 const persistedTable = useTableState(SAMPLE_DATA, COLUMNS, () => ({
-  defaultVisibleColumns: PERSISTED_VISIBLE,
-  defaultPageSize: 5,
+  initialViewState: { visibleCols: PERSISTED_VISIBLE, pageSize: 5 },
   labels: currentLocale.value,
 }))
 const { reset: resetPersistedTable } = usePersistence(persistedTable, VIEW_KEYS.persisted)
@@ -550,24 +549,21 @@ const { reset: resetPersistedTable } = usePersistence(persistedTable, VIEW_KEYS.
 // wired the same way — useTableState + DataTableView instead of <DataTable> — purely so each
 // can also reach usePersistedView/useUrlView/resetView; nothing about their own features changes.
 const fullTable = useTableState(SAMPLE_DATA, COLUMNS, () => ({
-  defaultVisibleColumns: DEFAULT_VISIBLE,
-  defaultPageSize: 5,
+  initialViewState: { visibleCols: DEFAULT_VISIBLE, pageSize: 5 },
   labels: currentLocale.value,
 }))
 usePersistedView(fullTable, VIEW_KEYS.full.storageKey)
 useUrlView(fullTable, { paramName: VIEW_KEYS.full.paramName })
 
 const selectionTable = useTableState(SAMPLE_DATA, COLUMNS, () => ({
-  defaultVisibleColumns: SELECTION_VISIBLE,
-  defaultPageSize: 5,
+  initialViewState: { visibleCols: SELECTION_VISIBLE, pageSize: 5 },
   labels: currentLocale.value,
 }))
 usePersistedView(selectionTable, VIEW_KEYS.selection.storageKey)
 useUrlView(selectionTable, { paramName: VIEW_KEYS.selection.paramName })
 
 const clickTable = useTableState(SAMPLE_DATA, COLUMNS, () => ({
-  defaultVisibleColumns: CLICK_VISIBLE,
-  defaultPageSize: 5,
+  initialViewState: { visibleCols: CLICK_VISIBLE, pageSize: 5 },
   labels: currentLocale.value,
 }))
 usePersistedView(clickTable, VIEW_KEYS.click.storageKey)
@@ -575,7 +571,9 @@ useUrlView(clickTable, { paramName: VIEW_KEYS.click.paramName })
 
 // No `labels` option — matches the huge-dataset table's pre-existing behavior of always using
 // the default English labels regardless of the page's locale switcher.
-const hugeTable = useTableState(HUGE_DATA, HUGE_COLUMNS, () => ({ defaultPageSize: 100 }))
+const hugeTable = useTableState(HUGE_DATA, HUGE_COLUMNS, () => ({
+  initialViewState: { pageSize: 100 },
+}))
 usePersistedView(hugeTable, VIEW_KEYS.huge.storageKey)
 useUrlView(hugeTable, { paramName: VIEW_KEYS.huge.paramName })
 

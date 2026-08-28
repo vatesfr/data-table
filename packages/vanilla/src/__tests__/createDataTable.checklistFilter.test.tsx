@@ -242,7 +242,7 @@ describe('createDataTable — checklist filter', () => {
   })
 
   it('checklist filter resets page to 1', () => {
-    const { container } = mount(ROWS, COLS, { defaultPageSize: 2 })
+    const { container } = mount(ROWS, COLS, { initialViewState: { pageSize: 2 } })
     click(nextPageButton(container))
     openFilterDropdown(container)
     click(filterValueCheckbox(container, 'Alice')!)

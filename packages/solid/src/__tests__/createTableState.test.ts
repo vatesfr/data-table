@@ -53,9 +53,11 @@ describe('createTableState — initial state', () => {
     })
   })
 
-  it('respects defaultVisibleColumns', () => {
+  it('respects initialViewState.visibleCols', () => {
     withRoot(() => {
-      const table = createTableState(ROWS, COLS, { defaultVisibleColumns: ['id', 'name'] })
+      const table = createTableState(ROWS, COLS, {
+        initialViewState: { visibleCols: ['id', 'name'] },
+      })
       expect(table.columns.active().map((c) => c.key)).toEqual(['id', 'name'])
     })
   })
@@ -67,11 +69,28 @@ describe('createTableState — initial state', () => {
     })
   })
 
-  it('respects defaultPageSize', () => {
+  it('respects initialViewState.pageSize', () => {
     withRoot(() => {
-      const table = createTableState(ROWS, COLS, { defaultPageSize: 2 })
+      const table = createTableState(ROWS, COLS, { initialViewState: { pageSize: 2 } })
       expect(table.pagedData()).toHaveLength(2)
       expect(table.pagination.numPages()).toBe(2)
+    })
+  })
+
+  it('respects initialViewState.sorts', () => {
+    withRoot(() => {
+      const table = createTableState(ROWS, COLS, {
+        initialViewState: { sorts: [{ key: 'score', dir: 'desc' }] },
+      })
+      expect(table.sort.entries()).toEqual([{ key: 'score', dir: 'desc' }])
+    })
+  })
+
+  it('respects initialViewState.groupBy and auto-inserts a matching sort for it', () => {
+    withRoot(() => {
+      const table = createTableState(ROWS, COLS, { initialViewState: { groupBy: ['name'] } })
+      expect(table.group.by()).toEqual(['name'])
+      expect(table.sort.entries()).toEqual([{ key: 'name', dir: 'asc' }])
     })
   })
 
@@ -80,7 +99,7 @@ describe('createTableState — initial state', () => {
       // e.g. a group being collapsed, or (as reproduced here) data shrinking via setData —
       // nothing calls setPage, so pagination.page must reflect the new, smaller numPages on
       // its own rather than reporting a stale out-of-range page number.
-      const table = createTableState(ROWS, COLS, { defaultPageSize: 2 })
+      const table = createTableState(ROWS, COLS, { initialViewState: { pageSize: 2 } })
       table.pagination.setPage(2)
       expect(table.pagination.page()).toBe(2)
       table.setData(ROWS.slice(0, 2))
@@ -256,7 +275,7 @@ describe('createTableState — filtering', () => {
 
   it('setRangeFilter narrows by min/max and resets page to 1', () => {
     withRoot(() => {
-      const table = createTableState(ROWS, COLS, { defaultPageSize: 1 })
+      const table = createTableState(ROWS, COLS, { initialViewState: { pageSize: 1 } })
       table.pagination.setPage(2)
       table.filter.setRange('score', 'min', '75')
       expect(table.pagination.page()).toBe(1)
@@ -385,7 +404,7 @@ describe('createTableState — grouping', () => {
 describe('createTableState — search', () => {
   it('setSearchQuery narrows processedData and resets page to 1', () => {
     withRoot(() => {
-      const table = createTableState(ROWS, COLS, { defaultPageSize: 1 })
+      const table = createTableState(ROWS, COLS, { initialViewState: { pageSize: 1 } })
       table.pagination.setPage(2)
       table.search.setQuery('ali')
       expect(table.pagination.page()).toBe(1)
@@ -432,6 +451,19 @@ describe('createTableState — view state persistence', () => {
   it('getViewState omits fields that are at their default', () => {
     withRoot(() => {
       const table = createTableState(ROWS, COLS)
+      expect(table.getViewState()).toEqual({})
+    })
+  })
+
+  it('setViewState({}) restores initialViewState instead of clearing to empty (GitHub issue #20)', () => {
+    withRoot(() => {
+      const table = createTableState(ROWS, COLS, {
+        initialViewState: { sorts: [{ key: 'score', dir: 'desc' }] },
+      })
+      table.sort.toggle('name') // diverge from the construction default
+      expect(table.sort.entries()).not.toEqual([{ key: 'score', dir: 'desc' }])
+      table.setViewState({})
+      expect(table.sort.entries()).toEqual([{ key: 'score', dir: 'desc' }])
       expect(table.getViewState()).toEqual({})
     })
   })

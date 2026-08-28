@@ -1,4 +1,5 @@
 import type { SortEntry, RangeFilter, ColumnDefBase } from './types'
+import { getDefaultSortDir, insertGroupSort } from './logic'
 
 /**
  * Serializable snapshot of table configuration — everything a user can change through the UI
@@ -201,6 +202,42 @@ export function decodeViewState(encoded: string): TableViewState | undefined {
   }
 }
 
+// --- Equality helpers for buildViewStateSnapshot's "omit if it matches what a reset would
+// restore" checks below. All order-sensitive except the Set-based ones (visibleCols/
+// collapsedGroups/filter value lists have no meaningful order of their own).
+
+function sameStringArray(a: string[], b: string[]): boolean {
+  return a.length === b.length && a.every((v, i) => v === b[i])
+}
+
+function sameStringSet(a: Set<string>, b: Set<string>): boolean {
+  if (a.size !== b.size) return false
+  for (const v of a) if (!b.has(v)) return false
+  return true
+}
+
+function sameSorts(a: SortEntry[], b: SortEntry[]): boolean {
+  return a.length === b.length && a.every((s, i) => s.key === b[i].key && s.dir === b[i].dir)
+}
+
+function sameRecord<T>(a: Record<string, T>, b: Record<string, T>, eq: (x: T, y: T) => boolean) {
+  const aKeys = Object.keys(a)
+  const bKeys = Object.keys(b)
+  return aKeys.length === bKeys.length && aKeys.every((k) => k in b && eq(a[k], b[k]))
+}
+
+function sameFilterMap(a: Record<string, Set<string>>, b: Record<string, Set<string>>): boolean {
+  const nonEmpty = (m: Record<string, Set<string>>) =>
+    Object.fromEntries(Object.entries(m).filter(([, v]) => v.size > 0))
+  return sameRecord(nonEmpty(a), nonEmpty(b), sameStringSet)
+}
+
+function sameRangeMap(a: Record<string, RangeFilter>, b: Record<string, RangeFilter>): boolean {
+  const nonEmpty = (m: Record<string, RangeFilter>) =>
+    Object.fromEntries(Object.entries(m).filter(([, r]) => r.min !== '' || r.max !== ''))
+  return sameRecord(nonEmpty(a), nonEmpty(b), (x, y) => x.min === y.min && x.max === y.max)
+}
+
 /** The bag of current plain state values `buildViewStateSnapshot` reads `getViewState()` from. */
 export interface ViewStateSnapshotInput<TRow extends object = Record<string, unknown>> {
   visibleCols: Set<string>
@@ -216,12 +253,17 @@ export interface ViewStateSnapshotInput<TRow extends object = Record<string, unk
   pageSize: number
   searchQuery: string
   columns: ColumnDefBase<TRow>[]
-  defaultPageSize?: number
+  /** Construction-time defaults — see `resolveViewState`. */
+  initialViewState?: TableViewState
 }
 
 /**
  * Builds a `TableViewState` snapshot from a bag of current plain state values, omitting any
- * field that's already at its default — shared by every adapter's `getViewState()`.
+ * field that's already back at what a reset would restore it to — shared by every adapter's
+ * `getViewState()`. Reuses `resolveViewState({}, columns, initialViewState)` to compute that
+ * "reset-to" bag rather than re-deriving each field's default independently, so a field showing
+ * up here always means "differs from what `resetView` would produce", never a second, subtly
+ * different notion of default.
  */
 export function buildViewStateSnapshot<TRow extends object = Record<string, unknown>>(
   input: ViewStateSnapshotInput<TRow>,
@@ -240,29 +282,36 @@ export function buildViewStateSnapshot<TRow extends object = Record<string, unkn
     pageSize,
     searchQuery,
     columns,
-    defaultPageSize,
+    initialViewState,
   } = input
+  const def = resolveViewState({}, columns, initialViewState)
   const view: TableViewState = {}
-  const allKeys = columns.map((c) => c.key)
-  const isDefaultVisible =
-    visibleCols.size === allKeys.length && allKeys.every((k) => visibleCols.has(k))
-  if (!isDefaultVisible) view.visibleCols = [...visibleCols]
-  if (columnOrder.length) view.columnOrder = columnOrder
-  if (sorts.length) view.sorts = sorts
-  const filterEntries = Object.entries(filters).filter(([, v]) => v.size > 0)
-  if (filterEntries.length)
-    view.filters = Object.fromEntries(filterEntries.map(([k, v]) => [k, [...v]]))
-  const excludeFilterEntries = Object.entries(excludeFilters).filter(([, v]) => v.size > 0)
-  if (excludeFilterEntries.length)
-    view.excludeFilters = Object.fromEntries(excludeFilterEntries.map(([k, v]) => [k, [...v]]))
-  if (Object.keys(filterModes).length) view.filterModes = filterModes
-  const rangeEntries = Object.entries(rangeFilters).filter(([, r]) => r.min !== '' || r.max !== '')
-  if (rangeEntries.length) view.rangeFilters = Object.fromEntries(rangeEntries)
-  if (groupBy.length) view.groupBy = groupBy
-  if (collapsedGroups.size) view.collapsedGroups = [...collapsedGroups]
-  if (page !== 1) view.page = page
-  if (pageSize !== (defaultPageSize ?? 0)) view.pageSize = pageSize
-  if (searchQuery) view.searchQuery = searchQuery
+  if (!sameStringSet(visibleCols, def.visibleCols)) view.visibleCols = [...visibleCols]
+  if (!sameStringArray(columnOrder, def.columnOrder)) view.columnOrder = columnOrder
+  if (!sameSorts(sorts, def.sorts)) view.sorts = sorts
+  if (!sameFilterMap(filters, def.filters))
+    view.filters = Object.fromEntries(
+      Object.entries(filters)
+        .filter(([, v]) => v.size > 0)
+        .map(([k, v]) => [k, [...v]]),
+    )
+  if (!sameFilterMap(excludeFilters, def.excludeFilters))
+    view.excludeFilters = Object.fromEntries(
+      Object.entries(excludeFilters)
+        .filter(([, v]) => v.size > 0)
+        .map(([k, v]) => [k, [...v]]),
+    )
+  if (!sameRecord(filterModes, def.filterModes, (x, y) => x === y)) view.filterModes = filterModes
+  if (!sameRangeMap(rangeFilters, def.rangeFilters))
+    view.rangeFilters = Object.fromEntries(
+      Object.entries(rangeFilters).filter(([, r]) => r.min !== '' || r.max !== ''),
+    )
+  if (!sameStringArray(groupBy, def.groupBy)) view.groupBy = groupBy
+  if (!sameStringSet(collapsedGroups, def.collapsedGroups))
+    view.collapsedGroups = [...collapsedGroups]
+  if (page !== def.page) view.page = page
+  if (pageSize !== def.pageSize) view.pageSize = pageSize
+  if (searchQuery !== def.searchQuery) view.searchQuery = searchQuery
   return view
 }
 
@@ -282,36 +331,74 @@ export interface ResolvedViewState {
   searchQuery: string
 }
 
+function toSetMap(m: Record<string, string[]>): Record<string, Set<string>> {
+  return Object.fromEntries(Object.entries(m).map(([k, v]) => [k, new Set(v)]))
+}
+
+/**
+ * Applies the same "grouping a column inserts a matching sort entry, ahead of whatever else is
+ * grouped, unless one already exists" invariant interactive `group.toggle` maintains (see
+ * `insertGroupSort`) — for the specific case that motivated this: `groupBy` resolved from
+ * `initialViewState` (construction, `resetView`, or a `setViewState(view)` call that leaves
+ * `view.groupBy` unset) rather than from an explicit `view.groupBy`. Deliberately scoped this
+ * way rather than run unconditionally on every `resolveViewState` call: a caller that explicitly
+ * passes `view.groupBy` (restoring a stored/shared view, say) already gets whatever `sorts` that
+ * same view specifies — or deliberately none — and forcing a sync there would silently insert an
+ * entry the caller never asked for and the pre-existing `setViewState` contract never promised.
+ * Idempotent — already-consistent input comes back with the same effective order.
+ */
+function syncGroupSorts<TRow extends object>(
+  sorts: SortEntry[],
+  groupBy: string[],
+  columns: ColumnDefBase<TRow>[],
+): SortEntry[] {
+  let result = sorts
+  const seenGroupBy: string[] = []
+  for (const key of groupBy) {
+    result = insertGroupSort(result, seenGroupBy, key, getDefaultSortDir(columns, key))
+    seenGroupBy.push(key)
+  }
+  return result
+}
+
 /**
  * Resolves a partial `TableViewState` (as passed to `setViewState`) plus the current `columns`
- * and optional `defaultVisibleColumns`/`defaultPageSize` into the fully-defaulted plain values
- * each adapter writes back into its own state — shared by every adapter's `setViewState(view)`.
+ * and optional construction-time `initialViewState` into the fully-defaulted plain values each
+ * adapter writes back into its own state — shared by every adapter's `setViewState(view)`, and
+ * (via `resolveViewState({}, columns, initialViewState)`) by `buildViewStateSnapshot` above and
+ * by `resetView`/construction-time seeding, since both are just "apply an empty/absent view".
+ * Any field `view` omits falls back to `initialViewState`'s own value for it, then to that
+ * field's ordinary empty default — so `initialViewState` is simultaneously "what a fresh table
+ * starts at" and "what a reset restores". `groupBy` falling back this way also gets `sorts`
+ * synced via `syncGroupSorts` (see its own doc comment) — an explicit `view.groupBy` does not.
  */
 export function resolveViewState<TRow extends object = Record<string, unknown>>(
   view: TableViewState,
   columns: ColumnDefBase<TRow>[],
-  defaultVisibleColumns?: string[],
-  defaultPageSize?: number,
+  initialViewState?: TableViewState,
 ): ResolvedViewState {
+  const validInitialVisible = initialViewState?.visibleCols?.filter((k) =>
+    columns.some((c) => c.key === k),
+  )
+  const defaultVisible = validInitialVisible?.length
+    ? validInitialVisible
+    : columns.map((c) => c.key)
   const validVisible = view.visibleCols?.filter((k) => columns.some((c) => c.key === k))
-  const visibleCols = validVisible?.length
-    ? new Set(validVisible)
-    : new Set(defaultVisibleColumns ?? columns.map((c) => c.key))
-  const columnOrder = view.columnOrder?.filter((k) => columns.some((c) => c.key === k)) ?? []
-  const sorts = view.sorts ?? []
-  const filters = Object.fromEntries(
-    Object.entries(view.filters ?? {}).map(([k, v]) => [k, new Set(v)]),
+  const visibleCols = validVisible?.length ? new Set(validVisible) : new Set(defaultVisible)
+  const columnOrder = (view.columnOrder ?? initialViewState?.columnOrder ?? []).filter((k) =>
+    columns.some((c) => c.key === k),
   )
-  const excludeFilters = Object.fromEntries(
-    Object.entries(view.excludeFilters ?? {}).map(([k, v]) => [k, new Set(v)]),
-  )
-  const filterModes = view.filterModes ?? {}
-  const rangeFilters = view.rangeFilters ?? {}
-  const groupBy = view.groupBy ?? []
-  const collapsedGroups = new Set(view.collapsedGroups ?? [])
-  const page = view.page ?? 1
-  const pageSize = view.pageSize ?? defaultPageSize ?? 0
-  const searchQuery = view.searchQuery ?? ''
+  const groupBy = view.groupBy ?? initialViewState?.groupBy ?? []
+  const rawSorts = view.sorts ?? initialViewState?.sorts ?? []
+  const sorts = view.groupBy === undefined ? syncGroupSorts(rawSorts, groupBy, columns) : rawSorts
+  const filters = toSetMap(view.filters ?? initialViewState?.filters ?? {})
+  const excludeFilters = toSetMap(view.excludeFilters ?? initialViewState?.excludeFilters ?? {})
+  const filterModes = view.filterModes ?? initialViewState?.filterModes ?? {}
+  const rangeFilters = view.rangeFilters ?? initialViewState?.rangeFilters ?? {}
+  const collapsedGroups = new Set(view.collapsedGroups ?? initialViewState?.collapsedGroups ?? [])
+  const page = view.page ?? initialViewState?.page ?? 1
+  const pageSize = view.pageSize ?? initialViewState?.pageSize ?? 0
+  const searchQuery = view.searchQuery ?? initialViewState?.searchQuery ?? ''
   return {
     visibleCols,
     columnOrder,

@@ -2,7 +2,7 @@ import { createEffect, on } from 'solid-js'
 import { createTableState } from './createTableState'
 import { DataTableView, type DataTableViewProps } from './DataTableView'
 import type { ColumnDef } from './types'
-import type { DataTableLabels } from '@vates/data-table-core'
+import type { DataTableLabels, TableViewState } from '@vates/data-table-core'
 import type { GetRowId } from '@vates/data-table-core/internal'
 
 export interface DataTableProps<TRow extends object> extends Omit<
@@ -14,11 +14,11 @@ export interface DataTableProps<TRow extends object> extends Omit<
   // them as its own inputs.
   data: TRow[]
   columns: ColumnDef<TRow>[]
-  defaultVisibleColumns?: string[]
   labels?: Partial<DataTableLabels>
-  defaultPageSize?: number
   /** Whether newly-grouped groups start collapsed. Defaults to `true`; pass `false` to start expanded. */
   defaultGroupsCollapsed?: boolean
+  /** See `CreateTableStateOptions.initialViewState`'s own doc comment. */
+  initialViewState?: TableViewState
   /**
    * Opt-in row identity for selection — see `CreateTableStateOptions.getRowId`'s own doc comment
    * for the full reasoning. Omit to keep the default object-identity behavior.
@@ -46,17 +46,15 @@ export function DataTable<TRow extends object>(props: DataTableProps<TRow>) {
   // Passed as a thunk (not a plain object), same reasoning as `data`/`columns` above: `labels`/
   // `defaultGroupsCollapsed`/`getRowId` stay live this way (see `createTableState`'s own
   // `getOptions` doc comment) — a later change to any of these props takes effect immediately,
-  // with no manual createEffect needed here. `defaultVisibleColumns`/`defaultPageSize` are still
-  // only ever read once by `createTableState` regardless, matching their own documented seed-only
-  // behavior.
+  // with no manual createEffect needed here. `initialViewState` is still only ever read once by
+  // `createTableState` regardless, matching its own documented seed-only behavior.
   const table = createTableState(
     () => props.data,
     () => props.columns,
     () => ({
-      defaultVisibleColumns: props.defaultVisibleColumns,
       labels: props.labels,
-      defaultPageSize: props.defaultPageSize,
       defaultGroupsCollapsed: props.defaultGroupsCollapsed,
+      initialViewState: props.initialViewState,
       getRowId: props.getRowId,
     }),
   )

@@ -34,9 +34,9 @@ describe('useTableState — initial state', () => {
     expect(result.current.columns.active).toHaveLength(3)
   })
 
-  it('respects defaultVisibleColumns', () => {
+  it('respects initialViewState.visibleCols', () => {
     const { result } = renderHook(() =>
-      useTableState(ROWS, COLS, { defaultVisibleColumns: ['id', 'name'] }),
+      useTableState(ROWS, COLS, { initialViewState: { visibleCols: ['id', 'name'] } }),
     )
     expect(result.current.columns.active.map((c) => c.key)).toEqual(['id', 'name'])
   })
@@ -46,10 +46,33 @@ describe('useTableState — initial state', () => {
     expect(result.current.pagedData).toHaveLength(4)
   })
 
-  it('respects defaultPageSize', () => {
-    const { result } = renderHook(() => useTableState(ROWS, COLS, { defaultPageSize: 2 }))
+  it('respects initialViewState.pageSize', () => {
+    const { result } = renderHook(() =>
+      useTableState(ROWS, COLS, { initialViewState: { pageSize: 2 } }),
+    )
     expect(result.current.pagedData).toHaveLength(2)
     expect(result.current.pagination.numPages).toBe(2)
+  })
+
+  it('respects initialViewState.sorts', () => {
+    const { result } = renderHook(() =>
+      useTableState(ROWS, COLS, { initialViewState: { sorts: [{ key: 'score', dir: 'desc' }] } }),
+    )
+    expect(result.current.sort.entries).toEqual([{ key: 'score', dir: 'desc' }])
+    expect(result.current.processedData.map((r) => r.name)).toEqual([
+      'Alice',
+      'Clara',
+      'David',
+      'Bob',
+    ])
+  })
+
+  it('respects initialViewState.groupBy and auto-inserts a matching sort for it', () => {
+    const { result } = renderHook(() =>
+      useTableState(ROWS, COLS, { initialViewState: { groupBy: ['name'] } }),
+    )
+    expect(result.current.group.by).toEqual(['name'])
+    expect(result.current.sort.entries).toEqual([{ key: 'name', dir: 'asc' }])
   })
 })
 
@@ -260,7 +283,7 @@ describe('useTableState — column visibility', () => {
 
   it('toggleColVisibility shows a hidden column', () => {
     const { result } = renderHook(() =>
-      useTableState(ROWS, COLS, { defaultVisibleColumns: ['id'] }),
+      useTableState(ROWS, COLS, { initialViewState: { visibleCols: ['id'] } }),
     )
     act(() => {
       result.current.columns.toggleVisibility('name')
@@ -270,7 +293,7 @@ describe('useTableState — column visibility', () => {
 
   it('cannot hide the last visible column', () => {
     const { result } = renderHook(() =>
-      useTableState(ROWS, COLS, { defaultVisibleColumns: ['id'] }),
+      useTableState(ROWS, COLS, { initialViewState: { visibleCols: ['id'] } }),
     )
     act(() => {
       result.current.columns.toggleVisibility('id')
@@ -522,7 +545,9 @@ describe('useTableState — keepVisibleWhenGrouped', () => {
 
 describe('useTableState — pagination', () => {
   it('setPage navigates between pages', () => {
-    const { result } = renderHook(() => useTableState(ROWS, COLS, { defaultPageSize: 2 }))
+    const { result } = renderHook(() =>
+      useTableState(ROWS, COLS, { initialViewState: { pageSize: 2 } }),
+    )
     act(() => {
       result.current.pagination.setPage(2)
     })
@@ -531,7 +556,9 @@ describe('useTableState — pagination', () => {
   })
 
   it('setPage clamps to numPages', () => {
-    const { result } = renderHook(() => useTableState(ROWS, COLS, { defaultPageSize: 2 }))
+    const { result } = renderHook(() =>
+      useTableState(ROWS, COLS, { initialViewState: { pageSize: 2 } }),
+    )
     act(() => {
       result.current.pagination.setPage(100)
     })
@@ -539,7 +566,9 @@ describe('useTableState — pagination', () => {
   })
 
   it('setPage clamps to 1 at minimum', () => {
-    const { result } = renderHook(() => useTableState(ROWS, COLS, { defaultPageSize: 2 }))
+    const { result } = renderHook(() =>
+      useTableState(ROWS, COLS, { initialViewState: { pageSize: 2 } }),
+    )
     act(() => {
       result.current.pagination.setPage(-5)
     })
@@ -547,7 +576,9 @@ describe('useTableState — pagination', () => {
   })
 
   it('setPage ignores NaN instead of corrupting page state', () => {
-    const { result } = renderHook(() => useTableState(ROWS, COLS, { defaultPageSize: 2 }))
+    const { result } = renderHook(() =>
+      useTableState(ROWS, COLS, { initialViewState: { pageSize: 2 } }),
+    )
     act(() => {
       result.current.pagination.setPage(2)
       result.current.pagination.setPage(NaN)
@@ -556,7 +587,9 @@ describe('useTableState — pagination', () => {
   })
 
   it('setPageSize ignores NaN instead of breaking pagination', () => {
-    const { result } = renderHook(() => useTableState(ROWS, COLS, { defaultPageSize: 2 }))
+    const { result } = renderHook(() =>
+      useTableState(ROWS, COLS, { initialViewState: { pageSize: 2 } }),
+    )
     act(() => {
       result.current.pagination.setPageSize(NaN)
     })
@@ -565,7 +598,9 @@ describe('useTableState — pagination', () => {
   })
 
   it('setPageSize resets page to 1', () => {
-    const { result } = renderHook(() => useTableState(ROWS, COLS, { defaultPageSize: 2 }))
+    const { result } = renderHook(() =>
+      useTableState(ROWS, COLS, { initialViewState: { pageSize: 2 } }),
+    )
     act(() => {
       result.current.pagination.setPage(2)
     })
@@ -580,7 +615,7 @@ describe('useTableState — pagination', () => {
     // setPage, so pagination.page must reflect the new, smaller numPages on its own rather
     // than reporting a stale out-of-range page number.
     const { result, rerender } = renderHook(
-      ({ data }) => useTableState(data, COLS, { defaultPageSize: 2 }),
+      ({ data }) => useTableState(data, COLS, { initialViewState: { pageSize: 2 } }),
       { initialProps: { data: ROWS } },
     )
     act(() => {
@@ -612,7 +647,10 @@ describe('useTableState — pagination with grouping', () => {
 
   it('counts header rows toward numPages, growing when expanded vs. the 4 data rows alone', () => {
     const { result } = renderHook(() =>
-      useTableState(DEPT_ROWS, DEPT_COLS, { defaultPageSize: 2, defaultGroupsCollapsed: false }),
+      useTableState(DEPT_ROWS, DEPT_COLS, {
+        initialViewState: { pageSize: 2 },
+        defaultGroupsCollapsed: false,
+      }),
     )
     act(() => {
       result.current.group.toggle('dept')
@@ -623,7 +661,10 @@ describe('useTableState — pagination with grouping', () => {
 
   it("splits an expanded group's rows across a page boundary and repeats its header as a continued chunk", () => {
     const { result } = renderHook(() =>
-      useTableState(DEPT_ROWS, DEPT_COLS, { defaultPageSize: 2, defaultGroupsCollapsed: false }),
+      useTableState(DEPT_ROWS, DEPT_COLS, {
+        initialViewState: { pageSize: 2 },
+        defaultGroupsCollapsed: false,
+      }),
     )
     act(() => {
       result.current.group.toggle('dept')
@@ -654,7 +695,9 @@ describe('useTableState — pagination with grouping', () => {
 
   it("backfills a collapsed group's rows from the full group instead of whatever page its header lands on", () => {
     // defaultGroupsCollapsed defaults to true (6th arg omitted)
-    const { result } = renderHook(() => useTableState(DEPT_ROWS, DEPT_COLS, { defaultPageSize: 2 }))
+    const { result } = renderHook(() =>
+      useTableState(DEPT_ROWS, DEPT_COLS, { initialViewState: { pageSize: 2 } }),
+    )
     act(() => {
       result.current.group.toggle('dept')
     })
@@ -668,7 +711,10 @@ describe('useTableState — pagination with grouping', () => {
 
   it('pagedData reflects the data rows actually visible on the page, not a flat pageSize slice', () => {
     const { result } = renderHook(() =>
-      useTableState(DEPT_ROWS, DEPT_COLS, { defaultPageSize: 2, defaultGroupsCollapsed: false }),
+      useTableState(DEPT_ROWS, DEPT_COLS, {
+        initialViewState: { pageSize: 2 },
+        defaultGroupsCollapsed: false,
+      }),
     )
     act(() => {
       result.current.group.toggle('dept')
@@ -680,7 +726,9 @@ describe('useTableState — pagination with grouping', () => {
 
 describe('useTableState — filters reset page', () => {
   it('cycleFilterValue resets page to 1', () => {
-    const { result } = renderHook(() => useTableState(ROWS, COLS, { defaultPageSize: 2 }))
+    const { result } = renderHook(() =>
+      useTableState(ROWS, COLS, { initialViewState: { pageSize: 2 } }),
+    )
     act(() => {
       result.current.pagination.setPage(2)
     })
@@ -691,7 +739,9 @@ describe('useTableState — filters reset page', () => {
   })
 
   it('setRangeFilter resets page to 1', () => {
-    const { result } = renderHook(() => useTableState(ROWS, COLS, { defaultPageSize: 2 }))
+    const { result } = renderHook(() =>
+      useTableState(ROWS, COLS, { initialViewState: { pageSize: 2 } }),
+    )
     act(() => {
       result.current.pagination.setPage(2)
     })
@@ -702,7 +752,9 @@ describe('useTableState — filters reset page', () => {
   })
 
   it('toggleFilterAll resets page to 1', () => {
-    const { result } = renderHook(() => useTableState(ROWS, COLS, { defaultPageSize: 2 }))
+    const { result } = renderHook(() =>
+      useTableState(ROWS, COLS, { initialViewState: { pageSize: 2 } }),
+    )
     act(() => {
       result.current.pagination.setPage(2)
     })
@@ -866,7 +918,9 @@ describe('useTableState — setFilterValues', () => {
 
 describe('useTableState — filters reset page (clearFilters)', () => {
   it('clearFilters resets page to 1', () => {
-    const { result } = renderHook(() => useTableState(ROWS, COLS, { defaultPageSize: 2 }))
+    const { result } = renderHook(() =>
+      useTableState(ROWS, COLS, { initialViewState: { pageSize: 2 } }),
+    )
     act(() => {
       result.current.pagination.setPage(2)
     })
@@ -892,7 +946,9 @@ describe('useTableState — search', () => {
   })
 
   it('setSearchQuery resets page to 1', () => {
-    const { result } = renderHook(() => useTableState(ROWS, COLS, { defaultPageSize: 2 }))
+    const { result } = renderHook(() =>
+      useTableState(ROWS, COLS, { initialViewState: { pageSize: 2 } }),
+    )
     act(() => {
       result.current.pagination.setPage(2)
     })
@@ -1173,6 +1229,22 @@ describe('useTableState — view state', () => {
     expect(result.current.sort.entries).toEqual([])
     expect(result.current.search.query).toBe('')
     expect(result.current.group.by).toEqual(['name'])
+  })
+
+  it('setViewState({}) restores initialViewState instead of clearing to empty (GitHub issue #20)', () => {
+    const { result } = renderHook(() =>
+      useTableState(ROWS, COLS, { initialViewState: { sorts: [{ key: 'score', dir: 'desc' }] } }),
+    )
+    act(() => {
+      result.current.sort.toggle('name') // diverge from the construction default
+    })
+    expect(result.current.sort.entries).not.toEqual([{ key: 'score', dir: 'desc' }])
+    act(() => {
+      result.current.setViewState({})
+    })
+    expect(result.current.sort.entries).toEqual([{ key: 'score', dir: 'desc' }])
+    // Once back at the construction default, getViewState reports it as empty again.
+    expect(result.current.getViewState()).toEqual({})
   })
 
   it('setViewState falls back to default visible columns when given stale keys', () => {

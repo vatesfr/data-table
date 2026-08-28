@@ -4,6 +4,7 @@ import { render } from 'solid-js/web'
 import { createTableState } from '../createTableState'
 import { TableBody } from '../components/TableBody'
 import type { ColumnDef } from '../types'
+import type { TableViewState } from '@vates/data-table-core'
 
 interface Row {
   id: number
@@ -36,7 +37,7 @@ function mount(
     selectable?: boolean
     onRowClick?: (r: Row, e: unknown) => void
     defaultGroupsCollapsed?: boolean
-    defaultPageSize?: number
+    initialViewState?: TableViewState
   } = {},
 ) {
   const container = document.createElement('div')
@@ -45,7 +46,7 @@ function mount(
   const dispose = createRoot((d) => {
     table = createTableState(ROWS, COLS, {
       defaultGroupsCollapsed: opts.defaultGroupsCollapsed,
-      defaultPageSize: opts.defaultPageSize,
+      initialViewState: opts.initialViewState,
     })
     render(
       () => (
@@ -376,7 +377,10 @@ describe('TableBody — keyboard navigation', () => {
 
 describe('TableBody — keyboard navigation across pages', () => {
   it('ArrowDown at the last row of a page crosses into the next page and updates pagination.page', () => {
-    const { container, table, dispose } = mount({ selectable: true, defaultPageSize: 2 })
+    const { container, table, dispose } = mount({
+      selectable: true,
+      initialViewState: { pageSize: 2 },
+    })
     const row2 = container.querySelector<HTMLElement>('tbody tr[data-row-key="2"]')! // last on page 1
     row2.focus()
     row2.dispatchEvent(
@@ -388,7 +392,10 @@ describe('TableBody — keyboard navigation across pages', () => {
   })
 
   it('ArrowUp at the first row of a page crosses into the previous page, focusing its last row', () => {
-    const { container, table, dispose } = mount({ selectable: true, defaultPageSize: 2 })
+    const { container, table, dispose } = mount({
+      selectable: true,
+      initialViewState: { pageSize: 2 },
+    })
     table.pagination.setPage(2)
     const row3 = container.querySelector<HTMLElement>('tbody tr[data-row-key="3"]')! // first on page 2
     row3.focus()
@@ -401,7 +408,10 @@ describe('TableBody — keyboard navigation across pages', () => {
   })
 
   it('ArrowDown does nothing at the last row of the last page (no page to cross into)', () => {
-    const { container, table, dispose } = mount({ selectable: true, defaultPageSize: 2 })
+    const { container, table, dispose } = mount({
+      selectable: true,
+      initialViewState: { pageSize: 2 },
+    })
     table.pagination.setPage(2)
     const row3 = container.querySelector<HTMLElement>('tbody tr[data-row-key="3"]')!
     row3.focus()
@@ -414,7 +424,10 @@ describe('TableBody — keyboard navigation across pages', () => {
   })
 
   it('plain Home/End stay scoped to the current page', () => {
-    const { container, table, dispose } = mount({ selectable: true, defaultPageSize: 2 })
+    const { container, table, dispose } = mount({
+      selectable: true,
+      initialViewState: { pageSize: 2 },
+    })
     const row1 = container.querySelector<HTMLElement>('tbody tr[data-row-key="1"]')!
     row1.focus()
     row1.dispatchEvent(
@@ -426,7 +439,10 @@ describe('TableBody — keyboard navigation across pages', () => {
   })
 
   it('Ctrl+End jumps to the true last row across all pages', () => {
-    const { container, table, dispose } = mount({ selectable: true, defaultPageSize: 2 })
+    const { container, table, dispose } = mount({
+      selectable: true,
+      initialViewState: { pageSize: 2 },
+    })
     const row1 = container.querySelector<HTMLElement>('tbody tr[data-row-key="1"]')!
     row1.focus()
     row1.dispatchEvent(
@@ -443,7 +459,10 @@ describe('TableBody — keyboard navigation across pages', () => {
   })
 
   it('Cmd+Home (metaKey) jumps to the true first row across all pages', () => {
-    const { container, table, dispose } = mount({ selectable: true, defaultPageSize: 2 })
+    const { container, table, dispose } = mount({
+      selectable: true,
+      initialViewState: { pageSize: 2 },
+    })
     table.pagination.setPage(2)
     const row3 = container.querySelector<HTMLElement>('tbody tr[data-row-key="3"]')!
     row3.focus()
@@ -461,7 +480,10 @@ describe('TableBody — keyboard navigation across pages', () => {
   })
 
   it('Shift+ArrowDown across a page boundary also extends selection to the crossed-into row', () => {
-    const { container, table, dispose } = mount({ selectable: true, defaultPageSize: 2 })
+    const { container, table, dispose } = mount({
+      selectable: true,
+      initialViewState: { pageSize: 2 },
+    })
     const row2 = container.querySelector<HTMLElement>('tbody tr[data-row-key="2"]')!
     row2.focus()
     table.selection.toggle(ROWS[1]) // anchor = Bob

@@ -340,19 +340,18 @@ Drag a column header to reorder it, or drag a row (or press Alt+ArrowUp/Alt+Arro
 
 ## `DataTable` props
 
-| Prop                     | Type                              | Default | Description                                                    |
-| ------------------------ | --------------------------------- | ------- | -------------------------------------------------------------- |
-| `data`                   | `TRow[]`                          | —       | Row data                                                       |
-| `columns`                | `ColumnDef<TRow>[]`               | —       | Column definitions                                             |
-| `rowKey`                 | `string`                          | —       | Vue `:key` only — not selection identity                       |
-| `defaultVisibleColumns`  | `string[]`                        | all     | Initially visible column keys                                  |
-| `labels`                 | `Partial<DataTableLabels>`        | English | UI string overrides                                            |
-| `defaultPageSize`        | `number`                          | 0 (off) | Initial rows per page; 0 disables pagination                   |
-| `defaultGroupsCollapsed` | `boolean`                         | `true`  | Whether newly-grouped groups start collapsed                   |
-| `getRowId`               | `(row: TRow) => string \| number` | —       | Opt-in id-based selection identity (see "Row selection" above) |
-| `selectable`             | `boolean`                         | `false` | Show checkbox column for row selection                         |
-| `page`                   | `number`                          | —       | `v-model:page` — the table's current page                      |
-| `searchQuery`            | `string`                          | —       | `v-model:search-query` — the global search box's value         |
+| Prop                     | Type                              | Default | Description                                                                                               |
+| ------------------------ | --------------------------------- | ------- | --------------------------------------------------------------------------------------------------------- |
+| `data`                   | `TRow[]`                          | —       | Row data                                                                                                  |
+| `columns`                | `ColumnDef<TRow>[]`               | —       | Column definitions                                                                                        |
+| `rowKey`                 | `string`                          | —       | Vue `:key` only — not selection identity                                                                  |
+| `labels`                 | `Partial<DataTableLabels>`        | English | UI string overrides                                                                                       |
+| `defaultGroupsCollapsed` | `boolean`                         | `true`  | Whether newly-grouped groups start collapsed                                                              |
+| `initialViewState`       | `TableViewState`                  | `{}`    | Construction-time defaults for columns/sort/filters/grouping/page/search — also what `resetView` restores |
+| `getRowId`               | `(row: TRow) => string \| number` | —       | Opt-in id-based selection identity (see "Row selection" above)                                            |
+| `selectable`             | `boolean`                         | `false` | Show checkbox column for row selection                                                                    |
+| `page`                   | `number`                          | —       | `v-model:page` — the table's current page                                                                 |
+| `searchQuery`            | `string`                          | —       | `v-model:search-query` — the global search box's value                                                    |
 
 All props accept `MaybeRefOrGetter` — you can pass refs, computed values, or plain values.
 
@@ -534,8 +533,7 @@ To persist a view somewhere else (e.g. a backend), call `getViewState()`/`setVie
 import { useTableState, usePersistence, DataTableView } from '@vates/data-table-vue'
 
 const table = useTableState(employees, COLUMNS, {
-  defaultVisibleColumns: DEFAULT_VISIBLE,
-  defaultPageSize: 20,
+  initialViewState: { visibleCols: DEFAULT_VISIBLE, pageSize: 20 },
 })
 usePersistence(table, { storageKey: 'employee-table-view', paramName: 'view' })
 </script>
@@ -545,7 +543,7 @@ usePersistence(table, { storageKey: 'employee-table-view', paramName: 'view' })
 </template>
 ```
 
-`DataTableView` takes the same props as `<DataTable>` minus `defaultVisibleColumns`/`labels`/`defaultPageSize` (those only make sense at `useTableState` construction time) plus `table`, and supports the same `#cell-{key}`/`#filter-{key}`/`#group-{key}` scoped slots. In fact, `<DataTable>` is implemented as exactly this — a thin wrapper that calls `useTableState` and renders `<DataTableView :table="table" .../>`, forwarding its own slots straight through.
+`DataTableView` takes the same props as `<DataTable>` minus `labels`/`defaultGroupsCollapsed`/`initialViewState` (those only make sense at `useTableState` construction time) plus `table`, and supports the same `#cell-{key}`/`#filter-{key}`/`#group-{key}` scoped slots. In fact, `<DataTable>` is implemented as exactly this — a thin wrapper that calls `useTableState` and renders `<DataTableView :table="table" .../>`, forwarding its own slots straight through.
 
 ## i18n
 
