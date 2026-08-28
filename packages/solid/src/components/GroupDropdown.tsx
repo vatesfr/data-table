@@ -102,6 +102,13 @@ export function GroupDropdown<TRow extends object>(props: GroupDropdownProps<TRo
                       withPanelRefocus(e.currentTarget, `[data-group-key="${key}"]`, () =>
                         table.group.moveBy(key, 1),
                       )
+                    } else if (e.key === 'Delete' || e.key === 'Backspace') {
+                      // Keyboard equivalent of this row's own × button — matches the Filter
+                      // dropdown's identical Delete/Backspace-on-a-focused-active-row shortcut.
+                      e.preventDefault()
+                      withPanelRefocus(e.currentTarget, `[data-col-key="${key}"]`, () =>
+                        table.group.remove(key),
+                      )
                     }
                   }}
                 >

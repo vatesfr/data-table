@@ -287,6 +287,30 @@ describe('SortDropdown', () => {
     dispose()
   })
 
+  it('Delete/Backspace on a focused active row removes it, same as its × button', () => {
+    const { container, table, dispose } = mount()
+    table.sort.toggle('name')
+    table.sort.appendOrToggle('score')
+    const row = container.querySelector<HTMLElement>('[data-sort-key="name"]')!
+    row.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Delete', bubbles: true, cancelable: true }),
+    )
+    expect(table.sort.entries()).toEqual([{ key: 'score', dir: 'asc' }])
+    dispose()
+  })
+
+  it('Delete on a focused, non-draggable "Group order" row removes that sort entry too', () => {
+    const { container, table, dispose } = mount()
+    table.group.toggle('name')
+    table.sort.appendOrToggle('score')
+    const row = container.querySelector<HTMLElement>('[data-dd-row].dt-dd-item--locked')!
+    row.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Delete', bubbles: true, cancelable: true }),
+    )
+    expect(table.sort.entries()).toEqual([{ key: 'score', dir: 'asc' }])
+    dispose()
+  })
+
   it('removing an active column returns focus to its addable button, synchronously', () => {
     const container = document.createElement('div')
     document.body.appendChild(container)

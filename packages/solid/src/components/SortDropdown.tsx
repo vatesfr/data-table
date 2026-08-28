@@ -122,6 +122,13 @@ export function SortDropdown<TRow extends object>(props: SortDropdownProps<TRow>
                   if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault()
                     table.sort.toggleDir(entry.key)
+                  } else if (e.key === 'Delete' || e.key === 'Backspace') {
+                    // Keyboard equivalent of this row's own × button — matches the Filter
+                    // dropdown's identical Delete/Backspace-on-a-focused-active-row shortcut.
+                    e.preventDefault()
+                    withPanelRefocus(e.currentTarget, `[data-col-key="${entry.key}"]`, () =>
+                      table.sort.remove(entry.key),
+                    )
                   }
                 }}
               >
@@ -184,6 +191,13 @@ export function SortDropdown<TRow extends object>(props: SortDropdownProps<TRow>
                       if (!neighbor) return
                       withPanelRefocus(e.currentTarget, `[data-sort-key="${entry.key}"]`, () =>
                         table.sort.move(entry.key, neighbor.key, delta > 0),
+                      )
+                    } else if (e.key === 'Delete' || e.key === 'Backspace') {
+                      // Keyboard equivalent of this row's own × button — matches the Filter
+                      // dropdown's identical Delete/Backspace-on-a-focused-active-row shortcut.
+                      e.preventDefault()
+                      withPanelRefocus(e.currentTarget, `[data-col-key="${entry.key}"]`, () =>
+                        table.sort.remove(entry.key),
                       )
                     }
                   }}

@@ -24,12 +24,21 @@ ${renderThemeCss()}
 .dt-dd-hint{padding:0 14px 6px;font-size:11px;color:var(--color-text-tertiary,#9b9a96)}
 .dt-dd-item{display:flex;align-items:center;gap:8px;padding:7px 14px;font-size:13px;color:var(--color-text-primary,#1a1916);cursor:default;border:none;background:none;font-family:inherit;text-align:left;margin:0;width:100%;box-sizing:border-box}
 .dt-dd-item--click{cursor:pointer}
-.dt-dd-item--click:hover{background:var(--color-background-secondary,#f7f6f3)}
+.dt-dd-item--click:hover,.dt-dd-item--click:focus{background:var(--color-background-secondary,#f7f6f3)}
 .dt-dd-item--col{justify-content:space-between}
 .dt-dd-item--sortrow{cursor:pointer}
-.dt-dd-item--sortrow:hover{background:var(--color-background-secondary,#f7f6f3)}
+.dt-dd-item--sortrow:hover,.dt-dd-item--sortrow:focus{background:var(--color-background-secondary,#f7f6f3)}
 .dt-dd-item--grouprow{cursor:grab}
 .dt-dd-item--colrow{cursor:grab}
+/* Sort/Group/Columns' active rows only ever got the browser's native focus outline, no
+   background — unlike the Filter dropdown's own left-pane column row, which tints its background
+   on selection (see .dt-filter-col-row--active further down) as well as outlining the focused
+   button inside it. Matches that here for the same reason: an outline alone is a much fainter "this is
+   the currently focused row" cue than a filled background, and these three should read the same
+   way Filter's own selected-row treatment already does. Kept alongside (not replacing) the native
+   outline, not instead of it — this is additive polish, not an a11y regression. --grouprow/--colrow
+   had no hover feedback at all before this either (grab-cursor rows, no --click), gaining both. */
+.dt-dd-item--grouprow:hover,.dt-dd-item--grouprow:focus,.dt-dd-item--colrow:hover,.dt-dd-item--colrow:focus{background:var(--color-background-secondary,#f7f6f3)}
 /* A "Group order" row (see SortDropdown.tsx) is still clickable to toggle direction, just not
    draggable/Alt+Arrow-reorderable — its own section heading + hint text already explain why, so
    this only needs to cancel --sortrow's hover highlight (a cue that dragging would do something

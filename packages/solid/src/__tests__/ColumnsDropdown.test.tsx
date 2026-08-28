@@ -83,6 +83,16 @@ describe('ColumnsDropdown — Visible section', () => {
     dispose()
   })
 
+  it('Delete/Backspace on a focused visible row hides it, same as its × button', () => {
+    const { container, table, dispose } = mount()
+    const row = container.querySelector<HTMLElement>('[data-col-row-key="id"]')!
+    row.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Delete', bubbles: true, cancelable: true }),
+    )
+    expect(table.columns.active().map((c) => c.key)).toEqual(['name', 'score'])
+    dispose()
+  })
+
   it('hiding the last visible column is a no-op (stays >= 1 visible)', () => {
     const { container, table, dispose } = mount()
     // Hide two of the three, leaving one.

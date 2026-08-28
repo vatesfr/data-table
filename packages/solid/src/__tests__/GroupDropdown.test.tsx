@@ -211,6 +211,18 @@ describe('GroupDropdown', () => {
     dispose()
   })
 
+  it('Delete/Backspace on a focused active row removes it, same as its × button', () => {
+    const { container, table, dispose } = mount()
+    table.group.toggle('dept')
+    table.group.toggle('team')
+    const row = container.querySelector<HTMLElement>('[data-group-key="dept"]')!
+    row.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Backspace', bubbles: true, cancelable: true }),
+    )
+    expect(table.group.by()).toEqual(['team'])
+    dispose()
+  })
+
   it('removing an active column returns focus to its addable button, synchronously', () => {
     const { container, table, dispose } = mount()
     table.group.toggle('dept')

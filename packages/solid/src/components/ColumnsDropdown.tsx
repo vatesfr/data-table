@@ -66,6 +66,20 @@ export function ColumnsDropdown<TRow extends object>(props: ColumnsDropdownProps
   })
   const categorizedAvailable = createMemo(() => groupColumnsByCategory(searchedAvailable()))
 
+  // Hides `col`, refocusing whatever it reappears as in Available — shared by a visible row's own
+  // × button and its Delete/Backspace keyboard equivalent, since both need the same category-aware
+  // selector (see the inline comment on that selector below for why it isn't always the same one).
+  function hideColumn(el: HTMLElement, col: ColumnDef<TRow>): void {
+    // The column reappears in Available either as its own addable row, or — if categorized —
+    // inside a *closed* submenu with no addable row of its own rendered yet, so the submenu's own
+    // trigger is the right thing to focus instead (see CategorySubmenu.tsx's own comment on this
+    // data attribute).
+    const selector = col.category
+      ? `.dt-dd-category-trigger[data-category-name="${col.category}"]`
+      : `[data-col-key="${col.key}"]`
+    withPanelRefocus(el, selector, () => table.columns.toggleVisibility(col.key))
+  }
+
   return (
     <Dropdown
       isOpen={props.isOpen}
@@ -111,6 +125,11 @@ export function ColumnsDropdown<TRow extends object>(props: ColumnsDropdownProps
                   withPanelRefocus(e.currentTarget, `[data-col-row-key="${col.key}"]`, () =>
                     table.columns.moveVisibleBy(col.key, 1),
                   )
+                } else if (e.key === 'Delete' || e.key === 'Backspace') {
+                  // Keyboard equivalent of this row's own × button — matches the Filter
+                  // dropdown's identical Delete/Backspace-on-a-focused-active-row shortcut.
+                  e.preventDefault()
+                  hideColumn(e.currentTarget, col)
                 }
               }}
             >
@@ -121,16 +140,7 @@ export function ColumnsDropdown<TRow extends object>(props: ColumnsDropdownProps
                 draggable={false}
                 onClick={(e) => {
                   e.stopPropagation()
-                  // The column reappears in Available either as its own addable row, or — if
-                  // categorized — inside a *closed* submenu with no addable row of its own
-                  // rendered yet, so the submenu's own trigger is the right thing to focus instead
-                  // (see CategorySubmenu.tsx's own comment on this data attribute).
-                  const selector = col.category
-                    ? `.dt-dd-category-trigger[data-category-name="${col.category}"]`
-                    : `[data-col-key="${col.key}"]`
-                  withPanelRefocus(e.currentTarget, selector, () =>
-                    table.columns.toggleVisibility(col.key),
-                  )
+                  hideColumn(e.currentTarget, col)
                 }}
               >
                 ×
