@@ -822,6 +822,50 @@ export function alphabetizedByLabel<T extends { label: string }>(cols: T[], term
   return list.slice().sort((a, b) => a.label.localeCompare(b.label))
 }
 
+/** One `category`'s worth of columns, in `cols`' own relative order. */
+export interface ColumnCategory<T> {
+  name: string
+  columns: T[]
+}
+
+/**
+ * Buckets `cols` by `category` (see `ColumnDefBase.category`), for the Columns/Sort/Group
+ * dropdowns' column lists (rendered as a submenu per category) and the Filter dropdown's left
+ * pane (rendered as a collapsible section per category). `uncategorized` holds every column with
+ * no `category`, in their original relative order — these render as plain rows, unaffected by
+ * this feature. `categories` lists each distinct category name in first-appearance order (the
+ * order its earliest column occupies in `cols`), each with its own columns in their original
+ * relative order. Deliberately opinion-free about further ordering — callers apply whatever
+ * ordering they already use for the list in question (table order for the Columns dropdown,
+ * `alphabetizedByLabel` for Sort/Group-addable and Filter) to `uncategorized`, to each category's
+ * `columns`, and to the `categories` array itself (e.g. `.sort()` by `name` for an alphabetical
+ * list) — this only groups, it never reorders relative to `cols`' own input order.
+ */
+export function groupColumnsByCategory<T extends { category?: string }>(
+  cols: T[],
+): {
+  uncategorized: T[]
+  categories: ColumnCategory<T>[]
+} {
+  const uncategorized: T[] = []
+  const categories: ColumnCategory<T>[] = []
+  const byName = new Map<string, ColumnCategory<T>>()
+  for (const col of cols) {
+    if (!col.category) {
+      uncategorized.push(col)
+      continue
+    }
+    let bucket = byName.get(col.category)
+    if (!bucket) {
+      bucket = { name: col.category, columns: [] }
+      byName.set(col.category, bucket)
+      categories.push(bucket)
+    }
+    bucket.columns.push(col)
+  }
+  return { uncategorized, categories }
+}
+
 /**
  * Numeric bounds of a column's actual values across `data` — the slider's own `min`/`max`, so it
  * always spans exactly what's in the dataset. Deliberately computed from the full, unfiltered

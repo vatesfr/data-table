@@ -54,6 +54,7 @@ import {
   getSortIndex,
   countActiveFilters,
   getOrderedColumns,
+  groupColumnsByCategory,
   reconcileVisibleColumns,
   reorderColumn,
   moveColumnBy,
@@ -3002,6 +3003,44 @@ describe('getOrderedColumns', () => {
   it('drops stale keys from order that no longer match a column', () => {
     const result = getOrderedColumns(COLS, ['ghost', 'salary', 'name', 'dept'])
     expect(result.map((c) => c.key)).toEqual(['salary', 'name', 'dept'])
+  })
+})
+
+// ─── groupColumnsByCategory ───────────────────────────────────────────────────
+
+describe('groupColumnsByCategory', () => {
+  it('puts every column in uncategorized when none has a category', () => {
+    const cols: { key: string; label: string; category?: string }[] = [
+      { key: 'name', label: 'Name' },
+      { key: 'dept', label: 'Dept' },
+    ]
+    const result = groupColumnsByCategory(cols)
+    expect(result.uncategorized).toEqual(cols)
+    expect(result.categories).toEqual([])
+  })
+
+  it('buckets categorized columns by category, in first-appearance order', () => {
+    const cols = [
+      { key: 'name', label: 'Name' },
+      { key: 'salary', label: 'Salary', category: 'Finance' },
+      { key: 'dept', label: 'Dept' },
+      { key: 'bonus', label: 'Bonus', category: 'Finance' },
+      { key: 'hireDate', label: 'Hire date', category: 'HR' },
+    ]
+    const result = groupColumnsByCategory(cols)
+    expect(result.uncategorized.map((c) => c.key)).toEqual(['name', 'dept'])
+    expect(result.categories.map((c) => c.name)).toEqual(['Finance', 'HR'])
+    expect(result.categories[0].columns.map((c) => c.key)).toEqual(['salary', 'bonus'])
+    expect(result.categories[1].columns.map((c) => c.key)).toEqual(['hireDate'])
+  })
+
+  it("preserves each column's original relative order within its bucket", () => {
+    const cols = [
+      { key: 'b', label: 'B', category: 'X' },
+      { key: 'a', label: 'A', category: 'X' },
+    ]
+    const result = groupColumnsByCategory(cols)
+    expect(result.categories[0].columns.map((c) => c.key)).toEqual(['b', 'a'])
   })
 })
 

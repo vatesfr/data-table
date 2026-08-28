@@ -142,6 +142,14 @@ export interface ColumnDefBase<TRow extends object = Record<string, unknown>> {
    * automatically — no flag needed to enable multi-value filtering/grouping/display.
    */
   multiMode?: 'and' | 'or'
+  /**
+   * Groups this column under a named category in the Columns/Sort/Group dropdowns' column lists
+   * (rendered as a submenu) and the Filter dropdown's left pane (rendered as a collapsible
+   * section) — for a table with enough columns that a flat list becomes hard to scan. A column
+   * with no `category` renders exactly as it always did (a plain row alongside the category
+   * entries, not nested under any category). See `groupColumnsByCategory` (internal).
+   */
+  category?: string
 }
 
 /**
