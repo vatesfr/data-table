@@ -88,6 +88,12 @@ export interface DataTableInstance<TRow extends object = Record<string, unknown>
    * bucket) or pagination (a display slice, not a reordering) — e.g. prev/next-row navigation.
    */
   getProcessedData(): TRow[]
+  /**
+   * Resets search/filters/sort/group/page to their true empty defaults, ignoring
+   * `initialViewState` — unlike `setViewState({})`, which restores `initialViewState`'s own
+   * values. Mirrors React/Vue/Solid's top-level `clearAll`.
+   */
+  clearAll(): void
   /** Changes the row DOM-key property after construction — see `DataTableOptions.rowKey`. */
   setRowKey(key: keyof TRow & string): void
   /** Toggles whether rows show selection checkboxes after construction. */

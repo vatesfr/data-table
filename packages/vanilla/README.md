@@ -406,24 +406,25 @@ interface ColumnDef<TRow extends object> {
 
 ## Instance methods
 
-| Method                                      | Description                                                                      |
-| ------------------------------------------- | -------------------------------------------------------------------------------- |
-| `setData(rows: TRow[])`                     | Replace the data and re-render                                                   |
-| `setColumns(cols: ColumnDef<TRow>[])`       | Replace the column definitions and re-render                                     |
-| `getViewState()`                            | Returns a serializable snapshot of sort/filter/group/page/etc. (not selection)   |
-| `setViewState(view: TableViewState)`        | Applies a view snapshot; fields absent from it reset to default                  |
-| `onViewChange(cb)`                          | Subscribes to view changes (not selection-only); returns an unsubscribe function |
-| `getSelection()`                            | Current selection (by object identity), including rows hidden by a filter        |
-| `setSelection(rows: TRow[])`                | Replaces the selection outright — e.g. to pre-select rows on load                |
-| `clearSelection()`                          | Empties the selection — e.g. to wire an external "Clear selection" button        |
-| `getProcessedData()`                        | Current rows after search/filters/sort, before grouping/pagination               |
-| `setRowKey(key: keyof TRow & string)`       | Changes the row DOM-key property after construction                              |
-| `setSelectable(value: boolean)`             | Toggles whether rows show selection checkboxes after construction                |
-| `setOnRowClick(cb \| undefined)`            | Changes (or clears) the row-click callback after construction                    |
-| `setLabels(labels \| undefined)`            | Replaces the label overrides after construction                                  |
-| `setDefaultGroupsCollapsed(value: boolean)` | Changes whether newly-grouped groups start collapsed after construction          |
-| `setGetRowId(getRowId \| undefined)`        | Changes (or clears) the selection-identity function after construction           |
-| `destroy()`                                 | Remove all event listeners and clear the container                               |
+| Method                                      | Description                                                                         |
+| ------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `setData(rows: TRow[])`                     | Replace the data and re-render                                                      |
+| `setColumns(cols: ColumnDef<TRow>[])`       | Replace the column definitions and re-render                                        |
+| `getViewState()`                            | Returns a serializable snapshot of sort/filter/group/page/etc. (not selection)      |
+| `setViewState(view: TableViewState)`        | Applies a view snapshot; fields absent from it reset to default                     |
+| `onViewChange(cb)`                          | Subscribes to view changes (not selection-only); returns an unsubscribe function    |
+| `getSelection()`                            | Current selection (by object identity), including rows hidden by a filter           |
+| `setSelection(rows: TRow[])`                | Replaces the selection outright — e.g. to pre-select rows on load                   |
+| `clearSelection()`                          | Empties the selection — e.g. to wire an external "Clear selection" button           |
+| `getProcessedData()`                        | Current rows after search/filters/sort, before grouping/pagination                  |
+| `clearAll()`                                | Resets search/filters/sort/group/page to true defaults, ignoring `initialViewState` |
+| `setRowKey(key: keyof TRow & string)`       | Changes the row DOM-key property after construction                                 |
+| `setSelectable(value: boolean)`             | Toggles whether rows show selection checkboxes after construction                   |
+| `setOnRowClick(cb \| undefined)`            | Changes (or clears) the row-click callback after construction                       |
+| `setLabels(labels \| undefined)`            | Replaces the label overrides after construction                                     |
+| `setDefaultGroupsCollapsed(value: boolean)` | Changes whether newly-grouped groups start collapsed after construction             |
+| `setGetRowId(getRowId \| undefined)`        | Changes (or clears) the selection-identity function after construction              |
+| `destroy()`                                 | Remove all event listeners and clear the container                                  |
 
 ## View persistence & sharing
 

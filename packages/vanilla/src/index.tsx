@@ -168,6 +168,7 @@ export function createDataTable<TRow extends object>(
     setSelection: (rows: TRow[]) => table.selection.setAll(rows),
     clearSelection: () => table.selection.clear(),
     getProcessedData: () => [...table.processedData()],
+    clearAll: () => table.clearAll(),
     // Wrapped in a thunk even though `key` is never actually a function: TS can't prove a
     // generic `keyof TRow & string` excludes `Function` structurally, so Solid's setter overload
     // resolution rejects a bare value here — same generic-signal friction as `getRowId`/
