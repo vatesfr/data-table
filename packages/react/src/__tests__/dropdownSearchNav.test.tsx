@@ -82,7 +82,7 @@ describe('DataTable — dropdown column search', () => {
     expect(container.querySelector('[data-sort-key="dept"]')).not.toBeNull()
   })
 
-  it('the Sort dropdown search box also matches by category (via alphabetizedByLabel, core)', () => {
+  it('the Sort dropdown search box also matches by category (via categorizedAlphabetizedByLabel, core)', () => {
     const categorizedCols: ColumnDef<Row>[] = [
       { key: 'name', label: 'Name', category: 'Info' },
       { key: 'score', label: 'Score', type: 'number', category: 'Info' },
@@ -94,9 +94,17 @@ describe('DataTable — dropdown column search', () => {
     fireEvent.click(getByText('Sort'))
     const search = container.querySelector<HTMLInputElement>('input[data-dd-search]')!
     fireEvent.change(search, { target: { value: 'Info' } })
+    // Name/Score share a category — searching "Info" (the category, not either label) surfaces
+    // them collapsed into their category's submenu trigger, not as flat data-sort-add-key rows.
+    expect(container.querySelector('button[data-sort-add-key]')).toBeNull()
+    const trigger = container.querySelector('[data-category-header]')!
+    expect(trigger.textContent).toContain('Info')
+    fireEvent.click(trigger)
     expect(
-      [...container.querySelectorAll('button[data-sort-add-key]')].map((b) => b.textContent),
-    ).toEqual(['Name', 'Score']) // neither label contains "Info" — only category does
+      [...document.querySelectorAll('[data-category-submenu] button[data-sort-add-key]')].map(
+        (b) => b.textContent,
+      ),
+    ).toEqual(['Name', 'Score'])
   })
 
   it('the Group dropdown search box narrows the addable list', () => {
@@ -433,5 +441,185 @@ describe('DataTable — Sort/Group activate/remove focus retention', () => {
     removeBtn.focus()
     fireEvent.click(removeBtn)
     expect(document.activeElement).toBe(container.querySelector('[data-group-add-key="dept"]'))
+  })
+})
+
+const CATEGORIZED_COLS: ColumnDef<Row>[] = [
+  { key: 'name', label: 'Name', category: 'Info', groupable: true },
+  { key: 'score', label: 'Score', type: 'number', category: 'Numbers', groupable: true },
+  { key: 'dept', label: 'Dept', type: 'string', groupable: true },
+]
+
+function triggerFor(container: HTMLElement, name: string): HTMLButtonElement {
+  return [...container.querySelectorAll<HTMLButtonElement>('[data-category-header]')].find((b) =>
+    b.textContent?.includes(name),
+  )!
+}
+
+describe('DataTable — Sort dropdown column categories', () => {
+  it('renders uncategorized addable columns as plain rows and categorized ones under a submenu trigger', () => {
+    const { getByText, container } = render(
+      <DataTable data={ROWS} columns={CATEGORIZED_COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Sort'))
+    expect(
+      [...container.querySelectorAll('button[data-sort-add-key]')].map((b) => b.textContent),
+    ).toEqual(['Dept']) // Name/Score are categorized, not addable rows themselves
+    expect(
+      [...container.querySelectorAll('[data-category-header]')].map((b) => b.textContent),
+    ).toEqual(['Info▸', 'Numbers▸']) // alphabetized, same as this list's other ordering
+  })
+
+  it('opens the submenu on click and adds a sort from a row inside it', () => {
+    const { getByText, container } = render(
+      <DataTable data={ROWS} columns={CATEGORIZED_COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Sort'))
+    const trigger = triggerFor(container, 'Numbers')
+    expect(document.querySelector('[data-category-submenu]')).toBeNull()
+
+    fireEvent.click(trigger)
+    expect(trigger.getAttribute('aria-expanded')).toBe('true')
+    const submenu = document.querySelector('[data-category-submenu]')!
+    expect(submenu).not.toBeNull()
+    const scoreBtn = [...submenu.querySelectorAll('button[data-sort-add-key]')].find(
+      (b) => b.textContent === 'Score',
+    ) as HTMLButtonElement
+    fireEvent.click(scoreBtn)
+    expect(container.querySelector('[data-sort-key="score"]')).not.toBeNull()
+  })
+
+  // Regression: the addable button's own onClick refocuses the newly-active row via a
+  // pendingSortFocusKey ref consumed by a shared useLayoutEffect that queries the whole component
+  // root, not a `.closest()` walk from the click's own DOM origin — so this stayed portal-safe by
+  // construction, unlike Solid's original bug (see CategorySubmenu.tsx's own top comment).
+  it('activating a column from inside the submenu refocuses its new active row, not <body>', () => {
+    const { getByText, container } = render(
+      <DataTable data={ROWS} columns={CATEGORIZED_COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Sort'))
+    const trigger = triggerFor(container, 'Numbers')
+    fireEvent.click(trigger)
+    const submenu = document.querySelector('[data-category-submenu]')!
+    const scoreBtn = [...submenu.querySelectorAll('button[data-sort-add-key]')].find(
+      (b) => b.textContent === 'Score',
+    ) as HTMLButtonElement
+    fireEvent.click(scoreBtn)
+    expect(document.activeElement).toBe(container.querySelector('[data-sort-key="score"]'))
+  })
+
+  it('opening one category submenu closes the previously open sibling (only one open at a time)', () => {
+    const { getByText, container } = render(
+      <DataTable data={ROWS} columns={CATEGORIZED_COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Sort'))
+    const infoTrigger = triggerFor(container, 'Info')
+    const numbersTrigger = triggerFor(container, 'Numbers')
+
+    fireEvent.click(infoTrigger)
+    expect(infoTrigger.getAttribute('aria-expanded')).toBe('true')
+    expect(document.querySelectorAll('[data-category-submenu]').length).toBe(1)
+
+    fireEvent.click(numbersTrigger)
+    expect(infoTrigger.getAttribute('aria-expanded')).toBe('false')
+    expect(numbersTrigger.getAttribute('aria-expanded')).toBe('true')
+    expect(document.querySelectorAll('[data-category-submenu]').length).toBe(1)
+  })
+
+  it('Escape closes the submenu and refocuses the trigger, without closing the whole dropdown', () => {
+    const { getByText, container } = render(
+      <DataTable data={ROWS} columns={CATEGORIZED_COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Sort'))
+    const trigger = triggerFor(container, 'Info')
+    fireEvent.click(trigger)
+    const submenu = document.querySelector<HTMLElement>('[data-category-submenu]')!
+    const firstRow = submenu.querySelector<HTMLElement>('[data-dd-row]')!
+    firstRow.focus()
+    fireEvent.keyDown(firstRow, { key: 'Escape' })
+    expect(document.querySelector('[data-category-submenu]')).toBeNull()
+    expect(document.activeElement).toBe(trigger)
+    // The dropdown panel itself is still open — only the submenu closed.
+    expect(container.querySelector('button[data-sort-add-key]')).not.toBeNull()
+  })
+
+  // Regression: submenu rows are portaled to document.body (see CategorySubmenu.tsx), outside
+  // Dropdown.tsx's own panel-scoped roving-nav query — ArrowDown would silently do nothing here
+  // without CategorySubmenu's own local nav handler.
+  it("ArrowDown/Home/End rove between the submenu's own rows once open", async () => {
+    const oneCategoryCols: ColumnDef<Row>[] = [
+      { key: 'name', label: 'Name', category: 'Info' },
+      { key: 'score', label: 'Score', type: 'number', category: 'Info' },
+    ]
+    const { getByText, container } = render(
+      <DataTable data={ROWS} columns={oneCategoryCols} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Sort'))
+    const trigger = triggerFor(container, 'Info')
+    await act(async () => {
+      fireEvent.click(trigger)
+    })
+    const submenu = document.querySelector<HTMLElement>('[data-category-submenu]')!
+    const rows = [...submenu.querySelectorAll<HTMLElement>('[data-dd-row]')]
+    expect(rows.map((r) => r.textContent)).toEqual(['Name', 'Score'])
+    expect(document.activeElement).toBe(rows[0])
+
+    fireEvent.keyDown(document.activeElement!, { key: 'ArrowDown' })
+    expect(document.activeElement).toBe(rows[1])
+
+    fireEvent.keyDown(document.activeElement!, { key: 'Home' })
+    expect(document.activeElement).toBe(rows[0])
+
+    fireEvent.keyDown(document.activeElement!, { key: 'End' })
+    expect(document.activeElement).toBe(rows[1])
+
+    // Clamped at the last row — no wrap-around, matching Dropdown.tsx's own top-level nav.
+    fireEvent.keyDown(document.activeElement!, { key: 'ArrowDown' })
+    expect(document.activeElement).toBe(rows[1])
+  })
+})
+
+describe('DataTable — Group dropdown column categories', () => {
+  it('renders uncategorized addable columns as plain rows and categorized ones under a submenu trigger', () => {
+    const { getByText, container } = render(
+      <DataTable data={ROWS} columns={CATEGORIZED_COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Group'))
+    expect(
+      [...container.querySelectorAll('button[data-group-add-key]')].map((b) => b.textContent),
+    ).toEqual(['Dept'])
+    expect(
+      [...container.querySelectorAll('[data-category-header]')].map((b) => b.textContent),
+    ).toEqual(['Info▸', 'Numbers▸'])
+  })
+
+  it('opens the submenu on click and adds a group from a row inside it', () => {
+    const { getByText, container } = render(
+      <DataTable data={ROWS} columns={CATEGORIZED_COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Group'))
+    const trigger = triggerFor(container, 'Info')
+    fireEvent.click(trigger)
+    const submenu = document.querySelector('[data-category-submenu]')!
+    const nameBtn = [...submenu.querySelectorAll('button[data-group-add-key]')].find(
+      (b) => b.textContent === 'Name',
+    ) as HTMLButtonElement
+    fireEvent.click(nameBtn)
+    expect(container.querySelector('[data-group-key="name"]')).not.toBeNull()
+  })
+
+  it('activating a column from inside the submenu refocuses its new active row, not <body>', () => {
+    const { getByText, container } = render(
+      <DataTable data={ROWS} columns={CATEGORIZED_COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Group'))
+    const trigger = triggerFor(container, 'Info')
+    fireEvent.click(trigger)
+    const submenu = document.querySelector('[data-category-submenu]')!
+    const nameBtn = [...submenu.querySelectorAll('button[data-group-add-key]')].find(
+      (b) => b.textContent === 'Name',
+    ) as HTMLButtonElement
+    fireEvent.click(nameBtn)
+    expect(document.activeElement).toBe(container.querySelector('[data-group-key="name"]'))
   })
 })

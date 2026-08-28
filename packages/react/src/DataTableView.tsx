@@ -18,7 +18,7 @@ import {
   computeValueBounds,
   computeRangeSliderGeometry,
   formatRangeBound,
-  alphabetizedByLabel,
+  categorizedAlphabetizedByLabel,
   formatDateTreeLabel,
   sortFilterValues,
   cycleValueSort,
@@ -52,6 +52,7 @@ import {
 } from '@vates/data-table-core/internal'
 import type { ValueSort, SortEntry } from '@vates/data-table-core'
 import { Dropdown } from './components/Dropdown'
+import { CategorySubmenu } from './components/CategorySubmenu'
 import { ToolbarBtn } from './components/ToolbarBtn'
 import { useDropdownReorder } from './hooks/useDropdownReorder'
 import type { ColumnDef, DataTableViewProps } from './types'
@@ -861,6 +862,11 @@ export function DataTableView<TRow extends object>({
     focusPendingKey(root, pendingGroupFocusKey, ['data-group-key', 'data-group-add-key'])
     focusPendingKey(root, pendingFilterColFocusKey, ['data-filter-col-key'])
   })
+  // Which category submenu is open, one independent value per dropdown — a single shared value
+  // (not one per CategorySubmenu instance) so opening one category always closes any other that
+  // was open in the same dropdown, see CategorySubmenu.tsx's own doc.
+  const [openSortCategory, setOpenSortCategory] = useState<string | null>(null)
+  const [openGroupCategory, setOpenGroupCategory] = useState<string | null>(null)
 
   // `table`'s own fields are namespaced by concern (see CLAUDE.md's "Namespaced TableState") —
   // destructured here into the same bare local names this component's ~2600 lines already use
@@ -1128,15 +1134,27 @@ export function DataTableView<TRow extends object>({
   // `orderedColumns` order untouched (it doubles as the drag-to-reorder surface, so its order
   // carries meaning no alphabetization should disturb); Sort/Group's addable lists and the Filter
   // dropdown's left pane have no such order to preserve (none of these columns are sorted/
-  // grouped/filtered yet), so they're alphabetized by label to make a long list easier to scan
-  // (via `alphabetizedByLabel`, core, which already matches by category the same way).
+  // grouped/filtered yet), so they're alphabetized by label to make a long list easier to scan,
+  // and bucketed by category — a category collapses into a `CategorySubmenu` flyout trigger
+  // instead of a flat run of individual rows (via `categorizedAlphabetizedByLabel`, core, which
+  // already matches by category too).
   const searchCols = <T extends { label: string; category?: string }>(
     cols: T[],
     term: string,
   ): T[] => cols.filter((c) => columnMatchesSearch(c, term))
   const searchedOrderedColumns = searchCols(orderedColumns, ddSearchTerms.cols ?? '')
-  const searchedAddableSortCols = alphabetizedByLabel(addableSortCols, ddSearchTerms.sort ?? '')
-  const searchedAddableGroupCols = alphabetizedByLabel(addableGroupCols, ddSearchTerms.group ?? '')
+  // categorizedAlphabetizedByLabel (core): search, alphabetize, bucket by category, and
+  // alphabetize the categories themselves too — Sort/Group's addable lists have no "already
+  // active" concept to preserve order for (unlike the Columns dropdown or Filter's left pane), so
+  // this pipeline's own alphabetical-everything convention applies cleanly here.
+  const categorizedAddableSortCols = categorizedAlphabetizedByLabel(
+    addableSortCols,
+    ddSearchTerms.sort ?? '',
+  )
+  const categorizedAddableGroupCols = categorizedAlphabetizedByLabel(
+    addableGroupCols,
+    ddSearchTerms.group ?? '',
+  )
   // Snapshot of the left pane's column order, taken only at the moment the Filter dropdown opens
   // — active-filter columns first, then the rest (see `orderFilterColumnsByActive`'s own doc
   // comment, core, for why this is a snapshot rather than a live sort: reordering while a filter
@@ -1904,7 +1922,7 @@ export function DataTableView<TRow extends object>({
                     />
                   </div>
                   <div style={S.ddSection}>{L.groupSection}</div>
-                  {searchedAddableGroupCols.map((col) => (
+                  {categorizedAddableGroupCols.uncategorized.map((col) => (
                     <button
                       key={col.key}
                       type="button"
@@ -1919,6 +1937,31 @@ export function DataTableView<TRow extends object>({
                     >
                       <span style={{ flex: 1 }}>{col.label}</span>
                     </button>
+                  ))}
+                  {categorizedAddableGroupCols.categories.map((category) => (
+                    <CategorySubmenu
+                      key={category.name}
+                      name={category.name}
+                      isOpen={openGroupCategory === category.name}
+                      onOpen={() => setOpenGroupCategory(category.name)}
+                      onClose={() => setOpenGroupCategory((c) => (c === category.name ? null : c))}
+                    >
+                      {category.columns.map((col) => (
+                        <button
+                          key={col.key}
+                          type="button"
+                          data-group-add-key={col.key}
+                          data-dd-row
+                          onClick={() => {
+                            pendingGroupFocusKey.current = col.key
+                            toggleGroup(col.key)
+                          }}
+                          style={{ ...S.ddItem, ...S.ddItemButton }}
+                        >
+                          <span style={{ flex: 1 }}>{col.label}</span>
+                        </button>
+                      ))}
+                    </CategorySubmenu>
                   ))}
                 </>
               )}
@@ -2099,7 +2142,7 @@ export function DataTableView<TRow extends object>({
                   />
                 </div>
                 <div style={S.ddSection}>{L.sortSection}</div>
-                {searchedAddableSortCols.map((col) => (
+                {categorizedAddableSortCols.uncategorized.map((col) => (
                   // A real <button> (not a div) so it's a native Tab stop and Enter/Space
                   // "click" it for free — no manual tabIndex/keydown wiring needed, unlike the
                   // active rows above (which need custom keyboard handling anyway for Alt+↑/↓).
@@ -2119,6 +2162,31 @@ export function DataTableView<TRow extends object>({
                   >
                     <span style={{ flex: 1 }}>{col.label}</span>
                   </button>
+                ))}
+                {categorizedAddableSortCols.categories.map((category) => (
+                  <CategorySubmenu
+                    key={category.name}
+                    name={category.name}
+                    isOpen={openSortCategory === category.name}
+                    onOpen={() => setOpenSortCategory(category.name)}
+                    onClose={() => setOpenSortCategory((c) => (c === category.name ? null : c))}
+                  >
+                    {category.columns.map((col) => (
+                      <button
+                        key={col.key}
+                        type="button"
+                        data-sort-add-key={col.key}
+                        data-dd-row
+                        onClick={() => {
+                          pendingSortFocusKey.current = col.key
+                          toggleSort(col.key)
+                        }}
+                        style={{ ...S.ddItem, ...S.ddItemButton }}
+                      >
+                        <span style={{ flex: 1 }}>{col.label}</span>
+                      </button>
+                    ))}
+                  </CategorySubmenu>
                 ))}
               </>
             )}

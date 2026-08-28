@@ -50,6 +50,12 @@ export function Dropdown({
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
+      // A click inside an open category submenu (see CategorySubmenu.tsx) must not count as
+      // "outside" — it's portaled straight to document.body, not a DOM descendant of `ref`, for
+      // reasons explained in that file's own top comment (escaping the panel's scrollable
+      // overflow), so `ref.current.contains()` alone can't see it.
+      const target = e.target as Element
+      if (target.closest?.('[data-category-submenu]')) return
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
     }
     document.addEventListener('mousedown', handler)
