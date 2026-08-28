@@ -55,6 +55,77 @@ function mount() {
   return { container, table, dispose }
 }
 
+const CATEGORIZED_COLS: ColumnDef<Row>[] = [
+  { key: 'id', label: 'ID' },
+  { key: 'name', label: 'Name', category: 'Info' },
+  { key: 'score', label: 'Score', type: 'number', category: 'Info' },
+]
+
+function mountCategorized() {
+  const container = document.createElement('div')
+  document.body.appendChild(container)
+  let table!: ReturnType<typeof createTableState<Row>>
+  const dispose = createRoot((d) => {
+    table = createTableState(ROWS, CATEGORIZED_COLS)
+    const [isOpen] = createSignal(true)
+    render(
+      () => (
+        <SortDropdown
+          table={table}
+          columns={CATEGORIZED_COLS}
+          isOpen={isOpen()}
+          onToggle={() => {}}
+          onClose={() => {}}
+        />
+      ),
+      container,
+    )
+    return d
+  })
+  return { container, table, dispose }
+}
+
+describe('SortDropdown — column categories', () => {
+  it('renders uncategorized addable columns as plain rows and categorized ones under a submenu trigger', () => {
+    const { container, dispose } = mountCategorized()
+    expect(
+      [...container.querySelectorAll('button[data-col-key]')].map((b) => b.textContent),
+    ).toEqual(['ID']) // Name/Score are categorized, not addable rows themselves
+    expect(container.querySelector('.dt-dd-category-trigger')?.textContent).toContain('Info')
+    dispose()
+  })
+
+  it('opens the submenu on click and adds a sort from a row inside it', () => {
+    const { container, table, dispose } = mountCategorized()
+    const trigger = container.querySelector<HTMLButtonElement>('.dt-dd-category-trigger')!
+    expect(document.querySelector('.dt-dd-submenu')).toBeNull()
+
+    trigger.click()
+    expect(trigger.getAttribute('aria-expanded')).toBe('true')
+    const submenu = document.querySelector('.dt-dd-submenu')!
+    expect(submenu).not.toBeNull()
+    const scoreBtn = [...submenu.querySelectorAll('button[data-col-key]')].find(
+      (b) => b.textContent === 'Score',
+    ) as HTMLButtonElement
+    scoreBtn.click()
+    expect(table.sort.entries()).toEqual([{ key: 'score', dir: 'asc' }])
+    dispose()
+  })
+
+  it('Escape closes the submenu and refocuses the trigger, without closing the whole dropdown', () => {
+    const { container, dispose } = mountCategorized()
+    const trigger = container.querySelector<HTMLButtonElement>('.dt-dd-category-trigger')!
+    trigger.click()
+    const submenu = document.querySelector<HTMLElement>('.dt-dd-submenu')!
+    const firstRow = submenu.querySelector<HTMLElement>('[data-dd-row]')!
+    firstRow.focus()
+    firstRow.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    expect(document.querySelector('.dt-dd-submenu')).toBeNull()
+    expect(document.activeElement).toBe(trigger)
+    dispose()
+  })
+})
+
 describe('SortDropdown', () => {
   it('clicking an addable column adds it as an ascending sort', () => {
     const { container, table, dispose } = mount()

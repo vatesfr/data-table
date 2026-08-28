@@ -1,7 +1,8 @@
 import { For, Show, createMemo, createSignal } from 'solid-js'
-import { alphabetizedByLabel } from '@vates/data-table-core/internal'
+import { alphabetizedByLabel, groupColumnsByCategory } from '@vates/data-table-core/internal'
 import type { TableState } from '../createTableState'
 import type { ColumnDef } from '../types'
+import { CategorySubmenu } from './CategorySubmenu'
 import { Dropdown } from './Dropdown'
 import { createDragReorder } from './dragReorder'
 
@@ -34,6 +35,34 @@ export function GroupDropdown<TRow extends object>(props: GroupDropdownProps<TRo
     const notYetActive = props.groupableCols.filter((c) => !groupBy.includes(c.key))
     return alphabetizedByLabel(notYetActive, searchTerm())
   })
+  // See SortDropdown.tsx's identical comment on its own categorizedAddableCols.
+  const categorizedAddableCols = createMemo(() => {
+    const { uncategorized, categories } = groupColumnsByCategory(addableCols())
+    return {
+      uncategorized,
+      categories: categories.slice().sort((a, b) => a.name.localeCompare(b.name)),
+    }
+  })
+
+  // One addable-column row — shared by the flat uncategorized list and each category submenu.
+  function AddableColRow(rowProps: { col: ColumnDef<TRow> }) {
+    const col = rowProps.col
+    return (
+      <button
+        type="button"
+        class="dt-dd-item dt-dd-item--click"
+        data-dd-row
+        data-col-key={col.key}
+        onClick={(e) => {
+          const panel = e.currentTarget.closest('.dt-dd')
+          table.group.toggle(col.key)
+          panel?.querySelector<HTMLElement>(`[data-group-key="${col.key}"]`)?.focus()
+        }}
+      >
+        <span class="dt-flex1">{col.label}</span>
+      </button>
+    )
+  }
 
   return (
     <Dropdown
@@ -140,21 +169,14 @@ export function GroupDropdown<TRow extends object>(props: GroupDropdownProps<TRo
           />
         </div>
         <div class="dt-dd-section">{table.labels().groupSection}</div>
-        <For each={addableCols()}>
-          {(col) => (
-            <button
-              type="button"
-              class="dt-dd-item dt-dd-item--click"
-              data-dd-row
-              data-col-key={col.key}
-              onClick={(e) => {
-                const panel = e.currentTarget.closest('.dt-dd')
-                table.group.toggle(col.key)
-                panel?.querySelector<HTMLElement>(`[data-group-key="${col.key}"]`)?.focus()
-              }}
-            >
-              <span class="dt-flex1">{col.label}</span>
-            </button>
+        <For each={categorizedAddableCols().uncategorized}>
+          {(col) => <AddableColRow col={col} />}
+        </For>
+        <For each={categorizedAddableCols().categories}>
+          {(category) => (
+            <CategorySubmenu name={category.name}>
+              <For each={category.columns}>{(col) => <AddableColRow col={col} />}</For>
+            </CategorySubmenu>
           )}
         </For>
       </Show>

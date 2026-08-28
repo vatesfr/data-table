@@ -52,6 +52,59 @@ function mount() {
   return { container, table, dispose }
 }
 
+const CATEGORIZED_GROUPABLE: ColumnDef<Row>[] = [
+  { key: 'dept', label: 'Dept', groupable: true },
+  { key: 'team', label: 'Team', groupable: true, category: 'Org' },
+]
+
+function mountCategorized() {
+  const container = document.createElement('div')
+  document.body.appendChild(container)
+  let table!: ReturnType<typeof createTableState<Row>>
+  const dispose = createRoot((d) => {
+    table = createTableState(ROWS, CATEGORIZED_GROUPABLE)
+    const [isOpen] = createSignal(true)
+    render(
+      () => (
+        <GroupDropdown
+          table={table}
+          groupableCols={CATEGORIZED_GROUPABLE}
+          isOpen={isOpen()}
+          onToggle={() => {}}
+          onClose={() => {}}
+        />
+      ),
+      container,
+    )
+    return d
+  })
+  return { container, table, dispose }
+}
+
+describe('GroupDropdown — column categories', () => {
+  it('renders uncategorized addable columns as plain rows and categorized ones under a submenu trigger', () => {
+    const { container, dispose } = mountCategorized()
+    expect(
+      [...container.querySelectorAll('button[data-col-key]')].map((b) => b.textContent),
+    ).toEqual(['Dept'])
+    expect(container.querySelector('.dt-dd-category-trigger')?.textContent).toContain('Org')
+    dispose()
+  })
+
+  it('opens the submenu on click and adds a group from a row inside it', () => {
+    const { container, table, dispose } = mountCategorized()
+    const trigger = container.querySelector<HTMLButtonElement>('.dt-dd-category-trigger')!
+    trigger.click()
+    const submenu = document.querySelector('.dt-dd-submenu')!
+    const teamBtn = [...submenu.querySelectorAll('button[data-col-key]')].find(
+      (b) => b.textContent === 'Team',
+    ) as HTMLButtonElement
+    teamBtn.click()
+    expect(table.group.by()).toEqual(['team'])
+    dispose()
+  })
+})
+
 describe('GroupDropdown', () => {
   it('clicking an addable column adds it to groupBy', () => {
     const { container, table, dispose } = mount()

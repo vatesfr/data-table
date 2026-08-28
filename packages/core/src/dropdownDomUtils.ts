@@ -89,6 +89,44 @@ export function computeDropdownClampOffset(
 }
 
 /**
+ * Computes a category submenu's (see `ColumnDefBase.category`) fixed-viewport `left`/`top`,
+ * flying out from `triggerRow`'s own rect. Rendered via a portal (straight to `document.body`,
+ * not nested under the trigger's own scrollable dropdown panel — see `CategorySubmenu.tsx`'s own
+ * top comment for why: an absolutely-positioned descendant that overflows its scrollable ancestor
+ * horizontally otherwise grows that ancestor's own scrollable region instead of visually escaping
+ * it, clipping the flyout and adding a spurious horizontal scrollbar to the panel), so this
+ * computes real `position: fixed` viewport coordinates rather than a relative offset the way
+ * `computeDropdownClampOffset`'s `dx`/`flipUp` do for the (non-portaled) top-level panel.
+ *
+ * Opens to the right of the trigger by default; flips to its left when the trigger's own right
+ * edge already leaves less than `submenuSize.width` of room before the viewport's right edge — a
+ * side flip, not a slide-back translate, since sliding a flyout backward far enough to fit would
+ * visually overlap the very trigger row it's anchored to (unlike `computeDropdownClampOffset`'s
+ * top-level panel, which has no "opposite side" to flip to and so slides via `dx` instead). `top`
+ * is clamped to `[margin, viewportHeight - margin - height]`, top-aligned with the trigger by
+ * default.
+ *
+ * `submenuSize` is the *already-rendered* submenu's own `width`/`height` — not knowable before it
+ * exists in the DOM (see `CategorySubmenu.tsx`'s "measure after mount" comment, same reasoning as
+ * `computeDropdownClampOffset`'s own caller).
+ */
+export function computeSubmenuPosition(
+  triggerRect: { top: number; right: number; bottom: number; left: number },
+  submenuSize: { width: number; height: number },
+  viewportWidth: number,
+  viewportHeight: number,
+  margin = 8,
+): { left: number; top: number } {
+  const openRight = triggerRect.right + submenuSize.width <= viewportWidth - margin
+  const left = openRight ? triggerRect.right : triggerRect.left - submenuSize.width
+  let top = triggerRect.top
+  if (top + submenuSize.height > viewportHeight - margin)
+    top = viewportHeight - margin - submenuSize.height
+  if (top < margin) top = margin
+  return { left, top }
+}
+
+/**
  * The roving Up/Down/Home/End nav shared by every Columns/Sort/Group dropdown panel (and the
  * Filter dropdown's left column pane) needs an ordered list of that panel's own focusable
  * row/search elements. `DD_NAV_SELECTOR` is the default selector for the `data-*`-attribute-based

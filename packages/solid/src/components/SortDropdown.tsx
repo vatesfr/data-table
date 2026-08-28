@@ -1,8 +1,14 @@
 import { For, Show, createMemo, createSignal } from 'solid-js'
 import type { SortEntry } from '@vates/data-table-core'
-import { alphabetizedByLabel, getSortIcon, getSortIndex } from '@vates/data-table-core/internal'
+import {
+  alphabetizedByLabel,
+  getSortIcon,
+  getSortIndex,
+  groupColumnsByCategory,
+} from '@vates/data-table-core/internal'
 import type { TableState } from '../createTableState'
 import type { ColumnDef } from '../types'
+import { CategorySubmenu } from './CategorySubmenu'
 import { Dropdown } from './Dropdown'
 import { createDragReorder } from './dragReorder'
 
@@ -57,6 +63,16 @@ export function SortDropdown<TRow extends object>(props: SortDropdownProps<TRow>
     )
     return alphabetizedByLabel(notYetActive, searchTerm())
   })
+  // Buckets the (already searched/alphabetized) addable list by category — see CLAUDE.md's
+  // "Column categories". Categories themselves are alphabetized too, matching this list's own
+  // existing ordering scheme for everything else in it.
+  const categorizedAddableCols = createMemo(() => {
+    const { uncategorized, categories } = groupColumnsByCategory(addableCols())
+    return {
+      uncategorized,
+      categories: categories.slice().sort((a, b) => a.name.localeCompare(b.name)),
+    }
+  })
 
   // Split the active list in two: entries matching a currently grouped column always govern
   // nesting order (`sortWithinGroups` reads that off `groupBy`'s own order, never off drag
@@ -77,6 +93,26 @@ export function SortDropdown<TRow extends object>(props: SortDropdownProps<TRow>
     const groupBy = table.group.by()
     return table.sort.entries().filter((s) => !groupBy.includes(s.key))
   })
+
+  // One addable-column row — shared by the flat uncategorized list and each category submenu.
+  function AddableColRow(rowProps: { col: ColumnDef<TRow> }) {
+    const col = rowProps.col
+    return (
+      <button
+        type="button"
+        class="dt-dd-item dt-dd-item--click"
+        data-dd-row
+        data-col-key={col.key}
+        onClick={(e) => {
+          const panel = panelOf(e.currentTarget)
+          table.sort.toggle(col.key)
+          panel?.querySelector<HTMLElement>(`[data-sort-key="${col.key}"]`)?.focus()
+        }}
+      >
+        <span class="dt-flex1">{col.label}</span>
+      </button>
+    )
+  }
 
   return (
     <Dropdown
@@ -237,21 +273,14 @@ export function SortDropdown<TRow extends object>(props: SortDropdownProps<TRow>
           />
         </div>
         <div class="dt-dd-section">{table.labels().sortSection}</div>
-        <For each={addableCols()}>
-          {(col) => (
-            <button
-              type="button"
-              class="dt-dd-item dt-dd-item--click"
-              data-dd-row
-              data-col-key={col.key}
-              onClick={(e) => {
-                const panel = panelOf(e.currentTarget)
-                table.sort.toggle(col.key)
-                panel?.querySelector<HTMLElement>(`[data-sort-key="${col.key}"]`)?.focus()
-              }}
-            >
-              <span class="dt-flex1">{col.label}</span>
-            </button>
+        <For each={categorizedAddableCols().uncategorized}>
+          {(col) => <AddableColRow col={col} />}
+        </For>
+        <For each={categorizedAddableCols().categories}>
+          {(category) => (
+            <CategorySubmenu name={category.name}>
+              <For each={category.columns}>{(col) => <AddableColRow col={col} />}</For>
+            </CategorySubmenu>
           )}
         </For>
       </Show>
