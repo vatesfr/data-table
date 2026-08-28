@@ -97,7 +97,14 @@ export function SortDropdown<TRow extends object>(props: SortDropdownProps<TRow>
     return table.sort.entries().filter((s) => !groupBy.includes(s.key))
   })
 
-  // One addable-column row — shared by the flat uncategorized list and each category submenu.
+  // One addable-column row — shared by the flat uncategorized list and each category submenu. A
+  // click here can originate *inside* a portaled CategorySubmenu (see that file's own comment),
+  // where `panelOf`'s `.closest('.dt-dd')` finds nothing — the submenu isn't a DOM descendant of
+  // the panel at all. Looked up via `document.querySelector` instead, safe because only one
+  // dropdown panel is ever open at a time (the toolbar's Columns/Sort/Group/Filter dropdowns share
+  // one `openDropdown` signal), so there's never more than one `[data-sort-key]` match to collide
+  // with. Confirmed empirically: without this, activating a categorized column silently dropped
+  // focus to <body> instead of landing on its new active row.
   function AddableColRow(rowProps: { col: ColumnDef<TRow> }) {
     const col = rowProps.col
     return (
@@ -106,10 +113,9 @@ export function SortDropdown<TRow extends object>(props: SortDropdownProps<TRow>
         class="dt-dd-item dt-dd-item--click"
         data-dd-row
         data-col-key={col.key}
-        onClick={(e) => {
-          const panel = panelOf(e.currentTarget)
+        onClick={() => {
           table.sort.toggle(col.key)
-          panel?.querySelector<HTMLElement>(`[data-sort-key="${col.key}"]`)?.focus()
+          document.querySelector<HTMLElement>(`[data-sort-key="${col.key}"]`)?.focus()
         }}
       >
         <span class="dt-flex1">{col.label}</span>

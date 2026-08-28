@@ -114,6 +114,22 @@ describe('GroupDropdown — column categories', () => {
     dispose()
   })
 
+  // Regression: see SortDropdown.test.tsx's identical test — the addable button's onClick
+  // refocuses the new active row via `.closest('.dt-dd')`, which finds nothing from inside a
+  // portaled submenu. Focus silently dropped to <body> here until the lookup went document-wide.
+  it('activating a column from inside the submenu refocuses its new active row, not <body>', () => {
+    const { container, dispose } = mountCategorized()
+    const trigger = container.querySelector<HTMLButtonElement>('.dt-dd-category-trigger')!
+    trigger.click()
+    const submenu = document.querySelector('.dt-dd-submenu')!
+    const teamBtn = [...submenu.querySelectorAll('button[data-col-key]')].find(
+      (b) => b.textContent === 'Team',
+    ) as HTMLButtonElement
+    teamBtn.click()
+    expect(document.activeElement).toBe(container.querySelector('[data-group-key="team"]'))
+    dispose()
+  })
+
   // Regression: see SortDropdown.test.tsx's identical test — the submenu's rows are portaled to
   // document.body, so ArrowDown/Home/End silently did nothing here until CategorySubmenu grew its
   // own local nav scoped to the submenu.

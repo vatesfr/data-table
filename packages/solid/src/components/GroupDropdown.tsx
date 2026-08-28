@@ -46,7 +46,11 @@ export function GroupDropdown<TRow extends object>(props: GroupDropdownProps<TRo
     }
   })
 
-  // One addable-column row — shared by the flat uncategorized list and each category submenu.
+  // One addable-column row — shared by the flat uncategorized list and each category submenu. A
+  // click here can originate *inside* a portaled CategorySubmenu (see that file's own comment),
+  // where `.closest('.dt-dd')` finds nothing — the submenu isn't a DOM descendant of the panel at
+  // all. Looked up via `document.querySelector` instead, safe because only one dropdown panel is
+  // ever open at a time (see SortDropdown.tsx's identical `AddableColRow` comment).
   function AddableColRow(rowProps: { col: ColumnDef<TRow> }) {
     const col = rowProps.col
     return (
@@ -55,10 +59,9 @@ export function GroupDropdown<TRow extends object>(props: GroupDropdownProps<TRo
         class="dt-dd-item dt-dd-item--click"
         data-dd-row
         data-col-key={col.key}
-        onClick={(e) => {
-          const panel = e.currentTarget.closest('.dt-dd')
+        onClick={() => {
           table.group.toggle(col.key)
-          panel?.querySelector<HTMLElement>(`[data-group-key="${col.key}"]`)?.focus()
+          document.querySelector<HTMLElement>(`[data-group-key="${col.key}"]`)?.focus()
         }}
       >
         <span class="dt-flex1">{col.label}</span>

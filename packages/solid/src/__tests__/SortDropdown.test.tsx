@@ -136,6 +136,23 @@ describe('SortDropdown — column categories', () => {
     dispose()
   })
 
+  // Regression: the addable button's own onClick refocuses the newly-active row via
+  // `.closest('.dt-dd')` — which finds nothing from inside a portaled submenu, since it isn't a
+  // DOM descendant of the panel. Focus silently dropped to <body> here until the lookup switched
+  // to a document-wide query (see AddableColRow's own comment).
+  it('activating a column from inside the submenu refocuses its new active row, not <body>', () => {
+    const { container, dispose } = mountCategorized()
+    const trigger = triggerFor(container, 'Numbers')
+    trigger.click()
+    const submenu = document.querySelector('.dt-dd-submenu')!
+    const scoreBtn = [...submenu.querySelectorAll('button[data-col-key]')].find(
+      (b) => b.textContent === 'Score',
+    ) as HTMLButtonElement
+    scoreBtn.click()
+    expect(document.activeElement).toBe(container.querySelector('[data-sort-key="score"]'))
+    dispose()
+  })
+
   it('opening one category submenu closes the previously open sibling (only one open at a time)', () => {
     const { container, dispose } = mountCategorized()
     const infoTrigger = triggerFor(container, 'Info')
