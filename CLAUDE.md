@@ -310,7 +310,7 @@ Two interactions write to `columnOrder`: **drag-and-drop on headers** (native HT
 
 `reorderColumn`/`reorderSort` (core) both take a 4th `after = false` param, reused by the Sort/Group/Columns dropdown lists' own drag-and-drop (which resolve `after` from cursor position within the hovered row, unlike header dragging which stays insert-before-only). `TableViewState.columnOrder?: string[]` persists/shares the order (wire key `o`).
 
-Full per-adapter drag wiring (React/Vue state, vanilla's CSS-class-only mid-drag feedback, `resolveDragRow`/`resolveDropdownDragRow`) is in [docs/column-reordering.md](docs/column-reordering.md).
+Full per-adapter drag wiring (React/Vue state, vanilla's CSS-class-only mid-drag feedback, `resolveDragRow`/`resolveDropdownDragRow`) is in [docs/column-reordering.md](docs/column-reordering.md). All of it is native HTML5 Drag and Drop, which has no real touch-device support and no fallback today (Alt+↑/↓ needs a physical keyboard) — a known, currently-unscoped gap, detailed in that doc's own "Touch/mobile" section.
 
 ### Toolbar clear buttons (Sort/Group/Filter)
 
