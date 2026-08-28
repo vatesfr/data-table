@@ -216,6 +216,18 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
   // exactly as before this feature existed; each category renders as its own collapsible
   // section instead of a flyout submenu (unlike Columns/Sort/Group) — a submenu would need
   // ArrowRight, already taken here for left-pane→detail-pane crossing (see `handlePanelKeyDown`).
+  //
+  // Deliberately NOT re-sorted alphabetically afterward, unlike Sort/Group's own categorized
+  // addable lists (which do re-sort — see their identical `categorizedAddableCols` comment):
+  // `searchedFilterableCols()` is already ordered by `orderFilterColumnsByActive` (active-filtered
+  // columns first, then alphabetical — not purely alphabetical the way Sort/Group's
+  // never-yet-active lists are, since those have no "already active" concept to bubble up).
+  // `groupColumnsByCategory`'s first-appearance ordering already reflects that: a category
+  // containing an active-filtered column naturally lands early because its first member does.
+  // Re-sorting categories alphabetically on top of this would undo exactly that — a category's
+  // alphabetical position has no relationship to whether it contains the column the user is
+  // actively filtering on, so an active filter's own category could jump arbitrarily far down the
+  // list the moment its name doesn't happen to sort first.
   const categorizedFilterCols = createMemo(() => groupColumnsByCategory(searchedFilterableCols()))
   // Which categories are collapsed — absence means expanded, so a category never seen before
   // (including every category on first open) starts expanded, matching "categories start open,
@@ -649,8 +661,13 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
           setColSearchTerm('')
           return true
         }
+        // Scoped to focus actually being inside the right detail pane — without this, Escape
+        // pressed while focused anywhere else in the panel (e.g. a left-pane column button) could
+        // still silently clear the *currently selected* column's own value search term, even
+        // though the user isn't interacting with that search box at all.
         const col = activeCol()
-        if (col && searchTerms()[col.key]) {
+        const inDetailPane = active?.closest?.('.dt-filter-detail') != null
+        if (inDetailPane && col && searchTerms()[col.key]) {
           setSearchTerm(col.key, '')
           return true
         }

@@ -415,6 +415,38 @@ describe('FilterDropdown — left pane search', () => {
   })
 })
 
+describe('FilterDropdown — Escape clears the right search box', () => {
+  it("clears the active column's value search when focus is inside the detail pane", () => {
+    const { container, dispose } = mount()
+    selectCol(container, 'Name')
+    const valueSearch = container.querySelector<HTMLInputElement>('input[data-dd-value-search]')!
+    valueSearch.value = '9'
+    valueSearch.dispatchEvent(new Event('input', { bubbles: true }))
+    valueSearch.focus()
+    valueSearch.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    expect(valueSearch.value).toBe('')
+    dispose()
+  })
+
+  // Regression: onEscapeClearable used to check only `activeCol()`'s own search term, with no
+  // check on where focus actually was — so Escape pressed anywhere else in the panel (e.g. a
+  // left-pane column button) could still silently clear the selected column's value search.
+  it('does not clear the value search when focus is elsewhere in the panel (e.g. the left pane)', () => {
+    const { container, dispose } = mount()
+    selectCol(container, 'Name')
+    const valueSearch = container.querySelector<HTMLInputElement>('input[data-dd-value-search]')!
+    valueSearch.value = '9'
+    valueSearch.dispatchEvent(new Event('input', { bubbles: true }))
+    const scoreColBtn = [
+      ...container.querySelectorAll<HTMLButtonElement>('.dt-filter-col-item'),
+    ].find((b) => b.textContent?.includes('Name'))!
+    scoreColBtn.focus()
+    scoreColBtn.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    expect(valueSearch.value).toBe('9') // untouched
+    dispose()
+  })
+})
+
 describe('FilterDropdown — date tree formatting and controls', () => {
   it('renders month nodes as a localized month name, not a raw zero-padded number', () => {
     const { container, dispose } = mount()

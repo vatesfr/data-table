@@ -30,6 +30,12 @@ ${renderThemeCss()}
 .dt-dd-item--sortrow:hover{background:var(--color-background-secondary,#f7f6f3)}
 .dt-dd-item--grouprow{cursor:grab}
 .dt-dd-item--colrow{cursor:grab}
+/* A "Group order" row (see SortDropdown.tsx) is still clickable to toggle direction, just not
+   draggable/Alt+Arrow-reorderable — its own section heading + hint text already explain why, so
+   this only needs to cancel --sortrow's hover highlight (a cue that dragging would do something
+   here, which it wouldn't), not restyle the row into looking disabled. Must come after
+   .dt-dd-item--sortrow:hover above to win the cascade on the shared hover background. */
+.dt-dd-item--locked:hover{background:none}
 .dt-dd-item--dragging{opacity:.4}
 .dt-dd-item--drag-over{box-shadow:inset 0 2px 0 var(--color-text-primary,#1a1916)}
 .dt-dd-item--drag-over-after{box-shadow:inset 0 -2px 0 var(--color-text-primary,#1a1916)}
