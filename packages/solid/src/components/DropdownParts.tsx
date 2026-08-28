@@ -12,10 +12,9 @@ import { CategorySubmenu } from './CategorySubmenu'
 /**
  * One addable-column row — a plain "click to activate" button, used by Sort's/Group's/Columns'
  * own addable/available-column lists (both the flat uncategorized run and inside a
- * `CategorySubmenu`). `dataKeyAttr`/`dataKeyValue` become the row's own `data-*` attribute (e.g.
- * `data-col-key`) — kept as separate name/value rather than a single pre-built string so JSX's own
- * attribute-spreading stays simple; every current caller happens to use `data-col-key`, but the
- * attribute name is a prop rather than hardcoded in case a future caller needs its own.
+ * `CategorySubmenu`). Always carries `data-col-key` (every current caller's own refocus-by-key
+ * lookup already keys off that exact attribute name) — hardcoded rather than a prop, since nothing
+ * about this row varies per caller beyond `col`/`onClick`.
  */
 export function AddableColumnRow(props: {
   col: { key: string; label: string }
