@@ -133,6 +133,11 @@ export function CategorySubmenu(props: CategorySubmenuProps) {
         type="button"
         class="dt-dd-item dt-dd-item--click dt-dd-category-trigger"
         data-dd-row
+        // Lets a caller focus this trigger by category name after a DOM mutation elsewhere makes
+        // its usual row disappear — e.g. the Columns dropdown's "×" (hide) button, when the
+        // hidden column reappears inside a *closed* submenu rather than as its own addable row
+        // (see ColumnsDropdown.tsx's own comment on this exact lookup).
+        data-category-name={props.name}
         ref={triggerRef}
         aria-expanded={props.isOpen}
         onMouseEnter={scheduleOpen}

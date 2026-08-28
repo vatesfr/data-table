@@ -55,15 +55,24 @@ function mount(): void {
   instance = createDataTable(container, { data: ROWS, columns: COLS })
 }
 
+// The Columns dropdown's own search box/Available section only render when at least one column
+// is hidden (see packages/solid/src/components/ColumnsDropdown.tsx) — every column is visible in
+// `mount()`'s own fixture, so tests exercising that search box need one hidden from the start.
+function mountWithHiddenColumn(): void {
+  instance = createDataTable(container, {
+    data: ROWS,
+    columns: COLS,
+    initialViewState: { visibleCols: ['name', 'dept'] },
+  })
+}
+
 describe('createDataTable — dropdown column search', () => {
-  it('the columns dropdown search box narrows the column list by label', () => {
-    mount()
+  it('the columns dropdown search box narrows the Available section by label', () => {
+    mountWithHiddenColumn()
     click(findButton(container, 'Columns'))
     const search = container.querySelector<HTMLInputElement>('.dt-dd-search')!
     setInput(search, 'sc')
-    const rows = [...container.querySelectorAll('.dt-dd-item--colrow')].map((el) =>
-      el.querySelector('label')!.textContent?.trim(),
-    )
+    const rows = [...container.querySelectorAll('button[data-col-key]')].map((el) => el.textContent)
     expect(rows).toEqual(['Score'])
   })
 
@@ -110,7 +119,7 @@ describe('createDataTable — dropdown column search', () => {
 
 describe('createDataTable — dropdown escape/close', () => {
   it('Escape closes an open dropdown', () => {
-    mount()
+    mountWithHiddenColumn()
     click(findButton(container, 'Columns'))
     expect(container.querySelector('.dt-dd')).not.toBeNull()
     const search = container.querySelector<HTMLInputElement>('.dt-dd-search')!

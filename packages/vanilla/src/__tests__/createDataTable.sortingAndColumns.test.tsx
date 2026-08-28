@@ -451,17 +451,17 @@ describe('createDataTable — scroll restore', () => {
 })
 
 describe('createDataTable — column visibility', () => {
-  it('toggling a column via the columns dropdown hides it', () => {
+  it('the × button on a visible column row hides it', () => {
     const { container } = mount()
     openDropdown(container, 'Columns')
-    click(container.querySelector<HTMLElement>('[data-col-row-key="name"] input[type="checkbox"]')!)
+    click(container.querySelector<HTMLElement>('[data-col-row-key="name"] .dt-item-remove')!)
     expect(colHeaders(container)).not.toContain('Name')
   })
 
   it('cannot hide the last visible column', () => {
     const { container } = mount({ initialViewState: { visibleCols: ['name'] } })
     openDropdown(container, 'Columns')
-    click(container.querySelector<HTMLElement>('[data-col-row-key="name"] input[type="checkbox"]')!)
+    click(container.querySelector<HTMLElement>('[data-col-row-key="name"] .dt-item-remove')!)
     expect(colHeaders(container)).toContain('Name')
   })
 })
@@ -489,13 +489,11 @@ describe('createDataTable — column reordering', () => {
     expect(colHeaders(container)).toEqual(['Score', 'Name', 'Dept'])
   })
 
-  it('Alt+ArrowUp/Alt+ArrowDown on a focused column checkbox reorders headers', () => {
+  it('Alt+ArrowUp/Alt+ArrowDown on a focused column row reorders headers', () => {
     const { container } = mount()
     openDropdown(container, 'Columns')
-    const scoreCheckbox = container.querySelector<HTMLElement>(
-      '[data-col-row-key="score"] input[type="checkbox"]',
-    )!
-    scoreCheckbox.dispatchEvent(
+    const scoreRow = container.querySelector<HTMLElement>('[data-col-row-key="score"]')!
+    scoreRow.dispatchEvent(
       new KeyboardEvent('keydown', {
         key: 'ArrowUp',
         altKey: true,
@@ -509,10 +507,8 @@ describe('createDataTable — column reordering', () => {
   it('Alt+ArrowUp on the first column row is a no-op', () => {
     const { container } = mount()
     openDropdown(container, 'Columns')
-    const nameCheckbox = container.querySelector<HTMLElement>(
-      '[data-col-row-key="name"] input[type="checkbox"]',
-    )!
-    nameCheckbox.dispatchEvent(
+    const nameRow = container.querySelector<HTMLElement>('[data-col-row-key="name"]')!
+    nameRow.dispatchEvent(
       new KeyboardEvent('keydown', {
         key: 'ArrowUp',
         altKey: true,
@@ -579,7 +575,7 @@ describe('createDataTable — column reordering', () => {
     nameTh.dispatchEvent(mouseEvt('dragover', { clientX: 40 }))
     nameTh.dispatchEvent(mouseEvt('drop', { clientX: 40 }))
     openDropdown(container, 'Columns')
-    click(container.querySelector<HTMLElement>('[data-col-row-key="dept"] input[type="checkbox"]')!)
+    click(container.querySelector<HTMLElement>('[data-col-row-key="dept"] .dt-item-remove')!)
     expect(colHeaders(container)).toEqual(['Score', 'Name'])
   })
 

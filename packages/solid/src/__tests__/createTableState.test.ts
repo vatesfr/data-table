@@ -522,6 +522,22 @@ describe('createTableState — setData/setColumns (no consumer render loop)', ()
   })
 })
 
+describe('createTableState — columns.moveVisibleBy', () => {
+  it('skips a hidden column between two visible ones (see moveVisibleColumnBy, core)', () => {
+    withRoot(() => {
+      const table = createTableState(ROWS, COLS) // id, name, score
+      table.columns.toggleVisibility('name') // hide the one in between
+      expect(table.columns.active().map((c) => c.key)).toEqual(['id', 'score'])
+      table.columns.moveVisibleBy('id', 1)
+      // 'id' swapped past hidden 'name' straight to 'score' — visibly reordered, not a no-op.
+      expect(table.columns.active().map((c) => c.key)).toEqual(['score', 'id'])
+      // 'name' kept its own exact slot, unaffected by reordering around it.
+      table.columns.toggleVisibility('name')
+      expect(table.columns.ordered().map((c) => c.key)).toEqual(['score', 'name', 'id'])
+    })
+  })
+})
+
 describe('createTableState — accessor inputs for data/columns', () => {
   it('tracks a data accessor reactively, with no explicit setData call needed', () => {
     // Deliberately not using withRoot here: mutating the signal from *inside* the same

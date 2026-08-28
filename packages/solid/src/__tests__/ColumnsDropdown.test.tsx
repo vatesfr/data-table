@@ -26,98 +26,77 @@ function stubRects(container: HTMLElement, selector: string): void {
   })
 }
 
-function mount() {
+function mount(cols: ColumnDef<Row>[] = COLS) {
   const container = document.createElement('div')
   document.body.appendChild(container)
   let table!: ReturnType<typeof createTableState<Row>>
+  // A CategorySubmenu's flyout portals to document.body (see CategorySubmenu.tsx) — render()'s
+  // own disposer must be captured and called too, or a submenu left open leaks its portaled DOM
+  // node into every test that runs after it (see SortDropdown.test.tsx's identical comment).
+  let disposeView!: () => void
   const dispose = createRoot((d) => {
-    table = createTableState(ROWS, COLS)
-    const [isOpen, setIsOpen] = createSignal(true)
-    render(
+    table = createTableState(ROWS, cols)
+    const [isOpen] = createSignal(true)
+    disposeView = render(
       () => (
         <ColumnsDropdown
           table={table}
-          columns={COLS}
+          columns={cols}
           isOpen={isOpen()}
-          onToggle={() => setIsOpen((o) => !o)}
-          onClose={() => setIsOpen(false)}
+          onToggle={() => {}}
+          onClose={() => {}}
         />
       ),
       container,
     )
     return d
   })
-  return { container, table, dispose }
+  return {
+    container,
+    table,
+    dispose: () => {
+      disposeView()
+      dispose()
+    },
+  }
 }
 
-describe('ColumnsDropdown', () => {
-  it('lists every column in orderedColumns order, not alphabetized', () => {
+function visibleLabels(container: HTMLElement): (string | undefined)[] {
+  return [...container.querySelectorAll('.dt-dd-item--colrow .dt-flex1')].map((el) =>
+    el.textContent?.trim(),
+  )
+}
+
+describe('ColumnsDropdown — Visible section', () => {
+  it('lists every visible column in table order, not alphabetized', () => {
     const { container, dispose } = mount()
-    const labels = [...container.querySelectorAll('.dt-dd-item--colrow label')].map((el) =>
-      el.textContent?.trim(),
-    )
-    expect(labels).toEqual(['ID', 'Name', 'Score'])
+    expect(visibleLabels(container)).toEqual(['ID', 'Name', 'Score'])
     dispose()
   })
 
-  it('unchecking a column hides it from activeColumns; it stays >=1 visible', () => {
+  it('the × button hides a column, moving it into Available', () => {
     const { container, table, dispose } = mount()
-    const idCheckbox = container.querySelector<HTMLInputElement>(
-      '[data-col-row-key="id"] input[type="checkbox"]',
-    )!
-    idCheckbox.click()
+    container.querySelector<HTMLButtonElement>('[data-col-row-key="id"] .dt-item-remove')!.click()
     expect(table.columns.active().map((c) => c.key)).toEqual(['name', 'score'])
+    expect(visibleLabels(container)).toEqual(['Name', 'Score'])
+    expect(container.querySelector('[data-col-key="id"]')?.textContent).toContain('ID')
     dispose()
   })
 
-  it('search narrows the list by label', () => {
-    const { container, dispose } = mount()
-    const search = container.querySelector<HTMLInputElement>('.dt-dd-search')!
-    search.value = 'sco'
-    search.dispatchEvent(new Event('input', { bubbles: true }))
-    const labels = [...container.querySelectorAll('.dt-dd-item--colrow label')].map((el) =>
-      el.textContent?.trim(),
-    )
-    expect(labels).toEqual(['Score'])
+  it('hiding the last visible column is a no-op (stays >= 1 visible)', () => {
+    const { container, table, dispose } = mount()
+    // Hide two of the three, leaving one.
+    container.querySelector<HTMLButtonElement>('[data-col-row-key="id"] .dt-item-remove')!.click()
+    container.querySelector<HTMLButtonElement>('[data-col-row-key="name"] .dt-item-remove')!.click()
+    expect(table.columns.active().map((c) => c.key)).toEqual(['score'])
+    container
+      .querySelector<HTMLButtonElement>('[data-col-row-key="score"] .dt-item-remove')!
+      .click()
+    expect(table.columns.active().map((c) => c.key)).toEqual(['score']) // unchanged
     dispose()
   })
 
-  it('search also matches by category, surfacing every column filed under it', () => {
-    const categorizedCols: ColumnDef<Row>[] = [
-      { key: 'id', label: 'ID' },
-      { key: 'name', label: 'Name', category: 'Info' },
-      { key: 'score', label: 'Score', type: 'number', category: 'Info' },
-    ]
-    const container = document.createElement('div')
-    document.body.appendChild(container)
-    const dispose = createRoot((d) => {
-      const table = createTableState(ROWS, categorizedCols)
-      const [isOpen] = createSignal(true)
-      render(
-        () => (
-          <ColumnsDropdown
-            table={table}
-            columns={categorizedCols}
-            isOpen={isOpen()}
-            onToggle={() => {}}
-            onClose={() => {}}
-          />
-        ),
-        container,
-      )
-      return d
-    })
-    const search = container.querySelector<HTMLInputElement>('.dt-dd-search')!
-    search.value = 'Info'
-    search.dispatchEvent(new Event('input', { bubbles: true }))
-    const labels = [...container.querySelectorAll('.dt-dd-item--colrow label')].map((el) =>
-      el.textContent?.trim(),
-    )
-    expect(labels).toEqual(['Name', 'Score']) // neither label contains "Info" — only category does
-    dispose()
-  })
-
-  it('drag-and-drop reorders columns (reflected in activeColumns order)', () => {
+  it('drag-and-drop reorders visible columns (reflected in activeColumns order)', () => {
     const { container, table, dispose } = mount()
     stubRects(container, '[data-col-row-key]')
     const idRow = container.querySelector<HTMLElement>('[data-col-row-key="id"]')!
@@ -131,12 +110,10 @@ describe('ColumnsDropdown', () => {
     dispose()
   })
 
-  it('Alt+ArrowDown on the checkbox moves the column down one position', () => {
+  it('Alt+ArrowDown on a row moves it down one visible position', () => {
     const { container, table, dispose } = mount()
-    const idCheckbox = container.querySelector<HTMLInputElement>(
-      '[data-col-row-key="id"] input[type="checkbox"]',
-    )!
-    idCheckbox.dispatchEvent(
+    const idRow = container.querySelector<HTMLElement>('[data-col-row-key="id"]')!
+    idRow.dispatchEvent(
       new KeyboardEvent('keydown', {
         key: 'ArrowDown',
         altKey: true,
@@ -150,11 +127,9 @@ describe('ColumnsDropdown', () => {
 
   it('Alt+ArrowDown/ArrowUp keeps focus on the moved row instead of dropping to <body>', () => {
     const { container, dispose } = mount()
-    const idCheckbox = container.querySelector<HTMLInputElement>(
-      '[data-col-row-key="id"] input[type="checkbox"]',
-    )!
-    idCheckbox.focus()
-    idCheckbox.dispatchEvent(
+    const idRow = container.querySelector<HTMLElement>('[data-col-row-key="id"]')!
+    idRow.focus()
+    idRow.dispatchEvent(
       new KeyboardEvent('keydown', {
         key: 'ArrowDown',
         altKey: true,
@@ -162,10 +137,8 @@ describe('ColumnsDropdown', () => {
         cancelable: true,
       }),
     )
-    // "id" is now the checkbox of the row at its new position — same node, moved.
-    expect(document.activeElement).toBe(
-      container.querySelector('[data-col-row-key="id"] input[type="checkbox"]'),
-    )
+    // "id" is now the row at its new position — same node, moved.
+    expect(document.activeElement).toBe(container.querySelector('[data-col-row-key="id"]'))
     document.activeElement!.dispatchEvent(
       new KeyboardEvent('keydown', {
         key: 'ArrowUp',
@@ -174,9 +147,128 @@ describe('ColumnsDropdown', () => {
         cancelable: true,
       }),
     )
-    expect(document.activeElement).toBe(
-      container.querySelector('[data-col-row-key="id"] input[type="checkbox"]'),
+    expect(document.activeElement).toBe(container.querySelector('[data-col-row-key="id"]'))
+    dispose()
+  })
+
+  it('Alt+ArrowDown skips a hidden column, reordering against the next visible one', () => {
+    const { container, table, dispose } = mount()
+    container.querySelector<HTMLButtonElement>('[data-col-row-key="name"] .dt-item-remove')!.click() // hide the one in between id/score
+    expect(visibleLabels(container)).toEqual(['ID', 'Score'])
+    const idRow = container.querySelector<HTMLElement>('[data-col-row-key="id"]')!
+    idRow.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'ArrowDown',
+        altKey: true,
+        bubbles: true,
+        cancelable: true,
+      }),
     )
+    expect(visibleLabels(container)).toEqual(['Score', 'ID']) // not a no-op
+    expect(table.columns.active().map((c) => c.key)).toEqual(['score', 'id'])
+    dispose()
+  })
+})
+
+describe('ColumnsDropdown — Available section', () => {
+  it('lists hidden columns as plain addable rows, in table order', () => {
+    const { container, dispose } = mount()
+    container.querySelector<HTMLButtonElement>('[data-col-row-key="id"] .dt-item-remove')!.click()
+    container
+      .querySelector<HTMLButtonElement>('[data-col-row-key="score"] .dt-item-remove')!
+      .click()
+    expect(
+      [...container.querySelectorAll('button[data-col-key]')].map((b) => b.textContent),
+    ).toEqual(['ID', 'Score'])
+    dispose()
+  })
+
+  it('clicking an addable row shows the column again and refocuses its new visible row', () => {
+    const { container, table, dispose } = mount()
+    container.querySelector<HTMLButtonElement>('[data-col-row-key="id"] .dt-item-remove')!.click()
+    container.querySelector<HTMLButtonElement>('[data-col-key="id"]')!.click()
+    expect(table.columns.active().map((c) => c.key)).toEqual(['id', 'name', 'score'])
+    expect(document.activeElement).toBe(container.querySelector('[data-col-row-key="id"]'))
+    dispose()
+  })
+
+  it('a re-shown column reappears at its original table-order position, not appended at the end', () => {
+    const { container, table, dispose } = mount()
+    // Hide the middle column, then show it again with no drag in between.
+    container.querySelector<HTMLButtonElement>('[data-col-row-key="name"] .dt-item-remove')!.click()
+    container.querySelector<HTMLButtonElement>('[data-col-key="name"]')!.click()
+    expect(table.columns.active().map((c) => c.key)).toEqual(['id', 'name', 'score'])
+    dispose()
+  })
+
+  it('no Available section (or search box) is rendered once every column is visible', () => {
+    const { container, dispose } = mount()
+    expect(container.querySelector('.dt-dd-search')).toBeNull()
+    dispose()
+  })
+
+  it('categorized hidden columns collapse into a submenu trigger instead of plain rows', () => {
+    const categorized: ColumnDef<Row>[] = [
+      { key: 'id', label: 'ID' },
+      { key: 'name', label: 'Name', category: 'Info' },
+      { key: 'score', label: 'Score', type: 'number', category: 'Info' },
+    ]
+    const { container, dispose } = mount(categorized)
+    container.querySelector<HTMLButtonElement>('[data-col-row-key="name"] .dt-item-remove')!.click()
+    container
+      .querySelector<HTMLButtonElement>('[data-col-row-key="score"] .dt-item-remove')!
+      .click()
+    expect(container.querySelector('button[data-col-key]')).toBeNull() // no flat addable rows
+    expect(container.querySelector('.dt-dd-category-trigger')?.textContent).toContain('Info')
+    dispose()
+  })
+
+  it('adding a categorized column from inside its submenu refocuses the new visible row', () => {
+    const categorized: ColumnDef<Row>[] = [
+      { key: 'id', label: 'ID' },
+      { key: 'name', label: 'Name', category: 'Info' },
+      { key: 'score', label: 'Score', type: 'number', category: 'Info' },
+    ]
+    const { container, table, dispose } = mount(categorized)
+    container.querySelector<HTMLButtonElement>('[data-col-row-key="name"] .dt-item-remove')!.click()
+    const trigger = container.querySelector<HTMLButtonElement>('.dt-dd-category-trigger')!
+    trigger.click()
+    const submenu = document.querySelector('.dt-dd-submenu')!
+    submenu.querySelector<HTMLButtonElement>('[data-col-key="name"]')!.click()
+    expect(table.columns.active().map((c) => c.key)).toEqual(['id', 'name', 'score'])
+    expect(document.activeElement).toBe(container.querySelector('[data-col-row-key="name"]'))
+    dispose()
+  })
+
+  it('hiding a categorized column refocuses its category submenu trigger, not a nonexistent addable row', () => {
+    const categorized: ColumnDef<Row>[] = [
+      { key: 'id', label: 'ID' },
+      { key: 'name', label: 'Name', category: 'Info' },
+      { key: 'score', label: 'Score', type: 'number', category: 'Info' },
+    ]
+    const { container, dispose } = mount(categorized)
+    container.querySelector<HTMLButtonElement>('[data-col-row-key="name"] .dt-item-remove')!.click()
+    expect(document.activeElement).toBe(
+      container.querySelector('.dt-dd-category-trigger[data-category-name="Info"]'),
+    )
+    dispose()
+  })
+
+  it('search narrows Available only, matching label or category; Visible is unaffected', () => {
+    const categorized: ColumnDef<Row>[] = [
+      { key: 'id', label: 'ID' },
+      { key: 'name', label: 'Name', category: 'Info' },
+      { key: 'score', label: 'Score', type: 'number', category: 'Info' },
+    ]
+    const { container, dispose } = mount(categorized)
+    container.querySelector<HTMLButtonElement>('[data-col-row-key="name"] .dt-item-remove')!.click()
+    expect(visibleLabels(container)).toEqual(['ID', 'Score'])
+
+    const search = container.querySelector<HTMLInputElement>('.dt-dd-search')!
+    search.value = 'Info'
+    search.dispatchEvent(new Event('input', { bubbles: true }))
+    expect(container.querySelector('.dt-dd-category-trigger')?.textContent).toContain('Info')
+    expect(visibleLabels(container)).toEqual(['ID', 'Score']) // still unaffected by the search term
     dispose()
   })
 })

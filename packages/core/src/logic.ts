@@ -1786,6 +1786,36 @@ export function moveColumnBy(order: string[], key: string, delta: number): strin
   return next
 }
 
+/**
+ * `moveColumnBy`'s counterpart for the Columns dropdown's "Visible columns" section (see
+ * CLAUDE.md's "Columns dropdown"): swaps `key` with its nearest *visible* neighbor `delta`
+ * positions away, skipping over any hidden columns in between rather than swapping with
+ * whichever key happens to be textually adjacent in `order`. Plain `moveColumnBy` would silently
+ * swap a visible column past a hidden one sitting right next to it in `order` — a no-op as far as
+ * the Visible section's own rendered list is concerned (the hidden column never appears there),
+ * so an Alt+↑/↓ press would visibly do nothing despite `order` actually changing underneath it.
+ * Every hidden column skipped over keeps its own exact position in `order` untouched — only the
+ * two visible columns being reordered actually move, so a hidden column's eventual reappearance
+ * slot (see CLAUDE.md's "'Expected place' when re-enabling a column") is never disturbed by
+ * reordering *around* it.
+ */
+export function moveVisibleColumnBy(
+  order: string[],
+  visibleCols: ReadonlySet<string>,
+  key: string,
+  delta: number,
+): string[] {
+  const idx = order.indexOf(key)
+  if (idx === -1) return order
+  let neighborIdx = idx + delta
+  while (neighborIdx >= 0 && neighborIdx < order.length && !visibleCols.has(order[neighborIdx]))
+    neighborIdx += delta
+  if (neighborIdx < 0 || neighborIdx >= order.length) return order
+  const next = [...order]
+  ;[next[idx], next[neighborIdx]] = [next[neighborIdx], next[idx]]
+  return next
+}
+
 export function toggleCollapse(collapsedGroups: Set<string>, key: string): Set<string> {
   const next = new Set(collapsedGroups)
   if (next.has(key)) next.delete(key)

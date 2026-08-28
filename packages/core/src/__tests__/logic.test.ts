@@ -60,6 +60,7 @@ import {
   reconcileVisibleColumns,
   reorderColumn,
   moveColumnBy,
+  moveVisibleColumnBy,
   moveSortBy,
   reorderSort,
   sortFilterValues,
@@ -3172,6 +3173,51 @@ describe('moveColumnBy', () => {
 
   it('is a no-op when key is not present', () => {
     expect(moveColumnBy(['a', 'b', 'c'], 'ghost', 1)).toEqual(['a', 'b', 'c'])
+  })
+})
+
+// ─── moveVisibleColumnBy ──────────────────────────────────────────────────────
+
+describe('moveVisibleColumnBy', () => {
+  it('skips over a hidden neighbor to swap with the next visible one', () => {
+    // b is hidden — a plain moveColumnBy(order, 'a', 1) would swap a↔b, invisible to the Visible
+    // section's own rendered list.
+    const order = ['a', 'b', 'c']
+    const visible = new Set(['a', 'c'])
+    expect(moveVisibleColumnBy(order, visible, 'a', 1)).toEqual(['c', 'b', 'a'])
+  })
+
+  it('skips over multiple hidden neighbors', () => {
+    const order = ['a', 'b', 'c', 'd', 'e']
+    const visible = new Set(['a', 'e'])
+    expect(moveVisibleColumnBy(order, visible, 'a', 1)).toEqual(['e', 'b', 'c', 'd', 'a'])
+  })
+
+  it('leaves every skipped hidden column at its own exact position', () => {
+    const order = ['a', 'b', 'c', 'd']
+    const visible = new Set(['a', 'd'])
+    const result = moveVisibleColumnBy(order, visible, 'd', -1)
+    expect(result).toEqual(['d', 'b', 'c', 'a'])
+    expect(result.indexOf('b')).toBe(1)
+    expect(result.indexOf('c')).toBe(2)
+  })
+
+  it('is a no-op when there is no visible neighbor in that direction', () => {
+    const order = ['a', 'b', 'c']
+    const visible = new Set(['a'])
+    expect(moveVisibleColumnBy(order, visible, 'a', 1)).toEqual(['a', 'b', 'c'])
+    expect(moveVisibleColumnBy(order, visible, 'a', -1)).toEqual(['a', 'b', 'c'])
+  })
+
+  it('is a no-op when key is not present', () => {
+    const order = ['a', 'b', 'c']
+    expect(moveVisibleColumnBy(order, new Set(order), 'ghost', 1)).toEqual(order)
+  })
+
+  it('behaves exactly like moveColumnBy when every column is visible', () => {
+    const order = ['a', 'b', 'c']
+    const visible = new Set(order)
+    expect(moveVisibleColumnBy(order, visible, 'a', 1)).toEqual(moveColumnBy(order, 'a', 1))
   })
 })
 

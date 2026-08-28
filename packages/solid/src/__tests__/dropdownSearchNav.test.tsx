@@ -37,6 +37,30 @@ function mount() {
   return { container, dispose }
 }
 
+// The Columns dropdown's own search box/Available section only render when at least one column
+// is hidden (see ColumnsDropdown.tsx) — every column is visible by default in `mount()`'s own
+// fixture, so the Columns-specific nav tests below need a column hidden from the start to have
+// anything to search/navigate into.
+function mountWithHiddenColumn() {
+  const container = document.createElement('div')
+  document.body.appendChild(container)
+  const dispose = createRoot((d) => {
+    render(
+      () => (
+        <DataTable
+          data={ROWS}
+          columns={COLS}
+          rowKey="id"
+          initialViewState={{ visibleCols: ['name', 'dept'] }}
+        />
+      ),
+      container,
+    )
+    return d
+  })
+  return { container, dispose }
+}
+
 function clickButtonByText(container: HTMLElement, text: string): void {
   const btn = [...container.querySelectorAll('button')].find((b) => b.textContent === text)!
   btn.click()
@@ -62,7 +86,7 @@ describe('DataTable — dropdown focus-on-open', () => {
   })
 
   it('opening the Columns dropdown focuses its search box', async () => {
-    const { container, dispose } = mount()
+    const { container, dispose } = mountWithHiddenColumn()
     clickButtonByText(container, 'Columns')
     await tick()
     expect(document.activeElement).toBe(container.querySelector('.dt-dd-search'))
@@ -98,8 +122,8 @@ describe('DataTable — dropdown focus-on-open', () => {
 })
 
 describe('DataTable — dropdown keyboard navigation order and Escape', () => {
-  it('ArrowDown moves from the Columns search box into its row list', () => {
-    const { container, dispose } = mount()
+  it('ArrowDown moves from the Columns search box into its Available row list', () => {
+    const { container, dispose } = mountWithHiddenColumn()
     clickButtonByText(container, 'Columns')
     const search = container.querySelector<HTMLInputElement>('.dt-dd-search')!
     // Roving nav only acts on a key when document.activeElement is one of its own recognized
@@ -107,43 +131,50 @@ describe('DataTable — dropdown keyboard navigation order and Escape', () => {
     // whether the real focus-on-open microtask has fired yet).
     search.focus()
     search.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }))
+    // The search box sits between the Visible section (before it) and Available (after it) — see
+    // ColumnsDropdown.tsx — so ArrowDown from it lands on the first Available row, not a checkbox
+    // (there is no checkbox any more; Available rows are plain click-to-show buttons).
     expect(document.activeElement).not.toBe(search)
-    expect(document.activeElement?.matches('input[type="checkbox"]')).toBe(true)
+    expect(document.activeElement).toBe(container.querySelector('[data-col-key="score"]'))
     dispose()
   })
 
   it('Home/End jump to the first/last row of the Columns dropdown, skipping the search box', () => {
-    const { container, dispose } = mount()
+    const { container, dispose } = mountWithHiddenColumn()
     clickButtonByText(container, 'Columns')
     const search = container.querySelector<HTMLInputElement>('.dt-dd-search')!
     search.focus()
     search.dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true }))
-    const rows = [...container.querySelectorAll<HTMLInputElement>('[data-dd-row] input')]
-    expect(document.activeElement).toBe(rows[rows.length - 1])
+    // Last row overall is the one Available row ('score', hidden by mountWithHiddenColumn).
+    expect(document.activeElement).toBe(container.querySelector('[data-col-key="score"]'))
     search.dispatchEvent(new KeyboardEvent('keydown', { key: 'Home', bubbles: true }))
-    expect(document.activeElement).toBe(rows[0])
+    // First row overall is the first Visible row ('name') — Visible renders before the search box.
+    expect(document.activeElement).toBe(container.querySelector('[data-col-row-key="name"]'))
     dispose()
   })
 
   it('ArrowDown/ArrowUp move between rows, clamped at the edges (no wrap)', () => {
-    const { container, dispose } = mount()
+    const { container, dispose } = mountWithHiddenColumn()
     clickButtonByText(container, 'Columns')
-    const rows = [...container.querySelectorAll<HTMLInputElement>('[data-dd-row] input')]
-    rows[0].focus()
-    rows[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }))
-    // No row above the first one, and the search box isn't part of the row list itself for
-    // ArrowUp purposes from a row — it's still reachable, one step up.
-    expect(document.activeElement).toBe(container.querySelector('.dt-dd-search'))
-    rows[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }))
-    expect(document.activeElement).toBe(rows[0])
+    const firstRow = container.querySelector<HTMLElement>('[data-col-row-key="name"]')!
+    firstRow.focus()
+    firstRow.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }))
+    // No row above the first one — clamped, stays put (Home/End's own test already covers
+    // reaching the search box deliberately; a plain ArrowUp past the edge is a no-op instead).
+    expect(document.activeElement).toBe(firstRow)
+    firstRow.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }))
+    expect(document.activeElement).toBe(container.querySelector('[data-col-row-key="dept"]'))
     dispose()
   })
 
   it('Escape clears a non-empty dropdown search term before closing the dropdown', () => {
-    const { container, dispose } = mount()
+    const { container, dispose } = mountWithHiddenColumn()
     clickButtonByText(container, 'Columns')
     const search = container.querySelector<HTMLInputElement>('.dt-dd-search')!
-    search.value = 'nam'
+    // Must still match the one Available row ('score') — a term matching nothing would unmount
+    // the search box itself (see ColumnsDropdown.tsx's `Show when={searchedAvailable().length >
+    // 0}`, the same pre-existing quirk Sort/Group's own addable-list search box already has).
+    search.value = 'sco'
     search.dispatchEvent(new Event('input', { bubbles: true }))
     search.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
     expect(container.querySelector('.dt-dd')).not.toBeNull() // still open
@@ -152,7 +183,7 @@ describe('DataTable — dropdown keyboard navigation order and Escape', () => {
   })
 
   it('Escape closes the dropdown immediately when its search term is already empty, refocusing the toggle button', () => {
-    const { container, dispose } = mount()
+    const { container, dispose } = mountWithHiddenColumn()
     clickButtonByText(container, 'Columns')
     const search = container.querySelector<HTMLInputElement>('.dt-dd-search')!
     search.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))

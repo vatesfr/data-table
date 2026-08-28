@@ -2,7 +2,8 @@ import type { DataTableLabels } from './types'
 
 export const LABELS_EN: DataTableLabels = {
   columns: 'Columns',
-  columnsSection: 'Display',
+  columnsSection: 'Visible columns',
+  availableColumnsSection: 'Available columns',
   sort: 'Sort',
   activeSortsSection: 'Active sorts',
   groupOrderSection: 'Group order',
@@ -41,7 +42,8 @@ export const LABELS_EN: DataTableLabels = {
 
 export const LABELS_FR: DataTableLabels = {
   columns: 'Colonnes',
-  columnsSection: 'Affichage',
+  columnsSection: 'Colonnes visibles',
+  availableColumnsSection: 'Colonnes disponibles',
   sort: 'Trier',
   activeSortsSection: 'Tris actifs',
   groupOrderSection: 'Ordre des groupes',
@@ -80,7 +82,8 @@ export const LABELS_FR: DataTableLabels = {
 
 export const LABELS_ES: DataTableLabels = {
   columns: 'Columnas',
-  columnsSection: 'Visualización',
+  columnsSection: 'Columnas visibles',
+  availableColumnsSection: 'Columnas disponibles',
   sort: 'Ordenar',
   activeSortsSection: 'Orden activo',
   groupOrderSection: 'Orden de los grupos',
@@ -119,7 +122,8 @@ export const LABELS_ES: DataTableLabels = {
 
 export const LABELS_DE: DataTableLabels = {
   columns: 'Spalten',
-  columnsSection: 'Anzeige',
+  columnsSection: 'Sichtbare Spalten',
+  availableColumnsSection: 'Verfügbare Spalten',
   sort: 'Sortieren',
   activeSortsSection: 'Aktive Sortierungen',
   groupOrderSection: 'Gruppenreihenfolge',
@@ -158,7 +162,8 @@ export const LABELS_DE: DataTableLabels = {
 
 export const LABELS_PT: DataTableLabels = {
   columns: 'Colunas',
-  columnsSection: 'Exibição',
+  columnsSection: 'Colunas visíveis',
+  availableColumnsSection: 'Colunas disponíveis',
   sort: 'Ordenar',
   activeSortsSection: 'Ordenações ativas',
   groupOrderSection: 'Ordem dos grupos',

@@ -169,7 +169,18 @@ export interface DateTreeNode {
 
 export interface DataTableLabels {
   columns: string
+  /**
+   * Heading over the Columns dropdown's "Visible columns" section — the currently-visible,
+   * reorderable columns (drag/Alt+↑↓), mirroring `activeSortsSection`/`activeGroupsSection`'s own
+   * role for their dropdowns.
+   */
   columnsSection: string
+  /**
+   * Heading over the Columns dropdown's "Available columns" section — hidden columns, click to
+   * show; a categorized one (see `ColumnDefBase.category`) collapses into a submenu, mirroring
+   * `sortSection`/`groupSection`'s own role for their dropdowns.
+   */
+  availableColumnsSection: string
   sort: string
   /** Heading over the already-active sort entries (priority order) in the Sort dropdown */
   activeSortsSection: string
