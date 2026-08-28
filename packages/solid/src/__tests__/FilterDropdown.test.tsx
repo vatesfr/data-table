@@ -154,32 +154,65 @@ function mountCategorized() {
 }
 
 describe('FilterDropdown — column categories', () => {
-  it('renders uncategorized columns as plain rows and categorized ones under a section header', () => {
+  it('renders uncategorized columns as plain rows and categorized ones collapsed under a section header', () => {
     const { container, dispose } = mountCategorized()
     const itemLabels = [...container.querySelectorAll('.dt-filter-col-item span')].map(
       (s) => s.textContent,
     )
-    expect(itemLabels).toEqual(['Joined', 'Name', 'Dept', 'Score']) // uncategorized (alpha) first, then category
+    // Dept/Score are collapsed by default (no active filter in "Org" — see the next describe
+    // block for the auto-expand case) — only the uncategorized columns show as plain rows.
+    expect(itemLabels).toEqual(['Joined', 'Name'])
     expect(container.querySelector('.dt-filter-category-header')?.textContent).toContain('Org')
     dispose()
   })
 
-  it('starts expanded and collapses/expands its columns on header click', () => {
+  it('starts collapsed and expands/collapses its columns on header click', () => {
     const { container, dispose } = mountCategorized()
     const header = container.querySelector<HTMLButtonElement>('.dt-filter-category-header')!
     const colLabel = () =>
       [...container.querySelectorAll('.dt-filter-col-item span')].map((s) => s.textContent)
 
+    expect(header.getAttribute('aria-expanded')).toBe('false')
+    expect(colLabel()).toEqual(['Joined', 'Name'])
+
+    header.click()
     expect(header.getAttribute('aria-expanded')).toBe('true')
     expect(colLabel()).toEqual(['Joined', 'Name', 'Dept', 'Score'])
 
     header.click()
     expect(header.getAttribute('aria-expanded')).toBe('false')
-    expect(colLabel()).toEqual(['Joined', 'Name']) // Dept/Score hidden, uncategorized unaffected
+    expect(colLabel()).toEqual(['Joined', 'Name']) // Dept/Score hidden again, uncategorized unaffected
+    dispose()
+  })
 
-    header.click()
+  it('auto-expands a category that has an active filter when the dropdown opens', () => {
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const dispose = createRoot((d) => {
+      const table = createTableState(ROWS, CATEGORIZED_COLS)
+      table.filter.cycleValue('score', '90') // set an active filter inside "Org" before opening
+      const [isOpen] = createSignal(true)
+      render(
+        () => (
+          <FilterDropdown
+            table={table}
+            columns={CATEGORIZED_COLS}
+            isOpen={isOpen()}
+            onToggle={() => {}}
+            onClose={() => {}}
+          />
+        ),
+        container,
+      )
+      return d
+    })
+    const header = container.querySelector<HTMLButtonElement>('.dt-filter-category-header')!
     expect(header.getAttribute('aria-expanded')).toBe('true')
-    expect(colLabel()).toEqual(['Joined', 'Name', 'Dept', 'Score'])
+    // Score sorts before Dept here — orderFilterColumnsByActive puts the actively-filtered column
+    // first within its category, same active-first convention as the left pane itself.
+    expect(
+      [...container.querySelectorAll('.dt-filter-col-item span')].map((s) => s.textContent),
+    ).toEqual(['Joined', 'Name', 'Score', 'Dept'])
     dispose()
   })
 })
@@ -407,10 +440,16 @@ describe('FilterDropdown — left pane search', () => {
     const search = container.querySelector<HTMLInputElement>('.dt-filter-cols-search')!
     search.value = 'Org'
     search.dispatchEvent(new Event('input', { bubbles: true }))
+    // The category header itself surfaces — neither Dept nor Score's own label contains "Org",
+    // only the category does. Its columns are collapsed by default (no active filter), so
+    // expanding it is what actually confirms both matched columns are really in there.
+    const header = container.querySelector<HTMLButtonElement>('.dt-filter-category-header')!
+    expect(header.textContent).toContain('Org')
+    header.click()
     const labels = [...container.querySelectorAll('.dt-filter-col-item span')].map(
       (el) => el.textContent,
     )
-    expect(labels).toEqual(['Dept', 'Score']) // neither label contains "Org" — only category does
+    expect(labels).toEqual(['Dept', 'Score'])
     dispose()
   })
 })

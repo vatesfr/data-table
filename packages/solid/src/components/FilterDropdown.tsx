@@ -180,6 +180,19 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
   // than a live sort. `null` while closed/never opened, meaning "no snapshot yet, fall back to
   // plain alpha order" (see `applyColumnOrderSnapshot`).
   const [orderKeys, setOrderKeys] = createSignal<string[] | null>(null)
+  // Which categories are collapsed. Seeded on open (see the createRenderEffect right below) and
+  // otherwise only ever changed by the user directly toggling a header — never recomputed live
+  // just because some filter elsewhere changes while the panel stays open. Session-local UI
+  // state, not persisted (same tier as `filterActiveCol`).
+  const [collapsedCategories, setCollapsedCategories] = createSignal<Set<string>>(new Set())
+  function toggleCategoryCollapsed(name: string): void {
+    setCollapsedCategories((prev) => {
+      const next = new Set(prev)
+      if (next.has(name)) next.delete(name)
+      else next.add(name)
+      return next
+    })
+  }
   let wasOpen = false
   // createRenderEffect (not createEffect): must resolve synchronously in the same update flush
   // that flips the panel's `<Show>` open, so the very first render of the left-pane list already
@@ -191,16 +204,28 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
       // Untracked: this must not re-run (and thus can't accidentally reorder mid-session) just
       // because a filter changes while the panel is open — only `props.isOpen`'s own transition
       // to `true` should ever produce a new snapshot.
-      setOrderKeys(
-        untrack(() =>
+      untrack(() => {
+        setOrderKeys(
           orderFilterColumnsByActive(
             filterableCols(),
             table.filter.include(),
             table.filter.exclude(),
             table.filter.ranges(),
           ),
-        ),
-      )
+        )
+        // Same snapshot-on-open idea as orderKeys above, for the opposite reason: a category
+        // starts collapsed by default (matching Columns/Sort/Group's own CategorySubmenu, which
+        // always starts closed), except one containing an active filter at the moment the panel
+        // opens starts expanded instead — so opening the dropdown never hides the very filter
+        // you're currently using behind a collapsed section with no visual sign why. A snapshot,
+        // not a live recomputation, so toggling a category by hand mid-session isn't overridden
+        // the moment some unrelated filter elsewhere changes (see collapsedCategories' own note).
+        const startCollapsed = new Set<string>()
+        for (const category of groupColumnsByCategory(filterableCols()).categories) {
+          if (!category.columns.some(hasActiveFilter)) startCollapsed.add(category.name)
+        }
+        setCollapsedCategories(startCollapsed)
+      })
     }
     wasOpen = open
   })
@@ -230,19 +255,6 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
   // actively filtering on, so an active filter's own category could jump arbitrarily far down the
   // list the moment its name doesn't happen to sort first.
   const categorizedFilterCols = createMemo(() => groupColumnsByCategory(searchedFilterableCols()))
-  // Which categories are collapsed — absence means expanded, so a category never seen before
-  // (including every category on first open) starts expanded, matching "categories start open,
-  // user collapses the ones they don't need" rather than requiring the user to expand everything
-  // just to find a column. Session-local UI state, not persisted (same tier as `filterActiveCol`).
-  const [collapsedCategories, setCollapsedCategories] = createSignal<Set<string>>(new Set())
-  function toggleCategoryCollapsed(name: string): void {
-    setCollapsedCategories((prev) => {
-      const next = new Set(prev)
-      if (next.has(name)) next.delete(name)
-      else next.add(name)
-      return next
-    })
-  }
   const [searchTerms, setSearchTerms] = createSignal<Record<string, string>>({})
   const [valueSorts, setValueSorts] = createSignal<Record<string, ValueSort>>({})
   const [selectionAnchors, setSelectionAnchors] = createSignal<Record<string, string>>({})
