@@ -172,7 +172,6 @@ export function CategorySubmenu(props: CategorySubmenuProps) {
     )
     setLeft(pos.left)
     setTop(pos.top)
-     
   }, [props.isOpen])
 
   function handleSubmenuKeyDown(e: KeyboardEvent<HTMLDivElement>): void {
