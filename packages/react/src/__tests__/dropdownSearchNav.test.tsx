@@ -135,11 +135,73 @@ describe('DataTable — dropdown column search', () => {
     fireEvent.click(getByText('Filter'))
     const search = container.querySelector<HTMLInputElement>('input[data-dd-search]')!
     fireEvent.change(search, { target: { value: 'Org' } })
+    // The category header itself surfaces — neither Dept nor Score's own label contains "Org",
+    // only the category does. Its columns are collapsed by default (no active filter), so
+    // expanding it is what actually confirms both matched columns are really in there.
+    const header = container.querySelector<HTMLButtonElement>(
+      '[data-filter-category-header="Org"]',
+    )!
+    expect(header).not.toBeNull()
+    fireEvent.click(header)
     expect(
       [...container.querySelectorAll('[data-filter-col-key] span:first-child')].map(
         (el) => el.textContent,
       ),
     ).toEqual(['Dept', 'Score']) // neither label contains "Org" — only category does
+  })
+})
+
+describe('DataTable — Filter dropdown column categories', () => {
+  const categorizedCols: ColumnDef<Row>[] = [
+    { key: 'name', label: 'Name', filterable: true },
+    { key: 'score', label: 'Score', type: 'number', filterable: true, category: 'Org' },
+    { key: 'dept', label: 'Dept', type: 'string', filterable: true, category: 'Org' },
+  ]
+
+  it('starts collapsed and expands/collapses its columns on header click', () => {
+    const { getByText, container } = render(
+      <DataTable data={ROWS} columns={categorizedCols} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Filter'))
+    const header = container.querySelector<HTMLButtonElement>(
+      '[data-filter-category-header="Org"]',
+    )!
+    const colLabel = () =>
+      [...container.querySelectorAll('[data-filter-col-key] span:first-child')].map(
+        (el) => el.textContent,
+      )
+
+    expect(header.getAttribute('aria-expanded')).toBe('false')
+    expect(colLabel()).toEqual(['Name'])
+
+    fireEvent.click(header)
+    expect(header.getAttribute('aria-expanded')).toBe('true')
+    expect(colLabel()).toEqual(['Name', 'Dept', 'Score'])
+
+    fireEvent.click(header)
+    expect(header.getAttribute('aria-expanded')).toBe('false')
+    expect(colLabel()).toEqual(['Name'])
+  })
+
+  it('auto-expands a category that has an active filter when the dropdown opens', () => {
+    const { getByText, container } = render(
+      <DataTable
+        data={ROWS}
+        columns={categorizedCols}
+        rowKey="id"
+        initialViewState={{ filters: { score: ['90'] } }}
+      />,
+    )
+    fireEvent.click(getByText('Filter'))
+    const header = container.querySelector<HTMLButtonElement>(
+      '[data-filter-category-header="Org"]',
+    )!
+    expect(header.getAttribute('aria-expanded')).toBe('true')
+    expect(
+      [...container.querySelectorAll('[data-filter-col-key] span:first-child')].map(
+        (el) => el.textContent,
+      ),
+    ).toEqual(['Name', 'Score', 'Dept']) // Score sorts first — active-filtered-first ordering
   })
 })
 
