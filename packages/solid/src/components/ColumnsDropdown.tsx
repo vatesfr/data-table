@@ -1,4 +1,5 @@
 import { For, createMemo, createSignal } from 'solid-js'
+import { columnMatchesSearch } from '@vates/data-table-core/internal'
 import type { TableState } from '../createTableState'
 import type { ColumnDef } from '../types'
 import { Dropdown } from './Dropdown'
@@ -32,12 +33,11 @@ export function ColumnsDropdown<TRow extends object>(props: ColumnsDropdownProps
   } = createDragReorder('data-col-row-key', table.columns.move)
 
   const orderedColumns = createMemo(() => table.columns.ordered())
-  const searchedColumns = createMemo(() => {
-    const term = searchTerm().trim().toLowerCase()
-    return term
-      ? orderedColumns().filter((c) => c.label.toLowerCase().includes(term))
-      : orderedColumns()
-  })
+  // Matches by category (see ColumnDefBase.category) as well as label — typing "Work" surfaces
+  // every column filed under that category, not just one whose own label contains "Work".
+  const searchedColumns = createMemo(() =>
+    orderedColumns().filter((c) => columnMatchesSearch(c, searchTerm())),
+  )
 
   return (
     <Dropdown

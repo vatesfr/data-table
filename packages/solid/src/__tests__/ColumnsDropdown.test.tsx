@@ -82,6 +82,41 @@ describe('ColumnsDropdown', () => {
     dispose()
   })
 
+  it('search also matches by category, surfacing every column filed under it', () => {
+    const categorizedCols: ColumnDef<Row>[] = [
+      { key: 'id', label: 'ID' },
+      { key: 'name', label: 'Name', category: 'Info' },
+      { key: 'score', label: 'Score', type: 'number', category: 'Info' },
+    ]
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const dispose = createRoot((d) => {
+      const table = createTableState(ROWS, categorizedCols)
+      const [isOpen] = createSignal(true)
+      render(
+        () => (
+          <ColumnsDropdown
+            table={table}
+            columns={categorizedCols}
+            isOpen={isOpen()}
+            onToggle={() => {}}
+            onClose={() => {}}
+          />
+        ),
+        container,
+      )
+      return d
+    })
+    const search = container.querySelector<HTMLInputElement>('.dt-dd-search')!
+    search.value = 'Info'
+    search.dispatchEvent(new Event('input', { bubbles: true }))
+    const labels = [...container.querySelectorAll('.dt-dd-item--colrow label')].map((el) =>
+      el.textContent?.trim(),
+    )
+    expect(labels).toEqual(['Name', 'Score']) // neither label contains "Info" — only category does
+    dispose()
+  })
+
   it('drag-and-drop reorders columns (reflected in activeColumns order)', () => {
     const { container, table, dispose } = mount()
     stubRects(container, '[data-col-row-key]')

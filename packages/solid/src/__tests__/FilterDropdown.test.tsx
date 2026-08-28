@@ -401,6 +401,18 @@ describe('FilterDropdown — left pane search', () => {
     expect(labels).toEqual(['Score'])
     dispose()
   })
+
+  it('also matches by category, surfacing every column filed under it', () => {
+    const { container, dispose } = mountCategorized()
+    const search = container.querySelector<HTMLInputElement>('.dt-filter-cols-search')!
+    search.value = 'Org'
+    search.dispatchEvent(new Event('input', { bubbles: true }))
+    const labels = [...container.querySelectorAll('.dt-filter-col-item span')].map(
+      (el) => el.textContent,
+    )
+    expect(labels).toEqual(['Dept', 'Score']) // neither label contains "Org" — only category does
+    dispose()
+  })
 })
 
 describe('FilterDropdown — date tree formatting and controls', () => {

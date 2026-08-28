@@ -30,6 +30,7 @@ import {
   orderFilterColumnsByActive,
   applyColumnOrderSnapshot,
   groupColumnsByCategory,
+  columnMatchesSearch,
   type DateTreeNode,
 } from '@vates/data-table-core/internal'
 import type { TableState } from '../createTableState'
@@ -203,11 +204,10 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
     wasOpen = open
   })
 
+  // Matches by category (see ColumnDefBase.category) as well as label — typing "Work" surfaces
+  // every column filed under that category, not just one whose own label contains "Work".
   const searchedFilterableCols = createMemo(() => {
-    const term = colSearchTerm().trim().toLowerCase()
-    const cols = term
-      ? filterableCols().filter((c) => c.label.toLowerCase().includes(term))
-      : filterableCols()
+    const cols = filterableCols().filter((c) => columnMatchesSearch(c, colSearchTerm()))
     return applyColumnOrderSnapshot(cols, orderKeys())
   })
 

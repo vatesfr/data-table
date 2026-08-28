@@ -816,9 +816,29 @@ export function summarizeFilterValues(
  * the Sort/Group dropdowns' own `addableCols` (each additionally filters out columns already
  * active in the sort/group before this runs, which is why that part stays separate).
  */
-export function alphabetizedByLabel<T extends { label: string }>(cols: T[], term: string): T[] {
+/**
+ * Whether `col` matches a dropdown column-search term — checked against both its `label` and its
+ * `category` (see `ColumnDefBase.category`), so typing a category name (e.g. "Work") surfaces
+ * every column filed under it, not just a column whose own label happens to contain the term. An
+ * empty/whitespace-only term always matches. Shared by every column-search box that narrows a
+ * *column list* (not a filter checklist's own *value* search, which is unrelated): the Columns
+ * dropdown's own list, `alphabetizedByLabel` below (Sort/Group's addable lists), and the Filter
+ * dropdown's left pane.
+ */
+export function columnMatchesSearch(
+  col: { label: string; category?: string },
+  term: string,
+): boolean {
   const t = term.trim().toLowerCase()
-  const list = t ? cols.filter((c) => c.label.toLowerCase().includes(t)) : cols
+  if (!t) return true
+  return col.label.toLowerCase().includes(t) || (col.category?.toLowerCase().includes(t) ?? false)
+}
+
+export function alphabetizedByLabel<T extends { label: string; category?: string }>(
+  cols: T[],
+  term: string,
+): T[] {
+  const list = term.trim() ? cols.filter((c) => columnMatchesSearch(c, term)) : cols
   return list.slice().sort((a, b) => a.label.localeCompare(b.label))
 }
 

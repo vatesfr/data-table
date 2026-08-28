@@ -55,6 +55,8 @@ import {
   countActiveFilters,
   getOrderedColumns,
   groupColumnsByCategory,
+  columnMatchesSearch,
+  alphabetizedByLabel,
   reconcileVisibleColumns,
   reorderColumn,
   moveColumnBy,
@@ -3041,6 +3043,45 @@ describe('groupColumnsByCategory', () => {
     ]
     const result = groupColumnsByCategory(cols)
     expect(result.categories[0].columns.map((c) => c.key)).toEqual(['b', 'a'])
+  })
+})
+
+// ─── columnMatchesSearch / alphabetizedByLabel ───────────────────────────────
+
+describe('columnMatchesSearch', () => {
+  it('matches by label', () => {
+    expect(columnMatchesSearch({ label: 'Salary' }, 'sal')).toBe(true)
+    expect(columnMatchesSearch({ label: 'Salary' }, 'xyz')).toBe(false)
+  })
+
+  it('matches by category even when the label does not match', () => {
+    expect(columnMatchesSearch({ label: 'Salary', category: 'Work' }, 'work')).toBe(true)
+    expect(columnMatchesSearch({ label: 'Salary', category: undefined }, 'work')).toBe(false)
+  })
+
+  it('is case-insensitive and trims whitespace', () => {
+    expect(columnMatchesSearch({ label: 'Salary', category: 'Work' }, '  WoRk  ')).toBe(true)
+  })
+
+  it('an empty/whitespace-only term always matches', () => {
+    expect(columnMatchesSearch({ label: 'Salary' }, '')).toBe(true)
+    expect(columnMatchesSearch({ label: 'Salary' }, '   ')).toBe(true)
+  })
+})
+
+describe('alphabetizedByLabel', () => {
+  const COLS = [
+    { label: 'Dept', category: 'Work' },
+    { label: 'Name' },
+    { label: 'Salary', category: 'Work' },
+  ]
+
+  it('filters and alphabetizes by label', () => {
+    expect(alphabetizedByLabel(COLS, 'a').map((c) => c.label)).toEqual(['Name', 'Salary'])
+  })
+
+  it('filters by category too, even when no column label matches the term', () => {
+    expect(alphabetizedByLabel(COLS, 'Work').map((c) => c.label)).toEqual(['Dept', 'Salary'])
   })
 })
 
