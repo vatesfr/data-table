@@ -900,13 +900,37 @@ export function DataTableView<TRow extends object>({
   // dropdown is ever open at a time, so a single pair of keys (not one per dropdown) is enough.
   const [hoveredDdRowKey, setHoveredDdRowKey] = useState<string | null>(null)
   const [focusedDdRowKey, setFocusedDdRowKey] = useState<string | null>(null)
-  function ddRowHighlighted(key: string): boolean {
-    return hoveredDdRowKey === key || focusedDdRowKey === key
+  // A closed dropdown panel unmounts entirely (see Dropdown.tsx), but that doesn't reliably fire a
+  // blur event on whatever row was focused inside it — so without this, closing a dropdown while
+  // one of its rows is focused/hovered can leave a stale key here, which then wrongly matches a
+  // same-keyed row in a *different* dropdown opened right after (e.g. grouping "dept" then
+  // immediately opening Sort, whose "Group order" row shares that same key). Resetting whenever
+  // which dropdown is open changes keeps this scoped to whichever one is actually open right now
+  // — the same "adjust state when a prop changes" render-time pattern as `sameKeySet`'s
+  // `prevColumns` comparison above, rather than an effect (avoiding both an extra render and the
+  // react-hooks/set-state-in-effect lint error this project's config treats as one).
+  const openDdTriple = `${openColsDD}:${openSortDD}:${openGroupDD}`
+  const [prevOpenDdTriple, setPrevOpenDdTriple] = useState(openDdTriple)
+  if (openDdTriple !== prevOpenDdTriple) {
+    setPrevOpenDdTriple(openDdTriple)
+    setHoveredDdRowKey(null)
+    setFocusedDdRowKey(null)
   }
-  function ddRowHoverFocusHandlers(key: string) {
+  // `hoverable = false` is for Sort's non-draggable "Group order" rows: a hover highlight would
+  // read as "dragging would do something here," which it wouldn't — its own section heading +
+  // hint text already explain why, so this only cancels the hover cue, not the focus one (the row
+  // is still clickable/keyboard-toggleable, so focus stays a meaningful cue).
+  function ddRowHighlighted(key: string, { hoverable = true } = {}): boolean {
+    return (hoverable && hoveredDdRowKey === key) || focusedDdRowKey === key
+  }
+  function ddRowHoverFocusHandlers(key: string, { hoverable = true } = {}) {
     return {
-      onMouseEnter: () => setHoveredDdRowKey(key),
-      onMouseLeave: () => setHoveredDdRowKey((k) => (k === key ? null : k)),
+      ...(hoverable
+        ? {
+            onMouseEnter: () => setHoveredDdRowKey(key),
+            onMouseLeave: () => setHoveredDdRowKey((k) => (k === key ? null : k)),
+          }
+        : {}),
       onFocus: () => setFocusedDdRowKey(key),
       onBlur: () => setFocusedDdRowKey((k) => (k === key ? null : k)),
     }
@@ -2145,11 +2169,11 @@ export function DataTableView<TRow extends object>({
                           removeSort(entry.key)
                         }
                       }}
-                      {...ddRowHoverFocusHandlers(entry.key)}
+                      {...ddRowHoverFocusHandlers(entry.key, { hoverable: false })}
                       style={{
                         ...S.ddItem,
                         justifyContent: 'space-between',
-                        background: ddRowHighlighted(entry.key)
+                        background: ddRowHighlighted(entry.key, { hoverable: false })
                           ? 'var(--color-background-secondary)'
                           : undefined,
                       }}

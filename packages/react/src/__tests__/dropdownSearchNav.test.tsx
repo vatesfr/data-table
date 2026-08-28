@@ -577,6 +577,28 @@ describe('DataTable — Sort/Group/Columns active-row hover/focus background', (
     fireEvent.focus(colRow)
     expect(colRow.style.background).toBe('var(--color-background-secondary)')
   })
+
+  // A "Group order" row is still clickable to toggle direction, just not draggable/Alt+Arrow-
+  // reorderable — its own section heading + hint text already explain why, so it cancels only the
+  // hover cue (which would read as "dragging would do something here," which it wouldn't), not the
+  // focus one (the row is still keyboard-toggleable, so focus stays a meaningful cue).
+  it('a "Group order" row gets the focus background but not the hover one', () => {
+    const { getByText, getAllByText, container } = render(
+      <DataTable data={ROWS} columns={COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Group'))
+    fireEvent.click(ddCopyOf(getAllByText, 'Dept'))
+    fireEvent.click(getByText('Group')) // close
+    fireEvent.click(getByText('Sort'))
+    const groupOrderRow = [...container.querySelectorAll<HTMLElement>('[tabindex="0"]')].find(
+      (el) => el.textContent?.includes('Dept') && !el.hasAttribute('data-sort-key'),
+    )!
+    fireEvent.mouseEnter(groupOrderRow)
+    expect(groupOrderRow.style.background).toBe('')
+    fireEvent.mouseLeave(groupOrderRow)
+    fireEvent.focus(groupOrderRow)
+    expect(groupOrderRow.style.background).toBe('var(--color-background-secondary)')
+  })
 })
 
 const CATEGORIZED_COLS: ColumnDef<Row>[] = [
