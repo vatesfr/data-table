@@ -165,6 +165,71 @@ describe('SortDropdown — column categories', () => {
     expect(document.activeElement).toBe(trigger)
     dispose()
   })
+
+  // Regression: the submenu's rows are portaled to document.body (see CategorySubmenu.tsx), so
+  // they're no longer DOM descendants of the panel Dropdown.tsx's own generic roving nav scopes
+  // itself to — ArrowDown silently did nothing here until CategorySubmenu grew its own local nav.
+  it("ArrowUp/ArrowDown/Home/End rove between the submenu's own rows once open", async () => {
+    const oneCategoryCols: ColumnDef<Row>[] = [
+      { key: 'id', label: 'ID' },
+      { key: 'name', label: 'Name', category: 'Info' },
+      { key: 'score', label: 'Score', type: 'number', category: 'Info' },
+    ]
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    let disposeView!: () => void
+    const dispose = createRoot((d) => {
+      const table = createTableState(ROWS, oneCategoryCols)
+      const [isOpen] = createSignal(true)
+      disposeView = render(
+        () => (
+          <SortDropdown
+            table={table}
+            columns={oneCategoryCols}
+            isOpen={isOpen()}
+            onToggle={() => {}}
+            onClose={() => {}}
+          />
+        ),
+        container,
+      )
+      return d
+    })
+    const trigger = triggerFor(container, 'Info')
+    trigger.click()
+    // The initial focus-first-row is a queueMicrotask (see CategorySubmenu.tsx's focusFirstRow) —
+    // let it resolve before asserting on document.activeElement.
+    await Promise.resolve()
+    await Promise.resolve()
+    const submenu = document.querySelector<HTMLElement>('.dt-dd-submenu')!
+    const rows = [...submenu.querySelectorAll<HTMLElement>('[data-dd-row]')]
+    expect(rows.map((r) => r.textContent)).toEqual(['Name', 'Score'])
+    expect(document.activeElement).toBe(rows[0])
+
+    document.activeElement!.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }),
+    )
+    expect(document.activeElement).toBe(rows[1])
+
+    document.activeElement!.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Home', bubbles: true, cancelable: true }),
+    )
+    expect(document.activeElement).toBe(rows[0])
+
+    document.activeElement!.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'End', bubbles: true, cancelable: true }),
+    )
+    expect(document.activeElement).toBe(rows[1])
+
+    // Clamped at the last row — no wrap-around, matching Dropdown.tsx's own top-level nav.
+    document.activeElement!.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }),
+    )
+    expect(document.activeElement).toBe(rows[1])
+
+    disposeView()
+    dispose()
+  })
 })
 
 describe('SortDropdown', () => {

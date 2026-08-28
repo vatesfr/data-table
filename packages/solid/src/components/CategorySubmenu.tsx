@@ -44,18 +44,20 @@ interface CategorySubmenuProps {
 // submenu is a sibling of the panel in the real DOM, not a descendant of it, so it never
 // contributes to `.dt-dd`'s own overflow.
 //
-// Deliberately does NOT implement its own Up/Down/Home/End nav: submenu rows carry the same
-// `data-dd-row` marker as every other row, so they'd normally be picked up for free by
-// `Dropdown.tsx`'s own generic panel-wide roving nav (which walks `[data-dd-row]` in DOM order) —
-// except a portaled submenu's rows are no longer DOM descendants of the panel that nav scopes
-// itself to, so the two are wired together explicitly instead: `ArrowRight`/`Enter` on the trigger
-// opens the submenu and focuses its first row; `ArrowLeft`/`Escape` inside the submenu closes it
-// and refocuses the trigger, both handled locally below — Escape/ArrowLeft stop propagation so
-// they close just this submenu, not the whole dropdown panel (`Dropdown.tsx`'s own Escape handler
-// would otherwise close/clear the entire panel instead, and since the submenu is no longer a DOM
-// descendant of the panel, that stopPropagation on the submenu itself is what actually matters —
-// the panel-level listener would never have received a portaled event to begin with once it
-// crossed back out, but stopping it here keeps the intent explicit either way).
+// Submenu rows carry the same `data-dd-row` marker as every other row, but — unlike a plain
+// (non-portaled) list — that alone does NOT get them picked up by `Dropdown.tsx`'s own generic
+// panel-wide roving nav (which walks `[data-dd-row]` within `panelRef`): a portaled submenu's rows
+// are no longer DOM descendants of that panel at all, so a keydown fired on one never reaches
+// `panelRef`'s ancestor listener via bubbling (this was missed in an earlier version of this
+// component — confirmed empirically that ArrowDown silently did nothing once a submenu was open).
+// Every submenu-local key handled here is therefore wired independently rather than inherited:
+// `ArrowRight`/`Enter` on the trigger opens the submenu and focuses its first row; `ArrowUp`/
+// `ArrowDown`/`Home`/`End` inside the submenu rove between its own rows only (scoped to
+// `submenuRef`, a small local reimplementation of `Dropdown.tsx`'s own focusables-list-and-clamp
+// logic — no search box to exclude here, so it's simpler); `ArrowLeft`/`Escape` inside the submenu
+// closes it and refocuses the trigger. Escape/ArrowLeft still call `stopPropagation()` even though
+// the portaled DOM would never reach `Dropdown.tsx`'s own panel-level listener anyway, purely to
+// keep the intent explicit and safe against a future change to how/where this renders.
 export function CategorySubmenu(props: CategorySubmenuProps) {
   const [left, setLeft] = createSignal(0)
   const [top, setTop] = createSignal(0)
@@ -176,7 +178,30 @@ export function CategorySubmenu(props: CategorySubmenuProps) {
                 e.preventDefault()
                 e.stopPropagation()
                 closeNow(true)
+                return
               }
+              if (
+                e.key !== 'ArrowDown' &&
+                e.key !== 'ArrowUp' &&
+                e.key !== 'Home' &&
+                e.key !== 'End'
+              )
+                return
+              if (!submenuRef) return
+              const focusables = ddNavFocusables(submenuRef)
+              const active = document.activeElement as HTMLElement | null
+              const idx = active ? focusables.indexOf(active) : -1
+              if (idx === -1) return
+              e.stopPropagation()
+              if (e.key === 'Home' || e.key === 'End') {
+                e.preventDefault()
+                ;(e.key === 'Home' ? focusables[0] : focusables[focusables.length - 1])?.focus()
+                return
+              }
+              const nextIdx = e.key === 'ArrowDown' ? idx + 1 : idx - 1
+              if (nextIdx < 0 || nextIdx >= focusables.length) return
+              e.preventDefault()
+              focusables[nextIdx]?.focus()
             }}
           >
             {props.children}

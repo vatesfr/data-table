@@ -113,6 +113,57 @@ describe('GroupDropdown — column categories', () => {
     expect(table.group.by()).toEqual(['team'])
     dispose()
   })
+
+  // Regression: see SortDropdown.test.tsx's identical test — the submenu's rows are portaled to
+  // document.body, so ArrowDown/Home/End silently did nothing here until CategorySubmenu grew its
+  // own local nav scoped to the submenu.
+  it("ArrowDown/Home/End rove between the submenu's own rows once open", async () => {
+    const oneCategoryCols: ColumnDef<Row>[] = [
+      { key: 'dept', label: 'Dept', groupable: true, category: 'Org' },
+      { key: 'team', label: 'Team', groupable: true, category: 'Org' },
+    ]
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    let disposeView!: () => void
+    const dispose = createRoot((d) => {
+      const table = createTableState(ROWS, oneCategoryCols)
+      const [isOpen] = createSignal(true)
+      disposeView = render(
+        () => (
+          <GroupDropdown
+            table={table}
+            groupableCols={oneCategoryCols}
+            isOpen={isOpen()}
+            onToggle={() => {}}
+            onClose={() => {}}
+          />
+        ),
+        container,
+      )
+      return d
+    })
+    const trigger = container.querySelector<HTMLButtonElement>('.dt-dd-category-trigger')!
+    trigger.click()
+    await Promise.resolve()
+    await Promise.resolve()
+    const submenu = document.querySelector<HTMLElement>('.dt-dd-submenu')!
+    const rows = [...submenu.querySelectorAll<HTMLElement>('[data-dd-row]')]
+    expect(rows.map((r) => r.textContent)).toEqual(['Dept', 'Team'])
+    expect(document.activeElement).toBe(rows[0])
+
+    document.activeElement!.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }),
+    )
+    expect(document.activeElement).toBe(rows[1])
+
+    document.activeElement!.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Home', bubbles: true, cancelable: true }),
+    )
+    expect(document.activeElement).toBe(rows[0])
+
+    disposeView()
+    dispose()
+  })
 })
 
 describe('GroupDropdown', () => {
