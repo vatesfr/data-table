@@ -227,6 +227,42 @@ describe('DataTable — filter dropdown', () => {
     expect(wrapper.findAll('.dt__dd-item')).toHaveLength(0)
   })
 
+  // Regression: filterEscapeClearable used to check only the active column's own search term,
+  // with no check on where focus actually was — so Escape pressed anywhere else in the panel
+  // (e.g. a left-pane column button) could still silently clear that column's value search.
+  it("Escape clears the active column's value search only when focus is inside the detail pane", async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS, columns: FILTER_COLS, rowKey: 'id' },
+      attachTo: document.body,
+    })
+    const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
+    await filterBtn.trigger('click')
+    const valueSearch = wrapper.find('.dt__filter-detail input.dt__dd-search')
+    await valueSearch.setValue('9')
+    ;(valueSearch.element as HTMLElement).focus()
+    await valueSearch.trigger('keydown', { key: 'Escape' })
+    expect((valueSearch.element as HTMLInputElement).value).toBe('')
+    wrapper.unmount()
+  })
+
+  it('does not clear the value search when focus is elsewhere in the panel (e.g. the left pane)', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS, columns: FILTER_COLS, rowKey: 'id' },
+      attachTo: document.body,
+    })
+    const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
+    await filterBtn.trigger('click')
+    const valueSearch = wrapper.find('.dt__filter-detail input.dt__dd-search')
+    await valueSearch.setValue('9')
+    const nameColBtn = wrapper
+      .findAll('.dt__filter-col-item')
+      .find((el) => el.text().includes('Name'))!
+    ;(nameColBtn.element as HTMLElement).focus()
+    await nameColBtn.trigger('keydown', { key: 'Escape' })
+    expect((valueSearch.element as HTMLInputElement).value).toBe('9') // untouched
+    wrapper.unmount()
+  })
+
   it('hides a value with zero rows matching under other active filters', async () => {
     interface Row2 {
       id: number

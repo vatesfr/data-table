@@ -1079,7 +1079,14 @@ function filterEscapeClearable(): boolean {
     setDdSearchTerm('filter', '')
     return true
   }
-  if (filterDetailCol.value) {
+  // Scoped to focus actually being inside the right detail pane — without this, Escape pressed
+  // while focused anywhere else in the panel (e.g. a left-pane column button) could still
+  // silently clear the *currently selected* column's own value search term, even though the user
+  // isn't interacting with that search box at all.
+  const inDetailPane = (document.activeElement as HTMLElement | null)?.closest?.(
+    '.dt__filter-detail',
+  )
+  if (inDetailPane && filterDetailCol.value) {
     const valueSearchTerm = filterSearchTerms.value[filterDetailCol.value.key] ?? ''
     if (valueSearchTerm !== '') {
       setFilterSearchTerm(filterDetailCol.value.key, '')
