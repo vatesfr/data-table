@@ -1543,26 +1543,23 @@ describe('DataTable — columns dropdown', () => {
     expect(headers[1]).toContain('Name')
   })
 
-  it('Alt+ArrowUp on a focused column checkbox reorders headers, Space still toggles visibility', () => {
+  it('Alt+ArrowUp on a focused visible-column row reorders headers, its × still hides the column', () => {
     const { getByText, container } = render(<DataTable data={ROWS} columns={COLS} rowKey="id" />)
     fireEvent.click(getByText('Columns'))
-    const checkboxes = [
-      ...container.querySelectorAll<HTMLInputElement>('[draggable] input[type="checkbox"]'),
-    ]
-    checkboxes[1].focus()
-    fireEvent.keyDown(checkboxes[1], { key: 'ArrowUp', altKey: true })
+    const rows = draggableRows(container)
+    rows[1].focus()
+    fireEvent.keyDown(rows[1], { key: 'ArrowUp', altKey: true })
     let headers = [...container.querySelectorAll('th')].map((th) => th.textContent)
     expect(headers[0]).toContain('Score')
     // Same reasoning as the Sort dropdown's equivalent test above — React keeps the same
-    // checkbox node in place across the reorder, so focus stays put with no explicit refocus.
-    const after = [
-      ...container.querySelectorAll<HTMLInputElement>('[draggable] input[type="checkbox"]'),
-    ]
+    // row node in place across the reorder, so focus stays put with no explicit refocus.
+    const after = draggableRows(container)
     expect(document.activeElement).toBe(after[0])
 
-    fireEvent.click(checkboxes[0])
+    const removeBtn = after[0].querySelector<HTMLButtonElement>('button')!
+    fireEvent.click(removeBtn)
     headers = [...container.querySelectorAll('th')].map((th) => th.textContent)
-    expect(headers.some((h) => h?.includes('Name'))).toBe(false)
+    expect(headers.some((h) => h?.includes('Score'))).toBe(false)
   })
 
   it('dropping past the last column row moves the dragged row to the end', () => {
@@ -1603,6 +1600,173 @@ describe('DataTable — columns dropdown', () => {
     expect(headers[0]).toContain('Score')
     expect(headers[1]).toContain('Id')
     expect(headers[2]).toContain('Name')
+  })
+})
+
+describe('DataTable — Columns dropdown Visible/Available split', () => {
+  interface VRow {
+    id: number
+    name: string
+    score: number
+  }
+  const VCOLS: ColumnDef<VRow>[] = [
+    { key: 'id', label: 'ID' },
+    { key: 'name', label: 'Name' },
+    { key: 'score', label: 'Score', type: 'number' },
+  ]
+  const VROWS: VRow[] = [{ id: 1, name: 'Alice', score: 90 }]
+
+  function visibleLabels(container: HTMLElement): (string | undefined | null)[] {
+    return [...container.querySelectorAll('[data-col-row-key] span')].map((el) => el.textContent)
+  }
+
+  it('lists every visible column in table order, not alphabetized', () => {
+    const { getByText, container } = render(<DataTable data={VROWS} columns={VCOLS} rowKey="id" />)
+    fireEvent.click(getByText('Columns'))
+    expect(visibleLabels(container)).toEqual(['ID', 'Name', 'Score'])
+  })
+
+  it('the × button hides a column, moving it into Available', () => {
+    const { getByText, container } = render(<DataTable data={VROWS} columns={VCOLS} rowKey="id" />)
+    fireEvent.click(getByText('Columns'))
+    fireEvent.click(container.querySelector<HTMLButtonElement>('[data-col-row-key="id"] button')!)
+    expect(visibleLabels(container)).toEqual(['Name', 'Score'])
+    expect(container.querySelector('[data-col-key="id"]')?.textContent).toContain('ID')
+  })
+
+  it('Delete/Backspace on a focused visible row hides it, same as its × button', () => {
+    const { getByText, container } = render(<DataTable data={VROWS} columns={VCOLS} rowKey="id" />)
+    fireEvent.click(getByText('Columns'))
+    const row = container.querySelector<HTMLElement>('[data-col-row-key="id"]')!
+    fireEvent.keyDown(row, { key: 'Delete' })
+    expect(visibleLabels(container)).toEqual(['Name', 'Score'])
+  })
+
+  it('hiding the last visible column is a no-op (stays >= 1 visible)', () => {
+    const { getByText, container } = render(<DataTable data={VROWS} columns={VCOLS} rowKey="id" />)
+    fireEvent.click(getByText('Columns'))
+    fireEvent.click(container.querySelector<HTMLButtonElement>('[data-col-row-key="id"] button')!)
+    fireEvent.click(container.querySelector<HTMLButtonElement>('[data-col-row-key="name"] button')!)
+    expect(visibleLabels(container)).toEqual(['Score'])
+    fireEvent.click(
+      container.querySelector<HTMLButtonElement>('[data-col-row-key="score"] button')!,
+    )
+    expect(visibleLabels(container)).toEqual(['Score']) // unchanged
+  })
+
+  it('Alt+ArrowDown on a row moves it down one visible position', () => {
+    const { getByText, container } = render(<DataTable data={VROWS} columns={VCOLS} rowKey="id" />)
+    fireEvent.click(getByText('Columns'))
+    const idRow = container.querySelector<HTMLElement>('[data-col-row-key="id"]')!
+    fireEvent.keyDown(idRow, { key: 'ArrowDown', altKey: true })
+    expect(visibleLabels(container)).toEqual(['Name', 'ID', 'Score'])
+  })
+
+  it('Alt+ArrowDown skips a hidden column, reordering against the next visible one', () => {
+    const { getByText, container } = render(<DataTable data={VROWS} columns={VCOLS} rowKey="id" />)
+    fireEvent.click(getByText('Columns'))
+    fireEvent.click(container.querySelector<HTMLButtonElement>('[data-col-row-key="name"] button')!) // hide the one in between id/score
+    expect(visibleLabels(container)).toEqual(['ID', 'Score'])
+    const idRow = container.querySelector<HTMLElement>('[data-col-row-key="id"]')!
+    fireEvent.keyDown(idRow, { key: 'ArrowDown', altKey: true })
+    expect(visibleLabels(container)).toEqual(['Score', 'ID']) // not a no-op
+  })
+
+  it('lists hidden columns as plain addable rows, in table order', () => {
+    const { getByText, container } = render(<DataTable data={VROWS} columns={VCOLS} rowKey="id" />)
+    fireEvent.click(getByText('Columns'))
+    fireEvent.click(container.querySelector<HTMLButtonElement>('[data-col-row-key="id"] button')!)
+    fireEvent.click(
+      container.querySelector<HTMLButtonElement>('[data-col-row-key="score"] button')!,
+    )
+    expect(
+      [...container.querySelectorAll('button[data-col-key]')].map((b) => b.textContent),
+    ).toEqual(['ID', 'Score'])
+  })
+
+  it('clicking an addable row shows the column again and refocuses its new visible row', () => {
+    const { getByText, container } = render(<DataTable data={VROWS} columns={VCOLS} rowKey="id" />)
+    fireEvent.click(getByText('Columns'))
+    fireEvent.click(container.querySelector<HTMLButtonElement>('[data-col-row-key="id"] button')!)
+    fireEvent.click(container.querySelector<HTMLButtonElement>('[data-col-key="id"]')!)
+    expect(visibleLabels(container)).toEqual(['ID', 'Name', 'Score']) // reappears at its original position, not appended
+    expect(document.activeElement).toBe(container.querySelector('[data-col-row-key="id"]'))
+  })
+
+  it('no Available section (or search box) is rendered once every column is visible', () => {
+    const { getByText, container } = render(<DataTable data={VROWS} columns={VCOLS} rowKey="id" />)
+    fireEvent.click(getByText('Columns'))
+    expect(container.querySelector('input[data-dd-search]')).toBeNull()
+  })
+
+  it('categorized hidden columns collapse into a submenu trigger instead of plain rows', () => {
+    const categorized: ColumnDef<VRow>[] = [
+      { key: 'id', label: 'ID' },
+      { key: 'name', label: 'Name', category: 'Info' },
+      { key: 'score', label: 'Score', type: 'number', category: 'Info' },
+    ]
+    const { getByText, container } = render(
+      <DataTable data={VROWS} columns={categorized} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Columns'))
+    fireEvent.click(container.querySelector<HTMLButtonElement>('[data-col-row-key="name"] button')!)
+    fireEvent.click(
+      container.querySelector<HTMLButtonElement>('[data-col-row-key="score"] button')!,
+    )
+    expect(container.querySelector('button[data-col-key]')).toBeNull() // no flat addable rows
+    expect(container.querySelector('[data-category-header]')?.textContent).toContain('Info')
+  })
+
+  it('adding a categorized column from inside its submenu refocuses the new visible row', () => {
+    const categorized: ColumnDef<VRow>[] = [
+      { key: 'id', label: 'ID' },
+      { key: 'name', label: 'Name', category: 'Info' },
+      { key: 'score', label: 'Score', type: 'number', category: 'Info' },
+    ]
+    const { getByText, container } = render(
+      <DataTable data={VROWS} columns={categorized} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Columns'))
+    fireEvent.click(container.querySelector<HTMLButtonElement>('[data-col-row-key="name"] button')!)
+    const trigger = container.querySelector<HTMLButtonElement>('[data-category-header]')!
+    fireEvent.click(trigger)
+    const submenu = document.querySelector('[data-category-submenu]')!
+    const nameBtn = submenu.querySelector<HTMLButtonElement>('[data-col-key="name"]')!
+    fireEvent.click(nameBtn)
+    expect(document.activeElement).toBe(container.querySelector('[data-col-row-key="name"]'))
+  })
+
+  it('hiding a categorized column refocuses its category submenu trigger, not a nonexistent addable row', () => {
+    const categorized: ColumnDef<VRow>[] = [
+      { key: 'id', label: 'ID' },
+      { key: 'name', label: 'Name', category: 'Info' },
+      { key: 'score', label: 'Score', type: 'number', category: 'Info' },
+    ]
+    const { getByText, container } = render(
+      <DataTable data={VROWS} columns={categorized} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Columns'))
+    fireEvent.click(container.querySelector<HTMLButtonElement>('[data-col-row-key="name"] button')!)
+    expect(document.activeElement).toBe(container.querySelector('[data-category-header]'))
+  })
+
+  it('search narrows Available only, matching label or category; Visible is unaffected', () => {
+    const categorized: ColumnDef<VRow>[] = [
+      { key: 'id', label: 'ID' },
+      { key: 'name', label: 'Name', category: 'Info' },
+      { key: 'score', label: 'Score', type: 'number', category: 'Info' },
+    ]
+    const { getByText, container } = render(
+      <DataTable data={VROWS} columns={categorized} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Columns'))
+    fireEvent.click(container.querySelector<HTMLButtonElement>('[data-col-row-key="name"] button')!)
+    expect(visibleLabels(container)).toEqual(['ID', 'Score'])
+
+    const search = container.querySelector<HTMLInputElement>('input[data-dd-search]')!
+    fireEvent.change(search, { target: { value: 'Info' } })
+    expect(container.querySelector('[data-category-header]')?.textContent).toContain('Info')
+    expect(visibleLabels(container)).toEqual(['ID', 'Score']) // still unaffected by the search term
   })
 })
 

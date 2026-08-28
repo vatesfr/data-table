@@ -33,15 +33,23 @@ function ddCopyOf(getAllByText: (text: string) => HTMLElement[], label: string):
 }
 
 describe('DataTable — dropdown column search', () => {
-  it('the Columns dropdown search box narrows the column list by label', () => {
-    const { getByText, container } = render(<DataTable data={ROWS} columns={COLS} rowKey="id" />)
+  it('the Columns dropdown search box narrows the Available list by label, leaving Visible untouched', () => {
+    const { getByText, container } = render(
+      <DataTable
+        data={ROWS}
+        columns={COLS}
+        rowKey="id"
+        initialViewState={{ visibleCols: ['name'] }}
+      />,
+    )
     fireEvent.click(getByText('Columns'))
     const search = container.querySelector<HTMLInputElement>('input[data-dd-search]')!
     fireEvent.change(search, { target: { value: 'sc' } })
-    const rowLabels = [...container.querySelectorAll('[data-col-row-key] label')].map((l) =>
-      l.textContent?.trim(),
-    )
-    expect(rowLabels).toEqual(['Score'])
+    expect(
+      [...container.querySelectorAll('button[data-col-key]')].map((b) => b.textContent),
+    ).toEqual(['Score'])
+    // Visible (Name) is unaffected by the search term.
+    expect(container.querySelector('[data-col-row-key="name"]')).not.toBeNull()
   })
 
   it('the Columns dropdown search box also matches by category, surfacing every column filed under it', () => {
@@ -51,15 +59,27 @@ describe('DataTable — dropdown column search', () => {
       { key: 'dept', label: 'Dept', type: 'string' },
     ]
     const { getByText, container } = render(
-      <DataTable data={ROWS} columns={categorizedCols} rowKey="id" />,
+      <DataTable
+        data={ROWS}
+        columns={categorizedCols}
+        rowKey="id"
+        initialViewState={{ visibleCols: ['dept'] }}
+      />,
     )
     fireEvent.click(getByText('Columns'))
     const search = container.querySelector<HTMLInputElement>('input[data-dd-search]')!
     fireEvent.change(search, { target: { value: 'Info' } })
-    const rowLabels = [...container.querySelectorAll('[data-col-row-key] label')].map((l) =>
-      l.textContent?.trim(),
-    )
-    expect(rowLabels).toEqual(['Name', 'Score']) // neither label contains "Info" — only category does
+    // Name/Score are categorized under "Info" — searching the category surfaces them collapsed
+    // into a submenu trigger, not as flat data-col-key rows.
+    expect(container.querySelector('button[data-col-key]')).toBeNull()
+    const trigger = container.querySelector('[data-category-header]')!
+    expect(trigger.textContent).toContain('Info')
+    fireEvent.click(trigger)
+    expect(
+      [...document.querySelectorAll('[data-category-submenu] button[data-col-key]')].map(
+        (b) => b.textContent,
+      ),
+    ).toEqual(['Name', 'Score'])
   })
 
   it('the Sort dropdown search box narrows only the addable list, alphabetized, leaving active sorts untouched', () => {
@@ -215,7 +235,14 @@ describe('DataTable — Filter dropdown column categories', () => {
 
 describe('DataTable — dropdown focus-on-open', () => {
   it('opening a dropdown focuses its search box', () => {
-    const { getByText, container } = render(<DataTable data={ROWS} columns={COLS} rowKey="id" />)
+    const { getByText, container } = render(
+      <DataTable
+        data={ROWS}
+        columns={COLS}
+        rowKey="id"
+        initialViewState={{ visibleCols: ['name'] }}
+      />,
+    )
     fireEvent.click(getByText('Columns'))
     expect(document.activeElement).toBe(container.querySelector('input[data-dd-search]'))
   })
@@ -251,9 +278,18 @@ describe('DataTable — dropdown keyboard navigation order and Escape', () => {
   })
 
   it('Home/End jump to the first/last row, skipping the search box', () => {
-    const { getByText, container } = render(<DataTable data={ROWS} columns={COLS} rowKey="id" />)
+    const { getByText, container } = render(
+      <DataTable
+        data={ROWS}
+        columns={COLS}
+        rowKey="id"
+        initialViewState={{ visibleCols: ['name'] }}
+      />,
+    )
     fireEvent.click(getByText('Columns'))
-    const rows = [...container.querySelectorAll<HTMLElement>('[data-col-row-key] input')]
+    const rows = [
+      ...container.querySelectorAll<HTMLElement>('[data-col-row-key], button[data-col-key]'),
+    ]
     rows[0].focus()
     fireEvent.keyDown(rows[0], { key: 'End' })
     expect(document.activeElement).toBe(rows[rows.length - 1])
@@ -262,7 +298,14 @@ describe('DataTable — dropdown keyboard navigation order and Escape', () => {
   })
 
   it('Escape clears a non-empty dropdown search term before closing the dropdown', () => {
-    const { getByText, container } = render(<DataTable data={ROWS} columns={COLS} rowKey="id" />)
+    const { getByText, container } = render(
+      <DataTable
+        data={ROWS}
+        columns={COLS}
+        rowKey="id"
+        initialViewState={{ visibleCols: ['name'] }}
+      />,
+    )
     fireEvent.click(getByText('Columns'))
     const search = container.querySelector<HTMLInputElement>('input[data-dd-search]')!
     fireEvent.change(search, { target: { value: 'sc' } })
@@ -277,9 +320,9 @@ describe('DataTable — dropdown keyboard navigation order and Escape', () => {
   it('Escape closes the dropdown immediately when its search term is already empty, refocusing the toggle button', () => {
     const { getByText, container } = render(<DataTable data={ROWS} columns={COLS} rowKey="id" />)
     fireEvent.click(getByText('Columns'))
-    const checkbox = container.querySelector<HTMLElement>('[data-col-row-key] input')!
-    checkbox.focus()
-    fireEvent.keyDown(checkbox, { key: 'Escape' })
+    const row = container.querySelector<HTMLElement>('[data-col-row-key]')!
+    row.focus()
+    fireEvent.keyDown(row, { key: 'Escape' })
     expect(container.querySelector('input[data-dd-search]')).toBeNull()
     expect(document.activeElement?.textContent).toBe('Columns')
   })
