@@ -7,6 +7,21 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-08-28
+
+### Added
+
+- **Column categories** (core, Solid, React, Vue): opt-in `ColumnDefBase.category?: string` groups columns for discoverability in the Columns/Sort/Group/Filter dropdowns' column lists instead of one long flat run of rows. `groupColumnsByCategory`/`columnMatchesSearch`/`categorizedAlphabetizedByLabel` (core) are the shared building blocks. Sort/Group render a category as a hover-intent flyout submenu (`CategorySubmenu`, portaled to `document.body`/root to escape the panel's own scroll clipping); the Filter dropdown's left pane instead renders a category as an inline collapsible section (submenus aren't an option there — `ArrowRight` is already taken for left-pane→detail-pane crossing), collapsed by default except a category holding an active filter at the moment the dropdown opens. Each dropdown's search box now also matches a column's category name, not just its own label. See CLAUDE.md's "Column categories" section for full detail.
+- **Columns dropdown redesign** (Solid, React, Vue): replaces the single flat all-columns-with-a-checkbox list with a "Visible columns" section (every shown column, draggable/Alt+↑↓-reorderable) above an "Available columns" section (hidden columns, click to show; a categorized one collapses into a `CategorySubmenu`). New core helper `moveVisibleColumnBy` (Alt+↑/↓ within Visible skips over hidden columns, unlike the plain `moveColumnBy`). New locale key `availableColumnsSection` (all 5 languages); `columnsSection`'s text changed from "Display" to "Visible columns".
+- **Delete/Backspace-to-remove + hover/focus background on active rows** (Solid, React, Vue): a focused/hovered Sort active-sort/"Group order" row, Group active row, or Columns Visible row now gets a background tint (not just the native focus outline), and Delete/Backspace removes/hides it — the keyboard equivalent of clicking that row's own `×` — matching the Filter dropdown's pre-existing equivalents.
+- Vanilla: `getProcessedData()` on `DataTableInstance` — the current search+filter+sort row order (pre-grouping/pagination), mirroring React/Vue/Solid's `TableState.processedData`, so a consumer no longer has to reach into `@vates/data-table-core/internal` directly (#22).
+- Vanilla: `clearAll()` on `DataTableInstance` — resets search/filters/sort/group/page to true empty defaults, distinct from `setViewState({})` (which restores `initialViewState`'s own defaults).
+
+### Fixed
+
+- Solid/React/Vue: a dropdown's non-draggable "Group order" row no longer shows the same hover highlight as a draggable row (it cancels just the hover cue, keeping the focus one, since the row is still clickable).
+- Solid/Vue: the Filter dropdown's Escape-clear-search-term shortcut could clear the wrong column's value search — it checked only whether the currently _selected_ column had a non-empty search term, not whether focus was actually inside the detail pane. Scoped to focus location. (React's equivalent handler is bound directly to that exact input, so it was never affected.)
+
 ## [0.12.0] - 2026-08-28
 
 ### Changed
