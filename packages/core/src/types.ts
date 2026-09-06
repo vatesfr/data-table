@@ -181,6 +181,8 @@ export interface DataTableLabels {
    * `sortSection`/`groupSection`'s own role for their dropdowns.
    */
   availableColumnsSection: string
+  /** Title/aria-label for a Visible-columns row's own "×" (hide) button */
+  hideColumn: string
   sort: string
   /** Heading over the already-active sort entries (priority order) in the Sort dropdown */
   activeSortsSection: string
@@ -195,6 +197,10 @@ export interface DataTableLabels {
   groupOrderHint: string
   sortSection: string
   clearSorts: string
+  /** Title/aria-label for a Sort dropdown active-entry row's own "×" (remove) button — both the
+   * "Group order" and "Active sorts" sections use it, since both remove the same kind of thing:
+   * one sort entry. */
+  removeSort: string
   filter: string
   filterSearchPlaceholder: string
   selectAll: string
@@ -218,6 +224,12 @@ export interface DataTableLabels {
   activeGroupsSection: string
   groupSection: string
   clearGroups: string
+  /** Title/aria-label for a Group dropdown active-entry row's own "×" (remove) button */
+  removeGroup: string
+  /** Title/aria-label for the active bar's merged grouped-sort chip's own "⊞" button, which opens
+   * the Group dropdown focused on this entry — distinct from that chip's body, which toggles sort
+   * direction instead (see ActiveBar.tsx's "Auto-syncing group order with sort" merged-chip case) */
+  openGroupDropdown: string
   clearAll: string
   /** Title/aria-label for the button that clears the search input */
   clearSearch: string

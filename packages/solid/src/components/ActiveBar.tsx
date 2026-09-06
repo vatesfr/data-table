@@ -67,7 +67,13 @@ export function ActiveBar<TRow extends object>(props: ActiveBarProps<TRow>) {
                   <button type="button" class="dt-chip-body" onClick={() => props.onOpenGroup(key)}>
                     {col()?.label ?? key}
                   </button>
-                  <button type="button" class="dt-chip-x" onClick={() => table.group.remove(key)}>
+                  <button
+                    type="button"
+                    class="dt-chip-x"
+                    title={table.labels().removeGroup}
+                    aria-label={table.labels().removeGroup}
+                    onClick={() => table.group.remove(key)}
+                  >
                     ×
                   </button>
                 </span>
@@ -81,18 +87,31 @@ export function ActiveBar<TRow extends object>(props: ActiveBarProps<TRow>) {
                 >
                   {getSortIcon(table.sort.entries(), key)} {col()?.label ?? key}
                 </button>
-                <button type="button" class="dt-chip-x" onClick={() => table.sort.remove(key)}>
+                <button
+                  type="button"
+                  class="dt-chip-x"
+                  title={table.labels().removeSort}
+                  aria-label={table.labels().removeSort}
+                  onClick={() => table.sort.remove(key)}
+                >
                   ×
                 </button>
                 <button
                   type="button"
                   class="dt-chip-group-mark"
-                  aria-label={table.labels().group}
+                  title={table.labels().openGroupDropdown}
+                  aria-label={table.labels().openGroupDropdown}
                   onClick={() => props.onOpenGroup(key)}
                 >
                   ⊞
                 </button>
-                <button type="button" class="dt-chip-x" onClick={() => table.group.remove(key)}>
+                <button
+                  type="button"
+                  class="dt-chip-x"
+                  title={table.labels().removeGroup}
+                  aria-label={table.labels().removeGroup}
+                  onClick={() => table.group.remove(key)}
+                >
                   ×
                 </button>
               </span>
@@ -112,7 +131,13 @@ export function ActiveBar<TRow extends object>(props: ActiveBarProps<TRow>) {
               >
                 {getSortIcon(table.sort.entries(), entry.key)} {col()?.label ?? entry.key}
               </button>
-              <button type="button" class="dt-chip-x" onClick={() => table.sort.remove(entry.key)}>
+              <button
+                type="button"
+                class="dt-chip-x"
+                title={table.labels().removeSort}
+                aria-label={table.labels().removeSort}
+                onClick={() => table.sort.remove(entry.key)}
+              >
                 ×
               </button>
             </span>
@@ -130,6 +155,8 @@ export function ActiveBar<TRow extends object>(props: ActiveBarProps<TRow>) {
               <button
                 type="button"
                 class="dt-chip-x"
+                title={table.labels().clearColumnFilter}
+                aria-label={table.labels().clearColumnFilter}
                 onClick={() => table.filter.clearColumn(key, 'include')}
               >
                 ×
@@ -147,6 +174,8 @@ export function ActiveBar<TRow extends object>(props: ActiveBarProps<TRow>) {
               <button
                 type="button"
                 class="dt-chip-x"
+                title={table.labels().clearColumnFilter}
+                aria-label={table.labels().clearColumnFilter}
                 onClick={() => table.filter.clearColumn(key, 'exclude')}
               >
                 ×
@@ -167,6 +196,8 @@ export function ActiveBar<TRow extends object>(props: ActiveBarProps<TRow>) {
               <button
                 type="button"
                 class="dt-chip-x"
+                title={table.labels().clearColumnFilter}
+                aria-label={table.labels().clearColumnFilter}
                 onClick={() => table.filter.clearColumn(key, 'range')}
               >
                 ×

@@ -180,6 +180,23 @@ describe('GroupDropdown — column categories', () => {
     disposeView()
     dispose()
   })
+
+  it('a category match is flattened into a plain, category-tagged row while searching', () => {
+    const { container, dispose } = mountCategorized()
+    const search = container.querySelector<HTMLInputElement>('.dt-dd-search')!
+    search.value = 'Team'
+    search.dispatchEvent(new Event('input', { bubbles: true }))
+    expect(container.querySelector('.dt-dd-category-trigger')).toBeNull() // no submenu while searching
+    const row = container.querySelector<HTMLButtonElement>('[data-col-key="team"]')!
+    expect(row.textContent).toContain('Team')
+    expect(row.textContent).toContain('Org') // category shown as a tag instead
+
+    // Clearing the search restores the collapsed submenu.
+    search.value = ''
+    search.dispatchEvent(new Event('input', { bubbles: true }))
+    expect(container.querySelector('.dt-dd-category-trigger')?.textContent).toContain('Org')
+    dispose()
+  })
 })
 
 describe('GroupDropdown', () => {
@@ -208,6 +225,17 @@ describe('GroupDropdown', () => {
       .querySelector<HTMLButtonElement>('.dt-item-remove')!
       .click()
     expect(table.group.by()).toEqual(['team'])
+    dispose()
+  })
+
+  it('an active row has a drag-handle icon and a labeled remove button', () => {
+    const { container, table, dispose } = mount()
+    table.group.toggle('dept')
+    const row = container.querySelector<HTMLElement>('[data-group-key="dept"]')!
+    expect(row.querySelector('.dt-dd-drag-handle')).not.toBeNull()
+    const removeBtn = row.querySelector<HTMLButtonElement>('.dt-item-remove')!
+    expect(removeBtn.title).toBe(table.labels().removeGroup)
+    expect(removeBtn.getAttribute('aria-label')).toBe(table.labels().removeGroup)
     dispose()
   })
 
@@ -278,6 +306,38 @@ describe('GroupDropdown', () => {
     expect(clearBtn).not.toBeNull()
     clearBtn!.click()
     expect(table.group.by()).toEqual([])
+    dispose()
+  })
+
+  it('Enter/Space on an active row preventDefault (no click action of its own, but stops the native Space-scroll)', () => {
+    const { container, table, dispose } = mount()
+    table.group.toggle('dept')
+    const row = container.querySelector<HTMLElement>('[data-group-key="dept"]')!
+    const enterEvent = new KeyboardEvent('keydown', {
+      key: 'Enter',
+      bubbles: true,
+      cancelable: true,
+    })
+    row.dispatchEvent(enterEvent)
+    expect(enterEvent.defaultPrevented).toBe(true)
+    const spaceEvent = new KeyboardEvent('keydown', { key: ' ', bubbles: true, cancelable: true })
+    row.dispatchEvent(spaceEvent)
+    expect(spaceEvent.defaultPrevented).toBe(true)
+    dispose()
+  })
+
+  it('Escape closes the dropdown on the first press when focus is on a row, even with a non-empty search term', () => {
+    const { container, table, dispose } = mount()
+    table.group.toggle('dept')
+    const search = container.querySelector<HTMLInputElement>('.dt-dd-search')!
+    search.value = 'team'
+    search.dispatchEvent(new Event('input', { bubbles: true }))
+    const row = container.querySelector<HTMLElement>('[data-group-key="dept"]')!
+    row.focus()
+    row.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }),
+    )
+    expect(container.querySelector('.dt-dd')).toBeNull() // closed on the first press
     dispose()
   })
 })

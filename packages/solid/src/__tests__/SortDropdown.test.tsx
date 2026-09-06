@@ -247,6 +247,25 @@ describe('SortDropdown — column categories', () => {
     disposeView()
     dispose()
   })
+
+  it('a category match is flattened into a plain, category-tagged row while searching', () => {
+    const { container, dispose } = mountCategorized()
+    const search = container.querySelector<HTMLInputElement>('.dt-dd-search')!
+    search.value = 'Score'
+    search.dispatchEvent(new Event('input', { bubbles: true }))
+    expect(container.querySelector('.dt-dd-category-trigger')).toBeNull() // no submenu while searching
+    const row = container.querySelector<HTMLButtonElement>('[data-col-key="score"]')!
+    expect(row.textContent).toContain('Score')
+    expect(row.textContent).toContain('Numbers') // category shown as a tag instead
+
+    // Clearing the search restores the collapsed submenus.
+    search.value = ''
+    search.dispatchEvent(new Event('input', { bubbles: true }))
+    expect(
+      [...container.querySelectorAll('.dt-dd-category-trigger')].map((b) => b.textContent),
+    ).toEqual(['Info▸', 'Numbers▸'])
+    dispose()
+  })
 })
 
 describe('SortDropdown', () => {
@@ -284,6 +303,28 @@ describe('SortDropdown', () => {
     const row = container.querySelector<HTMLElement>('[data-sort-key="name"]')!
     row.querySelector<HTMLButtonElement>('.dt-item-remove')!.click()
     expect(table.sort.entries()).toEqual([{ key: 'score', dir: 'asc' }])
+    dispose()
+  })
+
+  it('an active row has a drag-handle icon and a labeled remove button', () => {
+    const { container, table, dispose } = mount()
+    table.sort.toggle('name')
+    const row = container.querySelector<HTMLElement>('[data-sort-key="name"]')!
+    expect(row.querySelector('.dt-dd-drag-handle')).not.toBeNull()
+    const removeBtn = row.querySelector<HTMLButtonElement>('.dt-item-remove')!
+    expect(removeBtn.title).toBe(table.labels().removeSort)
+    expect(removeBtn.getAttribute('aria-label')).toBe(table.labels().removeSort)
+    dispose()
+  })
+
+  it('a "Group order" row has a labeled remove button but no drag-handle (it is not draggable)', () => {
+    const { container, table, dispose } = mount()
+    table.group.toggle('name')
+    table.sort.appendOrToggle('score')
+    const row = container.querySelector<HTMLElement>('[data-dd-row].dt-dd-item--locked')!
+    expect(row.querySelector('.dt-dd-drag-handle')).toBeNull()
+    const removeBtn = row.querySelector<HTMLButtonElement>('.dt-item-remove')!
+    expect(removeBtn.title).toBe(table.labels().removeSort)
     dispose()
   })
 
@@ -469,6 +510,20 @@ describe('SortDropdown', () => {
     )
     expect(addableLabels).not.toContain('ID')
     expect(addableLabels).toEqual(['Name', 'Score'])
+    dispose()
+  })
+
+  it('Escape closes the dropdown on the first press when focus is on a row, even with a non-empty search term', () => {
+    const { container, dispose } = mount()
+    const search = container.querySelector<HTMLInputElement>('.dt-dd-search')!
+    search.value = 'sco'
+    search.dispatchEvent(new Event('input', { bubbles: true }))
+    const row = container.querySelector<HTMLElement>('[data-dd-row]')!
+    row.focus()
+    row.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }),
+    )
+    expect(container.querySelector('.dt-dd')).toBeNull() // closed on the first press
     dispose()
   })
 })

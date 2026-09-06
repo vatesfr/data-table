@@ -19,6 +19,7 @@ import {
   computeRangeSliderGeometry,
   formatRangeBound,
   categorizedAlphabetizedByLabel,
+  alphabetizedByLabel,
   formatDateTreeLabel,
   sortFilterValues,
   cycleValueSort,
@@ -316,6 +317,24 @@ const S = {
     color: 'var(--color-text-tertiary)',
     lineHeight: 1,
   } as CSSProperties,
+  // Purely visual drag-reorder affordance on the Columns "Visible columns" rows and Sort/Group's
+  // own active rows (not Sort's non-draggable "Group order" rows) — the whole row is already the
+  // drag surface, this just hints that it's there.
+  ddDragHandle: {
+    flexShrink: 0,
+    color: 'var(--color-text-tertiary)',
+    fontSize: 13,
+    lineHeight: 1,
+  } as CSSProperties,
+  // Shown next to a column's label when a search term flattens it out of its own category's
+  // CategorySubmenu into a plain row (see the Columns/Sort/Group add-lists below) — with no
+  // submenu heading to supply that context anymore, the category would otherwise be invisible.
+  ddItemCategory: {
+    fontSize: 11,
+    color: 'var(--color-text-tertiary)',
+    flexShrink: 0,
+    whiteSpace: 'nowrap',
+  } as CSSProperties,
   // Button reset merged onto ddItem for rows rendered as <button> (add-lists, filter column
   // selector) instead of <div> — needed for keyboard reachability (see those call sites).
   ddItemButton: {
@@ -522,7 +541,7 @@ const S = {
   ddSearch: {
     display: 'block',
     flex: 1,
-    padding: '5px 8px',
+    padding: '5px 20px 5px 8px',
     fontSize: 12,
     border: '0.5px solid var(--color-border-secondary)',
     borderRadius: 6,
@@ -530,6 +549,31 @@ const S = {
     color: 'inherit',
     fontFamily: 'inherit',
     boxSizing: 'border-box',
+  } as CSSProperties,
+  // Wraps a dropdown search <input> + its own × clear button (see DdSearchInput/the Filter
+  // dropdown's own value-search input) — position:relative anchors the clear button's own
+  // position:absolute. Merged with `filterColsSearch` below for the Filter dropdown's left pane
+  // (that one needs position:sticky instead, applied after this in the object so it wins the
+  // merge — see filterColsSearch's own comment).
+  ddSearchWrap: {
+    position: 'relative',
+    display: 'flex',
+    flex: 1,
+    minWidth: 0,
+  } as CSSProperties,
+  ddSearchClear: {
+    position: 'absolute',
+    right: 4,
+    top: '50%',
+    transform: 'translateY(-50%)',
+    background: 'none',
+    border: 'none',
+    cursor: 'pointer',
+    padding: '2px 4px',
+    fontSize: 13,
+    lineHeight: 1,
+    color: 'var(--color-text-tertiary)',
+    fontFamily: 'inherit',
   } as CSSProperties,
   // Wraps the Columns/Sort/Group dropdowns' own column-search box — sticky so it stays put while
   // a long list scrolls underneath it (the panel itself scrolls, see Dropdown.tsx's maxHeight).
@@ -541,11 +585,12 @@ const S = {
     padding: '6px 12px',
     zIndex: 1,
   } as CSSProperties,
-  // Same idea, scoped to the Filter dropdown's left column pane (its own scrollable box).
+  // Same idea, scoped to the Filter dropdown's left column pane (its own scrollable box) — merged
+  // onto DdSearchInput's outer wrap (see ddSearchWrap above) as `extraStyle`, not the input itself,
+  // so `position: sticky` applies to the whole input+clear-button pair.
   filterColsSearch: {
     position: 'sticky',
     top: 0,
-    display: 'block',
     width: '100%',
     boxSizing: 'border-box',
     marginBottom: 4,
@@ -756,36 +801,57 @@ function RangeSlider({
  * The Columns/Sort/Group/Filter dropdowns' own column-search box — narrows that dropdown's
  * column list by label, with Escape clearing the term (stopping propagation so it doesn't also
  * close the dropdown itself). `extraStyle` covers the one difference between call sites: the
- * Filter dropdown's left pane merges in `S.filterColsSearch` instead of wrapping the input in
- * `S.ddSearchRow` the way Columns/Sort/Group do.
+ * Filter dropdown's left pane merges in `S.filterColsSearch` (on the outer wrapper, not the input
+ * itself — see that style's own comment) instead of wrapping the input in `S.ddSearchRow` the way
+ * Columns/Sort/Group do.
+ *
+ * Also carries its own × clear button (shown only once `value` is non-empty) — previously Escape
+ * was the only way to clear it, with no click target for a mouse-only user, unlike the toolbar's
+ * own global search box (see SearchBox's `S.searchClear` below, same idea, reusing the same
+ * `clearSearch` label).
  */
 function DdSearchInput({
   value,
   onChange,
   placeholder,
+  clearLabel,
   extraStyle,
 }: {
   value: string
   onChange: (value: string) => void
   placeholder: string
+  clearLabel: string
   extraStyle?: CSSProperties
 }) {
   return (
-    <input
-      type="text"
-      data-dd-search
-      placeholder={placeholder}
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      onKeyDown={(e) => {
-        if (e.key === 'Escape' && e.currentTarget.value !== '') {
-          e.preventDefault()
-          e.stopPropagation()
-          onChange('')
-        }
-      }}
-      style={{ ...S.ddSearch, ...extraStyle }}
-    />
+    <span style={{ ...S.ddSearchWrap, ...extraStyle }}>
+      <input
+        type="text"
+        data-dd-search
+        placeholder={placeholder}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape' && e.currentTarget.value !== '') {
+            e.preventDefault()
+            e.stopPropagation()
+            onChange('')
+          }
+        }}
+        style={S.ddSearch}
+      />
+      {value !== '' && (
+        <button
+          type="button"
+          title={clearLabel}
+          aria-label={clearLabel}
+          onClick={() => onChange('')}
+          style={S.ddSearchClear}
+        >
+          ×
+        </button>
+      )}
+    </span>
   )
 }
 
@@ -877,9 +943,12 @@ export function DataTableView<TRow extends object>({
   })
   // Hides `col`, refocusing whatever it reappears as in Available — shared by a visible row's own
   // × button and its Delete/Backspace keyboard equivalent (see pendingColFocusKey's own comment
-  // above for why a category name and a column key are both valid values to stash here).
+  // above for why a category name and a column key are both valid values to stash here). While
+  // searching, a categorized column reappears flattened out of its submenu (see the render below)
+  // — its own addable row, not the category's — so the category-name target only applies when
+  // *not* currently searching.
   function hideColumn(col: ColumnDef<TRow>): void {
-    pendingColFocusKey.current = col.category ?? col.key
+    pendingColFocusKey.current = col.category && !isColsSearching ? col.category : col.key
     toggleColVisibility(col.key)
   }
   // Which category submenu is open, one independent value per dropdown — a single shared value
@@ -1212,19 +1281,33 @@ export function DataTableView<TRow extends object>({
   ): T[] => cols.filter((c) => columnMatchesSearch(c, term))
   // Columns dropdown: "Visible columns" (every column the user has chosen to show — visibleCols,
   // not activeColumns, so a column merely hidden *by grouping* still counts as visible here) is
-  // the draggable/Alt+↑↓-reorderable list this dropdown always was; unaffected by search, matching
-  // Sort/Group (search narrows only what's being added, not what's already active). "Available
-  // columns" (hidden columns, click to show) is search-narrowed and bucketed by category — but,
-  // unlike Sort/Group's addable lists, deliberately NOT alphabetized: this dropdown's whole
-  // identity is "shows real column/definition order," so Available keeps that same order instead
-  // of adopting Sort/Group's alphabetical convention (see categorizedAlphabetizedByLabel above,
-  // which this intentionally doesn't use).
+  // the draggable/Alt+↑↓-reorderable list this dropdown always was. Unlike Sort/Group, its search
+  // box narrows *both* Visible and Available — a column you already show is just as often what
+  // you're hunting for (to hide/reorder it) as one you don't, and with a typical column count
+  // Visible is usually long enough that a search box placed only below it would sit off-screen
+  // until scrolled to. "Available columns" (hidden columns, click to show) is search-narrowed and
+  // bucketed by category while *not* searching — but, unlike Sort/Group's addable lists,
+  // deliberately NOT alphabetized: this dropdown's whole identity is "shows real column/definition
+  // order," so Available keeps that same order instead of adopting Sort/Group's alphabetical
+  // convention (see categorizedAlphabetizedByLabel above, which this intentionally doesn't use).
+  const isColsSearching = (ddSearchTerms.cols ?? '').trim() !== ''
   const visibleOrderedColumns = orderedColumns.filter((c) => visibleCols.has(c.key))
-  const searchedAvailableColumns = searchCols(
-    orderedColumns.filter((c) => !visibleCols.has(c.key)),
-    ddSearchTerms.cols ?? '',
-  )
-  const categorizedAvailableCols = groupColumnsByCategory(searchedAvailableColumns)
+  const searchedVisibleColumns = searchCols(visibleOrderedColumns, ddSearchTerms.cols ?? '')
+  // Alt+↑/↓'s neighbor-eligibility set: the real visible-columns set when not searching (today's
+  // behavior, unchanged), or narrowed to just the currently-shown-and-matching keys while
+  // searching, so a search-filtered-out column is never chosen as a swap partner — see
+  // moveVisibleColumnBy's own doc comment (useTableState.ts) for why this needs a real Set, not
+  // just filtering the *rendered* rows (the underlying reorder still walks the full columnOrder).
+  const colsReorderEligible = isColsSearching
+    ? new Set(searchedVisibleColumns.map((c) => c.key))
+    : undefined
+  const availableColumns = orderedColumns.filter((c) => !visibleCols.has(c.key))
+  const searchedAvailableColumns = searchCols(availableColumns, ddSearchTerms.cols ?? '')
+  // Only bucketed by category while *not* searching — once a search term narrows a category down
+  // to one or two matches, keeping them behind a submenu trigger would force an extra hover/click
+  // right when the search was supposed to shortcut that (see the flattened, category-tagged
+  // render below instead).
+  const categorizedAvailableCols = groupColumnsByCategory(availableColumns)
   // categorizedAlphabetizedByLabel (core): search, alphabetize, bucket by category, and
   // alphabetize the categories themselves too — Sort/Group's addable lists have no "already
   // active" concept to preserve order for (unlike the Columns dropdown or Filter's left pane), so
@@ -1234,6 +1317,16 @@ export function DataTableView<TRow extends object>({
     ddSearchTerms.sort ?? '',
   )
   const categorizedAddableGroupCols = categorizedAlphabetizedByLabel(
+    addableGroupCols,
+    ddSearchTerms.group ?? '',
+  )
+  // While searching, a category match is flattened into a plain, category-tagged row instead of
+  // staying bucketed behind a submenu trigger (see the Columns dropdown's identical fix above) —
+  // hiding a single search match behind an extra hover/click defeats the point of searching.
+  const isSortSearching = (ddSearchTerms.sort ?? '').trim() !== ''
+  const isGroupSearching = (ddSearchTerms.group ?? '').trim() !== ''
+  const searchedFlatAddableSortCols = alphabetizedByLabel(addableSortCols, ddSearchTerms.sort ?? '')
+  const searchedFlatAddableGroupCols = alphabetizedByLabel(
     addableGroupCols,
     ddSearchTerms.group ?? '',
   )
@@ -1279,6 +1372,7 @@ export function DataTableView<TRow extends object>({
       setCollapsedCategories(startCollapsed)
     }
   }
+  const isFilterColSearching = (ddSearchTerms.filter ?? '').trim() !== ''
   const searchedFilterableCols = applyColumnOrderSnapshot(
     searchCols(filterableCols, ddSearchTerms.filter ?? ''),
     filterColOrderKeys,
@@ -1840,12 +1934,27 @@ export function DataTableView<TRow extends object>({
             onDragOver={onColRowsDragOver}
             onDrop={onColRowsDrop}
           >
+            {/* Pinned at the very top and always mounted (never conditionally rendered based on
+                match count) — narrows both this section and Available below. Mounting it
+                unconditionally is what fixes a real bug the old Available-only, gated-on-results
+                version had: a search term matching nothing used to unmount the box itself,
+                dropping focus with no way back short of Escape. */}
+            <div style={S.ddSearchRow}>
+              <DdSearchInput
+                value={ddSearchTerms.cols ?? ''}
+                onChange={(v) => setDdSearchTerms({ ...ddSearchTerms, cols: v })}
+                placeholder={L.filterSearchPlaceholder}
+                clearLabel={L.clearSearch}
+              />
+            </div>
             <div style={S.ddSection}>{L.columnsSection}</div>
-            {visibleOrderedColumns.map((col) => (
+            {searchedVisibleColumns.map((col) => (
               // Draggable (+ Alt+↑/↓) reorders columnOrder, skipping hidden columns (moveVisibleBy)
               // — same treatment as the Sort/Group active rows. dragover/drop are handled at the
               // Dropdown panel level (see above), not per-row — that's what lets a drop past the
-              // last row still resolve to a valid target.
+              // last row still resolve to a valid target. Alt+↑/↓'s own neighbor lookup is scoped
+              // to colsReorderEligible while searching, so it only ever swaps two currently-shown
+              // rows, leaving anything hidden by the filter untouched at its own position.
               <div
                 key={col.key}
                 data-col-row-key={col.key}
@@ -1860,12 +1969,19 @@ export function DataTableView<TRow extends object>({
                     // Focus drops to <body> after this reorder without an explicit refocus —
                     // same empirically-confirmed behavior as Sort/Group's own Alt+Arrow handlers.
                     pendingColFocusKey.current = col.key
-                    moveVisibleColumnBy(col.key, e.key === 'ArrowUp' ? -1 : 1)
+                    moveVisibleColumnBy(col.key, e.key === 'ArrowUp' ? -1 : 1, colsReorderEligible)
                   } else if (e.key === 'Delete' || e.key === 'Backspace') {
                     // Keyboard equivalent of this row's own × button — matches the Filter
                     // dropdown's identical Delete/Backspace-on-a-focused-active-row shortcut.
                     e.preventDefault()
                     hideColumn(col)
+                  } else if (e.key === 'Enter' || e.key === ' ') {
+                    // No click action of its own (unlike Sort's active rows, which toggle
+                    // direction) — but still needs to preventDefault, or Space's native default
+                    // action scrolls the nearest scrollable ancestor (this panel, or the whole
+                    // page once the panel itself has nothing left to scroll) out from under the
+                    // still-focused row, which reads as "focus was lost" even though it wasn't.
+                    e.preventDefault()
                   }
                 }}
                 {...ddRowHoverFocusHandlers(col.key)}
@@ -1883,10 +1999,15 @@ export function DataTableView<TRow extends object>({
                       : undefined,
                 }}
               >
+                <span aria-hidden="true" style={S.ddDragHandle}>
+                  ⠿
+                </span>
                 <span style={{ flex: 1 }}>{col.label}</span>
                 <button
                   type="button"
                   draggable={false}
+                  title={L.hideColumn}
+                  aria-label={L.hideColumn}
                   onClick={(e) => {
                     e.stopPropagation()
                     hideColumn(col)
@@ -1897,41 +2018,11 @@ export function DataTableView<TRow extends object>({
                 </button>
               </div>
             ))}
-            {categorizedAvailableCols.uncategorized.length > 0 ||
-            categorizedAvailableCols.categories.length > 0 ? (
+            {availableColumns.length > 0 && (
               <>
-                <div style={S.ddSearchRow}>
-                  <DdSearchInput
-                    value={ddSearchTerms.cols ?? ''}
-                    onChange={(v) => setDdSearchTerms({ ...ddSearchTerms, cols: v })}
-                    placeholder={L.filterSearchPlaceholder}
-                  />
-                </div>
                 <div style={S.ddSection}>{L.availableColumnsSection}</div>
-                {categorizedAvailableCols.uncategorized.map((col) => (
-                  <button
-                    key={col.key}
-                    type="button"
-                    data-col-key={col.key}
-                    data-dd-row
-                    onClick={() => {
-                      pendingColFocusKey.current = col.key
-                      toggleColVisibility(col.key)
-                    }}
-                    style={{ ...S.ddItem, ...S.ddItemButton }}
-                  >
-                    <span style={{ flex: 1 }}>{col.label}</span>
-                  </button>
-                ))}
-                {categorizedAvailableCols.categories.map((category) => (
-                  <CategorySubmenu
-                    key={category.name}
-                    name={category.name}
-                    isOpen={openColsCategory === category.name}
-                    onOpen={() => setOpenColsCategory(category.name)}
-                    onClose={() => setOpenColsCategory((c) => (c === category.name ? null : c))}
-                  >
-                    {category.columns.map((col) => (
+                {isColsSearching
+                  ? searchedAvailableColumns.map((col) => (
                       <button
                         key={col.key}
                         type="button"
@@ -1944,12 +2035,55 @@ export function DataTableView<TRow extends object>({
                         style={{ ...S.ddItem, ...S.ddItemButton }}
                       >
                         <span style={{ flex: 1 }}>{col.label}</span>
+                        {col.category && <span style={S.ddItemCategory}>{col.category}</span>}
                       </button>
-                    ))}
-                  </CategorySubmenu>
-                ))}
+                    ))
+                  : [
+                      ...categorizedAvailableCols.uncategorized.map((col) => (
+                        <button
+                          key={col.key}
+                          type="button"
+                          data-col-key={col.key}
+                          data-dd-row
+                          onClick={() => {
+                            pendingColFocusKey.current = col.key
+                            toggleColVisibility(col.key)
+                          }}
+                          style={{ ...S.ddItem, ...S.ddItemButton }}
+                        >
+                          <span style={{ flex: 1 }}>{col.label}</span>
+                        </button>
+                      )),
+                      ...categorizedAvailableCols.categories.map((category) => (
+                        <CategorySubmenu
+                          key={category.name}
+                          name={category.name}
+                          isOpen={openColsCategory === category.name}
+                          onOpen={() => setOpenColsCategory(category.name)}
+                          onClose={() =>
+                            setOpenColsCategory((c) => (c === category.name ? null : c))
+                          }
+                        >
+                          {category.columns.map((col) => (
+                            <button
+                              key={col.key}
+                              type="button"
+                              data-col-key={col.key}
+                              data-dd-row
+                              onClick={() => {
+                                pendingColFocusKey.current = col.key
+                                toggleColVisibility(col.key)
+                              }}
+                              style={{ ...S.ddItem, ...S.ddItemButton }}
+                            >
+                              <span style={{ flex: 1 }}>{col.label}</span>
+                            </button>
+                          ))}
+                        </CategorySubmenu>
+                      )),
+                    ]}
               </>
-            ) : null}
+            )}
           </Dropdown>
 
           {/* Group before Sort — data is grouped first, then ordered (groups themselves, then
@@ -2013,6 +2147,14 @@ export function DataTableView<TRow extends object>({
                             e.preventDefault()
                             pendingGroupFocusKey.current = key
                             removeGroup(key)
+                          } else if (e.key === 'Enter' || e.key === ' ') {
+                            // No click action of its own (unlike Sort's active rows, which
+                            // toggle direction) — but still needs to preventDefault, or Space's
+                            // native default action scrolls the nearest scrollable ancestor (this
+                            // panel, or the whole page once the panel itself has nothing left to
+                            // scroll) out from under the still-focused row, which reads as "focus
+                            // was lost" even though it wasn't.
+                            e.preventDefault()
                           }
                         }}
                         {...ddRowHoverFocusHandlers(key)}
@@ -2040,10 +2182,15 @@ export function DataTableView<TRow extends object>({
                         >
                           {i + 1}
                         </span>
+                        <span aria-hidden="true" style={S.ddDragHandle}>
+                          ⠿
+                        </span>
                         <span style={{ flex: 1 }}>{col?.label ?? key}</span>
                         <button
                           type="button"
                           draggable={false}
+                          title={L.removeGroup}
+                          aria-label={L.removeGroup}
                           onClick={() => {
                             // Same reasoning as Sort's remove-focus hand-off above.
                             pendingGroupFocusKey.current = key
@@ -2067,34 +2214,12 @@ export function DataTableView<TRow extends object>({
                       value={ddSearchTerms.group ?? ''}
                       onChange={(v) => setDdSearchTerms({ ...ddSearchTerms, group: v })}
                       placeholder={L.filterSearchPlaceholder}
+                      clearLabel={L.clearSearch}
                     />
                   </div>
                   <div style={S.ddSection}>{L.groupSection}</div>
-                  {categorizedAddableGroupCols.uncategorized.map((col) => (
-                    <button
-                      key={col.key}
-                      type="button"
-                      data-group-add-key={col.key}
-                      data-dd-row
-                      onClick={() => {
-                        // Same reasoning as Sort's activate-focus hand-off above.
-                        pendingGroupFocusKey.current = col.key
-                        toggleGroup(col.key)
-                      }}
-                      style={{ ...S.ddItem, ...S.ddItemButton }}
-                    >
-                      <span style={{ flex: 1 }}>{col.label}</span>
-                    </button>
-                  ))}
-                  {categorizedAddableGroupCols.categories.map((category) => (
-                    <CategorySubmenu
-                      key={category.name}
-                      name={category.name}
-                      isOpen={openGroupCategory === category.name}
-                      onOpen={() => setOpenGroupCategory(category.name)}
-                      onClose={() => setOpenGroupCategory((c) => (c === category.name ? null : c))}
-                    >
-                      {category.columns.map((col) => (
+                  {isGroupSearching
+                    ? searchedFlatAddableGroupCols.map((col) => (
                         <button
                           key={col.key}
                           type="button"
@@ -2107,10 +2232,54 @@ export function DataTableView<TRow extends object>({
                           style={{ ...S.ddItem, ...S.ddItemButton }}
                         >
                           <span style={{ flex: 1 }}>{col.label}</span>
+                          {col.category && <span style={S.ddItemCategory}>{col.category}</span>}
                         </button>
-                      ))}
-                    </CategorySubmenu>
-                  ))}
+                      ))
+                    : [
+                        ...categorizedAddableGroupCols.uncategorized.map((col) => (
+                          <button
+                            key={col.key}
+                            type="button"
+                            data-group-add-key={col.key}
+                            data-dd-row
+                            onClick={() => {
+                              // Same reasoning as Sort's activate-focus hand-off above.
+                              pendingGroupFocusKey.current = col.key
+                              toggleGroup(col.key)
+                            }}
+                            style={{ ...S.ddItem, ...S.ddItemButton }}
+                          >
+                            <span style={{ flex: 1 }}>{col.label}</span>
+                          </button>
+                        )),
+                        ...categorizedAddableGroupCols.categories.map((category) => (
+                          <CategorySubmenu
+                            key={category.name}
+                            name={category.name}
+                            isOpen={openGroupCategory === category.name}
+                            onOpen={() => setOpenGroupCategory(category.name)}
+                            onClose={() =>
+                              setOpenGroupCategory((c) => (c === category.name ? null : c))
+                            }
+                          >
+                            {category.columns.map((col) => (
+                              <button
+                                key={col.key}
+                                type="button"
+                                data-group-add-key={col.key}
+                                data-dd-row
+                                onClick={() => {
+                                  pendingGroupFocusKey.current = col.key
+                                  toggleGroup(col.key)
+                                }}
+                                style={{ ...S.ddItem, ...S.ddItemButton }}
+                              >
+                                <span style={{ flex: 1 }}>{col.label}</span>
+                              </button>
+                            ))}
+                          </CategorySubmenu>
+                        )),
+                      ]}
                 </>
               )}
             </Dropdown>
@@ -2195,6 +2364,8 @@ export function DataTableView<TRow extends object>({
                       <button
                         type="button"
                         draggable={false}
+                        title={L.removeSort}
+                        aria-label={L.removeSort}
                         onClick={(e) => {
                           e.stopPropagation()
                           pendingSortFocusKey.current = entry.key
@@ -2270,6 +2441,9 @@ export function DataTableView<TRow extends object>({
                             : undefined,
                       }}
                     >
+                      <span aria-hidden="true" style={S.ddDragHandle}>
+                        ⠿
+                      </span>
                       <span
                         style={{
                           width: 18,
@@ -2287,6 +2461,8 @@ export function DataTableView<TRow extends object>({
                       <button
                         type="button"
                         draggable={false}
+                        title={L.removeSort}
+                        aria-label={L.removeSort}
                         onClick={(e) => {
                           e.stopPropagation()
                           // Removing this entry unmounts this whole row (a different JSX subtree
@@ -2314,39 +2490,12 @@ export function DataTableView<TRow extends object>({
                     value={ddSearchTerms.sort ?? ''}
                     onChange={(v) => setDdSearchTerms({ ...ddSearchTerms, sort: v })}
                     placeholder={L.filterSearchPlaceholder}
+                    clearLabel={L.clearSearch}
                   />
                 </div>
                 <div style={S.ddSection}>{L.sortSection}</div>
-                {categorizedAddableSortCols.uncategorized.map((col) => (
-                  // A real <button> (not a div) so it's a native Tab stop and Enter/Space
-                  // "click" it for free — no manual tabIndex/keydown wiring needed, unlike the
-                  // active rows above (which need custom keyboard handling anyway for Alt+↑/↓).
-                  <button
-                    key={col.key}
-                    type="button"
-                    data-sort-add-key={col.key}
-                    data-dd-row
-                    onClick={() => {
-                      // Activating this column moves it into the active section above (a
-                      // different JSX subtree, so a different DOM node) — see
-                      // pendingSortFocusKey.
-                      pendingSortFocusKey.current = col.key
-                      toggleSort(col.key)
-                    }}
-                    style={{ ...S.ddItem, ...S.ddItemButton }}
-                  >
-                    <span style={{ flex: 1 }}>{col.label}</span>
-                  </button>
-                ))}
-                {categorizedAddableSortCols.categories.map((category) => (
-                  <CategorySubmenu
-                    key={category.name}
-                    name={category.name}
-                    isOpen={openSortCategory === category.name}
-                    onOpen={() => setOpenSortCategory(category.name)}
-                    onClose={() => setOpenSortCategory((c) => (c === category.name ? null : c))}
-                  >
-                    {category.columns.map((col) => (
+                {isSortSearching
+                  ? searchedFlatAddableSortCols.map((col) => (
                       <button
                         key={col.key}
                         type="button"
@@ -2359,10 +2508,60 @@ export function DataTableView<TRow extends object>({
                         style={{ ...S.ddItem, ...S.ddItemButton }}
                       >
                         <span style={{ flex: 1 }}>{col.label}</span>
+                        {col.category && <span style={S.ddItemCategory}>{col.category}</span>}
                       </button>
-                    ))}
-                  </CategorySubmenu>
-                ))}
+                    ))
+                  : [
+                      // A real <button> (not a div) so it's a native Tab stop and Enter/Space
+                      // "click" it for free — no manual tabIndex/keydown wiring needed, unlike
+                      // the active rows above (which need custom keyboard handling anyway for
+                      // Alt+↑/↓).
+                      ...categorizedAddableSortCols.uncategorized.map((col) => (
+                        <button
+                          key={col.key}
+                          type="button"
+                          data-sort-add-key={col.key}
+                          data-dd-row
+                          onClick={() => {
+                            // Activating this column moves it into the active section above (a
+                            // different JSX subtree, so a different DOM node) — see
+                            // pendingSortFocusKey.
+                            pendingSortFocusKey.current = col.key
+                            toggleSort(col.key)
+                          }}
+                          style={{ ...S.ddItem, ...S.ddItemButton }}
+                        >
+                          <span style={{ flex: 1 }}>{col.label}</span>
+                        </button>
+                      )),
+                      ...categorizedAddableSortCols.categories.map((category) => (
+                        <CategorySubmenu
+                          key={category.name}
+                          name={category.name}
+                          isOpen={openSortCategory === category.name}
+                          onOpen={() => setOpenSortCategory(category.name)}
+                          onClose={() =>
+                            setOpenSortCategory((c) => (c === category.name ? null : c))
+                          }
+                        >
+                          {category.columns.map((col) => (
+                            <button
+                              key={col.key}
+                              type="button"
+                              data-sort-add-key={col.key}
+                              data-dd-row
+                              onClick={() => {
+                                pendingSortFocusKey.current = col.key
+                                toggleSort(col.key)
+                              }}
+                              style={{ ...S.ddItem, ...S.ddItemButton }}
+                            >
+                              <span style={{ flex: 1 }}>{col.label}</span>
+                            </button>
+                          ))}
+                        </CategorySubmenu>
+                      )),
+                    ]}
               </>
             )}
           </Dropdown>
@@ -2433,11 +2632,20 @@ export function DataTableView<TRow extends object>({
                     value={ddSearchTerms.filter ?? ''}
                     onChange={(v) => setDdSearchTerms({ ...ddSearchTerms, filter: v })}
                     placeholder={L.filterSearchPlaceholder}
+                    clearLabel={L.clearSearch}
                     extraStyle={S.filterColsSearch}
                   />
                   {categorizedFilterCols.uncategorized.map((col) => renderFilterColRow(col, false))}
                   {categorizedFilterCols.categories.map((category) => {
-                    const isCollapsed = collapsedCategories.has(category.name)
+                    // While searching, a category only ever renders here at all when it has a
+                    // matching column (categorizedFilterCols buckets the already-searched list)
+                    // — so force it open rather than let a stale collapsed snapshot hide the very
+                    // match the search just surfaced, with no visible sign it's there.
+                    // collapsedCategories itself is left untouched: clearing the search reverts
+                    // to whatever collapse state the user had (manually toggled, or the open-time
+                    // snapshot), exactly as before this fix.
+                    const isCollapsed =
+                      !isFilterColSearching && collapsedCategories.has(category.name)
                     return (
                       <div key={category.name}>
                         <button
@@ -2479,29 +2687,47 @@ export function DataTableView<TRow extends object>({
                               style={S.filterSelectAll}
                             />
                           )}
-                          <input
-                            type="text"
-                            data-dd-value-search
-                            placeholder={L.filterSearchPlaceholder}
-                            value={filterSearchTerms[filterDetailCol.key] ?? ''}
-                            onChange={(e) =>
-                              setFilterSearchTerms({
-                                ...filterSearchTerms,
-                                [filterDetailCol.key]: e.target.value,
-                              })
-                            }
-                            onKeyDown={(e) => {
-                              if (e.key === 'Escape' && e.currentTarget.value !== '') {
-                                e.preventDefault()
-                                e.stopPropagation()
+                          <span style={S.ddSearchWrap}>
+                            <input
+                              type="text"
+                              data-dd-value-search
+                              placeholder={L.filterSearchPlaceholder}
+                              value={filterSearchTerms[filterDetailCol.key] ?? ''}
+                              onChange={(e) =>
                                 setFilterSearchTerms({
                                   ...filterSearchTerms,
-                                  [filterDetailCol.key]: '',
+                                  [filterDetailCol.key]: e.target.value,
                                 })
                               }
-                            }}
-                            style={S.ddSearch}
-                          />
+                              onKeyDown={(e) => {
+                                if (e.key === 'Escape' && e.currentTarget.value !== '') {
+                                  e.preventDefault()
+                                  e.stopPropagation()
+                                  setFilterSearchTerms({
+                                    ...filterSearchTerms,
+                                    [filterDetailCol.key]: '',
+                                  })
+                                }
+                              }}
+                              style={S.ddSearch}
+                            />
+                            {(filterSearchTerms[filterDetailCol.key] ?? '') !== '' && (
+                              <button
+                                type="button"
+                                title={L.clearSearch}
+                                aria-label={L.clearSearch}
+                                onClick={() =>
+                                  setFilterSearchTerms({
+                                    ...filterSearchTerms,
+                                    [filterDetailCol.key]: '',
+                                  })
+                                }
+                                style={S.ddSearchClear}
+                              >
+                                ×
+                              </button>
+                            )}
+                          </span>
                           <button
                             type="button"
                             onClick={() => cycleFilterValueSort(filterDetailCol)}
@@ -2739,7 +2965,13 @@ export function DataTableView<TRow extends object>({
                 >
                   {col?.label ?? key}
                 </button>
-                <button type="button" onClick={() => removeGroup(key)} style={S.chipX}>
+                <button
+                  type="button"
+                  title={L.removeGroup}
+                  aria-label={L.removeGroup}
+                  onClick={() => removeGroup(key)}
+                  style={S.chipX}
+                >
                   ×
                 </button>
               </span>
@@ -2752,6 +2984,8 @@ export function DataTableView<TRow extends object>({
               </button>
               <button
                 type="button"
+                title={L.removeSort}
+                aria-label={L.removeSort}
                 onClick={() => removeSort(key)}
                 style={{ ...S.chipX, ...S.chipXMiddle }}
               >
@@ -2765,11 +2999,18 @@ export function DataTableView<TRow extends object>({
                   setOpenGroupDD(true)
                 }}
                 style={S.chipGroupMark}
-                aria-label={L.group}
+                title={L.openGroupDropdown}
+                aria-label={L.openGroupDropdown}
               >
                 ⊞
               </button>
-              <button type="button" onClick={() => removeGroup(key)} style={S.chipX}>
+              <button
+                type="button"
+                title={L.removeGroup}
+                aria-label={L.removeGroup}
+                onClick={() => removeGroup(key)}
+                style={S.chipX}
+              >
                 ×
               </button>
             </span>
@@ -2790,7 +3031,13 @@ export function DataTableView<TRow extends object>({
                 <button type="button" onClick={() => toggleSortDir(entry.key)} style={S.chipBody}>
                   {getSortIcon(entry.key)} {col?.label ?? entry.key}
                 </button>
-                <button type="button" onClick={() => removeSort(entry.key)} style={S.chipX}>
+                <button
+                  type="button"
+                  title={L.removeSort}
+                  aria-label={L.removeSort}
+                  onClick={() => removeSort(entry.key)}
+                  style={S.chipX}
+                >
                   ×
                 </button>
               </span>
@@ -2822,6 +3069,8 @@ export function DataTableView<TRow extends object>({
                 </button>
                 <button
                   type="button"
+                  title={L.clearColumnFilter}
+                  aria-label={L.clearColumnFilter}
                   onClick={() => clearColumnFilter(key, 'include')}
                   style={{ ...S.chipX, ...S.chipFilter }}
                 >
@@ -2853,6 +3102,8 @@ export function DataTableView<TRow extends object>({
                 </button>
                 <button
                   type="button"
+                  title={L.clearColumnFilter}
+                  aria-label={L.clearColumnFilter}
                   onClick={() => clearColumnFilter(key, 'exclude')}
                   style={{ ...S.chipX, ...S.chipExclude }}
                 >
@@ -2881,6 +3132,8 @@ export function DataTableView<TRow extends object>({
                 </button>
                 <button
                   type="button"
+                  title={L.clearColumnFilter}
+                  aria-label={L.clearColumnFilter}
                   onClick={() => clearColumnFilter(key, 'range')}
                   style={{ ...S.chipX, ...S.chipFilter }}
                 >

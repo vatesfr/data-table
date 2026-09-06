@@ -1,6 +1,7 @@
 import { For, Show, createMemo, createSignal } from 'solid-js'
 import type { SortEntry } from '@vates/data-table-core'
 import {
+  alphabetizedByLabel,
   categorizedAlphabetizedByLabel,
   getSortIcon,
   getSortIndex,
@@ -50,13 +51,16 @@ export function SortDropdown<TRow extends object>(props: SortDropdownProps<TRow>
     onDrop: handleDrop,
   } = createDragReorder('data-sort-key', table.sort.move)
 
+  const isSearching = createMemo(() => searchTerm().trim().length > 0)
   const addableCols = createMemo(() => {
     const sorts = table.sort.entries()
     return props.columns.filter((c) => c.sortable !== false && getSortIndex(sorts, c.key) === null)
   })
-  const categorizedAddableCols = createMemo(() =>
-    categorizedAlphabetizedByLabel(addableCols(), searchTerm()),
-  )
+  // While searching, category matches are flattened into plain, category-tagged rows instead of
+  // bucketed behind a submenu — see CLAUDE.md's "Column categories"/ColumnsDropdown.tsx's identical
+  // fix: hiding a single search match behind an extra hover/click defeats the point of searching.
+  const searchedFlatAddableCols = createMemo(() => alphabetizedByLabel(addableCols(), searchTerm()))
+  const categorizedAddableCols = createMemo(() => categorizedAlphabetizedByLabel(addableCols(), ''))
 
   // Split the active list in two: entries matching a currently grouped column always govern
   // nesting order (`sortWithinGroups` reads that off `groupBy`'s own order, never off drag
@@ -98,6 +102,11 @@ export function SortDropdown<TRow extends object>(props: SortDropdownProps<TRow>
         />
       }
       onEscapeClearable={() => {
+        // Scoped to focus actually being in the search box — see ColumnsDropdown.tsx's identical
+        // comment (and the Filter dropdown's own onEscapeClearable, the original source of this
+        // fix): without this, Escape pressed while focused on a row still silently cleared a
+        // non-empty search term instead of closing the dropdown on the first press.
+        if (!document.activeElement?.matches?.('.dt-dd-search')) return false
         if (!searchTerm()) return false
         setSearchTerm('')
         return true
@@ -140,6 +149,8 @@ export function SortDropdown<TRow extends object>(props: SortDropdownProps<TRow>
                 <button
                   type="button"
                   class="dt-item-remove"
+                  title={table.labels().removeSort}
+                  aria-label={table.labels().removeSort}
                   draggable={false}
                   onClick={(e) => {
                     e.stopPropagation()
@@ -202,6 +213,9 @@ export function SortDropdown<TRow extends object>(props: SortDropdownProps<TRow>
                     }
                   }}
                 >
+                  <span class="dt-dd-drag-handle" aria-hidden="true">
+                    ⠿
+                  </span>
                   <span class="dt-sort-idx">{i() + 1}</span>
                   <span class="dt-flex1">{col()?.label ?? entry.key}</span>
                   <span class="dt-sort-icon dt-sort-icon--active">
@@ -210,6 +224,8 @@ export function SortDropdown<TRow extends object>(props: SortDropdownProps<TRow>
                   <button
                     type="button"
                     class="dt-item-remove"
+                    title={table.labels().removeSort}
+                    aria-label={table.labels().removeSort}
                     draggable={false}
                     onClick={(e) => {
                       e.stopPropagation()
@@ -231,24 +247,43 @@ export function SortDropdown<TRow extends object>(props: SortDropdownProps<TRow>
           value={searchTerm()}
           onInput={setSearchTerm}
           placeholder={table.labels().filterSearchPlaceholder}
+          clearLabel={table.labels().clearSearch}
         />
         <div class="dt-dd-section">{table.labels().sortSection}</div>
-        <CategorizedColumnList
-          uncategorized={categorizedAddableCols().uncategorized}
-          categories={categorizedAddableCols().categories}
-          row={(col) => (
-            <AddableColumnRow
-              col={col}
-              onClick={() => {
-                // See DropdownParts.tsx's AddableColumnRow / GroupDropdown.tsx's identical
-                // comment: a document-wide query, not a `.closest('.dt-dd')`-scoped one, since
-                // this click can originate inside a portaled CategorySubmenu.
-                table.sort.toggle(col.key)
-                document.querySelector<HTMLElement>(`[data-sort-key="${col.key}"]`)?.focus()
-              }}
-            />
-          )}
-        />
+        <Show
+          when={!isSearching()}
+          fallback={
+            <For each={searchedFlatAddableCols()}>
+              {(col) => (
+                <AddableColumnRow
+                  col={col}
+                  showCategory
+                  onClick={() => {
+                    table.sort.toggle(col.key)
+                    document.querySelector<HTMLElement>(`[data-sort-key="${col.key}"]`)?.focus()
+                  }}
+                />
+              )}
+            </For>
+          }
+        >
+          <CategorizedColumnList
+            uncategorized={categorizedAddableCols().uncategorized}
+            categories={categorizedAddableCols().categories}
+            row={(col) => (
+              <AddableColumnRow
+                col={col}
+                onClick={() => {
+                  // See DropdownParts.tsx's AddableColumnRow / GroupDropdown.tsx's identical
+                  // comment: a document-wide query, not a `.closest('.dt-dd')`-scoped one, since
+                  // this click can originate inside a portaled CategorySubmenu.
+                  table.sort.toggle(col.key)
+                  document.querySelector<HTMLElement>(`[data-sort-key="${col.key}"]`)?.focus()
+                }}
+              />
+            )}
+          />
+        </Show>
       </Show>
     </Dropdown>
   )

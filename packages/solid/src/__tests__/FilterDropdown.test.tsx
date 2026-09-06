@@ -309,6 +309,26 @@ describe('FilterDropdown — string checklist', () => {
     dispose()
   })
 
+  it('the value search has a labeled clear button, shown only once it has a value', () => {
+    const { container, table, dispose } = mount()
+    const search = container.querySelector<HTMLInputElement>('.dt-filter-search-row .dt-dd-search')!
+    expect(container.querySelector('.dt-filter-search-row .dt-dd-search-clear')).toBeNull()
+
+    search.value = 'ali'
+    search.dispatchEvent(new Event('input', { bubbles: true }))
+    const clearBtn = container.querySelector<HTMLButtonElement>(
+      '.dt-filter-search-row .dt-dd-search-clear',
+    )!
+    expect(clearBtn.title).toBe(table.labels().clearSearch)
+
+    clearBtn.click()
+    expect(
+      container.querySelector<HTMLInputElement>('.dt-filter-search-row .dt-dd-search')!.value,
+    ).toBe('')
+    expect(container.querySelector('.dt-filter-search-row .dt-dd-search-clear')).toBeNull()
+    dispose()
+  })
+
   it('a value with zero facet count is hidden unless already selected', () => {
     const { container, dispose } = mount()
     // Narrow to dept=Eng first (Alice, Clara) via the dept column.
@@ -435,21 +455,108 @@ describe('FilterDropdown — left pane search', () => {
     dispose()
   })
 
+  it('has a labeled clear button, shown only once it has a value', () => {
+    const { container, table, dispose } = mount()
+    const search = container.querySelector<HTMLInputElement>('.dt-filter-cols-search')!
+    expect(container.querySelector('.dt-dd-search-clear')).toBeNull()
+
+    search.value = 'sco'
+    search.dispatchEvent(new Event('input', { bubbles: true }))
+    const clearBtn = container.querySelector<HTMLButtonElement>('.dt-dd-search-clear')!
+    expect(clearBtn.title).toBe(table.labels().clearSearch)
+
+    clearBtn.click()
+    expect(container.querySelector<HTMLInputElement>('.dt-filter-cols-search')!.value).toBe('')
+    expect(container.querySelector('.dt-dd-search-clear')).toBeNull()
+    dispose()
+  })
+
   it('also matches by category, surfacing every column filed under it', () => {
     const { container, dispose } = mountCategorized()
     const search = container.querySelector<HTMLInputElement>('.dt-filter-cols-search')!
     search.value = 'Org'
     search.dispatchEvent(new Event('input', { bubbles: true }))
     // The category header itself surfaces — neither Dept nor Score's own label contains "Org",
-    // only the category does. Its columns are collapsed by default (no active filter), so
-    // expanding it is what actually confirms both matched columns are really in there.
+    // only the category does. It's collapsed by default (no active filter), but a search match
+    // forces it open regardless (see the next describe block) — no click needed to see the
+    // columns it matched into.
     const header = container.querySelector<HTMLButtonElement>('.dt-filter-category-header')!
     expect(header.textContent).toContain('Org')
-    header.click()
+    expect(header.getAttribute('aria-expanded')).toBe('true')
     const labels = [...container.querySelectorAll('.dt-filter-col-item span')].map(
       (el) => el.textContent,
     )
     expect(labels).toEqual(['Dept', 'Score'])
+    dispose()
+  })
+})
+
+describe('FilterDropdown — collapsed category auto-expands to reveal a search match', () => {
+  it('a collapsed category with a matching column expands while searching, and reverts once cleared', () => {
+    const { container, dispose } = mountCategorized()
+    // Re-queried after each search change rather than cached once — narrowing the search changes
+    // which columns belong to "Org", so <For> (keyed by item reference) remounts the category row
+    // on a new object each time; a cached reference would go stale and stop reflecting updates.
+    const header = () => container.querySelector<HTMLButtonElement>('.dt-filter-category-header')!
+    expect(header().getAttribute('aria-expanded')).toBe('false') // collapsed by default, no active filter
+
+    const search = container.querySelector<HTMLInputElement>('.dt-filter-cols-search')!
+    search.value = 'Score' // matches only "Score", inside the still-collapsed "Org" category
+    search.dispatchEvent(new Event('input', { bubbles: true }))
+    expect(header().getAttribute('aria-expanded')).toBe('true')
+    expect(
+      [...container.querySelectorAll('.dt-filter-col-item span')].map((s) => s.textContent),
+    ).toEqual(['Score'])
+
+    // Clearing the search reverts to the collapsed state — the forced-open was a search-only
+    // override, not a permanent change to collapsedCategories.
+    search.value = ''
+    search.dispatchEvent(new Event('input', { bubbles: true }))
+    expect(header().getAttribute('aria-expanded')).toBe('false')
+    dispose()
+  })
+
+  it('manually collapsing during a search takes effect once the search is cleared', () => {
+    // Start with an active filter in "Org" so it's expanded on its own merits (no search
+    // involved) — isolates the click's own effect from the search-forced-open override.
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const dispose = createRoot((d) => {
+      const table = createTableState(ROWS, CATEGORIZED_COLS)
+      table.filter.cycleValue('score', '90')
+      const [isOpen] = createSignal(true)
+      render(
+        () => (
+          <FilterDropdown
+            table={table}
+            columns={CATEGORIZED_COLS}
+            isOpen={isOpen()}
+            onToggle={() => {}}
+            onClose={() => {}}
+          />
+        ),
+        container,
+      )
+      return d
+    })
+    // Re-queried after each change — see the previous test's comment on why a cached reference
+    // would go stale once the search narrows "Org"'s own member columns.
+    const header = () => container.querySelector<HTMLButtonElement>('.dt-filter-category-header')!
+    expect(header().getAttribute('aria-expanded')).toBe('true') // expanded already, active filter
+
+    const search = container.querySelector<HTMLInputElement>('.dt-filter-cols-search')!
+    search.value = 'Score'
+    search.dispatchEvent(new Event('input', { bubbles: true }))
+    expect(header().getAttribute('aria-expanded')).toBe('true') // unchanged, still forced open
+
+    // Clicking while forced-open queues a collapse that has no visible effect yet...
+    header().click()
+    expect(header().getAttribute('aria-expanded')).toBe('true')
+
+    // ...until the search is cleared and the queued toggle finally applies.
+    search.value = ''
+    search.dispatchEvent(new Event('input', { bubbles: true }))
+    expect(header().getAttribute('aria-expanded')).toBe('false')
     dispose()
   })
 })

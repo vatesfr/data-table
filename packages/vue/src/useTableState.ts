@@ -253,10 +253,14 @@ export function useTableState<TRow extends object>(
       },
       // See moveVisibleColumnBy's own doc comment (core) — the Columns dropdown's "Visible
       // columns" section's own Alt+↑/↓, which must skip over hidden columns rather than swap with
-      // whichever key is textually adjacent in columnOrder.
-      moveVisibleBy: (key: string, delta: number) => {
+      // whichever key is textually adjacent in columnOrder. The optional 3rd `eligible` param lets
+      // a caller narrow which keys count as a swappable neighbor below the real `visibleCols` —
+      // the Columns dropdown passes its own search-filtered key set while a search term is active,
+      // so Alt+↑/↓ only ever reorders among the rows currently shown in the list, leaving anything
+      // hidden by the filter (or by real column visibility) pinned at its own position.
+      moveVisibleBy: (key: string, delta: number, eligible?: ReadonlySet<string>) => {
         const base = columnOrder.value.length ? columnOrder.value : columns.value.map((c) => c.key)
-        columnOrder.value = _moveVisibleColumnBy(base, visibleCols.value, key, delta)
+        columnOrder.value = _moveVisibleColumnBy(base, eligible ?? visibleCols.value, key, delta)
       },
     },
 

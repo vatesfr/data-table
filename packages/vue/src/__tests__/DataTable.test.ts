@@ -245,6 +245,34 @@ describe('DataTable — filter dropdown', () => {
     wrapper.unmount()
   })
 
+  it('the left-pane column search has a labeled clear button, shown only once it has a value', async () => {
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: FILTER_COLS, rowKey: 'id' } })
+    const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
+    await filterBtn.trigger('click')
+    const search = wrapper.find('.dt__filter-cols-search')
+    expect(wrapper.find('.dt__filter-cols-search-wrap .dt__dd-search-clear').exists()).toBe(false)
+    await search.setValue('sco')
+    const clearBtn = wrapper.find('.dt__filter-cols-search-wrap .dt__dd-search-clear')
+    expect(clearBtn.exists()).toBe(true)
+    await clearBtn.trigger('click')
+    expect((wrapper.find('.dt__filter-cols-search').element as HTMLInputElement).value).toBe('')
+  })
+
+  it('the value search has a labeled clear button, shown only once it has a value', async () => {
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: FILTER_COLS, rowKey: 'id' } })
+    const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
+    await filterBtn.trigger('click')
+    const valueSearch = wrapper.find('.dt__filter-detail input.dt__dd-search')
+    expect(wrapper.find('.dt__filter-detail .dt__dd-search-clear').exists()).toBe(false)
+    await valueSearch.setValue('ali')
+    const clearBtn = wrapper.find('.dt__filter-detail .dt__dd-search-clear')
+    expect(clearBtn.exists()).toBe(true)
+    await clearBtn.trigger('click')
+    expect(
+      (wrapper.find('.dt__filter-detail input.dt__dd-search').element as HTMLInputElement).value,
+    ).toBe('')
+  })
+
   it('does not clear the value search when focus is elsewhere in the panel (e.g. the left pane)', async () => {
     const wrapper = mount(DataTable, {
       props: { data: ROWS, columns: FILTER_COLS, rowKey: 'id' },
@@ -1261,6 +1289,23 @@ describe('DataTable — sort dropdown', () => {
     expect(wrapper.find('.dt__dd-item--sortrow').exists()).toBe(false)
     const names = wrapper.findAll('tbody tr td:first-child').map((td) => td.text())
     expect(names).toEqual(['Alice', 'Bob']) // original order, no longer sorted
+  })
+
+  it('an active row has a drag-handle icon and a labeled remove button', async () => {
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: SORT_COLS, rowKey: 'id' } })
+    await wrapper
+      .findAll('button')
+      .find((b) => b.text() === 'Sort')!
+      .trigger('click')
+    await wrapper
+      .findAll('.dt__dd-item--clickable')
+      .find((el) => el.text() === 'Score')!
+      .trigger('click')
+    const row = wrapper.find('.dt__dd-item--sortrow')
+    expect(row.find('.dt__dd-drag-handle').exists()).toBe(true)
+    const removeBtn = row.find('.dt__item-remove')
+    expect(removeBtn.attributes('title')).toBe('Remove sort')
+    expect(removeBtn.attributes('aria-label')).toBe('Remove sort')
   })
 
   it('the Sort toolbar button has no clear-sorts button until a sort is active', async () => {
@@ -2503,24 +2548,28 @@ describe('DataTable — dropdown column search and keyboard navigation', () => {
     return wrapper.find('.dropdown__menu input.dt__dd-search')
   }
 
-  it('the columns dropdown search box narrows the Available list by label, leaving Visible untouched', async () => {
+  it('the columns dropdown search box narrows both Visible and Available (unlike Sort/Group)', async () => {
     const wrapper = mount(DataTable, {
       props: {
         data: ROWS,
         columns: THREE_COLS,
         rowKey: 'id',
-        initialViewState: { visibleCols: ['name'] },
+        initialViewState: { visibleCols: ['name', 'score'] },
       },
     })
     await openDd(wrapper, 'Columns')
     await ddSearchInput(wrapper).setValue('sc')
+    // "Id" (hidden) doesn't match "sc", so Available narrows to nothing.
     expect(
       wrapper
         .findAll('button.dt__dd-item--clickable:not([data-category-name])')
         .map((r) => r.text()),
-    ).toEqual(['Score'])
-    // Visible (Name) is unaffected by the search term.
-    expect(wrapper.find('.dt__dd-item--colrow').text()).toContain('Name')
+    ).toEqual([])
+    // Visible narrows too now (unlike Sort/Group, which never filter their own active section) —
+    // "Name" drops out, "Score" (matching) stays.
+    const visibleRows = wrapper.findAll('.dt__dd-item--colrow')
+    expect(visibleRows).toHaveLength(1)
+    expect(visibleRows[0].text()).toContain('Score')
   })
 
   it('the sort dropdown search box narrows only the addable list, alphabetized, leaving active sorts untouched', async () => {
@@ -2611,11 +2660,11 @@ describe('DataTable — dropdown column search and keyboard navigation', () => {
     )
   })
 
-  // The Columns dropdown's search box sits after the Visible section (like Sort/Group's own
-  // search box sits after their active section) — not before every row, the way it used to
-  // before the Visible/Available redesign — so ArrowUp from it crosses back into the last Visible
-  // row rather than staying put.
-  it('ArrowUp from the Available search box crosses back into the last Visible row', async () => {
+  // The Columns dropdown's search box is now pinned at the very top of the panel (unlike Sort/
+  // Group, whose own search box still sits after their active section) — so ArrowDown from it
+  // enters the first Visible row, and ArrowUp from that first row reaches back up into the search
+  // box, rather than either being a no-op.
+  it('ArrowDown from the search box enters the first Visible row; ArrowUp from there returns to it', async () => {
     const wrapper = mount(DataTable, {
       props: {
         data: ROWS,
@@ -2627,8 +2676,11 @@ describe('DataTable — dropdown column search and keyboard navigation', () => {
     })
     await openDd(wrapper, 'Columns')
     const search = ddSearchInput(wrapper)
-    await search.trigger('keydown', { key: 'ArrowUp' })
-    expect(document.activeElement).toBe(wrapper.find('.dt__dd-item--colrow').element)
+    await search.trigger('keydown', { key: 'ArrowDown' })
+    const firstRow = wrapper.find('.dt__dd-item--colrow')
+    expect(document.activeElement).toBe(firstRow.element)
+    await firstRow.trigger('keydown', { key: 'ArrowUp' })
+    expect(document.activeElement).toBe(search.element)
     wrapper.unmount()
   })
 
@@ -2971,6 +3023,26 @@ describe('DataTable — Sort dropdown column categories', () => {
     expect(wrapper.find('.dropdown__menu').exists()).toBe(true)
     wrapper.unmount()
   })
+
+  it('a category match is flattened into a plain, category-tagged row while searching', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS, columns: CATEGORIZED_COLS, rowKey: 'id' },
+    })
+    await openDdByLabel(wrapper, 'Sort')
+    const search = wrapper.find('.dropdown__menu input.dt__dd-search')
+    await search.setValue('Score')
+    expect(wrapper.find('[data-category-name]').exists()).toBe(false) // no submenu while searching
+    const row = wrapper
+      .findAll('button.dt__dd-item--clickable')
+      .find((b) => b.text().startsWith('Score'))!
+    expect(row.text()).toContain('Numbers') // category shown as a tag instead
+
+    await search.setValue('')
+    expect(wrapper.findAll('[data-category-name]').map((el) => el.text())).toEqual([
+      'Info▸',
+      'Numbers▸',
+    ]) // restored once cleared
+  })
 })
 
 describe('DataTable — Group dropdown column categories', () => {
@@ -3002,6 +3074,51 @@ describe('DataTable — Group dropdown column categories', () => {
     await wrapper.vm.$nextTick()
     expect(wrapper.find('[data-group-key="name"]').exists()).toBe(true)
     wrapper.unmount()
+  })
+
+  it('a category match is flattened into a plain, category-tagged row while searching', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS, columns: CATEGORIZED_COLS, rowKey: 'id' },
+    })
+    await openDdByLabel(wrapper, 'Group')
+    const search = wrapper.find('.dropdown__menu input.dt__dd-search')
+    await search.setValue('Name')
+    expect(wrapper.find('[data-category-name]').exists()).toBe(false)
+    const row = wrapper
+      .findAll('button.dt__dd-item--clickable')
+      .find((b) => b.text().startsWith('Name'))!
+    expect(row.text()).toContain('Info')
+  })
+
+  it('an active row has a drag-handle icon and a labeled remove button', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS, columns: CATEGORIZED_COLS, rowKey: 'id' },
+    })
+    await openDdByLabel(wrapper, 'Group')
+    await wrapper
+      .findAll('button.dt__dd-item--clickable')
+      .find((b) => b.text() === 'Id')!
+      .trigger('click')
+    const row = wrapper.find('[data-group-key="id"]')
+    expect(row.find('.dt__dd-drag-handle').exists()).toBe(true)
+    const removeBtn = row.find('.dt__item-remove')
+    expect(removeBtn.attributes('title')).toBe('Remove group')
+    expect(removeBtn.attributes('aria-label')).toBe('Remove group')
+  })
+
+  it('Enter/Space on an active row preventDefault (no click action of its own, but stops the native Space-scroll)', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS, columns: CATEGORIZED_COLS, rowKey: 'id' },
+    })
+    await openDdByLabel(wrapper, 'Group')
+    await wrapper
+      .findAll('button.dt__dd-item--clickable')
+      .find((b) => b.text() === 'Id')!
+      .trigger('click')
+    const row = wrapper.find('[data-group-key="id"]')
+    const spaceEvent = new KeyboardEvent('keydown', { key: ' ', bubbles: true, cancelable: true })
+    row.element.dispatchEvent(spaceEvent)
+    expect(spaceEvent.defaultPrevented).toBe(true)
   })
 })
 
@@ -3062,14 +3179,36 @@ describe('DataTable — Filter dropdown column categories', () => {
     const search = wrapper.find('.dropdown__menu input.dt__dd-search')
     await search.setValue('Org')
     // The category header itself surfaces — neither Id nor Score's own label contains "Org",
-    // only the category does. Its columns are collapsed by default (no active filter), so
-    // expanding it is what actually confirms both matched columns are really in there.
+    // only the category does. It's collapsed by default (no active filter), but a search match
+    // forces it open regardless (see the next test) — no click needed to see the columns it
+    // matched into.
     const header = wrapper.find('[data-filter-category-header="Org"]')
     expect(header.exists()).toBe(true)
-    await header.trigger('click')
+    expect(header.attributes('aria-expanded')).toBe('true')
     expect(
       wrapper.findAll('[data-filter-col-key] span:first-child').map((el) => el.text()),
     ).toEqual(['Id', 'Score']) // neither label contains "Org" — only category does
+  })
+
+  it('a collapsed category with a matching column expands while searching, and reverts once cleared', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS, columns: categorizedCols, rowKey: 'id' },
+    })
+    await openDdByLabel(wrapper, 'Filter')
+    const header = () => wrapper.find('[data-filter-category-header="Org"]')
+    expect(header().attributes('aria-expanded')).toBe('false') // collapsed by default, no active filter
+
+    const search = wrapper.find('.dropdown__menu input.dt__dd-search')
+    await search.setValue('Score') // matches only "Score", inside the still-collapsed "Org" category
+    expect(header().attributes('aria-expanded')).toBe('true')
+    expect(
+      wrapper.findAll('[data-filter-col-key] span:first-child').map((el) => el.text()),
+    ).toEqual(['Score'])
+
+    // Clearing the search reverts to the collapsed state — the forced-open was a search-only
+    // override, not a permanent change to the stored collapse state.
+    await search.setValue('')
+    expect(header().attributes('aria-expanded')).toBe('false')
   })
 })
 
@@ -3144,6 +3283,64 @@ describe('DataTable — Columns dropdown Visible/Available split', () => {
     expect(visibleLabels(wrapper)).toEqual(['Score', 'ID']) // not a no-op
   })
 
+  it('a visible row has a drag-handle icon and a labeled hide button', async () => {
+    const wrapper = mount(DataTable, { props: { data: VROWS, columns: VCOLS, rowKey: 'id' } })
+    await openDdByLabel(wrapper, 'Columns')
+    const row = wrapper.find('[data-col-row-key="id"]')
+    expect(row.find('.dt__dd-drag-handle').exists()).toBe(true)
+    const removeBtn = row.find('.dt__item-remove')
+    expect(removeBtn.attributes('title')).toBe('Hide column')
+    expect(removeBtn.attributes('aria-label')).toBe('Hide column')
+  })
+
+  it('Enter/Space on a row preventDefault (no click action of its own, but stops the native Space-scroll)', async () => {
+    const wrapper = mount(DataTable, { props: { data: VROWS, columns: VCOLS, rowKey: 'id' } })
+    await openDdByLabel(wrapper, 'Columns')
+    const row = wrapper.find('[data-col-row-key="id"]')
+    const enterEvent = new KeyboardEvent('keydown', {
+      key: 'Enter',
+      bubbles: true,
+      cancelable: true,
+    })
+    row.element.dispatchEvent(enterEvent)
+    expect(enterEvent.defaultPrevented).toBe(true)
+    const spaceEvent = new KeyboardEvent('keydown', { key: ' ', bubbles: true, cancelable: true })
+    row.element.dispatchEvent(spaceEvent)
+    expect(spaceEvent.defaultPrevented).toBe(true)
+  })
+
+  it('Escape closes the dropdown on the first press when focus is on a row, even with a non-empty search term', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: VROWS, columns: VCOLS, rowKey: 'id' },
+      attachTo: document.body,
+    })
+    await openDdByLabel(wrapper, 'Columns')
+    const search = wrapper.find('input[data-dd-search]')
+    await search.setValue('e')
+    const row = wrapper.find('[data-col-row-key]')
+    ;(row.element as HTMLElement).focus()
+    row.element.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }),
+    )
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.dropdown__menu').exists()).toBe(false) // closed on the first press
+    wrapper.unmount()
+  })
+
+  it('the search box has a labeled clear button, shown only once it has a value', async () => {
+    const wrapper = mount(DataTable, { props: { data: VROWS, columns: VCOLS, rowKey: 'id' } })
+    await openDdByLabel(wrapper, 'Columns')
+    const search = wrapper.find('input[data-dd-search]')
+    expect(wrapper.find('.dt__dd-search-clear').exists()).toBe(false)
+    await search.setValue('sco')
+    const clearBtn = wrapper.find('.dt__dd-search-clear')
+    expect(clearBtn.exists()).toBe(true)
+    expect(clearBtn.attributes('title')).toBe('Clear search')
+    await clearBtn.trigger('click')
+    expect((wrapper.find('input[data-dd-search]').element as HTMLInputElement).value).toBe('')
+    expect(wrapper.find('.dt__dd-search-clear').exists()).toBe(false)
+  })
+
   it('lists hidden columns as plain addable rows, in table order', async () => {
     const wrapper = mount(DataTable, { props: { data: VROWS, columns: VCOLS, rowKey: 'id' } })
     await openDdByLabel(wrapper, 'Columns')
@@ -3172,10 +3369,13 @@ describe('DataTable — Columns dropdown Visible/Available split', () => {
     wrapper.unmount()
   })
 
-  it('no Available section (or search box) is rendered once every column is visible', async () => {
+  it('the search box stays mounted once every column is visible (no Available section, though)', async () => {
     const wrapper = mount(DataTable, { props: { data: VROWS, columns: VCOLS, rowKey: 'id' } })
     await openDdByLabel(wrapper, 'Columns')
-    expect(wrapper.find('input[data-dd-search]').exists()).toBe(false)
+    expect(wrapper.find('input[data-dd-search]').exists()).toBe(true)
+    expect(wrapper.findAll('.dt__dd-section').map((el) => el.text())).not.toContain(
+      'Available columns',
+    )
   })
 
   it('categorized hidden columns collapse into a submenu trigger instead of plain rows', async () => {
@@ -3234,7 +3434,7 @@ describe('DataTable — Columns dropdown Visible/Available split', () => {
     wrapper.unmount()
   })
 
-  it('search narrows Available only, matching label or category; Visible is unaffected', async () => {
+  it('search narrows both Visible and Available, matching label or category', async () => {
     const categorized: ColumnDef<VRow>[] = [
       { key: 'id', label: 'ID' },
       { key: 'name', label: 'Name', category: 'Info' },
@@ -3245,9 +3445,66 @@ describe('DataTable — Columns dropdown Visible/Available split', () => {
     await wrapper.find('[data-col-row-key="name"] .dt__item-remove').trigger('click')
     expect(visibleLabels(wrapper)).toEqual(['ID', 'Score'])
 
-    await wrapper.find('input[data-dd-search]').setValue('Info')
+    await wrapper.find('input[data-dd-search]').setValue('Score')
+    expect(visibleLabels(wrapper)).toEqual(['Score']) // Visible is narrowed too now
+  })
+
+  it('a category match is flattened into a plain, category-tagged row while searching', async () => {
+    const categorized: ColumnDef<VRow>[] = [
+      { key: 'id', label: 'ID' },
+      { key: 'name', label: 'Name', category: 'Info' },
+      { key: 'score', label: 'Score', type: 'number', category: 'Info' },
+    ]
+    const wrapper = mount(DataTable, { props: { data: VROWS, columns: categorized, rowKey: 'id' } })
+    await openDdByLabel(wrapper, 'Columns')
+    await wrapper.find('[data-col-row-key="name"] .dt__item-remove').trigger('click')
+
+    const search = wrapper.find('input[data-dd-search]')
+    await search.setValue('Name')
+    expect(wrapper.find('[data-category-name]').exists()).toBe(false) // no submenu while searching
+    const row = wrapper
+      .findAll('button.dt__dd-item--clickable')
+      .find((b) => b.text().startsWith('Name'))!
+    expect(row.text()).toContain('Name')
+    expect(row.text()).toContain('Info') // category shown as a tag instead
+
+    // Clearing the search restores the collapsed submenu.
+    await search.setValue('')
     expect(wrapper.find('[data-category-name]').text()).toContain('Info')
-    expect(visibleLabels(wrapper)).toEqual(['ID', 'Score']) // still unaffected by the search term
+  })
+
+  it('the search box never unmounts, even when the query matches nothing at all', async () => {
+    const wrapper = mount(DataTable, { props: { data: VROWS, columns: VCOLS, rowKey: 'id' } })
+    await openDdByLabel(wrapper, 'Columns')
+    const search = wrapper.find('input[data-dd-search]')
+    await search.setValue('zzzz-no-match')
+    expect(wrapper.find('input[data-dd-search]').exists()).toBe(true)
+    expect(visibleLabels(wrapper)).toEqual([])
+  })
+
+  it("Alt+ArrowDown only swaps with the next search-matching row, leaving a filtered-out column's own position untouched", async () => {
+    const cols: ColumnDef<VRow>[] = [
+      { key: 'id', label: 'Foo1' },
+      { key: 'name', label: 'Bar' },
+      { key: 'score', label: 'Foo2', type: 'number' },
+    ]
+    const wrapper = mount(DataTable, { props: { data: VROWS, columns: cols, rowKey: 'id' } })
+    await openDdByLabel(wrapper, 'Columns')
+    await wrapper.find('input[data-dd-search]').setValue('Foo') // matches Foo1/Foo2, not Bar
+    expect(wrapper.findAll('.dt__dd-item--colrow').map((r) => r.text())).toEqual([
+      expect.stringContaining('Foo1'),
+      expect.stringContaining('Foo2'),
+    ])
+
+    await wrapper
+      .find('[data-col-row-key="id"]')
+      .trigger('keydown', { key: 'ArrowDown', altKey: true })
+    // Foo1 swaps with Foo2 (the next search-matching row) — Bar, hidden by the filter, keeps its
+    // exact position in between rather than being swapped with either.
+    expect(wrapper.findAll('.dt__dd-item--colrow').map((r) => r.text())).toEqual([
+      expect.stringContaining('Foo2'),
+      expect.stringContaining('Foo1'),
+    ])
   })
 })
 
@@ -3263,6 +3520,26 @@ describe('DataTable — active-bar chip click actions', () => {
       .find((b) => b.text() === label)!
       .trigger('click')
   }
+
+  it("every chip-remove button has a title/aria-label, and the merged chip's group-mark uses its own dedicated label", async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS, columns: THREE_COLS, rowKey: 'id' },
+    })
+    await openDd(wrapper, 'Group')
+    await wrapper
+      .findAll('button.dt__dd-item--clickable')
+      .find((el) => el.text() === 'Name')!
+      .trigger('click') // auto-inserts a matching sort entry (insertGroupSort) -> merged chip
+    await openDd(wrapper, 'Group') // close
+
+    const chip = wrapper.find('.dt__chip--grouped-sort')
+    const removeBtns = chip.findAll('.dt__chip-remove')
+    expect(removeBtns[0].attributes('title')).toBe('Remove sort')
+    expect(removeBtns[1].attributes('title')).toBe('Remove group')
+    const groupMark = chip.find('.dt__chip-group-mark')
+    expect(groupMark.attributes('title')).toBe('Open in Group dropdown')
+    expect(groupMark.attributes('aria-label')).toBe('Open in Group dropdown')
+  })
 
   it("clicking a sort chip body toggles that column's direction and keeps focus on it", async () => {
     const wrapper = mount(DataTable, {

@@ -1617,7 +1617,10 @@ describe('DataTable — Columns dropdown Visible/Available split', () => {
   const VROWS: VRow[] = [{ id: 1, name: 'Alice', score: 90 }]
 
   function visibleLabels(container: HTMLElement): (string | undefined | null)[] {
-    return [...container.querySelectorAll('[data-col-row-key] span')].map((el) => el.textContent)
+    // Excludes the decorative drag-handle span (aria-hidden) that now renders before the label.
+    return [...container.querySelectorAll('[data-col-row-key] span:not([aria-hidden])')].map(
+      (el) => el.textContent,
+    )
   }
 
   it('lists every visible column in table order, not alphabetized', () => {
@@ -1693,10 +1696,21 @@ describe('DataTable — Columns dropdown Visible/Available split', () => {
     expect(document.activeElement).toBe(container.querySelector('[data-col-row-key="id"]'))
   })
 
-  it('no Available section (or search box) is rendered once every column is visible', () => {
+  it('the search box stays mounted once every column is visible (no Available section, though)', () => {
     const { getByText, container } = render(<DataTable data={VROWS} columns={VCOLS} rowKey="id" />)
     fireEvent.click(getByText('Columns'))
-    expect(container.querySelector('input[data-dd-search]')).toBeNull()
+    expect(container.querySelector('input[data-dd-search]')).not.toBeNull()
+    expect(container.querySelector('[data-category-header]')).toBeNull()
+    expect(container.querySelector('button[data-col-key]')).toBeNull()
+  })
+
+  it('the search box never unmounts, even when the query matches nothing at all', () => {
+    const { getByText, container } = render(<DataTable data={VROWS} columns={VCOLS} rowKey="id" />)
+    fireEvent.click(getByText('Columns'))
+    const search = container.querySelector<HTMLInputElement>('input[data-dd-search]')!
+    fireEvent.change(search, { target: { value: 'zzzz-no-match' } })
+    expect(container.querySelector('input[data-dd-search]')).toBe(search)
+    expect(visibleLabels(container)).toEqual([])
   })
 
   it('categorized hidden columns collapse into a submenu trigger instead of plain rows', () => {
@@ -1750,7 +1764,7 @@ describe('DataTable — Columns dropdown Visible/Available split', () => {
     expect(document.activeElement).toBe(container.querySelector('[data-category-header]'))
   })
 
-  it('search narrows Available only, matching label or category; Visible is unaffected', () => {
+  it('search narrows both Visible and Available, matching label or category', () => {
     const categorized: ColumnDef<VRow>[] = [
       { key: 'id', label: 'ID' },
       { key: 'name', label: 'Name', category: 'Info' },
@@ -1764,9 +1778,51 @@ describe('DataTable — Columns dropdown Visible/Available split', () => {
     expect(visibleLabels(container)).toEqual(['ID', 'Score'])
 
     const search = container.querySelector<HTMLInputElement>('input[data-dd-search]')!
-    fireEvent.change(search, { target: { value: 'Info' } })
+    fireEvent.change(search, { target: { value: 'Score' } })
+    expect(visibleLabels(container)).toEqual(['Score']) // Visible is narrowed too now
+  })
+
+  it('a category match is flattened into a plain, category-tagged row while searching', () => {
+    const categorized: ColumnDef<VRow>[] = [
+      { key: 'id', label: 'ID' },
+      { key: 'name', label: 'Name', category: 'Info' },
+      { key: 'score', label: 'Score', type: 'number', category: 'Info' },
+    ]
+    const { getByText, container } = render(
+      <DataTable data={VROWS} columns={categorized} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Columns'))
+    fireEvent.click(container.querySelector<HTMLButtonElement>('[data-col-row-key="name"] button')!)
+
+    const search = container.querySelector<HTMLInputElement>('input[data-dd-search]')!
+    fireEvent.change(search, { target: { value: 'Name' } })
+    expect(container.querySelector('[data-category-header]')).toBeNull() // no submenu while searching
+    const row = container.querySelector<HTMLButtonElement>('button[data-col-key="name"]')!
+    expect(row.textContent).toContain('Name')
+    expect(row.textContent).toContain('Info') // category shown as a tag instead
+
+    // Clearing the search restores the collapsed submenu.
+    fireEvent.change(search, { target: { value: '' } })
     expect(container.querySelector('[data-category-header]')?.textContent).toContain('Info')
-    expect(visibleLabels(container)).toEqual(['ID', 'Score']) // still unaffected by the search term
+  })
+
+  it("Alt+ArrowDown only swaps with the next search-matching row, leaving a filtered-out column's own position untouched", () => {
+    const cols: ColumnDef<VRow>[] = [
+      { key: 'id', label: 'Foo1' },
+      { key: 'name', label: 'Bar' },
+      { key: 'score', label: 'Foo2', type: 'number' },
+    ]
+    const { getByText, container } = render(<DataTable data={VROWS} columns={cols} rowKey="id" />)
+    fireEvent.click(getByText('Columns'))
+    const search = container.querySelector<HTMLInputElement>('input[data-dd-search]')!
+    fireEvent.change(search, { target: { value: 'Foo' } }) // matches Foo1/Foo2, not Bar
+    expect(visibleLabels(container)).toEqual(['Foo1', 'Foo2'])
+
+    const foo1Row = container.querySelector<HTMLElement>('[data-col-row-key="id"]')!
+    fireEvent.keyDown(foo1Row, { key: 'ArrowDown', altKey: true })
+    // Foo1 swaps with Foo2 (the next search-matching row) — Bar, hidden by the filter, keeps its
+    // exact position in between rather than being swapped with either.
+    expect(visibleLabels(container)).toEqual(['Foo2', 'Foo1'])
   })
 })
 

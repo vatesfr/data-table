@@ -80,6 +80,7 @@ interface FilterSearchRowProps {
   matchAnyLabel?: string
   matchAllLabel?: string
   onSetMatchMode?: (mode: 'and' | 'or') => void
+  clearSearchLabel: string
 }
 
 // Select-all checkbox + value search input + sort-order toggle — shared by the string checklist
@@ -99,14 +100,27 @@ function FilterSearchRow(props: FilterSearchRowProps) {
         ref={props.checkboxRef}
         onClick={props.onSelectAll}
       />
-      <input
-        type="text"
-        class="dt-dd-search"
-        data-dd-value-search
-        placeholder={props.searchPlaceholder}
-        value={props.searchValue}
-        onInput={(e) => props.onSearchInput(e.currentTarget.value)}
-      />
+      <span class="dt-dd-search-wrap">
+        <input
+          type="text"
+          class="dt-dd-search"
+          data-dd-value-search
+          placeholder={props.searchPlaceholder}
+          value={props.searchValue}
+          onInput={(e) => props.onSearchInput(e.currentTarget.value)}
+        />
+        <Show when={props.searchValue}>
+          <button
+            type="button"
+            class="dt-dd-search-clear"
+            title={props.clearSearchLabel}
+            aria-label={props.clearSearchLabel}
+            onClick={() => props.onSearchInput('')}
+          >
+            ×
+          </button>
+        </Show>
+      </span>
       <button
         type="button"
         class="dt-value-sort-btn"
@@ -174,6 +188,7 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
   // narrows the active column's *values* in the right detail pane (see CLAUDE.md's "Dropdown
   // column search and keyboard navigation").
   const [colSearchTerm, setColSearchTerm] = createSignal('')
+  const isColSearching = createMemo(() => colSearchTerm().trim().length > 0)
 
   // Snapshot of the left pane's column order, captured only at the moment the dropdown opens —
   // see `orderFilterColumnsByActive`'s own doc comment (core) for why this is a snapshot rather
@@ -692,20 +707,41 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
             if (key) setActiveKey(key)
           }}
         >
-          <input
-            type="text"
-            class="dt-dd-search dt-filter-cols-search"
-            data-dd-search
-            placeholder={table.labels().filterSearchPlaceholder}
-            value={colSearchTerm()}
-            onInput={(e) => setColSearchTerm(e.currentTarget.value)}
-          />
+          <span class="dt-dd-search-wrap dt-filter-cols-search-wrap">
+            <input
+              type="text"
+              class="dt-dd-search dt-filter-cols-search"
+              data-dd-search
+              placeholder={table.labels().filterSearchPlaceholder}
+              value={colSearchTerm()}
+              onInput={(e) => setColSearchTerm(e.currentTarget.value)}
+            />
+            <Show when={colSearchTerm()}>
+              <button
+                type="button"
+                class="dt-dd-search-clear"
+                title={table.labels().clearSearch}
+                aria-label={table.labels().clearSearch}
+                onClick={() => setColSearchTerm('')}
+              >
+                ×
+              </button>
+            </Show>
+          </span>
           <For each={categorizedFilterCols().uncategorized}>
             {(col) => <FilterColRow col={col} />}
           </For>
           <For each={categorizedFilterCols().categories}>
             {(category) => {
-              const isCollapsed = createMemo(() => collapsedCategories().has(category.name))
+              // While searching, a category only ever renders here at all when it has a matching
+              // column (categorizedFilterCols buckets the already-searched list) — so force it
+              // open rather than let a stale collapsed snapshot hide the very match the search
+              // just surfaced, with no visible sign it's there. `collapsedCategories` itself is
+              // left untouched: clearing the search reverts to whatever collapse state the user
+              // had (manually toggled, or the open-time snapshot), exactly as before this fix.
+              const isCollapsed = createMemo(
+                () => !isColSearching() && collapsedCategories().has(category.name),
+              )
               return (
                 <div class="dt-filter-category">
                   <button
@@ -754,6 +790,7 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
                           matchAnyLabel={table.labels().filterMatchAny}
                           matchAllLabel={table.labels().filterMatchAll}
                           onSetMatchMode={(mode) => table.filter.setMode(col().key, mode)}
+                          clearSearchLabel={table.labels().clearSearch}
                         />
                         <div
                           class="dt-filter-list"
@@ -858,6 +895,7 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
                       sortIcon={getDateSortIcon(valueSort().dir)}
                       sortLabel={table.labels().sortValues}
                       onSortClick={cycleSort}
+                      clearSearchLabel={table.labels().clearSearch}
                     />
                     <div class="dt-date-tree-wrap">
                       <For each={dateTree()}>

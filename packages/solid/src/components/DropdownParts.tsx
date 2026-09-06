@@ -15,10 +15,17 @@ import { CategorySubmenu } from './CategorySubmenu'
  * `CategorySubmenu`). Always carries `data-col-key` (every current caller's own refocus-by-key
  * lookup already keys off that exact attribute name) — hardcoded rather than a prop, since nothing
  * about this row varies per caller beyond `col`/`onClick`.
+ *
+ * `showCategory` renders `col.category` as a small trailing tag — used by the Columns dropdown
+ * when a search term flattens categorized matches out of their `CategorySubmenu` into plain rows
+ * (see ColumnsDropdown.tsx): with no submenu heading to supply that context anymore, the category
+ * would otherwise be invisible. Omitted (the default) everywhere a column's category is already
+ * implied by which submenu/section it's rendered inside.
  */
 export function AddableColumnRow(props: {
-  col: { key: string; label: string }
+  col: { key: string; label: string; category?: string }
   onClick: () => void
+  showCategory?: boolean
 }) {
   return (
     <button
@@ -29,6 +36,9 @@ export function AddableColumnRow(props: {
       onClick={props.onClick}
     >
       <span class="dt-flex1">{props.col.label}</span>
+      <Show when={props.showCategory && props.col.category}>
+        <span class="dt-dd-item-category">{props.col.category}</span>
+      </Show>
     </button>
   )
 }
@@ -66,22 +76,40 @@ export function CategorizedColumnList<T extends { key: string }>(props: {
   )
 }
 
-/** The `.dt-dd-search-row`/`.dt-dd-search` box every dropdown with an addable/available list has. */
+/** The `.dt-dd-search-row`/`.dt-dd-search` box every dropdown with an addable/available list has.
+ * `clearLabel` backs the `×` clear button's title/aria-label — shown only once `value` is
+ * non-empty, mirroring the toolbar's own `SearchBox`'s `dt-search-clear` (same reused
+ * `clearSearch` label everywhere this appears, since it's the same action in every case: clear
+ * this search box). Previously this was Escape-only — a mouse-only user had no click target. */
 export function DropdownSearchRow(props: {
   value: string
   onInput: (value: string) => void
   placeholder: string
+  clearLabel: string
 }) {
   return (
     <div class="dt-dd-search-row">
-      <input
-        type="text"
-        class="dt-dd-search"
-        data-dd-search
-        placeholder={props.placeholder}
-        value={props.value}
-        onInput={(e) => props.onInput(e.currentTarget.value)}
-      />
+      <span class="dt-dd-search-wrap">
+        <input
+          type="text"
+          class="dt-dd-search"
+          data-dd-search
+          placeholder={props.placeholder}
+          value={props.value}
+          onInput={(e) => props.onInput(e.currentTarget.value)}
+        />
+        <Show when={props.value}>
+          <button
+            type="button"
+            class="dt-dd-search-clear"
+            title={props.clearLabel}
+            aria-label={props.clearLabel}
+            onClick={() => props.onInput('')}
+          >
+            ×
+          </button>
+        </Show>
+      </span>
     </div>
   )
 }

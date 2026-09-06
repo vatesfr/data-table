@@ -33,7 +33,7 @@ function ddCopyOf(getAllByText: (text: string) => HTMLElement[], label: string):
 }
 
 describe('DataTable — dropdown column search', () => {
-  it('the Columns dropdown search box narrows the Available list by label, leaving Visible untouched', () => {
+  it('the Columns dropdown search box narrows both Visible and Available by label', () => {
     const { getByText, container } = render(
       <DataTable
         data={ROWS}
@@ -48,11 +48,12 @@ describe('DataTable — dropdown column search', () => {
     expect(
       [...container.querySelectorAll('button[data-col-key]')].map((b) => b.textContent),
     ).toEqual(['Score'])
-    // Visible (Name) is unaffected by the search term.
-    expect(container.querySelector('[data-col-row-key="name"]')).not.toBeNull()
+    // Visible (Name) doesn't match "sc" either, so it's narrowed out of view too — still shown in
+    // the actual table, just not in this filtered list.
+    expect(container.querySelector('[data-col-row-key="name"]')).toBeNull()
   })
 
-  it('the Columns dropdown search box also matches by category, surfacing every column filed under it', () => {
+  it('the Columns dropdown search box also matches by category, flattening a match out of its submenu', () => {
     const categorizedCols: ColumnDef<Row>[] = [
       { key: 'name', label: 'Name', category: 'Info' },
       { key: 'score', label: 'Score', type: 'number', category: 'Info' },
@@ -69,17 +70,11 @@ describe('DataTable — dropdown column search', () => {
     fireEvent.click(getByText('Columns'))
     const search = container.querySelector<HTMLInputElement>('input[data-dd-search]')!
     fireEvent.change(search, { target: { value: 'Info' } })
-    // Name/Score are categorized under "Info" — searching the category surfaces them collapsed
-    // into a submenu trigger, not as flat data-col-key rows.
-    expect(container.querySelector('button[data-col-key]')).toBeNull()
-    const trigger = container.querySelector('[data-category-header]')!
-    expect(trigger.textContent).toContain('Info')
-    fireEvent.click(trigger)
-    expect(
-      [...document.querySelectorAll('[data-category-submenu] button[data-col-key]')].map(
-        (b) => b.textContent,
-      ),
-    ).toEqual(['Name', 'Score'])
+    // Name/Score are categorized under "Info" — while searching, a category match flattens into
+    // a plain, category-tagged row instead of staying collapsed behind a submenu trigger.
+    expect(container.querySelector('[data-category-header]')).toBeNull()
+    const rows = [...container.querySelectorAll('button[data-col-key]')]
+    expect(rows.map((b) => b.textContent)).toEqual(['NameInfo', 'ScoreInfo'])
   })
 
   it('the Sort dropdown search box narrows only the addable list, alphabetized, leaving active sorts untouched', () => {
@@ -102,7 +97,7 @@ describe('DataTable — dropdown column search', () => {
     expect(container.querySelector('[data-sort-key="dept"]')).not.toBeNull()
   })
 
-  it('the Sort dropdown search box also matches by category (via categorizedAlphabetizedByLabel, core)', () => {
+  it('the Sort dropdown search box also matches by category, flattening a match out of its submenu', () => {
     const categorizedCols: ColumnDef<Row>[] = [
       { key: 'name', label: 'Name', category: 'Info' },
       { key: 'score', label: 'Score', type: 'number', category: 'Info' },
@@ -114,17 +109,11 @@ describe('DataTable — dropdown column search', () => {
     fireEvent.click(getByText('Sort'))
     const search = container.querySelector<HTMLInputElement>('input[data-dd-search]')!
     fireEvent.change(search, { target: { value: 'Info' } })
-    // Name/Score share a category — searching "Info" (the category, not either label) surfaces
-    // them collapsed into their category's submenu trigger, not as flat data-sort-add-key rows.
-    expect(container.querySelector('button[data-sort-add-key]')).toBeNull()
-    const trigger = container.querySelector('[data-category-header]')!
-    expect(trigger.textContent).toContain('Info')
-    fireEvent.click(trigger)
-    expect(
-      [...document.querySelectorAll('[data-category-submenu] button[data-sort-add-key]')].map(
-        (b) => b.textContent,
-      ),
-    ).toEqual(['Name', 'Score'])
+    // Name/Score share a category — while searching, a category match flattens into a plain,
+    // category-tagged row instead of staying collapsed behind a submenu trigger.
+    expect(container.querySelector('[data-category-header]')).toBeNull()
+    const rows = [...container.querySelectorAll('button[data-sort-add-key]')]
+    expect(rows.map((b) => b.textContent)).toEqual(['NameInfo', 'ScoreInfo'])
   })
 
   it('the Group dropdown search box narrows the addable list', () => {
@@ -133,6 +122,23 @@ describe('DataTable — dropdown column search', () => {
     const search = container.querySelector<HTMLInputElement>('input[data-dd-search]')!
     fireEvent.change(search, { target: { value: 'xyz' } })
     expect(container.querySelectorAll('button[data-group-add-key]').length).toBe(0)
+  })
+
+  it('the Group dropdown search box also matches by category, flattening a match out of its submenu', () => {
+    const categorizedCols: ColumnDef<Row>[] = [
+      { key: 'name', label: 'Name', groupable: true },
+      { key: 'score', label: 'Score', type: 'number', groupable: true, category: 'Info' },
+      { key: 'dept', label: 'Dept', type: 'string', groupable: true, category: 'Info' },
+    ]
+    const { getByText, container } = render(
+      <DataTable data={ROWS} columns={categorizedCols} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Group'))
+    const search = container.querySelector<HTMLInputElement>('input[data-dd-search]')!
+    fireEvent.change(search, { target: { value: 'Info' } })
+    expect(container.querySelector('[data-category-header]')).toBeNull()
+    const rows = [...container.querySelectorAll('button[data-group-add-key]')]
+    expect(rows.map((b) => b.textContent)).toEqual(['DeptInfo', 'ScoreInfo'])
   })
 
   it('the Filter dropdown search box narrows the left column pane, alphabetized', () => {
@@ -164,18 +170,80 @@ describe('DataTable — dropdown column search', () => {
     const search = container.querySelector<HTMLInputElement>('input[data-dd-search]')!
     fireEvent.change(search, { target: { value: 'Org' } })
     // The category header itself surfaces — neither Dept nor Score's own label contains "Org",
-    // only the category does. Its columns are collapsed by default (no active filter), so
-    // expanding it is what actually confirms both matched columns are really in there.
+    // only the category does. It's collapsed by default (no active filter), but a search match
+    // forces it open regardless (see the next describe block) — no click needed to see the
+    // columns it matched into.
     const header = container.querySelector<HTMLButtonElement>(
       '[data-filter-category-header="Org"]',
     )!
     expect(header).not.toBeNull()
-    fireEvent.click(header)
+    expect(header.getAttribute('aria-expanded')).toBe('true')
     expect(
       [...container.querySelectorAll('[data-filter-col-key] span:first-child')].map(
         (el) => el.textContent,
       ),
     ).toEqual(['Dept', 'Score']) // neither label contains "Org" — only category does
+  })
+
+  it('a collapsed category with a matching column expands while searching, and reverts once cleared', () => {
+    const categorizedCols: ColumnDef<Row>[] = [
+      { key: 'name', label: 'Name', filterable: true },
+      { key: 'score', label: 'Score', type: 'number', filterable: true, category: 'Org' },
+      { key: 'dept', label: 'Dept', type: 'string', filterable: true, category: 'Org' },
+    ]
+    const { getByText, container } = render(
+      <DataTable data={ROWS} columns={categorizedCols} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Filter'))
+    const header = () =>
+      container.querySelector<HTMLButtonElement>('[data-filter-category-header="Org"]')!
+    expect(header().getAttribute('aria-expanded')).toBe('false') // collapsed by default, no active filter
+
+    const search = container.querySelector<HTMLInputElement>('input[data-dd-search]')!
+    fireEvent.change(search, { target: { value: 'Score' } }) // matches only "Score", inside the still-collapsed "Org" category
+    expect(header().getAttribute('aria-expanded')).toBe('true')
+    expect(
+      [...container.querySelectorAll('[data-filter-col-key] span:first-child')].map(
+        (el) => el.textContent,
+      ),
+    ).toEqual(['Score'])
+
+    // Clearing the search reverts to the collapsed state — the forced-open was a search-only
+    // override, not a permanent change to collapsedCategories.
+    fireEvent.change(search, { target: { value: '' } })
+    expect(header().getAttribute('aria-expanded')).toBe('false')
+  })
+
+  it('manually collapsing during a search takes effect once the search is cleared', () => {
+    const categorizedCols: ColumnDef<Row>[] = [
+      { key: 'name', label: 'Name', filterable: true },
+      { key: 'score', label: 'Score', type: 'number', filterable: true, category: 'Org' },
+      { key: 'dept', label: 'Dept', type: 'string', filterable: true, category: 'Org' },
+    ]
+    const { getByText, container } = render(
+      <DataTable
+        data={ROWS}
+        columns={categorizedCols}
+        rowKey="id"
+        initialViewState={{ filters: { score: ['90'] } }}
+      />,
+    )
+    fireEvent.click(getByText('Filter'))
+    const header = () =>
+      container.querySelector<HTMLButtonElement>('[data-filter-category-header="Org"]')!
+    expect(header().getAttribute('aria-expanded')).toBe('true') // expanded already, active filter
+
+    const search = container.querySelector<HTMLInputElement>('input[data-dd-search]')!
+    fireEvent.change(search, { target: { value: 'Score' } })
+    expect(header().getAttribute('aria-expanded')).toBe('true') // unchanged, still forced open
+
+    // Clicking while forced-open queues a collapse that has no visible effect yet...
+    fireEvent.click(header())
+    expect(header().getAttribute('aria-expanded')).toBe('true')
+
+    // ...until the search is cleared and the queued toggle finally applies.
+    fireEvent.change(search, { target: { value: '' } })
+    expect(header().getAttribute('aria-expanded')).toBe('false')
   })
 })
 
@@ -429,6 +497,37 @@ describe('DataTable — active-bar chip click actions', () => {
     const groupMark = container.querySelector('[data-chip-group-mark="dept"]')!
     fireEvent.click(groupMark)
     expect(document.activeElement).toBe(container.querySelector('[data-group-key="dept"]'))
+  })
+
+  it('the merged grouped-sort chip labels its sort ×, its ⊞ open-Group mark, and its group × distinctly', () => {
+    const { getByText, getAllByText, container } = render(
+      <DataTable data={ROWS} columns={COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Group'))
+    fireEvent.click(ddCopyOf(getAllByText, 'Dept')) // auto-inserts a matching sort entry too
+    const chip = container
+      .querySelector('[data-chip-group-mark="dept"]')!
+      .closest('span') as HTMLElement
+    // Button order: chip body (toggles sort dir, no label needed) → sort ×  → group mark → group ×.
+    const [, removeSortBtn, groupMark, removeGroupBtn] = [...chip.querySelectorAll('button')]
+    expect(removeSortBtn.title).toBeTruthy()
+    expect(groupMark.getAttribute('aria-label')).not.toBe('Group') // no longer the generic label
+    expect(groupMark.getAttribute('aria-label')).toBeTruthy()
+    expect(removeGroupBtn.title).toBeTruthy()
+  })
+
+  it('a plain filter chip’s clear button is labeled', () => {
+    const { getByText, getByLabelText, container } = render(
+      <DataTable data={ROWS} columns={COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Filter'))
+    fireEvent.click(getByLabelText('Alice', { exact: false }))
+    const chip = [...container.querySelectorAll('span')].find((el) =>
+      el.textContent?.trim().startsWith('Name: Alice'),
+    )!
+    const clearBtn = chip.querySelectorAll('button')[1]
+    expect(clearBtn.title).toBeTruthy()
+    expect(clearBtn.getAttribute('aria-label')).toBeTruthy()
   })
 
   it("clicking a filter chip's body opens the Filter dropdown, focused on that column's detail pane", () => {
@@ -778,5 +877,78 @@ describe('DataTable — Group dropdown column categories', () => {
     ) as HTMLButtonElement
     fireEvent.click(nameBtn)
     expect(document.activeElement).toBe(container.querySelector('[data-group-key="name"]'))
+  })
+})
+
+describe('DataTable — dropdown search box clear button', () => {
+  it('the Columns dropdown search box has a labeled clear button, shown only once it has a value', () => {
+    const { getByText, container } = render(<DataTable data={ROWS} columns={COLS} rowKey="id" />)
+    fireEvent.click(getByText('Columns'))
+    const search = container.querySelector<HTMLInputElement>('input[data-dd-search]')!
+    expect(search.parentElement!.querySelector('button')).toBeNull()
+
+    fireEvent.change(search, { target: { value: 'sco' } })
+    const clearBtn = search.parentElement!.querySelector('button')!
+    expect(clearBtn).not.toBeNull()
+    expect(clearBtn.title).toBeTruthy()
+
+    fireEvent.click(clearBtn)
+    expect(search.value).toBe('')
+    expect(search.parentElement!.querySelector('button')).toBeNull()
+  })
+
+  it('the Filter dropdown left-pane search box has a clear button too', () => {
+    const { getByText, container } = render(<DataTable data={ROWS} columns={COLS} rowKey="id" />)
+    fireEvent.click(getByText('Filter'))
+    const search = container.querySelector<HTMLInputElement>('input[data-dd-search]')!
+    fireEvent.change(search, { target: { value: 'sco' } })
+    const clearBtn = search.parentElement!.querySelector('button')!
+    fireEvent.click(clearBtn)
+    expect(search.value).toBe('')
+  })
+})
+
+describe('DataTable — Columns/Group keyboard fixes (Enter/Space, drag handle, remove labels)', () => {
+  it("a Visible row's × button is labeled, and a drag-handle icon precedes its own label", () => {
+    const { getByText, container } = render(<DataTable data={ROWS} columns={COLS} rowKey="id" />)
+    fireEvent.click(getByText('Columns'))
+    const row = container.querySelector<HTMLElement>('[data-col-row-key="name"]')!
+    expect(row.querySelector('span[aria-hidden]')?.textContent).toBe('⠿')
+    const removeBtn = row.querySelector('button')!
+    expect(removeBtn.title).toBeTruthy()
+    expect(removeBtn.getAttribute('aria-label')).toBeTruthy()
+  })
+
+  it('Enter/Space on a Visible row preventDefault (no click action of its own, but stops the native Space-scroll)', () => {
+    const { getByText, container } = render(<DataTable data={ROWS} columns={COLS} rowKey="id" />)
+    fireEvent.click(getByText('Columns'))
+    const row = container.querySelector<HTMLElement>('[data-col-row-key="name"]')!
+    // fireEvent.X returns the native dispatchEvent() result: false once some listener called
+    // preventDefault() — the only reliable way to observe this from outside React's own handler,
+    // which runs later than any listener attached directly to the target node.
+    expect(fireEvent.keyDown(row, { key: ' ' })).toBe(false)
+  })
+
+  it("a Group active row's × button is labeled, and a drag-handle icon precedes its own label", () => {
+    const { getByText, getAllByText, container } = render(
+      <DataTable data={ROWS} columns={COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Group'))
+    fireEvent.click(ddCopyOf(getAllByText, 'Dept'))
+    const row = container.querySelector<HTMLElement>('[data-group-key="dept"]')!
+    expect(row.querySelector('span[aria-hidden]')?.textContent).toBe('⠿')
+    const removeBtn = row.querySelector('button')!
+    expect(removeBtn.title).toBeTruthy()
+    expect(removeBtn.getAttribute('aria-label')).toBeTruthy()
+  })
+
+  it('Enter/Space on a Group active row preventDefault (no click action of its own)', () => {
+    const { getByText, getAllByText, container } = render(
+      <DataTable data={ROWS} columns={COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Group'))
+    fireEvent.click(ddCopyOf(getAllByText, 'Dept'))
+    const row = container.querySelector<HTMLElement>('[data-group-key="dept"]')!
+    expect(fireEvent.keyDown(row, { key: ' ' })).toBe(false)
   })
 })

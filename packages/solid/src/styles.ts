@@ -18,7 +18,14 @@ ${renderThemeCss()}
 .dt-dd{position:absolute;top:calc(100% + 4px);left:0;z-index:100;background:var(--color-background-primary,#fff);border:0.5px solid var(--color-border-secondary,#dddcd8);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.1);min-width:180px;max-height:420px;overflow-y:auto}
 .dt-dd--up{top:auto;bottom:calc(100% + 4px)}
 .dt-dd-search-row{position:sticky;top:0;display:flex;background:var(--color-background-primary,#fff);padding:6px 12px;z-index:1}
-.dt-filter-cols-search{position:sticky;top:0;display:block;width:100%;box-sizing:border-box;margin-bottom:4px;background:var(--color-background-primary,#fff);z-index:1}
+.dt-dd-search-wrap{position:relative;display:flex;flex:1;min-width:0}
+/* .dt-filter-cols-search-wrap is also a .dt-dd-search-wrap (see FilterDropdown.tsx) — declared
+   after it so this rule's own position:sticky wins the cascade over the shared class's
+   position:relative (same specificity, so declaration order decides); sticky still works fine as
+   the containing block its own clear button needs, same as relative would. */
+.dt-filter-cols-search-wrap{position:sticky;top:0;width:100%;box-sizing:border-box;margin-bottom:4px;background:var(--color-background-primary,#fff);z-index:1}
+.dt-dd-search-clear{position:absolute;right:4px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;padding:2px 4px;font-size:13px;line-height:1;color:var(--color-text-tertiary,#9b9a96);font-family:inherit}
+.dt-dd-search-clear:hover{color:var(--color-text-primary,#1a1916)}
 .dt-dd-section{padding:6px 14px 2px;font-size:11px;color:var(--color-text-tertiary,#9b9a96);font-weight:500;letter-spacing:.05em;text-transform:uppercase;white-space:nowrap}
 .dt-dd-sublabel{font-size:12px;margin-bottom:4px;color:var(--color-text-secondary,#6b6a66)}
 .dt-dd-hint{padding:0 14px 6px;font-size:11px;color:var(--color-text-tertiary,#9b9a96)}
@@ -30,6 +37,7 @@ ${renderThemeCss()}
 .dt-dd-item--sortrow:hover,.dt-dd-item--sortrow:focus{background:var(--color-background-secondary,#f7f6f3)}
 .dt-dd-item--grouprow{cursor:grab}
 .dt-dd-item--colrow{cursor:grab}
+.dt-dd-drag-handle{flex-shrink:0;color:var(--color-text-tertiary,#9b9a96);font-size:13px;line-height:1}
 /* Sort/Group/Columns' active rows only ever got the browser's native focus outline, no
    background — unlike the Filter dropdown's own left-pane column row, which tints its background
    on selection (see .dt-filter-col-row--active further down) as well as outlining the focused
@@ -54,6 +62,7 @@ ${renderThemeCss()}
 .dt-dd-category-arrow{flex-shrink:0;font-size:10px;color:var(--color-text-tertiary,#9b9a96)}
 .dt-dd-submenu{z-index:101;background:var(--color-background-primary,#fff);border:0.5px solid var(--color-border-secondary,#dddcd8);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.1);min-width:160px;max-height:320px;overflow-y:auto}
 .dt-flex1{flex:1}
+.dt-dd-item-category{font-size:11px;color:var(--color-text-tertiary,#9b9a96);flex-shrink:0;white-space:nowrap}
 .dt-filter-count{font-size:12px;color:var(--color-text-tertiary,#9b9a96);flex-shrink:0}
 .dt-item-remove{background:none;border:none;cursor:pointer;padding:2px 4px;font-size:13px;color:var(--color-text-tertiary,#9b9a96);line-height:1;font-family:inherit}
 .dt-item-remove:hover{color:var(--color-text-primary,#1a1916)}
@@ -128,7 +137,7 @@ ${renderThemeCss()}
 .dt-filter-list{overflow-y:auto;flex:1;min-height:0}
 .dt-date-tree-wrap{overflow-y:auto;flex:1;min-height:0}
 .dt-filter-search-row{display:flex;align-items:center;gap:6px;margin:2px 12px 6px}
-.dt-dd-search{flex:1;padding:5px 8px;font-size:12px;border:0.5px solid var(--color-border-secondary,#dddcd8);border-radius:6px;background:transparent;color:inherit;font-family:inherit;box-sizing:border-box}
+.dt-dd-search{flex:1;padding:5px 20px 5px 8px;font-size:12px;border:0.5px solid var(--color-border-secondary,#dddcd8);border-radius:6px;background:transparent;color:inherit;font-family:inherit;box-sizing:border-box}
 .dt-filter-select-all{flex-shrink:0;margin:0}
 .dt-value-sort-btn{flex-shrink:0;padding:4px 7px;font-size:11px;background:none;border:0.5px solid var(--color-border-secondary,#dddcd8);border-radius:6px;cursor:pointer;color:var(--color-text-secondary,#6b6a66);font-family:inherit;white-space:nowrap}
 .dt-filter-match-mode-group{display:inline-flex;flex-shrink:0}

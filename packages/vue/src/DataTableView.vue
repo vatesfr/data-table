@@ -376,6 +376,10 @@ function setDdSearchTerm(dd: string, term: string): void {
 // per-column value search term to check too.
 function makeDdEscapeClearable(dd: string): () => boolean {
   return () => {
+    // Scoped to focus actually being in the search box — without this, Escape pressed while
+    // focused on a row (e.g. after arrowing down into the list) would still silently clear a
+    // non-empty search term instead of closing the dropdown on the first press.
+    if (!(document.activeElement as HTMLElement | null)?.matches?.('.dt__dd-search')) return false
     if (ddSearchTerm(dd) !== '') {
       setDdSearchTerm(dd, '')
       return true
@@ -386,24 +390,40 @@ function makeDdEscapeClearable(dd: string): () => boolean {
 const colsEscapeClearable = makeDdEscapeClearable('cols')
 const sortEscapeClearable = makeDdEscapeClearable('sort')
 const groupEscapeClearable = makeDdEscapeClearable('group')
-// Columns dropdown: "Visible columns" (every column the user has chosen to show — visibleCols,
-// not activeColumns, so a column merely hidden *by grouping* still counts as visible here) is the
-// draggable/Alt+↑↓-reorderable list this dropdown always was; unaffected by search, matching
-// Sort/Group (search narrows only what's being added, not what's already active). "Available
-// columns" (hidden columns, click to show) is search-narrowed and bucketed by category — but,
-// unlike Sort/Group's addable lists, deliberately NOT alphabetized: this dropdown's whole identity
-// is "shows real column/definition order," so Available keeps that same order instead of adopting
-// Sort/Group's alphabetical convention (see categorizedAlphabetizedByLabel above, which this
-// intentionally doesn't use).
+// Columns dropdown: the search box is pinned at the top and, unlike Sort/Group, narrows *both*
+// "Visible columns" (visibleCols, not activeColumns, so a column merely hidden *by grouping*
+// still counts as visible here) and "Available columns" (hidden columns, click to show) — a
+// column you already show is just as often what you're hunting for (to hide/reorder it) as one
+// you don't. Available stays bucketed by category but deliberately NOT alphabetized when not
+// searching: this dropdown's whole identity is "shows real column/definition order," unlike
+// Sort/Group's addable lists (see categorizedAlphabetizedByLabel above). While searching, a
+// category match is flattened into a plain, category-tagged row instead — see
+// searchedFlatAvailableCols below — since hiding a single match behind an extra hover/click
+// defeats the point of searching (same reasoning as Sort/Group's own flatten-on-search).
+const isColsSearching = computed(() => ddSearchTerm('cols').trim() !== '')
 const visibleOrderedColumns = computed(() =>
   orderedColumns.value.filter((c) => visibleCols.value.has(c.key)),
 )
-const categorizedAvailableCols = computed(() => {
-  const available = orderedColumns.value.filter((c) => !visibleCols.value.has(c.key))
-  return groupColumnsByCategory(
-    available.filter((c) => columnMatchesSearch(c, ddSearchTerm('cols'))),
-  )
-})
+const searchedVisibleOrderedColumns = computed(() =>
+  visibleOrderedColumns.value.filter((c) => columnMatchesSearch(c, ddSearchTerm('cols'))),
+)
+// Alt+↑/↓'s neighbor-eligibility set for moveVisibleColumnBy (see useTableState.ts's own comment
+// on its 3rd param): the real visible-columns set when not searching (today's behavior,
+// unchanged), or narrowed to just the currently-shown-and-matching keys while searching, so a
+// search-filtered-out column is never chosen as a swap partner.
+const colsReorderEligible = computed<ReadonlySet<string> | undefined>(() =>
+  isColsSearching.value
+    ? new Set(searchedVisibleOrderedColumns.value.map((c) => c.key))
+    : undefined,
+)
+const availableColumns = computed(() =>
+  orderedColumns.value.filter((c) => !visibleCols.value.has(c.key)),
+)
+// Only bucketed by category while *not* searching — see categorizedAvailableCols' own use below.
+const categorizedAvailableCols = computed(() => groupColumnsByCategory(availableColumns.value))
+const searchedFlatAvailableCols = computed(() =>
+  alphabetizedByLabel(availableColumns.value, ddSearchTerm('cols')),
+)
 // Declared here (rather than alongside its sibling groupDropdownRef further down) because the
 // watch right below needs it, and `<script setup>` top-level consts execute in source order —
 // referencing it before this point would hit the TDZ.
@@ -465,6 +485,12 @@ const searchedFilterableCols = computed(() =>
 // here would undo that active-first bubbling for whichever category contains the column currently
 // being filtered on.
 const categorizedFilterCols = computed(() => groupColumnsByCategory(searchedFilterableCols.value))
+// A collapsed category force-expands whenever it currently has a search match — a category only
+// ever appears in categorizedFilterCols at all when it has at least one (searchedFilterableCols
+// is already narrowed), so this is always safe. collapsedCategories itself stays untouched:
+// clearing the search reverts to whatever collapse state was there before (manual toggle, or the
+// open-time snapshot) — see each template usage below.
+const isFilterSearching = computed(() => ddSearchTerm('filter').trim() !== '')
 const filterActiveCol = ref<string | null>(null)
 const filterSearchTerms = ref<Record<string, string>>({})
 const filterSelectionAnchor = ref<Record<string, string>>({})
@@ -852,6 +878,18 @@ const categorizedAddableSortCols = computed(() =>
 const categorizedAddableGroupCols = computed(() =>
   categorizedAlphabetizedByLabel(addableGroupCols.value, ddSearchTerm('group')),
 )
+// While searching, a category match is flattened into a plain, category-tagged row instead of
+// bucketed behind a CategorySubmenu trigger — see Columns' isColsSearching/searchedFlatAvailableCols
+// above for the identical reasoning. Plain alphabetize+search (no bucketing) covers this, since
+// the addable list already has no ordering meaning of its own to preserve.
+const isSortSearching = computed(() => ddSearchTerm('sort').trim() !== '')
+const isGroupSearching = computed(() => ddSearchTerm('group').trim() !== '')
+const searchedFlatAddableSortCols = computed(() =>
+  alphabetizedByLabel(addableSortCols.value, ddSearchTerm('sort')),
+)
+const searchedFlatAddableGroupCols = computed(() =>
+  alphabetizedByLabel(addableGroupCols.value, ddSearchTerm('group')),
+)
 // Which category submenu is open, one independent value per dropdown — a single shared ref (not
 // one per CategorySubmenu instance) so opening one always closes any other that was open in the
 // same dropdown, see CategorySubmenu.vue's own doc.
@@ -990,6 +1028,12 @@ function onGroupRowKeyDown(event: KeyboardEvent, key: string): void {
     // Delete/Backspace-on-a-focused-active-row shortcut.
     event.preventDefault()
     onRemoveGroupClick(key)
+  } else if (event.key === 'Enter' || event.key === ' ') {
+    // No click action of its own (unlike Sort's active rows, which toggle direction) — but still
+    // needs to preventDefault, or Space's native default action scrolls the nearest scrollable
+    // ancestor (this panel, or the whole page once the panel itself has nothing left to scroll)
+    // out from under the still-focused row, which reads as "focus was lost" even though it wasn't.
+    event.preventDefault()
   }
 }
 
@@ -1037,19 +1081,32 @@ function showColumn(key: string): Promise<void> {
 async function hideColumn(col: ColumnDef<TRow>): Promise<void> {
   toggleColVisibility(col.key)
   await nextTick()
-  if (col.category) categorySubmenuRefs.get(col.category)?.triggerRef?.focus()
+  // While searching, a categorized column reappears flattened out of its submenu (see
+  // searchedFlatAvailableCols) — the addable ref map already covers that row too (same key), so
+  // only the *not-searching* case still needs the category submenu trigger as its focus target.
+  if (col.category && !isColsSearching.value)
+    categorySubmenuRefs.get(col.category)?.triggerRef?.focus()
   else addableColRefs.get(col.key)?.focus()
 }
 function onColRowKeyDown(event: KeyboardEvent, key: string, col: ColumnDef<TRow>): void {
   if (event.altKey && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {
     event.preventDefault()
     const delta = event.key === 'ArrowUp' ? -1 : 1
-    activateAndFocus(() => moveVisibleColumnBy(key, delta), colRowRefs, key)
+    activateAndFocus(
+      () => moveVisibleColumnBy(key, delta, colsReorderEligible.value),
+      colRowRefs,
+      key,
+    )
   } else if (event.key === 'Delete' || event.key === 'Backspace') {
     // Keyboard equivalent of this row's own × button — matches the Filter dropdown's identical
     // Delete/Backspace-on-a-focused-active-row shortcut.
     event.preventDefault()
     hideColumn(col)
+  } else if (event.key === 'Enter' || event.key === ' ') {
+    // No click action of its own — but still needs to preventDefault, or Space's native default
+    // action scrolls the nearest scrollable ancestor out from under the still-focused row, which
+    // reads as "focus was lost" even though it wasn't (see onGroupRowKeyDown's identical comment).
+    event.preventDefault()
   }
 }
 
@@ -1075,7 +1132,11 @@ const groupDropdownRef = ref<InstanceType<typeof Dropdown> | null>(null)
 // The Filter dropdown's own Escape callback: unlike Columns/Sort/Group (a single column-search
 // term), it has a second, per-column value-search term to check too — see filterSearchTerms.
 function filterEscapeClearable(): boolean {
-  if (ddSearchTerm('filter') !== '') {
+  const active = document.activeElement as HTMLElement | null
+  // Scoped to focus actually being in the left-pane column search box — same reasoning as
+  // makeDdEscapeClearable above, and as the detail-pane check right below: without it, Escape
+  // pressed while focused elsewhere in the panel would still silently clear this term.
+  if (active?.matches?.('.dt__filter-cols-search') && ddSearchTerm('filter') !== '') {
     setDdSearchTerm('filter', '')
     return true
   }
@@ -1083,9 +1144,7 @@ function filterEscapeClearable(): boolean {
   // while focused anywhere else in the panel (e.g. a left-pane column button) could still
   // silently clear the *currently selected* column's own value search term, even though the user
   // isn't interacting with that search box at all.
-  const inDetailPane = (document.activeElement as HTMLElement | null)?.closest?.(
-    '.dt__filter-detail',
-  )
+  const inDetailPane = active?.closest?.('.dt__filter-detail')
   if (inDetailPane && filterDetailCol.value) {
     const valueSearchTerm = filterSearchTerms.value[filterDetailCol.value.key] ?? ''
     if (valueSearchTerm !== '') {
@@ -1266,13 +1325,42 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
           <template #trigger="{ open }">
             <ToolbarBtn :active="open">{{ L.columns }}</ToolbarBtn>
           </template>
+          <!--
+            Pinned at the top and always mounted (never conditionally rendered based on match
+            count — an earlier version unmounted this whole box once Available's filtered list
+            hit zero, which dropped focus out from under whoever was mid-typing). Narrows *both*
+            Visible and Available now, unlike Sort/Group (search there narrows only what's being
+            added) — a column you already show is just as often what you're hunting for.
+          -->
+          <div class="dt__dd-search-row">
+            <span class="dt__dd-search-wrap">
+              <input
+                type="text"
+                class="dt__dd-search"
+                data-dd-search
+                :placeholder="L.filterSearchPlaceholder"
+                :value="ddSearchTerm('cols')"
+                @input="setDdSearchTerm('cols', ($event.target as HTMLInputElement).value)"
+              />
+              <button
+                v-if="ddSearchTerm('cols')"
+                type="button"
+                class="dt__dd-search-clear"
+                :title="L.clearSearch"
+                :aria-label="L.clearSearch"
+                @click="setDdSearchTerm('cols', '')"
+              >
+                ×
+              </button>
+            </span>
+          </div>
           <div class="dt__dd-section">{{ L.columnsSection }}</div>
           <!--
             @dragover/@drop are handled at the Dropdown panel level (see above), not per-row —
             that's what lets a drop past the last row still resolve to a valid target.
           -->
           <div
-            v-for="col in visibleOrderedColumns"
+            v-for="col in searchedVisibleOrderedColumns"
             :key="col.key"
             :ref="(el) => setColRowRef(col.key, el as Element | null)"
             :data-col-row-key="col.key"
@@ -1288,59 +1376,37 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
             @dragend="onColRowDragEnd"
             @keydown="onColRowKeyDown($event, col.key, col)"
           >
+            <span class="dt__dd-drag-handle" aria-hidden="true">⠿</span>
             <span class="dt__flex1">{{ col.label }}</span>
             <button
               type="button"
               class="dt__item-remove"
+              :title="L.hideColumn"
+              :aria-label="L.hideColumn"
               draggable="false"
               @click.stop="hideColumn(col)"
             >
               ×
             </button>
           </div>
-          <template
-            v-if="
-              categorizedAvailableCols.uncategorized.length > 0 ||
-              categorizedAvailableCols.categories.length > 0
-            "
-          >
-            <!-- Narrows Available only, matching Sort/Group (search never touches the active
-                 section) — the Columns dropdown's own real-order principle (see the computed's
-                 own comment) still applies here, unaffected by search. -->
-            <div class="dt__dd-search-row">
-              <input
-                type="text"
-                class="dt__dd-search"
-                data-dd-search
-                :placeholder="L.filterSearchPlaceholder"
-                :value="ddSearchTerm('cols')"
-                @input="setDdSearchTerm('cols', ($event.target as HTMLInputElement).value)"
-              />
-            </div>
+          <template v-if="availableColumns.length > 0">
             <div class="dt__dd-section">{{ L.availableColumnsSection }}</div>
-            <button
-              v-for="col in categorizedAvailableCols.uncategorized"
-              :key="col.key"
-              :ref="(el) => setAddableColRef(col.key, el as Element | null)"
-              type="button"
-              class="dt__dd-item dt__dd-item--clickable"
-              @click="showColumn(col.key)"
-            >
-              <span class="dt__flex1">{{ col.label }}</span>
-            </button>
-            <CategorySubmenu
-              v-for="category in categorizedAvailableCols.categories"
-              :key="category.name"
-              :ref="(el) => setCategorySubmenuRef(category.name, el)"
-              :name="category.name"
-              :is-open="openColsCategory === category.name"
-              @open="openColsCategory = category.name"
-              @close="
-                openColsCategory = openColsCategory === category.name ? null : openColsCategory
-              "
-            >
+            <template v-if="isColsSearching">
               <button
-                v-for="col in category.columns"
+                v-for="col in searchedFlatAvailableCols"
+                :key="col.key"
+                :ref="(el) => setAddableColRef(col.key, el as Element | null)"
+                type="button"
+                class="dt__dd-item dt__dd-item--clickable"
+                @click="showColumn(col.key)"
+              >
+                <span class="dt__flex1">{{ col.label }}</span>
+                <span v-if="col.category" class="dt__dd-item-category">{{ col.category }}</span>
+              </button>
+            </template>
+            <template v-else>
+              <button
+                v-for="col in categorizedAvailableCols.uncategorized"
                 :key="col.key"
                 :ref="(el) => setAddableColRef(col.key, el as Element | null)"
                 type="button"
@@ -1349,7 +1415,29 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
               >
                 <span class="dt__flex1">{{ col.label }}</span>
               </button>
-            </CategorySubmenu>
+              <CategorySubmenu
+                v-for="category in categorizedAvailableCols.categories"
+                :key="category.name"
+                :ref="(el) => setCategorySubmenuRef(category.name, el)"
+                :name="category.name"
+                :is-open="openColsCategory === category.name"
+                @open="openColsCategory = category.name"
+                @close="
+                  openColsCategory = openColsCategory === category.name ? null : openColsCategory
+                "
+              >
+                <button
+                  v-for="col in category.columns"
+                  :key="col.key"
+                  :ref="(el) => setAddableColRef(col.key, el as Element | null)"
+                  type="button"
+                  class="dt__dd-item dt__dd-item--clickable"
+                  @click="showColumn(col.key)"
+                >
+                  <span class="dt__flex1">{{ col.label }}</span>
+                </button>
+              </CategorySubmenu>
+            </template>
           </template>
         </Dropdown>
 
@@ -1408,11 +1496,14 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
               @dragstart="onGroupDragStart(key)"
               @dragend="onGroupDragEnd"
             >
+              <span class="dt__dd-drag-handle" aria-hidden="true">⠿</span>
               <span class="dt__sort-idx">{{ i + 1 }}</span>
               <span class="dt__flex1">{{ findCol(key)?.label ?? key }}</span>
               <button
                 type="button"
                 class="dt__item-remove"
+                :title="L.removeGroup"
+                :aria-label="L.removeGroup"
                 draggable="false"
                 @click="onRemoveGroupClick(key)"
               >
@@ -1423,38 +1514,44 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
           <template v-if="addableGroupCols.length > 0">
             <!-- Same search + alphabetize treatment as Sort's add list above, for the same reason. -->
             <div class="dt__dd-search-row">
-              <input
-                type="text"
-                class="dt__dd-search"
-                data-dd-search
-                :placeholder="L.filterSearchPlaceholder"
-                :value="ddSearchTerm('group')"
-                @input="setDdSearchTerm('group', ($event.target as HTMLInputElement).value)"
-              />
+              <span class="dt__dd-search-wrap">
+                <input
+                  type="text"
+                  class="dt__dd-search"
+                  data-dd-search
+                  :placeholder="L.filterSearchPlaceholder"
+                  :value="ddSearchTerm('group')"
+                  @input="setDdSearchTerm('group', ($event.target as HTMLInputElement).value)"
+                />
+                <button
+                  v-if="ddSearchTerm('group')"
+                  type="button"
+                  class="dt__dd-search-clear"
+                  :title="L.clearSearch"
+                  :aria-label="L.clearSearch"
+                  @click="setDdSearchTerm('group', '')"
+                >
+                  ×
+                </button>
+              </span>
             </div>
             <div class="dt__dd-section">{{ L.groupSection }}</div>
-            <button
-              v-for="col in categorizedAddableGroupCols.uncategorized"
-              :key="col.key"
-              :ref="(el) => setAddableGroupRef(col.key, el as Element | null)"
-              type="button"
-              class="dt__dd-item dt__dd-item--clickable"
-              @click="onAddGroup(col.key)"
-            >
-              <span class="dt__flex1">{{ col.label }}</span>
-            </button>
-            <CategorySubmenu
-              v-for="category in categorizedAddableGroupCols.categories"
-              :key="category.name"
-              :name="category.name"
-              :is-open="openGroupCategory === category.name"
-              @open="openGroupCategory = category.name"
-              @close="
-                openGroupCategory = openGroupCategory === category.name ? null : openGroupCategory
-              "
-            >
+            <template v-if="isGroupSearching">
               <button
-                v-for="col in category.columns"
+                v-for="col in searchedFlatAddableGroupCols"
+                :key="col.key"
+                :ref="(el) => setAddableGroupRef(col.key, el as Element | null)"
+                type="button"
+                class="dt__dd-item dt__dd-item--clickable"
+                @click="onAddGroup(col.key)"
+              >
+                <span class="dt__flex1">{{ col.label }}</span>
+                <span v-if="col.category" class="dt__dd-item-category">{{ col.category }}</span>
+              </button>
+            </template>
+            <template v-else>
+              <button
+                v-for="col in categorizedAddableGroupCols.uncategorized"
                 :key="col.key"
                 :ref="(el) => setAddableGroupRef(col.key, el as Element | null)"
                 type="button"
@@ -1463,7 +1560,28 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
               >
                 <span class="dt__flex1">{{ col.label }}</span>
               </button>
-            </CategorySubmenu>
+              <CategorySubmenu
+                v-for="category in categorizedAddableGroupCols.categories"
+                :key="category.name"
+                :name="category.name"
+                :is-open="openGroupCategory === category.name"
+                @open="openGroupCategory = category.name"
+                @close="
+                  openGroupCategory = openGroupCategory === category.name ? null : openGroupCategory
+                "
+              >
+                <button
+                  v-for="col in category.columns"
+                  :key="col.key"
+                  :ref="(el) => setAddableGroupRef(col.key, el as Element | null)"
+                  type="button"
+                  class="dt__dd-item dt__dd-item--clickable"
+                  @click="onAddGroup(col.key)"
+                >
+                  <span class="dt__flex1">{{ col.label }}</span>
+                </button>
+              </CategorySubmenu>
+            </template>
           </template>
         </Dropdown>
 
@@ -1531,6 +1649,8 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
               <button
                 type="button"
                 class="dt__item-remove"
+                :title="L.removeSort"
+                :aria-label="L.removeSort"
                 draggable="false"
                 @click.stop="onRemoveSortClick(entry.key)"
               >
@@ -1568,12 +1688,15 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
               @dragstart="onSortDragStart(entry.key)"
               @dragend="onSortDragEnd"
             >
+              <span class="dt__dd-drag-handle" aria-hidden="true">⠿</span>
               <span class="dt__sort-idx">{{ i + 1 }}</span>
               <span class="dt__flex1">{{ findCol(entry.key)?.label ?? entry.key }}</span>
               <span class="dt__sort-icon dt__sort-icon--active">{{ getSortIcon(entry.key) }}</span>
               <button
                 type="button"
                 class="dt__item-remove"
+                :title="L.removeSort"
+                :aria-label="L.removeSort"
                 draggable="false"
                 @click.stop="onRemoveSortClick(entry.key)"
               >
@@ -1589,14 +1712,26 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
               instead of raw column-definition order, to make scanning a long list easier.
             -->
             <div class="dt__dd-search-row">
-              <input
-                type="text"
-                class="dt__dd-search"
-                data-dd-search
-                :placeholder="L.filterSearchPlaceholder"
-                :value="ddSearchTerm('sort')"
-                @input="setDdSearchTerm('sort', ($event.target as HTMLInputElement).value)"
-              />
+              <span class="dt__dd-search-wrap">
+                <input
+                  type="text"
+                  class="dt__dd-search"
+                  data-dd-search
+                  :placeholder="L.filterSearchPlaceholder"
+                  :value="ddSearchTerm('sort')"
+                  @input="setDdSearchTerm('sort', ($event.target as HTMLInputElement).value)"
+                />
+                <button
+                  v-if="ddSearchTerm('sort')"
+                  type="button"
+                  class="dt__dd-search-clear"
+                  :title="L.clearSearch"
+                  :aria-label="L.clearSearch"
+                  @click="setDdSearchTerm('sort', '')"
+                >
+                  ×
+                </button>
+              </span>
             </div>
             <div class="dt__dd-section">{{ L.sortSection }}</div>
             <!--
@@ -1604,28 +1739,22 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
               for free — no manual tabindex/keydown wiring needed, unlike the active rows above
               (which need custom keyboard handling anyway for Alt+↑/↓ reorder).
             -->
-            <button
-              v-for="col in categorizedAddableSortCols.uncategorized"
-              :key="col.key"
-              :ref="(el) => setAddableSortRef(col.key, el as Element | null)"
-              type="button"
-              class="dt__dd-item dt__dd-item--clickable"
-              @click="onAddSort(col.key)"
-            >
-              <span class="dt__flex1">{{ col.label }}</span>
-            </button>
-            <CategorySubmenu
-              v-for="category in categorizedAddableSortCols.categories"
-              :key="category.name"
-              :name="category.name"
-              :is-open="openSortCategory === category.name"
-              @open="openSortCategory = category.name"
-              @close="
-                openSortCategory = openSortCategory === category.name ? null : openSortCategory
-              "
-            >
+            <template v-if="isSortSearching">
               <button
-                v-for="col in category.columns"
+                v-for="col in searchedFlatAddableSortCols"
+                :key="col.key"
+                :ref="(el) => setAddableSortRef(col.key, el as Element | null)"
+                type="button"
+                class="dt__dd-item dt__dd-item--clickable"
+                @click="onAddSort(col.key)"
+              >
+                <span class="dt__flex1">{{ col.label }}</span>
+                <span v-if="col.category" class="dt__dd-item-category">{{ col.category }}</span>
+              </button>
+            </template>
+            <template v-else>
+              <button
+                v-for="col in categorizedAddableSortCols.uncategorized"
                 :key="col.key"
                 :ref="(el) => setAddableSortRef(col.key, el as Element | null)"
                 type="button"
@@ -1634,7 +1763,28 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
               >
                 <span class="dt__flex1">{{ col.label }}</span>
               </button>
-            </CategorySubmenu>
+              <CategorySubmenu
+                v-for="category in categorizedAddableSortCols.categories"
+                :key="category.name"
+                :name="category.name"
+                :is-open="openSortCategory === category.name"
+                @open="openSortCategory = category.name"
+                @close="
+                  openSortCategory = openSortCategory === category.name ? null : openSortCategory
+                "
+              >
+                <button
+                  v-for="col in category.columns"
+                  :key="col.key"
+                  :ref="(el) => setAddableSortRef(col.key, el as Element | null)"
+                  type="button"
+                  class="dt__dd-item dt__dd-item--clickable"
+                  @click="onAddSort(col.key)"
+                >
+                  <span class="dt__flex1">{{ col.label }}</span>
+                </button>
+              </CategorySubmenu>
+            </template>
           </template>
         </Dropdown>
 
@@ -1697,14 +1847,26 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                 (unlike the Columns dropdown, this list isn't reorderable), so it's alphabetized
                 by label rather than raw column-definition order.
               -->
-              <input
-                type="text"
-                class="dt__dd-search dt__filter-cols-search"
-                data-dd-search
-                :placeholder="L.filterSearchPlaceholder"
-                :value="ddSearchTerm('filter')"
-                @input="setDdSearchTerm('filter', ($event.target as HTMLInputElement).value)"
-              />
+              <span class="dt__dd-search-wrap dt__filter-cols-search-wrap">
+                <input
+                  type="text"
+                  class="dt__dd-search dt__filter-cols-search"
+                  data-dd-search
+                  :placeholder="L.filterSearchPlaceholder"
+                  :value="ddSearchTerm('filter')"
+                  @input="setDdSearchTerm('filter', ($event.target as HTMLInputElement).value)"
+                />
+                <button
+                  v-if="ddSearchTerm('filter')"
+                  type="button"
+                  class="dt__dd-search-clear"
+                  :title="L.clearSearch"
+                  :aria-label="L.clearSearch"
+                  @click="setDdSearchTerm('filter', '')"
+                >
+                  ×
+                </button>
+              </span>
               <!--
                 The row (not the item button alone) carries the selected-column highlight, so it
                 spans the clear button too instead of stopping short of it — see
@@ -1763,20 +1925,26 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                 collapsedCategories' own comment above).
               -->
               <template v-for="category in categorizedFilterCols.categories" :key="category.name">
+                <!--
+                  A collapsed category force-expands whenever it currently has a search match —
+                  always safe, since a category only ever appears here at all when it has one (see
+                  isFilterSearching's own comment above). collapsedCategories itself stays
+                  untouched, so clearing the search reverts to whatever it was before.
+                -->
                 <button
                   type="button"
                   class="dt__filter-category-header"
                   :data-filter-category-header="category.name"
-                  :aria-expanded="!collapsedCategories.has(category.name)"
+                  :aria-expanded="isFilterSearching || !collapsedCategories.has(category.name)"
                   @click="toggleCategoryCollapsed(category.name)"
                 >
                   <span class="dt__flex1">{{ category.name }}</span>
                   <span class="dt__filter-category-toggle">
-                    {{ collapsedCategories.has(category.name) ? '▸' : '▾' }}
+                    {{ !isFilterSearching && collapsedCategories.has(category.name) ? '▸' : '▾' }}
                   </span>
                 </button>
                 <div
-                  v-if="!collapsedCategories.has(category.name)"
+                  v-if="isFilterSearching || !collapsedCategories.has(category.name)"
                   class="dt__filter-category-cols"
                 >
                   <div
@@ -1868,18 +2036,30 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                       :aria-label="L.selectAll"
                       @change="onToggleFilterAll(filterDetailCol)"
                     />
-                    <input
-                      type="text"
-                      class="dt__dd-search"
-                      :placeholder="L.filterSearchPlaceholder"
-                      :value="filterSearchTerms[filterDetailCol.key] ?? ''"
-                      @input="
-                        setFilterSearchTerm(
-                          filterDetailCol.key,
-                          ($event.target as HTMLInputElement).value,
-                        )
-                      "
-                    />
+                    <span class="dt__dd-search-wrap">
+                      <input
+                        type="text"
+                        class="dt__dd-search"
+                        :placeholder="L.filterSearchPlaceholder"
+                        :value="filterSearchTerms[filterDetailCol.key] ?? ''"
+                        @input="
+                          setFilterSearchTerm(
+                            filterDetailCol.key,
+                            ($event.target as HTMLInputElement).value,
+                          )
+                        "
+                      />
+                      <button
+                        v-if="filterSearchTerms[filterDetailCol.key]"
+                        type="button"
+                        class="dt__dd-search-clear"
+                        :title="L.clearSearch"
+                        :aria-label="L.clearSearch"
+                        @click="setFilterSearchTerm(filterDetailCol.key, '')"
+                      >
+                        ×
+                      </button>
+                    </span>
                     <button
                       type="button"
                       class="dt__value-sort-btn"
@@ -2063,30 +2243,69 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
           <button type="button" class="dt__chip-body" @click="toggleSortDir(key)">
             {{ getSortIcon(key) }} {{ findCol(key)?.label ?? key }}
           </button>
-          <button type="button" class="dt__chip-remove" @click="removeSort(key)">×</button>
+          <button
+            type="button"
+            class="dt__chip-remove"
+            :title="L.removeSort"
+            :aria-label="L.removeSort"
+            @click="removeSort(key)"
+          >
+            ×
+          </button>
+          <!--
+            Opens the Group dropdown focused on this entry — distinct from the chip body right
+            before it, which toggles sort direction instead. Its own dedicated label
+            (openGroupDropdown), not the generic L.group — a screen reader announcing plain
+            "Group" on this button gave no indication what it actually does.
+          -->
           <button
             type="button"
             class="dt__chip-group-mark"
-            :aria-label="L.group"
+            :title="L.openGroupDropdown"
+            :aria-label="L.openGroupDropdown"
             :data-chip-group-mark="key"
             @click="onOpenGroupEntry(key)"
           >
             ⊞
           </button>
-          <button type="button" class="dt__chip-remove" @click="removeGroup(key)">×</button>
+          <button
+            type="button"
+            class="dt__chip-remove"
+            :title="L.removeGroup"
+            :aria-label="L.removeGroup"
+            @click="removeGroup(key)"
+          >
+            ×
+          </button>
         </span>
         <span v-else class="dt__chip">
           <button type="button" class="dt__chip-body" @click="onOpenGroupEntry(key)">
             {{ findCol(key)?.label ?? key }}
           </button>
-          <button type="button" class="dt__chip-remove" @click="removeGroup(key)">×</button>
+          <button
+            type="button"
+            class="dt__chip-remove"
+            :title="L.removeGroup"
+            :aria-label="L.removeGroup"
+            @click="removeGroup(key)"
+          >
+            ×
+          </button>
         </span>
       </template>
       <span v-for="entry in nonGroupSortEntries" :key="entry.key" class="dt__chip">
         <button type="button" class="dt__chip-body" @click="toggleSortDir(entry.key)">
           {{ getSortIcon(entry.key) }} {{ findCol(entry.key)?.label ?? entry.key }}
         </button>
-        <button type="button" class="dt__chip-remove" @click="removeSort(entry.key)">×</button>
+        <button
+          type="button"
+          class="dt__chip-remove"
+          :title="L.removeSort"
+          :aria-label="L.removeSort"
+          @click="removeSort(entry.key)"
+        >
+          ×
+        </button>
       </span>
       <template v-if="activeFilterCount > 0">
         <template v-for="[key, vals] in Object.entries(filters)" :key="key">
@@ -2098,6 +2317,8 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
             <button
               type="button"
               class="dt__chip-remove"
+              :title="L.clearColumnFilter"
+              :aria-label="L.clearColumnFilter"
               @click="clearColumnFilter(key, 'include')"
             >
               ×
@@ -2118,6 +2339,8 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
             <button
               type="button"
               class="dt__chip-remove"
+              :title="L.clearColumnFilter"
+              :aria-label="L.clearColumnFilter"
               @click="clearColumnFilter(key, 'exclude')"
             >
               ×
@@ -2132,7 +2355,13 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
             <button type="button" class="dt__chip-body" @click="onOpenFilterCol(key)">
               {{ columns.find((c) => c.key === key)?.label }}: {{ rf.min }}–{{ rf.max }}
             </button>
-            <button type="button" class="dt__chip-remove" @click="clearColumnFilter(key, 'range')">
+            <button
+              type="button"
+              class="dt__chip-remove"
+              :title="L.clearColumnFilter"
+              :aria-label="L.clearColumnFilter"
+              @click="clearColumnFilter(key, 'range')"
+            >
               ×
             </button>
           </span>
@@ -2702,7 +2931,9 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
 .dt__dd-search {
   display: block;
   flex: 1;
-  padding: 5px 8px;
+  /* Right padding always reserved (whether or not the clear button is currently shown) so it
+     never overlaps the text, and so the box doesn't reflow when the button appears/disappears. */
+  padding: 5px 20px 5px 8px;
   font-size: 12px;
   border: 0.5px solid var(--color-border-secondary);
   border-radius: 6px;
@@ -2710,6 +2941,32 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
   color: inherit;
   font-family: inherit;
   box-sizing: border-box;
+}
+/* Wraps a .dt__dd-search input + its optional clear button — same idea as .dt__search-wrap for
+   the toolbar's own search box, just reused here since every dropdown search box gained the same
+   clear affordance (previously Escape-only). */
+.dt__dd-search-wrap {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-width: 0;
+}
+.dt__dd-search-clear {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px 4px;
+  font-size: 13px;
+  line-height: 1;
+  color: var(--color-text-tertiary);
+  font-family: inherit;
+}
+.dt__dd-search-clear:hover {
+  color: var(--color-text-primary);
 }
 /* Wraps the Columns/Sort/Group dropdowns' own column-search box — sticky within the dropdown
    panel's own scroll (see .dropdown__menu's max-height/overflow-y in Dropdown.vue) so it stays
@@ -2723,11 +2980,12 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
   z-index: 1;
 }
 /* Same idea as .dt__dd-search-row above, but sticky within .dt__filter-cols's own scroll instead
-   (the Filter dropdown's left pane doesn't have a dedicated wrapper row the way the others do). */
-.dt__filter-cols-search {
+   (the Filter dropdown's left pane doesn't have a dedicated wrapper row the way the others do).
+   A distinct class from .dt__dd-search-wrap's own position:relative (applied to the same element,
+   see the Filter dropdown's template) so there's no cascade-order conflict between the two. */
+.dt__filter-cols-search-wrap {
   position: sticky;
   top: 0;
-  display: block;
   width: 100%;
   box-sizing: border-box;
   margin-bottom: 4px;
@@ -2773,6 +3031,23 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
 }
 .dt__flex1 {
   flex: 1;
+}
+/* Drag-handle glyph on Columns' Visible rows and Sort/Group's active rows (not Sort's
+   non-draggable "Group order" rows) — purely visual, the whole row is still the drag surface. */
+.dt__dd-drag-handle {
+  flex-shrink: 0;
+  color: var(--color-text-tertiary);
+  font-size: 13px;
+  line-height: 1;
+}
+/* Category tag on a flattened addable/available row while searching (see isColsSearching/
+   isSortSearching/isGroupSearching) — the row's own category context, since it's no longer
+   nested inside a CategorySubmenu trigger to convey that. */
+.dt__dd-item-category {
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 .dt__filter-count {
   font-size: 12px;
