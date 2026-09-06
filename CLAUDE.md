@@ -4,19 +4,23 @@
 
 When a request is ambiguous, ask clarifying questions **one at a time** before proceeding. Do not ask several questions at once.
 
-Be concise: short responses, no filler, no restating what was just done.
+Be concise: short responses, no filler, no restating what was just done. Favor the smallest change that satisfies the request; when more thorough work (deeper investigation, broader refactor, extra tests) would clearly pay off, say so and let the user decide.
 
 Do not re-read a file that was already read in the current session unless it may have changed.
 
 When there are multiple valid approaches to a request, present the options and trade-offs first and wait for a choice before starting implementation.
 
-For non-trivial changes (multiple files, non-obvious design decisions, refactors), outline a brief plan and get confirmation before implementing. Trivial/obvious edits can proceed directly.
+For non-trivial changes (multiple files, non-obvious design decisions, refactors), outline a brief plan and get confirmation before implementing. Always wait for explicit go-ahead before implementing, even for trivial/obvious edits.
 
 When asked a question, answer it — don't jump straight to implementing. Stay in scope: only make the changes asked for, and flag other issues noticed rather than fixing them unprompted.
 
 Match the existing code style and conventions in the file/project rather than imposing personal preference; don't reformat unrelated code. Ask before adding a new dependency; prefer what's already in use.
 
 Suggest relevant Claude Code plugins, skills, or agents when they'd help with the task at hand.
+
+## Knowledge sharing
+
+Team/project conventions, workflow rules, and architecture decisions belong in CLAUDE.md (or linked docs) — they're version-controlled and binding for every contributor. Facts specific to one person (their role, personal working-style preferences, session/project context) belong in Claude's internal memory, not CLAUDE.md. Secrets, credentials, and ephemeral state belong in neither.
 
 ## Git workflow
 
