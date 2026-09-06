@@ -56,7 +56,7 @@ After implementing any new feature:
 4. Update the demos (`demo/react`, `demo/vue`, `demo/solid`, and `demo/vanilla`) to showcase the new feature if applicable.
 5. Update any affected Markdown files. Prefer updating a package/docs Markdown file over this one; link to it from CLAUDE.md instead of duplicating its content here.
 
-A husky pre-commit hook (`.husky/pre-commit`) already runs `lint-staged`, `type-check`, `test`, `build`, and `size` on every commit — the manual steps above are for catching problems early, not a substitute for it.
+A husky pre-commit hook (`.husky/pre-commit`) already runs `lint-staged`, `type-check`, `test`, `build`, and `size` on every commit — the manual steps above are for catching problems early, not a substitute for it. These checks (`size` in particular) only match CI if the local `node_modules` actually matches `package-lock.json` — an incrementally-updated local `node_modules` can silently drift from the lockfile (different hoisting than a clean `npm ci` produces) and pass locally while failing in CI. `.husky/post-merge` and `.husky/post-checkout` guard against this by running `npm ci` automatically whenever `package-lock.json` changes across a pull/merge or branch switch.
 
 ## Architecture
 

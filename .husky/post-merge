@@ -1,0 +1,2 @@
+git diff --name-only ORIG_HEAD HEAD | grep -q '^package-lock\.json$' && npm ci
+exit 0
