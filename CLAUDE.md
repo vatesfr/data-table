@@ -2,30 +2,43 @@
 
 ## Working style
 
-When a request is ambiguous, ask clarifying questions **one at a time** before proceeding. Do not ask several questions at once.
+- Be concise and economical everywhere: responses, code comments, and doc prose. No filler, no restating what was just done; favor the smallest change that satisfies the request.
+  - Code comments: one line, state the why only when non-obvious; skip the comment entirely if the code is self-explanatory.
+  - Doc prose (README, CLAUDE.md, etc.): short bullets over paragraphs; no preamble, no summary section, lead with the point.
+- Wait for explicit go-ahead before implementing, unless the request already states the exact change to make. Before that go-ahead:
+  - ask clarifying questions as soon as the request is ambiguous; batch them into one round, using `AskUserQuestion` when the answer is a choice between options, otherwise prose — short and visually separated, never buried mid-paragraph;
+  - draft a plan first for non-trivial changes (multiple files, non-obvious design decisions, refactors);
+  - when several valid approaches exist, present the options and trade-offs with a recommendation, and wait for a choice.
+- When asked a question, answer it — don't jump straight to implementing.
+- Surface, don't decide alone: make only the changes asked for, plus the Development workflow checklist below; flag anything else — other issues noticed, alternative approaches, work that would clearly pay off — instead of acting on it unprompted.
+- Match the existing code style and conventions in the file/project rather than imposing personal preference; don't reformat unrelated code.
+- Ask before adding a new dependency; prefer what's already in use.
+- Don't re-read a file already read in the current session unless it may have changed.
+- If a rule here is stale or contradicts the code, say so instead of silently following it.
 
-Be concise: short responses, no filler, no restating what was just done. Favor the smallest change that satisfies the request; when more thorough work (deeper investigation, broader refactor, extra tests) would clearly pay off, say so and let the user decide.
+## Safety
 
-Do not re-read a file that was already read in the current session unless it may have changed.
+- Ask before anything destructive or hard to reverse: `git reset --hard`, `git push --force`, rewriting pushed history, deleting files, `rm -rf node_modules`.
+- Publishing to npm (see Release process) is the only externally visible action in this repo — never run it unprompted.
 
-When there are multiple valid approaches to a request, present the options and trade-offs first and wait for a choice before starting implementation.
+## Claude Code setup
 
-For non-trivial changes (multiple files, non-obvious design decisions, refactors), outline a brief plan and get confirmation before implementing. Always wait for explicit go-ahead before implementing, even for trivial/obvious edits.
-
-When asked a question, answer it — don't jump straight to implementing. Stay in scope: only make the changes asked for, and flag other issues noticed rather than fixing them unprompted.
-
-Match the existing code style and conventions in the file/project rather than imposing personal preference; don't reformat unrelated code. Ask before adding a new dependency; prefer what's already in use.
-
-Suggest relevant Claude Code plugins, skills, or agents when they'd help with the task at hand.
+- Check `.claude/skills/` first: when a request matches a skill there, invoke it rather than improvising — it is the source of truth for the procedure it covers.
+- Multi-step procedures invoked on demand belong in `.claude/skills/`, not in this file — CLAUDE.md is for rules that apply to every task. Propose a skill, hook, plugin or agent when a procedure recurs; ask before adding one.
+- Automated behaviors ("always run X after Y") need Claude Code hooks in `.claude/settings.json`; instructions in this file cannot guarantee them.
 
 ## Knowledge sharing
 
-Team/project conventions, workflow rules, and architecture decisions belong in CLAUDE.md (or linked docs) — they're version-controlled and binding for every contributor. Facts specific to one person (their role, personal working-style preferences, session/project context) belong in Claude's internal memory, not CLAUDE.md. Secrets, credentials, and ephemeral state belong in neither.
+- Team/project conventions, workflow rules, and architecture decisions belong in CLAUDE.md (or linked docs) — version-controlled and binding for every contributor.
+- Facts specific to one person (role, personal working-style preferences, session/project context) belong in Claude's memory, not here.
+- Secrets, credentials, and ephemeral state belong in neither (see Git workflow).
+- Prefer updating a package/docs Markdown file over this one; link to it from here instead of duplicating its content.
 
 ## Git workflow
 
 - Make commits atomic: each commit should represent one logical change and pass tests on its own.
 - Write descriptive commit messages that explain the _why_, not just the _what_. Use a short subject line and a body when context is needed.
+- **Message format**: Conventional Commits with a scope where one applies (`feat(dropdowns): …`, `fix(ci): …`, `chore(release): …`).
 - If a commit fixes a bug reported in a GitHub issue, include a closing keyword (e.g. `Fixes #N` / `Closes #N`) in the commit body. If the issue number isn't known, ask before committing rather than omitting it.
 - Only create a dedicated branch and close it with a merge commit when a feature's development required multiple commits; otherwise commit directly to `main`.
 - While iterating on a commit (or run of commits) that hasn't been pushed yet, don't stack a new commit for each round of fixes/review feedback — amend the existing commit, or squash (`git reset --soft <parent>`, then recommit) if several unpushed commits already cover the same feature. Unpushed history isn't shared, so there's no cost to rewriting it, and it keeps history to one clean commit per logical feature instead of a string of "fix review comment" commits nobody outside the session ever saw individually. Once a commit is pushed, treat it as shared and stop rewriting it — go back to a normal atomic commit per logical change.
