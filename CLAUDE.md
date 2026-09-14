@@ -492,6 +492,14 @@ In production, `npm run build` must run `core` before `react`, `vue`, and `solid
 
 ### Release process
 
+To cut a release:
+
+1. Bump `version` (and any cross-package `@vates/data-table-*` `dependencies`/`devDependencies` ranges that reference a bumped package) in every affected package's `package.json` — see the version-pool rules below for which packages that is.
+2. Turn `CHANGELOG.md`'s `## [Unreleased]` header into `## [X.Y.Z] - <today>`, and leave a fresh empty `## [Unreleased]` above it.
+3. `npm install` (refreshes `package-lock.json` for the version bumps), then `npm run build && npm run test && npm run type-check`.
+4. Commit as `chore(release): X.Y.Z` (this is what the pre-commit hook's `lint-staged`/`type-check`/`test`/`build`/`size` runs against).
+5. **Tag the release commit `vX.Y.Z` and push both the commit and the tag** — `.github/workflows/publish.yml` triggers only on a pushed `v*` tag; pushing the commit alone does **not** publish anything, so this step is easy to forget and silently skip the actual release. `git tag vX.Y.Z && git push origin main && git push origin vX.Y.Z` (or `git push origin main vX.Y.Z` in one go).
+
 `core`/`react`/`vue`/`vanilla`/`solid` share a single version-number pool (`CHANGELOG.md`'s `## [X.Y.Z]` headers cover the whole project, not one package each) — but a release only bumps and publishes the packages that actually changed, not every package unconditionally. A release touching only `packages/vanilla` publishes vanilla at the new version and leaves the others' `package.json` at whatever they were last published at; a release touching several packages together bumps all of those to the same new number. This means packages' versions can drift apart over time (e.g. vanilla at `0.9.0` while core/react/vue were still at `0.8.0`), and a later release that finally touches a lagging package again jumps it straight to whatever the shared pool is at by then, skipping the numbers in between — that's expected, not a mistake. Cross-package `dependencies` ranges (e.g. `"@vates/data-table-core": "^0.10.0"` in react/vue/solid/vanilla's `package.json`) always reference the dependency's own actual last-published version, not the release's shared number.
 
 `@vates/data-table-solid` started its own independent version count at `0.1.0` when it was split out of `packages/vanilla`, rather than joining the shared pool immediately — it was a brand-new package with no prior published version to jump from. The `0.10.0` release folded it into the shared pool (it was bumped alongside the other four, and had accumulated enough of its own churn — including a breaking change — that tracking it separately no longer bought anything), so from `0.10.0` onward it follows the same shared-pool rules as the other four.
