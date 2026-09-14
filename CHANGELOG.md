@@ -7,6 +7,8 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-09-14
+
 ### Added
 
 - **External row focus API** (core, Solid, React, Vue, vanilla): a new `focus` namespace on `TableState` (`target`/`row`/`setTarget`/`moveTo`) lifts the roving-tabindex "current row" out of each adapter's render layer so external code — e.g. a lightbox with its own prev/next navigation — can read and drive it without reaching into internal DOM classes/attributes. `moveTo(row)` force-expands any collapsed group the row belongs to, jumps to its page, and sets it as the focus target, without stealing real DOM focus. Vanilla exposes this as a flat `focusRow(row)` method. Built on new core primitive `resolveFocusTarget` (#24).
