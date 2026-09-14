@@ -120,6 +120,8 @@ const {
   setValues: setFilterValues,
   cycleValue: cycleFilterValue,
   clearExcludeValues,
+  setExcludeValues,
+  toggleExcludeAll,
   setRange: setRangeFilter,
   clearColumn: clearColumnFilter,
   clear: clearFilters,
@@ -508,7 +510,18 @@ function onFilterValueClick(col: ColumnDef<TRow>, value: string, event: MouseEve
   // itself rather than reading it back off the DOM).
   event.preventDefault()
   const anchor = filterSelectionAnchor.value[col.key]
-  if (event.shiftKey && anchor != null) {
+  if (usesExcludeOnly.value) {
+    // Checked-by-default: "checked" means absent from `excludeFilters`, so a plain click and a
+    // shift-range select both just flip/set membership there — no `filters`/tri-state involved.
+    const excludedNow = excludeFilters.value[col.key]?.has(value) ?? false
+    if (event.shiftKey && anchor != null) {
+      const range = selectRange(filteredValuesFor(col), anchor, value)
+      // Direction mirrors what a plain click on the target itself would do.
+      setExcludeValues(col.key, range, !excludedNow)
+    } else {
+      setExcludeValues(col.key, [value], !excludedNow)
+    }
+  } else if (event.shiftKey && anchor != null) {
     const shouldSelect = !(filters.value[col.key]?.has(value) ?? false)
     const range = selectRange(filteredValuesFor(col), anchor, value)
     setFilterValues(col.key, range, shouldSelect)
@@ -570,27 +583,69 @@ function cycleFilterValueSort(col: ColumnDef<TRow>): void {
       : cycleValueSort(current)
   filterValueSort.value = { ...filterValueSort.value, [col.key]: next }
 }
+// The set a value must be in to stay visible even at a 0 facet count (see filterValuesByCount)
+// — whichever map the active column's model actually writes to. `col` is always
+// `filterDetailCol.value` in practice (the only column whose detail pane is ever rendered), the
+// same assumption `usesExcludeOnly` itself makes.
+function alreadyTouchedFor(col: ColumnDef<TRow>): Set<string> {
+  return usesExcludeOnly.value
+    ? (excludeFilters.value[col.key] ?? new Set())
+    : (filters.value[col.key] ?? new Set())
+}
+// Range/count-filtered, but not yet narrowed by the checklist's own value search — kept separate
+// from filteredValuesFor below so otherValuesFor can diff the two to find exactly what the
+// search is currently hiding. Order relative to search doesn't matter here: range/count
+// filtering and search are independent per-value predicates.
+function beforeSearchValuesFor(col: ColumnDef<TRow>): string[] {
+  return filterValuesByCount(
+    // Narrowed by the date range filter (if any) — a value outside the active range never
+    // becomes a tree leaf, rather than merely being ANDed onto the final row set once ticked. A
+    // no-op for string columns (they never populate rangeFilters).
+    filterValuesByRange(
+      stringValueMap.value[col.key] ?? [],
+      rangeFilters.value[col.key],
+      col.parseDate,
+    ),
+    stringValueCounts.value[col.key] ?? new Map(),
+    alreadyTouchedFor(col),
+  )
+}
 function filteredValuesFor(col: ColumnDef<TRow>): string[] {
   return sortFilterValues(
-    filterValuesByCount(
-      // Narrowed by the date range filter (if any), same as by search — a value outside the
-      // active range never becomes a tree leaf, rather than merely being ANDed onto the final
-      // row set once ticked. A no-op for string columns (they never populate rangeFilters).
-      filterValuesByRange(
-        filterValuesBySearch(
-          stringValueMap.value[col.key] ?? [],
-          filterSearchTerms.value[col.key] ?? '',
-        ),
-        rangeFilters.value[col.key],
-        col.parseDate,
-      ),
-      stringValueCounts.value[col.key] ?? new Map(),
-      filters.value[col.key] ?? new Set(),
-    ),
+    filterValuesBySearch(beforeSearchValuesFor(col), filterSearchTerms.value[col.key] ?? ''),
     stringValueCounts.value[col.key] ?? new Map(),
     valueSortFor(col.key),
     col.compare,
   )
+}
+// "Others" — the values the checklist's own value search is currently hiding (see CLAUDE.md's
+// "Filter dropdown"). Only meaningful once a search term actually narrows the list; empty
+// otherwise.
+function otherValuesFor(col: ColumnDef<TRow>): string[] {
+  const term = filterSearchTerms.value[col.key] ?? ''
+  if (!term) return []
+  const shown = new Set(filteredValuesFor(col))
+  return beforeSearchValuesFor(col).filter((v) => !shown.has(v))
+}
+// Non-multi-value column: plain checked/unchecked, "checked" meaning "not excluded" — no
+// tri-state indeterminate cue. Multi-value column: unchanged include/exclude tri-state, shown as
+// checked/indeterminate.
+function isValueChecked(col: ColumnDef<TRow>, value: string): boolean {
+  return usesExcludeOnly.value
+    ? !(excludeFilters.value[col.key]?.has(value) ?? false)
+    : (filters.value[col.key]?.has(value) ?? false)
+}
+function isValueExcludedVisual(col: ColumnDef<TRow>, value: string): boolean {
+  return usesExcludeOnly.value ? false : (excludeFilters.value[col.key]?.has(value) ?? false)
+}
+// Explains each model's own click behavior — the checked-by-default model has no tri-state cycle
+// to describe, so it gets its own plain hide/show copy instead of reusing the tri-state labels
+// (see CLAUDE.md's "Filter dropdown").
+function valueTitleFor(col: ColumnDef<TRow>, value: string): string {
+  if (usesExcludeOnly.value) {
+    return isValueChecked(col, value) ? L.value.filterValueHideTitle : L.value.filterValueShowTitle
+  }
+  return isValueExcludedVisual(col, value) ? L.value.filterExcludedTitle : L.value.filterValueTitle
 }
 function countFor(col: ColumnDef<TRow>, value: string): number {
   return stringValueCounts.value[col.key]?.get(value) ?? 0
@@ -608,13 +663,44 @@ const filterDetailBounds = computed(() => {
   if (!col || (col.type !== 'number' && col.type !== 'date')) return null
   return computeValueBounds(props.data, col)
 })
+// Per-column cache for isMultiValueColumn — a single-slot computed() (the original shape here)
+// only remembers the *most recently* computed column, so switching back to an already-visited
+// column in the left pane reran the full scan every time; for a scalar column that scan never
+// short-circuits (no array value to find), so every switch was a full O(rows) pass over
+// props.data regardless of dataset size (mirrors the identical fix in Solid's FilterDropdown.tsx
+// and React's DataTableView.tsx). A plain ref<Map>, reset whenever props.data changes identity —
+// mutated in place inside the computed getter below rather than reassigned, so it's a cache Vue's
+// own reactivity doesn't need to track writes to (only isMultiValueFilterCol's own dependencies —
+// filterDetailCol, props.data — matter for when this computed should re-run).
+const multiValueCache = ref<{ data: TRow[] | null; map: Map<string, boolean> }>({
+  data: null,
+  map: new Map(),
+})
 // Any/all match-mode control — only meaningful for a column whose values are actually
 // array-shaped in the data (see isMultiValueColumn's own doc comment), and only for the string
 // checklist, not the date tree (mirrors Solid's FilterDropdown.tsx).
 const isMultiValueFilterCol = computed(() => {
   const col = filterDetailCol.value
   if (!col || col.type === 'date' || col.type === 'number') return false
-  return isMultiValueColumn(props.data, col, col.key)
+  if (multiValueCache.value.data !== props.data) {
+    multiValueCache.value = { data: props.data, map: new Map() }
+  }
+  const cache = multiValueCache.value.map
+  let cached = cache.get(col.key)
+  if (cached === undefined) {
+    cached = isMultiValueColumn(props.data, col, col.key)
+    cache.set(col.key, cached)
+  }
+  return cached
+})
+// A non-multi-value column's checklist uses a checked-by-default, exclude-only model instead of
+// the tri-state include/exclude cycle (see CLAUDE.md's "Filter dropdown"): `filters` is never
+// written for such a column, "checked" simply means "not in `excludeFilters`". Date/number
+// columns (their own detail branches) and genuinely multi-value columns keep the original
+// include-based model untouched.
+const usesExcludeOnly = computed(() => {
+  const col = filterDetailCol.value
+  return !!col && col.type !== 'date' && col.type !== 'number' && !isMultiValueFilterCol.value
 })
 const filterMatchMode = computed(() => {
   const col = filterDetailCol.value
@@ -710,19 +796,51 @@ async function onOpenFilterCol(key: string): Promise<void> {
 function setFilterSearchTerm(key: string, term: string): void {
   filterSearchTerms.value = { ...filterSearchTerms.value, [key]: term }
 }
-function filterSelectedCount(col: ColumnDef<TRow>): number {
-  return filteredValuesFor(col).filter((v) => filters.value[col.key]?.has(v)).length
+// Bulk checked/indeterminate state for a given `values` array, reading either map depending on
+// which model `col`'s own column currently uses — shared by the master select-all checkbox and
+// the "Others" row below, which differ only in which values array they pass in.
+function bulkFilterState(
+  col: ColumnDef<TRow>,
+  values: string[],
+): { checked: boolean; indeterminate: boolean } {
+  if (usesExcludeOnly.value) {
+    const excludedCount = values.filter((v) => excludeFilters.value[col.key]?.has(v)).length
+    return {
+      checked: excludedCount === 0,
+      indeterminate: excludedCount > 0 && excludedCount < values.length,
+    }
+  }
+  const selectedCount = values.filter((v) => filters.value[col.key]?.has(v)).length
+  return {
+    checked: selectedCount > 0 && selectedCount === values.length,
+    indeterminate: selectedCount > 0 && selectedCount < values.length,
+  }
 }
 function isFilterAllSelected(col: ColumnDef<TRow>): boolean {
-  const values = filteredValuesFor(col)
-  return values.length > 0 && filterSelectedCount(col) === values.length
+  return bulkFilterState(col, filteredValuesFor(col)).checked
 }
 function isFilterSomeSelected(col: ColumnDef<TRow>): boolean {
-  const count = filterSelectedCount(col)
-  return count > 0 && count < filteredValuesFor(col).length
+  return bulkFilterState(col, filteredValuesFor(col)).indeterminate
 }
 function onToggleFilterAll(col: ColumnDef<TRow>): void {
-  toggleFilterAll(col.key, filteredValuesFor(col))
+  if (usesExcludeOnly.value) toggleExcludeAll(col.key, filteredValuesFor(col))
+  else toggleFilterAll(col.key, filteredValuesFor(col))
+}
+function isOthersAllSelected(col: ColumnDef<TRow>): boolean {
+  return bulkFilterState(col, otherValuesFor(col)).checked
+}
+function isOthersSomeSelected(col: ColumnDef<TRow>): boolean {
+  return bulkFilterState(col, otherValuesFor(col)).indeterminate
+}
+function onToggleOthers(col: ColumnDef<TRow>): void {
+  const values = otherValuesFor(col)
+  if (values.length === 0) return
+  if (usesExcludeOnly.value) toggleExcludeAll(col.key, values)
+  else toggleFilterAll(col.key, values)
+}
+function onOthersCheckboxClick(col: ColumnDef<TRow>, event: MouseEvent): void {
+  event.preventDefault()
+  onToggleOthers(col)
 }
 const expandedDateNodes = ref<Record<string, Set<string>>>({})
 const filterDetailTree = computed(() =>
@@ -2122,6 +2240,28 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                   much of it is actually rendered.
                 -->
                   <template v-else>
+                    <!--
+                    Bulk (de)select everything the value search above is currently hiding — see
+                    CLAUDE.md's "Filter dropdown". Only rendered once a search term actually
+                    narrows the list.
+                  -->
+                    <label
+                      v-if="otherValuesFor(filterDetailCol).length > 0"
+                      class="dt__dd-item dt__filter-others"
+                    >
+                      <input
+                        type="checkbox"
+                        v-indeterminate="isOthersSomeSelected(filterDetailCol)"
+                        :title="L.filterOthers"
+                        :aria-label="L.filterOthers"
+                        :checked="isOthersAllSelected(filterDetailCol)"
+                        @click="onOthersCheckboxClick(filterDetailCol, $event)"
+                      />
+                      <span class="dt__flex1">{{ L.filterOthers }}</span>
+                      <span class="dt__filter-count">{{
+                        otherValuesFor(filterDetailCol).length
+                      }}</span>
+                    </label>
                     <div ref="filterListRef" class="dt__filter-list" @scroll="onFilterListScroll">
                       <div
                         :style="{
@@ -2145,7 +2285,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                             :key="v"
                             class="dt__dd-item dt__dd-item--clickable"
                             :class="{
-                              'dt__dd-item--exclude': excludeFilters[filterDetailCol.key]?.has(v),
+                              'dt__dd-item--exclude': isValueExcludedVisual(filterDetailCol, v),
                             }"
                             :style="{
                               height: FILTER_LIST_ITEM_HEIGHT + 'px',
@@ -2153,22 +2293,20 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                             }"
                           >
                             <!--
-                            Tri-state checkbox: unchecked (neutral) → checked (include) →
-                            indeterminate (exclude, the browser's dash glyph reused as the "not
-                            this" indicator) → back to unchecked, via onFilterValueClick's call to
-                            cycleFilterValue. v-indeterminate (see above) is what actually sets the
-                            DOM property, same as the select-all/group checkboxes.
+                            Tri-state checkbox (multi-value column): unchecked (neutral) → checked
+                            (include) → indeterminate (exclude, the browser's dash glyph reused as
+                            the "not this" indicator) → back to unchecked, via
+                            onFilterValueClick's call to cycleFilterValue. Non-multi-value column:
+                            plain checked/unchecked toggle via setExcludeValues, see CLAUDE.md's
+                            "Filter dropdown". v-indeterminate (see above) is what actually sets
+                            the DOM property, same as the select-all/group checkboxes.
                           -->
                             <input
                               type="checkbox"
                               :data-value="v"
-                              :checked="filters[filterDetailCol.key]?.has(v) ?? false"
-                              v-indeterminate="excludeFilters[filterDetailCol.key]?.has(v) ?? false"
-                              :title="
-                                excludeFilters[filterDetailCol.key]?.has(v)
-                                  ? L.filterExcludedTitle
-                                  : L.filterValueTitle
-                              "
+                              :checked="isValueChecked(filterDetailCol, v)"
+                              v-indeterminate="isValueExcludedVisual(filterDetailCol, v)"
+                              :title="valueTitleFor(filterDetailCol, v)"
                               @click="onFilterValueClick(filterDetailCol, v, $event)"
                             />
                             <!--
@@ -3061,6 +3199,15 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
 }
 .dt__dd-item--exclude input[type='checkbox'] {
   accent-color: var(--color-text-danger);
+}
+/* The "Others" checklist row (see CLAUDE.md's "Filter dropdown") — shaded/italic/bordered so it
+   reads as a distinct bulk control, not just another value blending into the results below it. */
+.dt__filter-others {
+  background: var(--color-background-secondary);
+  border-top: 0.5px solid var(--color-border-tertiary);
+  border-bottom: 0.5px solid var(--color-border-secondary);
+  font-style: italic;
+  color: var(--color-text-secondary);
 }
 
 /* Chips — .dt__chip is just a flex wrapper now; the actual padding/background/border live on

@@ -308,6 +308,9 @@ describe('DataTable — filter dropdown', () => {
     const wrapper = mount(DataTable, { props: { data: ROWS2, columns: COLS2, rowKey: 'id' } })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
+    // Narrow to Alice only: `name` is checked-by-default (see CLAUDE.md's "Filter dropdown"), so
+    // exclude everyone via select-all, then re-check just Alice.
+    await wrapper.find('.dt__filter-select-all').trigger('change')
     await checklistCheckbox(wrapper, 'Alice').trigger('click')
     const deptItem = wrapper
       .findAll('.dt__filter-col-item')
@@ -318,7 +321,7 @@ describe('DataTable — filter dropdown', () => {
     expect(labels.some((t) => t.startsWith('HR'))).toBe(false)
   })
 
-  it('keeps a selected value visible even when its live count drops to 0', async () => {
+  it('keeps an excluded value visible even when its live count drops to 0', async () => {
     interface Row2 {
       id: number
       name: string
@@ -341,7 +344,8 @@ describe('DataTable — filter dropdown', () => {
       .findAll('.dt__filter-col-item')
       .find((el) => el.text().includes('Dept'))!
     await deptItem.trigger('click')
-    // Select dept=HR (Bob) while it's still the only active filter, so it's visible to check.
+    // Exclude (uncheck) dept=HR (Bob) while it's still visible to click — this is what makes it
+    // "already touched" (see filterValuesByCount's exclude-model counterpart).
     await checklistCheckbox(wrapper, 'HR').trigger('click')
     const scoreItem = wrapper
       .findAll('.dt__filter-col-item')
@@ -351,7 +355,7 @@ describe('DataTable — filter dropdown', () => {
     // range filters, unlike a column's own checklist filter, are never excluded from a facet.
     await wrapper.find('input[placeholder="Min"]').setValue('100')
     await deptItem.trigger('click')
-    expect((checklistCheckbox(wrapper, 'HR').element as HTMLInputElement).checked).toBe(true)
+    expect((checklistCheckbox(wrapper, 'HR').element as HTMLInputElement).checked).toBe(false)
   })
 
   it('search narrows the checklist to matching values', async () => {
@@ -379,24 +383,26 @@ describe('DataTable — filter dropdown', () => {
     return all[all.length - 1]
   }
 
-  it('select-all checkbox selects every currently listed value', async () => {
+  it('select-all checkbox excludes (unchecks) every currently listed value', async () => {
+    // `name` is checked-by-default (see CLAUDE.md's "Filter dropdown") — nothing excluded yet,
+    // so clicking the master checkbox excludes everyone.
     const wrapper = mount(DataTable, { props: { data: ROWS, columns: FILTER_COLS, rowKey: 'id' } })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
     await wrapper.find('.dt__filter-select-all').trigger('change')
-    expect((checklistCheckbox(wrapper, 'Alice').element as HTMLInputElement).checked).toBe(true)
-    expect((checklistCheckbox(wrapper, 'Bob').element as HTMLInputElement).checked).toBe(true)
+    expect((checklistCheckbox(wrapper, 'Alice').element as HTMLInputElement).checked).toBe(false)
+    expect((checklistCheckbox(wrapper, 'Bob').element as HTMLInputElement).checked).toBe(false)
   })
 
-  it('select-all checkbox deselects every value when all are already selected', async () => {
+  it('select-all checkbox re-checks every value when all are already excluded', async () => {
     const wrapper = mount(DataTable, { props: { data: ROWS, columns: FILTER_COLS, rowKey: 'id' } })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
     const selectAll = wrapper.find('.dt__filter-select-all')
     await selectAll.trigger('change')
     await selectAll.trigger('change')
-    expect((checklistCheckbox(wrapper, 'Alice').element as HTMLInputElement).checked).toBe(false)
-    expect((checklistCheckbox(wrapper, 'Bob').element as HTMLInputElement).checked).toBe(false)
+    expect((checklistCheckbox(wrapper, 'Alice').element as HTMLInputElement).checked).toBe(true)
+    expect((checklistCheckbox(wrapper, 'Bob').element as HTMLInputElement).checked).toBe(true)
   })
 
   it('the Filter toolbar button has no clear-filters button until a filter is active', async () => {
@@ -422,30 +428,12 @@ describe('DataTable — filter dropdown', () => {
     await filterBtn.trigger('click')
     await valueSearchInput(wrapper).setValue('ali')
     await wrapper.find('.dt__filter-select-all').trigger('change')
-    expect((checklistCheckbox(wrapper, 'Alice').element as HTMLInputElement).checked).toBe(true)
+    expect((checklistCheckbox(wrapper, 'Alice').element as HTMLInputElement).checked).toBe(false)
     await valueSearchInput(wrapper).setValue('')
-    expect((checklistCheckbox(wrapper, 'Bob').element as HTMLInputElement).checked).toBe(false)
-  })
-
-  it('shift-clicking a checklist value selects the range from the last-clicked value', async () => {
-    const ROWS4: Row[] = [
-      { id: 1, name: 'Alice', score: 90 },
-      { id: 2, name: 'Bob', score: 60 },
-      { id: 3, name: 'Clara', score: 80 },
-      { id: 4, name: 'David', score: 70 },
-    ]
-    const wrapper = mount(DataTable, { props: { data: ROWS4, columns: FILTER_COLS, rowKey: 'id' } })
-    const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
-    await filterBtn.trigger('click')
-    await checklistCheckbox(wrapper, 'Alice').trigger('click')
-    await checklistCheckbox(wrapper, 'Clara').trigger('click', { shiftKey: true })
-    expect((checklistCheckbox(wrapper, 'Alice').element as HTMLInputElement).checked).toBe(true)
     expect((checklistCheckbox(wrapper, 'Bob').element as HTMLInputElement).checked).toBe(true)
-    expect((checklistCheckbox(wrapper, 'Clara').element as HTMLInputElement).checked).toBe(true)
-    expect((checklistCheckbox(wrapper, 'David').element as HTMLInputElement).checked).toBe(false)
   })
 
-  it('shift-clicking an already-selected checklist value deselects the range', async () => {
+  it('shift-clicking a checklist value range-excludes from the last-clicked value', async () => {
     const ROWS4: Row[] = [
       { id: 1, name: 'Alice', score: 90 },
       { id: 2, name: 'Bob', score: 60 },
@@ -455,14 +443,36 @@ describe('DataTable — filter dropdown', () => {
     const wrapper = mount(DataTable, { props: { data: ROWS4, columns: FILTER_COLS, rowKey: 'id' } })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
-    await wrapper.find('.dt__filter-select-all').trigger('change')
-    await checklistCheckbox(wrapper, 'Alice').trigger('click')
-    await checklistCheckbox(wrapper, 'Alice').trigger('click')
+    await checklistCheckbox(wrapper, 'Alice').trigger('click') // exclude Alice, becomes the anchor
+    // Direction mirrors what a plain click on Clara (currently checked) would do: exclude the
+    // whole Alice..Clara range (alphabetized: Alice, Bob, Clara, David).
     await checklistCheckbox(wrapper, 'Clara').trigger('click', { shiftKey: true })
     expect((checklistCheckbox(wrapper, 'Alice').element as HTMLInputElement).checked).toBe(false)
     expect((checklistCheckbox(wrapper, 'Bob').element as HTMLInputElement).checked).toBe(false)
     expect((checklistCheckbox(wrapper, 'Clara').element as HTMLInputElement).checked).toBe(false)
     expect((checklistCheckbox(wrapper, 'David').element as HTMLInputElement).checked).toBe(true)
+  })
+
+  it('shift-clicking an already-excluded checklist value re-checks the range', async () => {
+    const ROWS4: Row[] = [
+      { id: 1, name: 'Alice', score: 90 },
+      { id: 2, name: 'Bob', score: 60 },
+      { id: 3, name: 'Clara', score: 80 },
+      { id: 4, name: 'David', score: 70 },
+    ]
+    const wrapper = mount(DataTable, { props: { data: ROWS4, columns: FILTER_COLS, rowKey: 'id' } })
+    const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
+    await filterBtn.trigger('click')
+    await wrapper.find('.dt__filter-select-all').trigger('change') // exclude everyone
+    await checklistCheckbox(wrapper, 'Alice').trigger('click') // re-check Alice
+    await checklistCheckbox(wrapper, 'Alice').trigger('click') // re-exclude Alice, becomes anchor
+    // Clara is still excluded (from select-all), so this shift-click's target-based direction
+    // re-checks the whole range — David's own (untouched-since-select-all) exclusion is unaffected.
+    await checklistCheckbox(wrapper, 'Clara').trigger('click', { shiftKey: true })
+    expect((checklistCheckbox(wrapper, 'Alice').element as HTMLInputElement).checked).toBe(true)
+    expect((checklistCheckbox(wrapper, 'Bob').element as HTMLInputElement).checked).toBe(true)
+    expect((checklistCheckbox(wrapper, 'Clara').element as HTMLInputElement).checked).toBe(true)
+    expect((checklistCheckbox(wrapper, 'David').element as HTMLInputElement).checked).toBe(false)
   })
 
   it('hides the select-all checkbox when search matches no values', async () => {
@@ -555,6 +565,80 @@ describe('DataTable — filter dropdown', () => {
     expect((wrapper.find('input[placeholder="Min"]').element as HTMLInputElement).value).toBe('')
     expect(wrapper.findAll('tbody tr')).toHaveLength(2)
   })
+
+  it('a non-multi-value checklist item explains the plain hide/show toggle, not the tri-state cycle', async () => {
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: FILTER_COLS, rowKey: 'id' } })
+    const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
+    await filterBtn.trigger('click')
+    const alice = checklistCheckbox(wrapper, 'Alice')
+    expect(alice.attributes('title')).toBe('Click to hide this value')
+    await alice.trigger('click')
+    expect(alice.attributes('title')).toBe('Hidden — click to show again')
+  })
+
+  it('an "Others" row appears once the value search narrows the list, bulk-(un)checking everything it hides', async () => {
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: FILTER_COLS, rowKey: 'id' } })
+    const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
+    await filterBtn.trigger('click')
+    expect(wrapper.find('.dt__filter-others').exists()).toBe(false)
+    await valueSearchInput(wrapper).setValue('ali')
+    const others = wrapper.find('.dt__filter-others input[type="checkbox"]')
+    // Nothing excluded yet — Others (Bob) starts checked.
+    expect((others.element as HTMLInputElement).checked).toBe(true)
+    await others.trigger('click')
+    expect((checklistCheckbox(wrapper, 'Alice').element as HTMLInputElement).checked).toBe(true)
+    await valueSearchInput(wrapper).setValue('')
+    expect((checklistCheckbox(wrapper, 'Bob').element as HTMLInputElement).checked).toBe(false)
+  })
+
+  it('caches isMultiValueColumn per column instead of rescanning the dataset on every revisit', async () => {
+    // isMultiValueColumn's own scan never short-circuits for a scalar column (no array value to
+    // find), so without a per-column cache, revisiting an already-checked column reran the full
+    // dataset scan every time. Counting real invocations of `.some` on the data array (via a
+    // Proxy) proves the cache actually avoids the repeat scan, not just that behavior stays
+    // correct.
+    interface Row2 {
+      id: number
+      name: string
+      dept: string
+    }
+    const rows2: Row2[] = [
+      { id: 1, name: 'Alice', dept: 'Eng' },
+      { id: 2, name: 'Bob', dept: 'HR' },
+    ]
+    let someCalls = 0
+    const data = new Proxy(rows2, {
+      get(target, prop, receiver) {
+        const val = Reflect.get(target, prop, receiver)
+        if (prop === 'some' && typeof val === 'function') {
+          return (...args: Parameters<typeof rows2.some>) => {
+            someCalls++
+            return val.apply(target, args)
+          }
+        }
+        return val
+      },
+    })
+    const cols: ColumnDef<Row2>[] = [
+      { key: 'name', label: 'Name', filterable: true },
+      { key: 'dept', label: 'Dept', filterable: true },
+    ]
+    const wrapper = mount(DataTable, { props: { data, columns: cols, rowKey: 'id' } })
+    const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
+    await filterBtn.trigger('click')
+    const selectCol = async (label: string) => {
+      await wrapper
+        .findAll('.dt__filter-col-item')
+        .find((el) => el.text().includes(label))!
+        .trigger('click')
+    }
+    await selectCol('Dept')
+    await selectCol('Name')
+    expect(someCalls).toBe(2)
+    await selectCol('Dept')
+    await selectCol('Name')
+    expect(someCalls).toBe(2)
+  })
 })
 
 describe('DataTable — exclude filters (tri-state checklist)', () => {
@@ -581,6 +665,14 @@ describe('DataTable — exclude filters (tri-state checklist)', () => {
 
   function names(wrapper: ReturnType<typeof mount>): string[] {
     return wrapper.findAll('tbody tr td:first-child').map((td) => td.text())
+  }
+
+  // The Filter dropdown's own value-search box shares the `.dt__dd-search` class with the left
+  // column pane's column-search box — grab the *last* match, not the first (see the identical
+  // helper in the "filter dropdown" describe block above).
+  function valueSearchInput(wrapper: ReturnType<typeof mount>) {
+    const all = wrapper.findAll('.dt__dd-search')
+    return all[all.length - 1]
   }
 
   it('a plain click cycles a value through neutral -> include -> exclude -> neutral', async () => {
@@ -669,6 +761,31 @@ describe('DataTable — exclude filters (tri-state checklist)', () => {
     expect((tagCheckbox(wrapper, 'RPG').element as HTMLInputElement).checked).toBe(false)
     expect((tagCheckbox(wrapper, 'RPG').element as HTMLInputElement).indeterminate).toBe(true)
     expect(names(wrapper)).toEqual(['Game B'])
+  })
+
+  it('keeps the tri-state tooltips for a multi-value column', async () => {
+    const wrapper = mount(DataTable, { props: { data: GAMES, columns: GAME_COLS, rowKey: 'id' } })
+    const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
+    await filterBtn.trigger('click')
+    const action = tagCheckbox(wrapper, 'Action')
+    expect(action.attributes('title')).toBe('Click to include, click again to exclude')
+    await action.trigger('click') // include
+    await action.trigger('click') // exclude
+    expect(action.attributes('title')).toBe('Excluded — click to clear')
+  })
+
+  it('bulk-(de)selects hidden values via the include set for a multi-value column', async () => {
+    const wrapper = mount(DataTable, { props: { data: GAMES, columns: GAME_COLS, rowKey: 'id' } })
+    const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
+    await filterBtn.trigger('click')
+    await valueSearchInput(wrapper).setValue('action')
+    const others = wrapper.find('.dt__filter-others input[type="checkbox"]')
+    // None of the non-matching values (RPG, Adventure) are included yet.
+    expect((others.element as HTMLInputElement).checked).toBe(false)
+    await others.trigger('click')
+    await valueSearchInput(wrapper).setValue('')
+    expect((tagCheckbox(wrapper, 'RPG').element as HTMLInputElement).checked).toBe(true)
+    expect((tagCheckbox(wrapper, 'Adventure').element as HTMLInputElement).checked).toBe(true)
   })
 })
 
@@ -814,14 +931,15 @@ describe('DataTable — virtualized filter checklist', () => {
     expect(listAfter.text()).toContain('Value 0200')
   })
 
-  it('select-all still selects every matching value, not just the rendered window', async () => {
+  it('select-all still excludes every matching value, not just the rendered window', async () => {
+    // `name` is a plain scalar column: checked-by-default, so select-all excludes every value.
     const wrapper = mount(DataTable, {
       props: { data: MANY_ROWS, columns: MANY_COLS, rowKey: 'id' },
     })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
     await wrapper.find('.dt__filter-select-all').trigger('change')
-    expect(wrapper.text()).toContain('500 / 500 rows')
+    expect(wrapper.text()).toContain('0 / 500 rows')
   })
 })
 
@@ -1983,7 +2101,9 @@ describe('DataTable — active state bar', () => {
     expect(wrapper.findAll('button').find((b) => b.text() === 'Sort')).toBeTruthy()
     const bar = wrapper.find('.dt__active-bar')
     expect(bar.text()).toContain('Score')
-    expect(bar.text()).toContain('Name: Alice')
+    // `name` is checked-by-default (see CLAUDE.md's "Filter dropdown"): clicking Alice's
+    // checkbox excludes her, rendering as the exclude chip rather than an include one.
+    expect(bar.text()).toContain('Name: ≠ Alice')
 
     const scoreChip = bar.findAll('.dt__chip').find((c) => c.text().includes('Score'))!
     await scoreChip.find('.dt__chip-remove').trigger('click')
@@ -3595,7 +3715,9 @@ describe('DataTable — active-bar chip click actions', () => {
     await openDd(wrapper, 'Filter') // close
 
     expect(wrapper.find('.dropdown__menu').exists()).toBe(false)
-    const chipBody = wrapper.find('.dt__chip--info .dt__chip-body')
+    // `name` is checked-by-default (see CLAUDE.md's "Filter dropdown"): clicking Alice's
+    // checkbox excludes her, rendering the danger-tinted exclude chip, not the info one.
+    const chipBody = wrapper.find('.dt__chip--danger .dt__chip-body')
     expect(chipBody.text()).toContain('Alice')
     await chipBody.trigger('click')
     expect(wrapper.find('.dropdown__menu').exists()).toBe(true)

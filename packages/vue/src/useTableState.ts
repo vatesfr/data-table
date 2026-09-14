@@ -20,6 +20,8 @@ import {
   setFilterValues as _setFilterValues,
   cycleFilterValue as _cycleFilterValue,
   clearExcludeValues as _clearExcludeValues,
+  setExcludeValues as _setExcludeValues,
+  toggleExcludeAll as _toggleExcludeAll,
   setFilterMode as _setFilterMode,
   getSelectedRows,
   toggleSelectionShiftAware,
@@ -335,6 +337,17 @@ export function useTableState<TRow extends object>(
       },
       clearExcludeValues: (key: string, values: string[]) => {
         excludeFilters.value = _clearExcludeValues(excludeFilters.value, key, values)
+      },
+      // Checked-by-default, exclude-only checklist model for a non-multi-value column (see
+      // CLAUDE.md's "Filter dropdown") — `filters` is never touched for such a column, so these
+      // two go straight to `excludeFilters` instead of routing through `cycleValue`/`toggleAll`.
+      setExcludeValues: (key: string, values: string[], excluded: boolean) => {
+        excludeFilters.value = _setExcludeValues(excludeFilters.value, key, values, excluded)
+        page.value = 1
+      },
+      toggleExcludeAll: (key: string, values: string[]) => {
+        excludeFilters.value = _toggleExcludeAll(excludeFilters.value, key, values)
+        page.value = 1
       },
       setRange: (key: string, field: 'min' | 'max', value: string) => {
         rangeFilters.value = {
