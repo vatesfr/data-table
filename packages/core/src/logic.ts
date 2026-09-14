@@ -1910,6 +1910,48 @@ export function isGroupCollapsed(
   return defaultCollapsed ? !collapsedGroups.has(key) : collapsedGroups.has(key)
 }
 
+/** Result of `resolveFocusTarget` — everything `focus.moveTo` needs to bring a row into view. */
+export interface FocusMoveResult<TRow> {
+  /** The resolved row, as a `VisibleItem` — assign directly to `focusTarget`. */
+  item: VisibleItem<TRow>
+  /** The page containing `item`, given `collapsedGroups` below (not the caller's original one). */
+  page: number
+  /** `collapsedGroups` with every group `row` belongs to force-expanded, so `item` is reachable. */
+  collapsedGroups: Set<string>
+}
+
+/**
+ * Resolves what `table.focus.moveTo(row)` needs: which groups (if any) `row` belongs to must be
+ * force-expanded for it to be reachable at all — a multi-value groupBy column can fan `row` into
+ * more than one group, so every one it's in gets expanded, not just the first found — which page
+ * contains it once expanded, and its resulting `VisibleItem` (for `focusTarget`). Returns `null`
+ * if `row` isn't present in `groups` at all (sorted/filtered away, or never part of this table's
+ * data) — `moveTo` no-ops in that case rather than moving focus somewhere meaningless.
+ */
+export function resolveFocusTarget<TRow extends object>(
+  groups: GroupResult<TRow>[],
+  row: TRow,
+  collapsedGroups: Set<string>,
+  defaultGroupsCollapsed: boolean,
+  pageSize: number,
+): FocusMoveResult<TRow> | null {
+  let nextCollapsed = collapsedGroups
+  for (const g of groups) {
+    if (
+      g.key !== null &&
+      g.rows.includes(row) &&
+      isGroupCollapsed(nextCollapsed, g.key, defaultGroupsCollapsed)
+    ) {
+      nextCollapsed = toggleCollapse(nextCollapsed, g.key)
+    }
+  }
+  const items = getVisibleRows(groups, nextCollapsed, defaultGroupsCollapsed)
+  const index = items.findIndex((item) => item.kind === 'row' && item.row === row)
+  if (index === -1) return null
+  const page = pageSize > 0 ? Math.floor(index / pageSize) + 1 : 1
+  return { item: items[index], page, collapsedGroups: nextCollapsed }
+}
+
 export function getSortIcon(sorts: SortEntry[], key: string): string {
   const s = sorts.find((s) => s.key === key)
   return s ? (s.dir === 'asc' ? '↑' : '↓') : '↕'

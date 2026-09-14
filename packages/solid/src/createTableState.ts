@@ -49,6 +49,8 @@ import {
   type GetRowId,
   buildViewStateSnapshot,
   resolveViewState,
+  resolveFocusTarget,
+  type VisibleItem,
 } from '@vates/data-table-core/internal'
 import type { ColumnDef } from './types'
 
@@ -117,9 +119,12 @@ export type TableState<TRow extends object> = ReturnType<typeof createTableState
 // value the next time it re-runs, the same "controlled input" trade-off as Vue's own `computed`.
 //
 // Ephemeral, UI-only state that React/Vue keep in their *view* layer rather than in
-// `useTableState` (openDropdown, filterActiveCol, ddSearchTerms, focusTarget, drag state, etc. —
-// see "Filter dropdown"/"Keyboard navigation" in the docs) is deliberately NOT here either; it
-// belongs in DataTableView.tsx once that exists, matching the same split.
+// `useTableState` (openDropdown, filterActiveCol, ddSearchTerms, drag state, etc. — see "Filter
+// dropdown"/"Keyboard navigation" in the docs) is deliberately NOT here either; it belongs in
+// DataTableView.tsx instead. The roving-tabindex `focusTarget` is the one exception — it's lifted
+// up here (as `focus.target`/`row`/`setTarget`/`moveTo`) so it's reachable/settable from outside
+// the rendered table, same as React/Vue's own `useTableState` — see "External row focus" in the
+// docs.
 export function createTableState<TRow extends object>(
   initialData: TRow[] | Accessor<TRow[]>,
   initialColumns: ColumnDef<TRow>[] | Accessor<ColumnDef<TRow>[]>,
@@ -153,6 +158,10 @@ export function createTableState<TRow extends object>(
   const [visibleCols, setVisibleCols] = createSignal<Set<string>>(initial.visibleCols)
   const [selection, setSelection] = createSignal<Set<TRow>>(new Set())
   const [selectionAnchor, setSelectionAnchor] = createSignal<TRow | null>(null)
+  // The roving-tabindex "current" item (a data row or a group header) — ephemeral UI state, same
+  // category as `selectionAnchor` above, not part of `TableViewState`. See "External row focus"
+  // in the docs.
+  const [focusTarget, setFocusTarget] = createSignal<VisibleItem<TRow> | null>(null)
 
   // Wraps the raw `data` signal setter to reconcile `selection`'s stored row references (see
   // core's `reconcileSelection` for the full reasoning) whenever `getRowId` is set — a no-op
@@ -526,6 +535,35 @@ export function createTableState<TRow extends object>(
       setQuery: (q: string) => {
         setSearchQueryState(q)
         setPageState(1)
+      },
+    },
+
+    focus: {
+      target: focusTarget,
+      row: createMemo(() => {
+        const t = focusTarget()
+        return t?.kind === 'row' ? t.row : null
+      }),
+      setTarget: (item: VisibleItem<TRow> | null) => setFocusTarget(item),
+      // Brings `row` into view from outside the table: expands whichever group(s) it belongs to
+      // if collapsed, jumps to the page containing it, and sets it as the roving-tabindex target
+      // — so it's highlighted and scrolled into view (DataTableView reacts to `focus.target`), and
+      // the very next Tab/arrow-key press lands there. Never moves real DOM focus itself — only
+      // an actual keyboard interaction (or a consumer's own explicit `.focus()`) does that — so
+      // calling this from e.g. an external lightbox's prev/next never steals focus away from it.
+      // No-ops if `row` isn't part of the table's current (filtered/sorted) data.
+      moveTo: (row: TRow) => {
+        const resolved = resolveFocusTarget(
+          groupedFull(),
+          row,
+          collapsedGroups(),
+          getOptions().defaultGroupsCollapsed ?? true,
+          pageSize(),
+        )
+        if (!resolved) return
+        setCollapsedGroups(resolved.collapsedGroups)
+        setPageState(resolved.page)
+        setFocusTarget(resolved.item)
       },
     },
 

@@ -893,7 +893,6 @@ export function DataTableView<TRow extends object>({
   const [openFilterDD, setOpenFilterDD] = useState(false)
   const [openGroupDD, setOpenGroupDD] = useState(false)
   const [hoveredRow, setHoveredRow] = useState<TRow | null>(null)
-  const [focusTarget, setFocusTarget] = useState<VisibleItem<TRow> | null>(null)
   const rowRefs = useRef(new Map<TRow | string, HTMLTableRowElement>())
   const [dragColKey, setDragColKey] = useState<string | null>(null)
   const [dragOverColKey, setDragOverColKey] = useState<string | null>(null)
@@ -1068,6 +1067,11 @@ export function DataTableView<TRow extends object>({
     toggleCollapse: toggleGroupCollapse,
     clear: clearGroups,
   } = table.group
+  // `focusTarget`/`setFocusTarget` used to be local state here — lifted to `useTableState`
+  // (`table.focus.target`/`setTarget`) so it's reachable/settable from outside the rendered
+  // table (see `focus.moveTo`'s own doc comment there); everything below still reads/writes it
+  // through these same bare local names.
+  const { target: focusTarget, setTarget: setFocusTarget } = table.focus
 
   // Split for the Sort dropdown's active list (see "Auto-syncing group order with sort" in
   // CLAUDE.md): entries matching a currently grouped column always govern nesting order via
@@ -1226,6 +1230,30 @@ export function DataTableView<TRow extends object>({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page])
+
+  // Scrolls `focus.target` into view whenever it changes to a row — the counterpart to
+  // `pendingFocusTarget`/`focusItem` above, but for `table.focus.moveTo`, which (unlike keyboard
+  // nav) never calls real DOM `.focus()` itself — see its own doc comment in `useTableState.ts`.
+  // Runs on every `focusTarget` change (a keyboard-driven one already scrolled synchronously via
+  // `focusItem`'s `.focus()`, so this is a harmless no-op re-scroll for that case) and retries on
+  // `page`/`collapsedGroups` so a `moveTo` that had to expand a group or cross a page still finds
+  // the row once it actually mounts.
+  const lastScrolledFocusTarget = useRef<VisibleItem<TRow> | null>(null)
+  useEffect(() => {
+    if (
+      focusTarget &&
+      focusTarget.kind === 'row' &&
+      focusTarget !== lastScrolledFocusTarget.current
+    ) {
+      const el = rowRefs.current.get(focusTarget.row)
+      if (el) {
+        // jsdom (used by this project's own component tests) doesn't implement
+        // `scrollIntoView` at all — guard rather than let it throw in a passive effect.
+        el.scrollIntoView?.({ block: 'nearest' })
+        lastScrolledFocusTarget.current = focusTarget
+      }
+    }
+  }, [focusTarget, page, collapsedGroups])
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTableRowElement>, target: VisibleItem<TRow>) => {
     const idx = indexOfVisibleItem(navigableItems, target)

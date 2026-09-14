@@ -75,7 +75,10 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
   const rowNavEnabled = createMemo(() => !!props.selectable || !!props.onRowClick)
   const hasAgg = createMemo(() => table.columns.active().some((c) => c.aggregate))
 
-  const [focusTarget, setFocusTarget] = createSignal<VisibleItem<TRow> | null>(null)
+  // Lifted to `createTableState` (`table.focus.target`/`setTarget`) so it's reachable/settable
+  // from outside the rendered table — see `focus.moveTo`'s own doc comment there.
+  const focusTarget = table.focus.target
+  const setFocusTarget = table.focus.setTarget
   const rowRefs = new Map<TRow | string, HTMLElement>()
   // Registers a row/group-header's DOM node and prunes it again once that row/header component
   // instance is disposed (filtered out, replaced by setData, or its group collapsed away) — a
@@ -124,6 +127,25 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
     setFocusTarget(item)
     rowRefs.get(refKey(item))?.focus()
   }
+
+  // Scrolls `focus.target` into view whenever it changes to a row — the counterpart to
+  // `focusItem`'s `.focus()` above, but for `table.focus.moveTo`, which (unlike keyboard nav)
+  // never calls real DOM `.focus()` itself — see its own doc comment in `createTableState.ts`.
+  // Runs on every `focusTarget` change (a keyboard-driven one already scrolled synchronously via
+  // `focusItem`, so this is a harmless no-op re-scroll for that case); Solid's synchronous
+  // reactivity means a `moveTo` that had to expand a group or cross a page already has the row
+  // mounted by the time this effect runs, no pending-ref/retry indirection needed.
+  let lastScrolledFocusTarget: VisibleItem<TRow> | null = null
+  createEffect(() => {
+    const target = focusTarget()
+    if (target && target.kind === 'row' && target !== lastScrolledFocusTarget) {
+      const el = rowRefs.get(target.row)
+      if (el) {
+        el.scrollIntoView?.({ block: 'nearest' })
+        lastScrolledFocusTarget = target
+      }
+    }
+  })
 
   // Shift+Arrow/Home/End additionally extends row selection to the target before moving focus —
   // `toggleRowSelection(row, true)` reuses the exact same shift-click anchor/range logic already

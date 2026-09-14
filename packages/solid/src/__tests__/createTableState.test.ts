@@ -401,6 +401,80 @@ describe('createTableState — grouping', () => {
   })
 })
 
+describe('createTableState — focus.moveTo', () => {
+  interface DeptRow {
+    id: number
+    name: string
+    dept: string
+  }
+  const DEPT_COLS: ColumnDef<DeptRow>[] = [
+    { key: 'name', label: 'Name' },
+    { key: 'dept', label: 'Department', groupable: true },
+  ]
+  const DEPT_ROWS: DeptRow[] = [
+    { id: 1, name: 'Alice', dept: 'Eng' },
+    { id: 2, name: 'Bob', dept: 'Eng' },
+    { id: 3, name: 'Clara', dept: 'HR' },
+    { id: 4, name: 'David', dept: 'HR' },
+  ]
+
+  it('starts with no focus target', () => {
+    withRoot(() => {
+      const table = createTableState(ROWS, COLS)
+      expect(table.focus.row()).toBeNull()
+      expect(table.focus.target()).toBeNull()
+    })
+  })
+
+  it('sets focus.row/target to the given row', () => {
+    withRoot(() => {
+      const table = createTableState(ROWS, COLS)
+      table.focus.moveTo(ROWS[2])
+      expect(table.focus.row()).toBe(ROWS[2])
+      expect(table.focus.target()).toEqual({ kind: 'row', row: ROWS[2], groupKey: null })
+    })
+  })
+
+  it('is a no-op for a row not present in the current (filtered) data', () => {
+    withRoot(() => {
+      const table = createTableState(ROWS, COLS)
+      table.focus.moveTo({ id: 999, name: 'Ghost', score: 0 })
+      expect(table.focus.row()).toBeNull()
+    })
+  })
+
+  it('jumps to the page containing the target row', () => {
+    withRoot(() => {
+      const table = createTableState(ROWS, COLS, { initialViewState: { pageSize: 1 } })
+      table.focus.moveTo(ROWS[2])
+      expect(table.pagination.page()).toBe(3)
+      expect(table.focus.row()).toBe(ROWS[2])
+    })
+  })
+
+  it('force-expands a collapsed group containing the target row', () => {
+    withRoot(() => {
+      const table = createTableState(DEPT_ROWS, DEPT_COLS, { defaultGroupsCollapsed: true })
+      table.group.toggle('dept')
+      // Both groups start collapsed
+      expect(table.pagedData()).toEqual([])
+      table.focus.moveTo(DEPT_ROWS[2])
+      expect(table.focus.row()).toBe(DEPT_ROWS[2])
+      expect(table.pagedData()).toContain(DEPT_ROWS[2])
+    })
+  })
+
+  it('setTarget sets an arbitrary VisibleItem, including a group header', () => {
+    withRoot(() => {
+      const table = createTableState(DEPT_ROWS, DEPT_COLS)
+      table.group.toggle('dept')
+      table.focus.setTarget({ kind: 'group', key: 'Eng' })
+      expect(table.focus.target()).toEqual({ kind: 'group', key: 'Eng' })
+      expect(table.focus.row()).toBeNull()
+    })
+  })
+})
+
 describe('createTableState — search', () => {
   it('setSearchQuery narrows processedData and resets page to 1', () => {
     withRoot(() => {

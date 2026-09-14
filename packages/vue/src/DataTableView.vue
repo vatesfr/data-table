@@ -151,6 +151,11 @@ const {
 } = props.table.selection
 const { page, pageSize, numPages, setPage, setPageSize } = props.table.pagination
 const { query: searchQuery, setQuery: setSearchQuery } = props.table.search
+// `focusTarget`/`setFocusTarget` used to be local `shallowRef`/function here — lifted to
+// `useTableState` (`table.focus.target`/`setTarget`) so it's reachable/settable from outside the
+// rendered table (see `focus.moveTo`'s own doc comment there); everything below still reads/
+// writes it through these same bare local names.
+const { target: focusTarget, setTarget: setFocusTarget } = props.table.focus
 
 // Split for the Sort dropdown's active list and the active-bar chips (see "Auto-syncing group
 // order with sort" in CLAUDE.md): entries matching a currently grouped column always govern
@@ -178,9 +183,6 @@ watch(selectedRows, (rows) => {
 // checklist/date-tree checkboxes already use for shift-click. Data rows only join the tab
 // sequence when they're actually interactive; group headers always do, since collapsing a group
 // is already a click away regardless of selectable/onRowClick.
-// shallowRef (not ref) — VisibleItem<TRow> embeds a TRow field, and Vue's deep-unwrap conflicts
-// with the generic constraint here the same way it does for `selection` (see "Row selection").
-const focusTarget = shallowRef<VisibleItem<TRow> | null>(null)
 const rowRefs = new Map<TRow | string, HTMLTableRowElement>()
 
 const isRowNavEnabled = computed(() => props.selectable || isRowClickable.value)
@@ -218,10 +220,6 @@ function setItemRef(key: TRow | string, el: Element | null): void {
   else rowRefs.delete(key)
 }
 
-function setFocusTarget(target: VisibleItem<TRow>): void {
-  focusTarget.value = target
-}
-
 function focusItem(target: VisibleItem<TRow>): void {
   setFocusTarget(target)
   const refKey = target.kind === 'row' ? target.row : target.key
@@ -244,6 +242,31 @@ watch(
       const target = pendingFocusTarget
       pendingFocusTarget = null
       focusItem(target)
+    }
+  },
+  { flush: 'post' },
+)
+
+// Scrolls `focus.target` into view whenever it changes to a row — the counterpart to
+// `pendingFocusTarget`/`focusItem` above, but for `table.focus.moveTo`, which (unlike keyboard
+// nav) never calls real DOM `.focus()` itself — see its own doc comment in `useTableState.ts`.
+// Runs on every `focusTarget` change (a keyboard-driven one already scrolled synchronously via
+// `focusItem`'s `.focus()`, so this is a harmless no-op re-scroll for that case) and re-runs on
+// `page`/`collapsedGroups` so a `moveTo` that had to expand a group or cross a page still finds
+// the row once it actually mounts.
+let lastScrolledFocusTarget: VisibleItem<TRow> | null = null
+watch(
+  [focusTarget, page, collapsedGroups],
+  () => {
+    const target = focusTarget.value
+    if (target && target.kind === 'row' && target !== lastScrolledFocusTarget) {
+      const el = rowRefs.get(target.row)
+      if (el) {
+        // jsdom (used by this project's own component tests) doesn't implement
+        // `scrollIntoView` at all — guard rather than let it throw.
+        el.scrollIntoView?.({ block: 'nearest' })
+        lastScrolledFocusTarget = target
+      }
     }
   },
   { flush: 'post' },

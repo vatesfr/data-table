@@ -225,6 +225,57 @@ describe('createDataTable — imperative selection API', () => {
   })
 })
 
+describe('createDataTable — focusRow', () => {
+  it('makes the target row the sole tab stop', () => {
+    const { container, table } = mount({ selectable: true })
+    table.focusRow(ROWS[2])
+    const rows = dataRows(container)
+    expect(rows[2].getAttribute('tabindex')).toBe('0')
+    expect(rows[0].getAttribute('tabindex')).toBe('-1')
+    expect(rows[1].getAttribute('tabindex')).toBe('-1')
+    expect(rows[3].getAttribute('tabindex')).toBe('-1')
+  })
+
+  it('does not move real DOM focus', () => {
+    const { container, table } = mount({ selectable: true })
+    table.focusRow(ROWS[2])
+    expect(document.activeElement).not.toBe(dataRows(container)[2])
+  })
+
+  it('is a no-op for a row not present in the current data', () => {
+    const { container, table } = mount({ selectable: true })
+    table.focusRow({ id: 999, name: 'Ghost', score: 0, dept: 'X' })
+    // focusTarget stays unset, so the roving tabindex falls back to its usual default (the first
+    // row) rather than landing on the nonexistent row.
+    const rows = dataRows(container)
+    expect(rows[0].getAttribute('tabindex')).toBe('0')
+    for (const row of rows.slice(1)) expect(row.getAttribute('tabindex')).toBe('-1')
+  })
+
+  it('jumps to the page containing the target row', () => {
+    const { container, table } = mount({
+      selectable: true,
+      initialViewState: { pageSize: 1 },
+    })
+    table.focusRow(ROWS[2])
+    expect(table.getViewState().page).toBe(3)
+    const rows = dataRows(container)
+    expect(rows).toHaveLength(1)
+    expect(rows[0].getAttribute('tabindex')).toBe('0')
+  })
+
+  it('expands a collapsed group containing the target row and reveals it', () => {
+    const { container, table } = mount({ selectable: true, defaultGroupsCollapsed: true })
+    groupByDept(container)
+    // Both groups start collapsed — no data rows visible yet
+    expect(dataRows(container)).toHaveLength(0)
+    table.focusRow(ROWS[2]) // Clara, dept Eng
+    const rows = dataRows(container)
+    expect(rows.length).toBeGreaterThan(0)
+    expect(rows.some((r) => r.getAttribute('tabindex') === '0')).toBe(true)
+  })
+})
+
 describe('createDataTable — getRowId (selection identity)', () => {
   // getSelection() returns the raw selection Set unfiltered (see its own doc comment — it
   // deliberately includes rows hidden by a filter too), so it doesn't itself go "empty" here the

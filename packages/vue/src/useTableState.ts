@@ -41,6 +41,8 @@ import {
   countActiveFilters,
   buildViewStateSnapshot,
   resolveViewState,
+  resolveFocusTarget,
+  type VisibleItem,
 } from '@vates/data-table-core/internal'
 import {
   DEFAULT_LABELS,
@@ -142,6 +144,14 @@ export function useTableState<TRow extends object>(
   const selection = shallowRef<Set<TRow>>(new Set())
   const selectionAnchor = shallowRef<TRow | null>(null)
   const searchQuery = ref(initial.searchQuery)
+  // The roving-tabindex "current" item (a data row or a group header) — ephemeral UI state, same
+  // category as `selectionAnchor` above, not part of `TableViewState`. Lifted up here (rather than
+  // staying local to DataTableView, where it lived before) so it's reachable as `focus.target`/
+  // `focus.row` and settable via `focus.moveTo` from outside the rendered table — see "External
+  // row focus" in the docs. `setTarget` is the low-level setter DataTableView's own keyboard
+  // handling uses directly; most external callers want `moveTo` instead. shallowRef for the same
+  // reason as `selection` above — `VisibleItem<TRow>` embeds a `TRow` field.
+  const focusTarget = shallowRef<VisibleItem<TRow> | null>(null)
 
   // Reconciles `selection`'s stored row references whenever `data` changes — same trigger as
   // visibleCols' own reconciliation above (a `watch`, since useTableState is only called once per
@@ -458,6 +468,34 @@ export function useTableState<TRow extends object>(
       setQuery: (q: string) => {
         searchQuery.value = q
         page.value = 1
+      },
+    },
+
+    focus: {
+      target: focusTarget,
+      row: computed(() => (focusTarget.value?.kind === 'row' ? focusTarget.value.row : null)),
+      setTarget: (item: VisibleItem<TRow> | null) => {
+        focusTarget.value = item
+      },
+      // Brings `row` into view from outside the table: expands whichever group(s) it belongs to
+      // if collapsed, jumps to the page containing it, and sets it as the roving-tabindex target
+      // — so it's highlighted and scrolled into view (DataTableView reacts to `focus.target`), and
+      // the very next Tab/arrow-key press lands there. Never moves real DOM focus itself — only
+      // an actual keyboard interaction (or a consumer's own explicit `.focus()`) does that — so
+      // calling this from e.g. an external lightbox's prev/next never steals focus away from it.
+      // No-ops if `row` isn't part of the table's current (filtered/sorted) data.
+      moveTo: (row: TRow) => {
+        const resolved = resolveFocusTarget(
+          groupedFull.value,
+          row,
+          collapsedGroups.value,
+          defaultGroupsCollapsed.value,
+          pageSize.value,
+        )
+        if (!resolved) return
+        collapsedGroups.value = resolved.collapsedGroups
+        page.value = resolved.page
+        focusTarget.value = resolved.item
       },
     },
 

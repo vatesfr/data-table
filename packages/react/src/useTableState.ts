@@ -9,6 +9,8 @@ import {
   paginateData,
   computeTotalPages,
   computeStringValues,
+  resolveFocusTarget,
+  type VisibleItem,
   toggleSort as _toggleSort,
   replaceSort as _replaceSort,
   appendOrToggleSort as _appendOrToggleSort,
@@ -169,6 +171,13 @@ export function useTableState<TRow extends object>(
   const [selection, setSelection] = useState<Set<TRow>>(new Set())
   const [selectionAnchor, setSelectionAnchor] = useState<TRow | null>(null)
   const [searchQuery, setSearchQueryState] = useState(() => initial.searchQuery)
+  // The roving-tabindex "current" item (a data row or a group header) — ephemeral UI state, same
+  // category as `selectionAnchor` above, not part of `TableViewState`. Lifted up here (rather than
+  // staying local to DataTableView, where it lived before) so it's reachable as `focus.target`/
+  // `focus.row` and settable via `focus.moveTo` from outside the rendered table — see "External
+  // row focus" in the docs. `setTarget` is the low-level setter DataTableView's own keyboard
+  // handling uses directly; most external callers want `moveTo` instead.
+  const [focusTarget, setFocusTarget] = useState<VisibleItem<TRow> | null>(null)
 
   // Reconciles `selection`'s stored row references against a changed `data` argument, same
   // "adjust state when a prop changes" render-time pattern as visibleCols/columnKeys above —
@@ -511,6 +520,32 @@ export function useTableState<TRow extends object>(
       setQuery: (q: string) => {
         setSearchQueryState(q)
         setPageState(1)
+      },
+    },
+
+    focus: {
+      target: focusTarget,
+      row: focusTarget?.kind === 'row' ? focusTarget.row : null,
+      setTarget: (item: VisibleItem<TRow> | null) => setFocusTarget(item),
+      // Brings `row` into view from outside the table: expands whichever group(s) it belongs to
+      // if collapsed, jumps to the page containing it, and sets it as the roving-tabindex target
+      // — so it's highlighted and scrolled into view (DataTableView reacts to `focus.target`), and
+      // the very next Tab/arrow-key press lands there. Never moves real DOM focus itself — only
+      // an actual keyboard interaction (or a consumer's own explicit `.focus()`) does that — so
+      // calling this from e.g. an external lightbox's prev/next never steals focus away from it.
+      // No-ops if `row` isn't part of the table's current (filtered/sorted) data.
+      moveTo: (row: TRow) => {
+        const resolved = resolveFocusTarget(
+          groupedFull,
+          row,
+          collapsedGroups,
+          defaultGroupsCollapsed,
+          pageSize,
+        )
+        if (!resolved) return
+        setCollapsedGroups(resolved.collapsedGroups)
+        setPageState(resolved.page)
+        setFocusTarget(resolved.item)
       },
     },
 

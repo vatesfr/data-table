@@ -51,6 +51,7 @@ import {
   insertGroupSort,
   reorderGroupSorts,
   toggleCollapse,
+  resolveFocusTarget,
   isGroupCollapsed,
   getSortIcon,
   getSortIndex,
@@ -3029,6 +3030,77 @@ describe('toggleCollapse', () => {
   it('removes key when already collapsed', () => {
     const result = toggleCollapse(new Set(['Eng']), 'Eng')
     expect(result.has('Eng')).toBe(false)
+  })
+})
+
+// ─── resolveFocusTarget ────────────────────────────────────────────────────
+
+describe('resolveFocusTarget', () => {
+  const alice = { name: 'Alice', dept: 'Eng' }
+  const bob = { name: 'Bob', dept: 'Sales' }
+  const carol = { name: 'Carol', dept: 'Eng' }
+  const ungrouped = [{ key: null, keyParts: [], rows: [alice, bob, carol] }]
+
+  it('returns null for a row not present in groups', () => {
+    expect(
+      resolveFocusTarget(ungrouped, { name: 'Nope', dept: 'X' }, new Set(), false, 0),
+    ).toBeNull()
+  })
+
+  it('resolves an ungrouped row to page 1 with no collapse changes', () => {
+    const collapsed = new Set<string>()
+    const result = resolveFocusTarget(ungrouped, bob, collapsed, false, 0)
+    expect(result).not.toBeNull()
+    expect(result!.item).toEqual({ kind: 'row', row: bob, groupKey: null })
+    expect(result!.page).toBe(1)
+    expect(result!.collapsedGroups).toBe(collapsed)
+  })
+
+  it('computes the correct page when paginated', () => {
+    // pageSize 1: alice=idx0 (page1), bob=idx1 (page2), carol=idx2 (page3)
+    const result = resolveFocusTarget(ungrouped, carol, new Set(), false, 1)
+    expect(result!.page).toBe(3)
+  })
+
+  it('force-expands a collapsed group containing the row', () => {
+    const groups = [
+      { key: 'Eng', keyParts: ['Eng'], rows: [alice, carol] },
+      { key: 'Sales', keyParts: ['Sales'], rows: [bob] },
+    ]
+    const collapsed = new Set(['Eng'])
+    const result = resolveFocusTarget(groups, carol, collapsed, false, 0)
+    expect(result).not.toBeNull()
+    expect(result!.collapsedGroups.has('Eng')).toBe(false)
+    // Sales stays untouched
+    expect(result!.item).toEqual({ kind: 'row', row: carol, groupKey: 'Eng' })
+  })
+
+  it('expands every group a multi-value row fans into', () => {
+    const groups = [
+      { key: 'Action', keyParts: ['Action'], rows: [alice] },
+      { key: 'RPG', keyParts: ['RPG'], rows: [alice] },
+    ]
+    const result = resolveFocusTarget(groups, alice, new Set(['Action', 'RPG']), false, 0)
+    expect(result!.collapsedGroups.has('Action')).toBe(false)
+    expect(result!.collapsedGroups.has('RPG')).toBe(false)
+  })
+
+  it('does not expand an already-collapsed group the row is not in', () => {
+    const groups = [
+      { key: 'Eng', keyParts: ['Eng'], rows: [alice, carol] },
+      { key: 'Sales', keyParts: ['Sales'], rows: [bob] },
+    ]
+    const result = resolveFocusTarget(groups, bob, new Set(['Eng']), false, 0)
+    expect(result!.collapsedGroups.has('Eng')).toBe(true)
+  })
+
+  it('respects defaultGroupsCollapsed when deciding whether to expand', () => {
+    const groups = [{ key: 'Eng', keyParts: ['Eng'], rows: [alice] }]
+    // defaultGroupsCollapsed=true, empty collapsedGroups means every group starts collapsed
+    const result = resolveFocusTarget(groups, alice, new Set(), true, 0)
+    // Toggling away from the default marks it as manually opened
+    expect(result!.collapsedGroups.has('Eng')).toBe(true)
+    expect(result!.item.kind).toBe('row')
   })
 })
 

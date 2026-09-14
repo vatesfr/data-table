@@ -619,6 +619,68 @@ describe('useTableState — pagination with grouping', () => {
   })
 })
 
+describe('useTableState — focus.moveTo', () => {
+  interface DeptRow {
+    id: number
+    name: string
+    dept: string
+  }
+  const DEPT_COLS: ColumnDef<DeptRow>[] = [
+    { key: 'name', label: 'Name' },
+    { key: 'dept', label: 'Department', groupable: true },
+  ]
+  const DEPT_ROWS: DeptRow[] = [
+    { id: 1, name: 'Alice', dept: 'Eng' },
+    { id: 2, name: 'Bob', dept: 'Eng' },
+    { id: 3, name: 'Clara', dept: 'HR' },
+    { id: 4, name: 'David', dept: 'HR' },
+  ]
+
+  it('starts with no focus target', () => {
+    const table = useTableState(ROWS, COLS)
+    expect(table.focus.row.value).toBeNull()
+    expect(table.focus.target.value).toBeNull()
+  })
+
+  it('sets focus.row/target to the given row', () => {
+    const table = useTableState(ROWS, COLS)
+    table.focus.moveTo(ROWS[2])
+    expect(table.focus.row.value).toBe(ROWS[2])
+    expect(table.focus.target.value).toEqual({ kind: 'row', row: ROWS[2], groupKey: null })
+  })
+
+  it('is a no-op for a row not present in the current (filtered) data', () => {
+    const table = useTableState(ROWS, COLS)
+    table.focus.moveTo({ id: 999, name: 'Ghost', score: 0 })
+    expect(table.focus.row.value).toBeNull()
+  })
+
+  it('jumps to the page containing the target row', () => {
+    const table = useTableState(ROWS, COLS, { initialViewState: { pageSize: 1 } })
+    table.focus.moveTo(ROWS[2])
+    expect(table.pagination.page.value).toBe(3)
+    expect(table.focus.row.value).toBe(ROWS[2])
+  })
+
+  it('force-expands a collapsed group containing the target row', () => {
+    const table = useTableState(DEPT_ROWS, DEPT_COLS, { defaultGroupsCollapsed: true })
+    table.group.toggle('dept')
+    // Both groups start collapsed
+    expect(table.pagedData.value).toEqual([])
+    table.focus.moveTo(DEPT_ROWS[2])
+    expect(table.focus.row.value).toBe(DEPT_ROWS[2])
+    expect(table.pagedData.value).toContain(DEPT_ROWS[2])
+  })
+
+  it('setTarget sets an arbitrary VisibleItem, including a group header', () => {
+    const table = useTableState(DEPT_ROWS, DEPT_COLS)
+    table.group.toggle('dept')
+    table.focus.setTarget({ kind: 'group', key: 'Eng' })
+    expect(table.focus.target.value).toEqual({ kind: 'group', key: 'Eng' })
+    expect(table.focus.row.value).toBeNull()
+  })
+})
+
 describe('useTableState — filters reset page', () => {
   it('cycleFilterValue resets page to 1', () => {
     const table = useTableState(ROWS, COLS, { initialViewState: { pageSize: 2 } })

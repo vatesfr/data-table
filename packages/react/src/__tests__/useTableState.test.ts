@@ -724,6 +724,86 @@ describe('useTableState — pagination with grouping', () => {
   })
 })
 
+describe('useTableState — focus.moveTo', () => {
+  interface DeptRow {
+    id: number
+    name: string
+    dept: string
+  }
+  const DEPT_COLS: ColumnDef<DeptRow>[] = [
+    { key: 'name', label: 'Name' },
+    { key: 'dept', label: 'Department', groupable: true },
+  ]
+  const DEPT_ROWS: DeptRow[] = [
+    { id: 1, name: 'Alice', dept: 'Eng' },
+    { id: 2, name: 'Bob', dept: 'Eng' },
+    { id: 3, name: 'Clara', dept: 'HR' },
+    { id: 4, name: 'David', dept: 'HR' },
+  ]
+
+  it('starts with no focus target', () => {
+    const { result } = renderHook(() => useTableState(ROWS, COLS))
+    expect(result.current.focus.row).toBeNull()
+    expect(result.current.focus.target).toBeNull()
+  })
+
+  it('sets focus.row/target to the given row', () => {
+    const { result } = renderHook(() => useTableState(ROWS, COLS))
+    act(() => {
+      result.current.focus.moveTo(ROWS[2])
+    })
+    expect(result.current.focus.row).toBe(ROWS[2])
+    expect(result.current.focus.target).toEqual({ kind: 'row', row: ROWS[2], groupKey: null })
+  })
+
+  it('is a no-op for a row not present in the current (filtered) data', () => {
+    const { result } = renderHook(() => useTableState(ROWS, COLS))
+    act(() => {
+      result.current.focus.moveTo({ id: 999, name: 'Ghost', score: 0 })
+    })
+    expect(result.current.focus.row).toBeNull()
+  })
+
+  it('jumps to the page containing the target row', () => {
+    const { result } = renderHook(() =>
+      useTableState(ROWS, COLS, { initialViewState: { pageSize: 1 } }),
+    )
+    act(() => {
+      result.current.focus.moveTo(ROWS[2])
+    })
+    expect(result.current.pagination.page).toBe(3)
+    expect(result.current.focus.row).toBe(ROWS[2])
+  })
+
+  it('force-expands a collapsed group containing the target row', () => {
+    const { result } = renderHook(() =>
+      useTableState(DEPT_ROWS, DEPT_COLS, { defaultGroupsCollapsed: true }),
+    )
+    act(() => {
+      result.current.group.toggle('dept')
+    })
+    // Both groups start collapsed
+    expect(result.current.pagedData).toEqual([])
+    act(() => {
+      result.current.focus.moveTo(DEPT_ROWS[2])
+    })
+    expect(result.current.focus.row).toBe(DEPT_ROWS[2])
+    expect(result.current.pagedData).toContain(DEPT_ROWS[2])
+  })
+
+  it('setTarget sets an arbitrary VisibleItem, including a group header', () => {
+    const { result } = renderHook(() => useTableState(DEPT_ROWS, DEPT_COLS))
+    act(() => {
+      result.current.group.toggle('dept')
+    })
+    act(() => {
+      result.current.focus.setTarget({ kind: 'group', key: 'Eng' })
+    })
+    expect(result.current.focus.target).toEqual({ kind: 'group', key: 'Eng' })
+    expect(result.current.focus.row).toBeNull()
+  })
+})
+
 describe('useTableState — filters reset page', () => {
   it('cycleFilterValue resets page to 1', () => {
     const { result } = renderHook(() =>
