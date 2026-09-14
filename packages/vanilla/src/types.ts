@@ -55,6 +55,14 @@ export interface DataTableOptions<TRow extends object = Record<string, unknown>>
   onSelectionChange?: (rows: TRow[]) => void
   /** Fires on a row click, or on Enter while a row has keyboard focus (see "Keyboard navigation"). */
   onRowClick?: (row: TRow, event: MouseEvent | KeyboardEvent) => void
+  /**
+   * Shows/hides the toolbar's search box. Defaults to `true`. Unlike the Sort/Group/Filter
+   * dropdowns (which already hide themselves when no column qualifies for them), search always
+   * applies regardless of column config — there's no equivalent auto-hide signal for it, so this
+   * is the one toolbar control that needs an explicit opt-out (e.g. when the page already has its
+   * own search input and the toolbar's own box would just duplicate it).
+   */
+  showSearch?: boolean
 }
 
 export interface DataTableInstance<TRow extends object = Record<string, unknown>> {
@@ -98,6 +106,8 @@ export interface DataTableInstance<TRow extends object = Record<string, unknown>
   setRowKey(key: keyof TRow & string): void
   /** Toggles whether rows show selection checkboxes after construction. */
   setSelectable(value: boolean): void
+  /** Shows/hides the toolbar's search box after construction — see `DataTableOptions.showSearch`. */
+  setShowSearch(value: boolean): void
   /** Changes (or clears, passing `undefined`) the row-click callback after construction. */
   setOnRowClick(cb: ((row: TRow, event: MouseEvent | KeyboardEvent) => void) | undefined): void
   /** Replaces the label overrides after construction — see `DataTableOptions.labels`. */

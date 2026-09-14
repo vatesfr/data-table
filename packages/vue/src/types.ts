@@ -27,6 +27,14 @@ export interface DataTableViewProps<TRow extends object = Record<string, unknown
    */
   rowKey?: string
   selectable?: boolean
+  /**
+   * Shows/hides the toolbar's search box. Defaults to `true`. Unlike the Sort/Group/Filter
+   * dropdowns (which already hide themselves when no column qualifies for them), search always
+   * applies regardless of column config — there's no equivalent auto-hide signal for it, so this
+   * is the one toolbar control that needs an explicit opt-out (e.g. when the page already has its
+   * own search input and the toolbar's own box would just duplicate it).
+   */
+  showSearch?: boolean
 }
 
 // `<DataTableView>`'s actual runtime props, plus `rowClickable` — an internal wiring detail (see

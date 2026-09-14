@@ -87,6 +87,7 @@ export function createDataTable<TRow extends object>(
   // matching every other adapter's documented frozen behavior for it.
   const [rowKey, setRowKeySignal] = createSignal(options.rowKey)
   const [selectable, setSelectableSignal] = createSignal(options.selectable ?? false)
+  const [showSearch, setShowSearchSignal] = createSignal(options.showSearch ?? true)
   // `onRowClick`/`getRowId` are themselves functions, so Solid's setter overloads can't tell them
   // apart from a functional updater — wrap each write in a thunk, the same workaround
   // `createTableState`'s own `selectionAnchor` signal already uses for the same reason.
@@ -145,6 +146,7 @@ export function createDataTable<TRow extends object>(
           rowKey={rowKey()}
           selectable={selectable()}
           onRowClick={onRowClick()}
+          showSearch={showSearch()}
         />
       ),
       container,
@@ -175,6 +177,7 @@ export function createDataTable<TRow extends object>(
     // `onRowClick` above, just for a type-system reason rather than a real runtime ambiguity.
     setRowKey: (key: keyof TRow & string) => setRowKeySignal(() => key),
     setSelectable: (value: boolean) => setSelectableSignal(value),
+    setShowSearch: (value: boolean) => setShowSearchSignal(value),
     setOnRowClick: (cb: ((row: TRow, event: MouseEvent | KeyboardEvent) => void) | undefined) =>
       setOnRowClickSignal(() => cb),
     setLabels: (next: DataTableOptions<TRow>['labels']) => setLabelsSignal(next),

@@ -1164,6 +1164,20 @@ describe('DataTable — search clear button', () => {
   })
 })
 
+describe('DataTable — showSearch', () => {
+  it('hides the search box when showSearch is false', () => {
+    const { queryByPlaceholderText } = render(
+      <DataTable data={ROWS} columns={COLS} rowKey="id" showSearch={false} />,
+    )
+    expect(queryByPlaceholderText('Search…')).toBeNull()
+  })
+
+  it('shows the search box by default', () => {
+    const { queryByPlaceholderText } = render(<DataTable data={ROWS} columns={COLS} rowKey="id" />)
+    expect(queryByPlaceholderText('Search…')).not.toBeNull()
+  })
+})
+
 // Draggable dropdown rows (active sort/group/column entries) vs. the table's own draggable
 // <th> headers are told apart by tag — this excludes the headers so container-wide queries only
 // ever see the dropdown's own rows.
@@ -1455,6 +1469,15 @@ describe('DataTable — header click sort', () => {
     fireEvent.click(getByText('Sort'))
     expect(queryAllByText('Name').some((el) => el.closest('th') === null)).toBe(false)
     expect(ddCopyOf(getAllByText, 'Score').closest('button')).not.toBeNull()
+  })
+
+  it('hides the Sort toolbar button entirely when every column is sortable: false', () => {
+    const cols: ColumnDef<Row>[] = [
+      { key: 'name', label: 'Name', sortable: false },
+      { key: 'score', label: 'Score', type: 'number', sortable: false },
+    ]
+    const { queryByText } = render(<DataTable data={ROWS} columns={cols} rowKey="id" />)
+    expect(queryByText('Sort')).toBeNull()
   })
 
   it('a single sorted column shows only the direction arrow, no index number', () => {

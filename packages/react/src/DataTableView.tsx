@@ -886,6 +886,7 @@ export function DataTableView<TRow extends object>({
   selectable,
   onSelectionChange,
   onRowClick,
+  showSearch,
 }: DataTableViewProps<TRow>) {
   const [openColsDD, setOpenColsDD] = useState(false)
   const [openSortDD, setOpenSortDD] = useState(false)
@@ -1314,11 +1315,10 @@ export function DataTableView<TRow extends object>({
 
   const filterableCols = columns.filter((c) => c.filterable !== false)
   const groupableCols = columns.filter((c) => c.groupable === true)
+  const sortableCols = columns.filter((c) => c.sortable !== false)
   // Sort/Group dropdowns split into an "active" section (priority order, reorderable) and an
   // "add" section (everything else) — reordering only ever makes sense among active entries.
-  const addableSortCols = columns.filter(
-    (c) => c.sortable !== false && getSortIndex(c.key) === null,
-  )
+  const addableSortCols = sortableCols.filter((c) => getSortIndex(c.key) === null)
   const addableGroupCols = groupableCols.filter((c) => !groupBy.includes(c.key))
   // Narrows a dropdown's own column list by label *or category* (see `ddSearchTerms` and
   // `columnMatchesSearch`, core — typing a category name surfaces every column filed under it,
@@ -2393,314 +2393,318 @@ export function DataTableView<TRow extends object>({
           )}
 
           {/* Sort */}
-          <Dropdown
-            open={openSortDD}
-            setOpen={setOpenSortDD}
-            trigger={
-              <ToolbarBtn active={sorts.length > 0} grouped={sorts.length > 0}>
-                {L.sort}
-              </ToolbarBtn>
-            }
-            extraTrigger={
-              sorts.length > 0 && (
-                <button
-                  type="button"
-                  onClick={clearSorts}
-                  title={L.clearSorts}
-                  aria-label={L.clearSorts}
-                  style={S.btnClear}
-                >
-                  ×
-                </button>
-              )
-            }
-            onDragOver={onSortRowsDragOver}
-            onDrop={onSortRowsDrop}
-          >
-            {groupSortEntries.length > 0 && (
-              <>
-                <div style={S.ddSection}>{L.groupOrderSection}</div>
-                <div style={S.ddHint}>{L.groupOrderHint}</div>
-                {groupSortEntries.map((entry, i) => {
-                  const col = columns.find((c) => c.key === entry.key)
-                  // Not draggable, no Alt+↑/↓ reorder — nesting order always follows groupBy's
-                  // own order (see the Group dropdown), so reordering here would be a no-op;
-                  // direction is still toggleable/removable in place, same as any other entry.
-                  return (
-                    <div
-                      key={entry.key}
-                      tabIndex={0}
-                      onClick={() => toggleSortDir(entry.key)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault()
-                          toggleSortDir(entry.key)
-                        } else if (e.key === 'Delete' || e.key === 'Backspace') {
-                          // Keyboard equivalent of this row's own × button — matches the Filter
-                          // dropdown's identical Delete/Backspace-on-a-focused-active-row
-                          // shortcut. This row isn't draggable/reorderable, but removing its
-                          // sort entry still needs the same focus hand-off as any other.
-                          e.preventDefault()
-                          pendingSortFocusKey.current = entry.key
-                          removeSort(entry.key)
-                        }
-                      }}
-                      {...ddRowHoverFocusHandlers(entry.key, { hoverable: false })}
-                      style={{
-                        ...S.ddItem,
-                        justifyContent: 'space-between',
-                        background: ddRowHighlighted(entry.key, { hoverable: false })
-                          ? 'var(--color-background-secondary)'
-                          : undefined,
-                      }}
-                    >
-                      <span
+          {sortableCols.length > 0 && (
+            <Dropdown
+              open={openSortDD}
+              setOpen={setOpenSortDD}
+              trigger={
+                <ToolbarBtn active={sorts.length > 0} grouped={sorts.length > 0}>
+                  {L.sort}
+                </ToolbarBtn>
+              }
+              extraTrigger={
+                sorts.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={clearSorts}
+                    title={L.clearSorts}
+                    aria-label={L.clearSorts}
+                    style={S.btnClear}
+                  >
+                    ×
+                  </button>
+                )
+              }
+              onDragOver={onSortRowsDragOver}
+              onDrop={onSortRowsDrop}
+            >
+              {groupSortEntries.length > 0 && (
+                <>
+                  <div style={S.ddSection}>{L.groupOrderSection}</div>
+                  <div style={S.ddHint}>{L.groupOrderHint}</div>
+                  {groupSortEntries.map((entry, i) => {
+                    const col = columns.find((c) => c.key === entry.key)
+                    // Not draggable, no Alt+↑/↓ reorder — nesting order always follows groupBy's
+                    // own order (see the Group dropdown), so reordering here would be a no-op;
+                    // direction is still toggleable/removable in place, same as any other entry.
+                    return (
+                      <div
+                        key={entry.key}
+                        tabIndex={0}
+                        onClick={() => toggleSortDir(entry.key)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault()
+                            toggleSortDir(entry.key)
+                          } else if (e.key === 'Delete' || e.key === 'Backspace') {
+                            // Keyboard equivalent of this row's own × button — matches the Filter
+                            // dropdown's identical Delete/Backspace-on-a-focused-active-row
+                            // shortcut. This row isn't draggable/reorderable, but removing its
+                            // sort entry still needs the same focus hand-off as any other.
+                            e.preventDefault()
+                            pendingSortFocusKey.current = entry.key
+                            removeSort(entry.key)
+                          }
+                        }}
+                        {...ddRowHoverFocusHandlers(entry.key, { hoverable: false })}
                         style={{
-                          width: 18,
-                          fontSize: 11,
-                          color: 'var(--color-text-tertiary)',
-                          fontWeight: 500,
-                        }}
-                      >
-                        {i + 1}
-                      </span>
-                      <span style={{ flex: 1 }}>{col?.label ?? entry.key}</span>
-                      <span style={{ fontSize: 15, color: 'var(--color-text-primary)' }}>
-                        {getSortIcon(entry.key)}
-                      </span>
-                      <button
-                        type="button"
-                        draggable={false}
-                        title={L.removeSort}
-                        aria-label={L.removeSort}
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          pendingSortFocusKey.current = entry.key
-                          removeSort(entry.key)
-                        }}
-                        style={S.itemRemove}
-                      >
-                        ×
-                      </button>
-                    </div>
-                  )
-                })}
-              </>
-            )}
-            {nonGroupSortEntries.length > 0 && (
-              <>
-                <div style={S.ddSection}>{L.activeSortsSection}</div>
-                {nonGroupSortEntries.map((entry, i) => {
-                  const col = columns.find((c) => c.key === entry.key)
-                  return (
-                    // The whole row is the click target (toggles direction) and the drag source
-                    // (reorder priority); `×` stays a separate <button> (draggable=false so
-                    // starting a drag from it doesn't also drag the row) since removing isn't
-                    // something a row click/drag should ever trigger. tabIndex + onKeyDown give
-                    // it Alt+↑/↓ reorder and Enter/Space-to-toggle from the keyboard — a plain
-                    // div gets no free keyboard activation the way a real <button> would (unlike
-                    // the add-list below, which doesn't need custom keyboard handling).
-                    // dragover/drop are handled at the Dropdown panel level (see above), not
-                    // per-row — that's what lets a drop past the last row still resolve to a
-                    // valid target.
-                    <div
-                      key={entry.key}
-                      data-sort-key={entry.key}
-                      data-dd-row
-                      draggable
-                      tabIndex={0}
-                      onDragStart={() => onSortRowDragStart(entry.key)}
-                      onDragEnd={onSortRowDragEnd}
-                      onClick={() => toggleSortDir(entry.key)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault()
-                          toggleSortDir(entry.key)
-                        } else if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
-                          e.preventDefault()
-                          // Swap with the neighbor within this non-group subset (by key, via
-                          // moveSort/reorderSort), not the raw sorts-array neighbor (moveSortBy)
-                          // — a group entry can sit between two non-group ones in the underlying
-                          // array, and swapping with it would silently do nothing visible here.
-                          const delta = e.key === 'ArrowUp' ? -1 : 1
-                          const neighbor = nonGroupSortEntries[i + delta]
-                          if (neighbor) moveSort(entry.key, neighbor.key, delta > 0)
-                        } else if (e.key === 'Delete' || e.key === 'Backspace') {
-                          // Keyboard equivalent of this row's own × button — matches the Filter
-                          // dropdown's identical Delete/Backspace-on-a-focused-active-row
-                          // shortcut.
-                          e.preventDefault()
-                          pendingSortFocusKey.current = entry.key
-                          removeSort(entry.key)
-                        }
-                      }}
-                      {...ddRowHoverFocusHandlers(entry.key)}
-                      style={{
-                        ...S.ddItem,
-                        justifyContent: 'space-between',
-                        opacity: dragSortKey === entry.key ? 0.4 : 1,
-                        background: ddRowHighlighted(entry.key)
-                          ? 'var(--color-background-secondary)'
-                          : undefined,
-                        boxShadow:
-                          dragOverSortKey === entry.key
-                            ? `inset 0 ${dragOverSortAfter ? '-2px' : '2px'} 0 var(--color-text-primary)`
+                          ...S.ddItem,
+                          justifyContent: 'space-between',
+                          background: ddRowHighlighted(entry.key, { hoverable: false })
+                            ? 'var(--color-background-secondary)'
                             : undefined,
-                      }}
-                    >
-                      <span aria-hidden="true" style={S.ddDragHandle}>
-                        ⠿
-                      </span>
-                      <span
+                        }}
+                      >
+                        <span
+                          style={{
+                            width: 18,
+                            fontSize: 11,
+                            color: 'var(--color-text-tertiary)',
+                            fontWeight: 500,
+                          }}
+                        >
+                          {i + 1}
+                        </span>
+                        <span style={{ flex: 1 }}>{col?.label ?? entry.key}</span>
+                        <span style={{ fontSize: 15, color: 'var(--color-text-primary)' }}>
+                          {getSortIcon(entry.key)}
+                        </span>
+                        <button
+                          type="button"
+                          draggable={false}
+                          title={L.removeSort}
+                          aria-label={L.removeSort}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            pendingSortFocusKey.current = entry.key
+                            removeSort(entry.key)
+                          }}
+                          style={S.itemRemove}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    )
+                  })}
+                </>
+              )}
+              {nonGroupSortEntries.length > 0 && (
+                <>
+                  <div style={S.ddSection}>{L.activeSortsSection}</div>
+                  {nonGroupSortEntries.map((entry, i) => {
+                    const col = columns.find((c) => c.key === entry.key)
+                    return (
+                      // The whole row is the click target (toggles direction) and the drag source
+                      // (reorder priority); `×` stays a separate <button> (draggable=false so
+                      // starting a drag from it doesn't also drag the row) since removing isn't
+                      // something a row click/drag should ever trigger. tabIndex + onKeyDown give
+                      // it Alt+↑/↓ reorder and Enter/Space-to-toggle from the keyboard — a plain
+                      // div gets no free keyboard activation the way a real <button> would (unlike
+                      // the add-list below, which doesn't need custom keyboard handling).
+                      // dragover/drop are handled at the Dropdown panel level (see above), not
+                      // per-row — that's what lets a drop past the last row still resolve to a
+                      // valid target.
+                      <div
+                        key={entry.key}
+                        data-sort-key={entry.key}
+                        data-dd-row
+                        draggable
+                        tabIndex={0}
+                        onDragStart={() => onSortRowDragStart(entry.key)}
+                        onDragEnd={onSortRowDragEnd}
+                        onClick={() => toggleSortDir(entry.key)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault()
+                            toggleSortDir(entry.key)
+                          } else if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+                            e.preventDefault()
+                            // Swap with the neighbor within this non-group subset (by key, via
+                            // moveSort/reorderSort), not the raw sorts-array neighbor (moveSortBy)
+                            // — a group entry can sit between two non-group ones in the underlying
+                            // array, and swapping with it would silently do nothing visible here.
+                            const delta = e.key === 'ArrowUp' ? -1 : 1
+                            const neighbor = nonGroupSortEntries[i + delta]
+                            if (neighbor) moveSort(entry.key, neighbor.key, delta > 0)
+                          } else if (e.key === 'Delete' || e.key === 'Backspace') {
+                            // Keyboard equivalent of this row's own × button — matches the Filter
+                            // dropdown's identical Delete/Backspace-on-a-focused-active-row
+                            // shortcut.
+                            e.preventDefault()
+                            pendingSortFocusKey.current = entry.key
+                            removeSort(entry.key)
+                          }
+                        }}
+                        {...ddRowHoverFocusHandlers(entry.key)}
                         style={{
-                          width: 18,
-                          fontSize: 11,
-                          color: 'var(--color-text-tertiary)',
-                          fontWeight: 500,
+                          ...S.ddItem,
+                          justifyContent: 'space-between',
+                          opacity: dragSortKey === entry.key ? 0.4 : 1,
+                          background: ddRowHighlighted(entry.key)
+                            ? 'var(--color-background-secondary)'
+                            : undefined,
+                          boxShadow:
+                            dragOverSortKey === entry.key
+                              ? `inset 0 ${dragOverSortAfter ? '-2px' : '2px'} 0 var(--color-text-primary)`
+                              : undefined,
                         }}
                       >
-                        {i + 1}
-                      </span>
-                      <span style={{ flex: 1 }}>{col?.label ?? entry.key}</span>
-                      <span style={{ fontSize: 15, color: 'var(--color-text-primary)' }}>
-                        {getSortIcon(entry.key)}
-                      </span>
-                      <button
-                        type="button"
-                        draggable={false}
-                        title={L.removeSort}
-                        aria-label={L.removeSort}
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          // Removing this entry unmounts this whole row (a different JSX subtree
-                          // than the addable button it's about to become again — see
-                          // pendingSortFocusKey above), so focus needs an explicit hand-off.
-                          pendingSortFocusKey.current = entry.key
-                          removeSort(entry.key)
-                        }}
-                        style={S.itemRemove}
-                      >
-                        ×
-                      </button>
-                    </div>
-                  )
-                })}
-              </>
-            )}
-            {addableSortCols.length > 0 && (
-              <>
-                {/* Search box narrows this "add" list only — the active-sorts section above
+                        <span aria-hidden="true" style={S.ddDragHandle}>
+                          ⠿
+                        </span>
+                        <span
+                          style={{
+                            width: 18,
+                            fontSize: 11,
+                            color: 'var(--color-text-tertiary)',
+                            fontWeight: 500,
+                          }}
+                        >
+                          {i + 1}
+                        </span>
+                        <span style={{ flex: 1 }}>{col?.label ?? entry.key}</span>
+                        <span style={{ fontSize: 15, color: 'var(--color-text-primary)' }}>
+                          {getSortIcon(entry.key)}
+                        </span>
+                        <button
+                          type="button"
+                          draggable={false}
+                          title={L.removeSort}
+                          aria-label={L.removeSort}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            // Removing this entry unmounts this whole row (a different JSX subtree
+                            // than the addable button it's about to become again — see
+                            // pendingSortFocusKey above), so focus needs an explicit hand-off.
+                            pendingSortFocusKey.current = entry.key
+                            removeSort(entry.key)
+                          }}
+                          style={S.itemRemove}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    )
+                  })}
+                </>
+              )}
+              {addableSortCols.length > 0 && (
+                <>
+                  {/* Search box narrows this "add" list only — the active-sorts section above
                     keeps its own priority order and is never hidden by it, since it's a short,
                     already-visible list with its own remove/reorder controls. */}
-                <div style={S.ddSearchRow}>
-                  <DdSearchInput
-                    value={ddSearchTerms.sort ?? ''}
-                    onChange={(v) => setDdSearchTerms({ ...ddSearchTerms, sort: v })}
-                    placeholder={L.filterSearchPlaceholder}
-                    clearLabel={L.clearSearch}
-                  />
-                </div>
-                <div style={S.ddSection}>{L.sortSection}</div>
-                {isSortSearching
-                  ? searchedFlatAddableSortCols.map((col) => (
-                      <button
-                        key={col.key}
-                        type="button"
-                        data-sort-add-key={col.key}
-                        data-dd-row
-                        onClick={() => {
-                          pendingSortFocusKey.current = col.key
-                          toggleSort(col.key)
-                        }}
-                        style={{ ...S.ddItem, ...S.ddItemButton }}
-                      >
-                        <span style={{ flex: 1 }}>{col.label}</span>
-                        {col.category && <span style={S.ddItemCategory}>{col.category}</span>}
-                      </button>
-                    ))
-                  : [
-                      // A real <button> (not a div) so it's a native Tab stop and Enter/Space
-                      // "click" it for free — no manual tabIndex/keydown wiring needed, unlike
-                      // the active rows above (which need custom keyboard handling anyway for
-                      // Alt+↑/↓).
-                      ...categorizedAddableSortCols.uncategorized.map((col) => (
+                  <div style={S.ddSearchRow}>
+                    <DdSearchInput
+                      value={ddSearchTerms.sort ?? ''}
+                      onChange={(v) => setDdSearchTerms({ ...ddSearchTerms, sort: v })}
+                      placeholder={L.filterSearchPlaceholder}
+                      clearLabel={L.clearSearch}
+                    />
+                  </div>
+                  <div style={S.ddSection}>{L.sortSection}</div>
+                  {isSortSearching
+                    ? searchedFlatAddableSortCols.map((col) => (
                         <button
                           key={col.key}
                           type="button"
                           data-sort-add-key={col.key}
                           data-dd-row
                           onClick={() => {
-                            // Activating this column moves it into the active section above (a
-                            // different JSX subtree, so a different DOM node) — see
-                            // pendingSortFocusKey.
                             pendingSortFocusKey.current = col.key
                             toggleSort(col.key)
                           }}
                           style={{ ...S.ddItem, ...S.ddItemButton }}
                         >
                           <span style={{ flex: 1 }}>{col.label}</span>
+                          {col.category && <span style={S.ddItemCategory}>{col.category}</span>}
                         </button>
-                      )),
-                      ...categorizedAddableSortCols.categories.map((category) => (
-                        <CategorySubmenu
-                          key={category.name}
-                          name={category.name}
-                          isOpen={openSortCategory === category.name}
-                          onOpen={() => setOpenSortCategory(category.name)}
-                          onClose={() =>
-                            setOpenSortCategory((c) => (c === category.name ? null : c))
-                          }
-                        >
-                          {category.columns.map((col) => (
-                            <button
-                              key={col.key}
-                              type="button"
-                              data-sort-add-key={col.key}
-                              data-dd-row
-                              onClick={() => {
-                                pendingSortFocusKey.current = col.key
-                                toggleSort(col.key)
-                              }}
-                              style={{ ...S.ddItem, ...S.ddItemButton }}
-                            >
-                              <span style={{ flex: 1 }}>{col.label}</span>
-                            </button>
-                          ))}
-                        </CategorySubmenu>
-                      )),
-                    ]}
-              </>
-            )}
-          </Dropdown>
+                      ))
+                    : [
+                        // A real <button> (not a div) so it's a native Tab stop and Enter/Space
+                        // "click" it for free — no manual tabIndex/keydown wiring needed, unlike
+                        // the active rows above (which need custom keyboard handling anyway for
+                        // Alt+↑/↓).
+                        ...categorizedAddableSortCols.uncategorized.map((col) => (
+                          <button
+                            key={col.key}
+                            type="button"
+                            data-sort-add-key={col.key}
+                            data-dd-row
+                            onClick={() => {
+                              // Activating this column moves it into the active section above (a
+                              // different JSX subtree, so a different DOM node) — see
+                              // pendingSortFocusKey.
+                              pendingSortFocusKey.current = col.key
+                              toggleSort(col.key)
+                            }}
+                            style={{ ...S.ddItem, ...S.ddItemButton }}
+                          >
+                            <span style={{ flex: 1 }}>{col.label}</span>
+                          </button>
+                        )),
+                        ...categorizedAddableSortCols.categories.map((category) => (
+                          <CategorySubmenu
+                            key={category.name}
+                            name={category.name}
+                            isOpen={openSortCategory === category.name}
+                            onOpen={() => setOpenSortCategory(category.name)}
+                            onClose={() =>
+                              setOpenSortCategory((c) => (c === category.name ? null : c))
+                            }
+                          >
+                            {category.columns.map((col) => (
+                              <button
+                                key={col.key}
+                                type="button"
+                                data-sort-add-key={col.key}
+                                data-dd-row
+                                onClick={() => {
+                                  pendingSortFocusKey.current = col.key
+                                  toggleSort(col.key)
+                                }}
+                                style={{ ...S.ddItem, ...S.ddItemButton }}
+                              >
+                                <span style={{ flex: 1 }}>{col.label}</span>
+                              </button>
+                            ))}
+                          </CategorySubmenu>
+                        )),
+                      ]}
+                </>
+              )}
+            </Dropdown>
+          )}
 
           {/* Divider between the "shape" controls above (Columns/Sort/Group) and the "find"
               controls below (Search/Filter). */}
           <span style={S.toolbarDivider} />
 
-          <span style={S.searchWrap}>
-            <input
-              ref={searchInputRef}
-              type="text"
-              placeholder={L.search}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              style={S.searchInput}
-            />
-            {searchQuery !== '' && (
-              <button
-                type="button"
-                onClick={() => {
-                  setSearchQuery('')
-                  searchInputRef.current?.focus()
-                }}
-                title={L.clearSearch}
-                aria-label={L.clearSearch}
-                style={S.searchClear}
-              >
-                ×
-              </button>
-            )}
-          </span>
+          {showSearch !== false && (
+            <span style={S.searchWrap}>
+              <input
+                ref={searchInputRef}
+                type="text"
+                placeholder={L.search}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                style={S.searchInput}
+              />
+              {searchQuery !== '' && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery('')
+                    searchInputRef.current?.focus()
+                  }}
+                  title={L.clearSearch}
+                  aria-label={L.clearSearch}
+                  style={S.searchClear}
+                >
+                  ×
+                </button>
+              )}
+            </span>
+          )}
 
           {/* Filter */}
           {filterableCols.length > 0 && (

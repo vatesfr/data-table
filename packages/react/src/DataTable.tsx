@@ -13,6 +13,7 @@ export function DataTable<TRow extends object>({
   selectable,
   onSelectionChange,
   onRowClick,
+  showSearch,
 }: DataTableProps<TRow>) {
   const table = useTableState(data, columns, {
     labels,
@@ -30,6 +31,7 @@ export function DataTable<TRow extends object>({
       selectable={selectable}
       onSelectionChange={onSelectionChange}
       onRowClick={onRowClick}
+      showSearch={showSearch}
     />
   )
 }

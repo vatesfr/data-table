@@ -22,6 +22,14 @@ export interface DataTableViewProps<TRow extends object> {
   rowKey?: keyof TRow & string
   selectable?: boolean
   onRowClick?: (row: TRow, event: MouseEvent | KeyboardEvent) => void
+  /**
+   * Shows/hides the toolbar's search box. Defaults to `true`. Unlike the Sort/Group/Filter
+   * dropdowns (which already hide themselves when no column qualifies for them), search always
+   * applies regardless of column config — there's no equivalent auto-hide signal for it, so this
+   * is the one toolbar control that needs an explicit opt-out (e.g. when the page already has its
+   * own search input and the toolbar's own box would just duplicate it).
+   */
+  showSearch?: boolean
 }
 
 type DropdownId = 'cols' | 'sort' | 'group' | 'filter'
@@ -36,6 +44,7 @@ export function DataTableView<TRow extends object>(props: DataTableViewProps<TRo
   const { table } = props
   const [openDropdown, setOpenDropdown] = createSignal<DropdownId | null>(null)
   const groupableCols = () => table.columns.list().filter((c) => c.groupable === true)
+  const sortableCols = () => table.columns.list().filter((c) => c.sortable !== false)
 
   function toggleDd(id: DropdownId): void {
     setOpenDropdown((cur) => (cur === id ? null : id))
@@ -64,15 +73,19 @@ export function DataTableView<TRow extends object>(props: DataTableViewProps<TRo
               onClose={() => setOpenDropdown(null)}
             />
           </Show>
-          <SortDropdown
-            table={table}
-            columns={table.columns.list()}
-            isOpen={openDropdown() === 'sort'}
-            onToggle={() => toggleDd('sort')}
-            onClose={() => setOpenDropdown(null)}
-          />
+          <Show when={sortableCols().length > 0}>
+            <SortDropdown
+              table={table}
+              columns={table.columns.list()}
+              isOpen={openDropdown() === 'sort'}
+              onToggle={() => toggleDd('sort')}
+              onClose={() => setOpenDropdown(null)}
+            />
+          </Show>
           <span class="dt-toolbar-divider" />
-          <SearchBox table={table} />
+          <Show when={props.showSearch !== false}>
+            <SearchBox table={table} />
+          </Show>
           <FilterDropdown
             table={table}
             columns={table.columns.list()}

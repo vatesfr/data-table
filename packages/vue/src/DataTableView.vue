@@ -55,7 +55,13 @@ import { vIndeterminate } from './directives/vIndeterminate'
 import { useDropdownReorder } from './composables/useDropdownReorder'
 import { useSelfDetectedListener } from './composables/useSelfDetectedListener'
 
-const props = withDefaults(defineProps<DataTableViewInternalProps<TRow>>(), { rowKey: 'id' })
+// Vue casts an absent boolean prop with no explicit default to `false`, not `undefined` — an
+// explicit `true` default is required here so an omitted `showSearch` still shows the search box
+// (same gotcha `<DataTable>`'s own `defaultGroupsCollapsed` default works around).
+const props = withDefaults(defineProps<DataTableViewInternalProps<TRow>>(), {
+  rowKey: 'id',
+  showSearch: true,
+})
 
 const emit = defineEmits<{
   selectionChange: [rows: TRow[]]
@@ -360,6 +366,7 @@ const FILTER_LIST_VIEWPORT_HEIGHT = 260
 
 const filterableCols = computed(() => props.columns.filter((c) => c.filterable !== false))
 const groupableCols = computed(() => props.columns.filter((c) => c.groupable === true))
+const sortableCols = computed(() => props.columns.filter((c) => c.sortable !== false))
 // Narrows the *column list* itself in the Columns/Sort/Group dropdowns and the Filter dropdown's
 // left column pane — a completely separate concern from `filterSearchTerms` below, which narrows
 // one column's *values* in the Filter dropdown's right detail pane. Keyed by dropdown id
@@ -978,7 +985,7 @@ function onHeaderSortClick(col: ColumnDef<TRow>, event: MouseEvent): void {
 // Sort/Group dropdowns split into an "active" section (priority order, reorderable) and an
 // "add" section (everything else) — reordering only ever makes sense among active entries.
 const addableSortCols = computed(() =>
-  props.columns.filter((c) => c.sortable !== false && getSortIndex(c.key) === null),
+  sortableCols.value.filter((c) => getSortIndex(c.key) === null),
 )
 const addableGroupCols = computed(() =>
   groupableCols.value.filter((c) => !groupBy.value.includes(c.key)),
@@ -1705,6 +1712,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
 
         <!-- Sort -->
         <Dropdown
+          v-if="sortableCols.length > 0"
           @dragover="onSortRowsDragOver"
           @drop="onSortRowsDrop"
           :on-escape-clearable="sortEscapeClearable"
@@ -1910,7 +1918,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
              controls below (Search/Filter). -->
         <span class="dt__toolbar-divider" />
 
-        <span class="dt__search-wrap">
+        <span v-if="showSearch" class="dt__search-wrap">
           <input
             ref="searchInputRef"
             type="text"

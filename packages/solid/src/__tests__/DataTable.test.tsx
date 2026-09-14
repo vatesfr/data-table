@@ -74,4 +74,33 @@ describe('DataTable', () => {
     expect(onSelectionChange).toHaveBeenCalledWith([ROWS[0]])
     dispose()
   })
+
+  it('hides the Sort toolbar button entirely when every column is sortable: false', () => {
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const cols: ColumnDef<Row>[] = [{ key: 'name', label: 'Name', sortable: false }]
+    const dispose = createRoot((d) => {
+      render(() => <DataTable data={ROWS} columns={cols} rowKey="id" />, container)
+      return d
+    })
+    const sortBtn = [...container.querySelectorAll('.dt-btn')].find(
+      (btn) => btn.textContent === 'Sort',
+    )
+    expect(sortBtn).toBeUndefined()
+    dispose()
+  })
+
+  it('hides the search box when showSearch is false', () => {
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const dispose = createRoot((d) => {
+      render(
+        () => <DataTable data={ROWS} columns={COLS} rowKey="id" showSearch={false} />,
+        container,
+      )
+      return d
+    })
+    expect(container.querySelector('.dt-search-input')).toBeNull()
+    dispose()
+  })
 })

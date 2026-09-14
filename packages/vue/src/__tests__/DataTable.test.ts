@@ -1339,6 +1339,20 @@ describe('DataTable — search clear button', () => {
   })
 })
 
+describe('DataTable — showSearch', () => {
+  it('hides the search box when show-search is false', () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS, columns: COLS, rowKey: 'id', showSearch: false },
+    })
+    expect(wrapper.find('input.dt__search-input').exists()).toBe(false)
+  })
+
+  it('shows the search box by default', () => {
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: COLS, rowKey: 'id' } })
+    expect(wrapper.find('input.dt__search-input').exists()).toBe(true)
+  })
+})
+
 describe('DataTable — sort dropdown', () => {
   const SORT_COLS: ColumnDef<Row>[] = [
     { key: 'name', label: 'Name' },
@@ -1636,6 +1650,15 @@ describe('DataTable — header click sort', () => {
     expect(headerOf(wrapper, 'Name').text()).not.toMatch(/[↑↓]/)
     const names = wrapper.findAll('tbody tr td:first-child').map((td) => td.text())
     expect(names).toEqual(['Alice', 'Bob']) // unchanged, original order
+  })
+
+  it('hides the Sort toolbar button entirely when every column is sortable: false', () => {
+    const cols: ColumnDef<Row>[] = [
+      { key: 'name', label: 'Name', sortable: false },
+      { key: 'score', label: 'Score', type: 'number', sortable: false },
+    ]
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: cols, rowKey: 'id' } })
+    expect(wrapper.findAll('button').find((b) => b.text() === 'Sort')).toBeUndefined()
   })
 
   it('a single sorted column shows only the direction arrow, no index number', async () => {

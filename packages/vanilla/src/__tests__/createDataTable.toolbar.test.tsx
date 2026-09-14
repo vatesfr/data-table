@@ -459,6 +459,32 @@ describe('createDataTable', () => {
     expect(clearAll.closest('.dt-toolbar-actions')).not.toBeNull()
     expect(clearAll.textContent?.trim()).toBe('× Clear all')
   })
+
+  it('hides the Sort toolbar button entirely when every column is sortable: false', () => {
+    const cols: ColumnDef<Row>[] = COLS.map((c) => ({ ...c, sortable: false }))
+    createDataTable(container, { data: ROWS, columns: cols })
+    const sortBtn = [...container.querySelectorAll<HTMLElement>('.dt-toolbar-actions button')].find(
+      (b) => b.textContent?.trim() === 'Sort',
+    )
+    expect(sortBtn).toBeUndefined()
+  })
+
+  it('hides the search box when showSearch is false', () => {
+    createDataTable(container, { data: ROWS, columns: COLS, showSearch: false })
+    expect(container.querySelector('.dt-search-input')).toBeNull()
+  })
+
+  it('shows the search box by default', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    expect(container.querySelector('.dt-search-input')).not.toBeNull()
+  })
+
+  it('setShowSearch toggles the search box after construction', () => {
+    const instance = createDataTable(container, { data: ROWS, columns: COLS, showSearch: false })
+    expect(container.querySelector('.dt-search-input')).toBeNull()
+    instance.setShowSearch(true)
+    expect(container.querySelector('.dt-search-input')).not.toBeNull()
+  })
 })
 
 // PRUNED:

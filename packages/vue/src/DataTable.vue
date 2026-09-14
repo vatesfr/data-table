@@ -11,6 +11,7 @@ import type { DataTableProps } from './types'
 const props = withDefaults(defineProps<DataTableProps<TRow>>(), {
   rowKey: 'id',
   defaultGroupsCollapsed: true,
+  showSearch: true,
 })
 
 const emit = defineEmits<{
@@ -82,6 +83,7 @@ watch(table.search.query, (query) => emit('update:searchQuery', query), { immedi
     :columns="columns"
     :row-key="rowKey"
     :selectable="selectable"
+    :show-search="showSearch"
     :row-clickable="isRowClickable"
     @selection-change="emit('selectionChange', $event)"
     @row-click="forwardRowClick"
