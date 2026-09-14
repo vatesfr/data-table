@@ -415,10 +415,14 @@ const {
 
 const {
   include: filters,
+  exclude: excludeFilters,
   ranges: rangeFilters,
   activeCount: activeFilterCount,
   valueMap: stringValueMap,
-  cycleValue: cycleFilterValue,
+  toggleAll: toggleFilterAll, // (key: string, values: string[]) => void — select-all/none over a value set
+  setValues: setFilterValues, // (key: string, values: string[], selected: boolean) => void — set a column's filter directly, e.g. from UI outside the table
+  cycleValue: cycleFilterValue, // (key: string, value: string) => void — neutral → include → exclude → neutral
+  clearExcludeValues: clearFilterExcludeValues,
   setRange: setRangeFilter,
   clearColumn: clearColumnFilter,
   clear: clearFilters,
