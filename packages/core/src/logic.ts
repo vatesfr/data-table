@@ -200,15 +200,30 @@ export function processData<TRow extends object>(
   let result = [...data]
   const colByKey = buildColByKey(columns)
 
+  // Both loops below check row-value/filter-set membership by iterating whichever side is the
+  // per-row values array (`rowValues` — typically length 1 for a scalar column, a handful for a
+  // multi-value one) and doing an O(1) `Set.has` against the *other* side, rather than spreading
+  // the filter's `Set` to an array and calling `.includes` on `rowValues` per candidate — the
+  // naive `[...vals].some((v) => rowValues.includes(v))` shape costs O(rows × vals.size ×
+  // rowValues.length) since `.includes` itself is a linear scan; with a large `vals` (e.g. a
+  // checked-by-default checklist's "select all but a few" narrowing on a column with thousands of
+  // distinct values, or an "and" mode's own `vals`) that's easily hundreds of millions of
+  // operations and a multi-second stall for a single click on a large dataset — reproduced and
+  // fixed after profiling the huge-dataset demo. `rowValueSet` is only built for "and" mode, where
+  // every one of (typically few) `vals` must be checked against `rowValues` — worth the small
+  // per-row allocation there since it turns an O(vals.size × rowValues.length) inner loop into
+  // O(vals.size + rowValues.length).
   for (const [key, vals] of Object.entries(filters)) {
     if (vals.size === 0) continue
     const col = colByKey.get(key)
     const mode = filterModes[key] ?? col?.multiMode ?? 'or'
     result = result.filter((row) => {
       const rowValues = resolveMultiValues(col, row, key, emptyLabel)
-      return mode === 'and'
-        ? [...vals].every((v) => rowValues.includes(v))
-        : [...vals].some((v) => rowValues.includes(v))
+      if (mode === 'and') {
+        const rowValueSet = new Set(rowValues)
+        return [...vals].every((v) => rowValueSet.has(v))
+      }
+      return rowValues.some((v) => vals.has(v))
     })
   }
 
@@ -221,7 +236,7 @@ export function processData<TRow extends object>(
     const col = colByKey.get(key)
     result = result.filter((row) => {
       const rowValues = resolveMultiValues(col, row, key, emptyLabel)
-      return ![...vals].some((v) => rowValues.includes(v))
+      return !rowValues.some((v) => vals.has(v))
     })
   }
 
@@ -1422,6 +1437,44 @@ export function clearExcludeValues(
   const next = new Set(excludeFilters[key] ?? [])
   values.forEach((v) => next.delete(v))
   return { ...excludeFilters, [key]: next }
+}
+
+/**
+ * `setFilterValues`'s exact mirror for the exclude map — sets `values` for `key` to `excluded`
+ * unconditionally. Backs the checked-by-default checklist model for a non-multi-value column
+ * (see CLAUDE.md's "Filter dropdown"): unlike a multi-value column's include/exclude tri-state
+ * (`cycleFilterValue`), a scalar column's checklist never needs `filters` at all — "checked" is
+ * simply "not in `excludeFilters`", so a plain click, a shift-range select, and the master
+ * select-all/select-none checkbox can all go through this one setter instead of the tri-state
+ * cycle. `filters`/`excludeFilters` still never overlap for such a column, since it's never
+ * written to `filters` in the first place.
+ */
+export function setExcludeValues(
+  excludeFilters: Record<string, Set<string>>,
+  key: string,
+  values: string[],
+  excluded: boolean,
+): Record<string, Set<string>> {
+  const next = new Set(excludeFilters[key] ?? [])
+  if (excluded) values.forEach((v) => next.add(v))
+  else values.forEach((v) => next.delete(v))
+  return { ...excludeFilters, [key]: next }
+}
+
+/**
+ * `toggleFilterAll`'s mirror for the exclude-only model above: deselects (excludes) all of
+ * `values` if any of them are currently checked (not excluded), selects all of them (clears the
+ * exclusion) only when none are checked — same Gmail-style convention as `toggleFilterAll`, just
+ * read through the opposite polarity ("checked" = absent from `excludeFilters`, not present in
+ * `filters`).
+ */
+export function toggleExcludeAll(
+  excludeFilters: Record<string, Set<string>>,
+  key: string,
+  values: string[],
+): Record<string, Set<string>> {
+  const someChecked = values.some((v) => !excludeFilters[key]?.has(v))
+  return setExcludeValues(excludeFilters, key, values, someChecked)
 }
 
 /**

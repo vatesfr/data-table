@@ -599,9 +599,11 @@ describe('createDataTable (grouping, group dropdown, pagination+grouping, search
     click(container.querySelector<HTMLElement>('th[data-col-key="score"]')!)
     openFilterDropdown(container)
     clickFilterValue(container, 'Alice')
+    // `name` is a plain scalar column: checked-by-default and exclude-only (see CLAUDE.md's
+    // "Filter dropdown"), so clicking Alice's checkbox unchecks (excludes) it, not includes it.
     expect(instance.getViewState()).toEqual({
       sorts: [{ key: 'score', dir: 'asc' }],
-      filters: { name: ['Alice'] },
+      excludeFilters: { name: ['Alice'] },
     })
   })
 

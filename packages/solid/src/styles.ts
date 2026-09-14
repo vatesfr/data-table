@@ -144,6 +144,8 @@ ${renderThemeCss()}
 .dt-filter-match-mode--left{border-radius:6px 0 0 6px;border-right:none}
 .dt-filter-match-mode--right{border-radius:0 6px 6px 0}
 .dt-filter-match-mode--active{background:var(--color-background-secondary,#f7f6f3);color:var(--color-text-primary,#1a1916);font-weight:500}
+.dt-filter-others{background:var(--color-background-secondary,#f7f6f3);border-top:0.5px solid var(--color-border-tertiary,#eeedea);border-bottom:0.5px solid var(--color-border-secondary,#dddcd8);font-style:italic;color:var(--color-text-secondary,#6b6a66)}
+.dt-filter-others:hover,.dt-filter-others:focus-within{background:color-mix(in srgb,var(--color-background-secondary,#f7f6f3) 70%,var(--color-border-secondary,#dddcd8))}
 .dt-date-tree-item{display:flex;align-items:center;gap:8px;padding:5px 14px;font-size:13px;color:var(--color-text-primary,#1a1916);cursor:pointer}
 .dt-date-tree-toggle{width:14px;flex-shrink:0;text-align:center;font-size:10px;color:var(--color-text-tertiary,#9b9a96)}
 .dt-date-tree-toggle--branch{cursor:pointer}

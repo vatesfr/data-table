@@ -31,6 +31,8 @@ import {
   appendOrToggleSort,
   toggleFilterAll,
   setFilterValues,
+  setExcludeValues,
+  toggleExcludeAll,
   cycleFilterValue,
   clearExcludeValues,
   setFilterMode,
@@ -554,6 +556,35 @@ describe('processData', () => {
       tags: new Set(['Adventure']),
     })
     expect(result.map((r) => r.name)).toEqual(['Game A'])
+  })
+
+  // Regression test: the include/exclude passes used to spread the filter Set to an array and
+  // check membership via `rowValues.includes(v)` per candidate value — an O(rows × set size ×
+  // rowValues.length) shape that stayed correct but became a multi-second stall once the set held
+  // thousands of entries (found profiling the huge-dataset demo's checked-by-default checklist —
+  // see CLAUDE.md's "Filter dropdown" — whose own "select all"/"Others" narrow a high-cardinality
+  // column by excluding most of its distinct values in one action). These don't assert timing
+  // (flaky in CI); `logic.bench.ts` covers the actual performance shape. Correctness only, with a
+  // set large enough that a reintroduced O(rows × set size) scan would be easy to notice manually.
+  it('a large include set still narrows correctly (large-Set correctness, not just a couple of values)', () => {
+    const decoys = Array.from({ length: 2000 }, (_, i) => `Decoy ${i}`)
+    const result = processData(ROWS, { name: new Set([...decoys, 'Clara']) }, {}, [], [])
+    expect(result.map((r) => r.name)).toEqual(['Clara'])
+  })
+
+  it('a large exclude set still narrows correctly (large-Set correctness, not just a couple of values)', () => {
+    const decoys = Array.from({ length: 2000 }, (_, i) => `Decoy ${i}`)
+    const result = processData(ROWS, {}, {}, [], [], '(none)', {
+      name: new Set([...decoys, 'Clara']),
+    })
+    expect(result.map((r) => r.name).sort()).toEqual(['Alice', 'Bob', 'David'])
+  })
+
+  it('a large "and"-mode multi-value include set still narrows correctly', () => {
+    const cols = [{ key: 'tags' as const, label: 'Tags', multiMode: 'and' as const }]
+    const decoys = Array.from({ length: 2000 }, (_, i) => `Decoy ${i}`)
+    const result = processData(GAMES, { tags: new Set([...decoys, 'Action', 'RPG']) }, {}, [], cols)
+    expect(result.map((r) => r.name)).toEqual([])
   })
 
   it('sorts a date column chronologically, not as plain strings', () => {
@@ -2549,6 +2580,57 @@ describe('setFilterValues', () => {
   it('preserves other keys', () => {
     const initial = { name: new Set(['Alice']) }
     const result = setFilterValues(initial, 'dept', ['Eng'], true)
+    expect(result['name'].has('Alice')).toBe(true)
+  })
+})
+
+describe('setExcludeValues', () => {
+  it('adds all given values to the exclude set when excluded is true', () => {
+    const result = setExcludeValues({}, 'dept', ['Eng', 'HR'], true)
+    expect([...result['dept']].sort()).toEqual(['Eng', 'HR'])
+  })
+
+  it('removes all given values when excluded is false, regardless of prior state', () => {
+    const result = setExcludeValues(
+      { dept: new Set(['Eng', 'HR', 'Sales']) },
+      'dept',
+      ['Eng', 'HR'],
+      false,
+    )
+    expect([...result['dept']]).toEqual(['Sales'])
+  })
+
+  it('preserves other keys', () => {
+    const initial = { name: new Set(['Alice']) }
+    const result = setExcludeValues(initial, 'dept', ['Eng'], true)
+    expect(result['name'].has('Alice')).toBe(true)
+  })
+})
+
+// ─── toggleExcludeAll ─────────────────────────────────────────────────────────
+
+describe('toggleExcludeAll', () => {
+  it('excludes all given values (unchecks them) when none are currently excluded', () => {
+    const result = toggleExcludeAll({}, 'dept', ['Eng', 'HR'])
+    expect([...result['dept']].sort()).toEqual(['Eng', 'HR'])
+  })
+
+  it('excludes all given values (unchecks them) when only some are currently excluded', () => {
+    // Mirrors toggleFilterAll's own "deselects all when only some are selected" — here "checked"
+    // means "not excluded", so a partial (indeterminate) checked state also clears (unchecks/
+    // excludes) on click, same Gmail convention, read through the opposite polarity.
+    const result = toggleExcludeAll({ dept: new Set(['Eng']) }, 'dept', ['Eng', 'HR'])
+    expect([...result['dept']].sort()).toEqual(['Eng', 'HR'])
+  })
+
+  it('only affects the given values, not other excluded values for the same key', () => {
+    const result = toggleExcludeAll({ dept: new Set(['Eng', 'Sales']) }, 'dept', ['Eng', 'HR'])
+    expect([...result['dept']].sort()).toEqual(['Eng', 'HR', 'Sales'])
+  })
+
+  it('preserves other keys', () => {
+    const initial = { name: new Set(['Alice']) }
+    const result = toggleExcludeAll(initial, 'dept', ['Eng'])
     expect(result['name'].has('Alice')).toBe(true)
   })
 })

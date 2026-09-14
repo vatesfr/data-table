@@ -314,9 +314,31 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
   // Any/all match mode — only surfaced in the UI for a column whose values are actually
   // array-shaped in the data (see `isMultiValueColumn`'s own doc comment for why a plain scalar
   // column has no meaningful "all" mode to switch to).
+  //
+  // Cached per column key rather than left as a plain `createMemo` of `isMultiValueColumn(...)`
+  // directly: a single memo only remembers its *last* computed value, so revisiting a column
+  // (switching back and forth between two columns in the left pane, as any normal use of the
+  // panel does) reran the full O(rows) scan every time — for a scalar column this never
+  // short-circuits (no array ever found), so it's a full pass over the dataset on every switch.
+  // "Is this column multi-value" is a property of the data shape, not something that changes
+  // while the panel is open, so caching it per key for as long as `data` itself hasn't changed is
+  // safe and turns every switch back to an already-visited column into an O(1) lookup.
+  let multiValueCache = new Map<string, boolean>()
+  let multiValueCacheData: TRow[] | null = null
   const isMultiValueCol = createMemo(() => {
     const col = activeCol()
-    return col ? isMultiValueColumn(table.data(), col, col.key) : false
+    if (!col) return false
+    const data = table.data()
+    if (data !== multiValueCacheData) {
+      multiValueCache = new Map()
+      multiValueCacheData = data
+    }
+    let cached = multiValueCache.get(col.key)
+    if (cached === undefined) {
+      cached = isMultiValueColumn(data, col, col.key)
+      multiValueCache.set(col.key, cached)
+    }
+    return cached
   })
   const matchMode = createMemo(() => {
     const col = activeCol()
@@ -324,19 +346,53 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
     return table.filter.modes()[col.key] ?? col.multiMode ?? 'or'
   })
 
-  const filterDetailValues = createMemo(() => {
+  // A non-multi-value column's checklist uses a checked-by-default, exclude-only model instead
+  // of the tri-state include/exclude cycle (see CLAUDE.md's "Filter dropdown"): `filters` is
+  // never written for such a column, "checked" simply means "not in `excludeFilters`". Date/
+  // number columns (their own detail branches below) and genuinely multi-value columns keep the
+  // original include-based model untouched.
+  const usesExcludeOnly = createMemo(() => {
+    const col = activeCol()
+    if (!col || col.type === 'date' || col.type === 'number') return false
+    return !isMultiValueCol()
+  })
+
+  // The set a value must be in to stay visible even at a 0 facet count (see
+  // `filterValuesByCount`) — whichever map the active column's model actually writes to.
+  function alreadyTouched(col: ColumnDef<TRow>): Set<string> {
+    return usesExcludeOnly()
+      ? (table.filter.exclude()[col.key] ?? new Set())
+      : (table.filter.include()[col.key] ?? new Set())
+  }
+
+  // Count/range-filtered, but *not* yet narrowed by the checklist's own value search — kept
+  // separate from filterDetailValues below so `otherValues` can diff the two to find exactly what
+  // the search is currently hiding. Order relative to search doesn't matter here: range/count
+  // filtering and search are independent per-value predicates, so computing them in either order
+  // yields the same final set.
+  const detailValuesBeforeSearch = createMemo(() => {
     const col = activeCol()
     if (!col) return []
     let values = table.filter.valueMap()[col.key] ?? []
-    values = filterValuesBySearch(values, searchTerm())
     if (col.type === 'date')
       values = filterValuesByRange(values, table.filter.ranges()[col.key], col.parseDate)
-    values = filterValuesByCount(
-      values,
-      stringValueCounts(),
-      table.filter.include()[col.key] ?? new Set(),
-    )
+    return filterValuesByCount(values, stringValueCounts(), alreadyTouched(col))
+  })
+
+  const filterDetailValues = createMemo(() => {
+    const col = activeCol()
+    if (!col) return []
+    const values = filterValuesBySearch(detailValuesBeforeSearch(), searchTerm())
     return sortFilterValues(values, stringValueCounts(), valueSort(), col.compare)
+  })
+
+  // "Others" — the values the checklist's own value search is currently hiding (see CLAUDE.md's
+  // "Filter dropdown"). Only meaningful once a search term actually narrows the list; empty
+  // otherwise, which also keeps it a no-op for the date tree's own (unused) reference to this.
+  const otherValues = createMemo(() => {
+    if (!searchTerm()) return []
+    const shown = new Set(filterDetailValues())
+    return detailValuesBeforeSearch().filter((v) => !shown.has(v))
   })
 
   const dateTree = createMemo(() => {
@@ -407,7 +463,18 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
     const col = activeCol()
     if (!col) return
     const anchor = selectionAnchors()[col.key]
-    if (shiftKey && anchor) {
+    if (usesExcludeOnly()) {
+      // Checked-by-default: "checked" means absent from `excludeFilters`, so a plain click and a
+      // shift-range select both just flip/set membership there — no `filters`/tri-state involved.
+      const excludedNow = table.filter.exclude()[col.key]?.has(value) ?? false
+      if (shiftKey && anchor) {
+        const range = selectRange(filterDetailValues(), anchor, value)
+        // Direction mirrors what a plain click on the target itself would do.
+        table.filter.setExcludeValues(col.key, range, !excludedNow)
+      } else {
+        table.filter.setExcludeValues(col.key, [value], !excludedNow)
+      }
+    } else if (shiftKey && anchor) {
       const included = table.filter.include()[col.key]?.has(value) ?? false
       const shouldSelect = !included
       const range = selectRange(filterDetailValues(), anchor, value)
@@ -424,7 +491,8 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
   function handleSelectAll(): void {
     const col = activeCol()
     if (!col) return
-    table.filter.toggleAll(col.key, filterDetailValues())
+    if (usesExcludeOnly()) table.filter.toggleExcludeAll(col.key, filterDetailValues())
+    else table.filter.toggleAll(col.key, filterDetailValues())
     // No preventDefault() here (this checkbox is a plain two-state toggle, not tri-state), but
     // the native pre-click activation can still race Solid's own synchronous write on rare
     // event-ordering — deferring a correction alongside the state update is cheap insurance.
@@ -434,6 +502,14 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
     const col = activeCol()
     if (!col) return { checked: false, indeterminate: false }
     const values = filterDetailValues()
+    if (usesExcludeOnly()) {
+      const excluded = table.filter.exclude()[col.key] ?? new Set()
+      const excludedCount = values.filter((v) => excluded.has(v)).length
+      return {
+        checked: excludedCount === 0,
+        indeterminate: excludedCount > 0 && excludedCount < values.length,
+      }
+    }
     const selected = table.filter.include()[col.key] ?? new Set()
     const selectedCount = values.filter((v) => selected.has(v)).length
     return {
@@ -444,6 +520,39 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
   let selectAllEl: HTMLInputElement | undefined
   createEffect(() => {
     applyCheckboxState(selectAllEl, selectAllState().checked, selectAllState().indeterminate)
+  })
+
+  // --- "Others" (values hidden by the checklist's own value search) ---
+  function handleOthersToggle(): void {
+    const col = activeCol()
+    const values = otherValues()
+    if (!col || values.length === 0) return
+    if (usesExcludeOnly()) table.filter.toggleExcludeAll(col.key, values)
+    else table.filter.toggleAll(col.key, values)
+    deferCheckboxCorrection(othersEl, () => othersState())
+  }
+  const othersState = createMemo(() => {
+    const col = activeCol()
+    const values = otherValues()
+    if (!col || values.length === 0) return { checked: false, indeterminate: false }
+    if (usesExcludeOnly()) {
+      const excluded = table.filter.exclude()[col.key] ?? new Set()
+      const excludedCount = values.filter((v) => excluded.has(v)).length
+      return {
+        checked: excludedCount === 0,
+        indeterminate: excludedCount > 0 && excludedCount < values.length,
+      }
+    }
+    const selected = table.filter.include()[col.key] ?? new Set()
+    const selectedCount = values.filter((v) => selected.has(v)).length
+    return {
+      checked: selectedCount > 0 && selectedCount === values.length,
+      indeterminate: selectedCount > 0 && selectedCount < values.length,
+    }
+  })
+  let othersEl: HTMLInputElement | undefined
+  createEffect(() => {
+    applyCheckboxState(othersEl, othersState().checked, othersState().indeterminate)
   })
 
   // --- Date tree ---
@@ -792,6 +901,28 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
                           onSetMatchMode={(mode) => table.filter.setMode(col().key, mode)}
                           clearSearchLabel={table.labels().clearSearch}
                         />
+                        {/* Bulk (de)select everything the value search above is currently hiding
+                            — see CLAUDE.md's "Filter dropdown". Only rendered once a search term
+                            actually narrows the list. */}
+                        <Show when={otherValues().length > 0}>
+                          <label class="dt-dd-item dt-filter-others">
+                            <input
+                              type="checkbox"
+                              title={table.labels().filterOthers}
+                              aria-label={table.labels().filterOthers}
+                              checked={othersState().checked}
+                              ref={othersEl}
+                              onClick={(e) => {
+                                e.preventDefault()
+                                handleOthersToggle()
+                              }}
+                            />
+                            <span class="dt-flex1">{table.labels().filterOthers}</span>
+                            <span class="dt-filter-count" aria-hidden="true">
+                              {otherValues().length}
+                            </span>
+                          </label>
+                        </Show>
                         <div
                           class="dt-filter-list"
                           ref={filterListEl}
@@ -821,14 +952,34 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
                                 )}
                               >
                                 {(value) => {
-                                  const included = () =>
-                                    table.filter.include()[col().key]?.has(value) ?? false
-                                  const excluded = () =>
-                                    table.filter.exclude()[col().key]?.has(value) ?? false
+                                  // Non-multi-value column: plain checked/unchecked, "checked"
+                                  // meaning "not excluded" — no tri-state indeterminate cue.
+                                  // Multi-value column: unchanged include/exclude tri-state,
+                                  // shown as checked/indeterminate.
+                                  const checked = () =>
+                                    usesExcludeOnly()
+                                      ? !(table.filter.exclude()[col().key]?.has(value) ?? false)
+                                      : (table.filter.include()[col().key]?.has(value) ?? false)
+                                  const indeterminate = () =>
+                                    usesExcludeOnly()
+                                      ? false
+                                      : (table.filter.exclude()[col().key]?.has(value) ?? false)
+                                  // Explains each model's own click behavior — the checked-by-
+                                  // default model has no tri-state cycle to describe, so it gets
+                                  // its own plain hide/show copy instead of reusing the tri-state
+                                  // labels (see CLAUDE.md's "Filter dropdown").
+                                  const itemTitle = () =>
+                                    usesExcludeOnly()
+                                      ? checked()
+                                        ? table.labels().filterValueHideTitle
+                                        : table.labels().filterValueShowTitle
+                                      : indeterminate()
+                                        ? table.labels().filterExcludedTitle
+                                        : table.labels().filterValueTitle
                                   const count = () => stringValueCounts().get(value) ?? 0
                                   let el: HTMLInputElement | undefined
                                   createEffect(() => {
-                                    applyCheckboxState(el, included(), excluded())
+                                    applyCheckboxState(el, checked(), indeterminate())
                                   })
                                   return (
                                     <label
@@ -842,14 +993,15 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
                                         type="checkbox"
                                         data-dd-value-row
                                         data-value={value}
-                                        checked={included()}
+                                        checked={checked()}
+                                        title={itemTitle()}
                                         ref={el}
                                         onClick={(e) => {
                                           e.preventDefault()
                                           handleValueClick(value, (e as MouseEvent).shiftKey)
                                           deferCheckboxCorrection(el, () => ({
-                                            checked: included(),
-                                            indeterminate: excluded(),
+                                            checked: checked(),
+                                            indeterminate: indeterminate(),
                                           }))
                                         }}
                                       />

@@ -61,7 +61,7 @@
       "name": "ESM bundle (gzip)",
       "path": "dist/data-table-vue.js",
       "gzip": true,
-      "limit": "18.5 KB"
+      "limit": "18.8 KB"
     }
   ],
   "dependencies": {

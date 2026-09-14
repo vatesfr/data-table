@@ -243,23 +243,26 @@ describe('FilterDropdown — column ordering', () => {
 })
 
 describe('FilterDropdown — string checklist', () => {
-  it('clicking a value includes it; clicking again excludes; clicking again clears', () => {
+  // A plain scalar column (like `name`) is checked-by-default and exclude-only (see CLAUDE.md's
+  // "Filter dropdown"): `filters` is never written for it at all, only `excludeFilters`. Only a
+  // genuinely multi-value column still uses the include/exclude tri-state — see the "any/all
+  // match-mode toggle" describe block and the multi-value shift-range test below.
+  it('clicking a checked value unchecks (excludes) it; clicking again re-checks (clears) it', () => {
     const { container, table, dispose } = mount()
     const aliceRow = [...container.querySelectorAll('.dt-filter-list .dt-dd-item')].find((el) =>
       el.textContent?.includes('Alice'),
     )!
     const checkbox = aliceRow.querySelector<HTMLInputElement>('input[type="checkbox"]')!
-    checkbox.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
-    expect(table.filter.include().name).toEqual(new Set(['Alice']))
+    expect(checkbox.checked).toBe(true)
     checkbox.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
     expect(table.filter.exclude().name).toEqual(new Set(['Alice']))
+    expect(table.filter.include().name ?? new Set()).toEqual(new Set())
     checkbox.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
-    expect(table.filter.include().name).toEqual(new Set())
     expect(table.filter.exclude().name).toEqual(new Set())
     dispose()
   })
 
-  it('the checkbox DOM property reflects the tri-state correctly after a click, not just app state', async () => {
+  it('the checkbox DOM property reflects the checked state correctly after a click, not just app state', async () => {
     // Regression test: a checkbox's own native "canceled activation steps" (triggered because
     // the click handler calls preventDefault() to stay fully controlled) run *after* the click
     // event finishes dispatching — i.e. after Solid's own synchronous `checked`/`indeterminate`
@@ -267,8 +270,8 @@ describe('FilterDropdown — string checklist', () => {
     // fix (checkboxSync.ts's deferCheckboxCorrection) re-applies the correct value from a
     // macrotask (not a microtask — a real, trusted click's native revert can itself land after
     // the microtask checkpoint that follows dispatch, see checkboxSync.ts), so asserting on the
-    // checkbox's own DOM property (not just table.filter.include()) needs a real timer tick, not just a
-    // microtask, to observe the corrected state.
+    // checkbox's own DOM property (not just table.filter.exclude()) needs a real timer tick, not
+    // just a microtask, to observe the corrected state.
     const { container, dispose } = mount()
     const aliceRow = [...container.querySelectorAll('.dt-filter-list .dt-dd-item')].find((el) =>
       el.textContent?.includes('Alice'),
@@ -276,24 +279,26 @@ describe('FilterDropdown — string checklist', () => {
     const checkbox = aliceRow.querySelector<HTMLInputElement>('input[type="checkbox"]')!
     checkbox.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
     await new Promise((resolve) => setTimeout(resolve, 0))
-    expect(checkbox.checked).toBe(true)
+    expect(checkbox.checked).toBe(false)
     expect(checkbox.indeterminate).toBe(false)
     checkbox.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
     await new Promise((resolve) => setTimeout(resolve, 0))
-    expect(checkbox.checked).toBe(false)
-    expect(checkbox.indeterminate).toBe(true)
+    expect(checkbox.checked).toBe(true)
+    expect(checkbox.indeterminate).toBe(false)
     dispose()
   })
 
-  it('select-all toggles every currently-listed value', () => {
+  it('select-all/select-none toggles the exclude set for every currently-listed value', () => {
     const { container, table, dispose } = mount()
     const selectAll = container.querySelector<HTMLInputElement>(
       '.dt-filter-search-row input[type="checkbox"]',
     )!
+    // Nothing excluded yet (all checked) — clicking excludes (unchecks) everything.
     selectAll.click()
-    expect(table.filter.include().name).toEqual(new Set(['Alice', 'Bob', 'Clara', 'David']))
+    expect(table.filter.exclude().name).toEqual(new Set(['Alice', 'Bob', 'Clara', 'David']))
+    // Everything excluded — clicking again clears the exclude set (re-checks everything).
     selectAll.click()
-    expect(table.filter.include().name).toEqual(new Set())
+    expect(table.filter.exclude().name).toEqual(new Set())
     dispose()
   })
 
@@ -329,20 +334,196 @@ describe('FilterDropdown — string checklist', () => {
     dispose()
   })
 
-  it('a value with zero facet count is hidden unless already selected', () => {
+  it('a value with zero facet count is hidden unless already touched', () => {
     const { container, dispose } = mount()
-    // Narrow to dept=Eng first (Alice, Clara) via the dept column.
+    // Narrow to dept=Eng (Alice, Clara) by excluding (unchecking) HR — dept is checked-by-default
+    // too, so this is the equivalent of the old "check Eng only" narrowing.
     selectCol(container, 'Dept')
-    const engRow = [...container.querySelectorAll('.dt-filter-list .dt-dd-item')].find((el) =>
-      el.textContent?.includes('Eng'),
+    const hrRow = [...container.querySelectorAll('.dt-filter-list .dt-dd-item')].find((el) =>
+      el.textContent?.includes('HR'),
     )!
-    engRow.querySelector<HTMLInputElement>('input')!.click()
+    hrRow.querySelector<HTMLInputElement>('input')!.click()
     // Back on Name: Bob/David now have a facet count of 0 and should be hidden.
     selectCol(container, 'Name')
     const labels = [...container.querySelectorAll('.dt-filter-list .dt-flex1')].map(
       (el) => el.textContent,
     )
     expect(labels.sort()).toEqual(['Alice', 'Clara'])
+    dispose()
+  })
+})
+
+describe('FilterDropdown — "Others" row', () => {
+  it('is hidden until the value search narrows the list, then bulk-(un)checks everything it hides (non-multi-value column)', () => {
+    const { container, table, dispose } = mount()
+    expect(container.querySelector('.dt-filter-others')).toBeNull()
+    const search = container.querySelector<HTMLInputElement>('.dt-filter-search-row .dt-dd-search')!
+    search.value = 'ali'
+    search.dispatchEvent(new Event('input', { bubbles: true }))
+    const othersRow = container.querySelector<HTMLElement>('.dt-filter-others')!
+    expect(othersRow).not.toBeNull()
+    const othersCheckbox = othersRow.querySelector<HTMLInputElement>('input[type="checkbox"]')!
+    // Nothing excluded yet — Others (Bob/Clara/David) starts checked.
+    expect(othersCheckbox.checked).toBe(true)
+    othersCheckbox.click()
+    expect(table.filter.exclude().name).toEqual(new Set(['Bob', 'Clara', 'David']))
+    othersCheckbox.click()
+    expect(table.filter.exclude().name).toEqual(new Set())
+    // Clearing the search removes the row again.
+    search.value = ''
+    search.dispatchEvent(new Event('input', { bubbles: true }))
+    expect(container.querySelector('.dt-filter-others')).toBeNull()
+    dispose()
+  })
+
+  it('bulk-(de)selects hidden values via `filters` for a multi-value column', () => {
+    interface TagRow {
+      id: number
+      tags: string[]
+    }
+    const TAG_COLS: ColumnDef<TagRow>[] = [{ key: 'tags', label: 'Tags', filterable: true }]
+    const TAG_ROWS: TagRow[] = [
+      { id: 1, tags: ['Alice'] },
+      { id: 2, tags: ['Bob'] },
+      { id: 3, tags: ['Clara'] },
+    ]
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    let table!: ReturnType<typeof createTableState<TagRow>>
+    const dispose = createRoot((d) => {
+      table = createTableState(TAG_ROWS, TAG_COLS)
+      render(
+        () => (
+          <FilterDropdown
+            table={table}
+            columns={TAG_COLS}
+            isOpen={true}
+            onToggle={() => {}}
+            onClose={() => {}}
+          />
+        ),
+        container,
+      )
+      return d
+    })
+    const search = container.querySelector<HTMLInputElement>('.dt-filter-search-row .dt-dd-search')!
+    search.value = 'ali'
+    search.dispatchEvent(new Event('input', { bubbles: true }))
+    const othersCheckbox = container.querySelector<HTMLInputElement>(
+      '.dt-filter-others input[type="checkbox"]',
+    )!
+    // Nothing included yet — Others (Bob/Clara) starts unchecked, matching the tri-state model's
+    // own neutral-is-unchecked default (unlike the exclude-only model's checked-by-default one).
+    expect(othersCheckbox.checked).toBe(false)
+    othersCheckbox.click()
+    expect(table.filter.include().tags).toEqual(new Set(['Bob', 'Clara']))
+    othersCheckbox.click()
+    expect(table.filter.include().tags).toEqual(new Set())
+    dispose()
+  })
+})
+
+describe('FilterDropdown — checklist item tooltips', () => {
+  it('a non-multi-value column explains the plain hide/show toggle, not the tri-state cycle', () => {
+    const { container, table, dispose } = mount()
+    const checkboxFor = (name: string) =>
+      [...container.querySelectorAll('.dt-filter-list .dt-dd-item')]
+        .find((el) => el.textContent?.includes(name))!
+        .querySelector<HTMLInputElement>('input[type="checkbox"]')!
+    const alice = checkboxFor('Alice')
+    expect(alice.title).toBe(table.labels().filterValueHideTitle)
+    alice.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
+    expect(alice.title).toBe(table.labels().filterValueShowTitle)
+    dispose()
+  })
+
+  it('a multi-value column keeps the existing tri-state tooltips', () => {
+    interface GameRow {
+      id: number
+      tags: string[]
+    }
+    const cols: ColumnDef<GameRow>[] = [{ key: 'tags', label: 'Tags', filterable: true }]
+    const rows: GameRow[] = [
+      { id: 1, tags: ['Action'] },
+      { id: 2, tags: ['RPG'] },
+    ]
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    let table!: ReturnType<typeof createTableState<GameRow>>
+    const dispose = createRoot((d) => {
+      table = createTableState(rows, cols)
+      render(
+        () => (
+          <FilterDropdown
+            table={table}
+            columns={cols}
+            isOpen={true}
+            onToggle={() => {}}
+            onClose={() => {}}
+          />
+        ),
+        container,
+      )
+      return d
+    })
+    const checkboxFor = (name: string) =>
+      [...container.querySelectorAll('.dt-filter-list .dt-dd-item')]
+        .find((el) => el.textContent?.includes(name))!
+        .querySelector<HTMLInputElement>('input[type="checkbox"]')!
+    const action = checkboxFor('Action')
+    expect(action.title).toBe(table.labels().filterValueTitle)
+    action.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })) // include
+    action.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })) // exclude
+    expect(action.title).toBe(table.labels().filterExcludedTitle)
+    dispose()
+  })
+})
+
+describe('FilterDropdown — isMultiValueColumn caching', () => {
+  it('only rescans the dataset once per distinct column, not on every revisit', () => {
+    // isMultiValueColumn's own scan never short-circuits for a scalar column (no array value to
+    // find), so revisiting an already-checked column without a per-column cache would rescan the
+    // whole dataset every time — see the cache's own comment in FilterDropdown.tsx. Counting real
+    // invocations of `.some` on the data array (via a Proxy, not a module-level spy, since that's
+    // robust regardless of how the test runner's ESM interop happens to expose named exports)
+    // proves the cache actually avoids the repeat scan, not just that behavior stays correct.
+    let someCalls = 0
+    const data = new Proxy(ROWS, {
+      get(target, prop, receiver) {
+        const val = Reflect.get(target, prop, receiver)
+        if (prop === 'some' && typeof val === 'function') {
+          return (...args: Parameters<typeof ROWS.some>) => {
+            someCalls++
+            return val.apply(target, args)
+          }
+        }
+        return val
+      },
+    })
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const dispose = createRoot((d) => {
+      const table = createTableState(data, COLS)
+      render(
+        () => (
+          <FilterDropdown
+            table={table}
+            columns={COLS}
+            isOpen={true}
+            onToggle={() => {}}
+            onClose={() => {}}
+          />
+        ),
+        container,
+      )
+      return d
+    })
+    selectCol(container, 'Dept')
+    selectCol(container, 'Name')
+    expect(someCalls).toBe(2)
+    selectCol(container, 'Dept')
+    selectCol(container, 'Name')
+    expect(someCalls).toBe(2)
     dispose()
   })
 })
@@ -408,12 +589,43 @@ describe('FilterDropdown — date tree', () => {
 })
 
 describe('FilterDropdown — shift-range selection', () => {
-  it('deselecting a range via shift-click does not clear an unrelated exclude flag swept by it', () => {
+  it('deselecting a range via shift-click does not clear an unrelated exclude flag swept by it (multi-value column)', () => {
     // Regression test: handleValueClick's shift-range branch used to call clearExcludeValues
     // unconditionally, even when the range was being *deselected* (shouldSelect === false) —
     // wiping exclude flags on any value in the swept range, not just ones actually moving into
-    // `filters`. React/Vue both guard this with `if (shouldSelect)`.
-    const { container, table, dispose } = mount()
+    // `filters`. React/Vue both guard this with `if (shouldSelect)`. This scenario needs a
+    // genuinely multi-value column now — a plain scalar column no longer routes through
+    // `filters`/`cycleFilterValue` at all (see the exclude-only test right below).
+    interface TagRow {
+      id: number
+      tags: string[]
+    }
+    const TAG_COLS: ColumnDef<TagRow>[] = [{ key: 'tags', label: 'Tags', filterable: true }]
+    const TAG_ROWS: TagRow[] = [
+      { id: 1, tags: ['Alice'] },
+      { id: 2, tags: ['Bob'] },
+      { id: 3, tags: ['Clara'] },
+      { id: 4, tags: ['David'] },
+    ]
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    let table!: ReturnType<typeof createTableState<TagRow>>
+    const dispose = createRoot((d) => {
+      table = createTableState(TAG_ROWS, TAG_COLS)
+      render(
+        () => (
+          <FilterDropdown
+            table={table}
+            columns={TAG_COLS}
+            isOpen={true}
+            onToggle={() => {}}
+            onClose={() => {}}
+          />
+        ),
+        container,
+      )
+      return d
+    })
     function checkboxFor(name: string): HTMLInputElement {
       const row = [...container.querySelectorAll('.dt-filter-list .dt-dd-item')].find((el) =>
         el.textContent?.includes(name),
@@ -431,13 +643,39 @@ describe('FilterDropdown — shift-range selection', () => {
     // (checklist is alphabetized: Alice, Bob, Clara, David).
     click(checkboxFor('Clara'))
     click(checkboxFor('Alice'))
-    expect(table.filter.exclude().name).toEqual(new Set(['Bob']))
+    expect(table.filter.exclude().tags).toEqual(new Set(['Bob']))
     // Clara is already included, so this shift-click's target-based direction deselects the range.
     click(checkboxFor('Clara'), true)
-    expect(table.filter.include().name?.has('Alice')).toBe(false)
-    expect(table.filter.include().name?.has('Clara')).toBe(false)
+    expect(table.filter.include().tags?.has('Alice')).toBe(false)
+    expect(table.filter.include().tags?.has('Clara')).toBe(false)
     // Bob's exclude flag must survive a deselecting range sweep over it.
+    expect(table.filter.exclude().tags).toEqual(new Set(['Bob']))
+    dispose()
+  })
+
+  it('shift-click range (un)checks via the exclude-only model for a non-multi-value column', () => {
+    const { container, table, dispose } = mount()
+    function checkboxFor(name: string): HTMLInputElement {
+      const row = [...container.querySelectorAll('.dt-filter-list .dt-dd-item')].find((el) =>
+        el.textContent?.includes(name),
+      )!
+      return row.querySelector<HTMLInputElement>('input[type="checkbox"]')!
+    }
+    function click(el: HTMLElement, shiftKey = false): void {
+      el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, shiftKey }))
+    }
+    // Uncheck (exclude) Bob first — becomes the anchor.
+    click(checkboxFor('Bob'))
     expect(table.filter.exclude().name).toEqual(new Set(['Bob']))
+    // Shift-click David: range Bob..David (alphabetized: Alice, Bob, Clara, David) sweeps Bob,
+    // Clara, David. Direction mirrors what a plain click on David (currently checked) would do —
+    // uncheck (exclude) the whole range.
+    click(checkboxFor('David'), true)
+    expect(table.filter.exclude().name).toEqual(new Set(['Bob', 'Clara', 'David']))
+    // The anchor moved to David after that click, so a second shift-click on David itself ranges
+    // just [David] — re-checking it alone, leaving Bob/Clara's own exclusion untouched.
+    click(checkboxFor('David'), true)
+    expect(table.filter.exclude().name).toEqual(new Set(['Bob', 'Clara']))
     dispose()
   })
 })
@@ -821,8 +1059,9 @@ describe('FilterDropdown — checklist virtualization', () => {
     const selectAll = container.querySelector<HTMLInputElement>(
       '.dt-filter-search-row input[type="checkbox"]',
     )!
+    // `tag` is a plain scalar column: checked-by-default, so select-all excludes every value.
     selectAll.click()
-    expect(table.filter.include().tag?.size).toBe(500)
+    expect(table.filter.exclude().tag?.size).toBe(500)
     dispose()
   })
 })

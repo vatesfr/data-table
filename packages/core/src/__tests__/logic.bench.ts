@@ -71,6 +71,30 @@ for (const n of SIZES) {
       },
       opts,
     )
+
+    // A checked-by-default, exclude-only checklist's own "select all" narrows by populating
+    // `excludeFilters` with most/all of a high-cardinality column's distinct values in one action
+    // (see CLAUDE.md's "Filter dropdown") — `name` is effectively unique per row here, so a
+    // 2,000-value Set exercises the same shape a large real dataset's checklist would produce.
+    // Guards against the O(rows × set size) regression found profiling the huge-dataset demo:
+    // `processData`'s include/exclude passes used to spread the filter Set to an array and call
+    // `.includes()` per row instead of an O(1) `Set.has`, so this used to scale with set size.
+    const largeNameSet = new Set(data.slice(0, Math.min(2000, n)).map((r) => r.name))
+    bench(
+      'large exclude set (2,000 values) on a high-cardinality column',
+      () => {
+        processData(data, {}, {}, [], benchColumns, undefined, { name: largeNameSet })
+      },
+      opts,
+    )
+
+    bench(
+      'large include set (2,000 values) on a high-cardinality column',
+      () => {
+        processData(data, { name: largeNameSet }, {}, [], benchColumns)
+      },
+      opts,
+    )
   })
 
   describe(`searchData @ ${n.toLocaleString()} rows`, () => {

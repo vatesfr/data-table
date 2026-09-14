@@ -210,6 +210,12 @@ export interface DataTableLabels {
   filterValueTitle: string
   /** Tooltip on a filter checklist value that's currently excluded ("not this value") */
   filterExcludedTitle: string
+  /** Tooltip on a non-multi-value column's checklist value while checked (shown) — the
+   * checked-by-default, exclude-only model (see CLAUDE.md's "Filter dropdown"); distinct from
+   * `filterValueTitle` since there's no tri-state cycle to explain, just a plain hide/show toggle */
+  filterValueHideTitle: string
+  /** Tooltip on a non-multi-value column's checklist value while hidden (excluded) */
+  filterValueShowTitle: string
   min: string
   max: string
   clearFilters: string
@@ -219,6 +225,10 @@ export interface DataTableLabels {
   filterMatchAny: string
   /** Filter checklist's any/all toggle button text + title while in "all" (intersection) mode */
   filterMatchAll: string
+  /** Label for the checklist's "Others" row — bulk (de)selects every value the checklist's own
+   * value search is currently hiding, so a search-then-uncheck-Others narrowing doesn't leave
+   * every non-matching value silently untouched. Only rendered while that search is active. */
+  filterOthers: string
   group: string
   /** Heading over the already-active group-by entries (priority order) in the Group dropdown */
   activeGroupsSection: string

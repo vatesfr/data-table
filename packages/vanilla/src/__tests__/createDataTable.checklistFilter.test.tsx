@@ -180,7 +180,10 @@ describe('createDataTable — checklist filter', () => {
   it('checklist filter shows only matching rows', () => {
     const { container } = mount(ROWS, COLS)
     openFilterDropdown(container)
-    click(filterValueCheckbox(container, 'Alice')!)
+    // `name` is checked-by-default/exclude-only (see CLAUDE.md's "Filter dropdown"): narrowing to
+    // just Alice means excluding everyone else, then re-checking her.
+    click(selectAllCheckbox(container)!) // exclude everyone
+    click(filterValueCheckbox(container, 'Alice')!) // re-check just Alice
     expect(container.querySelectorAll('tbody tr')).toHaveLength(1)
     expect(container.textContent).toContain('Alice')
   })
@@ -219,17 +222,21 @@ describe('createDataTable — checklist filter', () => {
   it('checklist filter hides a value with zero rows matching under other active filters', () => {
     const { container } = mount(ROWS, COLS)
     openFilterDropdown(container)
+    // Narrow to Alice only (see comment above) so Dept's own facet counts are re-computed against
+    // just her row.
+    click(selectAllCheckbox(container)!)
     click(filterValueCheckbox(container, 'Alice')!)
     selectFilterCol(container, 'Dept')
     expect(filterValueLabels(container)).toContain('Eng')
     expect(filterValueLabels(container)).not.toContain('HR')
   })
 
-  it('checklist filter keeps a selected value visible even when its live count drops to 0', () => {
+  it('checklist filter keeps an excluded value visible even when its live count drops to 0', () => {
     const { container } = mount(ROWS, COLS)
     openFilterDropdown(container)
     selectFilterCol(container, 'Dept')
-    // Select dept=HR (Bob, David) while it's still the only active filter, so it's visible to check.
+    // Exclude (uncheck) dept=HR (Bob, David) while it's still visible to click — this is what
+    // makes it "already touched" (see `filterValuesByCount`'s exclude-model counterpart).
     click(filterValueCheckbox(container, 'HR')!)
     selectFilterCol(container, 'Score')
     // A min-score range filter that excludes both HR rows (60, 70) zeroes HR's live facet count —
@@ -238,7 +245,7 @@ describe('createDataTable — checklist filter', () => {
     selectFilterCol(container, 'Dept')
     const hrCheckbox = filterValueCheckbox(container, 'HR')
     expect(hrCheckbox).not.toBeNull()
-    expect(hrCheckbox!.checked).toBe(true)
+    expect(hrCheckbox!.checked).toBe(false)
   })
 
   it('checklist filter resets page to 1', () => {
@@ -275,22 +282,24 @@ describe('createDataTable — checklist filter', () => {
     expect(filterValueCheckbox(container, 'Bob')).toBeNull()
   })
 
-  it('select-all checkbox selects every currently listed value', () => {
+  it('select-all checkbox excludes (unchecks) every currently listed value', () => {
+    // `name` is checked-by-default (see CLAUDE.md's "Filter dropdown") — nothing excluded yet, so
+    // clicking the master checkbox excludes everyone.
     const { container } = mount(ROWS, COLS)
     openFilterDropdown(container)
-    click(selectAllCheckbox(container)!)
-    for (const name of ['Alice', 'Bob', 'Clara', 'David']) {
-      expect(filterValueCheckbox(container, name)!.checked).toBe(true)
-    }
-  })
-
-  it('select-all checkbox deselects every value when all are already selected', () => {
-    const { container } = mount(ROWS, COLS)
-    openFilterDropdown(container)
-    click(selectAllCheckbox(container)!)
     click(selectAllCheckbox(container)!)
     for (const name of ['Alice', 'Bob', 'Clara', 'David']) {
       expect(filterValueCheckbox(container, name)!.checked).toBe(false)
+    }
+  })
+
+  it('select-all checkbox re-checks every value when all are already excluded', () => {
+    const { container } = mount(ROWS, COLS)
+    openFilterDropdown(container)
+    click(selectAllCheckbox(container)!)
+    click(selectAllCheckbox(container)!)
+    for (const name of ['Alice', 'Bob', 'Clara', 'David']) {
+      expect(filterValueCheckbox(container, name)!.checked).toBe(true)
     }
   })
 
@@ -301,30 +310,34 @@ describe('createDataTable — checklist filter', () => {
   // value *after* Solid's own reactive update already ran, clobbering it). The underlying state
   // (verified via `table.getViewState().filters`) is correct, so these assertions read that
   // instead of the DOM for full coverage of the actual range-selection logic.
-  it('shift-clicking a filter value selects the range from the last-clicked value', () => {
+  it('shift-clicking a filter value range-excludes from the last-clicked value', () => {
     const { container, table } = mount(ROWS, COLS)
     openFilterDropdown(container)
-    click(filterValueCheckbox(container, 'Alice')!)
+    click(filterValueCheckbox(container, 'Alice')!) // exclude Alice, becomes the anchor
+    // Direction mirrors what a plain click on Clara (currently checked) would do: exclude the
+    // whole Alice..Clara range (alphabetized: Alice, Bob, Clara, David).
     shiftClick(filterValueCheckbox(container, 'Clara')!)
-    const included = new Set(table.getViewState().filters?.name ?? [])
-    expect(included.has('Alice')).toBe(true)
-    expect(included.has('Bob')).toBe(true)
-    expect(included.has('Clara')).toBe(true)
-    expect(included.has('David')).toBe(false)
+    const excluded = new Set(table.getViewState().excludeFilters?.name ?? [])
+    expect(excluded.has('Alice')).toBe(true)
+    expect(excluded.has('Bob')).toBe(true)
+    expect(excluded.has('Clara')).toBe(true)
+    expect(excluded.has('David')).toBe(false)
   })
 
-  it('shift-clicking an already-selected filter value deselects the range', () => {
+  it('shift-clicking an already-excluded filter value re-checks the range', () => {
     const { container, table } = mount(ROWS, COLS)
     openFilterDropdown(container)
-    click(selectAllCheckbox(container)!)
-    click(filterValueCheckbox(container, 'Alice')!)
-    click(filterValueCheckbox(container, 'Alice')!)
+    click(selectAllCheckbox(container)!) // exclude everyone
+    click(filterValueCheckbox(container, 'Alice')!) // re-check Alice
+    click(filterValueCheckbox(container, 'Alice')!) // re-exclude Alice, becomes the anchor
+    // Clara is still excluded (from select-all), so this shift-click's target-based direction
+    // re-checks the whole range — David's own (untouched-since-select-all) exclusion is unaffected.
     shiftClick(filterValueCheckbox(container, 'Clara')!)
-    const included = new Set(table.getViewState().filters?.name ?? [])
-    expect(included.has('Alice')).toBe(false)
-    expect(included.has('Bob')).toBe(false)
-    expect(included.has('Clara')).toBe(false)
-    expect(included.has('David')).toBe(true)
+    const excluded = new Set(table.getViewState().excludeFilters?.name ?? [])
+    expect(excluded.has('Alice')).toBe(false)
+    expect(excluded.has('Bob')).toBe(false)
+    expect(excluded.has('Clara')).toBe(false)
+    expect(excluded.has('David')).toBe(true)
   })
 
   it('select-all checkbox only affects the search-narrowed values, not the full list', () => {
@@ -332,10 +345,10 @@ describe('createDataTable — checklist filter', () => {
     openFilterDropdown(container)
     setInput(filterSearchInput(container), 'ali')
     click(selectAllCheckbox(container)!)
-    expect(filterValueCheckbox(container, 'Alice')!.checked).toBe(true)
+    expect(filterValueCheckbox(container, 'Alice')!.checked).toBe(false)
     setInput(filterSearchInput(container), '')
     for (const name of ['Bob', 'Clara', 'David']) {
-      expect(filterValueCheckbox(container, name)!.checked).toBe(false)
+      expect(filterValueCheckbox(container, name)!.checked).toBe(true)
     }
   })
 
@@ -355,7 +368,7 @@ describe('createDataTable — checklist filter', () => {
     const { container, table } = mount(ROWS, COLS)
     openFilterDropdown(container)
     click(filterValueCheckbox(container, 'Alice')!)
-    expect(table.getViewState().filters?.name).toEqual(['Alice'])
+    expect(table.getViewState().excludeFilters?.name).toEqual(['Alice'])
   })
 
   // ADAPTED — see bottom-of-file notes: the new FilterDropdown renders the select-all checkbox
