@@ -177,6 +177,15 @@ const S = {
   filterValueExcluded: {
     color: 'var(--color-text-danger)',
   } as CSSProperties,
+  // The "Others" checklist row (see CLAUDE.md's "Filter dropdown") — shaded/italic/bordered so it
+  // reads as a distinct bulk control, not just another value blending into the results below it.
+  filterOthers: {
+    background: 'var(--color-background-secondary)',
+    borderTop: '0.5px solid var(--color-border-tertiary)',
+    borderBottom: '0.5px solid var(--color-border-secondary)',
+    fontStyle: 'italic',
+    color: 'var(--color-text-secondary)',
+  } as CSSProperties,
   // A chip is two sibling <button>s (chipBody + chipX below), not one inert <span> — a <button>
   // can't contain another interactive element, same reasoning already used for the toolbar's
   // grouped clear buttons (btnClear). `chip` itself carries no padding/background/border anymore;
@@ -1041,6 +1050,8 @@ export function DataTableView<TRow extends object>({
     setValues: setFilterValues,
     cycleValue: cycleFilterValue,
     clearExcludeValues,
+    setExcludeValues,
+    toggleExcludeAll,
     setRange: setRangeFilter,
     clearColumn: clearColumnFilter,
     clear: clearFilters,
@@ -1118,6 +1129,50 @@ export function DataTableView<TRow extends object>({
   }, [someSelected])
 
   const filterSelectAllRef = useRef<HTMLInputElement>(null)
+  const filterOthersRef = useRef<HTMLInputElement>(null)
+  // Per-column cache for isMultiValueColumn. A plain `useRef<Map>` read/written during render
+  // (the obvious first approach) trips `react-hooks/refs` — refs are for effects/handlers, not
+  // render, since a ref mutated mid-render isn't safe under Strict Mode's double-invoke or
+  // concurrent rendering. Uses `useState` instead, via the same "adjust state during render"
+  // idiom this file already relies on for `filterListResetKey`/`prevFilterListResetKey` below and
+  // the `visibleCols` reconciliation (see CLAUDE.md) — a plain conditional `setState` call in the
+  // render body itself, React's own documented pattern for exactly this ("you can cache a value
+  // from a previous render"), safe because it only actually re-renders when the state reference
+  // changes (a genuine cache miss), not on every render.
+  //
+  // This isn't the render-value memoization the file's own "no manual useMemo, let the React
+  // Compiler handle it" policy targets (see `stringValueCounts`'s comment above) — a single
+  // compiler-inserted memo for this call site would still only remember the *last* `(data, col)`
+  // pair, the same one-slot limitation a hand-written `useMemo` here would have. This is a
+  // targeted fix for a different cost: `isMultiValueColumn`'s scan never short-circuits for a
+  // scalar column (no array value to find), so without a cache keyed by column, revisiting an
+  // already-checked column in the left pane reran a full O(rows) scan on every render while the
+  // dropdown stays open — not just on column switch, since this component re-renders on every
+  // keystroke/click. Mirrors Solid's identical fix in FilterDropdown.tsx (which can use a plain
+  // `createMemo` + closure-scoped `let`s there, since Solid's setup-once model has no equivalent
+  // "refs/state during render" restriction).
+  const [multiValueCache, setMultiValueCache] = useState<{
+    data: TRow[] | null
+    map: Map<string, boolean>
+  }>(() => ({ data: null, map: new Map() }))
+  function isMultiValueColumnCached(col: ColumnDef<TRow>): boolean {
+    let cacheData = multiValueCache.data
+    let cacheMap = multiValueCache.map
+    if (cacheData !== data) {
+      cacheData = data
+      cacheMap = new Map()
+    }
+    let cached = cacheMap.get(col.key)
+    if (cached === undefined) {
+      cached = isMultiValueColumn(data, col, col.key)
+      cacheMap = new Map(cacheMap)
+      cacheMap.set(col.key, cached)
+    }
+    if (cacheData !== multiValueCache.data || cacheMap !== multiValueCache.map) {
+      setMultiValueCache({ data: cacheData, map: cacheMap })
+    }
+    return cached
+  }
 
   const groupAllSelected = (rows: TRow[]) => rows.length > 0 && rows.every((r) => selection.has(r))
   const groupSomeSelected = (rows: TRow[]) =>
@@ -1553,8 +1608,25 @@ export function DataTableView<TRow extends object>({
   // string checklist, not the date tree (mirrors Solid's FilterDropdown.tsx).
   const isMultiValueFilterCol =
     filterDetailCol && filterDetailCol.type !== 'date' && filterDetailCol.type !== 'number'
-      ? isMultiValueColumn(data, filterDetailCol, filterDetailCol.key)
+      ? isMultiValueColumnCached(filterDetailCol)
       : false
+  // A non-multi-value column's checklist uses a checked-by-default, exclude-only model instead
+  // of the tri-state include/exclude cycle (see CLAUDE.md's "Filter dropdown"): `filters` is
+  // never written for such a column, "checked" simply means "not in `excludeFilters`". Date/
+  // number columns (their own detail branches) and genuinely multi-value columns keep the
+  // original include-based model untouched. Mirrors Solid's `usesExcludeOnly`.
+  const usesExcludeOnly = Boolean(
+    filterDetailCol &&
+    filterDetailCol.type !== 'date' &&
+    filterDetailCol.type !== 'number' &&
+    !isMultiValueFilterCol,
+  )
+  // The set a value must be in to stay visible even at a 0 facet count (see
+  // filterValuesByCount) — whichever map the active column's model actually writes to.
+  const filterAlreadyTouched = (col: ColumnDef<TRow>) =>
+    usesExcludeOnly
+      ? (excludeFilters[col.key] ?? new Set<string>())
+      : (filters[col.key] ?? new Set<string>())
   const filterMatchMode = filterDetailCol
     ? (filterModes[filterDetailCol.key] ?? filterDetailCol.multiMode ?? 'or')
     : 'or'
@@ -1570,40 +1642,75 @@ export function DataTableView<TRow extends object>({
         : cycleValueSort(current)
     setFilterValueSort({ ...filterValueSort, [col.key]: next })
   }
+  // Range/count-filtered, but not yet narrowed by the checklist's own value search — kept
+  // separate from filterDetailValues below so filterOtherValues can diff the two to find exactly
+  // what the search is currently hiding. Order relative to search doesn't matter here: range/
+  // count filtering and search are independent per-value predicates, so computing them in either
+  // order yields the same final set. Mirrors Solid's detailValuesBeforeSearch.
+  const detailValuesBeforeSearch =
+    filterDetailCol && filterDetailCol.type !== 'number'
+      ? filterValuesByCount(
+          // Narrowed by the date range filter (if any) — a value outside the active range never
+          // becomes a tree leaf, rather than merely being ANDed onto the final row set once
+          // ticked. A no-op for string columns (they never populate rangeFilters).
+          filterValuesByRange(
+            stringValueMap[filterDetailCol.key] ?? [],
+            rangeFilters[filterDetailCol.key],
+            filterDetailCol.parseDate,
+          ),
+          stringValueCounts[filterDetailCol.key] ?? new Map(),
+          filterAlreadyTouched(filterDetailCol),
+        )
+      : []
   const filterDetailValues =
     filterDetailCol && filterDetailCol.type !== 'number'
       ? sortFilterValues(
-          filterValuesByCount(
-            // Narrowed by the date range filter (if any), same as by search — a value outside
-            // the active range never becomes a tree leaf, rather than merely being ANDed onto
-            // the final row set once ticked. A no-op for string columns (they never populate
-            // rangeFilters).
-            filterValuesByRange(
-              filterValuesBySearch(
-                stringValueMap[filterDetailCol.key] ?? [],
-                filterSearchTerms[filterDetailCol.key] ?? '',
-              ),
-              rangeFilters[filterDetailCol.key],
-              filterDetailCol.parseDate,
-            ),
-            stringValueCounts[filterDetailCol.key] ?? new Map(),
-            filters[filterDetailCol.key] ?? new Set(),
+          filterValuesBySearch(
+            detailValuesBeforeSearch,
+            filterSearchTerms[filterDetailCol.key] ?? '',
           ),
           stringValueCounts[filterDetailCol.key] ?? new Map(),
           valueSortFor(filterDetailCol.key),
           filterDetailCol.compare,
         )
       : []
-  const filterSelectedCount = filterDetailCol
-    ? filterDetailValues.filter((v) => filters[filterDetailCol.key]?.has(v)).length
-    : 0
-  const filterAllSelected =
-    filterDetailValues.length > 0 && filterSelectedCount === filterDetailValues.length
-  const filterSomeSelected = filterSelectedCount > 0 && !filterAllSelected
+  // "Others" — the values the checklist's own value search is currently hiding (see CLAUDE.md's
+  // "Filter dropdown"). Only meaningful once a search term actually narrows the list; empty
+  // otherwise.
+  const filterOtherValues = (() => {
+    if (!filterDetailCol) return []
+    const term = filterSearchTerms[filterDetailCol.key] ?? ''
+    if (!term) return []
+    const shown = new Set(filterDetailValues)
+    return detailValuesBeforeSearch.filter((v) => !shown.has(v))
+  })()
+  function filterBulkState(values: string[]): { checked: boolean; indeterminate: boolean } {
+    if (!filterDetailCol) return { checked: false, indeterminate: false }
+    if (usesExcludeOnly) {
+      const excludedCount = values.filter((v) => excludeFilters[filterDetailCol.key]?.has(v)).length
+      return {
+        checked: excludedCount === 0,
+        indeterminate: excludedCount > 0 && excludedCount < values.length,
+      }
+    }
+    const selectedCount = values.filter((v) => filters[filterDetailCol.key]?.has(v)).length
+    return {
+      checked: selectedCount > 0 && selectedCount === values.length,
+      indeterminate: selectedCount > 0 && selectedCount < values.length,
+    }
+  }
+  const filterAllSelected = filterBulkState(filterDetailValues).checked
+  const filterSomeSelected = filterBulkState(filterDetailValues).indeterminate
+  const filterOthersState = filterBulkState(filterOtherValues)
 
   useEffect(() => {
     if (filterSelectAllRef.current) filterSelectAllRef.current.indeterminate = filterSomeSelected
   }, [filterSomeSelected])
+
+  useEffect(() => {
+    if (filterOthersRef.current)
+      filterOthersRef.current.indeterminate = filterOthersState.indeterminate
+  }, [filterOthersState.indeterminate])
 
   // Reset the virtualized checklist's scroll position whenever the values it's scrolled
   // through change identity — switching columns or narrowing by search both shift what row 0
@@ -2680,7 +2787,9 @@ export function DataTableView<TRow extends object>({
                               type="checkbox"
                               checked={filterAllSelected}
                               onChange={() =>
-                                toggleFilterAll(filterDetailCol.key, filterDetailValues)
+                                usesExcludeOnly
+                                  ? toggleExcludeAll(filterDetailCol.key, filterDetailValues)
+                                  : toggleFilterAll(filterDetailCol.key, filterDetailValues)
                               }
                               title={L.selectAll}
                               aria-label={L.selectAll}
@@ -2791,113 +2900,176 @@ export function DataTableView<TRow extends object>({
                             const { startIndex, endIndex, offsetY, totalHeight } =
                               filterListVirtualRange
                             return (
-                              <div
-                                ref={filterListRef}
-                                style={S.filterList}
-                                onScroll={() => {
-                                  if (!filterListRafPending.current) {
-                                    filterListRafPending.current = true
-                                    requestAnimationFrame(() => {
-                                      filterListRafPending.current = false
-                                      // Read the live scrollTop here (not a value captured back
-                                      // in the triggering onScroll call) — several scroll events
-                                      // can fire before this callback runs, and only the latest
-                                      // position matters.
-                                      if (filterListRef.current) {
-                                        setFilterListScrollTop(filterListRef.current.scrollTop)
-                                      }
-                                    })
-                                  }
-                                }}
-                              >
-                                <div style={{ height: totalHeight, position: 'relative' }}>
-                                  <div
-                                    style={{
-                                      position: 'absolute',
-                                      top: offsetY,
-                                      left: 0,
-                                      right: 0,
-                                    }}
-                                  >
-                                    {filterDetailValues.slice(startIndex, endIndex).map((v) => {
-                                      const excluded =
-                                        excludeFilters[filterDetailCol.key]?.has(v) ?? false
-                                      return (
-                                        <label
-                                          key={v}
-                                          style={{
-                                            ...S.ddItem,
-                                            height: FILTER_LIST_ITEM_HEIGHT,
-                                            boxSizing: 'border-box',
-                                            cursor: 'pointer',
-                                            ...(excluded ? S.filterValueExcluded : null),
-                                          }}
-                                        >
-                                          {/* Tri-state checkbox: unchecked (neutral) → checked
-                                            (include) → indeterminate (exclude, the browser's dash
-                                            glyph reused as the "not this" indicator) → back to
-                                            unchecked, via cycleFilterValue. `indeterminate` isn't a
-                                            prop React can set declaratively, so a callback ref sets
-                                            it imperatively, same pattern as the date tree's node
-                                            checkboxes above and the select-all checkboxes. */}
-                                          <input
-                                            type="checkbox"
-                                            data-dd-value-row
-                                            data-value={v}
-                                            checked={filters[filterDetailCol.key]?.has(v) ?? false}
-                                            readOnly
-                                            ref={(el) => {
-                                              if (el) el.indeterminate = excluded
-                                            }}
-                                            onClick={(e) => {
-                                              const key = filterDetailCol.key
-                                              const anchor = filterSelectionAnchor[key]
-                                              if (e.shiftKey && anchor != null) {
-                                                const shouldSelect = !(
-                                                  filters[key]?.has(v) ?? false
-                                                )
-                                                const range = selectRange(
-                                                  filterDetailValues,
-                                                  anchor,
-                                                  v,
-                                                )
-                                                setFilterValues(key, range, shouldSelect)
-                                                // Shift-range stays include-only (see the docs) — clear
-                                                // the swept range out of the exclude set too, so a
-                                                // previously-excluded value doesn't end up in both.
-                                                if (shouldSelect) clearExcludeValues(key, range)
-                                              } else {
-                                                cycleFilterValue(key, v)
-                                              }
-                                              setFilterSelectionAnchor({
-                                                ...filterSelectionAnchor,
-                                                [key]: v,
-                                              })
-                                            }}
-                                            title={
-                                              excluded ? L.filterExcludedTitle : L.filterValueTitle
-                                            }
+                              <>
+                                {/* Bulk (de)select everything the value search above is
+                                    currently hiding — see CLAUDE.md's "Filter dropdown". Only
+                                    rendered once a search term actually narrows the list. Not
+                                    extended to the date tree, which has its own branch above. */}
+                                {filterOtherValues.length > 0 && (
+                                  <label style={{ ...S.ddItem, ...S.filterOthers }}>
+                                    <input
+                                      ref={filterOthersRef}
+                                      type="checkbox"
+                                      title={L.filterOthers}
+                                      aria-label={L.filterOthers}
+                                      checked={filterOthersState.checked}
+                                      onClick={(e) => {
+                                        e.preventDefault()
+                                        if (usesExcludeOnly) {
+                                          toggleExcludeAll(filterDetailCol.key, filterOtherValues)
+                                        } else {
+                                          toggleFilterAll(filterDetailCol.key, filterOtherValues)
+                                        }
+                                      }}
+                                    />
+                                    <span style={{ flex: 1 }}>{L.filterOthers}</span>
+                                    <span style={S.filterCount} aria-hidden="true">
+                                      {filterOtherValues.length}
+                                    </span>
+                                  </label>
+                                )}
+                                <div
+                                  ref={filterListRef}
+                                  style={S.filterList}
+                                  onScroll={() => {
+                                    if (!filterListRafPending.current) {
+                                      filterListRafPending.current = true
+                                      requestAnimationFrame(() => {
+                                        filterListRafPending.current = false
+                                        // Read the live scrollTop here (not a value captured back
+                                        // in the triggering onScroll call) — several scroll events
+                                        // can fire before this callback runs, and only the latest
+                                        // position matters.
+                                        if (filterListRef.current) {
+                                          setFilterListScrollTop(filterListRef.current.scrollTop)
+                                        }
+                                      })
+                                    }
+                                  }}
+                                >
+                                  <div style={{ height: totalHeight, position: 'relative' }}>
+                                    <div
+                                      style={{
+                                        position: 'absolute',
+                                        top: offsetY,
+                                        left: 0,
+                                        right: 0,
+                                      }}
+                                    >
+                                      {filterDetailValues.slice(startIndex, endIndex).map((v) => {
+                                        // Non-multi-value column: plain checked/unchecked, "checked"
+                                        // meaning "not excluded" — no tri-state indeterminate cue.
+                                        // Multi-value column: unchanged include/exclude tri-state,
+                                        // shown as checked/indeterminate.
+                                        const checked = usesExcludeOnly
+                                          ? !(excludeFilters[filterDetailCol.key]?.has(v) ?? false)
+                                          : (filters[filterDetailCol.key]?.has(v) ?? false)
+                                        const excluded = usesExcludeOnly
+                                          ? false
+                                          : (excludeFilters[filterDetailCol.key]?.has(v) ?? false)
+                                        const itemTitle = usesExcludeOnly
+                                          ? checked
+                                            ? L.filterValueHideTitle
+                                            : L.filterValueShowTitle
+                                          : excluded
+                                            ? L.filterExcludedTitle
+                                            : L.filterValueTitle
+                                        return (
+                                          <label
+                                            key={v}
                                             style={{
-                                              margin: 0,
-                                              ...(excluded
-                                                ? { accentColor: 'var(--color-text-danger)' }
-                                                : null),
+                                              ...S.ddItem,
+                                              height: FILTER_LIST_ITEM_HEIGHT,
+                                              boxSizing: 'border-box',
+                                              cursor: 'pointer',
+                                              ...(excluded ? S.filterValueExcluded : null),
                                             }}
-                                          />
-                                          <span style={{ flex: 1 }}>
-                                            {filterDetailCol.renderFilterLabel
-                                              ? filterDetailCol.renderFilterLabel(v)
-                                              : v}
-                                          </span>
-                                          <span style={S.filterCount} aria-hidden="true">
-                                            {stringValueCounts[filterDetailCol.key]?.get(v) ?? 0}
-                                          </span>
-                                        </label>
-                                      )
-                                    })}
+                                          >
+                                            {/* Tri-state checkbox (multi-value column): unchecked
+                                            (neutral) → checked (include) → indeterminate (exclude,
+                                            the browser's dash glyph reused as the "not this"
+                                            indicator) → back to unchecked, via cycleFilterValue.
+                                            Non-multi-value column: plain checked/unchecked toggle
+                                            via setExcludeValues, see CLAUDE.md's "Filter dropdown".
+                                            `indeterminate` isn't a prop React can set
+                                            declaratively, so a callback ref sets it imperatively,
+                                            same pattern as the date tree's node checkboxes above
+                                            and the select-all checkboxes. */}
+                                            <input
+                                              type="checkbox"
+                                              data-dd-value-row
+                                              data-value={v}
+                                              checked={checked}
+                                              readOnly
+                                              ref={(el) => {
+                                                if (el) el.indeterminate = excluded
+                                              }}
+                                              onClick={(e) => {
+                                                const key = filterDetailCol.key
+                                                if (usesExcludeOnly) {
+                                                  const excludedNow =
+                                                    excludeFilters[key]?.has(v) ?? false
+                                                  const anchor = filterSelectionAnchor[key]
+                                                  if (e.shiftKey && anchor != null) {
+                                                    const range = selectRange(
+                                                      filterDetailValues,
+                                                      anchor,
+                                                      v,
+                                                    )
+                                                    // Direction mirrors what a plain click on the
+                                                    // target itself would do.
+                                                    setExcludeValues(key, range, !excludedNow)
+                                                  } else {
+                                                    setExcludeValues(key, [v], !excludedNow)
+                                                  }
+                                                } else {
+                                                  const anchor = filterSelectionAnchor[key]
+                                                  if (e.shiftKey && anchor != null) {
+                                                    const shouldSelect = !(
+                                                      filters[key]?.has(v) ?? false
+                                                    )
+                                                    const range = selectRange(
+                                                      filterDetailValues,
+                                                      anchor,
+                                                      v,
+                                                    )
+                                                    setFilterValues(key, range, shouldSelect)
+                                                    // Shift-range stays include-only (see the docs) — clear
+                                                    // the swept range out of the exclude set too, so a
+                                                    // previously-excluded value doesn't end up in both.
+                                                    if (shouldSelect) clearExcludeValues(key, range)
+                                                  } else {
+                                                    cycleFilterValue(key, v)
+                                                  }
+                                                }
+                                                setFilterSelectionAnchor({
+                                                  ...filterSelectionAnchor,
+                                                  [key]: v,
+                                                })
+                                              }}
+                                              title={itemTitle}
+                                              style={{
+                                                margin: 0,
+                                                ...(excluded
+                                                  ? { accentColor: 'var(--color-text-danger)' }
+                                                  : null),
+                                              }}
+                                            />
+                                            <span style={{ flex: 1 }}>
+                                              {filterDetailCol.renderFilterLabel
+                                                ? filterDetailCol.renderFilterLabel(v)
+                                                : v}
+                                            </span>
+                                            <span style={S.filterCount} aria-hidden="true">
+                                              {stringValueCounts[filterDetailCol.key]?.get(v) ?? 0}
+                                            </span>
+                                          </label>
+                                        )
+                                      })}
+                                    </div>
                                   </div>
                                 </div>
-                              </div>
+                              </>
                             )
                           })()
                         )}

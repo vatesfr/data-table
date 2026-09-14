@@ -111,25 +111,27 @@ describe('DataTable — filter dropdown', () => {
     expect(checklistLabels(container)).toHaveLength(0)
   })
 
-  it('select-all checkbox selects every currently listed value', () => {
+  it('select-all checkbox excludes (unchecks) every currently listed value', () => {
+    // `name` is checked-by-default (see CLAUDE.md's "Filter dropdown") — nothing excluded yet,
+    // so clicking the master checkbox excludes everyone.
     const { getByText, getByLabelText } = render(
       <DataTable data={ROWS} columns={FILTER_COLS} rowKey="id" />,
     )
     fireEvent.click(getByText('Filter'))
-    fireEvent.click(getByLabelText('Select all'))
-    expect((getByLabelText('Alice', { exact: false }) as HTMLInputElement).checked).toBe(true)
-    expect((getByLabelText('Bob', { exact: false }) as HTMLInputElement).checked).toBe(true)
-  })
-
-  it('select-all checkbox deselects every value when all are already selected', () => {
-    const { getByText, getByLabelText } = render(
-      <DataTable data={ROWS} columns={FILTER_COLS} rowKey="id" />,
-    )
-    fireEvent.click(getByText('Filter'))
-    fireEvent.click(getByLabelText('Select all'))
     fireEvent.click(getByLabelText('Select all'))
     expect((getByLabelText('Alice', { exact: false }) as HTMLInputElement).checked).toBe(false)
     expect((getByLabelText('Bob', { exact: false }) as HTMLInputElement).checked).toBe(false)
+  })
+
+  it('select-all checkbox re-checks every value when all are already excluded', () => {
+    const { getByText, getByLabelText } = render(
+      <DataTable data={ROWS} columns={FILTER_COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Filter'))
+    fireEvent.click(getByLabelText('Select all'))
+    fireEvent.click(getByLabelText('Select all'))
+    expect((getByLabelText('Alice', { exact: false }) as HTMLInputElement).checked).toBe(true)
+    expect((getByLabelText('Bob', { exact: false }) as HTMLInputElement).checked).toBe(true)
   })
 
   it('the Filter toolbar button has no clear-filters button until a filter is active', () => {
@@ -164,9 +166,9 @@ describe('DataTable — filter dropdown', () => {
     const filterSearchInput = searchInputs[searchInputs.length - 1]
     fireEvent.change(filterSearchInput, { target: { value: 'ali' } })
     fireEvent.click(getByLabelText('Select all'))
-    expect((getByLabelText('Alice', { exact: false }) as HTMLInputElement).checked).toBe(true)
+    expect((getByLabelText('Alice', { exact: false }) as HTMLInputElement).checked).toBe(false)
     fireEvent.change(filterSearchInput, { target: { value: '' } })
-    expect((getByLabelText('Bob', { exact: false }) as HTMLInputElement).checked).toBe(false)
+    expect((getByLabelText('Bob', { exact: false }) as HTMLInputElement).checked).toBe(true)
   })
 
   it('select-all checkbox is indeterminate when only some listed values are selected', () => {
@@ -211,6 +213,9 @@ describe('DataTable — filter dropdown', () => {
       <DataTable data={ROWS2} columns={COLS2} rowKey="id" />,
     )
     fireEvent.click(getByText('Filter'))
+    // Narrow to Alice only: `name` is checked-by-default (see CLAUDE.md's "Filter dropdown"), so
+    // exclude everyone via select-all, then re-check just Alice.
+    fireEvent.click(getByLabelText('Select all'))
     fireEvent.click(getByLabelText('Alice', { exact: false }))
     const deptItem = getAllByText('Dept').find((el) => el.closest('th') === null)!
     fireEvent.click(deptItem)
@@ -218,7 +223,7 @@ describe('DataTable — filter dropdown', () => {
     expect(queryByLabelText('HR', { exact: false })).toBeNull()
   })
 
-  it('keeps a selected value visible even when its live count drops to 0', () => {
+  it('keeps an excluded value visible even when its live count drops to 0', () => {
     interface Row2 {
       id: number
       name: string
@@ -240,7 +245,8 @@ describe('DataTable — filter dropdown', () => {
     fireEvent.click(getByText('Filter'))
     const deptItem = getAllByText('Dept').find((el) => el.closest('th') === null)!
     fireEvent.click(deptItem)
-    // Select dept=HR (Bob) while it's still the only active filter, so it's visible to check.
+    // Exclude (uncheck) dept=HR (Bob) while it's still visible to click — this is what makes it
+    // "already touched" (see filterValuesByCount's exclude-model counterpart).
     fireEvent.click(getByLabelText('HR', { exact: false }))
     const scoreItem = getAllByText('Score').find((el) => el.closest('th') === null)!
     fireEvent.click(scoreItem)
@@ -248,7 +254,7 @@ describe('DataTable — filter dropdown', () => {
     // range filters, unlike a column's own checklist filter, are never excluded from a facet.
     fireEvent.change(getByPlaceholderText('Min'), { target: { value: '100' } })
     fireEvent.click(deptItem)
-    expect((getByLabelText('HR', { exact: false }) as HTMLInputElement).checked).toBe(true)
+    expect((getByLabelText('HR', { exact: false }) as HTMLInputElement).checked).toBe(false)
   })
 
   it('search narrows the checklist to matching values', () => {
@@ -269,7 +275,7 @@ describe('DataTable — filter dropdown', () => {
     expect(labels.some((t) => t.includes('Bob'))).toBe(false)
   })
 
-  it('shift-clicking a checklist value selects the range from the last-clicked value', () => {
+  it('shift-clicking a checklist value range-excludes from the last-clicked value', () => {
     const ROWS4: Row[] = [
       { id: 1, name: 'Alice', score: 90 },
       { id: 2, name: 'Bob', score: 60 },
@@ -280,33 +286,37 @@ describe('DataTable — filter dropdown', () => {
       <DataTable data={ROWS4} columns={FILTER_COLS} rowKey="id" />,
     )
     fireEvent.click(getByText('Filter'))
-    fireEvent.click(getByLabelText('Alice', { exact: false }))
-    fireEvent.click(getByLabelText('Clara', { exact: false }), { shiftKey: true })
-    expect((getByLabelText('Alice', { exact: false }) as HTMLInputElement).checked).toBe(true)
-    expect((getByLabelText('Bob', { exact: false }) as HTMLInputElement).checked).toBe(true)
-    expect((getByLabelText('Clara', { exact: false }) as HTMLInputElement).checked).toBe(true)
-    expect((getByLabelText('David', { exact: false }) as HTMLInputElement).checked).toBe(false)
-  })
-
-  it('shift-clicking an already-selected checklist value deselects the range', () => {
-    const ROWS4: Row[] = [
-      { id: 1, name: 'Alice', score: 90 },
-      { id: 2, name: 'Bob', score: 60 },
-      { id: 3, name: 'Clara', score: 80 },
-      { id: 4, name: 'David', score: 70 },
-    ]
-    const { getByText, getByLabelText } = render(
-      <DataTable data={ROWS4} columns={FILTER_COLS} rowKey="id" />,
-    )
-    fireEvent.click(getByText('Filter'))
-    fireEvent.click(getByLabelText('Select all'))
-    fireEvent.click(getByLabelText('Alice', { exact: false }))
-    fireEvent.click(getByLabelText('Alice', { exact: false }))
+    fireEvent.click(getByLabelText('Alice', { exact: false })) // exclude Alice, becomes the anchor
+    // Direction mirrors what a plain click on Clara (currently checked) would do: exclude the
+    // whole Alice..Clara range (alphabetized: Alice, Bob, Clara, David).
     fireEvent.click(getByLabelText('Clara', { exact: false }), { shiftKey: true })
     expect((getByLabelText('Alice', { exact: false }) as HTMLInputElement).checked).toBe(false)
     expect((getByLabelText('Bob', { exact: false }) as HTMLInputElement).checked).toBe(false)
     expect((getByLabelText('Clara', { exact: false }) as HTMLInputElement).checked).toBe(false)
     expect((getByLabelText('David', { exact: false }) as HTMLInputElement).checked).toBe(true)
+  })
+
+  it('shift-clicking an already-excluded checklist value re-checks the range', () => {
+    const ROWS4: Row[] = [
+      { id: 1, name: 'Alice', score: 90 },
+      { id: 2, name: 'Bob', score: 60 },
+      { id: 3, name: 'Clara', score: 80 },
+      { id: 4, name: 'David', score: 70 },
+    ]
+    const { getByText, getByLabelText } = render(
+      <DataTable data={ROWS4} columns={FILTER_COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Filter'))
+    fireEvent.click(getByLabelText('Select all')) // exclude everyone
+    fireEvent.click(getByLabelText('Alice', { exact: false })) // re-check Alice
+    fireEvent.click(getByLabelText('Alice', { exact: false })) // re-exclude Alice, becomes anchor
+    // Clara is still excluded (from select-all), so this shift-click's target-based direction
+    // re-checks the whole range — David's own (untouched-since-select-all) exclusion is unaffected.
+    fireEvent.click(getByLabelText('Clara', { exact: false }), { shiftKey: true })
+    expect((getByLabelText('Alice', { exact: false }) as HTMLInputElement).checked).toBe(true)
+    expect((getByLabelText('Bob', { exact: false }) as HTMLInputElement).checked).toBe(true)
+    expect((getByLabelText('Clara', { exact: false }) as HTMLInputElement).checked).toBe(true)
+    expect((getByLabelText('David', { exact: false }) as HTMLInputElement).checked).toBe(false)
   })
 
   it("renders a range slider with bounds matching the numeric column's actual min/max", () => {
@@ -388,6 +398,79 @@ describe('DataTable — filter dropdown', () => {
     fireEvent.click(chipX)
     expect((getByPlaceholderText('Min') as HTMLInputElement).value).toBe('')
     expect(container.querySelectorAll('tbody tr')).toHaveLength(2)
+  })
+
+  it('a non-multi-value checklist item explains the plain hide/show toggle, not the tri-state cycle', () => {
+    const { getByText, getByLabelText } = render(
+      <DataTable data={ROWS} columns={FILTER_COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Filter'))
+    const alice = getByLabelText('Alice', { exact: false }) as HTMLInputElement
+    expect(alice.title).toBe('Click to hide this value')
+    fireEvent.click(alice)
+    expect(alice.title).toBe('Hidden — click to show again')
+  })
+
+  it('caches isMultiValueColumn per column instead of rescanning the dataset on every revisit', () => {
+    // isMultiValueColumn's own scan never short-circuits for a scalar column (no array value to
+    // find), so without a per-column cache, revisiting an already-checked column reran the full
+    // dataset scan on every render — worse than the equivalent Solid bug even, since this
+    // component re-renders on every click, not just on column switch. Counting real invocations
+    // of `.some` on the data array (via a Proxy) proves the cache actually avoids the repeat scan.
+    interface Row2 {
+      id: number
+      name: string
+      dept: string
+    }
+    const rows2: Row2[] = [
+      { id: 1, name: 'Alice', dept: 'Eng' },
+      { id: 2, name: 'Bob', dept: 'HR' },
+    ]
+    let someCalls = 0
+    const data = new Proxy(rows2, {
+      get(target, prop, receiver) {
+        const val = Reflect.get(target, prop, receiver)
+        if (prop === 'some' && typeof val === 'function') {
+          return (...args: Parameters<typeof rows2.some>) => {
+            someCalls++
+            return val.apply(target, args)
+          }
+        }
+        return val
+      },
+    })
+    const cols: ColumnDef<Row2>[] = [
+      { key: 'name', label: 'Name', filterable: true },
+      { key: 'dept', label: 'Dept', filterable: true },
+    ]
+    const { getByText, getAllByText } = render(<DataTable data={data} columns={cols} rowKey="id" />)
+    fireEvent.click(getByText('Filter'))
+    const selectCol = (label: string) =>
+      fireEvent.click(getAllByText(label).find((el) => el.closest('th') === null)!)
+    selectCol('Dept')
+    selectCol('Name')
+    expect(someCalls).toBe(2)
+    selectCol('Dept')
+    selectCol('Name')
+    expect(someCalls).toBe(2)
+  })
+
+  it('an "Others" row appears once the value search narrows the list, bulk-(un)checking everything it hides', () => {
+    const { getByText, getAllByPlaceholderText, getByLabelText, queryByLabelText } = render(
+      <DataTable data={ROWS} columns={FILTER_COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Filter'))
+    expect(queryByLabelText('Others', { exact: false })).toBeNull()
+    const searchInputs = getAllByPlaceholderText('Search…')
+    const filterSearchInput = searchInputs[searchInputs.length - 1]
+    fireEvent.change(filterSearchInput, { target: { value: 'ali' } })
+    const others = getByLabelText('Others', { exact: false }) as HTMLInputElement
+    // Nothing excluded yet — Others (Bob) starts checked.
+    expect(others.checked).toBe(true)
+    fireEvent.click(others)
+    expect((getByLabelText('Alice', { exact: false }) as HTMLInputElement).checked).toBe(true)
+    fireEvent.change(filterSearchInput, { target: { value: '' } })
+    expect((getByLabelText('Bob', { exact: false }) as HTMLInputElement).checked).toBe(false)
   })
 })
 
@@ -518,6 +601,35 @@ describe('DataTable — exclude filters (tri-state checklist)', () => {
     expect(rpg().checked).toBe(false)
     expect(rpg().indeterminate).toBe(true)
     expect(names(container)).toEqual(['Game B'])
+  })
+
+  it('keeps the tri-state tooltips for a multi-value column', () => {
+    const { getByText, getByLabelText } = render(
+      <DataTable data={GAMES} columns={GAME_COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Filter'))
+    const action = getByLabelText('Action', { exact: false }) as HTMLInputElement
+    expect(action.title).toBe('Click to include, click again to exclude')
+    fireEvent.click(action) // include
+    fireEvent.click(action) // exclude
+    expect(action.title).toBe('Excluded — click to clear')
+  })
+
+  it('bulk-(de)selects hidden values via the include set for a multi-value column', () => {
+    const { getByText, getAllByPlaceholderText, getByLabelText } = render(
+      <DataTable data={GAMES} columns={GAME_COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Filter'))
+    const searchInputs = getAllByPlaceholderText('Search…')
+    const filterSearchInput = searchInputs[searchInputs.length - 1]
+    fireEvent.change(filterSearchInput, { target: { value: 'action' } })
+    const others = getByLabelText('Others', { exact: false }) as HTMLInputElement
+    // None of the non-matching values (RPG, Adventure) are included yet.
+    expect(others.checked).toBe(false)
+    fireEvent.click(others)
+    fireEvent.change(filterSearchInput, { target: { value: '' } })
+    expect((getByLabelText('RPG', { exact: false }) as HTMLInputElement).checked).toBe(true)
+    expect((getByLabelText('Adventure', { exact: false }) as HTMLInputElement).checked).toBe(true)
   })
 })
 
@@ -661,13 +773,14 @@ describe('DataTable — virtualized filter checklist', () => {
     expect(queryByLabelText('Value 0200', { exact: false })).toBeTruthy()
   })
 
-  it('select-all still selects every matching value, not just the rendered window', () => {
+  it('select-all still excludes every matching value, not just the rendered window', () => {
+    // `name` is a plain scalar column: checked-by-default, so select-all excludes every value.
     const { getByText, getByLabelText } = render(
       <DataTable data={MANY_ROWS} columns={MANY_COLS} rowKey="id" />,
     )
     fireEvent.click(getByText('Filter'))
     fireEvent.click(getByLabelText('Select all'))
-    expect(getByText(`500 / 500 rows`)).toBeTruthy()
+    expect(getByText(`0 / 500 rows`)).toBeTruthy()
   })
 })
 
@@ -1984,7 +2097,9 @@ describe('DataTable — active state bar', () => {
     expect(getByText('Sort').closest('button')?.textContent).toBe('Sort')
     expect(getByText('Group').closest('button')?.textContent).toBe('Group')
     expect(container.textContent).toContain('Score')
-    expect(container.textContent).toContain('Name: Alice')
+    // `name` is checked-by-default (see CLAUDE.md's "Filter dropdown"): clicking Alice's checkbox
+    // excludes her, rendering as the exclude chip rather than an include one.
+    expect(container.textContent).toContain('Name: ≠ Alice')
   })
 })
 

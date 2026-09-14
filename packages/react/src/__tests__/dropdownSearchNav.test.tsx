@@ -521,9 +521,11 @@ describe('DataTable — active-bar chip click actions', () => {
       <DataTable data={ROWS} columns={COLS} rowKey="id" />,
     )
     fireEvent.click(getByText('Filter'))
+    // `name` is checked-by-default (see CLAUDE.md's "Filter dropdown"): clicking Alice's
+    // checkbox excludes her, rendering as the exclude chip.
     fireEvent.click(getByLabelText('Alice', { exact: false }))
     const chip = [...container.querySelectorAll('span')].find((el) =>
-      el.textContent?.trim().startsWith('Name: Alice'),
+      el.textContent?.trim().startsWith('Name: ≠ Alice'),
     )!
     const clearBtn = chip.querySelectorAll('button')[1]
     expect(clearBtn.title).toBeTruthy()
@@ -539,7 +541,7 @@ describe('DataTable — active-bar chip click actions', () => {
     fireEvent.click(getByText('Filter')) // close the dropdown
     expect(container.querySelector('[data-filter-col-key]')).toBeNull()
     const chipBody = [...container.querySelectorAll('span')]
-      .find((el) => el.textContent?.trim().startsWith('Name: Alice'))!
+      .find((el) => el.textContent?.trim().startsWith('Name: ≠ Alice'))!
       .querySelector('button:first-child')!
     fireEvent.click(chipBody)
     expect(document.activeElement).toBe(container.querySelector('[data-filter-col-key="name"]'))
