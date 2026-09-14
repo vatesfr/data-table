@@ -230,8 +230,10 @@ export function ColumnsDropdown<TRow extends object>(props: ColumnsDropdownProps
                 col={col}
                 onClick={() => {
                   // See DropdownParts.tsx's AddableColumnRow / SortDropdown.tsx's identical
-                  // comment: a document-wide query, not a `.closest('.dt-dd')`-scoped one, since
-                  // this click can originate inside a portaled CategorySubmenu.
+                  // comment: a document-wide query rather than a `.closest('.dt-dd')`-scoped one —
+                  // simplest to just keep it that way even now that CategorySubmenu no longer
+                  // portals (see that file's own comment), since a scoped lookup would work too
+                  // but buys nothing here.
                   table.columns.toggleVisibility(col.key)
                   document.querySelector<HTMLElement>(`[data-col-row-key="${col.key}"]`)?.focus()
                 }}

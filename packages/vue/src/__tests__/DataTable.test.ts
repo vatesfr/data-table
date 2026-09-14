@@ -3084,6 +3084,25 @@ describe('DataTable — Sort dropdown column categories', () => {
     ]) // alphabetized, same as this list's other ordering
   })
 
+  // GitHub issue #23: the submenu used to teleport straight to `document.body`, which meant a
+  // consumer scoping theme CSS custom properties to an ancestor narrower than `<body>` never had
+  // them inherit into the submenu (custom properties only inherit through real DOM containment).
+  // Rendering it as a plain, non-teleported descendant fixes that — this locks in the DOM shape
+  // the fix depends on, rather than trying to assert on `var()` resolution itself (jsdom's CSS
+  // engine doesn't reliably compute that).
+  it('renders the submenu as a DOM descendant of its own container, not teleported to document.body', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS, columns: CATEGORIZED_COLS, rowKey: 'id' },
+      attachTo: document.body,
+    })
+    await openDdByLabel(wrapper, 'Sort')
+    const trigger = triggerFor(wrapper, 'Numbers')
+    await trigger.trigger('click')
+    const submenu = document.querySelector('[data-category-submenu]')!
+    expect(wrapper.element.contains(submenu)).toBe(true)
+    wrapper.unmount()
+  })
+
   it('opens the submenu on click and adds a sort from a row inside it', async () => {
     const wrapper = mount(DataTable, {
       props: { data: ROWS, columns: CATEGORIZED_COLS, rowKey: 'id' },
@@ -3107,8 +3126,8 @@ describe('DataTable — Sort dropdown column categories', () => {
   })
 
   // Regression: the addable button's own ref-map refocus (activateAndFocus) doesn't depend on the
-  // click's own DOM origin — unlike Solid's original `.closest('.dt-dd')` bug, this stayed
-  // portal/teleport-safe by construction.
+  // click's own DOM origin — unlike Solid's original `.closest('.dt-dd')` bug, this was never
+  // affected by the submenu's nav quirks (see CategorySubmenu.vue's own top comment).
   it('activating a column from inside the submenu refocuses its new active row, not <body>', async () => {
     const wrapper = mount(DataTable, {
       props: { data: ROWS, columns: CATEGORIZED_COLS, rowKey: 'id' },
@@ -3164,6 +3183,31 @@ describe('DataTable — Sort dropdown column categories', () => {
     expect(document.activeElement).toBe(trigger.element)
     // The dropdown panel itself is still open — only the submenu closed.
     expect(wrapper.find('.dropdown__menu').exists()).toBe(true)
+    wrapper.unmount()
+  })
+
+  // Regression: now that CategorySubmenu no longer teleports (see that file's own comment), its
+  // rows are real descendants of the panel — Dropdown.vue's own panel-wide roving nav must
+  // explicitly exclude them (see its own comment), or ArrowDown from a focused trigger would
+  // wander into the open submenu's rows instead of moving to the next top-level entry.
+  it('panel-level ArrowDown on a trigger with its submenu open skips into the next trigger, not the submenu', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS, columns: CATEGORIZED_COLS, rowKey: 'id' },
+      attachTo: document.body,
+    })
+    await openDdByLabel(wrapper, 'Sort')
+    const infoTrigger = triggerFor(wrapper, 'Info')
+    const numbersTrigger = triggerFor(wrapper, 'Numbers')
+    await infoTrigger.trigger('click')
+    expect(document.querySelector('[data-category-submenu]')).not.toBeNull()
+    // Focus lands in the submenu's first row on open — move it back to the trigger itself, the
+    // case this regression is actually about (e.g. focus never having left it in the first place,
+    // since a hover-opened submenu doesn't move focus).
+    ;(infoTrigger.element as HTMLElement).focus()
+    infoTrigger.element.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }),
+    )
+    expect(document.activeElement).toBe(numbersTrigger.element)
     wrapper.unmount()
   })
 

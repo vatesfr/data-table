@@ -30,9 +30,9 @@ function mount(cols: ColumnDef<Row>[] = COLS) {
   const container = document.createElement('div')
   document.body.appendChild(container)
   let table!: ReturnType<typeof createTableState<Row>>
-  // A CategorySubmenu's flyout portals to document.body (see CategorySubmenu.tsx) — render()'s
-  // own disposer must be captured and called too, or a submenu left open leaks its portaled DOM
-  // node into every test that runs after it (see SortDropdown.test.tsx's identical comment).
+  // `render()`'s own disposer must be captured and called too, or a submenu left open leaks its
+  // DOM node into every test that runs after it, since these tests query `.dt-dd-submenu`
+  // document-wide (see SortDropdown.test.tsx's identical comment for the full reasoning).
   let disposeView!: () => void
   const dispose = createRoot((d) => {
     table = createTableState(ROWS, cols)

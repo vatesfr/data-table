@@ -52,12 +52,6 @@ export function Dropdown(props: DropdownProps) {
     // createDataTable integration tests: it never surfaced in a single-component test, since
     // there's no sibling dropdown there to falsely fire.)
     if (!props.isOpen) return
-    // A click inside an open category submenu (see CategorySubmenu.tsx) must not count as
-    // "outside" — it's portaled straight to `document.body`, not a DOM descendant of `wrapRef`,
-    // for reasons explained in that file's own top comment (escaping `.dt-dd`'s scrollable
-    // overflow), so `wrapRef.contains()` alone can't see it.
-    const target = e.target as Element
-    if (target.closest?.('.dt-dd-submenu')) return
     if (wrapRef && !wrapRef.contains(e.target as Node)) props.onClose()
   }
 
@@ -83,7 +77,12 @@ export function Dropdown(props: DropdownProps) {
     if (e.altKey) return
     if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Home' && e.key !== 'End') return
     if (!panelRef) return
-    const focusables = ddNavFocusables(panelRef)
+    // A CategorySubmenu (see that file) renders as a real descendant of this panel and implements
+    // its own independent Up/Down/Home/End nav, scoped to its own rows and stopping propagation —
+    // excluding its rows here keeps this panel-wide nav exactly as if the submenu weren't open,
+    // rather than letting it wander into a floating submenu whose rows aren't visually part of
+    // this list.
+    const focusables = ddNavFocusables(panelRef).filter((el) => !el.closest('.dt-dd-submenu'))
     const rowFocusables = focusables.filter((el) => !el.matches('input[data-dd-search]'))
     const active = document.activeElement as HTMLElement | null
     if (!active || focusables.indexOf(active) === -1) return

@@ -275,8 +275,10 @@ export function SortDropdown<TRow extends object>(props: SortDropdownProps<TRow>
                 col={col}
                 onClick={() => {
                   // See DropdownParts.tsx's AddableColumnRow / GroupDropdown.tsx's identical
-                  // comment: a document-wide query, not a `.closest('.dt-dd')`-scoped one, since
-                  // this click can originate inside a portaled CategorySubmenu.
+                  // comment: a document-wide query rather than a `.closest('.dt-dd')`-scoped one —
+                  // simplest to just keep it that way even now that CategorySubmenu no longer
+                  // portals (see that file's own comment), since a scoped lookup would work too
+                  // but buys nothing here.
                   table.sort.toggle(col.key)
                   document.querySelector<HTMLElement>(`[data-sort-key="${col.key}"]`)?.focus()
                 }}

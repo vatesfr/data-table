@@ -728,6 +728,23 @@ describe('DataTable — Sort dropdown column categories', () => {
     ).toEqual(['Info▸', 'Numbers▸']) // alphabetized, same as this list's other ordering
   })
 
+  // GitHub issue #23: the submenu used to portal straight to `document.body`, which meant a
+  // consumer scoping theme CSS custom properties to an ancestor narrower than `<body>` never had
+  // them inherit into the submenu (custom properties only inherit through real DOM containment).
+  // Rendering it as a plain, non-portaled descendant fixes that — this locks in the DOM shape the
+  // fix depends on, rather than trying to assert on `var()` resolution itself (jsdom's CSS engine
+  // doesn't reliably compute that).
+  it('renders the submenu as a DOM descendant of its own container, not portaled to document.body', () => {
+    const { getByText, container } = render(
+      <DataTable data={ROWS} columns={CATEGORIZED_COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Sort'))
+    const trigger = triggerFor(container, 'Numbers')
+    fireEvent.click(trigger)
+    const submenu = document.querySelector('[data-category-submenu]')!
+    expect(container.contains(submenu)).toBe(true)
+  })
+
   it('opens the submenu on click and adds a sort from a row inside it', () => {
     const { getByText, container } = render(
       <DataTable data={ROWS} columns={CATEGORIZED_COLS} rowKey="id" />,
@@ -749,8 +766,8 @@ describe('DataTable — Sort dropdown column categories', () => {
 
   // Regression: the addable button's own onClick refocuses the newly-active row via a
   // pendingSortFocusKey ref consumed by a shared useLayoutEffect that queries the whole component
-  // root, not a `.closest()` walk from the click's own DOM origin — so this stayed portal-safe by
-  // construction, unlike Solid's original bug (see CategorySubmenu.tsx's own top comment).
+  // root, not a `.closest()` walk from the click's own DOM origin — so this was never affected by
+  // Solid's original submenu-nav bug (see CategorySubmenu.tsx's own top comment).
   it('activating a column from inside the submenu refocuses its new active row, not <body>', () => {
     const { getByText, container } = render(
       <DataTable data={ROWS} columns={CATEGORIZED_COLS} rowKey="id" />,
@@ -801,9 +818,9 @@ describe('DataTable — Sort dropdown column categories', () => {
     expect(container.querySelector('button[data-sort-add-key]')).not.toBeNull()
   })
 
-  // Regression: submenu rows are portaled to document.body (see CategorySubmenu.tsx), outside
-  // Dropdown.tsx's own panel-scoped roving-nav query — ArrowDown would silently do nothing here
-  // without CategorySubmenu's own local nav handler.
+  // Regression: Dropdown.tsx's own panel-wide roving-nav query explicitly excludes submenu rows
+  // (see its own comment) — ArrowDown would silently do nothing here without CategorySubmenu's
+  // own local nav handler.
   it("ArrowDown/Home/End rove between the submenu's own rows once open", async () => {
     const oneCategoryCols: ColumnDef<Row>[] = [
       { key: 'name', label: 'Name', category: 'Info' },
@@ -834,6 +851,27 @@ describe('DataTable — Sort dropdown column categories', () => {
     // Clamped at the last row — no wrap-around, matching Dropdown.tsx's own top-level nav.
     fireEvent.keyDown(document.activeElement!, { key: 'ArrowDown' })
     expect(document.activeElement).toBe(rows[1])
+  })
+
+  // Regression: now that CategorySubmenu no longer portals (see that file's own comment), its
+  // rows are real descendants of the panel — Dropdown.tsx's own panel-wide roving nav must
+  // explicitly exclude them (see its own comment), or ArrowDown from a focused trigger would
+  // wander into the open submenu's rows instead of moving to the next top-level entry.
+  it('panel-level ArrowDown on a trigger with its submenu open skips into the next trigger, not the submenu', () => {
+    const { getByText, container } = render(
+      <DataTable data={ROWS} columns={CATEGORIZED_COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Sort'))
+    const infoTrigger = triggerFor(container, 'Info')
+    const numbersTrigger = triggerFor(container, 'Numbers')
+    fireEvent.click(infoTrigger)
+    expect(document.querySelector('[data-category-submenu]')).not.toBeNull()
+    // Focus lands in the submenu's first row on open — move it back to the trigger itself, the
+    // case this regression is actually about (e.g. focus never having left it in the first place,
+    // since a hover-opened submenu doesn't move focus).
+    infoTrigger.focus()
+    fireEvent.keyDown(infoTrigger, { key: 'ArrowDown' })
+    expect(document.activeElement).toBe(numbersTrigger)
   })
 })
 

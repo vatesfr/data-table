@@ -50,12 +50,6 @@ export function Dropdown({
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      // A click inside an open category submenu (see CategorySubmenu.tsx) must not count as
-      // "outside" — it's portaled straight to document.body, not a DOM descendant of `ref`, for
-      // reasons explained in that file's own top comment (escaping the panel's scrollable
-      // overflow), so `ref.current.contains()` alone can't see it.
-      const target = e.target as Element
-      if (target.closest?.('[data-category-submenu]')) return
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
     }
     document.addEventListener('mousedown', handler)
@@ -111,7 +105,12 @@ export function Dropdown({
     if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Home' && e.key !== 'End') return
     const panel = panelRef.current
     if (!panel) return
-    const focusables = ddNavFocusables(panel)
+    // A CategorySubmenu (see that file) renders as a real descendant of this panel and implements
+    // its own independent Up/Down/Home/End nav, scoped to its own rows and stopping propagation —
+    // excluding its rows here keeps this panel-wide nav exactly as if the submenu weren't open,
+    // rather than letting it wander into a floating submenu whose rows aren't visually part of
+    // this list.
+    const focusables = ddNavFocusables(panel).filter((el) => !el.closest('[data-category-submenu]'))
     const rowFocusables = focusables.filter((el) => !el.matches('input[data-dd-search]'))
     const active = document.activeElement as HTMLElement | null
     if (!active || focusables.indexOf(active) === -1) return

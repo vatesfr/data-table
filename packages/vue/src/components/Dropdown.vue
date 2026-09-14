@@ -81,12 +81,6 @@ defineExpose({
 })
 
 function onMousedown(e: MouseEvent) {
-  // A click inside an open category submenu (see CategorySubmenu.vue) must not count as
-  // "outside" — it's teleported straight to document.body, not a DOM descendant of
-  // `containerRef`, for reasons explained in that component's own top comment (escaping the
-  // panel's scrollable overflow), so `containerRef.value.contains()` alone can't see it.
-  const target = e.target as Element
-  if (target.closest?.('[data-category-submenu]')) return
   if (containerRef.value && !containerRef.value.contains(e.target as Node)) {
     isOpen.value = false
   }
@@ -155,7 +149,14 @@ function onPanelKeydown(e: KeyboardEvent): void {
   const menu = menuRef.value
   if (!menu) return
   const root = props.navRoot ? (menu.querySelector<HTMLElement>(props.navRoot) ?? menu) : menu
-  const all = ddNavFocusables(root, `input[data-dd-search], ${props.rowSelector}`)
+  // A CategorySubmenu (see that file) renders as a real descendant of this panel and implements
+  // its own independent Up/Down/Home/End nav, scoped to its own rows and stopping propagation —
+  // excluding its rows here keeps this panel-wide nav exactly as if the submenu weren't open,
+  // rather than letting it wander into a floating submenu whose rows aren't visually part of
+  // this list.
+  const all = ddNavFocusables(root, `input[data-dd-search], ${props.rowSelector}`).filter(
+    (el) => !el.closest('[data-category-submenu]'),
+  )
   const rows = all.filter((el) => !el.hasAttribute('data-dd-search'))
   const active = document.activeElement as HTMLElement | null
   if (!active || all.indexOf(active) === -1) return

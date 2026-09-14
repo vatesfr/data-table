@@ -61,8 +61,9 @@ function mountCategorized() {
   const container = document.createElement('div')
   document.body.appendChild(container)
   let table!: ReturnType<typeof createTableState<Row>>
-  // See SortDropdown.test.tsx's identical comment on its own mountCategorized — a CategorySubmenu
-  // portals to document.body, so render()'s own disposer must be captured and called too.
+  // See SortDropdown.test.tsx's identical comment on its own mountCategorized — render()'s own
+  // disposer must be captured and called too, since these tests query `.dt-dd-submenu`
+  // document-wide.
   let disposeView!: () => void
   const dispose = createRoot((d) => {
     table = createTableState(ROWS, CATEGORIZED_GROUPABLE)
@@ -115,8 +116,8 @@ describe('GroupDropdown — column categories', () => {
   })
 
   // Regression: see SortDropdown.test.tsx's identical test — the addable button's onClick
-  // refocuses the new active row via `.closest('.dt-dd')`, which finds nothing from inside a
-  // portaled submenu. Focus silently dropped to <body> here until the lookup went document-wide.
+  // refocuses the new active row via a document-wide query rather than a `.closest('.dt-dd')`-
+  // scoped one, still needed for consistency with SortDropdown/ColumnsDropdown's own version.
   it('activating a column from inside the submenu refocuses its new active row, not <body>', () => {
     const { container, dispose } = mountCategorized()
     const trigger = container.querySelector<HTMLButtonElement>('.dt-dd-category-trigger')!
@@ -130,9 +131,8 @@ describe('GroupDropdown — column categories', () => {
     dispose()
   })
 
-  // Regression: see SortDropdown.test.tsx's identical test — the submenu's rows are portaled to
-  // document.body, so ArrowDown/Home/End silently did nothing here until CategorySubmenu grew its
-  // own local nav scoped to the submenu.
+  // Regression: see SortDropdown.test.tsx's identical test — Dropdown.tsx's own panel-wide nav
+  // explicitly excludes submenu rows, so the submenu needs this independent nav of its own.
   it("ArrowDown/Home/End rove between the submenu's own rows once open", async () => {
     const oneCategoryCols: ColumnDef<Row>[] = [
       { key: 'dept', label: 'Dept', groupable: true, category: 'Org' },

@@ -65,14 +65,15 @@ function mountCategorized() {
   const container = document.createElement('div')
   document.body.appendChild(container)
   let table!: ReturnType<typeof createTableState<Row>>
-  // A CategorySubmenu's flyout is rendered through a <Portal> straight to document.body (see
-  // CategorySubmenu.tsx) — render()'s own internal root isn't a child of the outer createRoot
-  // (same gotcha packages/vanilla/src/index.tsx's own `disposeView`/`dispose` pair documents), so
-  // its returned disposer must be captured and called too, or a submenu left open at the end of a
-  // test leaks its portaled DOM node into every test that runs after it (confirmed empirically:
-  // a bare `dispose()` alone left `.dt-dd-submenu` in the DOM, polluting document-level queries in
-  // later tests — regular, non-portaled content never surfaced this, since it's scoped under
-  // `container`, itself just as undisposed but harmlessly so).
+  // `render()`'s own internal root isn't a child of the outer createRoot (same gotcha
+  // packages/vanilla/src/index.tsx's own `disposeView`/`dispose` pair documents), so its returned
+  // disposer must be captured and called too, or a submenu left open at the end of a test leaks
+  // its DOM node into every test that runs after it: these tests query `.dt-dd-submenu` via
+  // `document.querySelector` rather than scoped to `container` (this component's flyout used to
+  // be portaled straight to `document.body`, which is why — see CategorySubmenu.tsx's own
+  // comment; the submenu no longer portals, but the tests below still query document-wide, so
+  // this same leak risk still applies). Confirmed empirically: a bare `dispose()` alone left
+  // `.dt-dd-submenu` in the DOM, polluting document-level queries in later tests.
   let disposeView!: () => void
   const dispose = createRoot((d) => {
     table = createTableState(ROWS, CATEGORIZED_COLS)
@@ -119,6 +120,21 @@ describe('SortDropdown — column categories', () => {
     dispose()
   })
 
+  // GitHub issue #23: the submenu used to portal straight to `document.body`, which meant a
+  // consumer scoping theme CSS custom properties to an ancestor narrower than `<body>` never had
+  // them inherit into the submenu (custom properties only inherit through real DOM containment).
+  // Rendering it as a plain, non-portaled descendant fixes that — this locks in the DOM shape the
+  // fix depends on, rather than trying to assert on `var()` resolution itself (jsdom's CSS engine
+  // doesn't reliably compute that).
+  it('renders the submenu as a DOM descendant of its own container, not portaled to document.body', () => {
+    const { container, dispose } = mountCategorized()
+    const trigger = triggerFor(container, 'Numbers')
+    trigger.click()
+    const submenu = document.querySelector('.dt-dd-submenu')!
+    expect(container.contains(submenu)).toBe(true)
+    dispose()
+  })
+
   it('opens the submenu on click and adds a sort from a row inside it', () => {
     const { container, table, dispose } = mountCategorized()
     const trigger = triggerFor(container, 'Numbers')
@@ -136,10 +152,10 @@ describe('SortDropdown — column categories', () => {
     dispose()
   })
 
-  // Regression: the addable button's own onClick refocuses the newly-active row via
-  // `.closest('.dt-dd')` — which finds nothing from inside a portaled submenu, since it isn't a
-  // DOM descendant of the panel. Focus silently dropped to <body> here until the lookup switched
-  // to a document-wide query (see AddableColRow's own comment).
+  // Regression (predates CategorySubmenu dropping its portal — see that file's own comment): the
+  // addable button's own onClick refocuses the newly-active row via a document-wide query, kept
+  // even now that a `.closest('.dt-dd')`-scoped lookup would also work (see AddableColRow's own
+  // comment) — this test still guards that the refocus itself actually happens.
   it('activating a column from inside the submenu refocuses its new active row, not <body>', () => {
     const { container, dispose } = mountCategorized()
     const trigger = triggerFor(container, 'Numbers')
@@ -183,9 +199,9 @@ describe('SortDropdown — column categories', () => {
     dispose()
   })
 
-  // Regression: the submenu's rows are portaled to document.body (see CategorySubmenu.tsx), so
-  // they're no longer DOM descendants of the panel Dropdown.tsx's own generic roving nav scopes
-  // itself to — ArrowDown silently did nothing here until CategorySubmenu grew its own local nav.
+  // Regression: Dropdown.tsx's own generic roving nav explicitly excludes anything inside
+  // `.dt-dd-submenu` (see its own comment), so a submenu needs its own independent Up/Down/Home/
+  // End nav rather than inheriting the panel's — this locks that in.
   it("ArrowUp/ArrowDown/Home/End rove between the submenu's own rows once open", async () => {
     const oneCategoryCols: ColumnDef<Row>[] = [
       { key: 'id', label: 'ID' },
@@ -245,6 +261,29 @@ describe('SortDropdown — column categories', () => {
     expect(document.activeElement).toBe(rows[1])
 
     disposeView()
+    dispose()
+  })
+
+  // Regression: now that CategorySubmenu no longer portals (see that file's own comment), its
+  // rows are real descendants of the panel — Dropdown.tsx's own panel-wide roving nav must
+  // explicitly exclude them (see its own comment), or ArrowDown from a focused trigger would
+  // wander into the open submenu's rows instead of moving to the next top-level entry.
+  it('panel-level ArrowDown on a trigger with its submenu open skips into the next trigger, not the submenu', async () => {
+    const { container, dispose } = mountCategorized()
+    const infoTrigger = triggerFor(container, 'Info')
+    const numbersTrigger = triggerFor(container, 'Numbers')
+    infoTrigger.click()
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(document.querySelector('.dt-dd-submenu')).not.toBeNull()
+    // Focus lands in the submenu's first row on open (see the earlier test) — move it back to the
+    // trigger itself, the case this regression is actually about (e.g. focus never having left it
+    // in the first place, since a hover-opened submenu doesn't move focus).
+    infoTrigger.focus()
+    infoTrigger.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }),
+    )
+    expect(document.activeElement).toBe(numbersTrigger)
     dispose()
   })
 

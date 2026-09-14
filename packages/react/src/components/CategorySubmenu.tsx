@@ -6,7 +6,6 @@ import {
   type KeyboardEvent,
   type ReactNode,
 } from 'react'
-import { createPortal } from 'react-dom'
 import { computeSubmenuPosition, ddNavFocusables } from '@vates/data-table-core/internal'
 
 // Hover-intent delays (see CLAUDE.md's "Column categories") — a native OS/app-menu-style flyout
@@ -68,27 +67,31 @@ const submenuStyle: CSSProperties = {
 // flyout submenu listing them, instead of a flat run of individual rows — worthwhile once a
 // category has enough columns that this saves real scanning. Mirrors
 // `packages/solid/src/components/CategorySubmenu.tsx` — same design, ported to React's own
-// portal/ref/layout-effect idioms instead of Solid's signals/Portal.
+// ref/layout-effect idioms instead of Solid's signals.
 //
-// Rendered through `createPortal` straight to `document.body`, positioned with `position: fixed`
-// at viewport coordinates computed from the trigger's own rect (`computeSubmenuPosition`, core) —
-// NOT nested inside the trigger's own scrollable dropdown panel with a plain CSS
-// `position: absolute` anchor. Solid's own first version did exactly that and hit a real bug:
-// `.dt-dd`'s `overflow-y: auto` (see `Dropdown.tsx`'s panel style) means a positioned descendant
-// that overflows a scrollable ancestor horizontally still grows that ancestor's own scrollable
-// region even though it's out of normal flow — clipping the flyout and adding a spurious
-// horizontal scrollbar to the whole panel. A portal sidesteps this entirely: the submenu is a
-// sibling of the panel in the real DOM, not a descendant of it.
+// Positioned with `position: fixed` at viewport coordinates computed from the trigger's own rect
+// (`computeSubmenuPosition`, core), but rendered as a plain sibling of the trigger — NOT portaled
+// to `document.body`, and NOT `position: absolute` either. Solid's own first version used
+// `position: absolute` and hit a real bug: `.dt-dd`'s `overflow-y: auto` (see `Dropdown.tsx`'s
+// panel style) means an absolutely positioned descendant that overflows a scrollable ancestor
+// horizontally still grows that ancestor's own scrollable region even though it's out of normal
+// flow — clipping the flyout and adding a spurious horizontal scrollbar to the whole panel. A
+// `createPortal` to `document.body` was tried next and does dodge that, but comes with a real
+// cost: a portaled node is no longer a DOM descendant of whatever ancestor a consumer scopes theme
+// CSS custom properties to (if that ancestor is narrower than `<body>`), so the submenu silently
+// falls back to the library's baked-in default colors instead of inheriting the consumer's theme
+// (GitHub issue #23). `position: fixed` alone turns out to solve the original overflow problem on
+// its own, with no portal needed: a fixed element's containing block is the *viewport*, not any
+// scrolling ancestor, unless that ancestor sets `transform`/`filter`/`perspective`/
+// `will-change: transform` (none of `.dt-dd`'s chrome does) — so a fixed submenu never contributes
+// to `.dt-dd`'s scrollable area in the first place, portal or not.
 //
-// Two consequences of portaling, both already fixed at the source rather than rediscovered here:
-// - `Dropdown.tsx`'s outside-click handler recognizes a `[data-category-submenu]` node as
-//   "inside" (see its own comment) — without that, clicking inside a portaled submenu would
-//   close the whole dropdown panel, since the submenu is no longer a DOM descendant the panel's
-//   own `ref.current.contains()` check can see.
-// - Roving Up/Down/Home/End nav can't be inherited from `Dropdown.tsx`'s own panel-wide handler
-//   either, for the same reason (it queries `ddNavFocusables(panelRef.current)`, which the
-//   portaled submenu sits outside of) — so this component implements its own, scoped to its own
-//   submenu element, in `handleSubmenuKeyDown` below.
+// Because the submenu is a real DOM descendant of the panel again, its `data-dd-row`-marked rows
+// *are* reachable by `Dropdown.tsx`'s own generic panel-wide roving nav — which is exactly why
+// that nav explicitly excludes anything inside `[data-category-submenu]` (see its own comment):
+// `handleSubmenuKeyDown` below is still what should drive Up/Down/Home/End while the submenu is
+// open, not the panel's. It calls `stopPropagation()` so `Dropdown.tsx`'s own panel-level handler
+// never double-handles the same keydown.
 export function CategorySubmenu(props: CategorySubmenuProps) {
   const [left, setLeft] = useState(0)
   const [top, setTop] = useState(0)
@@ -154,9 +157,9 @@ export function CategorySubmenu(props: CategorySubmenuProps) {
     }, CLOSE_DELAY)
   }
 
-  // Corrects the initial guess above once the portaled submenu's real size is known — runs
-  // synchronously after the DOM update (before paint), same reasoning as Dropdown.tsx's own
-  // viewport-clamp layout effect.
+  // Corrects the initial guess above once the submenu's real size is known — runs synchronously
+  // after the DOM update (before paint), same reasoning as Dropdown.tsx's own viewport-clamp
+  // layout effect.
   useLayoutEffect(() => {
     if (!props.isOpen) return
     const trigger = triggerRef.current
@@ -222,20 +225,18 @@ export function CategorySubmenu(props: CategorySubmenuProps) {
         <span style={{ flex: 1 }}>{props.name}</span>
         <span style={arrowStyle}>▸</span>
       </button>
-      {props.isOpen &&
-        createPortal(
-          <div
-            ref={submenuRef}
-            data-category-submenu
-            onMouseEnter={cancelClose}
-            onMouseLeave={scheduleClose}
-            onKeyDown={handleSubmenuKeyDown}
-            style={{ ...submenuStyle, left, top }}
-          >
-            {props.children}
-          </div>,
-          document.body,
-        )}
+      {props.isOpen && (
+        <div
+          ref={submenuRef}
+          data-category-submenu
+          onMouseEnter={cancelClose}
+          onMouseLeave={scheduleClose}
+          onKeyDown={handleSubmenuKeyDown}
+          style={{ ...submenuStyle, left, top }}
+        >
+          {props.children}
+        </div>
+      )}
     </div>
   )
 }
