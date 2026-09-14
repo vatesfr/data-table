@@ -7,6 +7,21 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Added
+
+- **External row focus API** (core, Solid, React, Vue, vanilla): a new `focus` namespace on `TableState` (`target`/`row`/`setTarget`/`moveTo`) lifts the roving-tabindex "current row" out of each adapter's render layer so external code — e.g. a lightbox with its own prev/next navigation — can read and drive it without reaching into internal DOM classes/attributes. `moveTo(row)` force-expands any collapsed group the row belongs to, jumps to its page, and sets it as the focus target, without stealing real DOM focus. Vanilla exposes this as a flat `focusRow(row)` method. Built on new core primitive `resolveFocusTarget` (#24).
+- **Vue**: ported the checked-by-default, exclude-only checklist model for non-multi-value filter columns (`filter.setExcludeValues`/`toggleExcludeAll`, the "Others" row, model-aware tooltips), completing the port to all four adapters (Solid/vanilla/React already had it).
+- Toolbar: the Sort button now auto-hides when every column has `sortable: false`, matching Group/Filter's existing "nothing to act on" convention.
+- **`showSearch?: boolean`** (default `true`) on `DataTableViewProps`/`DataTableProps` (React/Vue/Solid) and `DataTableOptions`/`setShowSearch` (vanilla) — opts out of the toolbar search box, e.g. when a page already has its own search elsewhere (#25).
+
+### Fixed
+
+- **Solid, React, Vue**: `CategorySubmenu` (the Columns/Sort/Group dropdowns' category flyout) no longer portals to `document.body`/root. The portal prevented container-scoped theme CSS custom properties from reaching the submenu, so it silently fell back to default colors; `position: fixed` alone already avoids the clipping the portal was added for, since a fixed element's containing block is the viewport regardless of a scrolling ancestor (#23).
+
+### Docs
+
+- React/Vue: documented `filter.setValues`/`toggleAll`/`exclude`/`clearExcludeValues` in the `TableState` destructuring example (#26).
+
 ## [0.13.0] - 2026-08-28
 
 ### Added
