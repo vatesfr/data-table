@@ -1661,6 +1661,19 @@ describe('DataTable — header click sort', () => {
     expect(wrapper.findAll('button').find((b) => b.text() === 'Sort')).toBeUndefined()
   })
 
+  it('hides the Columns toolbar button when showColumns is false', () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS, columns: COLS, rowKey: 'id', showColumns: false },
+    })
+    expect(wrapper.findAll('button').find((b) => b.text() === 'Columns')).toBeUndefined()
+  })
+
+  it('hides the Columns toolbar button entirely when there are fewer than 2 columns', () => {
+    const oneCol: ColumnDef<Row>[] = [{ key: 'name', label: 'Name' }]
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: oneCol, rowKey: 'id' } })
+    expect(wrapper.findAll('button').find((b) => b.text() === 'Columns')).toBeUndefined()
+  })
+
   it('a single sorted column shows only the direction arrow, no index number', async () => {
     const wrapper = mount(DataTable, { props: { data: ROWS, columns: SORT_COLS, rowKey: 'id' } })
     await headerOf(wrapper, 'Score').trigger('click')

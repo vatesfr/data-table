@@ -90,6 +90,56 @@ describe('DataTable', () => {
     dispose()
   })
 
+  it('hides the Filter toolbar button entirely when every column is filterable: false', () => {
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const cols: ColumnDef<Row>[] = [{ key: 'name', label: 'Name', filterable: false }]
+    const dispose = createRoot((d) => {
+      render(() => <DataTable data={ROWS} columns={cols} rowKey="id" />, container)
+      return d
+    })
+    const filterBtn = [...container.querySelectorAll('.dt-btn')].find(
+      (btn) => btn.textContent === 'Filter',
+    )
+    expect(filterBtn).toBeUndefined()
+    dispose()
+  })
+
+  it('hides the Columns toolbar button when showColumns is false', () => {
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const cols: ColumnDef<Row>[] = [
+      { key: 'name', label: 'Name' },
+      { key: 'id', label: 'Id' },
+    ]
+    const dispose = createRoot((d) => {
+      render(
+        () => <DataTable data={ROWS} columns={cols} rowKey="id" showColumns={false} />,
+        container,
+      )
+      return d
+    })
+    const colsBtn = [...container.querySelectorAll('.dt-btn')].find(
+      (btn) => btn.textContent === 'Columns',
+    )
+    expect(colsBtn).toBeUndefined()
+    dispose()
+  })
+
+  it('hides the Columns toolbar button entirely when there are fewer than 2 columns', () => {
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const dispose = createRoot((d) => {
+      render(() => <DataTable data={ROWS} columns={COLS} rowKey="id" />, container)
+      return d
+    })
+    const colsBtn = [...container.querySelectorAll('.dt-btn')].find(
+      (btn) => btn.textContent === 'Columns',
+    )
+    expect(colsBtn).toBeUndefined()
+    dispose()
+  })
+
   it('hides the search box when showSearch is false', () => {
     const container = document.createElement('div')
     document.body.appendChild(container)

@@ -78,7 +78,7 @@ const table = createTableState(
 return <DataTableView table={table} />
 ```
 
-`DataTableViewProps` only takes `table` (plus `rowKey`/`selectable`/`onRowClick`/`showSearch`) — no separate `data`/`columns` props, since `table.data()`/`table.columns.list()` already are that value. `showSearch` (default `true`) shows/hides the toolbar's search box — the Sort/Group/Filter dropdowns already auto-hide themselves when no column qualifies for them, so search is the one toolbar control that needs an explicit opt-out (e.g. when the page already has its own search input).
+`DataTableViewProps` only takes `table` (plus `rowKey`/`selectable`/`onRowClick`/`showSearch`/`showColumns`) — no separate `data`/`columns` props, since `table.data()`/`table.columns.list()` already are that value. `showSearch` (default `true`) shows/hides the toolbar's search box — the Sort/Group/Filter dropdowns already auto-hide themselves when no column qualifies for them, so search is the one toolbar control that needs an explicit opt-out (e.g. when the page already has its own search input). `showColumns` (default `true`) is the same kind of opt-out for the Columns button, which also auto-hides on its own once `columns.length < 2`.
 
 ▶ [Try it in the demo](https://vatesfr.github.io/data-table/solid/#custom-layout)
 

@@ -469,6 +469,32 @@ describe('createDataTable', () => {
     expect(sortBtn).toBeUndefined()
   })
 
+  it('hides the Filter toolbar button entirely when every column is filterable: false', () => {
+    const cols: ColumnDef<Row>[] = COLS.map((c) => ({ ...c, filterable: false }))
+    createDataTable(container, { data: ROWS, columns: cols })
+    const filterBtn = [
+      ...container.querySelectorAll<HTMLElement>('.dt-toolbar-actions button'),
+    ].find((b) => b.textContent?.trim() === 'Filter')
+    expect(filterBtn).toBeUndefined()
+  })
+
+  it('hides the Columns toolbar button when showColumns is false', () => {
+    createDataTable(container, { data: ROWS, columns: COLS, showColumns: false })
+    const colsBtn = [...container.querySelectorAll<HTMLElement>('.dt-toolbar-actions button')].find(
+      (b) => b.textContent?.trim() === 'Columns',
+    )
+    expect(colsBtn).toBeUndefined()
+  })
+
+  it('hides the Columns toolbar button entirely when there are fewer than 2 columns', () => {
+    const oneCol: ColumnDef<Row>[] = [COLS[0]]
+    createDataTable(container, { data: ROWS, columns: oneCol })
+    const colsBtn = [...container.querySelectorAll<HTMLElement>('.dt-toolbar-actions button')].find(
+      (b) => b.textContent?.trim() === 'Columns',
+    )
+    expect(colsBtn).toBeUndefined()
+  })
+
   it('hides the search box when showSearch is false', () => {
     createDataTable(container, { data: ROWS, columns: COLS, showSearch: false })
     expect(container.querySelector('.dt-search-input')).toBeNull()

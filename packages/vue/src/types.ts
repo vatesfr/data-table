@@ -35,6 +35,15 @@ export interface DataTableViewProps<TRow extends object = Record<string, unknown
    * own search input and the toolbar's own box would just duplicate it).
    */
   showSearch?: boolean
+  /**
+   * Shows/hides the Columns toolbar button. Defaults to `true`, but auto-hides regardless once
+   * `columns.length < 2` — reordering/toggling the visibility of a single column has nothing
+   * meaningful to act on. Unlike Sort/Group/Filter (which derive their own auto-hide from a
+   * per-column flag), Columns has no such per-column signal — hiding/showing a column is a
+   * table-level preference, not something a column def opts into — so this explicit opt-out
+   * mirrors `showSearch`'s reasoning rather than adding a `showable`-style column flag.
+   */
+  showColumns?: boolean
 }
 
 // `<DataTableView>`'s actual runtime props, plus `rowClickable` — an internal wiring detail (see

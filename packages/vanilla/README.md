@@ -380,6 +380,7 @@ Drag a column header to reorder it, or drag a row (or press Alt+ArrowUp/Alt+Arro
 | `onSelectionChange`      | `(rows: TRow[]) => void`                                  | —       | Called when selection changes                                                                             |
 | `onRowClick`             | `(row: TRow, event: MouseEvent \| KeyboardEvent) => void` | —       | Called when a data row is clicked                                                                         |
 | `showSearch`             | `boolean`                                                 | `true`  | Shows/hides the toolbar's search box (Sort/Group/Filter already auto-hide when no column qualifies)       |
+| `showColumns`            | `boolean`                                                 | `true`  | Shows/hides the Columns toolbar button; also auto-hides when `columns.length < 2`                         |
 
 ## Column definition
 
@@ -422,6 +423,7 @@ interface ColumnDef<TRow extends object> {
 | `setRowKey(key: keyof TRow & string)`       | Changes the row DOM-key property after construction                                 |
 | `setSelectable(value: boolean)`             | Toggles whether rows show selection checkboxes after construction                   |
 | `setShowSearch(value: boolean)`             | Shows/hides the toolbar's search box after construction                             |
+| `setShowColumns(value: boolean)`            | Shows/hides the Columns toolbar button after construction                           |
 | `setOnRowClick(cb \| undefined)`            | Changes (or clears) the row-click callback after construction                       |
 | `setLabels(labels \| undefined)`            | Replaces the label overrides after construction                                     |
 | `setDefaultGroupsCollapsed(value: boolean)` | Changes whether newly-grouped groups start collapsed after construction             |

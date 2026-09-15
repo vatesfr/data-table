@@ -336,6 +336,7 @@ Drag a column header to reorder it, or drag a row (or press Alt+ArrowUp/Alt+Arro
 | `onSelectionChange`      | `(rows: TRow[]) => void`                                                                            | —       | Called when selection changes                                                                             |
 | `onRowClick`             | `(row: TRow, event: MouseEvent<HTMLTableRowElement> \| KeyboardEvent<HTMLTableRowElement>) => void` | —       | Called when a data row is clicked, or on Enter with keyboard focus                                        |
 | `showSearch`             | `boolean`                                                                                           | `true`  | Shows/hides the toolbar's search box (Sort/Group/Filter already auto-hide when no column qualifies)       |
+| `showColumns`            | `boolean`                                                                                           | `true`  | Shows/hides the Columns toolbar button; also auto-hides when `columns.length < 2`                         |
 
 ## Column definition
 

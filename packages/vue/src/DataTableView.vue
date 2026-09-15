@@ -61,6 +61,7 @@ import { useSelfDetectedListener } from './composables/useSelfDetectedListener'
 const props = withDefaults(defineProps<DataTableViewInternalProps<TRow>>(), {
   rowKey: 'id',
   showSearch: true,
+  showColumns: true,
 })
 
 const emit = defineEmits<{
@@ -1466,6 +1467,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
              Visible — Available is click-only, so nesting it into category submenus (impossible
              for Visible, since submenu rows can't also be a drag surface) creates no conflict. -->
         <Dropdown
+          v-if="showColumns && columns.length >= 2"
           @dragover="onColRowsDragOver"
           @drop="onColRowsDrop"
           :on-escape-clearable="colsEscapeClearable"

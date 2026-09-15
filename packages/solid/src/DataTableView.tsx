@@ -30,6 +30,15 @@ export interface DataTableViewProps<TRow extends object> {
    * own search input and the toolbar's own box would just duplicate it).
    */
   showSearch?: boolean
+  /**
+   * Shows/hides the Columns toolbar button. Defaults to `true`, but auto-hides regardless once
+   * `columns.length < 2` — reordering/toggling the visibility of a single column has nothing
+   * meaningful to act on. Unlike Sort/Group/Filter (which derive their own auto-hide from a
+   * per-column flag), Columns has no such per-column signal — hiding/showing a column is a
+   * table-level preference, not something a column def opts into — so this explicit opt-out
+   * mirrors `showSearch`'s reasoning rather than adding a `showable`-style column flag.
+   */
+  showColumns?: boolean
 }
 
 type DropdownId = 'cols' | 'sort' | 'group' | 'filter'
@@ -45,6 +54,7 @@ export function DataTableView<TRow extends object>(props: DataTableViewProps<TRo
   const [openDropdown, setOpenDropdown] = createSignal<DropdownId | null>(null)
   const groupableCols = () => table.columns.list().filter((c) => c.groupable === true)
   const sortableCols = () => table.columns.list().filter((c) => c.sortable !== false)
+  const filterableCols = () => table.columns.list().filter((c) => c.filterable !== false)
 
   function toggleDd(id: DropdownId): void {
     setOpenDropdown((cur) => (cur === id ? null : id))
@@ -54,13 +64,15 @@ export function DataTableView<TRow extends object>(props: DataTableViewProps<TRo
     <div class="dt">
       <div class="dt-toolbar">
         <div class="dt-toolbar-actions">
-          <ColumnsDropdown
-            table={table}
-            columns={table.columns.list()}
-            isOpen={openDropdown() === 'cols'}
-            onToggle={() => toggleDd('cols')}
-            onClose={() => setOpenDropdown(null)}
-          />
+          <Show when={props.showColumns !== false && table.columns.list().length >= 2}>
+            <ColumnsDropdown
+              table={table}
+              columns={table.columns.list()}
+              isOpen={openDropdown() === 'cols'}
+              onToggle={() => toggleDd('cols')}
+              onClose={() => setOpenDropdown(null)}
+            />
+          </Show>
           {/* Group before Sort — data is grouped first, then ordered (groups themselves, then
               rows within them), matching the Sort dropdown's own "Group order" section coming
               before "Active sorts" and the active bar's group-chips-before-sort-chips order. */}
@@ -86,13 +98,15 @@ export function DataTableView<TRow extends object>(props: DataTableViewProps<TRo
           <Show when={props.showSearch !== false}>
             <SearchBox table={table} />
           </Show>
-          <FilterDropdown
-            table={table}
-            columns={table.columns.list()}
-            isOpen={openDropdown() === 'filter'}
-            onToggle={() => toggleDd('filter')}
-            onClose={() => setOpenDropdown(null)}
-          />
+          <Show when={filterableCols().length > 0}>
+            <FilterDropdown
+              table={table}
+              columns={table.columns.list()}
+              isOpen={openDropdown() === 'filter'}
+              onToggle={() => toggleDd('filter')}
+              onClose={() => setOpenDropdown(null)}
+            />
+          </Show>
           <Show
             when={
               table.sort.entries().length > 0 ||

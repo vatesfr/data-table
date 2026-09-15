@@ -1480,6 +1480,19 @@ describe('DataTable — header click sort', () => {
     expect(queryByText('Sort')).toBeNull()
   })
 
+  it('hides the Columns toolbar button when showColumns is false', () => {
+    const { queryByText } = render(
+      <DataTable data={ROWS} columns={COLS} rowKey="id" showColumns={false} />,
+    )
+    expect(queryByText('Columns')).toBeNull()
+  })
+
+  it('hides the Columns toolbar button entirely when there are fewer than 2 columns', () => {
+    const oneCol: ColumnDef<Row>[] = [{ key: 'name', label: 'Name' }]
+    const { queryByText } = render(<DataTable data={ROWS} columns={oneCol} rowKey="id" />)
+    expect(queryByText('Columns')).toBeNull()
+  })
+
   it('a single sorted column shows only the direction arrow, no index number', () => {
     const { getAllByText } = render(<DataTable data={ROWS} columns={SORT_COLS} rowKey="id" />)
     fireEvent.click(headerOf(getAllByText, 'Score'))

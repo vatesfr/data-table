@@ -887,6 +887,7 @@ export function DataTableView<TRow extends object>({
   onSelectionChange,
   onRowClick,
   showSearch,
+  showColumns,
 }: DataTableViewProps<TRow>) {
   const [openColsDD, setOpenColsDD] = useState(false)
   const [openSortDD, setOpenSortDD] = useState(false)
@@ -2062,119 +2063,107 @@ export function DataTableView<TRow extends object>({
               reason Sort/Group never used one either. Reordering only ever happens within
               Visible — Available is click-only, so nesting it into category submenus (impossible
               for Visible, since submenu rows can't also be a drag surface) creates no conflict. */}
-          <Dropdown
-            open={openColsDD}
-            setOpen={setOpenColsDD}
-            trigger={<ToolbarBtn active={openColsDD}>{L.columns}</ToolbarBtn>}
-            onDragOver={onColRowsDragOver}
-            onDrop={onColRowsDrop}
-          >
-            {/* Pinned at the very top and always mounted (never conditionally rendered based on
+          {showColumns !== false && columns.length >= 2 && (
+            <Dropdown
+              open={openColsDD}
+              setOpen={setOpenColsDD}
+              trigger={<ToolbarBtn active={openColsDD}>{L.columns}</ToolbarBtn>}
+              onDragOver={onColRowsDragOver}
+              onDrop={onColRowsDrop}
+            >
+              {/* Pinned at the very top and always mounted (never conditionally rendered based on
                 match count) — narrows both this section and Available below. Mounting it
                 unconditionally is what fixes a real bug the old Available-only, gated-on-results
                 version had: a search term matching nothing used to unmount the box itself,
                 dropping focus with no way back short of Escape. */}
-            <div style={S.ddSearchRow}>
-              <DdSearchInput
-                value={ddSearchTerms.cols ?? ''}
-                onChange={(v) => setDdSearchTerms({ ...ddSearchTerms, cols: v })}
-                placeholder={L.filterSearchPlaceholder}
-                clearLabel={L.clearSearch}
-              />
-            </div>
-            <div style={S.ddSection}>{L.columnsSection}</div>
-            {searchedVisibleColumns.map((col) => (
-              // Draggable (+ Alt+↑/↓) reorders columnOrder, skipping hidden columns (moveVisibleBy)
-              // — same treatment as the Sort/Group active rows. dragover/drop are handled at the
-              // Dropdown panel level (see above), not per-row — that's what lets a drop past the
-              // last row still resolve to a valid target. Alt+↑/↓'s own neighbor lookup is scoped
-              // to colsReorderEligible while searching, so it only ever swaps two currently-shown
-              // rows, leaving anything hidden by the filter untouched at its own position.
-              <div
-                key={col.key}
-                data-col-row-key={col.key}
-                data-dd-row
-                tabIndex={0}
-                draggable
-                onDragStart={() => onColRowDragStart(col.key)}
-                onDragEnd={onColRowDragEnd}
-                onKeyDown={(e) => {
-                  if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
-                    e.preventDefault()
-                    // Focus drops to <body> after this reorder without an explicit refocus —
-                    // same empirically-confirmed behavior as Sort/Group's own Alt+Arrow handlers.
-                    pendingColFocusKey.current = col.key
-                    moveVisibleColumnBy(col.key, e.key === 'ArrowUp' ? -1 : 1, colsReorderEligible)
-                  } else if (e.key === 'Delete' || e.key === 'Backspace') {
-                    // Keyboard equivalent of this row's own × button — matches the Filter
-                    // dropdown's identical Delete/Backspace-on-a-focused-active-row shortcut.
-                    e.preventDefault()
-                    hideColumn(col)
-                  } else if (e.key === 'Enter' || e.key === ' ') {
-                    // No click action of its own (unlike Sort's active rows, which toggle
-                    // direction) — but still needs to preventDefault, or Space's native default
-                    // action scrolls the nearest scrollable ancestor (this panel, or the whole
-                    // page once the panel itself has nothing left to scroll) out from under the
-                    // still-focused row, which reads as "focus was lost" even though it wasn't.
-                    e.preventDefault()
-                  }
-                }}
-                {...ddRowHoverFocusHandlers(col.key)}
-                style={{
-                  ...S.ddItem,
-                  justifyContent: 'space-between',
-                  cursor: 'grab',
-                  opacity: dragColRowKey === col.key ? 0.4 : 1,
-                  background: ddRowHighlighted(col.key)
-                    ? 'var(--color-background-secondary)'
-                    : undefined,
-                  boxShadow:
-                    dragOverColRowKey === col.key
-                      ? `inset 0 ${dragOverColRowAfter ? '-2px' : '2px'} 0 var(--color-text-primary)`
-                      : undefined,
-                }}
-              >
-                <span aria-hidden="true" style={S.ddDragHandle}>
-                  ⠿
-                </span>
-                <span style={{ flex: 1 }}>{col.label}</span>
-                <button
-                  type="button"
-                  draggable={false}
-                  title={L.hideColumn}
-                  aria-label={L.hideColumn}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    hideColumn(col)
-                  }}
-                  style={S.itemRemove}
-                >
-                  ×
-                </button>
+              <div style={S.ddSearchRow}>
+                <DdSearchInput
+                  value={ddSearchTerms.cols ?? ''}
+                  onChange={(v) => setDdSearchTerms({ ...ddSearchTerms, cols: v })}
+                  placeholder={L.filterSearchPlaceholder}
+                  clearLabel={L.clearSearch}
+                />
               </div>
-            ))}
-            {availableColumns.length > 0 && (
-              <>
-                <div style={S.ddSection}>{L.availableColumnsSection}</div>
-                {isColsSearching
-                  ? searchedAvailableColumns.map((col) => (
-                      <button
-                        key={col.key}
-                        type="button"
-                        data-col-key={col.key}
-                        data-dd-row
-                        onClick={() => {
-                          pendingColFocusKey.current = col.key
-                          toggleColVisibility(col.key)
-                        }}
-                        style={{ ...S.ddItem, ...S.ddItemButton }}
-                      >
-                        <span style={{ flex: 1 }}>{col.label}</span>
-                        {col.category && <span style={S.ddItemCategory}>{col.category}</span>}
-                      </button>
-                    ))
-                  : [
-                      ...categorizedAvailableCols.uncategorized.map((col) => (
+              <div style={S.ddSection}>{L.columnsSection}</div>
+              {searchedVisibleColumns.map((col) => (
+                // Draggable (+ Alt+↑/↓) reorders columnOrder, skipping hidden columns (moveVisibleBy)
+                // — same treatment as the Sort/Group active rows. dragover/drop are handled at the
+                // Dropdown panel level (see above), not per-row — that's what lets a drop past the
+                // last row still resolve to a valid target. Alt+↑/↓'s own neighbor lookup is scoped
+                // to colsReorderEligible while searching, so it only ever swaps two currently-shown
+                // rows, leaving anything hidden by the filter untouched at its own position.
+                <div
+                  key={col.key}
+                  data-col-row-key={col.key}
+                  data-dd-row
+                  tabIndex={0}
+                  draggable
+                  onDragStart={() => onColRowDragStart(col.key)}
+                  onDragEnd={onColRowDragEnd}
+                  onKeyDown={(e) => {
+                    if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+                      e.preventDefault()
+                      // Focus drops to <body> after this reorder without an explicit refocus —
+                      // same empirically-confirmed behavior as Sort/Group's own Alt+Arrow handlers.
+                      pendingColFocusKey.current = col.key
+                      moveVisibleColumnBy(
+                        col.key,
+                        e.key === 'ArrowUp' ? -1 : 1,
+                        colsReorderEligible,
+                      )
+                    } else if (e.key === 'Delete' || e.key === 'Backspace') {
+                      // Keyboard equivalent of this row's own × button — matches the Filter
+                      // dropdown's identical Delete/Backspace-on-a-focused-active-row shortcut.
+                      e.preventDefault()
+                      hideColumn(col)
+                    } else if (e.key === 'Enter' || e.key === ' ') {
+                      // No click action of its own (unlike Sort's active rows, which toggle
+                      // direction) — but still needs to preventDefault, or Space's native default
+                      // action scrolls the nearest scrollable ancestor (this panel, or the whole
+                      // page once the panel itself has nothing left to scroll) out from under the
+                      // still-focused row, which reads as "focus was lost" even though it wasn't.
+                      e.preventDefault()
+                    }
+                  }}
+                  {...ddRowHoverFocusHandlers(col.key)}
+                  style={{
+                    ...S.ddItem,
+                    justifyContent: 'space-between',
+                    cursor: 'grab',
+                    opacity: dragColRowKey === col.key ? 0.4 : 1,
+                    background: ddRowHighlighted(col.key)
+                      ? 'var(--color-background-secondary)'
+                      : undefined,
+                    boxShadow:
+                      dragOverColRowKey === col.key
+                        ? `inset 0 ${dragOverColRowAfter ? '-2px' : '2px'} 0 var(--color-text-primary)`
+                        : undefined,
+                  }}
+                >
+                  <span aria-hidden="true" style={S.ddDragHandle}>
+                    ⠿
+                  </span>
+                  <span style={{ flex: 1 }}>{col.label}</span>
+                  <button
+                    type="button"
+                    draggable={false}
+                    title={L.hideColumn}
+                    aria-label={L.hideColumn}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      hideColumn(col)
+                    }}
+                    style={S.itemRemove}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+              {availableColumns.length > 0 && (
+                <>
+                  <div style={S.ddSection}>{L.availableColumnsSection}</div>
+                  {isColsSearching
+                    ? searchedAvailableColumns.map((col) => (
                         <button
                           key={col.key}
                           type="button"
@@ -2187,39 +2176,57 @@ export function DataTableView<TRow extends object>({
                           style={{ ...S.ddItem, ...S.ddItemButton }}
                         >
                           <span style={{ flex: 1 }}>{col.label}</span>
+                          {col.category && <span style={S.ddItemCategory}>{col.category}</span>}
                         </button>
-                      )),
-                      ...categorizedAvailableCols.categories.map((category) => (
-                        <CategorySubmenu
-                          key={category.name}
-                          name={category.name}
-                          isOpen={openColsCategory === category.name}
-                          onOpen={() => setOpenColsCategory(category.name)}
-                          onClose={() =>
-                            setOpenColsCategory((c) => (c === category.name ? null : c))
-                          }
-                        >
-                          {category.columns.map((col) => (
-                            <button
-                              key={col.key}
-                              type="button"
-                              data-col-key={col.key}
-                              data-dd-row
-                              onClick={() => {
-                                pendingColFocusKey.current = col.key
-                                toggleColVisibility(col.key)
-                              }}
-                              style={{ ...S.ddItem, ...S.ddItemButton }}
-                            >
-                              <span style={{ flex: 1 }}>{col.label}</span>
-                            </button>
-                          ))}
-                        </CategorySubmenu>
-                      )),
-                    ]}
-              </>
-            )}
-          </Dropdown>
+                      ))
+                    : [
+                        ...categorizedAvailableCols.uncategorized.map((col) => (
+                          <button
+                            key={col.key}
+                            type="button"
+                            data-col-key={col.key}
+                            data-dd-row
+                            onClick={() => {
+                              pendingColFocusKey.current = col.key
+                              toggleColVisibility(col.key)
+                            }}
+                            style={{ ...S.ddItem, ...S.ddItemButton }}
+                          >
+                            <span style={{ flex: 1 }}>{col.label}</span>
+                          </button>
+                        )),
+                        ...categorizedAvailableCols.categories.map((category) => (
+                          <CategorySubmenu
+                            key={category.name}
+                            name={category.name}
+                            isOpen={openColsCategory === category.name}
+                            onOpen={() => setOpenColsCategory(category.name)}
+                            onClose={() =>
+                              setOpenColsCategory((c) => (c === category.name ? null : c))
+                            }
+                          >
+                            {category.columns.map((col) => (
+                              <button
+                                key={col.key}
+                                type="button"
+                                data-col-key={col.key}
+                                data-dd-row
+                                onClick={() => {
+                                  pendingColFocusKey.current = col.key
+                                  toggleColVisibility(col.key)
+                                }}
+                                style={{ ...S.ddItem, ...S.ddItemButton }}
+                              >
+                                <span style={{ flex: 1 }}>{col.label}</span>
+                              </button>
+                            ))}
+                          </CategorySubmenu>
+                        )),
+                      ]}
+                </>
+              )}
+            </Dropdown>
+          )}
 
           {/* Group before Sort — data is grouped first, then ordered (groups themselves, then
               rows within them), matching the Sort dropdown's own "Group order" section coming

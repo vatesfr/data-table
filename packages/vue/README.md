@@ -353,6 +353,7 @@ Drag a column header to reorder it, or drag a row (or press Alt+ArrowUp/Alt+Arro
 | `page`                   | `number`                          | —       | `v-model:page` — the table's current page                                                                 |
 | `searchQuery`            | `string`                          | —       | `v-model:search-query` — the global search box's value                                                    |
 | `showSearch`             | `boolean`                         | `true`  | Shows/hides the toolbar's search box (Sort/Group/Filter already auto-hide when no column qualifies)       |
+| `showColumns`            | `boolean`                         | `true`  | Shows/hides the Columns toolbar button; also auto-hides when `columns.length < 2`                         |
 
 All props accept `MaybeRefOrGetter` — you can pass refs, computed values, or plain values.
 
