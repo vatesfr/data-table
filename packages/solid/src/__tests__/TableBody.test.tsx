@@ -504,3 +504,19 @@ describe('TableBody — keyboard navigation across pages', () => {
     dispose()
   })
 })
+
+describe('TableBody — focus.moveTo', () => {
+  it('does not move real DOM focus by default', () => {
+    const { container, table, dispose } = mount({ selectable: true })
+    table.focus.moveTo(ROWS[2])
+    expect(document.activeElement).not.toBe(container.querySelector('tbody tr[data-row-key="3"]'))
+    dispose()
+  })
+
+  it('moves real DOM focus when passed { focus: true }', () => {
+    const { container, table, dispose } = mount({ selectable: true })
+    table.focus.moveTo(ROWS[2], { focus: true })
+    expect(document.activeElement).toBe(container.querySelector('tbody tr[data-row-key="3"]'))
+    dispose()
+  })
+})

@@ -142,6 +142,10 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
       const el = rowRefs.get(target.row)
       if (el) {
         el.scrollIntoView?.({ block: 'nearest' })
+        // `moveTo(row, { focus: true })` — real `.focus()` in addition to the scroll, done here
+        // (not in createTableState) since this is the one place that actually holds the row's DOM
+        // node. `preventScroll` avoids a redundant second scroll on top of the line above.
+        if (table.focus.consumeDomFocus()) el.focus({ preventScroll: true })
         lastScrolledFocusTarget = target
       }
     }

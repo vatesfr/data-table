@@ -162,6 +162,12 @@ export function createTableState<TRow extends object>(
   // category as `selectionAnchor` above, not part of `TableViewState`. See "External row focus"
   // in the docs.
   const [focusTarget, setFocusTarget] = createSignal<VisibleItem<TRow> | null>(null)
+  // Set by `moveTo(row, { focus: true })` right before `setFocusTarget`, read-and-cleared by
+  // TableBody's own scroll-into-view effect once the target row actually mounts — the render
+  // layer is what owns the DOM row refs, so it's the only place that can call real `.focus()`. A
+  // plain closure variable (not a signal) — nothing needs to react to it, it's only ever read
+  // once, synchronously, from the effect that already fires off `focusTarget`.
+  let wantsDomFocus = false
 
   // Wraps the raw `data` signal setter to reconcile `selection`'s stored row references (see
   // core's `reconcileSelection` for the full reasoning) whenever `getRowId` is set — a no-op
@@ -544,15 +550,21 @@ export function createTableState<TRow extends object>(
         const t = focusTarget()
         return t?.kind === 'row' ? t.row : null
       }),
-      setTarget: (item: VisibleItem<TRow> | null) => setFocusTarget(item),
+      setTarget: (item: VisibleItem<TRow> | null) => {
+        wantsDomFocus = false
+        setFocusTarget(item)
+      },
       // Brings `row` into view from outside the table: expands whichever group(s) it belongs to
       // if collapsed, jumps to the page containing it, and sets it as the roving-tabindex target
       // — so it's highlighted and scrolled into view (DataTableView reacts to `focus.target`), and
-      // the very next Tab/arrow-key press lands there. Never moves real DOM focus itself — only
-      // an actual keyboard interaction (or a consumer's own explicit `.focus()`) does that — so
-      // calling this from e.g. an external lightbox's prev/next never steals focus away from it.
-      // No-ops if `row` isn't part of the table's current (filtered/sorted) data.
-      moveTo: (row: TRow) => {
+      // the very next Tab/arrow-key press lands there. Never moves real DOM focus itself by
+      // default — only an actual keyboard interaction does that — so calling this from e.g. an
+      // external lightbox's prev/next never steals focus away from it. Pass `{ focus: true }` to
+      // opt into real DOM focus too (e.g. a consumer that wants the row visibly focused even while
+      // DOM focus was elsewhere) — TableBody calls the real `.focus()` once the row mounts, so no
+      // internal DOM class name/attribute needs to be public API for this. No-ops if `row` isn't
+      // part of the table's current (filtered/sorted) data.
+      moveTo: (row: TRow, options?: { focus?: boolean }) => {
         const resolved = resolveFocusTarget(
           groupedFull(),
           row,
@@ -563,7 +575,16 @@ export function createTableState<TRow extends object>(
         if (!resolved) return
         setCollapsedGroups(resolved.collapsedGroups)
         setPageState(resolved.page)
+        wantsDomFocus = options?.focus === true
         setFocusTarget(resolved.item)
+      },
+      // Internal wiring for TableBody's own scroll/focus effect — reads and clears the pending
+      // "the last `moveTo` call wanted real DOM focus" flag. Not meant for typical external use
+      // (same category as `setTarget` above).
+      consumeDomFocus: () => {
+        const wanted = wantsDomFocus
+        wantsDomFocus = false
+        return wanted
       },
     },
 

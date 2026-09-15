@@ -1251,6 +1251,10 @@ export function DataTableView<TRow extends object>({
         // jsdom (used by this project's own component tests) doesn't implement
         // `scrollIntoView` at all — guard rather than let it throw in a passive effect.
         el.scrollIntoView?.({ block: 'nearest' })
+        // `moveTo(row, { focus: true })` — real `.focus()` in addition to the scroll, done here
+        // (not in useTableState) since this is the one place that actually holds the row's DOM
+        // node. `preventScroll` avoids a redundant second scroll on top of the line above.
+        if (table.focus.consumeDomFocus()) el.focus({ preventScroll: true })
         lastScrolledFocusTarget.current = focusTarget
       }
     }

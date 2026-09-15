@@ -30,19 +30,24 @@ type Table = ReturnType<typeof useTableState<Row>>
 // Simulates a consumer that owns `useTableState` itself (for persistence, imperative
 // selection control, etc.) and renders the built-in UI via `DataTableView` instead of
 // `<DataTable>`.
-function mountView() {
+function mountView(options: { selectable?: boolean; attachToBody?: boolean } = {}) {
   let table!: Table
   const Comp = defineComponent({
     setup() {
       table = useTableState(ROWS, COLS)
       return () =>
-        h(DataTableView, { table, data: ROWS, columns: COLS, rowKey: 'id' } as Record<
-          string,
-          unknown
-        >)
+        h(DataTableView, {
+          table,
+          data: ROWS,
+          columns: COLS,
+          rowKey: 'id',
+          selectable: options.selectable,
+        } as Record<string, unknown>)
     },
   })
-  const wrapper = mount(Comp)
+  // vue-test-utils renders into a detached fragment by default — real DOM focus (`.focus()`
+  // actually moving `document.activeElement`) needs the element connected to `document.body`.
+  const wrapper = mount(Comp, options.attachToBody ? { attachTo: document.body } : undefined)
   return { table, wrapper }
 }
 
@@ -71,5 +76,25 @@ describe('DataTableView', () => {
     expect(table.selection.rows.value).toEqual([ROWS[0]])
     table.selection.clear()
     expect(table.selection.rows.value).toEqual([])
+  })
+
+  it('does not move real DOM focus by default', async () => {
+    const { table, wrapper } = mountView({ selectable: true, attachToBody: true })
+    table.focus.moveTo(ROWS[1])
+    await wrapper.vm.$nextTick()
+    await wrapper.vm.$nextTick()
+    const bobRow = wrapper.findAll('tr').find((tr) => tr.text().includes('Bob'))!
+    expect(document.activeElement).not.toBe(bobRow.element)
+    wrapper.unmount()
+  })
+
+  it('moves real DOM focus when passed { focus: true }', async () => {
+    const { table, wrapper } = mountView({ selectable: true, attachToBody: true })
+    table.focus.moveTo(ROWS[1], { focus: true })
+    await wrapper.vm.$nextTick()
+    await wrapper.vm.$nextTick()
+    const bobRow = wrapper.findAll('tr').find((tr) => tr.text().includes('Bob'))!
+    expect(document.activeElement).toBe(bobRow.element)
+    wrapper.unmount()
   })
 })

@@ -109,12 +109,14 @@ export interface DataTableInstance<TRow extends object = Record<string, unknown>
    * Brings `row` into view from outside the table: expands whichever group(s) it belongs to if
    * collapsed, jumps to the page containing it, and sets it as the roving-tabindex "current" row
    * — so it's highlighted and scrolled into view, and the very next Tab/arrow-key press lands
-   * there. Never moves real DOM focus itself — only an actual keyboard interaction (or a
-   * consumer's own explicit `.focus()`) does that — so calling this from e.g. an external
-   * lightbox's prev/next never steals focus away from it. No-ops if `row` isn't part of the
-   * table's current (filtered/sorted) data. Mirrors `table.focus.moveTo` on React/Vue/Solid.
+   * there. Never moves real DOM focus itself by default — only an actual keyboard interaction
+   * does that — so calling this from e.g. an external lightbox's prev/next never steals focus
+   * away from it. Pass `{ focus: true }` to opt into real DOM focus too (e.g. to visibly focus
+   * the row even while DOM focus is elsewhere) — no internal DOM class name/attribute needs to be
+   * public API for this. No-ops if `row` isn't part of the table's current (filtered/sorted) data.
+   * Mirrors `table.focus.moveTo` on React/Vue/Solid.
    */
-  focusRow(row: TRow): void
+  focusRow(row: TRow, options?: { focus?: boolean }): void
   /**
    * Resets search/filters/sort/group/page to their true empty defaults, ignoring
    * `initialViewState` — unlike `setViewState({})`, which restores `initialViewState`'s own

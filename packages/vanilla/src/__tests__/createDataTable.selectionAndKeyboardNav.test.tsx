@@ -242,6 +242,12 @@ describe('createDataTable — focusRow', () => {
     expect(document.activeElement).not.toBe(dataRows(container)[2])
   })
 
+  it('moves real DOM focus when passed { focus: true }', () => {
+    const { container, table } = mount({ selectable: true })
+    table.focusRow(ROWS[2], { focus: true })
+    expect(document.activeElement).toBe(dataRows(container)[2])
+  })
+
   it('is a no-op for a row not present in the current data', () => {
     const { container, table } = mount({ selectable: true })
     table.focusRow({ id: 999, name: 'Ghost', score: 0, dept: 'X' })

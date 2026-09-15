@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import {
   processData,
   searchData,
@@ -178,6 +178,12 @@ export function useTableState<TRow extends object>(
   // row focus" in the docs. `setTarget` is the low-level setter DataTableView's own keyboard
   // handling uses directly; most external callers want `moveTo` instead.
   const [focusTarget, setFocusTarget] = useState<VisibleItem<TRow> | null>(null)
+  // Set by `moveTo(row, { focus: true })` right before `setFocusTarget`, read-and-cleared by
+  // `DataTableView`'s own scroll-into-view effect once the target row actually mounts — the
+  // render layer is what owns the DOM row refs, so it's the only place that can call real
+  // `.focus()`. `setTarget`/plain keyboard-driven changes always clear it back to `false`, so only
+  // an explicit `moveTo(..., { focus: true })` call ever results in real DOM focus.
+  const wantsDomFocusRef = useRef(false)
 
   // Reconciles `selection`'s stored row references against a changed `data` argument, same
   // "adjust state when a prop changes" render-time pattern as visibleCols/columnKeys above —
@@ -526,15 +532,21 @@ export function useTableState<TRow extends object>(
     focus: {
       target: focusTarget,
       row: focusTarget?.kind === 'row' ? focusTarget.row : null,
-      setTarget: (item: VisibleItem<TRow> | null) => setFocusTarget(item),
+      setTarget: (item: VisibleItem<TRow> | null) => {
+        wantsDomFocusRef.current = false
+        setFocusTarget(item)
+      },
       // Brings `row` into view from outside the table: expands whichever group(s) it belongs to
       // if collapsed, jumps to the page containing it, and sets it as the roving-tabindex target
       // — so it's highlighted and scrolled into view (DataTableView reacts to `focus.target`), and
-      // the very next Tab/arrow-key press lands there. Never moves real DOM focus itself — only
-      // an actual keyboard interaction (or a consumer's own explicit `.focus()`) does that — so
-      // calling this from e.g. an external lightbox's prev/next never steals focus away from it.
-      // No-ops if `row` isn't part of the table's current (filtered/sorted) data.
-      moveTo: (row: TRow) => {
+      // the very next Tab/arrow-key press lands there. Never moves real DOM focus itself by
+      // default — only an actual keyboard interaction does that — so calling this from e.g. an
+      // external lightbox's prev/next never steals focus away from it. Pass `{ focus: true }` to
+      // opt into real DOM focus too (e.g. a consumer that wants the row visibly focused even while
+      // DOM focus was elsewhere) — DataTableView calls the real `.focus()` once the row mounts, so
+      // no internal DOM class name/attribute needs to be public API for this. No-ops if `row` isn't
+      // part of the table's current (filtered/sorted) data.
+      moveTo: (row: TRow, options?: { focus?: boolean }) => {
         const resolved = resolveFocusTarget(
           groupedFull,
           row,
@@ -545,7 +557,16 @@ export function useTableState<TRow extends object>(
         if (!resolved) return
         setCollapsedGroups(resolved.collapsedGroups)
         setPageState(resolved.page)
+        wantsDomFocusRef.current = options?.focus === true
         setFocusTarget(resolved.item)
+      },
+      // Internal wiring for DataTableView's own scroll/focus effect — reads and clears the
+      // pending "the last `moveTo` call wanted real DOM focus" flag. Not meant for typical
+      // external use (same category as `setTarget` above).
+      consumeDomFocus: () => {
+        const wanted = wantsDomFocusRef.current
+        wantsDomFocusRef.current = false
+        return wanted
       },
     },
 

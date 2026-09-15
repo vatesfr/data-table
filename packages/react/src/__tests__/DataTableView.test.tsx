@@ -26,10 +26,18 @@ afterEach(cleanup)
 // selection control, etc.) and renders the built-in UI via `DataTableView` instead of
 // `<DataTable>`. `onReady` hands the live table object out so tests can drive it exactly
 // like external code (a persistence helper, a toolbar outside the table) would.
-function Harness({ onReady }: { onReady: (table: ReturnType<typeof useTableState<Row>>) => void }) {
+function Harness({
+  onReady,
+  selectable,
+}: {
+  onReady: (table: ReturnType<typeof useTableState<Row>>) => void
+  selectable?: boolean
+}) {
   const table = useTableState(ROWS, COLS)
   onReady(table)
-  return <DataTableView table={table} data={ROWS} columns={COLS} rowKey="id" />
+  return (
+    <DataTableView table={table} data={ROWS} columns={COLS} rowKey="id" selectable={selectable} />
+  )
 }
 
 describe('DataTableView', () => {
@@ -75,5 +83,37 @@ describe('DataTableView', () => {
       table!.selection.clear()
     })
     expect(table!.selection.rows).toEqual([])
+  })
+
+  it('does not move real DOM focus by default', () => {
+    let table: ReturnType<typeof useTableState<Row>> | undefined
+    const { getByText } = render(
+      <Harness
+        selectable
+        onReady={(t) => {
+          table = t
+        }}
+      />,
+    )
+    act(() => {
+      table!.focus.moveTo(ROWS[1])
+    })
+    expect(document.activeElement).not.toBe(getByText('Bob').closest('tr'))
+  })
+
+  it('moves real DOM focus when passed { focus: true }', () => {
+    let table: ReturnType<typeof useTableState<Row>> | undefined
+    const { getByText } = render(
+      <Harness
+        selectable
+        onReady={(t) => {
+          table = t
+        }}
+      />,
+    )
+    act(() => {
+      table!.focus.moveTo(ROWS[1], { focus: true })
+    })
+    expect(document.activeElement).toBe(getByText('Bob').closest('tr'))
   })
 })
