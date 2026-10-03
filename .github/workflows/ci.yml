@@ -29,12 +29,5 @@ jobs:
       - run: npm run type-check
       - run: npm run build
 
-      # Every package has a bundle-size budget (see each one's own "size-limit" config in
-      # package.json) — this rebuilds each and gates the PR on staying under it, catching a
-      # bundle-size regression before merge instead of relying on someone remembering to run
-      # `npm run size` by hand.
-      - run: npm run size -w packages/core
-      - run: npm run size -w packages/react
-      - run: npm run size -w packages/vue
-      - run: npm run size -w packages/solid
-      - run: npm run size -w packages/vanilla
+      # Checks the build above against each package's "size-limit" budget in package.json.
+      - run: npm run size

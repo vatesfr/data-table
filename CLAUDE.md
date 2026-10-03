@@ -19,7 +19,7 @@
 - **Test**: `npm run test` (~20 s) — one package: `npm run test -w packages/X` (`test:watch` for watch mode) — one file: `npx vitest run <path>` from the package dir. Tests run in jsdom with no network or external services. Benchmarks: `npm run bench -w packages/core`.
 - **Type-check**: `npm run type-check`.
 - **Lint/format**: ESLint (`npm run lint`) + Prettier (`npm run format`); lint-staged runs both on commit. `npm run check:docs` fails when a code span in `docs/*.md`/CLAUDE.md names something absent from the code; list intentional mentions (removed or external names) in a `<!-- check-docs-ignore: … -->` comment in that doc.
-- **Size**: per-package gzip budgets in each `package.json`'s `size-limit`, checked by `npm run size` and on commit; raising one needs approval.
+- **Size**: per-package gzip budgets in each `package.json`'s `size-limit`, checked by `npm run size` (after `npm run build`) and on commit; raising one needs approval.
 - **Demos**: `npm run dev:react|vue|solid|vanilla` (ports 58981–58984).
 - **UX**: `ux-review` walks `docs/use-cases.md` on the demos and records findings in `docs/improvements.md`; `ux-fix` fixes them, one commit each.
 
@@ -111,10 +111,10 @@ Load-bearing: the core public/internal split above (enforced by ESLint for demos
 
 After making changes:
 
-1. Update or add tests to cover the change. Run the single-package or single-file test command while iterating, then the full suite, type checker and linter once at the end; report actual results, not assumptions. Never skip, disable or weaken tests or assertions to get green, and never bypass hooks (`--no-verify`) — report the failure instead. Sole exception: a commit that genuinely needs no changelog entry may use `--no-verify` to skip `check-changelog.sh`, after running the other hook checks manually.
+1. Update or add tests to cover the change. Run the single-package or single-file test command while iterating, then the full suite, type checker and linter once at the end; report actual results, not assumptions. Never skip, disable or weaken tests or assertions to get green, and never bypass hooks (`--no-verify`) — report the failure instead.
 2. Update the demos (`demo/react`, `demo/vue`, `demo/solid`, `demo/vanilla`) to showcase a new feature where applicable.
 3. Update affected docs (see Where things belong) and `CHANGELOG.md` under `## [Unreleased]` in [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) format, in the same commit as the code.
 4. Record what was surprising, misleading or broken, and its fix: as a comment or test when tied to specific code, otherwise in `docs/pitfalls.md`; machine-specific ones in Claude's memory. Symptom first (exact error text), then cause and fix. Delete entries once obsolete.
-5. Git hooks: husky's `pre-commit` runs `scripts/check-changelog.sh` (fails if `packages/*/src/` or `demo/*/src/` changed outside `__tests__/` without a `CHANGELOG.md` change), `check:docs`, lint-staged (Prettier + ESLint `--fix`), `type-check`, `test`, `build` and `size`. `post-merge`/`post-checkout` run `npm ci` when `package-lock.json` changes. Hooks install via `npm install` (`prepare`). Don't manually rerun checks step 1 already passed.
+5. Git hooks: husky's `pre-commit` runs `scripts/check-changelog.sh` (fails if `packages/*/src/` or `demo/*/src/` changed outside `__tests__/` without a `CHANGELOG.md` change; `SKIP_CHANGELOG=1 git commit` skips only this check for a commit that genuinely needs none), `check:docs`, lint-staged (Prettier + ESLint `--fix`), `type-check`, `test`, `build` and `size`. `post-merge`/`post-checkout` run `npm ci` when `package-lock.json` changes. Hooks install via `npm install` (`prepare`). Don't manually rerun checks step 1 already passed.
 
-<!-- check-docs-ignore: AskUserQuestion settings Fixes no-ff -->
+<!-- check-docs-ignore: AskUserQuestion settings Fixes no-ff no-verify -->
