@@ -80,7 +80,7 @@ Load-bearing: the core public/internal split above (enforced by ESLint for demos
 - Reuse before writing: existing code, tests and docs first, then the standard library and dependencies already in use. For non-trivial problems with an established solution (parsing, dates, crypto, retries…), propose a library instead of hand-rolling it; adding one still needs approval (see Ask first). Flag duplication you spot, including code better moved to a shared module.
 - When a dependency's bug or limitation gets in the way, first check for a newer version or an existing upstream issue. If it's a genuine upstream gap (not a misuse), flag it and propose an upstream issue or PR, with a draft, before working around it. Any interim workaround gets a one-line comment linking the upstream issue.
 - Don't re-read a file already read in the current session unless it may have changed.
-- If a rule here is stale or contradicts the code, say so instead of silently following it.
+- Improve the setup when friction recurs: a correction you'd need again, a procedure repeated by hand, a rule that is stale, misleading or contradicts the code, a check better automated; friction inside a skill counts as recurring. End your response with a one-line proposal naming the target (this file, a skill, a script, a hook; see Where things belong) and the change. Prefer tightening or deleting a rule over adding one. Apply only on approval.
 
 ## Ask first
 
@@ -94,7 +94,7 @@ Load-bearing: the core public/internal split above (enforced by ESLint for demos
 ## Where things belong
 
 - Team/project conventions, workflow rules, architecture decisions: this file — version-controlled and binding for every contributor. Substantial detail goes in a project doc linked from Documentation above, not duplicated here; prefer a package README or `docs/` file.
-- Multi-step procedures invoked on demand: `.claude/skills/` (e.g. `release`). Invoke a matching skill rather than improvising; it is the source of truth for its procedure, but if it contradicts this file, this file wins — flag the conflict. Propose a new skill when a procedure recurs.
+- Multi-step procedures invoked on demand: `.claude/skills/` (e.g. `release`). Invoke a matching skill rather than improvising; it is the source of truth for its procedure, but if it contradicts this file, this file wins — flag the conflict. Propose a new skill when a procedure recurs. A skill keeps the judgment; its deterministic steps live in scripts it runs (`scripts/`).
 - Automated behaviors ("always run X after Y"): Claude Code hooks in `.claude/settings.json`; instructions here cannot guarantee them.
 - Facts specific to one person (role, working-style preferences, machine setup, session context): Claude's memory.
 - Secrets, credentials, API keys, `.env` values, ephemeral state: nowhere — never committed.
