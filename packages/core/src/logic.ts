@@ -21,6 +21,33 @@ export function getColumnValue<TRow extends object>(col: ColumnDefBase<TRow>, ro
   return col.value ? col.value(row) : asRecord(row)[col.key]
 }
 
+/** A cell's plain text (`format`, never `render`), e.g. for an accessible name. */
+export function cellText<TRow extends object>(col: ColumnDefBase<TRow>, row: TRow): string {
+  const v = getColumnValue(col, row)
+  if (col.format) return col.format(v, row)
+  if (Array.isArray(v)) return v.join(', ')
+  return v != null ? String(v) : ''
+}
+
+/** A group's plain-text name, every `groupBy` level joined with " › " as in its header. */
+export function groupText<TRow extends object>(
+  columns: ColumnDefBase<TRow>[],
+  groupBy: string[],
+  keyParts: string[],
+  sampleRow: TRow,
+): string {
+  return groupBy
+    .map((key, i) => {
+      const col = columns.find((c) => c.key === key)
+      if (!col) return keyParts[i]
+      if (col.groupValue) return col.groupFormat?.(keyParts[i]) ?? keyParts[i]
+      const raw = getColumnValue(col, sampleRow)
+      const value = Array.isArray(raw) ? keyParts[i] : raw
+      return col.format ? col.format(value, sampleRow) : String(value ?? '')
+    })
+    .join(' › ')
+}
+
 /** Indexes columns by key for O(1) lookup — shared by every function that resolves a raw filter/
  * sort/group key back to its column definition. */
 function buildColByKey<TRow extends object>(

@@ -7,6 +7,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Added
+
+- **Accessible checkbox names** (Solid, React, Vue, vanilla): the select-all, group and row checkboxes are now named "Select all", "Select group Engineering" and "Select row Alice Martin" (the row's first visible cell), instead of a bare "checkbox". New labels `selectGroup(group)`/`selectRow(row)` in all 5 locales.
+
 ### Changed
 
 - **React**: `table.focus.consumeDomFocus` now keeps a stable identity across renders, so `DataTableView`'s scroll/focus effect lists it as a dependency (clears a `react-hooks/exhaustive-deps` lint warning).

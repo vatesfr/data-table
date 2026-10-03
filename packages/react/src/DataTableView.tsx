@@ -12,6 +12,8 @@ import {
   computeStringValueCounts,
   isMultiValueColumn,
   getColumnValue,
+  cellText,
+  groupText,
   filterValuesBySearch,
   filterValuesByCount,
   filterValuesByRange,
@@ -3376,6 +3378,7 @@ export function DataTableView<TRow extends object>({
                     ref={selectAllRef}
                     type="checkbox"
                     checked={allSelected}
+                    aria-label={L.selectAll}
                     onChange={() => toggleSelectAll(processedData)}
                     style={{ margin: 0 }}
                   />
@@ -3482,6 +3485,9 @@ export function DataTableView<TRow extends object>({
                           }}
                           type="checkbox"
                           checked={groupAllSelected(rows)}
+                          aria-label={L.selectGroup(
+                            groupText(columns, groupBy, keyParts, sampleRow!),
+                          )}
                           onChange={() => toggleSelectAll(rows)}
                           style={{ margin: 0 }}
                         />
@@ -3581,6 +3587,9 @@ export function DataTableView<TRow extends object>({
                             type="checkbox"
                             checked={selection.has(row)}
                             readOnly
+                            aria-label={L.selectRow(
+                              activeColumns[0] ? cellText(activeColumns[0], row) : '',
+                            )}
                             tabIndex={-1}
                             onClick={(e) => toggleRowSelection(row, e.shiftKey)}
                             style={{ margin: 0 }}

@@ -1,6 +1,8 @@
 import { For, Index, Show, createEffect, createMemo, createSignal, onCleanup } from 'solid-js'
 import {
   getColumnValue,
+  cellText,
+  groupText,
   computeAggregate,
   getSortIcon,
   getSortIndex,
@@ -295,6 +297,7 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
                   type="checkbox"
                   checked={allSelected()}
                   ref={selectAllEl}
+                  aria-label={table.labels().selectAll}
                   onClick={() => table.selection.toggleAll(table.processedData())}
                 />
               </th>
@@ -512,6 +515,16 @@ function GroupHeaderRow<TRow extends object>(props: GroupHeaderRowProps<TRow>) {
               type="checkbox"
               checked={groupAllSelected()}
               ref={cbEl}
+              aria-label={table
+                .labels()
+                .selectGroup(
+                  groupText(
+                    props.columns,
+                    table.group.by(),
+                    props.group.keyParts,
+                    props.group.sampleRow!,
+                  ),
+                )}
               onClick={(e) => {
                 e.stopPropagation()
                 table.selection.toggleAll(props.group.rows)
@@ -603,6 +616,10 @@ interface DataRowProps<TRow extends object> {
 function DataRow<TRow extends object>(props: DataRowProps<TRow>) {
   const { table, row } = props
   const isSelected = createMemo(() => table.selection.all().has(row))
+  const firstCellText = () => {
+    const col = table.columns.active()[0]
+    return col ? cellText(col, row) : ''
+  }
   const rk = createMemo(() =>
     props.rowKey
       ? String((row as Record<string, unknown>)[props.rowKey] ?? props.procIdx)
@@ -657,6 +674,7 @@ function DataRow<TRow extends object>(props: DataRowProps<TRow>) {
             type="checkbox"
             tabIndex={-1}
             checked={isSelected()}
+            aria-label={table.labels().selectRow(firstCellText())}
             onClick={(e) => table.selection.toggle(row, (e as MouseEvent).shiftKey)}
           />
         </td>

@@ -149,6 +149,26 @@ describe('TableBody — header sorting', () => {
 })
 
 describe('TableBody — selection', () => {
+  it('names the select-all, group and row checkboxes', () => {
+    const { container, dispose } = mount({
+      selectable: true,
+      initialViewState: { groupBy: ['dept'] },
+      defaultGroupsCollapsed: false,
+    })
+    const names = [...container.querySelectorAll('input[type="checkbox"]')].map((c) =>
+      c.getAttribute('aria-label'),
+    )
+    expect(names).toEqual([
+      'Select all',
+      'Select group Eng',
+      'Select row Alice',
+      'Select row Clara',
+      'Select group HR',
+      'Select row Bob',
+    ])
+    dispose()
+  })
+
   it('clicking a row checkbox toggles selection', () => {
     const { container, table, dispose } = mount({ selectable: true })
     const cb = container.querySelector<HTMLInputElement>(

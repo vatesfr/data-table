@@ -17,7 +17,6 @@ Seeded 2026-10-04 from issues reported by a consumer app, each reproduced on the
 
 ## Accessibility
 
-- **U1 · major · UC03, UC04** — the select-all, group and row checkboxes have no accessible name in any adapter; a screen reader announces "checkbox" six times in a row. Name them from the labels: "Select all", "Select group Engineering", "Select row" plus the row's first visible cell.
 - **U2 · minor · UC01, UC04** — sorted headers expose no `aria-sort`; the direction only exists as an ↑/↓ glyph in the header text. Set it on the sorted columns' header cells.
 - **U3 · minor · UC07** — pagination buttons are 25–28×23 px (under the 24 px minimum) and named only by their glyph («, ‹, ›, »). Grow them and name them "First page", "Previous page"… from the labels.
 

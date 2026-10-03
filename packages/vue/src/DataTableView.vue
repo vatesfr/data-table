@@ -5,6 +5,8 @@ import {
   computeStringValueCounts,
   isMultiValueColumn,
   getColumnValue,
+  cellText,
+  groupText,
   filterValuesBySearch,
   filterValuesByCount,
   filterValuesByRange,
@@ -931,10 +933,6 @@ function formatValue(v: unknown, row: TRow, col: ColumnDef<TRow>): string {
   if (col.format) return col.format(v, row)
   if (Array.isArray(v)) return v.join(', ')
   return v != null ? String(v) : ''
-}
-
-function cellText(row: TRow, col: ColumnDef<TRow>): string {
-  return formatValue(getColumnValue(col, row), row, col)
 }
 
 function findCol(key: string): ColumnDef<TRow> | undefined {
@@ -2558,6 +2556,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                 v-indeterminate="someSelected"
                 type="checkbox"
                 :checked="allSelected"
+                :aria-label="L.selectAll"
                 @change="toggleSelectAll(processedData)"
               />
             </th>
@@ -2610,6 +2609,9 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                   v-indeterminate="isGroupSomeSelected(group.rows)"
                   type="checkbox"
                   :checked="isGroupAllSelected(group.rows)"
+                  :aria-label="
+                    L.selectGroup(groupText(columns, groupBy, group.keyParts, group.sampleRow!))
+                  "
                   @change="toggleSelectAll(group.rows)"
                 />
               </td>
@@ -2693,6 +2695,9 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                     type="checkbox"
                     tabindex="-1"
                     :checked="selection.has(row)"
+                    :aria-label="
+                      L.selectRow(activeColumns[0] ? cellText(activeColumns[0], row) : '')
+                    "
                     @click="toggleRowSelection(row, $event.shiftKey)"
                   />
                 </td>
@@ -2714,7 +2719,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                     :value="getColumnValue(col, row)"
                     :row="row"
                   />
-                  <template v-else>{{ cellText(row, col) }}</template>
+                  <template v-else>{{ cellText(col, row) }}</template>
                 </td>
               </tr>
             </template>

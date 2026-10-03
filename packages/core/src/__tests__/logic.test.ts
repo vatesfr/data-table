@@ -24,6 +24,8 @@ import {
   findDateTreeNode,
   computeAggregate,
   getColumnValue,
+  cellText,
+  groupText,
   paginateData,
   computeTotalPages,
   toggleSort,
@@ -135,6 +137,43 @@ describe('getColumnValue', () => {
   it('calls the function with the full row when value is a function', () => {
     const col = { key: 'salaryK', label: 'Salary (K)', value: (row: Row) => row.salary / 1000 }
     expect(getColumnValue(col, ROWS[0])).toBe(90)
+  })
+})
+
+describe('cellText', () => {
+  it('uses format, ignoring render', () => {
+    const col = { key: 'salary', label: 'Salary', format: (v: unknown) => `$${v}` }
+    expect(cellText(col, ROWS[0])).toBe('$90000')
+  })
+
+  it('joins array values and blanks missing ones', () => {
+    expect(cellText({ key: 'tags', label: 'Tags' }, { tags: ['a', 'b'] })).toBe('a, b')
+    expect(cellText({ key: 'nope', label: 'Nope' }, ROWS[0])).toBe('')
+  })
+})
+
+describe('groupText', () => {
+  const cols = [
+    { key: 'dept', label: 'Dept' },
+    {
+      key: 'salary',
+      label: 'Salary',
+      groupValue: (v: unknown) => Math.floor((v as number) / 50000) * 50000,
+      groupFormat: (k: string) => `${k}+`,
+    },
+    { key: 'tags', label: 'Tags' },
+  ]
+
+  it('joins every level, bucketed ones through groupFormat', () => {
+    expect(groupText(cols, ['dept', 'salary'], ['Eng', '50000'], ROWS[0])).toBe('Eng › 50000+')
+  })
+
+  it("names a multi-value group by its own keyPart, not the row's whole array", () => {
+    expect(groupText(cols, ['tags'], ['b'], { tags: ['a', 'b'] })).toBe('b')
+  })
+
+  it('falls back to the keyPart for an unknown column', () => {
+    expect(groupText(cols, ['gone'], ['x'], ROWS[0])).toBe('x')
   })
 })
 

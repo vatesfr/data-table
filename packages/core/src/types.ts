@@ -247,6 +247,10 @@ export interface DataTableLabels {
   groupCount: (count: number) => string
   groupLabel: (index: number) => string
   rowsInGroup: (count: number) => string
+  /** Accessible name of a group header's checkbox, from the group's name (e.g. "Engineering") */
+  selectGroup: (group: string) => string
+  /** Accessible name of a row's checkbox, from its first visible cell's text */
+  selectRow: (row: string) => string
   /** Marker shown on a group header that repeats mid-way down a page — see "Pagination" — because the group's rows split across a page boundary */
   groupContinued: string
   rowsPerPage: string
