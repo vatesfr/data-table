@@ -27,3 +27,5 @@ Selection lives in `useTableState`/`createTableState` in every adapter. Key desi
 - **Solid** (vanilla inherits it) — `TableBody.tsx`'s row `onClick` returns early when `e.target.closest('[data-no-row-click]')` matches (the checkbox `<td>` carries that attribute) before invoking the callback. The `dt-tr--clickable` class is added whenever `onRowClick` is set; its `:hover` rule is declared in `styles.ts` _before_ `.dt-tr--selected .dt-td` so a selected+hovered row keeps the selected color on the equal-specificity tie. Clicking also focuses the row (it's a roving-tabindex item), whose `onFocus` updates `table.focus.target` (see [Keyboard navigation](keyboard-navigation.md)).
 
 Custom cell renders (React/Solid `render`, Vue `#cell-*` slots) that put clickable elements (buttons, links) inside a cell are responsible for calling `stopPropagation()` themselves if they don't want the click to also reach `onRowClick`.
+
+<!-- check-docs-ignore: UnwrapRefSimple -->

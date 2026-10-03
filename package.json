@@ -16,6 +16,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "eslint .",
+    "check:docs": "node scripts/check-docs.mjs",
     "prepare": "husky"
   },
   "lint-staged": {

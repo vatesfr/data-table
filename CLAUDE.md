@@ -18,7 +18,7 @@
 - **Build**: `npm run build` (order matters: core → react/vue/solid → vanilla); one package: `npm run build -w packages/X`.
 - **Test**: `npm run test` (~20 s) — one package: `npm run test -w packages/X` (`test:watch` for watch mode) — one file: `npx vitest run <path>` from the package dir. Tests run in jsdom with no network or external services. Benchmarks: `npm run bench -w packages/core`.
 - **Type-check**: `npm run type-check`.
-- **Lint/format**: ESLint (`npm run lint`) + Prettier (`npm run format`); lint-staged runs both on commit.
+- **Lint/format**: ESLint (`npm run lint`) + Prettier (`npm run format`); lint-staged runs both on commit. `npm run check:docs` fails when a code span in `docs/*.md`/CLAUDE.md names something absent from the code; list intentional mentions (removed or external names) in a `<!-- check-docs-ignore: … -->` comment in that doc.
 - **Demos**: `npm run dev:react|vue|solid|vanilla`.
 
 ## Architecture
@@ -111,4 +111,6 @@ After making changes:
 2. Update the demos (`demo/react`, `demo/vue`, `demo/solid`, `demo/vanilla`) to showcase a new feature where applicable.
 3. Update affected docs (see Where things belong) and `CHANGELOG.md` under `## [Unreleased]` in [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) format, in the same commit as the code.
 4. Record what was surprising, misleading or broken, and its fix: as a comment or test when tied to specific code, otherwise in `docs/pitfalls.md`; machine-specific ones in Claude's memory. Symptom first (exact error text), then cause and fix. Delete entries once obsolete.
-5. Git hooks: husky's `pre-commit` runs `scripts/check-changelog.sh` (fails if `packages/*/src/` or `demo/*/src/` changed outside `__tests__/` without a `CHANGELOG.md` change), lint-staged (Prettier + ESLint `--fix`), `type-check`, `test`, `build` and `size`. `post-merge`/`post-checkout` run `npm ci` when `package-lock.json` changes. Hooks install via `npm install` (`prepare`). Don't manually rerun checks step 1 already passed.
+5. Git hooks: husky's `pre-commit` runs `scripts/check-changelog.sh` (fails if `packages/*/src/` or `demo/*/src/` changed outside `__tests__/` without a `CHANGELOG.md` change), `check:docs`, lint-staged (Prettier + ESLint `--fix`), `type-check`, `test`, `build` and `size`. `post-merge`/`post-checkout` run `npm ci` when `package-lock.json` changes. Hooks install via `npm install` (`prepare`). Don't manually rerun checks step 1 already passed.
+
+<!-- check-docs-ignore: AskUserQuestion settings Fixes no-ff -->

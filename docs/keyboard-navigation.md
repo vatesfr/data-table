@@ -34,3 +34,5 @@ Per-adapter wiring:
 ---
 
 _Part of the `@vates/data-table` architecture docs — see [CLAUDE.md](../CLAUDE.md) for the project overview._
+
+<!-- check-docs-ignore: visibleItemsForPage -->

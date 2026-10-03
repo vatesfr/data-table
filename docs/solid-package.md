@@ -27,3 +27,5 @@ Cell customization: `col.format(value, row) → string` for plain text, or `col.
 ---
 
 _Part of the `@vates/data-table` architecture docs — see [CLAUDE.md](../CLAUDE.md) for the project overview._
+
+<!-- check-docs-ignore: pendingRenders data-render-slot Suspense -->
