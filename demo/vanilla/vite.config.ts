@@ -4,6 +4,7 @@ import solid from 'vite-plugin-solid'
 
 export default defineConfig({
   base: process.env.VITE_BASE_URL ?? '/',
+  server: { port: 58984, strictPort: true },
   // Resolving straight to packages/vanilla/src (not a built dist) means this demo also needs to
   // process the package's own .tsx source directly — same solid() plugin the package's own
   // vite.config.ts uses. This is purely a dev/demo-build concern: a real consumer installing

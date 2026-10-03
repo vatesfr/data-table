@@ -4,6 +4,7 @@ import solid from 'vite-plugin-solid'
 
 export default defineConfig({
   base: process.env.VITE_BASE_URL ?? '/',
+  server: { port: 58983, strictPort: true },
   plugins: [solid()],
   resolve: {
     alias: {

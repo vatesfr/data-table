@@ -1,0 +1,123 @@
+#!/usr/bin/env node
+// Writes .playwright-mcp/measure.js, a Playwright MCP `browser_run_code_unsafe` script (pass it as
+// `filename`) measuring demo sections at desktop and phone widths, with screenshots — the layout
+// checks ux-review/ux-fix need, instead of hand-writing them each time.
+//   node scripts/ux-measure.mjs [--demo=react|vue|solid|vanilla] [--name=<prefix>] [--keep] [#section…]
+//   --demo  which demo's dev server to hit (default solid; start it with `npm run dev:<demo>`)
+//   --name  screenshot prefix (default "measure"): .playwright-mcp/<name>-<demo>-<section>-<width>.png
+//   --keep  keep the demo's persisted views (localStorage, URL); cleared by default
+// Sections default to every one rendering a table. Per section and width it returns: how far below
+// the heading the first row starts, the height of the library's controls above the table, page
+// and in-table horizontal overflow, interactive elements under 24×24 px or without an accessible
+// name, and console errors (the demos' missing favicon aside).
+import { mkdirSync, writeFileSync } from 'node:fs'
+import { join, relative } from 'node:path'
+import process from 'node:process'
+import console from 'node:console'
+// measureSection runs in the page, not in Node.
+/* global document, Node, innerWidth, getComputedStyle */
+
+const PORTS = { react: 58981, vue: 58982, solid: 58983, vanilla: 58984 }
+const SECTIONS = [
+  '#full-table',
+  '#row-selection',
+  '#row-click',
+  '#persisted-table',
+  '#huge-dataset',
+]
+const SIZES = [
+  [1440, 900],
+  [390, 844],
+]
+
+const args = process.argv.slice(2)
+const opt = (key) => args.find((a) => a.startsWith(`--${key}=`))?.split('=')[1]
+const demo = opt('demo') ?? 'solid'
+const name = opt('name') ?? 'measure'
+const keep = args.includes('--keep')
+const sections = args.filter((a) => a.startsWith('#'))
+if (!(demo in PORTS) || args.some((a) => !a.startsWith('#') && !a.startsWith('--'))) {
+  console.error(
+    'Usage: node scripts/ux-measure.mjs [--demo=react|vue|solid|vanilla] [--name=<prefix>] [--keep] [#section…]',
+  )
+  process.exit(1)
+}
+
+// Runs in the page: `id` is a section heading's id.
+function measureSection(id) {
+  const heading = document.getElementById(id)
+  if (!heading) return { missing: true }
+  const next = [...document.querySelectorAll('h2')].find(
+    (h) => heading.compareDocumentPosition(h) & Node.DOCUMENT_POSITION_FOLLOWING,
+  )
+  const table = [...document.querySelectorAll('table')].find(
+    (t) =>
+      heading.compareDocumentPosition(t) & Node.DOCUMENT_POSITION_FOLLOWING &&
+      !(next && next.compareDocumentPosition(t) & Node.DOCUMENT_POSITION_FOLLOWING),
+  )
+  if (!table) return { table: false }
+  // The library's root: the table's ancestor sitting next to the heading (demo controls are siblings).
+  let root = table
+  while (root.parentElement && !root.parentElement.contains(heading)) root = root.parentElement
+  const rect = (el) => el.getBoundingClientRect()
+  const nameOf = (el) =>
+    (
+      el.getAttribute('aria-label') ||
+      (el.getAttribute('aria-labelledby') &&
+        document.getElementById(el.getAttribute('aria-labelledby'))?.textContent) ||
+      (el.id && document.querySelector(`label[for="${el.id}"]`)?.textContent) ||
+      el.closest('label')?.textContent ||
+      (el.tagName === 'INPUT' ? '' : el.textContent) ||
+      el.getAttribute('title') ||
+      el.getAttribute('placeholder') ||
+      ''
+    ).trim()
+  const describe = (el) => el.outerHTML.slice(0, 100)
+  const interactive = [
+    ...root.querySelectorAll('button, input, select, a[href], [role="button"], [tabindex="0"]'),
+  ].filter((el) => rect(el).width > 0 && el.type !== 'hidden')
+  const small = interactive.filter((el) => rect(el).width < 24 || rect(el).height < 24)
+  const unnamed = interactive.filter((el) => !nameOf(el))
+  const firstRow = table.querySelector('tbody tr')
+  return {
+    firstRowBelowHeading: firstRow ? Math.round(rect(firstRow).top - rect(heading).top) : null,
+    controlsAboveTable: Math.round(rect(table).top - rect(root).top),
+    pageOverflowX: document.documentElement.scrollWidth > innerWidth,
+    tableScrollsX: [...root.querySelectorAll('*')].some(
+      (el) => el.scrollWidth > el.clientWidth + 1 && getComputedStyle(el).overflowX !== 'visible',
+    ),
+    smallTargets: { count: small.length, samples: small.slice(0, 5).map(describe) },
+    unnamed: { count: unnamed.length, samples: unnamed.slice(0, 5).map(describe) },
+  }
+}
+
+const script = `async (page) => {
+  const base = 'http://localhost:${PORTS[demo]}/';
+  const errors = [];
+  page.on('console', (m) => m.type() === 'error' && !/favicon/.test(m.location().url) && errors.push(m.text() + ' ' + m.location().url));
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto(base);
+  ${keep ? '' : 'await page.evaluate(() => localStorage.clear()); await page.goto(base);'}
+  await page.locator('table').first().waitFor({ timeout: 15000 });
+  const measureSection = ${measureSection.toString()};
+  const out = {};
+  for (const [w, h] of ${JSON.stringify(SIZES)}) {
+    await page.setViewportSize({ width: w, height: h });
+    for (const section of ${JSON.stringify(sections.length ? sections : SECTIONS)}) {
+      const id = section.slice(1);
+      await page.evaluate((id) => document.getElementById(id)?.scrollIntoView(), id);
+      await page.waitForTimeout(300);
+      const m = await page.evaluate(measureSection, id);
+      out[section + ' @' + w] = m;
+      if (m.missing || m.table === false) continue;
+      await page.screenshot({ path: '.playwright-mcp/${name}-${demo}-' + id + '-' + w + '.png' });
+    }
+  }
+  return { ...out, consoleErrors: errors };
+}`
+
+const dir = join(import.meta.dirname, '..', '.playwright-mcp')
+mkdirSync(dir, { recursive: true })
+const file = join(dir, 'measure.js')
+writeFileSync(file, script)
+console.log(relative(process.cwd(), file))
