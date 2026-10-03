@@ -153,4 +153,51 @@ describe('DataTable', () => {
     expect(container.querySelector('.dt-search-input')).toBeNull()
     dispose()
   })
+
+  it('renders toolbarEnd once, as the last child of the toolbar actions row', () => {
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    let built = 0
+    const shareButton = () => {
+      built++
+      return <button class="share">Share</button>
+    }
+    const dispose = createRoot((d) => {
+      render(
+        () => <DataTable data={ROWS} columns={COLS} rowKey="id" toolbarEnd={shareButton()} />,
+        container,
+      )
+      return d
+    })
+    const end = container.querySelector('.dt-toolbar-actions > .dt-toolbar-end:last-child')
+    expect(end?.querySelectorAll('.share')).toHaveLength(1)
+    expect(built).toBe(1)
+    dispose()
+  })
+
+  it('renders no toolbar-end wrapper when toolbarEnd is absent, and follows a reactive one', () => {
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const [show, setShow] = createSignal(false)
+    const dispose = createRoot((d) => {
+      render(
+        () => (
+          <DataTable
+            data={ROWS}
+            columns={COLS}
+            rowKey="id"
+            toolbarEnd={show() ? <button class="share">Share</button> : undefined}
+          />
+        ),
+        container,
+      )
+      return d
+    })
+    expect(container.querySelector('.dt-toolbar-end')).toBeNull()
+    setShow(true)
+    expect(container.querySelector('.dt-toolbar-end .share')).not.toBeNull()
+    setShow(false)
+    expect(container.querySelector('.dt-toolbar-end')).toBeNull()
+    dispose()
+  })
 })

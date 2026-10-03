@@ -4,6 +4,8 @@ import { ref } from 'vue'
 // Shared by every table section in App.vue: "Copy share link" copies the whole page URL (every
 // section's state round-trips through its own query param, see VIEW_KEYS in App.vue); "Reset"
 // emits so the caller can clear just its own table's storageKey/paramName via resetView.
+// `inToolbar` drops the bottom margin when rendered in the table's own `#toolbar-end` slot.
+defineProps<{ inToolbar?: boolean }>()
 const emit = defineEmits<{ reset: [] }>()
 const copied = ref(false)
 
@@ -26,7 +28,7 @@ const btnStyle = {
 </script>
 
 <template>
-  <div style="display: flex; gap: 8px; margin-bottom: 12px">
+  <div :style="{ display: 'flex', gap: '8px', marginBottom: inToolbar ? '0' : '12px' }">
     <button :style="btnStyle" @click="copyShareLink">
       {{ copied ? 'Copied!' : 'Copy share link' }}
     </button>

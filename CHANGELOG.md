@@ -7,6 +7,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Added
+
+- **Toolbar end slot** (Solid, React, Vue, vanilla): `toolbarEnd` (`JSXElement`/`ReactNode`) on `DataTableViewProps`/`DataTableProps`, Vue's `#toolbar-end` slot, and vanilla's `toolbarEnd` option + `setToolbarEnd(node)` render consumer controls (e.g. "Share view"/"Reset view") at the right end of the toolbar's action row, in a `.dt-toolbar-end` (Vue: `.dt__toolbar-end`) wrapper — instead of a separate row above the table, or DOM appended into the toolbar's internal markup.
+
 ### Changed
 
 - **React**: `table.focus.consumeDomFocus` now keeps a stable identity across renders, so `DataTableView`'s scroll/focus effect lists it as a dependency (clears a `react-hooks/exhaustive-deps` lint warning).

@@ -489,13 +489,21 @@ const VIEW_BTN_STYLE =
 // table's own container div (a table's render() rebuilds its container's innerHTML on every
 // change, which would wipe these out) and is wired via one delegated click listener on `app`,
 // dispatching on `data-view-copy`/`data-view-reset` — see the bottom of this file.
-function renderViewControls(key: string): string {
+function renderViewControls(key: string, inToolbar = false): string {
   return `
-    <div style="display:flex;gap:8px;margin-bottom:12px">
+    <div style="display:flex;gap:8px;margin-bottom:${inToolbar ? 0 : 12}px">
       <button data-view-copy="${key}" style="${VIEW_BTN_STYLE}">Copy share link</button>
       <button data-view-reset="${key}" style="${VIEW_BTN_STYLE}">Reset</button>
     </div>
   `
+}
+
+// The same pair as a node, for a table's own `toolbarEnd` — the delegated listener on `app`
+// still reaches it there, since the table's container is inside `app`.
+function viewControlsNode(key: string): Node {
+  const tpl = document.createElement('template')
+  tpl.innerHTML = renderViewControls(key, true).trim()
+  return tpl.content.firstChild!
 }
 
 type ViewStateTable = {
@@ -599,7 +607,6 @@ app.innerHTML = `
       and open it in a new tab.
       ${docLink('view-persistence--sharing', '📖 Docs')}
     </p>
-    ${renderViewControls('persisted')}
     <div id="table-persist"></div>
 
     <h2 id="dynamic-data" style="font-size:16px;font-weight:600;margin-top:40px;margin-bottom:4px;scroll-margin-top:56px">Dynamic data</h2>
@@ -768,6 +775,7 @@ const tablePersist = createDataTable<Employee>(document.getElementById('table-pe
   rowKey: 'id',
   initialViewState: { visibleCols: PERSISTED_VISIBLE, pageSize: 5 },
   labels: LOCALES[currentLocale],
+  toolbarEnd: viewControlsNode('persisted'),
 })
 wireViewPersistence(tablePersist, 'persisted')
 

@@ -1,4 +1,4 @@
-import { Show, createSignal } from 'solid-js'
+import { Show, children, createSignal, type JSXElement } from 'solid-js'
 import type { TableState } from './createTableState'
 import { injectStyles } from './styles'
 import { SearchBox } from './components/SearchBox'
@@ -39,6 +39,13 @@ export interface DataTableViewProps<TRow extends object> {
    * mirrors `showSearch`'s reasoning rather than adding a `showable`-style column flag.
    */
   showColumns?: boolean
+  /**
+   * Consumer content rendered at the end of the toolbar's action row (after "Clear all"), inside
+   * a right-aligned `.dt-toolbar-end` wrapper — e.g. "Share view"/"Reset view" buttons. Omitted:
+   * no wrapper is rendered at all.
+   */
+  // `JSXElement`, not `JSX.Element`: the d.ts rollup (vite:dts) can't follow solid-js's `JSX` namespace.
+  toolbarEnd?: JSXElement
 }
 
 type DropdownId = 'cols' | 'sort' | 'group' | 'filter'
@@ -55,6 +62,8 @@ export function DataTableView<TRow extends object>(props: DataTableViewProps<TRo
   const groupableCols = () => table.columns.list().filter((c) => c.groupable === true)
   const sortableCols = () => table.columns.list().filter((c) => c.sortable !== false)
   const filterableCols = () => table.columns.list().filter((c) => c.filterable !== false)
+  // Resolved once: reading a JSX prop twice (the `when` and the body) would build it twice.
+  const toolbarEnd = children(() => props.toolbarEnd)
 
   function toggleDd(id: DropdownId): void {
     setOpenDropdown((cur) => (cur === id ? null : id))
@@ -118,6 +127,9 @@ export function DataTableView<TRow extends object>(props: DataTableViewProps<TRo
             <button type="button" class="dt-btn dt-clear-all" onClick={table.clearAll}>
               {table.labels().clearAll}
             </button>
+          </Show>
+          <Show when={toolbarEnd.toArray().length > 0}>
+            <div class="dt-toolbar-end">{toolbarEnd()}</div>
           </Show>
         </div>
       </div>

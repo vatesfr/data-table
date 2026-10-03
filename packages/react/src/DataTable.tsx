@@ -15,6 +15,7 @@ export function DataTable<TRow extends object>({
   onRowClick,
   showSearch,
   showColumns,
+  toolbarEnd,
 }: DataTableProps<TRow>) {
   const table = useTableState(data, columns, {
     labels,
@@ -34,6 +35,7 @@ export function DataTable<TRow extends object>({
       onRowClick={onRowClick}
       showSearch={showSearch}
       showColumns={showColumns}
+      toolbarEnd={toolbarEnd}
     />
   )
 }

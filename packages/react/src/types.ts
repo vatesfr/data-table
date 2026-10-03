@@ -61,7 +61,12 @@ export interface DataTableViewProps<TRow extends object = Record<string, unknown
    * table-level preference, not something a column def opts into — so this explicit opt-out
    * mirrors `showSearch`'s reasoning rather than adding a `showable`-style column flag.
    */
-  showColumns?: boolean
+  showColumns?: boolean /**
+   * Consumer content rendered at the end of the toolbar's action row (after "Clear all"), inside
+   * a right-aligned `.dt-toolbar-end` wrapper — e.g. "Share view"/"Reset view" buttons. Omitted
+   * (or `null`/`false`): no wrapper is rendered at all.
+   */
+  toolbarEnd?: ReactNode
 }
 
 export interface DataTableProps<TRow extends object = Record<string, unknown>> extends Omit<

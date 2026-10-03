@@ -1353,6 +1353,22 @@ describe('DataTable — showSearch', () => {
   })
 })
 
+describe('DataTable — toolbar-end slot', () => {
+  it('renders the slot as the last child of the toolbar actions row', () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS, columns: COLS, rowKey: 'id' },
+      slots: { 'toolbar-end': '<button class="share">Share</button>' },
+    })
+    const end = wrapper.find('.dt__toolbar-actions > .dt__toolbar-end:last-child')
+    expect(end.find('.share').exists()).toBe(true)
+  })
+
+  it('renders no toolbar-end wrapper when the slot is absent', () => {
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: COLS, rowKey: 'id' } })
+    expect(wrapper.find('.dt__toolbar-end').exists()).toBe(false)
+  })
+})
+
 describe('DataTable — sort dropdown', () => {
   const SORT_COLS: ColumnDef<Row>[] = [
     { key: 'name', label: 'Name' },

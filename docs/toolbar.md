@@ -37,6 +37,14 @@ Together, showSearch + showColumns + the Sort/Filter fixes above fully close the
 - **React/Solid**: `DataTable.tsx` must explicitly forward `showSearch` through to `<DataTableView>` — it isn't covered by a prop spread, so a new `DataTableViewProps` field needs a matching line added at each `<DataTable>` wrapper's own call site (a gap this feature's own tests caught: forgetting this bullet left `showSearch` silently inert through `<DataTable>` while still working through `<DataTableView>` directly).
 - **Vanilla**: `showSearch` is backed by its own `createSignal` (`options.showSearch ?? true`) mirroring `selectable`, with a matching `setShowSearch(value: boolean)` on `DataTableInstance`.
 
+## Consumer toolbar content (`toolbarEnd`)
+
+Consumer controls (e.g. "Share view"/"Reset view") go at the end of the toolbar's action row through a public API rather than DOM appended into an internal toolbar class: `toolbarEnd` (`JSXElement` in Solid, `ReactNode` in React), Vue's `#toolbar-end` slot, vanilla's `toolbarEnd: Node | null` option + `setToolbarEnd`. Rendered last, after "Clear all", in a `dt-toolbar-end`/`dt__toolbar-end` wrapper with `margin-left: auto` — reset to `0` when "Clear all" (itself `margin-left: auto`) is shown, so the two sit together on the right instead of splitting the free space. Absent → no wrapper.
+
+- **Solid**: resolved once via `children()` — reading a JSX prop in both `<Show when>` and the body would build it twice.
+- **Solid**: typed `JSXElement`, not `JSX.Element` — the latter fails `vite:dts`'s type rollup ("Unable to follow symbol for JSX"), only on `npm run build`, not `type-check`.
+- **React**: inline styles can't express the sibling rule, so the margin is picked from `hasActiveState`.
+
 ## Active-bar chip click actions
 
 Previously a chip's body (the label/icon text) was inert — only its `×` did anything. Each chip's body is now a real, focusable `<button>` (a sibling of the `×` button rather than nested inside it — a `<button>` can't contain another interactive element, the same reasoning already used for the toolbar's grouped clear buttons) that does something specific to that chip's own kind of active state, so tweaking an already-active sort/group/filter no longer requires reopening its dropdown and re-navigating to the same entry:

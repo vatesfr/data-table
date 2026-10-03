@@ -72,6 +72,12 @@ export interface DataTableOptions<TRow extends object = Record<string, unknown>>
    * mirrors `showSearch`'s reasoning rather than adding a `showable`-style column flag.
    */
   showColumns?: boolean
+  /**
+   * A node rendered at the end of the toolbar's action row (after "Clear all"), inside a
+   * right-aligned `.dt-toolbar-end` wrapper — e.g. "Share view"/"Reset view" buttons. Omitted or
+   * `null`: no wrapper is rendered at all.
+   */
+  toolbarEnd?: Node | null
 }
 
 export interface DataTableInstance<TRow extends object = Record<string, unknown>> {
@@ -131,6 +137,8 @@ export interface DataTableInstance<TRow extends object = Record<string, unknown>
   setShowSearch(value: boolean): void
   /** Shows/hides the Columns toolbar button after construction — see `DataTableOptions.showColumns`. */
   setShowColumns(value: boolean): void
+  /** Replaces (or removes, passing `null`) the toolbar-end node — see `DataTableOptions.toolbarEnd`. */
+  setToolbarEnd(node: Node | null): void
   /** Changes (or clears, passing `undefined`) the row-click callback after construction. */
   setOnRowClick(cb: ((row: TRow, event: MouseEvent | KeyboardEvent) => void) | undefined): void
   /** Replaces the label overrides after construction — see `DataTableOptions.labels`. */
