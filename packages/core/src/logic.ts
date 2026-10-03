@@ -381,7 +381,7 @@ export function sortWithinGroups<TRow extends object>(
   // no matching entry is skipped (falls through to the next level, same as a tied `compare`
   // result would), rather than leaving nesting undefined for it. This deliberately doesn't read
   // `sorts`-array position at all, so reordering entries in the Sort dropdown can never desync
-  // nesting from what the Group dropdown shows for the same `groupBy` (see CLAUDE.md).
+  // nesting from what the Group dropdown shows for the same `groupBy` (see docs/grouped-columns.md).
   if (dirByGroupKey.size > 0) {
     result = [...result].sort((a, b) => {
       for (let idx = 0; idx < groupBy.length; idx++) {
@@ -1442,7 +1442,7 @@ export function clearExcludeValues(
 /**
  * `setFilterValues`'s exact mirror for the exclude map — sets `values` for `key` to `excluded`
  * unconditionally. Backs the checked-by-default checklist model for a non-multi-value column
- * (see CLAUDE.md's "Filter dropdown"): unlike a multi-value column's include/exclude tri-state
+ * (see docs/filter-dropdown.md's "Filter dropdown"): unlike a multi-value column's include/exclude tri-state
  * (`cycleFilterValue`), a scalar column's checklist never needs `filters` at all — "checked" is
  * simply "not in `excludeFilters`", so a plain click, a shift-range select, and the master
  * select-all/select-none checkbox can all go through this one setter instead of the tri-state
@@ -1861,7 +1861,7 @@ export function moveColumnBy(order: string[], key: string, delta: number): strin
 
 /**
  * `moveColumnBy`'s counterpart for the Columns dropdown's "Visible columns" section (see
- * CLAUDE.md's "Columns dropdown"): swaps `key` with its nearest *visible* neighbor `delta`
+ * docs/columns.md's "Columns dropdown"): swaps `key` with its nearest *visible* neighbor `delta`
  * positions away, skipping over any hidden columns in between rather than swapping with
  * whichever key happens to be textually adjacent in `order`. Plain `moveColumnBy` would silently
  * swap a visible column past a hidden one sitting right next to it in `order` — a no-op as far as
@@ -1869,7 +1869,7 @@ export function moveColumnBy(order: string[], key: string, delta: number): strin
  * so an Alt+↑/↓ press would visibly do nothing despite `order` actually changing underneath it.
  * Every hidden column skipped over keeps its own exact position in `order` untouched — only the
  * two visible columns being reordered actually move, so a hidden column's eventual reappearance
- * slot (see CLAUDE.md's "'Expected place' when re-enabling a column") is never disturbed by
+ * slot (see docs/columns.md's "'Expected place' when re-enabling a column") is never disturbed by
  * reordering *around* it.
  */
 export function moveVisibleColumnBy(

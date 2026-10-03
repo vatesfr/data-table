@@ -243,7 +243,7 @@ describe('FilterDropdown — column ordering', () => {
 })
 
 describe('FilterDropdown — string checklist', () => {
-  // A plain scalar column (like `name`) is checked-by-default and exclude-only (see CLAUDE.md's
+  // A plain scalar column (like `name`) is checked-by-default and exclude-only (see docs/filter-dropdown.md's
   // "Filter dropdown"): `filters` is never written for it at all, only `excludeFilters`. Only a
   // genuinely multi-value column still uses the include/exclude tri-state — see the "any/all
   // match-mode toggle" describe block and the multi-value shift-range test below.

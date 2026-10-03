@@ -177,7 +177,7 @@ const S = {
   filterValueExcluded: {
     color: 'var(--color-text-danger)',
   } as CSSProperties,
-  // The "Others" checklist row (see CLAUDE.md's "Filter dropdown") — shaded/italic/bordered so it
+  // The "Others" checklist row (see docs/filter-dropdown.md's "Filter dropdown") — shaded/italic/bordered so it
   // reads as a distinct bulk control, not just another value blending into the results below it.
   filterOthers: {
     background: 'var(--color-background-secondary)',
@@ -239,7 +239,7 @@ const S = {
     border: '0.5px solid var(--color-border-danger)',
   } as CSSProperties,
   // A grouped column's own chip merges its sort chip and group chip into one pill (see
-  // "Active-bar chip click actions" / issue #17's follow-up in CLAUDE.md) instead of showing two
+  // "Active-bar chip click actions" / issue #17's follow-up in docs/toolbar.md) instead of showing two
   // identically-labeled chips — chipXMiddle squares off the sort-remove ×'s right edge (it's no
   // longer the pill's last segment) so it butts cleanly against chipGroupMark next to it; the
   // trailing group-remove × stays plain chipX (still the pill's actual right end).
@@ -1015,7 +1015,7 @@ export function DataTableView<TRow extends object>({
     }
   }
 
-  // `table`'s own fields are namespaced by concern (see CLAUDE.md's "Namespaced TableState") —
+  // `table`'s own fields are namespaced by concern (see docs/table-state.md's "Namespaced TableState") —
   // destructured here into the same bare local names this component's ~2600 lines already use
   // throughout, so nothing below this block needed to change when the namespacing landed.
   const { processedData, groupedData, visibleItems, labels: L, clearAll } = table
@@ -1075,7 +1075,7 @@ export function DataTableView<TRow extends object>({
   const { target: focusTarget, setTarget: setFocusTarget } = table.focus
 
   // Split for the Sort dropdown's active list (see "Auto-syncing group order with sort" in
-  // CLAUDE.md): entries matching a currently grouped column always govern nesting order via
+  // docs/grouped-columns.md): entries matching a currently grouped column always govern nesting order via
   // `groupBy`'s own order, never via drag position within `sorts` — mixing them into one flat
   // draggable list made dragging a tie-break column above a group column look like it did
   // something when it never could (issue #17's follow-up). `groupSortEntries` is in `groupBy`'s
@@ -1141,7 +1141,7 @@ export function DataTableView<TRow extends object>({
   // render, since a ref mutated mid-render isn't safe under Strict Mode's double-invoke or
   // concurrent rendering. Uses `useState` instead, via the same "adjust state during render"
   // idiom this file already relies on for `filterListResetKey`/`prevFilterListResetKey` below and
-  // the `visibleCols` reconciliation (see CLAUDE.md) — a plain conditional `setState` call in the
+  // the `visibleCols` reconciliation (see docs/table-state.md) — a plain conditional `setState` call in the
   // render body itself, React's own documented pattern for exactly this ("you can cache a value
   // from a previous render"), safe because it only actually re-renders when the state reference
   // changes (a genuine cache miss), not on every render.
@@ -1427,7 +1427,7 @@ export function DataTableView<TRow extends object>({
   // `filterListResetKey`/`prevColumnKeys` elsewhere in this file — rather than an effect, so the
   // very first render with the panel open already has the fresh snapshot.
   const [filterColOrderKeys, setFilterColOrderKeys] = useState<string[] | null>(null)
-  // Which categories are collapsed (see CLAUDE.md's "Column categories"). Seeded the same way as
+  // Which categories are collapsed (see docs/columns.md's "Column categories"). Seeded the same way as
   // filterColOrderKeys above — a snapshot taken only on the closed→open transition, not
   // recomputed live while the panel stays open (so toggling a category by hand isn't fought by an
   // unrelated filter change elsewhere). Collapsed by default (matching Columns/Sort/Group's own
@@ -1522,7 +1522,7 @@ export function DataTableView<TRow extends object>({
         </button>
         {/* Replaces the plain active-filter dot: a one-click way to drop this column's filter
             without opening it first, matching the toolbar's own per-dropdown × buttons (see
-            "Toolbar clear buttons" in CLAUDE.md). */}
+            "Toolbar clear buttons" in docs/toolbar.md). */}
         {hasActive && (
           <button
             type="button"
@@ -1644,7 +1644,7 @@ export function DataTableView<TRow extends object>({
       ? isMultiValueColumnCached(filterDetailCol)
       : false
   // A non-multi-value column's checklist uses a checked-by-default, exclude-only model instead
-  // of the tri-state include/exclude cycle (see CLAUDE.md's "Filter dropdown"): `filters` is
+  // of the tri-state include/exclude cycle (see docs/filter-dropdown.md's "Filter dropdown"): `filters` is
   // never written for such a column, "checked" simply means "not in `excludeFilters`". Date/
   // number columns (their own detail branches) and genuinely multi-value columns keep the
   // original include-based model untouched. Mirrors Solid's `usesExcludeOnly`.
@@ -1707,7 +1707,7 @@ export function DataTableView<TRow extends object>({
           filterDetailCol.compare,
         )
       : []
-  // "Others" — the values the checklist's own value search is currently hiding (see CLAUDE.md's
+  // "Others" — the values the checklist's own value search is currently hiding (see docs/filter-dropdown.md's
   // "Filter dropdown"). Only meaningful once a search term actually narrows the list; empty
   // otherwise.
   const filterOtherValues = (() => {
@@ -2945,7 +2945,7 @@ export function DataTableView<TRow extends object>({
                             return (
                               <>
                                 {/* Bulk (de)select everything the value search above is
-                                    currently hiding — see CLAUDE.md's "Filter dropdown". Only
+                                    currently hiding — see docs/filter-dropdown.md's "Filter dropdown". Only
                                     rendered once a search term actually narrows the list. Not
                                     extended to the date tree, which has its own branch above. */}
                                 {filterOtherValues.length > 0 && (
@@ -3033,7 +3033,7 @@ export function DataTableView<TRow extends object>({
                                             the browser's dash glyph reused as the "not this"
                                             indicator) → back to unchecked, via cycleFilterValue.
                                             Non-multi-value column: plain checked/unchecked toggle
-                                            via setExcludeValues, see CLAUDE.md's "Filter dropdown".
+                                            via setExcludeValues, see docs/filter-dropdown.md's "Filter dropdown".
                                             `indeterminate` isn't a prop React can set
                                             declaratively, so a callback ref sets it imperatively,
                                             same pattern as the date tree's node checkboxes above

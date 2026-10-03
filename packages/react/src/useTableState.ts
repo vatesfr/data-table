@@ -408,7 +408,7 @@ export function useTableState<TRow extends object>(
         }))
       },
       // Checked-by-default, exclude-only checklist model for a non-multi-value column (see
-      // CLAUDE.md's "Filter dropdown") — `filters` is never touched for such a column, so these
+      // docs/filter-dropdown.md's "Filter dropdown") — `filters` is never touched for such a column, so these
       // two go straight to `excludeFilters` instead of routing through `cycleValue`/`toggleAll`.
       setExcludeValues: (key: string, values: string[], excluded: boolean) => {
         setFilterState((prev) => ({

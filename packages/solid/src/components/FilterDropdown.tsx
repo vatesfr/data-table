@@ -84,7 +84,7 @@ interface FilterSearchRowProps {
 }
 
 // Select-all checkbox + value search input + sort-order toggle — shared by the string checklist
-// and the date tree (the date branch had been missing this entirely at first; see CLAUDE.md's
+// and the date tree (the date branch had been missing this entirely at first; see docs/filter-dropdown.md's
 // "Filter dropdown" section). Both narrow/select over the same filterDetailValues() pipeline
 // regardless of which control (checklist or tree) renders those values, so this row's own
 // behavior is identical either way — only the sort icon function differs (alpha/count vs.
@@ -158,7 +158,7 @@ function FilterSearchRow(props: FilterSearchRowProps) {
   )
 }
 
-// Master-detail filter panel (see CLAUDE.md's "Filter dropdown"): a left pane listing every
+// Master-detail filter panel (see docs/filter-dropdown.md's "Filter dropdown"): a left pane listing every
 // filterable column (dot-marked when active), a right pane showing the selected column's
 // controls — checklist (string, virtualized — see "Checklist virtualization" above), range +
 // slider (number), or a Year›Month›Day tree + range + slider (date, never virtualized — every
@@ -185,7 +185,7 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
 
   const [activeKey, setActiveKey] = createSignal<string | null>(null)
   // Narrows the left pane's *column list* — a separate concern from `searchTerms` below, which
-  // narrows the active column's *values* in the right detail pane (see CLAUDE.md's "Dropdown
+  // narrows the active column's *values* in the right detail pane (see docs/dropdown-keyboard-nav.md's "Dropdown
   // column search and keyboard navigation").
   const [colSearchTerm, setColSearchTerm] = createSignal('')
   const isColSearching = createMemo(() => colSearchTerm().trim().length > 0)
@@ -253,7 +253,7 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
   })
 
   // Buckets the (already searched/ordered) left-pane column list by `ColumnDefBase.category` —
-  // see CLAUDE.md's "Column categories" section. Uncategorized columns render as plain rows,
+  // see docs/columns.md's "Column categories" section. Uncategorized columns render as plain rows,
   // exactly as before this feature existed; each category renders as its own collapsible
   // section instead of a flyout submenu (unlike Columns/Sort/Group) — a submenu would need
   // ArrowRight, already taken here for left-pane→detail-pane crossing (see `handlePanelKeyDown`).
@@ -286,7 +286,7 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
   )
   const expanded = createMemo(() => expandedNodes()[activeCol()?.key ?? ''] ?? new Set<string>())
 
-  // Scoped via targetKeys to just the active column — see CLAUDE.md's "Performance": computing
+  // Scoped via targetKeys to just the active column — see docs/performance.md's "Performance": computing
   // this for every filterable column on every change is the single biggest cost this library has
   // measured (~15-17x at 500k rows), and only one column's checklist is ever shown at a time.
   const stringValueCounts = createMemo(() => {
@@ -347,7 +347,7 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
   })
 
   // A non-multi-value column's checklist uses a checked-by-default, exclude-only model instead
-  // of the tri-state include/exclude cycle (see CLAUDE.md's "Filter dropdown"): `filters` is
+  // of the tri-state include/exclude cycle (see docs/filter-dropdown.md's "Filter dropdown"): `filters` is
   // never written for such a column, "checked" simply means "not in `excludeFilters`". Date/
   // number columns (their own detail branches below) and genuinely multi-value columns keep the
   // original include-based model untouched.
@@ -386,7 +386,7 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
     return sortFilterValues(values, stringValueCounts(), valueSort(), col.compare)
   })
 
-  // "Others" — the values the checklist's own value search is currently hiding (see CLAUDE.md's
+  // "Others" — the values the checklist's own value search is currently hiding (see docs/filter-dropdown.md's
   // "Filter dropdown"). Only meaningful once a search term actually narrows the list; empty
   // otherwise, which also keeps it a no-op for the date tree's own (unused) reference to this.
   const otherValues = createMemo(() => {
@@ -408,7 +408,7 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
 
   // --- Checklist virtualization ---
   // A column with thousands of distinct values (a customer name, an order ID) would otherwise
-  // mount one <label>/<input> per value regardless of scroll position — see CLAUDE.md's
+  // mount one <label>/<input> per value regardless of scroll position — see docs/performance.md's
   // "Performance" and "The flat checklist is virtualized in React and Vue" in the docs. Solid's
   // own version of this, windowing filterDetailValues() the same way.
   let filterListEl: HTMLDivElement | undefined
@@ -741,7 +741,7 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
         </button>
         {/* Replaces the plain active-filter dot: a one-click way to drop this column's filter
             without opening it first, matching the toolbar's own per-dropdown × buttons — see
-            CLAUDE.md's "Toolbar clear buttons". A sibling of the column button rather than
+            docs/toolbar.md's "Toolbar clear buttons". A sibling of the column button rather than
             nested inside it, since a <button> can't contain another interactive element. */}
         <Show when={hasActive()}>
           <button
@@ -902,7 +902,7 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
                           clearSearchLabel={table.labels().clearSearch}
                         />
                         {/* Bulk (de)select everything the value search above is currently hiding
-                            — see CLAUDE.md's "Filter dropdown". Only rendered once a search term
+                            — see docs/filter-dropdown.md's "Filter dropdown". Only rendered once a search term
                             actually narrows the list. */}
                         <Show when={otherValues().length > 0}>
                           <label class="dt-dd-item dt-filter-others">
@@ -967,7 +967,7 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
                                   // Explains each model's own click behavior — the checked-by-
                                   // default model has no tri-state cycle to describe, so it gets
                                   // its own plain hide/show copy instead of reusing the tri-state
-                                  // labels (see CLAUDE.md's "Filter dropdown").
+                                  // labels (see docs/filter-dropdown.md's "Filter dropdown").
                                   const itemTitle = () =>
                                     usesExcludeOnly()
                                       ? checked()

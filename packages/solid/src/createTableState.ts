@@ -92,14 +92,14 @@ export interface CreateTableStateOptions<TRow extends object = Record<string, un
 
 export type TableState<TRow extends object> = ReturnType<typeof createTableState<TRow>>
 
-// Solid port of react/useTableState.ts & vue/useTableState.ts — see CLAUDE.md's "Solid + TSX
+// Solid port of react/useTableState.ts & vue/useTableState.ts — see docs/solid-package.md's "Solid + TSX
 // migration" note for why. Internal state/action logic mirrors those two field-for-field (same
 // signal names, same core functions called), so a change made to one adapter's state logic has an
 // obvious equivalent here — only the *returned object's shape* is namespaced (`table.sort.*`,
 // `table.filter.*`, `table.group.*`, `table.selection.*`, `table.pagination.*`, `table.search.*`,
 // `table.columns.*`, plus `processedData`/`pagedData`/`groupedData`/`visibleItems`/`labels` and
 // `getViewState`/`setViewState`/`clearAll` staying top-level) rather than the ~45-field flat object
-// every adapter used to return — see CLAUDE.md's "Namespaced TableState" for the full reasoning;
+// every adapter used to return — see docs/table-state.md's "Namespaced TableState" for the full reasoning;
 // Solid is the first adapter migrated to this shape, with React/Vue to follow the same grouping.
 // The one structural difference from React/Vue: `data`/`columns` are themselves signals with
 // public `setData`/`columns.set` setters, because vanilla's `createDataTable(container, options)`
@@ -414,7 +414,7 @@ export function createTableState<TRow extends object>(
           excludeFilters: _clearExcludeValues(prev.excludeFilters, key, values),
         }))
       },
-      // Exclude-only checklist model for a non-multi-value column (see CLAUDE.md's "Filter
+      // Exclude-only checklist model for a non-multi-value column (see docs/filter-dropdown.md's "Filter
       // dropdown"): `filters` is never touched for such a column, so these two go straight to
       // `excludeFilters` instead of routing through `cycleFilterValue`/`toggleAllFilterState`.
       setExcludeValues: (key: string, values: string[], excluded: boolean) => {
@@ -510,7 +510,7 @@ export function createTableState<TRow extends object>(
         setSelectionAnchor(null)
       },
       // Replaces the selection outright, by object identity — backs @vates/data-table-vanilla's
-      // imperative `DataTableInstance.setSelection(rows)` (see CLAUDE.md's "Row selection" ->
+      // imperative `DataTableInstance.setSelection(rows)` (see docs/selection-and-row-click.md's "Row selection" ->
       // "Vanilla's imperative selection API"), since that wrapper has no reactive `selection.all`
       // value of its own to mutate directly. A consumer using this package's own `createTableState`
       // directly has no need for a separate "replace everything" method — this mainly exists for

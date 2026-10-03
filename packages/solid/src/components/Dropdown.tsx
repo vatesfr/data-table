@@ -7,7 +7,7 @@ interface DropdownProps {
   onClose: () => void
   trigger: JSX.Element
   /** Rendered as a sibling of `trigger`, inside the same outside-click boundary — see the
-   * toolbar's per-dropdown × clear buttons (CLAUDE.md's "Toolbar clear buttons"). */
+   * toolbar's per-dropdown × clear buttons (docs/toolbar.md's "Toolbar clear buttons"). */
   extraTrigger?: JSX.Element
   children: JSX.Element
   /**
@@ -35,7 +35,7 @@ interface DropdownProps {
 // and vue/components/Dropdown.vue's role. Handles: open/close, outside-click-to-close,
 // Escape-clears-search-then-closes, focus-follows-open, roving Up/Down/Home/End nav across the
 // panel's own search box + rows, and viewport clamping (translateX so a wide panel opened near
-// the right edge doesn't render off-screen — see CLAUDE.md's "Dropdown viewport clamping").
+// the right edge doesn't render off-screen — see docs/toolbar.md's "Dropdown viewport clamping").
 export function Dropdown(props: DropdownProps) {
   let wrapRef: HTMLDivElement | undefined
   let panelRef: HTMLDivElement | undefined

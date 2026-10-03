@@ -104,7 +104,7 @@ describe('createDataTable — dropdown column search', () => {
 
   it('the filter dropdown lists every filterable column in the left pane, alphabetized', () => {
     // NOTE: FilterDropdown.tsx has since gained its own left-pane search box + alphabetical
-    // ordering (matching Sort/Group's addable lists, per CLAUDE.md's documented behavior) — this
+    // ordering (matching Sort/Group's addable lists, per docs/columns.md's documented behavior) — this
     // was a real gap when this test was first written; both are now covered directly in
     // FilterDropdown.test.tsx ("FilterDropdown — left pane search"). This test now just confirms
     // the column list itself (order included).
@@ -197,7 +197,7 @@ describe('createDataTable — filter dropdown: selecting a column in the left pa
 //   `handleDocClick` on `props.isOpen` in Dropdown.tsx — confirmed fixed as of this file's final
 //   test run, so no test-side workaround was needed.
 // - FilterDropdown.tsx's left column pane has NO search box at all, and is NOT alphabetized by
-//   label — both contradict CLAUDE.md's "Dropdown column search and keyboard navigation" section,
+//   label — both contradict docs/dropdown-keyboard-nav.md's "Dropdown column search and keyboard navigation" section,
 //   which documents the Filter dropdown's left pane as gaining the same search-narrows-the-list
 //   and alphabetical-by-label treatment as Sort/Group's addable lists. In the actual component,
 //   the only `.dt-dd-search` input anywhere in FilterDropdown.tsx is the per-column *value*

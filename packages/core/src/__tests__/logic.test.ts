@@ -563,7 +563,7 @@ describe('processData', () => {
   // check membership via `rowValues.includes(v)` per candidate value — an O(rows × set size ×
   // rowValues.length) shape that stayed correct but became a multi-second stall once the set held
   // thousands of entries (found profiling the huge-dataset demo's checked-by-default checklist —
-  // see CLAUDE.md's "Filter dropdown" — whose own "select all"/"Others" narrow a high-cardinality
+  // see docs/filter-dropdown.md's "Filter dropdown" — whose own "select all"/"Others" narrow a high-cardinality
   // column by excluding most of its distinct values in one action). These don't assert timing
   // (flaky in CI); `logic.bench.ts` covers the actual performance shape. Correctness only, with a
   // set large enough that a reintroduced O(rows × set size) scan would be easy to notice manually.

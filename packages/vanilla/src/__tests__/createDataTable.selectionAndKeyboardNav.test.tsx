@@ -622,7 +622,7 @@ describe('createDataTable — keyboard navigation with grouping', () => {
 // UPDATE: the bullets that used to live here ('End moves the roving tabindex to the last row',
 // cross-page ArrowDown/ArrowUp/Ctrl+Home/Ctrl+End, and Shift+Arrow range selection — including
 // across a page boundary) turned out to already work, or now do after the Solid/vanilla keyboard-
-// nav parity work (see CLAUDE.md's "Keyboard navigation" and `docs/keyboard-navigation.md`'s
+// nav parity work (see docs/keyboard-navigation.md's "Keyboard navigation" and `docs/keyboard-navigation.md`'s
 // "Crossing page boundaries") — real tests for all of them now live in the "keyboard navigation"
 // describe block above instead of being pruned.
 //

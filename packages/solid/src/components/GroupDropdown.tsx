@@ -26,7 +26,7 @@ interface GroupDropdownProps<TRow extends object> {
 
 // Same active/add split as SortDropdown, but a group entry has no click action of its own (no
 // direction to toggle) — the row is draggable/focusable for reordering only, with × as the sole
-// button. See CLAUDE.md's "Grouped columns"/"Column reordering".
+// button. See docs/grouped-columns.md's "Grouped columns"/"Column reordering".
 export function GroupDropdown<TRow extends object>(props: GroupDropdownProps<TRow>) {
   const { table } = props
   const [searchTerm, setSearchTerm] = createSignal('')
@@ -46,7 +46,7 @@ export function GroupDropdown<TRow extends object>(props: GroupDropdownProps<TRo
     return props.groupableCols.filter((c) => !groupBy.includes(c.key))
   })
   // While searching, category matches are flattened into plain, category-tagged rows instead of
-  // bucketed behind a submenu — see CLAUDE.md's "Column categories"/ColumnsDropdown.tsx's identical
+  // bucketed behind a submenu — see docs/columns.md's "Column categories"/ColumnsDropdown.tsx's identical
   // fix: hiding a single search match behind an extra hover/click defeats the point of searching.
   const searchedFlatAddableCols = createMemo(() => alphabetizedByLabel(addableCols(), searchTerm()))
   const categorizedAddableCols = createMemo(() => categorizedAlphabetizedByLabel(addableCols(), ''))

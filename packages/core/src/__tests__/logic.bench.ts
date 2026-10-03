@@ -74,7 +74,7 @@ for (const n of SIZES) {
 
     // A checked-by-default, exclude-only checklist's own "select all" narrows by populating
     // `excludeFilters` with most/all of a high-cardinality column's distinct values in one action
-    // (see CLAUDE.md's "Filter dropdown") — `name` is effectively unique per row here, so a
+    // (see docs/filter-dropdown.md's "Filter dropdown") — `name` is effectively unique per row here, so a
     // 2,000-value Set exercises the same shape a large real dataset's checklist would produce.
     // Guards against the O(rows × set size) regression found profiling the huge-dataset demo:
     // `processData`'s include/exclude passes used to spread the filter Set to an array and call

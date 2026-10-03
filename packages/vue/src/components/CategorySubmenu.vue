@@ -2,7 +2,7 @@
 import { ref } from 'vue'
 import { computeSubmenuPosition, ddNavFocusables } from '@vates/data-table-core/internal'
 
-// Hover-intent delays (see CLAUDE.md's "Column categories") — a native OS/app-menu-style flyout
+// Hover-intent delays (see docs/columns.md's "Column categories") — a native OS/app-menu-style flyout
 // opens on hover once its parent menu is already open. OPEN_DELAY avoids a flicker-open while the
 // pointer merely sweeps across a category row on its way to something else; CLOSE_DELAY is
 // longer, giving the pointer room to travel diagonally from the trigger into the submenu itself

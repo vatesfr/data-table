@@ -5,7 +5,7 @@ interface SearchBoxProps<TRow extends object> {
   table: TableState<TRow>
 }
 
-// First real Solid component of the migration (see CLAUDE.md's "Solid + TSX migration" note) —
+// First real Solid component of the migration (see docs/solid-package.md's "Solid + TSX migration" note) —
 // deliberately the smallest self-contained toolbar slice, to validate createTableState.ts through
 // an actual component before building the larger dropdown/table-body pieces.
 //

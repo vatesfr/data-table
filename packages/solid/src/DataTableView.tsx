@@ -45,7 +45,7 @@ type DropdownId = 'cols' | 'sort' | 'group' | 'filter'
 
 // Top-level render layer, taking a `table: TableState<TRow>` (createTableState's return) as a
 // prop instead of calling createTableState itself — mirrors react/vue's own DataTableView split
-// (see CLAUDE.md's "DataTableView — reaching state that <DataTable> can't expose"), so a consumer
+// (see docs/packages.md's "DataTableView — reaching state that <DataTable> can't expose"), so a consumer
 // with imperative needs (usePersistedView-equivalent, etc.) can build a table and pass it in
 // directly instead of only ever going through the createDataTable(container, options) wrapper.
 export function DataTableView<TRow extends object>(props: DataTableViewProps<TRow>) {

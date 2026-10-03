@@ -27,7 +27,7 @@ interface SortDropdownProps<TRow extends object> {
   onClose: () => void
 }
 
-// Mirrors the Sort dropdown described in CLAUDE.md's "Header click sorting"/"Column reordering":
+// Mirrors the Sort dropdown described in docs/sorting.md's "Header click sorting"/"Column reordering":
 // active entries (priority order, reorderable, direction-toggle-on-click) above a search-narrowed,
 // alphabetized "add" list below. Drag-and-drop reordering of active entries is the first real test
 // of native HTML5 DnD against Solid's reactivity (see the migration plan's flagged risk) — it
@@ -57,14 +57,14 @@ export function SortDropdown<TRow extends object>(props: SortDropdownProps<TRow>
     return props.columns.filter((c) => c.sortable !== false && getSortIndex(sorts, c.key) === null)
   })
   // While searching, category matches are flattened into plain, category-tagged rows instead of
-  // bucketed behind a submenu — see CLAUDE.md's "Column categories"/ColumnsDropdown.tsx's identical
+  // bucketed behind a submenu — see docs/columns.md's "Column categories"/ColumnsDropdown.tsx's identical
   // fix: hiding a single search match behind an extra hover/click defeats the point of searching.
   const searchedFlatAddableCols = createMemo(() => alphabetizedByLabel(addableCols(), searchTerm()))
   const categorizedAddableCols = createMemo(() => categorizedAlphabetizedByLabel(addableCols(), ''))
 
   // Split the active list in two: entries matching a currently grouped column always govern
   // nesting order (`sortWithinGroups` reads that off `groupBy`'s own order, never off drag
-  // position within `sorts` — see CLAUDE.md's "Auto-syncing group order with sort") and entries
+  // position within `sorts` — see docs/grouped-columns.md's "Auto-syncing group order with sort") and entries
   // for everything else, which is the actual freely-reorderable tie-break priority stack. Mixing
   // both into one flat draggable list made it look like dragging a tie-break column above a
   // group column changed something when it never could — see issue #17's follow-up. `groupEntries`

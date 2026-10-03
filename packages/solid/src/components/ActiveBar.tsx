@@ -24,7 +24,7 @@ function summarizeFilterValues<TRow extends object>(
 }
 
 // Always rendered (even with nothing active) so the row-count stats have a single stable home and
-// toggling a sort/filter/group never shifts the toolbar's height — see CLAUDE.md's "Toolbar
+// toggling a sort/filter/group never shifts the toolbar's height — see docs/toolbar.md's "Toolbar
 // layout (shape/find clusters, active state bar)". One chip per active sort entry, group column,
 // and filter (include/exclude/range each get their own, since a column can carry more than one at
 // once), followed by row-count/group-count stats pinned at the far right.

@@ -174,7 +174,7 @@ export function createDataTable<TRow extends object>(
     getProcessedData: () => [...table.processedData()],
     // Mirrors `table.focus.moveTo` (see its own doc comment in @vates/data-table-solid) — flat
     // name, same as every other selection/focus method here, rather than a nested `focus` object
-    // (see CLAUDE.md's "Vanilla package" for why this adapter flattens every namespaced group).
+    // (see docs/packages.md's "Vanilla package" for why this adapter flattens every namespaced group).
     focusRow: (row: TRow, options?: { focus?: boolean }) => table.focus.moveTo(row, options),
     clearAll: () => table.clearAll(),
     // Wrapped in a thunk even though `key` is never actually a function: TS can't prove a

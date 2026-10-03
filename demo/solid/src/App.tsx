@@ -539,7 +539,7 @@ function ViewControls(props: { onReset: () => void }) {
 }
 
 // Cross-links between this demo and the package README. @vates/data-table-solid's own README is
-// thinner than react's/vue's (it defers most shared behavior to the root README/CLAUDE.md rather
+// thinner than react's/vue's (it defers most shared behavior to the root README/docs rather
 // than re-documenting it per feature) — so unlike react's demo, this only links to anchors that
 // actually exist there, rather than one per concept shown below.
 const README_URL = 'https://github.com/vatesfr/data-table/blob/main/packages/solid/README.md'
@@ -695,7 +695,7 @@ function SelectionTable(props: {
   usePersistedView(table, VIEW_KEYS.selection.storageKey)
   useUrlView(table, { paramName: VIEW_KEYS.selection.paramName })
   // DataTableViewProps has no onSelectionChange (that convenience only exists on <DataTable>,
-  // which never hands `table` back to its caller — see the package README/CLAUDE.md). This
+  // which never hands `table` back to its caller — see the package README/docs/packages.md). This
   // section already owns `table` directly, so the same createEffect(on(...)) <DataTable> uses
   // internally works just as well here.
   createEffect(on(table.selection.rows, (rows) => props.onSelectionChange(rows), { defer: true }))

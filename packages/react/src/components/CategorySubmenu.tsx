@@ -8,7 +8,7 @@ import {
 } from 'react'
 import { computeSubmenuPosition, ddNavFocusables } from '@vates/data-table-core/internal'
 
-// Hover-intent delays (see CLAUDE.md's "Column categories") — a native OS/app-menu-style flyout
+// Hover-intent delays (see docs/columns.md's "Column categories") — a native OS/app-menu-style flyout
 // opens on hover once its parent menu is already open. OPEN_DELAY avoids a flicker-open while the
 // pointer merely sweeps across a category row on its way to something else; CLOSE_DELAY is
 // longer, giving the pointer room to travel diagonally from the trigger into the submenu itself
@@ -62,7 +62,7 @@ const submenuStyle: CSSProperties = {
   padding: '4px 0',
 }
 
-// A category row in the Sort/Group dropdowns' addable-column lists (see CLAUDE.md's "Column
+// A category row in the Sort/Group dropdowns' addable-column lists (see docs/columns.md's "Column
 // categories"): collapses every column sharing `ColumnDefBase.category` into one row that opens a
 // flyout submenu listing them, instead of a flat run of individual rows — worthwhile once a
 // category has enough columns that this saves real scanning. Mirrors

@@ -3,7 +3,7 @@ import type { ColumnCategory } from '@vates/data-table-core/internal'
 import { CategorySubmenu } from './CategorySubmenu'
 
 // Small, purely presentational building blocks shared by the Columns/Sort/Group/Filter dropdowns
-// (see CLAUDE.md's per-dropdown sections) — extracted after a cross-dropdown consistency review
+// (see the per-dropdown docs in docs/) — extracted after a cross-dropdown consistency review
 // found the same markup duplicated near-verbatim across three or four of them. None of these carry
 // any dropdown-specific behavior of their own; every action (what a click actually does, which
 // data-key attribute a row carries) is passed in by the caller, so this file has no dependency on
@@ -114,7 +114,7 @@ export function DropdownSearchRow(props: {
   )
 }
 
-/** Sort/Group/Filter's shared toolbar-button "×" clear affordance (see CLAUDE.md's "Toolbar clear
+/** Sort/Group/Filter's shared toolbar-button "×" clear affordance (see docs/toolbar.md's "Toolbar clear
  * buttons") — rendered as a `Dropdown` `extraTrigger`, so it stays a sibling of the trigger button
  * rather than nested inside it. Columns has no equivalent (never had a "clear everything" concept
  * for its own dropdown), so it isn't a caller of this. */

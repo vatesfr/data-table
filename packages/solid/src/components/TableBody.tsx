@@ -29,7 +29,7 @@ function stringifyValue(v: unknown): string {
   return String(v ?? '')
 }
 
-// Cell rendering priority (see CLAUDE.md's "Cell rendering priority"), applied uniformly to data
+// Cell rendering priority (see docs/packages.md's "Cell rendering priority"), applied uniformly to data
 // cells, group-header cells, and aggregate cells: col.render(value, contextRow) → col.format(...)
 // → fallback(value). col.render returns a real DOM Node — Solid can render an arbitrary Node as
 // a JSX child directly, so (unlike the old innerHTML-string version) no placeholder-and-patch
@@ -63,7 +63,7 @@ function aggValue<TRow extends object>(
 
 // Table header + body: sortable/draggable header cells, group headers (collapse toggle,
 // select-all, aggregate row), data rows (selection, row click), and a page-scoped roving-tabindex
-// keyboard nav (see CLAUDE.md's "Keyboard navigation") — ArrowUp/ArrowDown/Home/End move focus,
+// keyboard nav (see docs/keyboard-navigation.md's "Keyboard navigation") — ArrowUp/ArrowDown/Home/End move focus,
 // Shift+ArrowUp/Down/Home/End additionally extend row selection to the target first (mirroring a
 // shift-click, via the same toggleRowSelection(row, true) anchor/range logic). ArrowUp/ArrowDown
 // at the current page's first/last item cross into the adjacent page's last/first item; Ctrl/
@@ -82,7 +82,7 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
   const rowRefs = new Map<TRow | string, HTMLElement>()
   // Registers a row/group-header's DOM node and prunes it again once that row/header component
   // instance is disposed (filtered out, replaced by setData, or its group collapsed away) — a
-  // long-lived table that periodically calls setData with fresh row objects (see CLAUDE.md's
+  // long-lived table that periodically calls setData with fresh row objects (see docs/keyboard-navigation.md's
   // scroll/focus-restore design, written with exactly that streaming/live-update use case in
   // mind) would otherwise accumulate one Map entry, pinning a detached DOM node and the old row
   // object, for every row ever seen over the table's lifetime. `onCleanup` here ties to whichever
@@ -243,7 +243,7 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
   // Header reordering is horizontal (columns, not rows) — resolveDropRow is row-height-based, so
   // this is a small horizontal variant: nearest column by clientX, always inserting before it
   // (matching the old vanilla behavior's deliberate "always insert before" simplification for
-  // header drag specifically — see CLAUDE.md's "Column reordering").
+  // header drag specifically — see docs/column-reordering.md's "Column reordering").
   function resolveDropRowHorizontal(
     clientX: number,
     cells: { key: string; el: HTMLElement }[],

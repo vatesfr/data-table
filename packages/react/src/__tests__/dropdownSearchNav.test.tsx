@@ -521,7 +521,7 @@ describe('DataTable — active-bar chip click actions', () => {
       <DataTable data={ROWS} columns={COLS} rowKey="id" />,
     )
     fireEvent.click(getByText('Filter'))
-    // `name` is checked-by-default (see CLAUDE.md's "Filter dropdown"): clicking Alice's
+    // `name` is checked-by-default (see docs/filter-dropdown.md's "Filter dropdown"): clicking Alice's
     // checkbox excludes her, rendering as the exclude chip.
     fireEvent.click(getByLabelText('Alice', { exact: false }))
     const chip = [...container.querySelectorAll('span')].find((el) =>

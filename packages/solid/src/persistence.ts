@@ -11,7 +11,7 @@ import {
 
 // Solid's own equivalent of react/vue's usePersistedView/useUrlView/usePersistence, built on the
 // exact same getViewState()/setViewState() primitive this package's own createTableState also
-// exposes — see CLAUDE.md's "View persistence" for the shared design across all three adapters.
+// exposes — see docs/view-persistence.md's "View persistence" for the shared design across all three adapters.
 // Named to match react/vue's own hooks (rather than a Solid-conventional `createXxx` name) since
 // these are the same concept under the same API — cross-adapter consistency wins here over strict
 // per-framework naming convention.

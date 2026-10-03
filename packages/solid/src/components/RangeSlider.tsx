@@ -10,7 +10,7 @@ interface RangeSliderProps<TRow extends object> {
   onCommit: (min: string, max: string) => void
 }
 
-// "2 inputs + a slider" range control (see CLAUDE.md's "type: 'number'/'type: 'date' range
+// "2 inputs + a slider" range control (see docs/filter-dropdown.md's "type: 'number'/'type: 'date' range
 // filters get a slider") — two overlapping native <input type="range"> thumbs sharing one visual
 // track (styles.ts makes only the thumb itself a hit target). Both thumbs share one onInput:
 // the actual applied min/max is always Math.min/Math.max of both thumbs' live values, so dragging

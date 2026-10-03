@@ -10,7 +10,7 @@
 // own body, so its file-scoped `/// <reference lib="dom" />` (see that file's own top comment for
 // why it's needed, and why it's scoped to just that file instead of the whole package) stays
 // exactly where it is — this avoids duplicating that reasoning/reference here while still folding
-// its contents into `/internal`'s reachable surface, per CLAUDE.md.
+// its contents into `/internal`'s reachable surface, per docs/packages.md.
 
 export * from './logic'
 export * from './dropdownDomUtils'

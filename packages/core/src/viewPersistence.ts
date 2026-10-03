@@ -10,7 +10,7 @@ import { encodeViewState, decodeViewState, type TableViewState } from './view'
 
 // Framework-agnostic building blocks shared by every adapter's own `persistence.ts`
 // (react/vue/solid's `usePersistedView`/`useUrlView`/`usePersistence`, vanilla's
-// `persistViewToLocalStorage`/`syncViewToUrl`/`persistView`) — see CLAUDE.md's "View persistence".
+// `persistViewToLocalStorage`/`syncViewToUrl`/`persistView`) — see docs/view-persistence.md's "View persistence".
 // These only ever touch `TableViewState`/`localStorage`/`URLSearchParams`/`window.history`; the
 // reactive glue (effects, watchers, `popstate` subscriptions) stays adapter-local since it's tied
 // to each framework's own lifecycle, not something a pure function can express.

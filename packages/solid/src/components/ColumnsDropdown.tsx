@@ -15,7 +15,7 @@ interface ColumnsDropdownProps<TRow extends object> {
   onClose: () => void
 }
 
-// Mirrors CLAUDE.md's "Columns dropdown": a "Visible columns" section (every column the user has
+// Mirrors docs/columns.md's "Columns dropdown": a "Visible columns" section (every column the user has
 // chosen to show — table.columns.visible(), not table.columns.active(), so a column merely hidden
 // *by grouping* still counts as visible here — draggable/Alt+↑↓-reorderable, exactly the flat
 // list this dropdown always was) above an "Available columns" section (hidden columns, click to

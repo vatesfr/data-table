@@ -88,7 +88,7 @@ function handleRowClick(row: TRow, event: MouseEvent | KeyboardEvent) {
   emit('rowClick', row, event)
 }
 
-// `props.table`'s own fields are namespaced by concern (see CLAUDE.md's "Namespaced TableState")
+// `props.table`'s own fields are namespaced by concern (see docs/table-state.md's "Namespaced TableState")
 // — destructured here into the same bare local names this file's script and template already
 // use throughout, so nothing below this block (including every `<template>` binding, since
 // `<script setup>` auto-exposes top-level `const`s to the template) needed to change when the
@@ -159,7 +159,7 @@ const { query: searchQuery, setQuery: setSearchQuery } = props.table.search
 const { target: focusTarget, setTarget: setFocusTarget } = props.table.focus
 
 // Split for the Sort dropdown's active list and the active-bar chips (see "Auto-syncing group
-// order with sort" in CLAUDE.md): entries matching a currently grouped column always govern
+// order with sort" in docs/grouped-columns.md): entries matching a currently grouped column always govern
 // nesting order via groupBy's own order, never via drag position within `sorts` — mixing them
 // into one flat draggable list (or showing two identically-labeled chips) made it look like
 // dragging a tie-break column above a group column changed something when it never could
@@ -472,7 +472,7 @@ const filterDropdownRef = ref<InstanceType<typeof Dropdown> | null>(null)
 // mid-interaction). `filterDropdownRef.value?.isOpen` is watched (rather than hoisting `isOpen`
 // itself here) since Dropdown.vue already owns that state — see its own `isOpen` export.
 const filterColOrderKeys = ref<string[] | null>(null)
-// Which categories are collapsed (see CLAUDE.md's "Column categories"). Seeded the same way as
+// Which categories are collapsed (see docs/columns.md's "Column categories"). Seeded the same way as
 // filterColOrderKeys above — a snapshot taken only on the closed→open transition, not recomputed
 // live while the panel stays open (so toggling a category by hand isn't fought by an unrelated
 // filter change elsewhere). Collapsed by default (matching Columns/Sort/Group's own category
@@ -653,7 +653,7 @@ function filteredValuesFor(col: ColumnDef<TRow>): string[] {
     col.compare,
   )
 }
-// "Others" — the values the checklist's own value search is currently hiding (see CLAUDE.md's
+// "Others" — the values the checklist's own value search is currently hiding (see docs/filter-dropdown.md's
 // "Filter dropdown"). Only meaningful once a search term actually narrows the list; empty
 // otherwise.
 function otherValuesFor(col: ColumnDef<TRow>): string[] {
@@ -675,7 +675,7 @@ function isValueExcludedVisual(col: ColumnDef<TRow>, value: string): boolean {
 }
 // Explains each model's own click behavior — the checked-by-default model has no tri-state cycle
 // to describe, so it gets its own plain hide/show copy instead of reusing the tri-state labels
-// (see CLAUDE.md's "Filter dropdown").
+// (see docs/filter-dropdown.md's "Filter dropdown").
 function valueTitleFor(col: ColumnDef<TRow>, value: string): string {
   if (usesExcludeOnly.value) {
     return isValueChecked(col, value) ? L.value.filterValueHideTitle : L.value.filterValueShowTitle
@@ -729,7 +729,7 @@ const isMultiValueFilterCol = computed(() => {
   return cached
 })
 // A non-multi-value column's checklist uses a checked-by-default, exclude-only model instead of
-// the tri-state include/exclude cycle (see CLAUDE.md's "Filter dropdown"): `filters` is never
+// the tri-state include/exclude cycle (see docs/filter-dropdown.md's "Filter dropdown"): `filters` is never
 // written for such a column, "checked" simply means "not in `excludeFilters`". Date/number
 // columns (their own detail branches) and genuinely multi-value columns keep the original
 // include-based model untouched.
@@ -1024,7 +1024,7 @@ const addableGroupCols = computed(() =>
 // of these are sorted/grouped yet), so it's alphabetized instead of raw column-definition order —
 // and, via `categorizedAlphabetizedByLabel` (core, which also matches by category), bucketed by
 // `ColumnDefBase.category`: a category collapses into a `CategorySubmenu` flyout trigger instead
-// of a flat run of individual rows (see CLAUDE.md's "Column categories").
+// of a flat run of individual rows (see docs/columns.md's "Column categories").
 const categorizedAddableSortCols = computed(() =>
   categorizedAlphabetizedByLabel(addableSortCols.value, ddSearchTerm('sort')),
 )
@@ -2058,7 +2058,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                   <!--
                     Replaces the plain active-filter dot: a one-click way to drop this column's
                     filter without opening it first, matching the toolbar's own per-dropdown ×
-                    buttons (see "Toolbar clear buttons" in CLAUDE.md).
+                    buttons (see "Toolbar clear buttons" in docs/toolbar.md).
                   -->
                   <button
                     v-if="hasActiveColFilter(col)"
@@ -2279,7 +2279,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                   <template v-else>
                     <!--
                     Bulk (de)select everything the value search above is currently hiding — see
-                    CLAUDE.md's "Filter dropdown". Only rendered once a search term actually
+                    docs/filter-dropdown.md's "Filter dropdown". Only rendered once a search term actually
                     narrows the list.
                   -->
                     <label
@@ -2334,7 +2334,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                             (include) → indeterminate (exclude, the browser's dash glyph reused as
                             the "not this" indicator) → back to unchecked, via
                             onFilterValueClick's call to cycleFilterValue. Non-multi-value column:
-                            plain checked/unchecked toggle via setExcludeValues, see CLAUDE.md's
+                            plain checked/unchecked toggle via setExcludeValues, see docs/filter-dropdown.md's
                             "Filter dropdown". v-indeterminate (see above) is what actually sets
                             the DOM property, same as the select-all/group checkboxes.
                           -->
@@ -3237,7 +3237,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
 .dt__dd-item--exclude input[type='checkbox'] {
   accent-color: var(--color-text-danger);
 }
-/* The "Others" checklist row (see CLAUDE.md's "Filter dropdown") — shaded/italic/bordered so it
+/* The "Others" checklist row (see docs/filter-dropdown.md's "Filter dropdown") — shaded/italic/bordered so it
    reads as a distinct bulk control, not just another value blending into the results below it. */
 .dt__filter-others {
   background: var(--color-background-secondary);

@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { createSignal } from 'solid-js'
 import { render } from 'solid-js/web'
 
-// Phase 0 of the Solid migration (see CLAUDE.md's "planned: Solid + TSX rewrite" note): this test
+// Phase 0 of the Solid migration (see docs/solid-package.md's "planned: Solid + TSX rewrite" note): this test
 // exists only to prove the build/type-check/test pipeline actually understands .tsx + Solid's JSX
 // runtime end to end, before any real component is written. It intentionally has nothing to do
 // with the table itself — once the real migration is underway and covered by its own tests, this

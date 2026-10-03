@@ -1,4 +1,4 @@
-// Shared by Sort/Group's own active-row Alt+↑/↓ and remove-button handlers (see CLAUDE.md's
+// Shared by Sort/Group's own active-row Alt+↑/↓ and remove-button handlers (see docs/sorting.md's/docs/grouped-columns.md's
 // "Sort"/"Group" sections): each one resolves its own dropdown panel via `.closest('.dt-dd')`
 // *before* mutating state, mutates, then refocuses a fresh element by a `data-*` selector — Solid
 // updates the DOM synchronously within the same handler, so the new element already exists by the

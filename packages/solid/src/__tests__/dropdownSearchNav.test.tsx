@@ -7,7 +7,7 @@ import { GroupDropdown } from '../components/GroupDropdown'
 import type { ColumnDef } from '../types'
 
 // Mirrors packages/react/src/__tests__/dropdownSearchNav.test.tsx's own fixture/coverage, scoped
-// to what's implemented in Solid so far (see CLAUDE.md's "Filter dropdown"/keyboard-nav docs for
+// to what's implemented in Solid so far (see docs/filter-dropdown.md's "Filter dropdown"/keyboard-nav docs for
 // what's still deferred there vs. this file's own coverage).
 interface Row {
   id: number

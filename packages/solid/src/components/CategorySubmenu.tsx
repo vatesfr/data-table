@@ -1,7 +1,7 @@
 import { type JSX, Show, createSignal, onCleanup } from 'solid-js'
 import { computeSubmenuPosition, ddNavFocusables } from '@vates/data-table-core/internal'
 
-// Hover-intent delays (see CLAUDE.md's "Column categories"): a native OS/app-menu-style flyout
+// Hover-intent delays (see docs/columns.md's "Column categories"): a native OS/app-menu-style flyout
 // opens on hover once its parent menu is already open — a plain click-to-open (the first version
 // of this component) felt wrong for exactly that reason, it isn't how this kind of menu behaves
 // anywhere else. `OPEN_DELAY` avoids a flicker-open while the pointer merely sweeps across a
@@ -25,7 +25,7 @@ interface CategorySubmenuProps {
   children: JSX.Element
 }
 
-// A category row in the Columns/Sort/Group dropdowns' column lists (see CLAUDE.md's "Column
+// A category row in the Columns/Sort/Group dropdowns' column lists (see docs/columns.md's "Column
 // categories"): collapses every column sharing `ColumnDefBase.category` into one row that opens a
 // flyout submenu listing them, instead of a flat run of individual rows — worthwhile once a
 // category has enough columns that this saves real scanning. Reuses whatever row markup its own

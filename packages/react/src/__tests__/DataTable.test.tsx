@@ -112,7 +112,7 @@ describe('DataTable — filter dropdown', () => {
   })
 
   it('select-all checkbox excludes (unchecks) every currently listed value', () => {
-    // `name` is checked-by-default (see CLAUDE.md's "Filter dropdown") — nothing excluded yet,
+    // `name` is checked-by-default (see docs/filter-dropdown.md's "Filter dropdown") — nothing excluded yet,
     // so clicking the master checkbox excludes everyone.
     const { getByText, getByLabelText } = render(
       <DataTable data={ROWS} columns={FILTER_COLS} rowKey="id" />,
@@ -213,7 +213,7 @@ describe('DataTable — filter dropdown', () => {
       <DataTable data={ROWS2} columns={COLS2} rowKey="id" />,
     )
     fireEvent.click(getByText('Filter'))
-    // Narrow to Alice only: `name` is checked-by-default (see CLAUDE.md's "Filter dropdown"), so
+    // Narrow to Alice only: `name` is checked-by-default (see docs/filter-dropdown.md's "Filter dropdown"), so
     // exclude everyone via select-all, then re-check just Alice.
     fireEvent.click(getByLabelText('Select all'))
     fireEvent.click(getByLabelText('Alice', { exact: false }))
@@ -2133,7 +2133,7 @@ describe('DataTable — active state bar', () => {
     expect(getByText('Sort').closest('button')?.textContent).toBe('Sort')
     expect(getByText('Group').closest('button')?.textContent).toBe('Group')
     expect(container.textContent).toContain('Score')
-    // `name` is checked-by-default (see CLAUDE.md's "Filter dropdown"): clicking Alice's checkbox
+    // `name` is checked-by-default (see docs/filter-dropdown.md's "Filter dropdown"): clicking Alice's checkbox
     // excludes her, rendering as the exclude chip rather than an include one.
     expect(container.textContent).toContain('Name: ≠ Alice')
   })

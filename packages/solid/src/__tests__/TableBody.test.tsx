@@ -141,7 +141,7 @@ describe('TableBody — header sorting', () => {
     scoreHeader.dispatchEvent(new MouseEvent('dragover', { bubbles: true, clientX: 170 }))
     scoreHeader.dispatchEvent(new MouseEvent('drop', { bubbles: true, clientX: 170 }))
     // Header drag always inserts *before* the drop target (a deliberate simplification, see
-    // CLAUDE.md's "Column reordering") — dropping "name" onto "score" places it immediately
+    // docs/column-reordering.md's "Column reordering") — dropping "name" onto "score" places it immediately
     // before "score", not after.
     expect(table.columns.active().map((c) => c.key)).toEqual(['dept', 'name', 'score'])
     dispose()

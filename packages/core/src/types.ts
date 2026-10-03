@@ -211,7 +211,7 @@ export interface DataTableLabels {
   /** Tooltip on a filter checklist value that's currently excluded ("not this value") */
   filterExcludedTitle: string
   /** Tooltip on a non-multi-value column's checklist value while checked (shown) — the
-   * checked-by-default, exclude-only model (see CLAUDE.md's "Filter dropdown"); distinct from
+   * checked-by-default, exclude-only model (see docs/filter-dropdown.md's "Filter dropdown"); distinct from
    * `filterValueTitle` since there's no tri-state cycle to explain, just a plain hide/show toggle */
   filterValueHideTitle: string
   /** Tooltip on a non-multi-value column's checklist value while hidden (excluded) */

@@ -180,7 +180,7 @@ describe('createDataTable — checklist filter', () => {
   it('checklist filter shows only matching rows', () => {
     const { container } = mount(ROWS, COLS)
     openFilterDropdown(container)
-    // `name` is checked-by-default/exclude-only (see CLAUDE.md's "Filter dropdown"): narrowing to
+    // `name` is checked-by-default/exclude-only (see docs/filter-dropdown.md's "Filter dropdown"): narrowing to
     // just Alice means excluding everyone else, then re-checking her.
     click(selectAllCheckbox(container)!) // exclude everyone
     click(filterValueCheckbox(container, 'Alice')!) // re-check just Alice
@@ -283,7 +283,7 @@ describe('createDataTable — checklist filter', () => {
   })
 
   it('select-all checkbox excludes (unchecks) every currently listed value', () => {
-    // `name` is checked-by-default (see CLAUDE.md's "Filter dropdown") — nothing excluded yet, so
+    // `name` is checked-by-default (see docs/filter-dropdown.md's "Filter dropdown") — nothing excluded yet, so
     // clicking the master checkbox excludes everyone.
     const { container } = mount(ROWS, COLS)
     openFilterDropdown(container)

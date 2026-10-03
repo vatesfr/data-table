@@ -308,7 +308,7 @@ describe('DataTable — filter dropdown', () => {
     const wrapper = mount(DataTable, { props: { data: ROWS2, columns: COLS2, rowKey: 'id' } })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
-    // Narrow to Alice only: `name` is checked-by-default (see CLAUDE.md's "Filter dropdown"), so
+    // Narrow to Alice only: `name` is checked-by-default (see docs/filter-dropdown.md's "Filter dropdown"), so
     // exclude everyone via select-all, then re-check just Alice.
     await wrapper.find('.dt__filter-select-all').trigger('change')
     await checklistCheckbox(wrapper, 'Alice').trigger('click')
@@ -384,7 +384,7 @@ describe('DataTable — filter dropdown', () => {
   }
 
   it('select-all checkbox excludes (unchecks) every currently listed value', async () => {
-    // `name` is checked-by-default (see CLAUDE.md's "Filter dropdown") — nothing excluded yet,
+    // `name` is checked-by-default (see docs/filter-dropdown.md's "Filter dropdown") — nothing excluded yet,
     // so clicking the master checkbox excludes everyone.
     const wrapper = mount(DataTable, { props: { data: ROWS, columns: FILTER_COLS, rowKey: 'id' } })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
@@ -2137,7 +2137,7 @@ describe('DataTable — active state bar', () => {
     expect(wrapper.findAll('button').find((b) => b.text() === 'Sort')).toBeTruthy()
     const bar = wrapper.find('.dt__active-bar')
     expect(bar.text()).toContain('Score')
-    // `name` is checked-by-default (see CLAUDE.md's "Filter dropdown"): clicking Alice's
+    // `name` is checked-by-default (see docs/filter-dropdown.md's "Filter dropdown"): clicking Alice's
     // checkbox excludes her, rendering as the exclude chip rather than an include one.
     expect(bar.text()).toContain('Name: ≠ Alice')
 
@@ -3795,7 +3795,7 @@ describe('DataTable — active-bar chip click actions', () => {
     await openDd(wrapper, 'Filter') // close
 
     expect(wrapper.find('.dropdown__menu').exists()).toBe(false)
-    // `name` is checked-by-default (see CLAUDE.md's "Filter dropdown"): clicking Alice's
+    // `name` is checked-by-default (see docs/filter-dropdown.md's "Filter dropdown"): clicking Alice's
     // checkbox excludes her, rendering the danger-tinted exclude chip, not the info one.
     const chipBody = wrapper.find('.dt__chip--danger .dt__chip-body')
     expect(chipBody.text()).toContain('Alice')

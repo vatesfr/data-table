@@ -47,7 +47,7 @@ function mount() {
 }
 
 // Every ".dt-chip-x" removes something, and (until now) none of them had an accessible name
-// beyond the literal "×" glyph — see CLAUDE.md's dropdown-alignment notes. These tests cover each
+// beyond the literal "×" glyph — see docs/toolbar.md. These tests cover each
 // chip kind's own remove button, plus the merged grouped-sort chip's "⊞" open-Group-dropdown mark.
 describe('ActiveBar — chip button labels', () => {
   it('a plain sort chip’s remove button uses removeSort', () => {

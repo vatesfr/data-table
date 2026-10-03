@@ -36,7 +36,7 @@ export interface DataTableProps<TRow extends object> extends Omit<
 // Thin convenience wrapper mirroring React's/Vue's own <DataTable>: builds a createTableState
 // internally and renders <DataTableView>, for the common case that doesn't need the
 // createTableState+DataTableView split (view persistence, an imperative selection API — see
-// the README/CLAUDE.md's "reaching state a wrapper can't expose" section). `data`/`columns` are
+// the README/docs/packages.md's "reaching state a wrapper can't expose" section). `data`/`columns` are
 // passed to createTableState as accessors (`() => props.data`), so they're tracked reactively
 // for the table's whole lifetime with no manual createEffect needed here — unlike every other
 // adapter's own equivalent wrapper (React's/Vue's own <DataTable>, and

@@ -14,7 +14,7 @@ interface DateTreeItemProps {
   counts: Map<string, number>
   expanded: Set<string>
   // Force-expanded regardless of `expanded`/click history whenever the column's own search term
-  // is non-empty — the already-narrowed list is small enough to show in full (see CLAUDE.md's
+  // is non-empty — the already-narrowed list is small enough to show in full (see docs/filter-dropdown.md's
   // date-tree section: "a node with an active search term for its column is force-expanded
   // regardless of click history").
   searchActive: boolean
@@ -22,7 +22,7 @@ interface DateTreeItemProps {
   onToggleNode: (node: DateTreeNode, shiftKey: boolean) => void
 }
 
-// Recursive Year › Month › Day tree node (see CLAUDE.md's date-tree section). Self-imports for
+// Recursive Year › Month › Day tree node (see docs/filter-dropdown.md's date-tree section). Self-imports for
 // recursion — mirrors vue/components/DateTreeItem.vue's own self-import pattern (safer than
 // filename-based self-reference across build setups).
 export function DateTreeItem(props: DateTreeItemProps) {
