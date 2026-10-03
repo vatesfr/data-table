@@ -24,8 +24,9 @@ The smallest change closing the item, the same in every adapter (CLAUDE.md's Par
 
 ## 3. Look at it
 
-- Solid demo (`npm run dev:solid`, `:58983`), at **1440×900** and **390×844**: for layout, `node scripts/ux-measure.mjs --name=ux-U<n> #section…` then `browser_run_code_unsafe` with `filename: .playwright-mcp/measure.js`; otherwise one `browser_run_code_unsafe` call per step that acts, measures what the item is about (focus, bounding boxes, accessible names) and screenshots to `.playwright-mcp/ux-U<n>-<what>.png`.
-- Then the same check on the React (`:58981`) and Vue (`:58982`) demos — they render their own UI; for layout, one `--demo=solid,react,vue` run covers all three.
+- Follow ux-review's Server and Mechanics sections: clean state, `--view`, scoped locators, keyboard row picking.
+- Solid demo (`:58983`), then React (`:58981`) and Vue (`:58982`), which render their own UI. At **1440×900**, plus **390×844** for layout or touch items.
+- Layout: `node scripts/ux-measure.mjs --demo=solid,react,vue --name=ux-U<n> #section…`. Otherwise one `browser_run_code_unsafe` call per step that acts, measures what the item is about (focus, bounding boxes, accessible names) and screenshots to `.playwright-mcp/ux-U<n>-<what>.png`.
 - This is the item's re-check — no separate ux-review run.
 
 ## 4. Close and commit
@@ -37,3 +38,5 @@ The smallest change closing the item, the same in every adapter (CLAUDE.md's Par
 ## Report
 
 One table — item, commit, how it was verified (tests, measurement, adapters checked) — then anything narrowed rather than closed, and side effects worth knowing.
+
+<!-- check-docs-ignore: AskUserQuestion ux-U -->

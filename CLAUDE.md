@@ -18,7 +18,7 @@
 - **Build**: `npm run build` (order matters: core → react/vue/solid → vanilla); one package: `npm run build -w packages/X`.
 - **Test**: `npm run test` (~20 s) — one package: `npm run test -w packages/X` (`test:watch` for watch mode) — one file: `npx vitest run <path>` from the package dir. Tests run in jsdom with no network or external services. Benchmarks: `npm run bench -w packages/core`.
 - **Type-check**: `npm run type-check`.
-- **Lint/format**: ESLint (`npm run lint`) + Prettier (`npm run format`); lint-staged runs both on commit. `npm run check:docs` fails when a code span in `docs/*.md`/CLAUDE.md names something absent from the code; list intentional mentions (removed or external names) in a `<!-- check-docs-ignore: … -->` comment in that doc.
+- **Lint/format**: ESLint (`npm run lint`) + Prettier (`npm run format`); lint-staged runs both on commit. `npm run check:docs` fails when a code span in `docs/*.md`, CLAUDE.md or a skill names something absent from the code; list intentional mentions (removed or external names) in a `<!-- check-docs-ignore: … -->` comment in that doc.
 - **Size**: per-package gzip budgets in each `package.json`'s `size-limit`, checked by `npm run size` (after `npm run build`) and on commit; raising one needs approval.
 - **Demos**: `npm run dev:react|vue|solid|vanilla` (ports 58981–58984).
 - **UX**: `ux-review` walks `docs/use-cases.md` on the demos and records findings in `docs/improvements.md`; `ux-fix` fixes them, one commit each.

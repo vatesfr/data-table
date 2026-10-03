@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Fails if a code span in docs/*.md or CLAUDE.md names an identifier that appears nowhere in the
+// Fails if a code span in docs/*.md, CLAUDE.md or a skill names an identifier that appears nowhere in the
 // repo's code — catches docs left stale by a rename/removal. Intentional mentions of things that
 // don't exist (removed APIs, rejected alternatives, external names) go in a
 // `<!-- check-docs-ignore: name1 name2 -->` comment in that doc.
@@ -21,9 +21,11 @@ const corpus = [
   ...tracked.filter((p) => CODE_EXT.test(p)).map((p) => readFileSync(p, 'utf8')),
 ].join('\n')
 
-const docs = ['CLAUDE.md', ...readdirSync('docs').map((f) => join('docs', f))].filter((p) =>
-  p.endsWith('.md'),
-)
+const docs = [
+  'CLAUDE.md',
+  ...readdirSync('docs').map((f) => join('docs', f)),
+  ...readdirSync('.claude/skills').map((s) => join('.claude/skills', s, 'SKILL.md')),
+].filter((p) => p.endsWith('.md'))
 let failed = false
 for (const doc of docs) {
   const text = readFileSync(doc, 'utf8')
