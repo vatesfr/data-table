@@ -19,7 +19,8 @@
 - **Test**: `npm run test` (~20 s) — one package: `npm run test -w packages/X` (`test:watch` for watch mode) — one file: `npx vitest run <path>` from the package dir. Tests run in jsdom with no network or external services. Benchmarks: `npm run bench -w packages/core`.
 - **Type-check**: `npm run type-check`.
 - **Lint/format**: ESLint (`npm run lint`) + Prettier (`npm run format`); lint-staged runs both on commit. `npm run check:docs` fails when a code span in `docs/*.md`/CLAUDE.md names something absent from the code; list intentional mentions (removed or external names) in a `<!-- check-docs-ignore: … -->` comment in that doc.
-- **Demos**: `npm run dev:react|vue|solid|vanilla`.
+- **Demos**: `npm run dev:react|vue|solid|vanilla` (ports 58981–58984).
+- **UX**: `ux-review` walks `docs/use-cases.md` on the demos and records findings in `docs/improvements.md`; `ux-fix` fixes them, one commit each.
 
 ## Architecture
 
@@ -50,6 +51,9 @@ Read the relevant doc before changing that area.
 - `docs/testing.md` — per-package test setup
 - `docs/performance.md` — benchmarks and past optimizations
 - `docs/build.md` — cross-package resolution in dev, build order
+- `docs/use-cases.md` — end-user journeys, the yardstick for UX reviews
+- `docs/ui-guidelines.md` — UI conventions where feature docs are silent
+- `docs/improvements.md` — UX backlog (`U<n>` items)
 - `docs/pitfalls.md` — surprising behaviors, misleading errors, failures and their fixes; check it when something fails or behaves unexpectedly
 
 Load-bearing: the core public/internal split above (enforced by ESLint for demos) and the `typescript` override in `docs/pitfalls.md` (not enforced — a regression builds fine with empty `.d.ts` files).
