@@ -16,7 +16,7 @@ Judges the table against [use cases](../../../docs/use-cases.md) and [UI guideli
 
 ## Server
 
-- **Solid demo** (`npm run dev:solid`, `:58983`; `run_in_background`, check with `curl -s localhost:58983` first). Vanilla inherits Solid's UI; React and Vue render their own, so a finding about markup, styling or behavior gets a spot-check there (`dev:react` `:58981`, `dev:vue` `:58982`) before it's recorded as cross-adapter or adapter-specific.
+- **Solid demo** (`npm run dev:solid`, `:58983`; `run_in_background`, check with `curl -s localhost:58983` first). Vanilla inherits Solid's UI; React and Vue render their own, so a finding about markup, styling or behavior gets a spot-check there (`dev:react` `:58981`, `dev:vue` `:58982`; `ux-measure.mjs --demo=solid,react,vue` covers layout in one pass) before it's recorded as cross-adapter or adapter-specific.
 - Every table persists its view to localStorage and the URL: start from a clean state (`node scripts/ux-measure.mjs` clears it; or `localStorage.clear()` and load `/` without a query).
 - A finding about the demo page itself (its nav, its own buttons) isn't a library finding: report it separately, don't record it.
 
@@ -35,9 +35,10 @@ At **1440×900**, then **390×844**, following its steps as a user would — mou
 
 ## Mechanics
 
-- **Layout per section**: `node scripts/ux-measure.mjs [--demo=…] [--name=ux-UC<n>] [#section…]`, then `browser_run_code_unsafe` with `filename: .playwright-mcp/measure.js` — controls height above the table, first-row position, page/in-table overflow, targets under 24 px, unnamed controls, console errors, screenshots at both widths.
+- **Layout per section**: `node scripts/ux-measure.mjs [--demo=solid[,react,vue]] [--name=ux-UC<n>] [#section…]`, then `browser_run_code_unsafe` with `filename: .playwright-mcp/measure.js` — controls height above the table, first-row position, page/in-table overflow, targets under 24 px, unnamed controls, console errors, screenshots at both widths.
 - **Batch each step in one `browser_run_code_unsafe` call**: act, then measure with `page.evaluate` (`document.activeElement`, bounding boxes, accessible names, `scrollWidth > innerWidth`), then screenshot. Far cheaper than click-by-click snapshots.
 - **Scope locators to a section**: every table has the same toolbar; anchor on the section heading (`#full-table`) and its following table.
+- **Pick dropdown rows by keyboard**: type in the dropdown's search, then ↓ and Enter. Matching rows by text breaks when a column sits in a category submenu, and row markup differs per adapter; the keyboard path is the same in all three.
 - **Screenshots** go to `.playwright-mcp/ux-<UC>-<what>.png` (gitignored); `Read` them to look, `magick <in> -crop WxH+X+Y <out>` for detail.
 - **Copied links** (UC06): stub `navigator.clipboard.writeText` to capture them; open them in `page.context().browser().newContext()` for a fresh storage.
 

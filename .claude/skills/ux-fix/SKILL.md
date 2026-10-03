@@ -25,7 +25,7 @@ The smallest change closing the item, the same in every adapter (CLAUDE.md's Par
 ## 3. Look at it
 
 - Solid demo (`npm run dev:solid`, `:58983`), at **1440×900** and **390×844**: for layout, `node scripts/ux-measure.mjs --name=ux-U<n> #section…` then `browser_run_code_unsafe` with `filename: .playwright-mcp/measure.js`; otherwise one `browser_run_code_unsafe` call per step that acts, measures what the item is about (focus, bounding boxes, accessible names) and screenshots to `.playwright-mcp/ux-U<n>-<what>.png`.
-- Then the same check on the React (`:58981`) and Vue (`:58982`) demos — they render their own UI.
+- Then the same check on the React (`:58981`) and Vue (`:58982`) demos — they render their own UI; for layout, one `--demo=solid,react,vue` run covers all three.
 - This is the item's re-check — no separate ux-review run.
 
 ## 4. Close and commit

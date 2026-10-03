@@ -2,11 +2,12 @@
 // Writes .playwright-mcp/measure.js, a Playwright MCP `browser_run_code_unsafe` script (pass it as
 // `filename`) measuring demo sections at desktop and phone widths, with screenshots — the layout
 // checks ux-review/ux-fix need, instead of hand-writing them each time.
-//   node scripts/ux-measure.mjs [--demo=react|vue|solid|vanilla] [--name=<prefix>] [--keep] [#section…]
-//   --demo  which demo's dev server to hit (default solid; start it with `npm run dev:<demo>`)
+//   node scripts/ux-measure.mjs [--demo=<demo>[,<demo>…]] [--name=<prefix>] [--keep] [#section…]
+//   --demo  which demos' dev servers to hit, comma-separated among react, vue, solid, vanilla
+//           (default solid; start each with `npm run dev:<demo>`)
 //   --name  screenshot prefix (default "measure"): .playwright-mcp/<name>-<demo>-<section>-<width>.png
 //   --keep  keep the demo's persisted views (localStorage, URL); cleared by default
-// Sections default to every one rendering a table. Per section and width it returns: how far below
+// Sections default to every one rendering a table. Per demo, section and width it returns: how far below
 // the heading the first row starts, the height of the library's controls above the table, page
 // and in-table horizontal overflow, interactive elements under 24×24 px or without an accessible
 // name, and console errors (the demos' missing favicon aside).
@@ -32,13 +33,16 @@ const SIZES = [
 
 const args = process.argv.slice(2)
 const opt = (key) => args.find((a) => a.startsWith(`--${key}=`))?.split('=')[1]
-const demo = opt('demo') ?? 'solid'
+const demos = (opt('demo') ?? 'solid').split(',')
 const name = opt('name') ?? 'measure'
 const keep = args.includes('--keep')
 const sections = args.filter((a) => a.startsWith('#'))
-if (!(demo in PORTS) || args.some((a) => !a.startsWith('#') && !a.startsWith('--'))) {
+if (
+  demos.some((d) => !(d in PORTS)) ||
+  args.some((a) => !a.startsWith('#') && !a.startsWith('--'))
+) {
   console.error(
-    'Usage: node scripts/ux-measure.mjs [--demo=react|vue|solid|vanilla] [--name=<prefix>] [--keep] [#section…]',
+    'Usage: node scripts/ux-measure.mjs [--demo=<demo>[,<demo>…]] [--name=<prefix>] [--keep] [#section…]',
   )
   process.exit(1)
 }
@@ -92,25 +96,27 @@ function measureSection(id) {
 }
 
 const script = `async (page) => {
-  const base = 'http://localhost:${PORTS[demo]}/';
   const errors = [];
   page.on('console', (m) => m.type() === 'error' && !/favicon/.test(m.location().url) && errors.push(m.text() + ' ' + m.location().url));
   page.on('pageerror', (e) => errors.push(e.message));
-  await page.goto(base);
-  ${keep ? '' : 'await page.evaluate(() => localStorage.clear()); await page.goto(base);'}
-  await page.locator('table').first().waitFor({ timeout: 15000 });
   const measureSection = ${measureSection.toString()};
   const out = {};
-  for (const [w, h] of ${JSON.stringify(SIZES)}) {
-    await page.setViewportSize({ width: w, height: h });
-    for (const section of ${JSON.stringify(sections.length ? sections : SECTIONS)}) {
-      const id = section.slice(1);
-      await page.evaluate((id) => document.getElementById(id)?.scrollIntoView(), id);
-      await page.waitForTimeout(300);
-      const m = await page.evaluate(measureSection, id);
-      out[section + ' @' + w] = m;
-      if (m.missing || m.table === false) continue;
-      await page.screenshot({ path: '.playwright-mcp/${name}-${demo}-' + id + '-' + w + '.png' });
+  for (const [demo, port] of ${JSON.stringify(demos.map((d) => [d, PORTS[d]]))}) {
+    const base = 'http://localhost:' + port + '/';
+    await page.goto(base);
+    ${keep ? '' : 'await page.evaluate(() => localStorage.clear()); await page.goto(base);'}
+    await page.locator('table').first().waitFor({ timeout: 15000 });
+    for (const [w, h] of ${JSON.stringify(SIZES)}) {
+      await page.setViewportSize({ width: w, height: h });
+      for (const section of ${JSON.stringify(sections.length ? sections : SECTIONS)}) {
+        const id = section.slice(1);
+        await page.evaluate((id) => document.getElementById(id)?.scrollIntoView(), id);
+        await page.waitForTimeout(300);
+        const m = await page.evaluate(measureSection, id);
+        out[demo + ' ' + section + ' @' + w] = m;
+        if (m.missing || m.table === false) continue;
+        await page.screenshot({ path: '.playwright-mcp/${name}-' + demo + '-' + id + '-' + w + '.png' });
+      }
     }
   }
   return { ...out, consoleErrors: errors };
