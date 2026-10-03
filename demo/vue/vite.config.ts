@@ -4,6 +4,7 @@ import { resolve } from 'path'
 
 export default defineConfig({
   base: process.env.VITE_BASE_URL ?? '/',
+  server: { port: 58982, strictPort: true },
   plugins: [vue()],
   resolve: {
     alias: {
