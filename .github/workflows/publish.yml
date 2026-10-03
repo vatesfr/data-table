@@ -36,13 +36,9 @@ jobs:
       - run: npm run type-check
       - run: npm run build
 
-      # Only the packages actually bumped for this release get published — see CLAUDE.md's
-      # "Release process": core/react/vue/vanilla share one version-number pool but a release
-      # only bumps the ones that changed, so an unpublished-bump-free package here is expected,
-      # not an error. @vates/data-table-solid started its own independent version count at 0.1.0
-      # when it was split out of vanilla, until a future release folds it into the shared pool.
-      # `npm publish` itself refuses to republish a version already on the registry, so skip
-      # ahead of time rather than letting that fail the whole job.
+      # A release bumps only the packages that changed (see the `release` skill's "Version
+      # pool"), so a package whose version is already on the registry is skipped rather than
+      # failing `npm publish`.
       - name: Publish changed packages
         run: |
           for pkg in core react vue solid vanilla; do
