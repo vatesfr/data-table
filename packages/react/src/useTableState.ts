@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from 'react'
+import { useState, useMemo, useRef, useCallback } from 'react'
 import {
   processData,
   searchData,
@@ -184,6 +184,12 @@ export function useTableState<TRow extends object>(
   // `.focus()`. `setTarget`/plain keyboard-driven changes always clear it back to `false`, so only
   // an explicit `moveTo(..., { focus: true })` call ever results in real DOM focus.
   const wantsDomFocusRef = useRef(false)
+  // Stable identity so DataTableView's scroll/focus effect can list it as a dependency.
+  const consumeDomFocus = useCallback(() => {
+    const wanted = wantsDomFocusRef.current
+    wantsDomFocusRef.current = false
+    return wanted
+  }, [])
 
   // Reconciles `selection`'s stored row references against a changed `data` argument, same
   // "adjust state when a prop changes" render-time pattern as visibleCols/columnKeys above —
@@ -563,11 +569,7 @@ export function useTableState<TRow extends object>(
       // Internal wiring for DataTableView's own scroll/focus effect — reads and clears the
       // pending "the last `moveTo` call wanted real DOM focus" flag. Not meant for typical
       // external use (same category as `setTarget` above).
-      consumeDomFocus: () => {
-        const wanted = wantsDomFocusRef.current
-        wantsDomFocusRef.current = false
-        return wanted
-      },
+      consumeDomFocus,
     },
 
     clearAll: () => {

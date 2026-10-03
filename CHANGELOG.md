@@ -7,6 +7,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Changed
+
+- **React**: `table.focus.consumeDomFocus` now keeps a stable identity across renders, so `DataTableView`'s scroll/focus effect lists it as a dependency (clears a `react-hooks/exhaustive-deps` lint warning).
+
 ## [0.14.0] - 2026-09-14
 
 ### Added

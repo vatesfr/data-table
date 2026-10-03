@@ -1072,7 +1072,7 @@ export function DataTableView<TRow extends object>({
   // (`table.focus.target`/`setTarget`) so it's reachable/settable from outside the rendered
   // table (see `focus.moveTo`'s own doc comment there); everything below still reads/writes it
   // through these same bare local names.
-  const { target: focusTarget, setTarget: setFocusTarget } = table.focus
+  const { target: focusTarget, setTarget: setFocusTarget, consumeDomFocus } = table.focus
 
   // Split for the Sort dropdown's active list (see "Auto-syncing group order with sort" in
   // docs/grouped-columns.md): entries matching a currently grouped column always govern nesting order via
@@ -1254,11 +1254,11 @@ export function DataTableView<TRow extends object>({
         // `moveTo(row, { focus: true })` — real `.focus()` in addition to the scroll, done here
         // (not in useTableState) since this is the one place that actually holds the row's DOM
         // node. `preventScroll` avoids a redundant second scroll on top of the line above.
-        if (table.focus.consumeDomFocus()) el.focus({ preventScroll: true })
+        if (consumeDomFocus()) el.focus({ preventScroll: true })
         lastScrolledFocusTarget.current = focusTarget
       }
     }
-  }, [focusTarget, page, collapsedGroups])
+  }, [focusTarget, page, collapsedGroups, consumeDomFocus])
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTableRowElement>, target: VisibleItem<TRow>) => {
     const idx = indexOfVisibleItem(navigableItems, target)
