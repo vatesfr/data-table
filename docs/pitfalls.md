@@ -1,0 +1,39 @@
+# Pitfalls
+
+Symptom first, then cause and fix. Delete entries once obsolete.
+
+## Empty `dist/index.d.ts` after a dependency bump
+
+- Symptom: `packages/{react,vue,solid,vanilla}/dist/index.d.ts` is empty; `build` still exits 0, so CI doesn't catch it.
+- Cause: peer ranges of `typescript-eslint`/`vue-tsc` reach into `typescript@6.x`, which npm can hoist to the root; `vite-plugin-dts`'s cross-package rollup then uses it instead of each package's pinned 5.x.
+- Fix: root `package.json`'s `"overrides": { "typescript": "^5.5.0" }` — keep it. After touching `typescript`, `typescript-eslint`, `vue-tsc` or `vite-plugin-dts`, check those `.d.ts` files are non-trivial.
+
+## Pre-commit `size` passes locally, fails in CI
+
+- Cause: an incrementally updated `node_modules` drifts from `package-lock.json` (different hoisting than `npm ci`).
+- Fix: `.husky/post-merge`/`post-checkout` run `npm ci` when the lockfile changes; run `npm ci` manually if in doubt.
+
+## Vue boolean prop silently `false` when omitted
+
+- Cause: Vue casts an absent boolean prop with no `withDefaults` default to `false`, not `undefined`.
+- Fix: spell out the default in `withDefaults` in both `DataTable.vue` and `DataTableView.vue` (e.g. `showSearch: true`, `defaultGroupsCollapsed`).
+
+## New `DataTableViewProps` field inert through `<DataTable>` (React/Solid)
+
+- Cause: `DataTable.tsx` forwards props explicitly, not via spread.
+- Fix: add a matching line at each `<DataTable>` wrapper's `<DataTableView>` call site; test through `<DataTable>`, not only `<DataTableView>`.
+
+## React test grabs the wrong search box
+
+- Cause: global search and the Filter dropdown's search share the `'Search…'` placeholder; global search comes first in DOM order.
+- Fix: take the last `getAllByPlaceholderText('Search…')` match for the filter's box.
+
+## Solid/vanilla tests: no DOM reactivity under Vitest
+
+- Cause: Vitest's node-oriented resolution picks solid-js's SSR build.
+- Fix: `conditions: ['browser']` in `vitest.config.ts` (see its comment).
+
+## React tests: duplicate React instance / invalid hook call
+
+- Cause: `react` is also a devDep of the package in the workspace.
+- Fix: `resolve.dedupe: ['react', 'react-dom', 'react/jsx-runtime']` in `packages/react/vitest.config.ts`.
