@@ -2713,6 +2713,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
   font-family: inherit;
   cursor: pointer;
   line-height: 1.4;
+  min-height: 24px;
 }
 .dt__chip-body:hover {
   background: var(--color-background-tertiary);
@@ -2747,6 +2748,9 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
   color: var(--color-text-secondary);
   font-family: inherit;
   line-height: 1.4;
+  /* 24 px touch target (docs/ui-guidelines.md) */
+  min-height: 24px;
+  min-width: 24px;
 }
 .dt__chip-remove:hover {
   color: var(--color-text-primary);
@@ -2775,6 +2779,8 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
   color: var(--color-text-tertiary);
   font-family: inherit;
   line-height: 1.4;
+  min-height: 24px;
+  min-width: 24px;
 }
 .dt__chip-group-mark:hover {
   background: var(--color-background-tertiary);

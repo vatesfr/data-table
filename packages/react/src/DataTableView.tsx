@@ -229,6 +229,7 @@ const S = {
     fontFamily: 'inherit',
     cursor: 'pointer',
     lineHeight: 1.4,
+    minHeight: 24,
   } as CSSProperties,
   chipX: {
     cursor: 'pointer',
@@ -240,6 +241,9 @@ const S = {
     color: 'var(--color-text-secondary)',
     fontFamily: 'inherit',
     lineHeight: 1.4,
+    // 24 px touch target (docs/ui-guidelines.md)
+    minHeight: 24,
+    minWidth: 24,
   } as CSSProperties,
   // The one deliberate color accent in the active bar — filters already carried this "narrowing
   // your view" meaning before sort/group chips existed, so they keep it; sort/group chips reuse
@@ -277,6 +281,8 @@ const S = {
     color: 'var(--color-text-tertiary)',
     fontFamily: 'inherit',
     lineHeight: 1.4,
+    minHeight: 24,
+    minWidth: 24,
   } as CSSProperties,
   groupRow: {
     background: 'var(--color-background-secondary)',
