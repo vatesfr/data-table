@@ -5,7 +5,7 @@ import { SearchBox, focusSearch } from './components/SearchBox'
 import { ColumnsDropdown } from './components/ColumnsDropdown'
 import { SortDropdown } from './components/SortDropdown'
 import { GroupDropdown } from './components/GroupDropdown'
-import { FilterDropdown } from './components/FilterDropdown'
+import { FilterDropdown, type FilterDropdownHandle } from './components/FilterDropdown'
 import { ActiveBar } from './components/ActiveBar'
 import { TableBody } from './components/TableBody'
 import { Pagination } from './components/Pagination'
@@ -59,6 +59,7 @@ export function DataTableView<TRow extends object>(props: DataTableViewProps<TRo
   injectStyles()
   const { table } = props
   const [openDropdown, setOpenDropdown] = createSignal<DropdownId | null>(null)
+  let filterDropdown: FilterDropdownHandle | undefined
   const groupableCols = () => table.columns.list().filter((c) => c.groupable === true)
   const sortableCols = () => table.columns.list().filter((c) => c.sortable !== false)
   const filterableCols = () => table.columns.list().filter((c) => c.filterable !== false)
@@ -109,6 +110,7 @@ export function DataTableView<TRow extends object>(props: DataTableViewProps<TRo
           </Show>
           <Show when={filterableCols().length > 0}>
             <FilterDropdown
+              ref={(handle) => (filterDropdown = handle)}
               table={table}
               columns={table.columns.list()}
               isOpen={openDropdown() === 'filter'}
@@ -162,13 +164,7 @@ export function DataTableView<TRow extends object>(props: DataTableViewProps<TRo
         }}
         onOpenFilter={(key) => {
           setOpenDropdown('filter')
-          // Same later-queued-microtask reasoning as onOpenGroup above. Focusing the column
-          // button is enough on its own — FilterDropdown's own delegated `focusin` listener
-          // (see "focus follows selection" in FilterDropdown.tsx) picks it up and selects that
-          // column in the detail pane, no separate "which column" state to set from here.
-          queueMicrotask(() => {
-            document.querySelector<HTMLElement>(`[data-filter-col-key="${key}"]`)?.focus()
-          })
+          filterDropdown?.selectColumn(key)
         }}
       />
       <TableBody

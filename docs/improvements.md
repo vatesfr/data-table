@@ -26,8 +26,6 @@ Seeded 2026-10-04 from issues reported by a consumer app, each reproduced on the
 
 - **U6 · polish · UC01, UC02** — a column both sorted and grouped gets one chip reading "↑ Department × ⊞ ×": two identical × side by side, removing different things (the sort, the group); seen in Solid and React. Tell them apart: separate chips, or a name-revealing tooltip and distinct glyph on the group part.
 
-- **U25 · minor · UC01** — with the Filter dropdown open and its column search hiding a column ("Sal" typed), clicking that column's chip leaves the current column's pane showing: a chip selects its column by focusing the column's button in the left pane, which isn't rendered. A collapsed category or a phone's values pane likely hides it the same way. Seen in Solid; React selects the column the same way. Select the chip's column directly (state, not DOM focus), clearing the column search and expanding its category.
-
 ## Column headers
 
 - **U20 · minor · UC07** — on a phone the toolbar dropdowns focus their search box on open, raising the on-screen keyboard before the user asked to type (the header menu's Filter no longer does). On a coarse pointer, focus the panel rather than its search box.

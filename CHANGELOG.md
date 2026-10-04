@@ -21,6 +21,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Fixed
 
+- **Filter chip opens its column** (Solid, React, Vue, vanilla): clicking a filter chip shows its column's values and focuses it in the Filter dropdown even when the column search or a collapsed category hid it — the search is cleared and the category expanded — instead of leaving another column's pane showing (Solid) or focus lost on a hidden button (React, Vue).
 - **Secondary text contrast** (Solid, React, Vue, vanilla): `--color-text-secondary` is darker in light mode (`#666561`, was `#6b6a66`) and lighter in dark mode (`#a6a5a1`, was `#9b9a96`), so header labels meet WCAG AA's 4.5:1 on the header background in both, instead of 4.45:1 and 4.17:1.
 - **Rows-per-page name** (Solid, React, Vue, vanilla): the rows-per-page `<select>` is labelled by its visible "Rows per page:" text, instead of a screen reader announcing only "combo box, 10".
 - **Solid** (and vanilla): `<DataTable columns={[...cols, extra]}>` written inline no longer overflows the stack ("Maximum call stack size exceeded").

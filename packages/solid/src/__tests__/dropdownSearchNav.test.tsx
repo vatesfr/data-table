@@ -282,10 +282,46 @@ describe('DataTable — active-bar chip click actions', () => {
     ;(chip as HTMLButtonElement).click()
     await tick()
     expect(document.activeElement).toBe(container.querySelector('[data-filter-col-key="score"]'))
-    // The column selection itself follows focus (no separate "which column" state to push) —
-    // confirmed by the right pane now showing Score's own range controls.
+    // The right pane shows Score's own range controls
     expect(container.querySelector('input.dt-range-input')).not.toBeNull()
     dispose()
+  })
+
+  it('a filter chip selects its column even when the column search hides it and its category is collapsed (U25)', async () => {
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const dispose = createRoot((d) => {
+      render(
+        () => (
+          <DataTable
+            data={ROWS}
+            columns={[{ ...COLS[0], category: 'People' }, ...COLS.slice(1)]}
+            rowKey="id"
+            initialViewState={{ filters: { name: ['Alice'] } }}
+          />
+        ),
+        container,
+      )
+      return d
+    })
+    clickButtonByText(container, 'Filter')
+    container.querySelector<HTMLElement>('[data-filter-cols] button[aria-expanded="true"]')!.click()
+    const search = container.querySelector<HTMLInputElement>('[data-filter-cols] input')!
+    search.value = 'Sco'
+    search.dispatchEvent(new Event('input', { bubbles: true }))
+    container.querySelector<HTMLElement>('[data-filter-col-key="score"]')!.click()
+    expect(container.querySelector('[data-filter-col-key="name"]')).toBeNull()
+
+    const chip = [...container.querySelectorAll('.dt-chip-body')].find((el) =>
+      el.textContent?.startsWith('Name:'),
+    )!
+    ;(chip as HTMLButtonElement).click()
+    await tick()
+    expect(container.querySelector<HTMLInputElement>('[data-filter-cols] input')!.value).toBe('')
+    expect(document.activeElement).toBe(container.querySelector('[data-filter-col-key="name"]'))
+    expect(container.querySelector('input.dt-range-input')).toBeNull() // name's checklist, not Score's range
+    dispose()
+    container.remove()
   })
 })
 

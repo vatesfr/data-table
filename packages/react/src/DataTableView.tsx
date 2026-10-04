@@ -2117,6 +2117,22 @@ export function DataTableView<TRow extends object>({
       return next
     })
   }
+  // A chip's column: selected by state, so neither the column search nor a collapsed category
+  // can hide it (U25). A handler factory: react-hooks/refs rejects a ref write in a helper an
+  // inline handler calls.
+  const openFilterColumn = (key: string) => (): void => {
+    pendingFilterColFocusKey.current = key
+    setFilterActiveCol(key)
+    setDdSearchTerms((prev) => ({ ...prev, filter: '' }))
+    const category = filterableCols.find((c) => c.key === key)?.category
+    if (category)
+      setCollapsedCategories((prev) => {
+        const next = new Set(prev)
+        next.delete(category)
+        return next
+      })
+    setOpenFilterDD(true)
+  }
   const [prevOpenFilterDD, setPrevOpenFilterDD] = useState(openFilterDD)
   if (openFilterDD !== prevOpenFilterDD) {
     setPrevOpenFilterDD(openFilterDD)
@@ -3275,11 +3291,7 @@ export function DataTableView<TRow extends object>({
                     the same commit. */}
                 <button
                   type="button"
-                  onClick={() => {
-                    setFilterActiveCol(key)
-                    setOpenFilterDD(true)
-                    pendingFilterColFocusKey.current = key
-                  }}
+                  onClick={openFilterColumn(key)}
                   style={{ ...S.chipBody, ...S.chipFilter }}
                 >
                   {columns.find((c) => c.key === key)?.label}:{' '}
@@ -3333,11 +3345,7 @@ export function DataTableView<TRow extends object>({
                 <span key={`exclude-${key}`} style={S.chip}>
                   <button
                     type="button"
-                    onClick={() => {
-                      setFilterActiveCol(key)
-                      setOpenFilterDD(true)
-                      pendingFilterColFocusKey.current = key
-                    }}
+                    onClick={openFilterColumn(key)}
                     style={{ ...S.chipBody, ...tint }}
                   >
                     {col?.label}: {chip.kept ? '' : '≠ '}
@@ -3367,11 +3375,7 @@ export function DataTableView<TRow extends object>({
               <span key={`range-${key}`} style={S.chip}>
                 <button
                   type="button"
-                  onClick={() => {
-                    setFilterActiveCol(key)
-                    setOpenFilterDD(true)
-                    pendingFilterColFocusKey.current = key
-                  }}
+                  onClick={openFilterColumn(key)}
                   style={{ ...S.chipBody, ...S.chipFilter }}
                 >
                   {columns.find((c) => c.key === key)?.label}:{' '}

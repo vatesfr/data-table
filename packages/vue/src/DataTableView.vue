@@ -585,10 +585,14 @@ function setFilterColRef(key: string, el: Element | null): void {
 // straight to that column's detail pane, instead of requiring the dropdown to be reopened and the
 // column re-found in the left list. `filterActiveCol` is set directly here (rather than relying
 // solely on `onFilterColFocus`'s focus-follows-selection) so the right pane already shows the
-// right thing on the very first render, before focus even lands on the button.
+// right thing on the very first render, before focus even lands on the button — and neither the
+// column search nor a collapsed category can hide its button (U25).
 async function onOpenFilterCol(key: string): Promise<void> {
   filterDropdownRef.value?.open()
   filterActiveCol.value = key
+  setDdSearchTerm('filter', '')
+  const category = filterableCols.value.find((c) => c.key === key)?.category
+  if (category && collapsedCategories.value.has(category)) toggleCategoryCollapsed(category)
   await nextTick()
   filterColRefs.get(key)?.focus()
 }

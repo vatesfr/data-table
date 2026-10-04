@@ -548,6 +548,33 @@ describe('DataTable — active-bar chip click actions', () => {
     expect(document.activeElement).toBe(container.querySelector('[data-filter-col-key="name"]'))
     expect(container.querySelector('input[data-dd-value-row]')).not.toBeNull() // name's checklist shown
   })
+
+  it('a filter chip selects its column even when the column search hides it and its category is collapsed (U25)', () => {
+    const cols: ColumnDef<Row>[] = [{ ...COLS[0], category: 'People' }, ...COLS.slice(1)]
+    const { getByText, container } = render(
+      <DataTable
+        data={ROWS}
+        columns={cols}
+        rowKey="id"
+        initialViewState={{ filters: { name: ['Alice'] } }}
+      />,
+    )
+    fireEvent.click(getByText('Filter'))
+    const panel = container.querySelector('[data-filter-cols]')!
+    fireEvent.click(panel.querySelector('button[aria-expanded="true"]')!) // collapse People
+    const search = panel.querySelector<HTMLInputElement>('input')!
+    fireEvent.change(search, { target: { value: 'Sco' } })
+    fireEvent.click(container.querySelector('[data-filter-col-key="score"]')!)
+    expect(container.querySelector('[data-filter-col-key="name"]')).toBeNull()
+
+    const chipBody = [...container.querySelectorAll('span')]
+      .find((el) => el.textContent?.trim().startsWith('Name: Alice'))!
+      .querySelector('button:first-child')!
+    fireEvent.click(chipBody)
+    expect(container.querySelector<HTMLInputElement>('[data-filter-cols] input')!.value).toBe('')
+    expect(document.activeElement).toBe(container.querySelector('[data-filter-col-key="name"]'))
+    expect(container.querySelector('input[data-dd-value-row]')).not.toBeNull() // name's checklist shown
+  })
 })
 
 describe('DataTable — Sort/Group activate/remove focus retention', () => {

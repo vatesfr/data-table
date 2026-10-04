@@ -22,12 +22,17 @@ import { Dropdown } from './Dropdown'
 import { DropdownClearButton, DropdownTriggerButton } from './DropdownParts'
 import { FilterPane, detailFocusables } from './FilterPane'
 
+export interface FilterDropdownHandle {
+  selectColumn: (key: string) => void
+}
+
 interface FilterDropdownProps<TRow extends object> {
   table: TableState<TRow>
   columns: ColumnDef<TRow>[]
   isOpen: boolean
   onToggle: () => void
   onClose: () => void
+  ref?: (handle: FilterDropdownHandle) => void
 }
 
 // Master-detail filter panel (see docs/filter-dropdown.md's "Filter dropdown"): a left pane listing every
@@ -174,6 +179,25 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
   // preventDefault/stopPropagation for a key it doesn't itself handle, so a plain ArrowUp/Down/
   // Home/End on a left-pane button still reaches Dropdown.tsx's own handler untouched.
   let panelEl: HTMLDivElement | undefined
+
+  // Selects by state, so neither the column search nor a collapsed category can hide the column
+  // (U25); called by a chip right after opening the panel.
+  function selectColumn(key: string): void {
+    setActiveKey(key)
+    setColSearchTerm('')
+    const category = filterableCols().find((c) => c.key === key)?.category
+    if (category)
+      setCollapsedCategories((prev) => {
+        const next = new Set(prev)
+        next.delete(category)
+        return next
+      })
+    // Queued after Dropdown's own focus-on-open microtask (see Dropdown.tsx), so this one wins
+    queueMicrotask(() =>
+      panelEl?.querySelector<HTMLElement>(`[data-filter-col-key="${key}"]`)?.focus(),
+    )
+  }
+  props.ref?.({ selectColumn })
   function isEditableTarget(el: Element | null): boolean {
     return el instanceof HTMLInputElement && ['text', 'number', 'date', 'range'].includes(el.type)
   }

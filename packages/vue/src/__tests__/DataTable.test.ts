@@ -3933,6 +3933,30 @@ describe('DataTable — active-bar chip click actions', () => {
       wrapper.findAll('.dt__filter-col-item').find((el) => el.text().startsWith('Name'))!.element,
     )
   })
+
+  it('a filter chip selects its column even when the column search hides it and its category is collapsed (U25)', async () => {
+    const wrapper = mount(DataTable, {
+      props: {
+        data: ROWS,
+        columns: [{ ...THREE_COLS[0], category: 'People' }, ...THREE_COLS.slice(1)],
+        rowKey: 'id',
+        initialViewState: { filters: { name: ['Alice'] } },
+      },
+      attachTo: document.body,
+    })
+    await openDd(wrapper, 'Filter')
+    await wrapper.find('[data-filter-cols] button[aria-expanded="true"]').trigger('click') // collapse People
+    await wrapper.find('[data-filter-cols] input').setValue('Sco')
+    await wrapper.find('[data-filter-col-key="score"]').trigger('click')
+    expect(wrapper.find('[data-filter-col-key="name"]').exists()).toBe(false)
+
+    const chipBody = wrapper.findAll('.dt__chip-body').find((el) => el.text().startsWith('Name:'))!
+    await chipBody.trigger('click')
+    expect((wrapper.find('[data-filter-cols] input').element as HTMLInputElement).value).toBe('')
+    expect(document.activeElement).toBe(wrapper.find('[data-filter-col-key="name"]').element)
+    expect(wrapper.find('.dt__range-input').exists()).toBe(false) // name's checklist, not Score's range
+    wrapper.unmount()
+  })
 })
 
 describe('DataTable — filter dropdown on a narrow screen (U16)', () => {
