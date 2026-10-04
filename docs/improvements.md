@@ -4,7 +4,7 @@
 
 UX backlog from `ux-review` runs against [use cases](use-cases.md) and [UI guidelines](ui-guidelines.md). Each item names the use cases it slows down and, when not all three, the adapters; `ux-fix` fixes one per commit and removes it once shipped. IDs are never reused.
 
-Next free ID: **U25** (IDs are never reused, including ones dropped before committing).
+Next free ID: **U26** (IDs are never reused, including ones dropped before committing).
 
 Severity: **blocker** (goal unreachable) · **major** (reached with confusion or a workaround) · **minor** (friction) · **polish**.
 
@@ -26,6 +26,8 @@ Seeded 2026-10-04 from issues reported by a consumer app, each reproduced on the
 ## Active bar
 
 - **U6 · polish · UC01, UC02** — a column both sorted and grouped gets one chip reading "↑ Department × ⊞ ×": two identical × side by side, removing different things (the sort, the group); seen in Solid and React. Tell them apart: separate chips, or a name-revealing tooltip and distinct glyph on the group part.
+
+- **U25 · minor · UC01** — with the Filter dropdown open and its column search hiding a column ("Sal" typed), clicking that column's chip leaves the current column's pane showing: a chip selects its column by focusing the column's button in the left pane, which isn't rendered. A collapsed category or a phone's values pane likely hides it the same way. Seen in Solid; React selects the column the same way. Select the chip's column directly (state, not DOM focus), clearing the column search and expanding its category.
 
 ## Column headers
 
