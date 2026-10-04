@@ -21,6 +21,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Fixed
 
+- **Rows-per-page name** (Solid, React, Vue, vanilla): the rows-per-page `<select>` is labelled by its visible "Rows per page:" text, instead of a screen reader announcing only "combo box, 10".
 - **Solid** (and vanilla): `<DataTable columns={[...cols, extra]}>` written inline no longer overflows the stack ("Maximum call stack size exceeded").
 - **Column menu Filter on a phone** (Solid, React, Vue, vanilla): below 480 px, Filter replaces the ▾ menu's items with the filter pane under a "‹ Genres" back row, within the screen width, instead of a flyout running past the right edge and covering the menu; it no longer raises the on-screen keyboard on open.
 - **Column menu accessibility** (Solid, React, Vue, vanilla): the ▾ menu is now a dialog named after its column ("Genres options") with its Filter controls in a group named "Filter", instead of a nameless menu wrapping controls a menu can't contain; Tab moves through all of it (it skipped Hide column) and closes it once focus leaves.

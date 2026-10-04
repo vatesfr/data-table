@@ -2370,6 +2370,13 @@ describe('DataTable — keyboard navigation across pages', () => {
       expect(getByRole('button', { name })).toBeTruthy()
   })
 
+  it('names the rows-per-page select after its visible label', () => {
+    const { getByRole } = render(
+      <DataTable data={ROWS6} columns={COLS} rowKey="id" initialViewState={{ pageSize: 2 }} />,
+    )
+    expect(getByRole('combobox', { name: 'Rows per page:' })).toBeTruthy()
+  })
+
   it('the rows-per-page dropdown includes and selects a custom initialViewState.pageSize not among the defaults', () => {
     const { container } = render(
       <DataTable data={ROWS6} columns={COLS} rowKey="id" initialViewState={{ pageSize: 2 }} />,

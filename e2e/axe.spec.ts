@@ -4,7 +4,6 @@ import { expect, test } from '@playwright/test'
 // Known violations: the library's are backlog items (docs/improvements.md), removed with their fix;
 // the demo's own cell renderers aren't the library's.
 const KNOWN = [
-  { rule: 'select-name', html: 'class="dt-page-select"', item: 'U23' },
   { rule: 'color-contrast', html: 'class="dt-th-sort"', item: 'U24' },
   { rule: 'color-contrast', html: 'min-width: 26px', item: 'demo scoreBar' },
   { rule: 'color-contrast', html: 'No review yet', item: 'demo muted()' },

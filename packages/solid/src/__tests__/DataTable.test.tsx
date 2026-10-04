@@ -135,6 +135,22 @@ describe('DataTable', () => {
     dispose()
   })
 
+  it('names the rows-per-page select after its visible label', () => {
+    const container = document.createElement('div')
+    const dispose = createRoot((d) => {
+      render(
+        () => (
+          <DataTable data={ROWS} columns={COLS} rowKey="id" initialViewState={{ pageSize: 1 }} />
+        ),
+        container,
+      )
+      return d
+    })
+    const select = container.querySelector('select')!
+    expect(select.labels[0]?.textContent).toMatch(/^Rows per page:/)
+    dispose()
+  })
+
   it('tracks reactive data/columns props with no manual sync effect from the consumer', () => {
     const container = document.createElement('div')
     document.body.appendChild(container)

@@ -51,7 +51,7 @@ export function Pagination<TRow extends object>(props: PaginationProps<TRow>) {
         >
           »
         </button>
-        <span class="dt-rows-per-page-group">
+        <label class="dt-rows-per-page-group">
           <span class="dt-rows-per-page">{table.labels().rowsPerPage}:</span>
           <select
             class="dt-page-select"
@@ -62,7 +62,7 @@ export function Pagination<TRow extends object>(props: PaginationProps<TRow>) {
               {(n) => <option value={n}>{n}</option>}
             </For>
           </select>
-        </span>
+        </label>
       </div>
     </Show>
   )

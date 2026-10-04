@@ -14,7 +14,6 @@ Seeded 2026-10-04 from issues reported by a consumer app, each reproduced on the
 - [Active bar](#active-bar)
 - [Column headers](#column-headers)
 - [Empty and cleared states](#empty-and-cleared-states)
-- [Pagination](#pagination)
 - [Layout and integration](#layout-and-integration)
 - [Adapter-specific](#adapter-specific)
 
@@ -38,10 +37,6 @@ Seeded 2026-10-04 from issues reported by a consumer app, each reproduced on the
 ## Empty and cleared states
 
 - **U8 · polish · UC01** — Clear all drops every sort, group and filter at once with no undo. Consider an Undo next to the stats line for a few seconds.
-
-## Pagination
-
-- **U23 · minor · UC09** — the rows-per-page `<select>` has no accessible name: its visible "Rows per page:" text is a sibling span, so a screen reader announces only "combo box, 10"; all adapters. Wrap both in a `<label>`. Found by `e2e/axe.spec.ts`, which lists it as known until fixed.
 
 ## Layout and integration
 

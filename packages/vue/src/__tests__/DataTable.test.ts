@@ -2401,6 +2401,14 @@ describe('DataTable — keyboard navigation across pages', () => {
     await btn.trigger('click')
   }
 
+  it('names the rows-per-page select after its visible label', () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS6, columns: COLS, rowKey: 'id', initialViewState: { pageSize: 2 } },
+    })
+    const select = wrapper.find('select').element as HTMLSelectElement
+    expect(select.labels[0]?.textContent).toMatch(/^Rows per page:/)
+  })
+
   it('the rows-per-page dropdown includes and selects a custom initialViewState.pageSize not among the defaults', () => {
     const wrapper = mount(DataTable, {
       props: { data: ROWS6, columns: COLS, rowKey: 'id', initialViewState: { pageSize: 2 } },

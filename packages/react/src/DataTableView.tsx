@@ -3770,7 +3770,7 @@ export function DataTableView<TRow extends object>({
           >
             »
           </button>
-          <span style={S.rowsPerPageGroup}>
+          <label style={S.rowsPerPageGroup}>
             <span style={S.rowsPerPageLabel}>{L.rowsPerPage}:</span>
             <select
               value={pageSize}
@@ -3783,7 +3783,7 @@ export function DataTableView<TRow extends object>({
                 </option>
               ))}
             </select>
-          </span>
+          </label>
         </div>
       )}
     </div>
