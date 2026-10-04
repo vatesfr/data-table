@@ -22,6 +22,19 @@ function rowNames(container: HTMLElement): string[] {
 }
 
 describe('DataTable', () => {
+  it('accepts columns built inline, a new array on every read', () => {
+    const container = document.createElement('div')
+    const dispose = createRoot((d) => {
+      render(
+        () => <DataTable data={ROWS} columns={[...COLS, { key: 'id', label: 'Id' }]} rowKey="id" />,
+        container,
+      )
+      return d
+    })
+    expect(container.textContent).toContain('Alice')
+    dispose()
+  })
+
   it('names a row checkbox after the first column with text, skipping a picture column', () => {
     const container = document.createElement('div')
     const cols: ColumnDef<Row>[] = [{ key: 'avatar', label: 'Avatar', value: () => null }, ...COLS]

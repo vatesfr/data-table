@@ -1,4 +1,4 @@
-import { createSignal, createMemo, createRenderEffect, type Accessor } from 'solid-js'
+import { createSignal, createMemo, createRenderEffect, untrack, type Accessor } from 'solid-js'
 import {
   DEFAULT_LABELS,
   type SortEntry,
@@ -186,7 +186,9 @@ export function createTableState<TRow extends object>(
   // Declared here (rather than inline in the returned object below) so the accessor-tracking
   // effect just below can call it too.
   const setColumns = (cols: ColumnDef<TRow>[]) => {
-    const prevColumns = columns()
+    // Untracked: the accessor effect below calls this, and tracking `columns` there re-ran it on
+    // its own write — forever, for an accessor returning a new array per read (inline JSX)
+    const prevColumns = untrack(columns)
     _setColumns(cols)
     setVisibleCols((prevVisible) => reconcileVisibleColumns(prevColumns, cols, prevVisible))
   }
