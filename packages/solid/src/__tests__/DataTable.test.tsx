@@ -228,3 +228,61 @@ describe('DataTable', () => {
     dispose()
   })
 })
+
+describe('DataTable — filter values through the column format', () => {
+  interface Item {
+    id: number
+    code: string
+    price: number
+  }
+  const ITEM_COLS: ColumnDef<Item>[] = [
+    { key: 'code', label: 'Code', format: (v) => String(v).toUpperCase() },
+    {
+      key: 'price',
+      label: 'Price',
+      type: 'number',
+      format: (v) => `$${Number(v).toLocaleString('en-US')}`,
+    },
+  ]
+  const ITEMS: Item[] = [
+    { id: 1, code: 'ab', price: 1500 },
+    { id: 2, code: 'cd', price: 90000 },
+  ]
+
+  it('shows chips and checklist values as the column formats them', () => {
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const dispose = createRoot((d) => {
+      render(
+        () => (
+          <DataTable
+            data={ITEMS}
+            columns={ITEM_COLS}
+            rowKey="id"
+            initialViewState={{
+              filters: { code: ['ab'] },
+              rangeFilters: { price: { min: '1000', max: '' } },
+            }}
+          />
+        ),
+        container,
+      )
+      return d
+    })
+    const chips = [...container.querySelectorAll('.dt-chip-body')].map((b) => b.textContent)
+    expect(chips).toContain('Code: AB')
+    expect(chips).toContain('Price: $1,000–')
+    const filterBtn = [...container.querySelectorAll('button')].find(
+      (b) => b.textContent === 'Filter',
+    )!
+    filterBtn.click()
+    const codeCol = container.querySelector<HTMLElement>('[data-filter-col-key="code"]')!
+    codeCol.click()
+    const labels = [...container.querySelectorAll('.dt-filter-list .dt-flex1')].map(
+      (s) => s.textContent,
+    )
+    expect(labels).toEqual(['AB', 'CD'])
+    dispose()
+    container.remove()
+  })
+})

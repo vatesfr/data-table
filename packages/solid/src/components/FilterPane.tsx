@@ -13,6 +13,7 @@ import {
   getDateSortIcon,
   computeDateTree,
   isMultiValueColumnCached,
+  formatFilterValue,
   computeVirtualRange,
   getVirtualScrollTarget,
   checklistBulkState,
@@ -575,7 +576,9 @@ export function FilterPane<TRow extends object>(props: FilterPaneProps<TRow>) {
                                 }}
                               />
                               <span class="dt-flex1">
-                                {col().renderFilterLabel ? col().renderFilterLabel!(value) : value}
+                                {col().renderFilterLabel
+                                  ? col().renderFilterLabel!(value)
+                                  : formatFilterValue(col(), value, table.labels().emptyValue)}
                               </span>
                               <span class="dt-filter-count" aria-hidden="true">
                                 {count()}

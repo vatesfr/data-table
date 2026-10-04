@@ -1,5 +1,11 @@
 import { For, Show, createMemo } from 'solid-js'
-import { exclusionChip, getSortIcon, isExcludeOnlyColumn } from '@vates/data-table-core/internal'
+import {
+  exclusionChip,
+  formatFilterValue,
+  getSortIcon,
+  isExcludeOnlyColumn,
+  summarizeFilterValues,
+} from '@vates/data-table-core/internal'
 import type { TableState } from '../createTableState'
 import type { ColumnDef } from '../types'
 
@@ -12,15 +18,14 @@ interface ActiveBarProps<TRow extends object> {
   onOpenFilter: (key: string) => void
 }
 
-const FILTER_CHIP_MAX = 3
-
-function summarizeFilterValues<TRow extends object>(
+// A filter value as the column displays it (its `format`), for the chips below
+function chipValues<TRow extends object>(
+  table: TableState<TRow>,
+  col: ColumnDef<TRow> | undefined,
   vals: Set<string>,
-  L: ReturnType<TableState<TRow>['labels']>,
 ): string {
-  const arr = [...vals]
-  if (arr.length <= FILTER_CHIP_MAX) return arr.join(', ')
-  return `${arr.slice(0, FILTER_CHIP_MAX).join(', ')}, ${L.moreValues(arr.length - FILTER_CHIP_MAX)}`
+  const L = table.labels()
+  return summarizeFilterValues(vals, L.moreValues, (v) => formatFilterValue(col, v, L.emptyValue))
 }
 
 // Always rendered (even with nothing active) so the row-count stats have a single stable home and
@@ -150,7 +155,11 @@ export function ActiveBar<TRow extends object>(props: ActiveBarProps<TRow>) {
             <span class="dt-chip dt-chip--filter">
               <button type="button" class="dt-chip-body" onClick={() => props.onOpenFilter(key)}>
                 {props.columns.find((c) => c.key === key)?.label ?? key}:{' '}
-                {summarizeFilterValues(vals, table.labels())}
+                {chipValues(
+                  table,
+                  props.columns.find((c) => c.key === key),
+                  vals,
+                )}
               </button>
               <button
                 type="button"
@@ -182,7 +191,7 @@ export function ActiveBar<TRow extends object>(props: ActiveBarProps<TRow>) {
               >
                 <button type="button" class="dt-chip-body" onClick={() => props.onOpenFilter(key)}>
                   {col?.label ?? key}: {chip().kept ? '' : '≠ '}
-                  {summarizeFilterValues(chip().values, table.labels())}
+                  {chipValues(table, col, chip().values)}
                 </button>
                 <button
                   type="button"
@@ -205,7 +214,18 @@ export function ActiveBar<TRow extends object>(props: ActiveBarProps<TRow>) {
           {([key, rf]) => (
             <span class="dt-chip dt-chip--filter">
               <button type="button" class="dt-chip-body" onClick={() => props.onOpenFilter(key)}>
-                {props.columns.find((c) => c.key === key)?.label ?? key}: {rf.min}–{rf.max}
+                {props.columns.find((c) => c.key === key)?.label ?? key}:{' '}
+                {formatFilterValue(
+                  props.columns.find((c) => c.key === key),
+                  rf.min,
+                  table.labels().emptyValue,
+                )}
+                –
+                {formatFilterValue(
+                  props.columns.find((c) => c.key === key),
+                  rf.max,
+                  table.labels().emptyValue,
+                )}
               </button>
               <button
                 type="button"

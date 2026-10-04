@@ -13,6 +13,8 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Changed
 
+- **Filter values as the column shows them** (Solid, React, Vue, vanilla): checklist values, filter chips and range bounds go through the column's `format` ("Salary: $60,000–$100,000" instead of "60000–100000").
+- **BREAKING (all four adapters):** `ColumnDef.format`'s `row` argument is now optional (`format(value, row?)`): filter displays call it without a row, so a `format` reading `row` must handle it being absent.
 - **Header sort arrows** (Solid, React, Vue, vanilla): an unsorted column's muted ↕ now appears only on hover or keyboard focus, and never on a column that can't be sorted; sorted columns keep ↑/↓.
 
 ## [0.15.0] - 2026-10-04

@@ -25,7 +25,8 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{ openChange: [open: boolean] }>()
 // `value`: the filter flyout's value label, forwarded to FilterPane
-defineSlots<{ value?: (props: { value: string }) => unknown }>()
+// `label`: the value through the column's `format`, the default content
+defineSlots<{ value?: (props: { value: string; label: string }) => unknown }>()
 
 const ROW_SELECTOR = 'button.dt__dd-item--clickable'
 
@@ -178,7 +179,9 @@ function onMenuKeydown(e: KeyboardEvent): void {
             </svg>
           </template>
           <FilterPane :table="table" :col="col" :data="data" :columns="columns">
-            <template #value="{ value }"><slot name="value" :value="value" /></template>
+            <template #value="{ value, label }"
+              ><slot name="value" :value="value" :label="label"
+            /></template>
           </FilterPane>
         </CategorySubmenu>
         <button

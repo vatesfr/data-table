@@ -48,6 +48,7 @@ import {
   getSortIndex as getHeaderSortIndex,
   getSortIcon as getHeaderSortIcon,
   summarizeFilterValues,
+  formatFilterValue,
   columnHasActiveFilter,
   orderFilterColumnsByActive,
   applyColumnOrderSnapshot,
@@ -1549,7 +1550,9 @@ function FilterPane<TRow extends object>({
                                 }}
                               />
                               <span style={{ flex: 1 }}>
-                                {col.renderFilterLabel ? col.renderFilterLabel(v) : v}
+                                {col.renderFilterLabel
+                                  ? col.renderFilterLabel(v)
+                                  : formatFilterValue(col, v, L.emptyValue)}
                               </span>
                               <span style={S.filterCount} aria-hidden="true">
                                 {stringValueCounts[col.key]?.get(v) ?? 0}
@@ -3261,7 +3264,13 @@ export function DataTableView<TRow extends object>({
                   style={{ ...S.chipBody, ...S.chipFilter }}
                 >
                   {columns.find((c) => c.key === key)?.label}:{' '}
-                  {summarizeFilterValues(vals, L.moreValues)}
+                  {summarizeFilterValues(vals, L.moreValues, (v) =>
+                    formatFilterValue(
+                      columns.find((c) => c.key === key),
+                      v,
+                      L.emptyValue,
+                    ),
+                  )}
                 </button>
                 <button
                   type="button"
@@ -3303,7 +3312,9 @@ export function DataTableView<TRow extends object>({
                     style={{ ...S.chipBody, ...tint }}
                   >
                     {col?.label}: {chip.kept ? '' : '≠ '}
-                    {summarizeFilterValues(chip.values, L.moreValues)}
+                    {summarizeFilterValues(chip.values, L.moreValues, (v) =>
+                      formatFilterValue(col, v, L.emptyValue),
+                    )}
                   </button>
                   <button
                     type="button"
@@ -3334,7 +3345,18 @@ export function DataTableView<TRow extends object>({
                   }}
                   style={{ ...S.chipBody, ...S.chipFilter }}
                 >
-                  {columns.find((c) => c.key === key)?.label}: {rf.min}–{rf.max}
+                  {columns.find((c) => c.key === key)?.label}:{' '}
+                  {formatFilterValue(
+                    columns.find((c) => c.key === key),
+                    rf.min,
+                    L.emptyValue,
+                  )}
+                  –
+                  {formatFilterValue(
+                    columns.find((c) => c.key === key),
+                    rf.max,
+                    L.emptyValue,
+                  )}
                 </button>
                 <button
                   type="button"

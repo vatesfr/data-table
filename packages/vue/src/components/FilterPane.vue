@@ -9,6 +9,7 @@ import { computed, nextTick, ref, watch } from 'vue'
 import {
   computeStringValueCounts,
   isMultiValueColumnCached,
+  formatFilterValue,
   filterValuesBySearch,
   filterValuesByCount,
   filterValuesByRange,
@@ -48,7 +49,8 @@ const props = defineProps<{
   data: TRow[]
   columns: ColumnDef<TRow>[]
 }>()
-defineSlots<{ value?: (props: { value: string }) => unknown }>()
+// `label`: the value through the column's `format`, the default content
+defineSlots<{ value?: (props: { value: string; label: string }) => unknown }>()
 
 const DEFAULT_VALUE_SORT: ValueSort = { by: 'alpha', dir: 'asc' }
 // Fixed row height so the windowing math is exact; the assumed viewport height is safe because
@@ -471,7 +473,9 @@ async function onKeydown(event: KeyboardEvent): Promise<void> {
                   @click="onValueClick(v, $event)"
                 />
                 <span class="dt__flex1">
-                  <slot name="value" :value="v">{{ v }}</slot>
+                  <slot name="value" :value="v" :label="formatFilterValue(col, v, L.emptyValue)">
+                    {{ formatFilterValue(col, v, L.emptyValue) }}
+                  </slot>
                 </span>
                 <span class="dt__filter-count">{{ valueCounts.get(v) ?? 0 }}</span>
               </label>

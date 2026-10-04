@@ -30,6 +30,8 @@ import {
   computeTotalPages,
   toggleSort,
   replaceSort,
+  summarizeFilterValues,
+  formatFilterValue,
   appendOrToggleSort,
   toggleFilterAll,
   setFilterValues,
@@ -209,7 +211,7 @@ describe('searchData', () => {
       {
         key: 'salary' as const,
         label: 'Salary',
-        format: (v: unknown, row: Row) => `${row.name}:${v}`,
+        format: (v: unknown, row?: Row) => `${row?.name}:${v}`,
       },
     ]
     const result = searchData(ROWS, 'clara:110000', cols)
@@ -3643,5 +3645,36 @@ describe('getVirtualScrollTarget', () => {
 
   it('scrolls back to 0 when the target is the first row and the list is only slightly scrolled', () => {
     expect(getVirtualScrollTarget(5, 260, 32, 0)).toBe(0)
+  })
+})
+
+describe('formatFilterValue', () => {
+  const salary = {
+    key: 'salary',
+    label: 'Salary',
+    type: 'number' as const,
+    format: (v: unknown) => `$${Number(v).toLocaleString('en-US')}`,
+  }
+
+  it('shows a value through the column format, numbers as numbers', () => {
+    expect(formatFilterValue(salary, '90000', '(none)')).toBe('$90,000')
+  })
+
+  it('leaves the empty placeholder, empty bounds and unformatted columns alone', () => {
+    expect(formatFilterValue(salary, '(none)', '(none)')).toBe('(none)')
+    expect(formatFilterValue(salary, '', '(none)')).toBe('')
+    expect(formatFilterValue({ key: 'name', label: 'Name' }, 'Ada', '(none)')).toBe('Ada')
+  })
+})
+
+describe('summarizeFilterValues with a format', () => {
+  it('formats each named value', () => {
+    expect(
+      summarizeFilterValues(
+        new Set(['a', 'b']),
+        (n) => `+${n}`,
+        (v) => v.toUpperCase(),
+      ),
+    ).toBe('A, B')
   })
 })

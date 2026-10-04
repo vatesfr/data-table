@@ -3903,7 +3903,9 @@ describe('DataTable — filter dropdown on a narrow screen (U16)', () => {
   ]
   let restore = () => {}
 
-  const tick = () => new Promise((r) => setTimeout(r))
+  // 10 ms, not 0: Vue drops a key event sent within a few ms of a menu opening
+  // (docs/pitfalls.md); 5 ms already passed 80/80 runs
+  const tick = () => new Promise((r) => setTimeout(r, 10))
   async function open(matches: boolean) {
     restore = stubMatchMedia(matches)
     const wrapper = mount(DataTable, {
@@ -3993,5 +3995,52 @@ describe('DataTable — exclusion chip wording (U18)', () => {
     const { text, classes } = chip(['HR'])
     expect(text).toBe('Dept: ≠ HR')
     expect(classes).toContain('dt__chip--danger')
+  })
+})
+
+describe('DataTable — filter values through the column format', () => {
+  interface Item {
+    id: number
+    code: string
+    price: number
+  }
+  const ITEM_COLS: ColumnDef<Item>[] = [
+    { key: 'code', label: 'Code', format: (v) => String(v).toUpperCase() },
+    {
+      key: 'price',
+      label: 'Price',
+      type: 'number',
+      format: (v) => `$${Number(v).toLocaleString('en-US')}`,
+    },
+  ]
+  const ITEMS: Item[] = [
+    { id: 1, code: 'ab', price: 1500 },
+    { id: 2, code: 'cd', price: 90000 },
+  ]
+
+  it('shows chips and checklist values as the column formats them', async () => {
+    const wrapper = mount(DataTable, {
+      props: {
+        data: ITEMS,
+        columns: ITEM_COLS,
+        rowKey: 'id',
+        initialViewState: {
+          filters: { code: ['ab'] },
+          rangeFilters: { price: { min: '1000', max: '' } },
+        },
+      },
+    })
+    const chips = wrapper.findAll('.dt__chip-body').map((b) => b.text().replace(/\s+/g, ' '))
+    expect(chips).toContain('Code: AB')
+    expect(chips).toContain('Price: $1,000–')
+    await openDdByLabel(wrapper, 'Filter')
+    await wrapper.find('[data-filter-col-key="code"]').trigger('click')
+    const labels = wrapper.findAll('input[data-dd-value-row]').map((i) =>
+      i.element
+        .closest('label')!
+        .textContent!.replace(/\d+\s*$/, '')
+        .trim(),
+    )
+    expect(labels).toEqual(['AB', 'CD'])
   })
 })

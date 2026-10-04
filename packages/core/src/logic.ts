@@ -834,6 +834,20 @@ export function filterValuesByCount(
   return values.filter((v) => selected.has(v) || (counts.get(v) ?? 0) > 0)
 }
 
+/**
+ * A filter value (checklist value, chip value or range bound, all strings) shown through the
+ * column's `format`, without a row; a number column's value goes back to a number first. The
+ * empty-value placeholder and columns without `format` show as is.
+ */
+export function formatFilterValue<TRow extends object>(
+  col: ColumnDefBase<TRow> | undefined,
+  value: string,
+  emptyLabel: string,
+): string {
+  if (!col?.format || value === emptyLabel || value === '') return value
+  return col.format(col.type === 'number' ? Number(value) : value)
+}
+
 /** Max values shown by name on an active-bar filter chip before falling back to a "+N more"
  * suffix — see `summarizeFilterValues`. */
 export const FILTER_CHIP_MAX = 3
@@ -847,8 +861,9 @@ export const FILTER_CHIP_MAX = 3
 export function summarizeFilterValues(
   vals: Set<string>,
   moreValues: (n: number) => string,
+  format: (value: string) => string = (v) => v,
 ): string {
-  const arr = [...vals]
+  const arr = [...vals].map(format)
   if (arr.length <= FILTER_CHIP_MAX) return arr.join(', ')
   return `${arr.slice(0, FILTER_CHIP_MAX).join(', ')}, ${moreValues(arr.length - FILTER_CHIP_MAX)}`
 }

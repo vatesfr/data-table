@@ -469,7 +469,7 @@ describe('createDataTable (grouping, group dropdown, pagination+grouping, search
   it('passes a representative group row as the second argument to format in aggregate cells', () => {
     const cols: ColumnDef<Row>[] = [
       { key: 'name', label: 'Name' },
-      { key: 'score', label: 'Score', aggregate: 'sum', format: (v, row) => `${row.dept}=${v}` },
+      { key: 'score', label: 'Score', aggregate: 'sum', format: (v, row) => `${row?.dept}=${v}` },
       { key: 'dept', label: 'Dept', groupable: true },
     ]
     createDataTable(container, { data: ROWS, columns: cols })

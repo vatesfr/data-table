@@ -14,6 +14,7 @@ import {
   getSortIndex as getHeaderSortIndex,
   getSortIcon as getHeaderSortIcon,
   summarizeFilterValues,
+  formatFilterValue,
   columnHasActiveFilter,
   orderFilterColumnsByActive,
   applyColumnOrderSnapshot,
@@ -1746,8 +1747,8 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
             >
               <!-- Slot #filter-{key}: custom value label in the filter checklist (not the date
                    tree), scope { value: string }; falls back to the raw value -->
-              <template #value="{ value }">
-                <slot :name="`filter-${filterDetailCol.key}`" :value="value">{{ value }}</slot>
+              <template #value="{ value, label }">
+                <slot :name="`filter-${filterDetailCol.key}`" :value="value">{{ label }}</slot>
               </template>
             </FilterPane>
           </div>
@@ -1869,7 +1870,11 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
           <span v-if="vals.size > 0" class="dt__chip dt__chip--info">
             <button type="button" class="dt__chip-body" @click="onOpenFilterCol(key)">
               {{ columns.find((c) => c.key === key)?.label }}:
-              {{ summarizeFilterValues(vals, L.moreValues) }}
+              {{
+                summarizeFilterValues(vals, L.moreValues, (v) =>
+                  formatFilterValue(findCol(key), v, L.emptyValue),
+                )
+              }}
             </button>
             <button
               type="button"
@@ -1891,7 +1896,11 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
           <span class="dt__chip" :class="chip.kept ? 'dt__chip--info' : 'dt__chip--danger'">
             <button type="button" class="dt__chip-body" @click="onOpenFilterCol(chip.key)">
               {{ chip.label }}: {{ chip.kept ? '' : '≠' }}
-              {{ summarizeFilterValues(chip.values, L.moreValues) }}
+              {{
+                summarizeFilterValues(chip.values, L.moreValues, (v) =>
+                  formatFilterValue(findCol(chip.key), v, L.emptyValue),
+                )
+              }}
             </button>
             <button
               type="button"
@@ -1910,7 +1919,10 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
         <template v-for="[key, rf] in Object.entries(rangeFilters)" :key="`range-${key}`">
           <span v-if="rf.min !== '' || rf.max !== ''" class="dt__chip dt__chip--info">
             <button type="button" class="dt__chip-body" @click="onOpenFilterCol(key)">
-              {{ columns.find((c) => c.key === key)?.label }}: {{ rf.min }}–{{ rf.max }}
+              {{ columns.find((c) => c.key === key)?.label }}:
+              {{ formatFilterValue(findCol(key), rf.min, L.emptyValue) }}–{{
+                formatFilterValue(findCol(key), rf.max, L.emptyValue)
+              }}
             </button>
             <button
               type="button"
@@ -1995,8 +2007,8 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                       (menuColKey = open ? col.key : menuColKey === col.key ? null : menuColKey)
                   "
                 >
-                  <template #value="{ value }">
-                    <slot :name="`filter-${col.key}`" :value="value">{{ value }}</slot>
+                  <template #value="{ value, label }">
+                    <slot :name="`filter-${col.key}`" :value="value">{{ label }}</slot>
                   </template>
                 </HeaderMenu>
               </span>

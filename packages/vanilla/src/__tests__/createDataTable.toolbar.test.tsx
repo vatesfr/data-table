@@ -143,7 +143,7 @@ describe('createDataTable', () => {
 
   it('passes the full row as the second argument to format', () => {
     const cols: ColumnDef<Row>[] = [
-      { key: 'score', label: 'Score', format: (v, row) => `${row.name}:${v}` },
+      { key: 'score', label: 'Score', format: (v, row) => `${row?.name}:${v}` },
     ]
     createDataTable(container, { data: ROWS, columns: cols })
     expect(container.innerHTML).toContain('Alice:90')

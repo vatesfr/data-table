@@ -2724,3 +2724,47 @@ describe('DataTable — exclusion chip wording (U18)', () => {
     expect(chipText(container)).toBe('Dept: ≠ HR')
   })
 })
+
+describe('DataTable — filter values through the column format', () => {
+  interface Item {
+    id: number
+    code: string
+    price: number
+  }
+  const ITEM_COLS: ColumnDef<Item>[] = [
+    { key: 'code', label: 'Code', format: (v) => String(v).toUpperCase() },
+    {
+      key: 'price',
+      label: 'Price',
+      type: 'number',
+      format: (v) => `$${Number(v).toLocaleString('en-US')}`,
+    },
+  ]
+  const ITEMS: Item[] = [
+    { id: 1, code: 'ab', price: 1500 },
+    { id: 2, code: 'cd', price: 90000 },
+  ]
+
+  it('shows chips and checklist values as the column formats them', () => {
+    const { container, getByText } = render(
+      <DataTable
+        data={ITEMS}
+        columns={ITEM_COLS}
+        rowKey="id"
+        initialViewState={{
+          filters: { code: ['ab'] },
+          rangeFilters: { price: { min: '1000', max: '' } },
+        }}
+      />,
+    )
+    const texts = [...container.querySelectorAll('button')].map((b) => b.textContent)
+    expect(texts).toContain('Code: AB')
+    expect(texts).toContain('Price: $1,000–')
+    fireEvent.click(getByText('Filter'))
+    fireEvent.click(container.querySelector('[data-filter-col-key="code"]')!)
+    const labels = [...container.querySelectorAll('input[data-dd-value-row]')].map((i) =>
+      i.closest('label')!.textContent!.replace(/\d+$/, '').trim(),
+    )
+    expect(labels).toEqual(['AB', 'CD'])
+  })
+})

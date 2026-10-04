@@ -87,8 +87,11 @@ export interface ColumnDefBase<TRow extends object = Record<string, unknown>> {
    * nested access, and columns with no single backing property (e.g. `price * qty`).
    */
   value?: (row: TRow) => unknown
-  /** Format a value to a plain string (framework-agnostic alternative to render) */
-  format?: (value: unknown, row: TRow) => string
+  /**
+   * Format a value to a plain string (framework-agnostic alternative to render). `row` is absent
+   * where a value stands alone: filter chips, checklist values, range bounds.
+   */
+  format?: (value: unknown, row?: TRow) => string
   /**
    * Excludes this column from both header-click sorting and the Sort dropdown's "add a sort"
    * list. Default: true. Enforced by each adapter, not core — `toggleSort`/`replaceSort`/
