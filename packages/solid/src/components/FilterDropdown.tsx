@@ -45,6 +45,8 @@ interface FilterDropdownProps<TRow extends object> {
   table: TableState<TRow>
   columns: ColumnDef<TRow>[]
   isOpen: boolean
+  /** Column to open on: its category starts expanded so its row can take focus */
+  openOn?: string | null
   onToggle: () => void
   onClose: () => void
 }
@@ -237,7 +239,8 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
         // the moment some unrelated filter elsewhere changes (see collapsedCategories' own note).
         const startCollapsed = new Set<string>()
         for (const category of groupColumnsByCategory(filterableCols()).categories) {
-          if (!category.columns.some(hasActiveFilter)) startCollapsed.add(category.name)
+          if (!category.columns.some((c) => hasActiveFilter(c) || c.key === props.openOn))
+            startCollapsed.add(category.name)
         }
         setCollapsedCategories(startCollapsed)
       })

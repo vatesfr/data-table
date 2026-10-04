@@ -13,6 +13,7 @@ import {
 } from '@vates/data-table-core/internal'
 import type { TableState } from '../createTableState'
 import type { ColumnDef } from '../types'
+import { HeaderMenu } from './HeaderMenu'
 import { applyCheckboxState } from './checkboxSync'
 import { focusSearch } from './SearchBox'
 
@@ -22,6 +23,7 @@ interface TableBodyProps<TRow extends object> {
   rowKey?: keyof TRow & string
   selectable?: boolean
   onRowClick?: (row: TRow, event: MouseEvent | KeyboardEvent) => void
+  onOpenFilter?: (key: string) => void
 }
 
 // A multi-value (array) column's raw value has no natural single-string representation, so it's
@@ -340,6 +342,7 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
                       <span class={`dt-sort-icon${isSorted() ? ' dt-sort-icon--active' : ''}`}>
                         {sortIdx() ? `${sortIdx()}${icon()}` : icon()}
                       </span>
+                      <HeaderMenu table={table} col={col} onOpenFilter={props.onOpenFilter} />
                     </span>
                   </th>
                 )
