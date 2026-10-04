@@ -442,6 +442,32 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
               </Show>
             )}
           </Index>
+          <Show when={table.processedData().length === 0}>
+            <tr>
+              <td
+                class="dt-td dt-empty"
+                colspan={
+                  table.columns.active().length +
+                  (props.selectable ? 1 : 0) +
+                  (table.group.by().length > 0 ? 1 : 0)
+                }
+              >
+                <Show when={table.data().length > 0} fallback={table.labels().noRows}>
+                  {table.labels().noMatchingRows}{' '}
+                  <button
+                    type="button"
+                    class="dt-btn"
+                    onClick={() => {
+                      table.filter.clear()
+                      table.search.setQuery('')
+                    }}
+                  >
+                    {table.labels().clearSearchAndFilters}
+                  </button>
+                </Show>
+              </td>
+            </tr>
+          </Show>
         </tbody>
       </table>
     </div>

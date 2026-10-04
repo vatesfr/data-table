@@ -2259,6 +2259,23 @@ describe('DataTable — keyboard navigation across pages', () => {
     fireEvent.click([...container.querySelectorAll('button')].find((b) => b.textContent === '›')!)
   }
 
+  it('says no rows match, with a way out clearing search and filters', () => {
+    const { container, getByText, getByRole, getAllByPlaceholderText } = render(
+      <DataTable data={ROWS6} columns={COLS} rowKey="id" />,
+    )
+    fireEvent.change(getAllByPlaceholderText('Search…')[0], { target: { value: 'zzz' } })
+    expect(getByText('No matching rows')).toBeTruthy()
+    fireEvent.click(getByRole('button', { name: 'Clear search and filters' }))
+    expect(getAllByPlaceholderText('Search…')[0]).toHaveProperty('value', '')
+    expect(container.querySelectorAll('tbody tr')).toHaveLength(ROWS6.length)
+  })
+
+  it('says "No rows", with no button, when there is no data at all', () => {
+    const { container } = render(<DataTable data={[]} columns={COLS} rowKey="id" />)
+    expect(container.querySelector('tbody')?.textContent).toBe('No rows')
+    expect(container.querySelector('tbody button')).toBeNull()
+  })
+
   it('names the pagination buttons from the labels', () => {
     const { getByRole } = render(
       <DataTable data={ROWS6} columns={COLS} rowKey="id" initialViewState={{ pageSize: 2 }} />,

@@ -25,7 +25,6 @@ Seeded 2026-10-04 from issues reported by a consumer app, each reproduced on the
 
 ## Empty and cleared states
 
-- **U7 · minor · UC01** — a search or filter matching nothing leaves an empty table body with no message; only the stats line ("0 / 20 rows") says why, top-right, away from where the user looks; all adapters. Show a row saying no rows match, with a Clear filters action.
 - **U8 · polish · UC01** — Clear all drops every sort, group and filter at once with no undo. Consider an Undo next to the stats line for a few seconds.
 
 ## Layout and integration

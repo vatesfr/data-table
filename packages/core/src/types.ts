@@ -255,6 +255,12 @@ export interface DataTableLabels {
   groupContinued: string
   rowsPerPage: string
   pageOf: (page: number, total: number) => string
+  /** Empty table body: no data at all */
+  noRows: string
+  /** Empty table body: search and filters match nothing */
+  noMatchingRows: string
+  /** Empty-body button resetting search and filters (sorts, groups kept) */
+  clearSearchAndFilters: string
   /** Accessible names of the «, ‹, › and » pagination buttons */
   firstPage: string
   previousPage: string

@@ -2729,6 +2729,28 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
               </tr>
             </template>
           </template>
+          <tr v-if="processedData.length === 0">
+            <td
+              class="dt__td dt__empty"
+              :colspan="activeColumns.length + (selectable ? 1 : 0) + (groupBy.length > 0 ? 1 : 0)"
+            >
+              <template v-if="data.length === 0">{{ L.noRows }}</template>
+              <template v-else>
+                {{ L.noMatchingRows }}
+                <button
+                  class="dt__clear-all"
+                  @click="
+                    () => {
+                      clearFilters()
+                      setSearchQuery('')
+                    }
+                  "
+                >
+                  {{ L.clearSearchAndFilters }}
+                </button>
+              </template>
+            </td>
+          </tr>
         </tbody>
       </table>
     </div>
@@ -3480,6 +3502,10 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
   font-size: 12px;
   color: var(--color-text-primary);
   cursor: pointer;
+}
+.dt__empty {
+  padding: 24px 12px;
+  color: var(--color-text-secondary);
 }
 .dt__group-td {
   padding: 6px 12px;

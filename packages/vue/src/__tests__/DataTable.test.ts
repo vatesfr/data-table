@@ -79,6 +79,24 @@ describe('DataTable — v-model:page / v-model:search-query', () => {
     expect(wrapper.emitted('update:searchQuery')![0]).toEqual([''])
   })
 
+  it('says no rows match, with a way out clearing search and filters', async () => {
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: COLS, rowKey: 'id' } })
+    await wrapper.find('input.dt__search-input').setValue('zzz')
+    expect(wrapper.find('tbody').text()).toContain('No matching rows')
+    const btn = wrapper
+      .findAll('tbody button')
+      .find((b) => b.text() === 'Clear search and filters')!
+    await btn.trigger('click')
+    expect((wrapper.find('input.dt__search-input').element as HTMLInputElement).value).toBe('')
+    expect(wrapper.findAll('tbody tr')).toHaveLength(ROWS.length)
+  })
+
+  it('says "No rows", with no button, when there is no data at all', () => {
+    const wrapper = mount(DataTable, { props: { data: [], columns: COLS, rowKey: 'id' } })
+    expect(wrapper.find('tbody').text()).toBe('No rows')
+    expect(wrapper.find('tbody button').exists()).toBe(false)
+  })
+
   it('names the pagination buttons from the labels', () => {
     const wrapper = mount(DataTable, {
       props: { data: ROWS, columns: COLS, rowKey: 'id', initialViewState: { pageSize: 1 } },

@@ -269,6 +269,10 @@ const S = {
     color: 'var(--color-text-primary)',
     cursor: 'pointer',
   } as CSSProperties,
+  empty: {
+    padding: '24px 12px',
+    color: 'var(--color-text-secondary)',
+  } as CSSProperties,
   groupTd: {
     padding: '6px 12px',
     borderBottom: '1px solid var(--color-border-secondary)',
@@ -3610,6 +3614,33 @@ export function DataTableView<TRow extends object>({
                   )),
               ]
             })}
+            {processedData.length === 0 && (
+              <tr>
+                <td
+                  colSpan={
+                    activeColumns.length + (selectable ? 1 : 0) + (groupBy.length > 0 ? 1 : 0)
+                  }
+                  style={{ ...S.td, ...S.empty }}
+                >
+                  {data.length === 0 ? (
+                    L.noRows
+                  ) : (
+                    <>
+                      {L.noMatchingRows}{' '}
+                      <button
+                        onClick={() => {
+                          clearFilters()
+                          setSearchQuery('')
+                        }}
+                        style={S.clearAll}
+                      >
+                        {L.clearSearchAndFilters}
+                      </button>
+                    </>
+                  )}
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>

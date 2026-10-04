@@ -104,6 +104,7 @@ ${renderThemeCss()}
 .dt-tr--clickable:hover .dt-td{background:var(--color-background-secondary,#f7f6f3)}
 .dt-tr--selected .dt-td{background:var(--color-background-info,#e6f1fb)}
 .dt-group-row{background:var(--color-background-secondary,#f7f6f3);border-left:3px solid var(--color-border-secondary,#dddcd8);font-weight:600;font-size:12px;color:var(--color-text-primary,#1a1916);cursor:pointer}
+.dt-empty{padding:24px 12px;color:var(--color-text-secondary,#6b6a66)}
 .dt-group-td{padding:6px 12px;border-bottom:1px solid var(--color-border-secondary,#dddcd8)}
 .dt-group-sep{margin:0 4px;opacity:.4}
 .dt-group-colname{margin-right:4px;opacity:.6}
