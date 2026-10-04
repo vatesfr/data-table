@@ -1971,6 +1971,9 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                 >
                   {{ col.label }}
                   <span
+                    v-if="col.sortable !== false"
+                    class="dt__th-sort-icon"
+                    :class="{ 'dt__th-sort-icon--sorted': isHeaderSorted(col.key) }"
                     aria-hidden="true"
                     :style="{
                       fontSize: '10px',
@@ -2886,6 +2889,15 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
   display: flex;
   align-items: center;
   gap: 4px;
+}
+/* An unsorted column's ↕ shows only on hover or keyboard focus */
+.dt__th-sort-icon {
+  opacity: 0;
+}
+.dt__th-sort-icon--sorted,
+.dt__th:hover .dt__th-sort-icon,
+.dt__th-sort:focus-visible .dt__th-sort-icon {
+  opacity: 1;
 }
 .dt__th-sort {
   display: inline-flex;

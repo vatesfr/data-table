@@ -67,8 +67,9 @@ ${renderThemeCss()}
 .dt-item-remove{background:none;border:none;cursor:pointer;padding:2px 4px;font-size:13px;color:var(--color-text-tertiary,#9b9a96);line-height:1;font-family:inherit}
 .dt-item-remove:hover{color:var(--color-text-primary,#1a1916)}
 .dt-sort-idx{width:18px;font-size:11px;color:var(--color-text-tertiary,#9b9a96);font-weight:500;flex-shrink:0}
-.dt-sort-icon{font-size:15px;color:var(--color-border-secondary,#dddcd8)}
-.dt-sort-icon--active{color:var(--color-text-primary,#1a1916)}
+.dt-sort-icon{font-size:15px;color:var(--color-border-secondary,#dddcd8);opacity:0}
+.dt-sort-icon--active{color:var(--color-text-primary,#1a1916);opacity:1}
+.dt-th:hover .dt-sort-icon,:focus-visible>.dt-sort-icon{opacity:1}
 .dt-range-input{width:80px;padding:3px 6px;font-size:12px;border:0.5px solid var(--color-border-secondary,#dddcd8);border-radius:4px;font-family:inherit;background:transparent;color:inherit}
 .dt-range-input[type=date]{width:118px}
 .dt-range-sep{color:var(--color-text-tertiary,#9b9a96);font-size:12px}

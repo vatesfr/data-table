@@ -352,7 +352,7 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
                   >
                     <span class="dt-th-inner">
                       {/* A button so keyboard users can sort; its click bubbles to the <th>'s handler */}
-                      <Show when={col.sortable !== false} fallback={labelAndIcon()}>
+                      <Show when={col.sortable !== false} fallback={col.label}>
                         <button type="button" class="dt-th-sort">
                           {labelAndIcon()}
                         </button>

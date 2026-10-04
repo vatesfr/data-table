@@ -1596,6 +1596,8 @@ export function DataTableView<TRow extends object>({
   const [openColsDD, setOpenColsDD] = useState(false)
   const [openSortDD, setOpenSortDD] = useState(false)
   const [openFilterDD, setOpenFilterDD] = useState(false)
+  // Header under the pointer or with focus: only then does an unsorted column show its ↕
+  const [litHeader, setLitHeader] = useState<string | null>(null)
   // Narrow screen (U16): the Filter dropdown shows one pane at a time — columns, or values
   const [narrowFilter, setNarrowFilter] = useState(false)
   useEffect(() => watchMedia(FILTER_NARROW_QUERY, setNarrowFilter), [])
@@ -3391,17 +3393,20 @@ export function DataTableView<TRow extends object>({
                   const labelAndIcon = (
                     <>
                       {col.label}
-                      <span
-                        aria-hidden="true"
-                        style={{
-                          fontSize: 10,
-                          color: isSorted
-                            ? 'var(--color-text-primary)'
-                            : 'var(--color-border-secondary)',
-                        }}
-                      >
-                        {sortIdx ? `${sortIdx}${icon}` : icon}
-                      </span>
+                      {col.sortable !== false && (
+                        <span
+                          aria-hidden="true"
+                          style={{
+                            fontSize: 10,
+                            color: isSorted
+                              ? 'var(--color-text-primary)'
+                              : 'var(--color-border-secondary)',
+                            opacity: isSorted || litHeader === col.key ? 1 : 0,
+                          }}
+                        >
+                          {sortIdx ? `${sortIdx}${icon}` : icon}
+                        </span>
+                      )}
                     </>
                   )
                   return (
@@ -3411,6 +3416,8 @@ export function DataTableView<TRow extends object>({
                         sortDir ? (sortDir === 'asc' ? 'ascending' : 'descending') : undefined
                       }
                       draggable
+                      onMouseEnter={() => setLitHeader(col.key)}
+                      onMouseLeave={() => setLitHeader(null)}
                       onDragStart={() => setDragColKey(col.key)}
                       onDragOver={(e) => {
                         e.preventDefault()
@@ -3451,7 +3458,12 @@ export function DataTableView<TRow extends object>({
                         {col.sortable === false ? (
                           labelAndIcon
                         ) : (
-                          <button type="button" style={S.thSort}>
+                          <button
+                            type="button"
+                            style={S.thSort}
+                            onFocus={() => setLitHeader(col.key)}
+                            onBlur={() => setLitHeader(null)}
+                          >
                             {labelAndIcon}
                           </button>
                         )}
