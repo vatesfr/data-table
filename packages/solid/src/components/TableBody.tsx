@@ -14,6 +14,7 @@ import {
 import type { TableState } from '../createTableState'
 import type { ColumnDef } from '../types'
 import { applyCheckboxState } from './checkboxSync'
+import { focusSearch } from './SearchBox'
 
 interface TableBodyProps<TRow extends object> {
   table: TableState<TRow>
@@ -457,9 +458,11 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
                   <button
                     type="button"
                     class="dt-btn"
-                    onClick={() => {
+                    onClick={(e) => {
+                      const root = e.currentTarget.closest('.dt')
                       table.filter.clear()
                       table.search.setQuery('')
+                      focusSearch(root)
                     }}
                   >
                     {table.labels().clearSearchAndFilters}

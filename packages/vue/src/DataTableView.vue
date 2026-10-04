@@ -1266,9 +1266,23 @@ function onColRowKeyDown(event: KeyboardEvent, key: string, col: ColumnDef<TRow>
 }
 
 const searchInputRef = ref<HTMLInputElement | null>(null)
+const rootRef = ref<HTMLElement | null>(null)
+// Focus target after a clear button unmounts itself: the search box, else the first toolbar button.
+function focusSearch(): void {
+  ;(searchInputRef.value ?? rootRef.value?.querySelector('button'))?.focus()
+}
 function clearSearchQuery(): void {
   setSearchQuery('')
-  searchInputRef.value?.focus()
+  focusSearch()
+}
+function clearAllAndFocus(): void {
+  clearAll()
+  focusSearch()
+}
+function clearSearchAndFilters(): void {
+  clearFilters()
+  setSearchQuery('')
+  focusSearch()
 }
 
 // ── Dropdown column search + keyboard navigation ──
@@ -1460,7 +1474,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
 </script>
 
 <template>
-  <div class="dt">
+  <div ref="rootRef" class="dt">
     <!-- ── Toolbar ── -->
     <div class="dt__toolbar">
       <div class="dt__toolbar-actions">
@@ -2376,7 +2390,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
         <!-- "Clear all" sits alone at the far right of the actions row (margin-left: auto, see
              .dt__clear-all) — nothing else in the row needs to reflow when it mounts/unmounts,
              unlike the old layout where it sat between search and the stats text. -->
-        <button v-if="hasActiveState" class="dt__clear-all" @click="clearAll">
+        <button v-if="hasActiveState" class="dt__clear-all" @click="clearAllAndFocus">
           {{ L.clearAll }}
         </button>
       </div>
@@ -2737,15 +2751,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
               <template v-if="data.length === 0">{{ L.noRows }}</template>
               <template v-else>
                 {{ L.noMatchingRows }}
-                <button
-                  class="dt__clear-all"
-                  @click="
-                    () => {
-                      clearFilters()
-                      setSearchQuery('')
-                    }
-                  "
-                >
+                <button class="dt__clear-all" @click="clearSearchAndFilters">
                   {{ L.clearSearchAndFilters }}
                 </button>
               </template>

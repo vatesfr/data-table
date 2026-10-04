@@ -34,6 +34,61 @@ describe('DataTable', () => {
     dispose()
   })
 
+  it('moves focus to the search box when a clear button removes itself', () => {
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const dispose = createRoot((d) => {
+      render(() => <DataTable data={ROWS} columns={COLS} rowKey="id" />, container)
+      return d
+    })
+    const search = container.querySelector<HTMLInputElement>('.dt-search-input')!
+    const type = (q: string) => {
+      search.value = q
+      search.dispatchEvent(new Event('input', { bubbles: true }))
+    }
+    const clickButton = (name: string) => {
+      const btn = [...container.querySelectorAll<HTMLButtonElement>('button')].find(
+        (b) => b.textContent === name || b.getAttribute('aria-label') === name,
+      )!
+      btn.focus()
+      btn.click()
+    }
+    for (const name of ['× Clear all', 'Clear search', 'Clear search and filters']) {
+      type('zzz')
+      clickButton(name)
+      expect(document.activeElement).toBe(search)
+    }
+    dispose()
+  })
+
+  it('moves focus to the first toolbar button after Clear all when search is hidden', () => {
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const cols: ColumnDef<Row>[] = [...COLS, { key: 'id', label: 'Id' }]
+    const dispose = createRoot((d) => {
+      render(
+        () => (
+          <DataTable
+            data={ROWS}
+            columns={cols}
+            rowKey="id"
+            showSearch={false}
+            initialViewState={{ sorts: [{ key: 'name', dir: 'asc' }] }}
+          />
+        ),
+        container,
+      )
+      return d
+    })
+    const clearAll = [...container.querySelectorAll<HTMLButtonElement>('button')].find(
+      (b) => b.textContent === '× Clear all',
+    )!
+    clearAll.focus()
+    clearAll.click()
+    expect(document.activeElement).toBe(container.querySelector('button'))
+    dispose()
+  })
+
   it('names the pagination buttons from the labels', () => {
     const container = document.createElement('div')
     document.body.appendChild(container)

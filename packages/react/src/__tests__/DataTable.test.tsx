@@ -2276,6 +2276,36 @@ describe('DataTable — keyboard navigation across pages', () => {
     expect(container.querySelector('tbody button')).toBeNull()
   })
 
+  it('moves focus to the search box when a clear button removes itself', () => {
+    const { getByRole, getAllByPlaceholderText } = render(
+      <DataTable data={ROWS6} columns={COLS} rowKey="id" />,
+    )
+    const search = getAllByPlaceholderText('Search…')[0]
+    for (const name of ['× Clear all', 'Clear search', 'Clear search and filters']) {
+      fireEvent.change(search, { target: { value: 'zzz' } })
+      const btn = getByRole('button', { name })
+      btn.focus()
+      fireEvent.click(btn)
+      expect(document.activeElement).toBe(search)
+    }
+  })
+
+  it('moves focus to the first toolbar button after Clear all when search is hidden', () => {
+    const { container, getByRole } = render(
+      <DataTable
+        data={ROWS6}
+        columns={COLS}
+        rowKey="id"
+        showSearch={false}
+        initialViewState={{ sorts: [{ key: 'name', dir: 'asc' }] }}
+      />,
+    )
+    const clearAll = getByRole('button', { name: '× Clear all' })
+    clearAll.focus()
+    fireEvent.click(clearAll)
+    expect(document.activeElement).toBe(container.querySelector('button'))
+  })
+
   it('names the pagination buttons from the labels', () => {
     const { getByRole } = render(
       <DataTable data={ROWS6} columns={COLS} rowKey="id" initialViewState={{ pageSize: 2 }} />,

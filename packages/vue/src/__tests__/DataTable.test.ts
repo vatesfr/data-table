@@ -97,6 +97,42 @@ describe('DataTable — v-model:page / v-model:search-query', () => {
     expect(wrapper.find('tbody button').exists()).toBe(false)
   })
 
+  it('moves focus to the search box when a clear button removes itself', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS, columns: COLS, rowKey: 'id' },
+      attachTo: document.body,
+    })
+    const search = wrapper.find('input.dt__search-input')
+    for (const name of ['× Clear all', 'Clear search', 'Clear search and filters']) {
+      await search.setValue('zzz')
+      const btn = wrapper
+        .findAll('button')
+        .find((b) => b.text() === name || b.attributes('aria-label') === name)!
+      ;(btn.element as HTMLElement).focus()
+      await btn.trigger('click')
+      expect(document.activeElement).toBe(search.element)
+    }
+    wrapper.unmount()
+  })
+
+  it('moves focus to the first toolbar button after Clear all when search is hidden', async () => {
+    const wrapper = mount(DataTable, {
+      props: {
+        data: ROWS,
+        columns: COLS,
+        rowKey: 'id',
+        showSearch: false,
+        initialViewState: { sorts: [{ key: 'name', dir: 'asc' }] },
+      },
+      attachTo: document.body,
+    })
+    const clearAll = wrapper.findAll('button').find((b) => b.text() === '× Clear all')!
+    ;(clearAll.element as HTMLElement).focus()
+    await clearAll.trigger('click')
+    expect(document.activeElement).toBe(wrapper.find('button').element)
+    wrapper.unmount()
+  })
+
   it('names the pagination buttons from the labels', () => {
     const wrapper = mount(DataTable, {
       props: { data: ROWS, columns: COLS, rowKey: 'id', initialViewState: { pageSize: 1 } },

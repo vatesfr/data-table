@@ -14,6 +14,12 @@ interface SearchBoxProps<TRow extends object> {
 // data-focus-key/selection-range restore here at all — Solid reuses this same <input> DOM node
 // across every re-render (it's the direct fix for the numeric-range caret bug from earlier: the
 // same class of issue can no longer occur here, by construction).
+// Focus target after a clear button unmounts itself: the search box, else the first toolbar button.
+// Takes the table root, looked up before clearing: Solid detaches the button synchronously.
+export function focusSearch(root: Element | null): void {
+  ;(root?.querySelector<HTMLElement>('.dt-search-input') ?? root?.querySelector('button'))?.focus()
+}
+
 export function SearchBox<TRow extends object>(props: SearchBoxProps<TRow>) {
   const { table } = props
   return (
@@ -31,7 +37,11 @@ export function SearchBox<TRow extends object>(props: SearchBoxProps<TRow>) {
           class="dt-search-clear"
           title={table.labels().clearSearch}
           aria-label={table.labels().clearSearch}
-          onClick={() => table.search.setQuery('')}
+          onClick={(e) => {
+            const root = e.currentTarget.closest('.dt')
+            table.search.setQuery('')
+            focusSearch(root)
+          }}
         >
           ×
         </button>

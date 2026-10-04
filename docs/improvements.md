@@ -26,7 +26,6 @@ Seeded 2026-10-04 from issues reported by a consumer app, each reproduced on the
 ## Empty and cleared states
 
 - **U8 · polish · UC01** — Clear all drops every sort, group and filter at once with no undo. Consider an Undo next to the stats line for a few seconds.
-- **U12 · minor · UC01, UC04** — "Clear all" and the empty body's "Clear search and filters" disappear once they act, dropping keyboard focus to `<body>`; all adapters. Move focus to the search box.
 
 ## Layout and integration
 

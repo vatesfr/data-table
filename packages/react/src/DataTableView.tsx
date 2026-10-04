@@ -921,6 +921,9 @@ export function DataTableView<TRow extends object>({
   // table instance — a plain `document.querySelector` by column key would risk matching another
   // <DataTable> on the same page whose columns happen to share a key.
   const rootRef = useRef<HTMLDivElement>(null)
+  // Focus target after a clear button unmounts itself: the search box, else the first toolbar button.
+  const focusSearch = () =>
+    (searchInputRef.current ?? rootRef.current?.querySelector('button'))?.focus()
   // Activating an addable Sort/Group column (or removing an active one) moves its row between
   // the active and addable sections — a different DOM element, since they're different JSX
   // subtrees (not just a reordered list React could keep the same node for), so the button/row
@@ -2739,7 +2742,7 @@ export function DataTableView<TRow extends object>({
                   type="button"
                   onClick={() => {
                     setSearchQuery('')
-                    searchInputRef.current?.focus()
+                    focusSearch()
                   }}
                   title={L.clearSearch}
                   aria-label={L.clearSearch}
@@ -3133,7 +3136,13 @@ export function DataTableView<TRow extends object>({
               S.clearAll) — nothing else in the row needs to reflow when it mounts/unmounts,
               unlike the old layout where it sat between search and the stats text. */}
           {hasActiveState && (
-            <button onClick={clearAll} style={S.clearAll}>
+            <button
+              onClick={() => {
+                clearAll()
+                focusSearch()
+              }}
+              style={S.clearAll}
+            >
               {L.clearAll}
             </button>
           )}
@@ -3631,6 +3640,7 @@ export function DataTableView<TRow extends object>({
                         onClick={() => {
                           clearFilters()
                           setSearchQuery('')
+                          focusSearch()
                         }}
                         style={S.clearAll}
                       >

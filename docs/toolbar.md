@@ -31,6 +31,8 @@ When `processedData` is empty, the body renders one full-width row instead of no
 - Search and filters match nothing: `noMatchingRows` plus a button (`clearSearchAndFilters`, styled like Clear all) running `filter.clear()` and `search.setQuery('')`. Sorts, groups and columns are kept — they never hide rows.
 - Left-aligned, not centered: the row spans every column, so on a phone a centered message lands outside the table's scrolled-to-left viewport.
 
+- Clear all, the empty body's button and the search box's × unmount once they act; each adapter's `focusSearch` then moves focus to the search box (the first toolbar button when `showSearch` is off) so it never drops to `<body>`. Solid's takes the `.dt` root looked up before clearing, since Solid detaches the button synchronously.
+
 ## Hiding toolbar controls that have nothing to act on (GitHub issue #25)
 
 The Group and Filter toolbar buttons already hide themselves entirely when no column qualifies (`groupableCols.length > 0`/`filterableCols.length > 0` guards) rather than rendering a dropdown with nothing addable inside it. The Sort button follows the same convention (`sortableCols.length > 0`, i.e. `columns.some(c => c.sortable !== false)`) — it used to be the one outlier, always rendered even when every column had `sortable: false`. Solid's own `filterableCols.length > 0` guard on `FilterDropdown` was missing until a follow-up fix (vanilla inherited the gap through it) — React/Vue already had it; Solid/vanilla now match.
