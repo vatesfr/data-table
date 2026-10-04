@@ -25,7 +25,9 @@ const ROWS: Row[] = [
   { id: 2, name: 'Bob', dept: 'HR', score: 60 },
 ]
 
-const tick = () => new Promise((r) => setTimeout(r))
+// 10 ms, not 0: Vue drops a key event sent within a few ms of a menu opening
+// (docs/pitfalls.md); 5 ms already passed 80/80 runs
+const tick = () => new Promise((r) => setTimeout(r, 10))
 
 function mountView(cols = COLS, initialViewState?: TableViewState) {
   let table!: ReturnType<typeof useTableState<Row>>

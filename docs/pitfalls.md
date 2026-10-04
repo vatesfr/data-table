@@ -2,7 +2,7 @@
 
 Symptom first, then cause and fix. Delete entries once obsolete.
 
-<!-- check-docs-ignore: exceeded journalctl memory Killed chromium-browse Failed oom-kill -->
+<!-- check-docs-ignore: exceeded journalctl memory Killed chromium-browse Failed oom-kill _vts invoker -->
 
 ## Empty `dist/index.d.ts` after a dependency bump
 
@@ -15,6 +15,12 @@ Symptom first, then cause and fix. Delete entries once obsolete.
 - Symptom: clicking a filter checkbox applies the filter but the box keeps its old state; the adapter's test of the same click passes.
 - Cause: a click handler calling `preventDefault()` makes the browser revert `.checked` after the click — after React's or Vue's DOM update, so the stale value sticks. jsdom never reverts, so tests can't see it.
 - Fix: don't cancel the click when the binding can follow it (React: `readOnly`, no `preventDefault`), or re-apply the state after the revert with core's `deferCheckboxCorrection` (Solid, Vue). Tests simulate the revert: set `.checked` back after the framework's update, then assert after a macrotask. jsdom also lacks `matchMedia`: use each package's `stubMatchMedia`.
+
+## Vue test: a key event on a just-opened menu does nothing, sometimes
+
+- Symptom: a Vue test dispatching `keydown` right after opening a menu fails now and then (focus didn't move); the handler never runs.
+- Cause: Vue stamps an event with `Date.now()` at the first handler it reaches, and any later handler attached at or after that stamp drops it (`e._vts <= invoker.attached`). The menu's handler gets re-attached a few ms after opening, so a key sent then is lost: 0 ms failed 6/80 runs, 2 ms 22/80, 5 ms none. Real key presses come much later.
+- Fix: wait 10 ms before dispatching (the Vue tests' `tick` helpers do).
 
 ## Session dies during browser checks: OOM-killed Chromium
 
