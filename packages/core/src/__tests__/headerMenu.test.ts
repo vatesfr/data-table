@@ -10,10 +10,14 @@ describe('getHeaderMenuItems', () => {
     ])
   })
 
-  it('leaves out grouping for a non-groupable or already grouped column', () => {
+  it('leaves out grouping for a non-groupable column', () => {
     expect(getHeaderMenuItems({ key: 'name' }, [], 3, false)).toEqual(['filter', 'hide'])
+  })
+
+  it('offers removing the group instead once grouped', () => {
     expect(getHeaderMenuItems({ key: 'dept', groupable: true }, ['dept'], 3, false)).toEqual([
       'filter',
+      'ungroup',
       'hide',
     ])
   })

@@ -122,6 +122,16 @@ describe('HeaderMenu', () => {
     expect(items()).not.toContain('Group by this column')
   })
 
+  it('removes the group from a grouped column kept visible', async () => {
+    const { table, trigger, item, click } = mount(
+      COLS.map((c) => (c.key === 'dept' ? { ...c, keepVisibleWhenGrouped: true } : c)),
+      { groupBy: ['dept'] },
+    )
+    await click(trigger('Dept')!)
+    await click(item('Remove group'))
+    expect(table().group.by).toEqual([])
+  })
+
   it('filters the column from a flyout', async () => {
     const { container, table, trigger, item, click } = mount()
     await click(trigger('Dept')!)

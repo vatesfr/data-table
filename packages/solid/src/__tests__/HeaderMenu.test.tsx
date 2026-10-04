@@ -129,6 +129,19 @@ describe('HeaderMenu', () => {
     dispose()
   })
 
+  it('removes the group from a grouped column kept visible', async () => {
+    const { table, trigger, item, dispose } = mount(
+      COLS.map((c) => (c.key === 'dept' ? { ...c, keepVisibleWhenGrouped: true } : c)),
+      { groupBy: ['dept'] },
+    )
+    trigger('Dept')!.click()
+    await tick()
+    item('Remove group').click()
+    await tick()
+    expect(table.group.by()).toEqual([])
+    dispose()
+  })
+
   it('filters the column from a flyout', async () => {
     const { container, table, trigger, item, dispose } = mount()
     trigger('Dept')!.click()

@@ -9,6 +9,7 @@ import {
   moveMenuIndex,
   onMenuDismiss,
   placeMenu,
+  type HeaderMenuItem,
 } from '@vates/data-table-core/internal'
 import type { ColumnDef } from '../types'
 import type { TableState } from '../useTableState'
@@ -81,13 +82,13 @@ function close(focusTrigger: boolean): void {
 }
 
 // Grouping or hiding can remove this header: focus the ▾ now at its position instead
-function act(item: 'clear' | 'group' | 'hide'): void {
+function act(item: Exclude<HeaderMenuItem, 'filter'>): void {
   const restoreFocus = triggerRef.value && keepHeaderMenuFocus(triggerRef.value)
   close(true)
   if (item === 'clear')
     for (const kind of ['include', 'exclude', 'range'] as const)
       props.table.filter.clearColumn(props.col.key, kind)
-  else if (item === 'group') props.table.group.toggle(props.col.key)
+  else if (item === 'group' || item === 'ungroup') props.table.group.toggle(props.col.key)
   else props.table.columns.toggleVisibility(props.col.key)
   if (restoreFocus) void nextTick(restoreFocus)
 }

@@ -122,6 +122,17 @@ describe('HeaderMenu', () => {
     unmount()
   })
 
+  it('removes the group from a grouped column kept visible', async () => {
+    const cols = COLS.map((c) => (c.key === 'dept' ? { ...c, keepVisibleWhenGrouped: true } : c))
+    const { table, trigger, item, unmount } = mountView(cols, { groupBy: ['dept'] })
+    trigger('Dept')!.click()
+    await tick()
+    item('Remove group').click()
+    await tick()
+    expect(table.group.by.value).toEqual([])
+    unmount()
+  })
+
   it('filters the column from a flyout', async () => {
     const { el, table, trigger, item, unmount } = mountView()
     trigger('Dept')!.click()

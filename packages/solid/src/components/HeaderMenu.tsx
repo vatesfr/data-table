@@ -89,11 +89,11 @@ export function HeaderMenu<TRow extends object>(props: HeaderMenuProps<TRow>) {
   }
 
   // Grouping or hiding can remove this header: focus the ▾ now at its position instead
-  function act(item: 'clear' | 'group' | 'hide'): void {
+  function act(item: Exclude<HeaderMenuItem, 'filter'>): void {
     const restoreFocus = triggerRef && keepHeaderMenuFocus(triggerRef)
     close(true)
     if (item === 'clear') for (const kind of FILTER_KINDS) table.filter.clearColumn(key(), kind)
-    else if (item === 'group') table.group.toggle(key())
+    else if (item === 'group' || item === 'ungroup') table.group.toggle(key())
     else table.columns.toggleVisibility(key())
     if (restoreFocus) queueMicrotask(restoreFocus)
   }

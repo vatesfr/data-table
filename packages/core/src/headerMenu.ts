@@ -4,18 +4,25 @@ import { computeMenuPosition, viewportWidth } from './dropdownDomUtils'
 
 // The header ▾ menu's shared logic (see docs/columns.md's "Header menu"); adapters only render it.
 
-export type HeaderMenuItem = 'filter' | 'clear' | 'group' | 'hide'
+export type HeaderMenuItem = 'filter' | 'clear' | 'group' | 'ungroup' | 'hide'
 
 /** Each item's 16×16 outline icon path, stroked in the text color, and its label key */
 export const HEADER_MENU_ITEMS: Record<
   HeaderMenuItem,
-  { icon: string; label: 'filter' | 'clearColumnFilter' | 'groupByColumn' | 'hideColumn' }
+  {
+    icon: string
+    label: 'filter' | 'clearColumnFilter' | 'groupByColumn' | 'removeGroup' | 'hideColumn'
+  }
 > = {
   filter: { icon: 'M2 3h12l-4.5 5.5V13l-3-1.5V8.5z', label: 'filter' },
   clear: { icon: 'M2 3h12l-4.5 5.5V13l-3-1.5V8.5zM2.5 2.5l11 11', label: 'clearColumnFilter' },
   group: {
     icon: 'M2.5 2.5h4v4h-4zM9.5 2.5h4v4h-4zM2.5 9.5h4v4h-4zM9.5 9.5h4v4h-4z',
     label: 'groupByColumn',
+  },
+  ungroup: {
+    icon: 'M2.5 2.5h4v4h-4zM9.5 2.5h4v4h-4zM2.5 9.5h4v4h-4zM9.5 9.5h4v4h-4zM1.5 1.5l13 13',
+    label: 'removeGroup',
   },
   hide: {
     icon: 'M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8zM10 8a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM2.5 2.5l11 11',
@@ -33,7 +40,8 @@ export function getHeaderMenuItems(
   const items: HeaderMenuItem[] = []
   if (col.filterable !== false) items.push('filter')
   if (filtered) items.push('clear')
-  if (col.groupable === true && !groupBy.includes(col.key)) items.push('group')
+  // Only a `keepVisibleWhenGrouped` column still has a header (and so this menu) once grouped
+  if (col.groupable === true) items.push(groupBy.includes(col.key) ? 'ungroup' : 'group')
   if (visibleColumnCount > 1) items.push('hide')
   return items
 }

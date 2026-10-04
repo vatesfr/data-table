@@ -162,11 +162,11 @@ export function HeaderMenu({
   }
 
   // Grouping or hiding can remove this header: focus the ▾ now at its position instead
-  function act(item: 'clear' | 'group' | 'hide'): void {
+  function act(item: Exclude<HeaderMenuItem, 'filter'>): void {
     const restoreFocus = triggerRef.current && keepHeaderMenuFocus(triggerRef.current)
     close(true)
     if (item === 'clear') onClearFilter()
-    else if (item === 'group') onGroup()
+    else if (item === 'group' || item === 'ungroup') onGroup()
     else onHide()
     if (restoreFocus) queueMicrotask(restoreFocus)
   }
