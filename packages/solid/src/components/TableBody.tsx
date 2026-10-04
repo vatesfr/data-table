@@ -10,11 +10,11 @@ import {
   isSameVisibleItem,
   getCrossPageFocusTarget,
   type VisibleItem,
+  applyCheckboxState,
 } from '@vates/data-table-core/internal'
 import type { TableState } from '../createTableState'
 import type { ColumnDef } from '../types'
 import { HeaderMenu } from './HeaderMenu'
-import { applyCheckboxState } from './checkboxSync'
 import { focusSearch } from './SearchBox'
 
 interface TableBodyProps<TRow extends object> {

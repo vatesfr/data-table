@@ -20,12 +20,13 @@ import {
   clickDateTreeNode,
   toggleChecklistValues,
   type DateTreeNode,
+  applyCheckboxState,
+  deferCheckboxCorrection,
 } from '@vates/data-table-core/internal'
 import type { TableState } from '../createTableState'
 import type { ColumnDef } from '../types'
 import { RangeInputs } from './RangeInputs'
 import { DateTreeItem } from './DateTreeItem'
-import { applyCheckboxState, deferCheckboxCorrection } from './checkboxSync'
 
 interface FilterPaneProps<TRow extends object> {
   table: TableState<TRow>

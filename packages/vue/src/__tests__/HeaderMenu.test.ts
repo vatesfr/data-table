@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { defineComponent, h } from 'vue'
+import { defineComponent, h, nextTick } from 'vue'
 import { mount } from '@vue/test-utils'
 import { useTableState } from '../useTableState'
 import DataTableViewRaw from '../DataTableView.vue'
@@ -132,6 +132,28 @@ describe('HeaderMenu', () => {
     await tick()
     expect([...(table.filter.exclude.value.dept ?? [])]).toEqual(['HR'])
     expect(trigger('Dept')!.classList.contains('dt__th-menu--filtered')).toBe(true)
+    unmount()
+  })
+
+  it('unchecks a value hidden from a single-value column, and rechecks it', async () => {
+    const { el, trigger, item, unmount } = mountView()
+    trigger('Dept')!.click()
+    await tick()
+    item('Filter').click()
+    await tick()
+    const hr = () => el.querySelector<HTMLInputElement>('input[data-value="HR"]')!
+    expect(hr().checked).toBe(true)
+    // A browser reverts a prevented click after Vue's write; jsdom doesn't, so do it by hand
+    hr().click()
+    await nextTick()
+    hr().checked = true
+    await tick()
+    expect(hr().checked).toBe(false)
+    hr().click()
+    await nextTick()
+    hr().checked = false
+    await tick()
+    expect(hr().checked).toBe(true)
     unmount()
   })
 

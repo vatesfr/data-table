@@ -26,6 +26,7 @@ import {
   clickChecklistValue,
   clickDateTreeNode,
   toggleChecklistValues,
+  deferCheckboxCorrection,
   computeVirtualRange,
   getVirtualScrollTarget,
   type DateTreeNode,
@@ -166,11 +167,21 @@ const othersState = computed(() =>
 function toggleAllOf(vals: string[]): void {
   toggleChecklistValues(props.table.filter, props.col.key, vals, usesExcludeOnly.value)
 }
+function onOthersClick(event: MouseEvent): void {
+  event.preventDefault()
+  toggleAllOf(otherValues.value)
+  deferCheckboxCorrection(event.currentTarget as HTMLInputElement, () => othersState.value)
+}
 
 function onValueClick(value: string, event: MouseEvent): void {
   // Vue's `:checked` only rewrites the DOM property when the bound value changes, so the native
-  // toggle is prevented and the binding alone drives the checkbox (see the tri-state cycle).
+  // toggle is prevented and the binding alone drives the checkbox (see the tri-state cycle) — but
+  // the browser reverts a prevented click after Vue's write, hence the deferred correction.
   event.preventDefault()
+  deferCheckboxCorrection(event.currentTarget as HTMLInputElement, () => ({
+    checked: isValueChecked(value),
+    indeterminate: isValueExcluded(value),
+  }))
   clickChecklistValue(props.table.filter, props.col.key, value, event.shiftKey, {
     anchor: anchor.value,
     values: values.value,
@@ -437,7 +448,7 @@ async function onKeydown(event: KeyboardEvent): Promise<void> {
             :title="L.filterOthers"
             :aria-label="L.filterOthers"
             :checked="othersState.checked"
-            @click.prevent="toggleAllOf(otherValues)"
+            @click="onOthersClick"
           />
           <span class="dt__flex1">{{ L.filterOthers }}</span>
           <span class="dt__filter-count">{{ otherValues.length }}</span>
