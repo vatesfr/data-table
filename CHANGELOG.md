@@ -7,6 +7,8 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.16.0] - 2026-10-04
+
 ### Added
 
 - **Remove group from the column menu** (Solid, React, Vue, vanilla): a grouped column that stays visible (`keepVisibleWhenGrouped`) offers "Remove group" in its ▾ menu where "Group by this column" was.
