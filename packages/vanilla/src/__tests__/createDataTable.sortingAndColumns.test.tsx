@@ -32,7 +32,7 @@ function shiftClick(el: Element): void {
 
 function colHeaders(container: HTMLElement): string[] {
   return [...container.querySelectorAll('th.dt-th')].map((th) =>
-    th.textContent!.replace(/[↕↑↓0-9]/g, '').trim(),
+    th.textContent!.replace(/[↕↑↓▾0-9]/g, '').trim(),
   )
 }
 

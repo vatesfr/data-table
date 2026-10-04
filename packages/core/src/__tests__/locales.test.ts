@@ -24,6 +24,9 @@ describe('LABELS_EN', () => {
     it('singular', () => expect(LABELS_EN.rowsInGroup(1)).toBe('1 row'))
     it('plural', () => expect(LABELS_EN.rowsInGroup(5)).toBe('5 rows'))
   })
+  describe('columnMenu', () => {
+    it('names the column', () => expect(LABELS_EN.columnMenu('Salary')).toBe('Salary options'))
+  })
   describe('pageOf', () => {
     it('formats page and total', () => expect(LABELS_EN.pageOf(2, 10)).toBe('Page 2 of 10'))
   })

@@ -118,11 +118,32 @@ export function computeSubmenuPosition(
   margin = 8,
 ): { left: number; top: number } {
   const openRight = triggerRect.right + submenuSize.width <= viewportWidth - margin
-  const left = openRight ? triggerRect.right : triggerRect.left - submenuSize.width
+  // Fits neither side (a narrow screen): stay on screen, overlapping the trigger
+  const left = Math.max(
+    margin,
+    openRight ? triggerRect.right : triggerRect.left - submenuSize.width,
+  )
   let top = triggerRect.top
   if (top + submenuSize.height > viewportHeight - margin)
     top = viewportHeight - margin - submenuSize.height
   if (top < margin) top = margin
+  return { left, top }
+}
+
+/**
+ * A header menu's fixed-viewport `left`/`top`: below `anchorRect`, left-aligned with it, slid back
+ * inside the viewport horizontally, and flipped above the anchor when it doesn't fit below.
+ */
+export function computeMenuPosition(
+  anchorRect: { top: number; right: number; bottom: number; left: number },
+  menuSize: { width: number; height: number },
+  viewportWidth: number,
+  viewportHeight: number,
+  margin = 8,
+): { left: number; top: number } {
+  const left = Math.max(margin, Math.min(anchorRect.left, viewportWidth - margin - menuSize.width))
+  const fitsBelow = anchorRect.bottom + menuSize.height <= viewportHeight - margin
+  const top = fitsBelow ? anchorRect.bottom : Math.max(margin, anchorRect.top - menuSize.height)
   return { left, top }
 }
 

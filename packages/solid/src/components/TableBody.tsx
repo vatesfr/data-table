@@ -13,6 +13,7 @@ import {
 } from '@vates/data-table-core/internal'
 import type { TableState } from '../createTableState'
 import type { ColumnDef } from '../types'
+import { HeaderMenu } from './HeaderMenu'
 import { applyCheckboxState } from './checkboxSync'
 import { focusSearch } from './SearchBox'
 
@@ -221,6 +222,9 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
 
   // --- Header drag-and-drop reorder ---
   const [dragColKey, setDragColKey] = createSignal<string | null>(null)
+  // The open header menu's column: its <th> stops being draggable, or dragging a control inside
+  // the menu (a range slider) would drag the column instead
+  const [menuColKey, setMenuColKey] = createSignal<string | null>(null)
   const [dragOverColKey, setDragOverColKey] = createSignal<string | null>(null)
   let headerRow: HTMLTableRowElement | undefined
   function headerCellEls(): { key: string; el: HTMLElement }[] {
@@ -318,11 +322,22 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
                 const icon = createMemo(() =>
                   isSorted() ? getSortIcon(headerSorts(), col.key) : '↕',
                 )
+                const labelAndIcon = () => (
+                  <>
+                    {col.label}
+                    <span
+                      class={`dt-sort-icon${isSorted() ? ' dt-sort-icon--active' : ''}`}
+                      aria-hidden="true"
+                    >
+                      {sortIdx() ? `${sortIdx()}${icon()}` : icon()}
+                    </span>
+                  </>
+                )
                 return (
                   <th
                     class="dt-th"
                     classList={{ 'dt-dd-item--drag-over': dragOverColKey() === col.key }}
-                    draggable="true"
+                    draggable={menuColKey() === col.key ? 'false' : 'true'}
                     data-col-key={col.key}
                     aria-sort={
                       sortDir() ? (sortDir() === 'asc' ? 'ascending' : 'descending') : undefined
@@ -336,10 +351,19 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
                     onClick={(e) => handleHeaderClick(col, e)}
                   >
                     <span class="dt-th-inner">
-                      {col.label}{' '}
-                      <span class={`dt-sort-icon${isSorted() ? ' dt-sort-icon--active' : ''}`}>
-                        {sortIdx() ? `${sortIdx()}${icon()}` : icon()}
-                      </span>
+                      {/* A button so keyboard users can sort; its click bubbles to the <th>'s handler */}
+                      <Show when={col.sortable !== false} fallback={labelAndIcon()}>
+                        <button type="button" class="dt-th-sort">
+                          {labelAndIcon()}
+                        </button>
+                      </Show>
+                      <HeaderMenu
+                        table={table}
+                        col={col}
+                        onOpenChange={(open) =>
+                          setMenuColKey((cur) => (open ? col.key : cur === col.key ? null : cur))
+                        }
+                      />
                     </span>
                   </th>
                 )

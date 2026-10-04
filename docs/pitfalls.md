@@ -10,6 +10,12 @@ Symptom first, then cause and fix. Delete entries once obsolete.
 - Cause: peer ranges of `typescript-eslint`/`vue-tsc` reach into `typescript@6.x`, which npm can hoist to the root; `vite-plugin-dts`'s cross-package rollup then uses it instead of each package's pinned 5.x.
 - Fix: root `package.json`'s `"overrides": { "typescript": "^5.5.0" }` — keep it. After touching `typescript`, `typescript-eslint`, `vue-tsc` or `vite-plugin-dts`, check those `.d.ts` files are non-trivial.
 
+## Demo type-check: "has no exported member" from a core sub-path
+
+- Symptom: `npm run type-check` fails in `demo/*` with `Module '"@vates/data-table-core/internal"' has no exported member …` for a new core export, while every package type-checks.
+- Cause: a demo's `tsconfig.json` `paths` lacked that sub-path, so the adapter source it compiles resolved it through core's stale built `dist/`.
+- Fix: each demo maps every `@vates/data-table-core` sub-path (and vanilla's `@vates/data-table-solid`) to source; add new sub-paths there too.
+
 ## Pre-commit `size` passes locally, fails in CI
 
 - Cause: an incrementally updated `node_modules` drifts from `package-lock.json` (different hoisting than `npm ci`).
