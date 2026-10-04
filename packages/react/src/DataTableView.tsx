@@ -1446,8 +1446,10 @@ function FilterPane<TRow extends object>({
                         title={L.filterOthers}
                         aria-label={L.filterOthers}
                         checked={filterOthersState.checked}
-                        onClick={(e) => {
-                          e.preventDefault()
+                        readOnly
+                        // No preventDefault, like the value rows: the browser reverts a prevented
+                        // click after React's update, leaving the box stale
+                        onClick={() => {
                           toggleChecklistValues(
                             table.filter,
                             col.key,

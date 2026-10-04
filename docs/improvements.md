@@ -44,4 +44,3 @@ Seeded 2026-10-04 from issues reported by a consumer app, each reproduced on the
 ## Adapter-specific
 
 - **U11 · polish · UC01 · React** — the Columns and Filter toolbar buttons render a darker, thicker right edge than the other buttons; Vue's and Solid's don't.
-- **U22 · polish · UC01, UC11 · React** — React logs "You provided a `checked` prop to a form field without an `onChange` handler" for the filter pane's "Others" checkbox. Mark it read-only like the pane's other controlled checkboxes.

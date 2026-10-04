@@ -44,7 +44,8 @@ const triggerStyle: CSSProperties = {
   borderRadius: 4,
   background: 'none',
   color: 'var(--color-text-secondary)',
-  font: 'inherit',
+  fontFamily: 'inherit',
+  fontSize: 'inherit',
   cursor: 'pointer',
 }
 const panelStyle: CSSProperties = {

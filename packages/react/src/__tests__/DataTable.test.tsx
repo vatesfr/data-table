@@ -455,6 +455,19 @@ describe('DataTable — filter dropdown', () => {
     expect(someCalls).toBe(2)
   })
 
+  it('renders the "Others" row without a controlled-checkbox warning (U22)', () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const { getByText, getAllByPlaceholderText, getByLabelText } = render(
+      <DataTable data={ROWS} columns={FILTER_COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Filter'))
+    const searchInputs = getAllByPlaceholderText('Search…')
+    fireEvent.change(searchInputs[searchInputs.length - 1], { target: { value: 'ali' } })
+    expect(getByLabelText('Others', { exact: false })).toBeTruthy()
+    expect(error.mock.calls.flat().join(' ')).not.toContain('without an `onChange` handler')
+    error.mockRestore()
+  })
+
   it('an "Others" row appears once the value search narrows the list, bulk-(un)checking everything it hides', () => {
     const { getByText, getAllByPlaceholderText, getByLabelText, queryByLabelText } = render(
       <DataTable data={ROWS} columns={FILTER_COLS} rowKey="id" />,
