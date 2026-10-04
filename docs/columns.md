@@ -29,3 +29,14 @@ Each dropdown's search box narrows only what's being _added_ (Sort/Group's addab
 **Delete/Backspace** on a focused active row (a Sort active-sort/"Group order" row, a Group active row, a Columns Visible row) removes/hides it, the keyboard equivalent of clicking that row's own `×` button — matching the Filter dropdown's own pre-existing Delete/Backspace-clears-this-column's-filter shortcut. A focused/hovered active row also gets a background tint, not just the browser's native focus outline (Solid/Vue: a `:hover`/`:focus` CSS rule, same tokens the Filter dropdown's own selected-column row already used; React has no per-element CSS at all, so this is instead a pair of `hoveredDdRowKey`/`focusedDdRowKey` state values shared across Sort/Group/Columns, since only one dropdown is ever open at a time). Sort's own non-draggable "Group order" rows cancel just the _hover_ cue (a signal that dragging would do something there, which it wouldn't — the row's own section heading/hint text already explain why) while keeping the _focus_ one, since the row is still keyboard-toggleable.
 
 <!-- check-docs-ignore: address openXxxCategory -->
+
+## Header menu
+
+Each header has a ▾ button (`data-col-menu`) opening a menu of the actions that column supports, so a column is acted on where it is rather than picked again from a toolbar dropdown (UC11).
+
+- **Items**: Sort ascending/descending (`sortable !== false`, see [sorting](sorting.md)), Filter… (`filterable !== false`), Group by this column (`groupable: true`, not already grouped), Hide column (more than one visible column). A column with none gets no button.
+- **Filter…** opens the Filter dropdown on that column, through the same path as an active-bar chip; the dropdown keeps that column's category expanded on open so its row can take focus (Solid: `FilterDropdown`'s `openOn` prop).
+- **Header click** still sorts and shift-click still adds a sort; clicks inside the button and menu don't reach the `<th>`.
+- **Positioning**: `position: fixed` at `computeMenuPosition(anchorRect, menuSize, viewportWidth, viewportHeight)` (core): below the button, slid inside the viewport, flipped above when it doesn't fit. Same no-portal reasoning as category submenus above; closes on any scroll instead of tracking its header.
+- **Keyboard**: the button is the header's only Tab stop (the `<th>` itself isn't focusable); ↑/↓/Home/End move through items, Esc closes back to the button, Tab closes. Hide and Group by can remove the header, so focus moves to the menu button now at the same position.
+- **Filtered marker**: the button takes the info color (`dt-th-menu--filtered`) while its column has an active filter (`columnHasActiveFilter`), so filter state shows on the header, not only in the active bar.
