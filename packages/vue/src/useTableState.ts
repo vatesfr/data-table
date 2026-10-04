@@ -11,7 +11,6 @@ import {
   computeStringValues,
   toggleSort as _toggleSort,
   replaceSort as _replaceSort,
-  setSortDir as _setSortDir,
   appendOrToggleSort as _appendOrToggleSort,
   getDefaultSortDir,
   moveSortBy as _moveSortBy,
@@ -290,9 +289,6 @@ export function useTableState<TRow extends object>(
       },
       replace: (key: string) => {
         sorts.value = _replaceSort(sorts.value, key, defaultSortDirFor(key), groupBy.value)
-      },
-      set: (key: string, dir: SortEntry['dir']) => {
-        sorts.value = _setSortDir(sorts.value, key, dir, groupBy.value)
       },
       appendOrToggle: (key: string) => {
         sorts.value = _appendOrToggleSort(sorts.value, key, defaultSortDirFor(key))

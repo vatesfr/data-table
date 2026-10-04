@@ -251,10 +251,6 @@ export interface DataTableLabels {
   selectGroup: (group: string) => string
   /** Accessible name of a row's checkbox, from its first visible cell's text */
   selectRow: (row: string) => string
-  /** Header menu: sort the column alone, ascending */
-  sortAscending: string
-  /** Header menu: sort the column alone, descending */
-  sortDescending: string
   /** Header menu: add the column to the grouping */
   groupByColumn: string
   /** Accessible name of a header's menu button, from the column's label */

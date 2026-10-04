@@ -30,7 +30,6 @@ import {
   computeTotalPages,
   toggleSort,
   replaceSort,
-  setSortDir,
   appendOrToggleSort,
   toggleFilterAll,
   setFilterValues,
@@ -2366,44 +2365,6 @@ describe('toggleSort', () => {
 })
 
 // ─── replaceSort ──────────────────────────────────────────────────────────────
-
-describe('setSortDir', () => {
-  it('sorts by the key alone in the given direction', () => {
-    const existing = [
-      { key: 'dept', dir: 'asc' as const },
-      { key: 'name', dir: 'asc' as const },
-    ]
-    expect(setSortDir(existing, 'salary', 'desc')).toEqual([{ key: 'salary', dir: 'desc' }])
-  })
-
-  it('sets the direction without cycling when the key is already the sort', () => {
-    expect(setSortDir([{ key: 'name', dir: 'asc' }], 'name', 'asc')).toEqual([
-      { key: 'name', dir: 'asc' },
-    ])
-  })
-
-  it('keeps grouped columns entries ahead of the new one', () => {
-    const existing = [
-      { key: 'name', dir: 'asc' as const },
-      { key: 'dept', dir: 'desc' as const },
-    ]
-    expect(setSortDir(existing, 'salary', 'asc', ['dept'])).toEqual([
-      { key: 'dept', dir: 'desc' },
-      { key: 'salary', dir: 'asc' },
-    ])
-  })
-
-  it('changes a grouped key direction in place', () => {
-    const existing = [
-      { key: 'dept', dir: 'asc' as const },
-      { key: 'name', dir: 'asc' as const },
-    ]
-    expect(setSortDir(existing, 'dept', 'desc', ['dept'])).toEqual([
-      { key: 'dept', dir: 'desc' },
-      { key: 'name', dir: 'asc' },
-    ])
-  })
-})
 
 describe('replaceSort', () => {
   it('sets a fresh asc sort when nothing is sorted', () => {
