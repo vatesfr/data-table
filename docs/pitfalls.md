@@ -69,3 +69,9 @@ Symptom first, then cause and fix. Delete entries once obsolete.
 
 - Cause: `react` is also a devDep of the package in the workspace.
 - Fix: `resolve.dedupe: ['react', 'react-dom', 'react/jsx-runtime']` in `packages/react/vitest.config.ts`.
+
+## E2E test hangs until "Test timeout of 30000ms exceeded"
+
+- Symptom: a Playwright test stalls on a read like `getAttribute` or `innerText`, then fails at the test timeout, often reported on a later line.
+- Cause: locator reads wait for the element to exist; a selector matching nothing waits the whole test timeout, even inside `.catch()`.
+- Fix: check `isVisible()` or `count()` first (they don't wait), or pass `{ timeout }` to the read.
