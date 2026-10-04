@@ -669,13 +669,15 @@ function FullTable({ labels }: { labels?: Partial<DataTableLabels> }) {
 }
 
 function SelectionTable({
+  data,
   labels,
   onSelectionChange,
 }: {
+  data: Employee[]
   labels?: Partial<DataTableLabels>
   onSelectionChange: (rows: Employee[]) => void
 }) {
-  const table = useTableState(SAMPLE_DATA, COLUMNS, {
+  const table = useTableState(data, COLUMNS, {
     initialViewState: { visibleCols: SELECTION_VISIBLE, pageSize: 5 },
     labels,
   })
@@ -686,7 +688,7 @@ function SelectionTable({
       <ViewControls onReset={() => resetView(table, VIEW_KEYS.selection)} />
       <DataTableView
         table={table}
-        data={SAMPLE_DATA}
+        data={data}
         columns={COLUMNS}
         rowKey="id"
         selectable
@@ -743,6 +745,7 @@ const THEME_LABELS = { '': 'Auto', dark: 'Dark', light: 'Light' }
 export default function App() {
   const [localeKey, setLocaleKey] = useState('EN')
   const [selected, setSelected] = useState<Employee[]>([])
+  const [selectionData, setSelectionData] = useState(SAMPLE_DATA)
   const [clicked, setClicked] = useState<Employee | null>(null)
   const [theme, setTheme] = useState<'' | 'dark' | 'light'>('')
   const [activeSection, setActiveSection] = useState(SECTIONS[0].id)
@@ -1023,9 +1026,28 @@ export default function App() {
           >
             Export
           </button>
+          <button
+            onClick={() => setSelectionData((rows) => rows.filter((r) => !selected.includes(r)))}
+            style={{
+              padding: '3px 10px',
+              borderRadius: 4,
+              border: '0.5px solid var(--color-border-info)',
+              background: 'transparent',
+              color: 'var(--color-text-info)',
+              cursor: 'pointer',
+              fontSize: 13,
+              fontFamily: 'inherit',
+            }}
+          >
+            Delete
+          </button>
         </div>
       )}
-      <SelectionTable labels={LOCALES[localeKey]} onSelectionChange={setSelected} />
+      <SelectionTable
+        data={selectionData}
+        labels={LOCALES[localeKey]}
+        onSelectionChange={setSelected}
+      />
 
       <h2
         id="row-click"

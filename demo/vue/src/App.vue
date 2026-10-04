@@ -493,6 +493,7 @@ function docLink(anchor: string, label: string): string {
 }
 
 const selected = ref<Employee[]>([])
+const selectionData = ref(SAMPLE_DATA)
 const clicked = ref<Employee | null>(null)
 
 type Theme = '' | 'dark' | 'light'
@@ -573,7 +574,7 @@ const fullTable = useTableState(SAMPLE_DATA, COLUMNS, () => ({
 usePersistedView(fullTable, VIEW_KEYS.full.storageKey)
 useUrlView(fullTable, { paramName: VIEW_KEYS.full.paramName })
 
-const selectionTable = useTableState(SAMPLE_DATA, COLUMNS, () => ({
+const selectionTable = useTableState(selectionData, COLUMNS, () => ({
   initialViewState: { visibleCols: SELECTION_VISIBLE, pageSize: 5 },
   labels: currentLocale.value,
 }))
@@ -866,11 +867,25 @@ function fmtSalary(n: number | null) {
       >
         Export
       </button>
+      <button
+        style="
+          padding: 3px 10px;
+          border-radius: 4px;
+          border: 0.5px solid var(--color-border-info);
+          background: transparent;
+          color: var(--color-text-info);
+          cursor: pointer;
+          font-size: 13px;
+        "
+        @click="selectionData = selectionData.filter((r) => !selected.includes(r))"
+      >
+        Delete
+      </button>
     </div>
     <ViewControls @reset="resetView(selectionTable, VIEW_KEYS.selection)" />
     <DataTableView
       :table="selectionTable"
-      :data="SAMPLE_DATA"
+      :data="selectionData"
       :columns="COLUMNS"
       row-key="id"
       :selectable="true"

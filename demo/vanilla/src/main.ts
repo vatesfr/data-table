@@ -719,9 +719,10 @@ wireViewPersistence(table1, 'full')
 // ---- Table 2: selectable ----
 
 const banner = document.getElementById('selection-banner')!
+let selectionData = SAMPLE_DATA
 
 const table2 = createDataTable<Employee>(document.getElementById('table2')!, {
-  data: SAMPLE_DATA,
+  data: selectionData,
   columns: COLUMNS,
   rowKey: 'id',
   initialViewState: { visibleCols: SELECTION_VISIBLE, pageSize: 5 },
@@ -737,7 +738,13 @@ const table2 = createDataTable<Employee>(document.getElementById('table2')!, {
         <span style="color:var(--color-text-secondary);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
           ${rows.map((r) => r.name).join(', ')}
         </span>
+        <button style="padding:3px 10px;border-radius:4px;border:0.5px solid var(--color-border-info);
+          background:transparent;color:var(--color-text-info);cursor:pointer;font-size:13px;font-family:inherit">Delete</button>
       `
+      banner.querySelector('button')!.onclick = () => {
+        selectionData = selectionData.filter((r) => !rows.includes(r))
+        table2.setData(selectionData)
+      }
     }
   },
 })

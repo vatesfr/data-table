@@ -685,13 +685,18 @@ function FullTable(props: { labels?: Partial<DataTableLabels> }) {
 }
 
 function SelectionTable(props: {
+  data: Employee[]
   labels?: Partial<DataTableLabels>
   onSelectionChange: (rows: Employee[]) => void
 }) {
-  const table = createTableState(SAMPLE_DATA, COLUMNS, () => ({
-    initialViewState: { visibleCols: SELECTION_VISIBLE, pageSize: 5 },
-    labels: props.labels,
-  }))
+  const table = createTableState(
+    () => props.data,
+    COLUMNS,
+    () => ({
+      initialViewState: { visibleCols: SELECTION_VISIBLE, pageSize: 5 },
+      labels: props.labels,
+    }),
+  )
   usePersistedView(table, VIEW_KEYS.selection.storageKey)
   useUrlView(table, { paramName: VIEW_KEYS.selection.paramName })
   // DataTableViewProps has no onSelectionChange (that convenience only exists on <DataTable>,
@@ -745,6 +750,7 @@ const THEME_LABELS = { '': 'Auto', dark: 'Dark', light: 'Light' }
 export default function App() {
   const [localeKey, setLocaleKey] = createSignal('EN')
   const [selected, setSelected] = createSignal<Employee[]>([])
+  const [selectionData, setSelectionData] = createSignal(SAMPLE_DATA)
   const [clicked, setClicked] = createSignal<Employee | null>(null)
   const [theme, setTheme] = createSignal<'' | 'dark' | 'light'>('')
   const [activeSection, setActiveSection] = createSignal(SECTIONS[0].id)
@@ -1005,9 +1011,28 @@ export default function App() {
           >
             Export
           </button>
+          <button
+            onClick={() => setSelectionData((rows) => rows.filter((r) => !selected().includes(r)))}
+            style={{
+              padding: '3px 10px',
+              'border-radius': '4px',
+              border: '0.5px solid var(--color-border-info)',
+              background: 'transparent',
+              color: 'var(--color-text-info)',
+              cursor: 'pointer',
+              'font-size': '13px',
+              'font-family': 'inherit',
+            }}
+          >
+            Delete
+          </button>
         </div>
       </Show>
-      <SelectionTable labels={LOCALES[localeKey()]} onSelectionChange={setSelected} />
+      <SelectionTable
+        data={selectionData()}
+        labels={LOCALES[localeKey()]}
+        onSelectionChange={setSelected}
+      />
 
       <h2
         id="row-click"
