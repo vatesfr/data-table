@@ -14,7 +14,7 @@ import {
   isExcludeOnlyColumn,
   exclusionChip,
   getColumnValue,
-  cellText,
+  rowText,
   groupText,
   filterValuesBySearch,
   filterValuesByCount,
@@ -3670,9 +3670,7 @@ export function DataTableView<TRow extends object>({
                             type="checkbox"
                             checked={selection.has(row)}
                             readOnly
-                            aria-label={L.selectRow(
-                              activeColumns[0] ? cellText(activeColumns[0], row) : '',
-                            )}
+                            aria-label={L.selectRow(rowText(activeColumns, row))}
                             tabIndex={-1}
                             onClick={(e) => toggleRowSelection(row, e.shiftKey)}
                             style={{ margin: 0 }}

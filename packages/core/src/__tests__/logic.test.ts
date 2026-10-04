@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import type { SortEntry } from '../types'
 import {
+  rowText,
   processData,
   searchData,
   groupData,
@@ -151,6 +152,15 @@ describe('cellText', () => {
   it('joins array values and blanks missing ones', () => {
     expect(cellText({ key: 'tags', label: 'Tags' }, { tags: ['a', 'b'] })).toBe('a, b')
     expect(cellText({ key: 'nope', label: 'Nope' }, ROWS[0])).toBe('')
+  })
+})
+
+describe('rowText', () => {
+  it("is the first column's text that isn't empty", () => {
+    const avatar = { key: 'avatar', label: 'Avatar', value: () => null }
+    const name = { key: 'name', label: 'Name' }
+    expect(rowText([avatar, name], ROWS[0])).toBe(cellText(name, ROWS[0]))
+    expect(rowText([avatar], ROWS[0])).toBe('')
   })
 })
 

@@ -25,6 +25,21 @@ const ROWS: Row[] = [
   { id: 2, name: 'Bob', score: 60 },
 ]
 
+describe('DataTable — row checkbox name', () => {
+  it('comes from the first column with text, skipping a picture column', () => {
+    const wrapper = mount(DataTable, {
+      props: {
+        data: ROWS,
+        columns: [{ key: 'avatar', label: 'Avatar', value: () => null }, ...COLS],
+        rowKey: 'id',
+        selectable: true,
+      },
+    })
+    const names = wrapper.findAll('input[type="checkbox"]').map((c) => c.attributes('aria-label'))
+    expect(names).toContain('Select row Alice')
+  })
+})
+
 describe('DataTable — rowClick', () => {
   it('emits rowClick with the row and the click event', async () => {
     const wrapper = mount(DataTable, {

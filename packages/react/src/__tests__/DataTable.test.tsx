@@ -21,6 +21,20 @@ const ROWS: Row[] = [
 
 afterEach(cleanup)
 
+describe('DataTable — row checkbox name', () => {
+  it('comes from the first column with text, skipping a picture column', () => {
+    const { getByRole } = render(
+      <DataTable
+        data={ROWS}
+        columns={[{ key: 'avatar', label: 'Avatar', value: () => null }, ...COLS]}
+        rowKey="id"
+        selectable
+      />,
+    )
+    expect(getByRole('checkbox', { name: 'Select row Alice' })).toBeTruthy()
+  })
+})
+
 describe('DataTable — onRowClick', () => {
   it('calls onRowClick with the row and the click event', () => {
     const onRowClick = vi.fn()

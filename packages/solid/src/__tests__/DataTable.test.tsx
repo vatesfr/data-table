@@ -22,6 +22,20 @@ function rowNames(container: HTMLElement): string[] {
 }
 
 describe('DataTable', () => {
+  it('names a row checkbox after the first column with text, skipping a picture column', () => {
+    const container = document.createElement('div')
+    const cols: ColumnDef<Row>[] = [{ key: 'avatar', label: 'Avatar', value: () => null }, ...COLS]
+    const dispose = createRoot((d) => {
+      render(() => <DataTable data={ROWS} columns={cols} rowKey="id" selectable />, container)
+      return d
+    })
+    const names = [...container.querySelectorAll('input[type="checkbox"]')].map((c) =>
+      c.getAttribute('aria-label'),
+    )
+    expect(names).toContain('Select row Alice')
+    dispose()
+  })
+
   it('renders the given columns and rows with no createTableState/DataTableView wiring needed', () => {
     const container = document.createElement('div')
     document.body.appendChild(container)

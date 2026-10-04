@@ -4,6 +4,7 @@ import {
   computeAggregate,
   getColumnValue,
   cellText,
+  rowText,
   groupText,
   isGroupCollapsed,
   isSameVisibleItem,
@@ -2122,9 +2123,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                     type="checkbox"
                     tabindex="-1"
                     :checked="selection.has(row)"
-                    :aria-label="
-                      L.selectRow(activeColumns[0] ? cellText(activeColumns[0], row) : '')
-                    "
+                    :aria-label="L.selectRow(rowText(activeColumns, row))"
                     @click="toggleRowSelection(row, $event.shiftKey)"
                   />
                 </td>

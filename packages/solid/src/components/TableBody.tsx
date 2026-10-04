@@ -1,7 +1,7 @@
 import { For, Index, Show, createEffect, createMemo, createSignal, onCleanup } from 'solid-js'
 import {
   getColumnValue,
-  cellText,
+  rowText,
   groupText,
   computeAggregate,
   getSortIcon,
@@ -673,10 +673,6 @@ interface DataRowProps<TRow extends object> {
 function DataRow<TRow extends object>(props: DataRowProps<TRow>) {
   const { table, row } = props
   const isSelected = createMemo(() => table.selection.all().has(row))
-  const firstCellText = () => {
-    const col = table.columns.active()[0]
-    return col ? cellText(col, row) : ''
-  }
   const rk = createMemo(() =>
     props.rowKey
       ? String((row as Record<string, unknown>)[props.rowKey] ?? props.procIdx)
@@ -731,7 +727,7 @@ function DataRow<TRow extends object>(props: DataRowProps<TRow>) {
             type="checkbox"
             tabIndex={-1}
             checked={isSelected()}
-            aria-label={table.labels().selectRow(firstCellText())}
+            aria-label={table.labels().selectRow(rowText(table.columns.active(), row))}
             onClick={(e) => table.selection.toggle(row, (e as MouseEvent).shiftKey)}
           />
         </td>

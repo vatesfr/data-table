@@ -20,6 +20,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Fixed
 
+- **Row checkbox name** (Solid, React, Vue, vanilla): taken from the first column with text, so a leading picture or icon column no longer leaves every row named "Select row ".
 - **Header ▾ button size** (Solid, React, Vue, vanilla): it keeps its 24 × 24 px target in a column whose label wraps, instead of shrinking to a few pixels.
 
 ## [0.15.0] - 2026-10-04

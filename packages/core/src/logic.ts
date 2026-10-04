@@ -29,6 +29,15 @@ export function cellText<TRow extends object>(col: ColumnDefBase<TRow>, row: TRo
   return v != null ? String(v) : ''
 }
 
+/** A row's plain-text name: its first column with text, so a picture column doesn't leave it blank. */
+export function rowText<TRow extends object>(columns: ColumnDefBase<TRow>[], row: TRow): string {
+  for (const col of columns) {
+    const text = cellText(col, row)
+    if (text) return text
+  }
+  return ''
+}
+
 /** A group's plain-text name, every `groupBy` level joined with " › " as in its header. */
 export function groupText<TRow extends object>(
   columns: ColumnDefBase<TRow>[],
