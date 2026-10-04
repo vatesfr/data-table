@@ -511,6 +511,31 @@ describe('createDataTable', () => {
     instance.setShowSearch(true)
     expect(container.querySelector('.dt-search-input')).not.toBeNull()
   })
+
+  it('renders no toolbar-end wrapper by default', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    expect(container.querySelector('.dt-toolbar-end')).toBeNull()
+  })
+
+  it('renders toolbarEnd as the last child of the toolbar actions row', () => {
+    const share = document.createElement('button')
+    createDataTable(container, { data: ROWS, columns: COLS, toolbarEnd: share })
+    const end = container.querySelector('.dt-toolbar-actions > .dt-toolbar-end:last-child')
+    expect(end?.firstChild).toBe(share)
+  })
+
+  it('setToolbarEnd replaces and removes the toolbar-end node after construction', () => {
+    const instance = createDataTable(container, { data: ROWS, columns: COLS })
+    const share = document.createElement('button')
+    instance.setToolbarEnd(share)
+    expect(container.querySelector('.dt-toolbar-end')?.firstChild).toBe(share)
+    const reset = document.createElement('button')
+    instance.setToolbarEnd(reset)
+    expect(container.querySelector('.dt-toolbar-end')?.firstChild).toBe(reset)
+    expect(share.isConnected).toBe(false)
+    instance.setToolbarEnd(null)
+    expect(container.querySelector('.dt-toolbar-end')).toBeNull()
+  })
 })
 
 // PRUNED:

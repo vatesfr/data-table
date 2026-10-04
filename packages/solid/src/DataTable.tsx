@@ -74,6 +74,7 @@ export function DataTable<TRow extends object>(props: DataTableProps<TRow>) {
       onRowClick={props.onRowClick}
       showSearch={props.showSearch}
       showColumns={props.showColumns}
+      toolbarEnd={props.toolbarEnd}
     />
   )
 }

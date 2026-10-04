@@ -116,6 +116,13 @@ const S = {
     flexShrink: 0,
     margin: '0 2px',
   } as CSSProperties,
+  // Right-aligned on its own, or right after "Clear all" when that's already taken the free space.
+  toolbarEnd: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    marginLeft: 'auto',
+  } as CSSProperties,
   clearAll: {
     marginLeft: 'auto',
     padding: '5px 10px',
@@ -1595,6 +1602,7 @@ export function DataTableView<TRow extends object>({
   onRowClick,
   showSearch,
   showColumns,
+  toolbarEnd,
 }: DataTableViewProps<TRow>) {
   const [openColsDD, setOpenColsDD] = useState(false)
   const [openSortDD, setOpenSortDD] = useState(false)
@@ -3114,6 +3122,14 @@ export function DataTableView<TRow extends object>({
             >
               {L.clearAll}
             </button>
+          )}
+          {toolbarEnd != null && toolbarEnd !== false && (
+            <div
+              className="dt-toolbar-end"
+              style={hasActiveState ? { ...S.toolbarEnd, marginLeft: 0 } : S.toolbarEnd}
+            >
+              {toolbarEnd}
+            </div>
           )}
         </div>
       </div>

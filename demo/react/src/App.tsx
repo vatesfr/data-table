@@ -514,7 +514,8 @@ const VIEW_CONTROL_BTN_STYLE = {
 // Shared by every section below: "Copy share link" copies the whole page URL (every section's
 // state round-trips through its own query param, see VIEW_KEYS); "Reset" clears just this one
 // table's own storageKey/paramName via resetView, back to its construction-time defaults.
-function ViewControls({ onReset }: { onReset: () => void }) {
+// `inToolbar` drops the bottom margin when rendered in the table's own toolbar (`toolbarEnd`).
+function ViewControls({ onReset, inToolbar }: { onReset: () => void; inToolbar?: boolean }) {
   const [copied, setCopied] = useState(false)
   function copyShareLink() {
     navigator.clipboard.writeText(window.location.href)
@@ -522,7 +523,7 @@ function ViewControls({ onReset }: { onReset: () => void }) {
     setTimeout(() => setCopied(false), 1500)
   }
   return (
-    <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+    <div style={{ display: 'flex', gap: 8, marginBottom: inToolbar ? 0 : 12 }}>
       <button onClick={copyShareLink} style={VIEW_CONTROL_BTN_STYLE}>
         {copied ? 'Copied!' : 'Copy share link'}
       </button>
@@ -643,10 +644,13 @@ function PersistedTable({ labels }: { labels?: Partial<DataTableLabels> }) {
   })
   const { reset } = usePersistence(table, VIEW_KEYS.persisted)
   return (
-    <>
-      <ViewControls onReset={reset} />
-      <DataTableView table={table} data={SAMPLE_DATA} columns={COLUMNS} rowKey="id" />
-    </>
+    <DataTableView
+      table={table}
+      data={SAMPLE_DATA}
+      columns={COLUMNS}
+      rowKey="id"
+      toolbarEnd={<ViewControls onReset={reset} inToolbar />}
+    />
   )
 }
 

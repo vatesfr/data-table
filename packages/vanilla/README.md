@@ -367,20 +367,21 @@ Drag a column header to reorder it, or drag a row (or press Alt+ArrowUp/Alt+Arro
 
 ## Options
 
-| Option                   | Type                                                      | Default | Description                                                                                               |
-| ------------------------ | --------------------------------------------------------- | ------- | --------------------------------------------------------------------------------------------------------- |
-| `data`                   | `TRow[]`                                                  | —       | Row data                                                                                                  |
-| `columns`                | `ColumnDef<TRow>[]`                                       | —       | Column definitions                                                                                        |
-| `rowKey`                 | `keyof TRow & string`                                     | —       | DOM key only — not selection identity                                                                     |
-| `labels`                 | `Partial<DataTableLabels>`                                | English | UI string overrides                                                                                       |
-| `defaultGroupsCollapsed` | `boolean`                                                 | `true`  | Whether newly-grouped groups start collapsed                                                              |
-| `initialViewState`       | `TableViewState`                                          | `{}`    | Construction-time defaults for columns/sort/filters/grouping/page/search — also what `resetView` restores |
-| `getRowId`               | `(row: TRow) => string \| number`                         | —       | Opt-in id-based selection identity (see "Row selection" above)                                            |
-| `selectable`             | `boolean`                                                 | `false` | Show checkbox column for row selection                                                                    |
-| `onSelectionChange`      | `(rows: TRow[]) => void`                                  | —       | Called when selection changes                                                                             |
-| `onRowClick`             | `(row: TRow, event: MouseEvent \| KeyboardEvent) => void` | —       | Called when a data row is clicked                                                                         |
-| `showSearch`             | `boolean`                                                 | `true`  | Shows/hides the toolbar's search box (Sort/Group/Filter already auto-hide when no column qualifies)       |
-| `showColumns`            | `boolean`                                                 | `true`  | Shows/hides the Columns toolbar button; also auto-hides when `columns.length < 2`                         |
+| Option                   | Type                                                      | Default | Description                                                                                                                                            |
+| ------------------------ | --------------------------------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `data`                   | `TRow[]`                                                  | —       | Row data                                                                                                                                               |
+| `columns`                | `ColumnDef<TRow>[]`                                       | —       | Column definitions                                                                                                                                     |
+| `rowKey`                 | `keyof TRow & string`                                     | —       | DOM key only — not selection identity                                                                                                                  |
+| `labels`                 | `Partial<DataTableLabels>`                                | English | UI string overrides                                                                                                                                    |
+| `defaultGroupsCollapsed` | `boolean`                                                 | `true`  | Whether newly-grouped groups start collapsed                                                                                                           |
+| `initialViewState`       | `TableViewState`                                          | `{}`    | Construction-time defaults for columns/sort/filters/grouping/page/search — also what `resetView` restores                                              |
+| `getRowId`               | `(row: TRow) => string \| number`                         | —       | Opt-in id-based selection identity (see "Row selection" above)                                                                                         |
+| `selectable`             | `boolean`                                                 | `false` | Show checkbox column for row selection                                                                                                                 |
+| `onSelectionChange`      | `(rows: TRow[]) => void`                                  | —       | Called when selection changes                                                                                                                          |
+| `onRowClick`             | `(row: TRow, event: MouseEvent \| KeyboardEvent) => void` | —       | Called when a data row is clicked                                                                                                                      |
+| `showSearch`             | `boolean`                                                 | `true`  | Shows/hides the toolbar's search box (Sort/Group/Filter already auto-hide when no column qualifies)                                                    |
+| `showColumns`            | `boolean`                                                 | `true`  | Shows/hides the Columns toolbar button; also auto-hides when `columns.length < 2`                                                                      |
+| `toolbarEnd`             | `Node \| null`                                            | —       | Content at the right end of the toolbar's action row, in a `.dt-toolbar-end` wrapper (e.g. "Share view"/"Reset view" buttons); no wrapper when omitted |
 
 ## Column definition
 
@@ -424,6 +425,7 @@ interface ColumnDef<TRow extends object> {
 | `setSelectable(value: boolean)`             | Toggles whether rows show selection checkboxes after construction                   |
 | `setShowSearch(value: boolean)`             | Shows/hides the toolbar's search box after construction                             |
 | `setShowColumns(value: boolean)`            | Shows/hides the Columns toolbar button after construction                           |
+| `setToolbarEnd(node: Node \| null)`         | Replaces (or removes, with `null`) the toolbar-end node after construction          |
 | `setOnRowClick(cb \| undefined)`            | Changes (or clears) the row-click callback after construction                       |
 | `setLabels(labels \| undefined)`            | Replaces the label overrides after construction                                     |
 | `setDefaultGroupsCollapsed(value: boolean)` | Changes whether newly-grouped groups start collapsed after construction             |

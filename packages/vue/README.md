@@ -78,6 +78,8 @@ Use named scoped slots to customize how cells, filter labels, and group headers 
 
 Slot naming: `#cell-{key}`, `#filter-{key}`, `#group-{key}` where `{key}` matches the column's `key`.
 
+`#toolbar-end` (no scope) renders your own controls at the right end of the toolbar's action row, in a `.dt__toolbar-end` wrapper — e.g. "Share view"/"Reset view" buttons. No wrapper is rendered without it.
+
 `#group-{key}` applies to group header rows when that column is used for grouping, so values display with the same visual as table cells.
 
 ## Multi-value (array) columns
@@ -549,7 +551,7 @@ usePersistence(table, { storageKey: 'employee-table-view', paramName: 'view' })
 </template>
 ```
 
-`DataTableView` takes the same props as `<DataTable>` minus `labels`/`defaultGroupsCollapsed`/`initialViewState` (those only make sense at `useTableState` construction time) plus `table`, and supports the same `#cell-{key}`/`#filter-{key}`/`#group-{key}` scoped slots. In fact, `<DataTable>` is implemented as exactly this — a thin wrapper that calls `useTableState` and renders `<DataTableView :table="table" .../>`, forwarding its own slots straight through.
+`DataTableView` takes the same props as `<DataTable>` minus `labels`/`defaultGroupsCollapsed`/`initialViewState` (those only make sense at `useTableState` construction time) plus `table`, and supports the same `#cell-{key}`/`#filter-{key}`/`#group-{key}`/`#toolbar-end` slots. In fact, `<DataTable>` is implemented as exactly this — a thin wrapper that calls `useTableState` and renders `<DataTableView :table="table" .../>`, forwarding its own slots straight through.
 
 ## i18n
 

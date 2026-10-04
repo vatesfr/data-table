@@ -1760,6 +1760,9 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
         <button v-if="hasActiveState" class="dt__clear-all" @click="clearAllAndFocus">
           {{ L.clearAll }}
         </button>
+        <div v-if="hasSlot('toolbar-end')" class="dt__toolbar-end">
+          <slot name="toolbar-end" />
+        </div>
       </div>
     </div>
 
@@ -2322,6 +2325,15 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
   cursor: pointer;
   color: var(--color-text-secondary);
   font-family: inherit;
+}
+.dt__toolbar-end {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+.dt__clear-all ~ .dt__toolbar-end {
+  margin-left: 0;
 }
 
 /* Dropdown internals */

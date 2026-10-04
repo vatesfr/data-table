@@ -1191,6 +1191,35 @@ describe('DataTable — showSearch', () => {
   })
 })
 
+describe('DataTable — toolbarEnd', () => {
+  it('renders toolbarEnd as the last child of the toolbar actions row', () => {
+    const { container, getByText } = render(
+      <DataTable data={ROWS} columns={COLS} rowKey="id" toolbarEnd={<button>Share</button>} />,
+    )
+    const end = container.querySelector<HTMLElement>('.dt-toolbar-end')!
+    expect(end.contains(getByText('Share'))).toBe(true)
+    expect(end.parentElement!.lastElementChild).toBe(end)
+    expect(end.style.marginLeft).toBe('auto')
+  })
+
+  it('sits right after "Clear all" when that is shown', () => {
+    const { container, getAllByPlaceholderText } = render(
+      <DataTable data={ROWS} columns={COLS} rowKey="id" toolbarEnd={<button>Share</button>} />,
+    )
+    fireEvent.change(getAllByPlaceholderText('Search…')[0], { target: { value: 'ali' } })
+    const end = container.querySelector<HTMLElement>('.dt-toolbar-end')!
+    expect(end.previousElementSibling?.textContent).toContain('Clear all')
+    expect(end.style.marginLeft).toBe('0px')
+  })
+
+  it('renders no toolbar-end wrapper when toolbarEnd is absent or false', () => {
+    const { container, rerender } = render(<DataTable data={ROWS} columns={COLS} rowKey="id" />)
+    expect(container.querySelector('.dt-toolbar-end')).toBeNull()
+    rerender(<DataTable data={ROWS} columns={COLS} rowKey="id" toolbarEnd={false} />)
+    expect(container.querySelector('.dt-toolbar-end')).toBeNull()
+  })
+})
+
 // Draggable dropdown rows (active sort/group/column entries) vs. the table's own draggable
 // <th> headers are told apart by tag — this excludes the headers so container-wide queries only
 // ever see the dropdown's own rows.

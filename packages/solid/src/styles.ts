@@ -7,6 +7,8 @@ ${renderThemeCss()}
 .dt-toolbar-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .dt-toolbar-divider{width:1px;height:22px;background:var(--color-border-secondary,#dddcd8);flex-shrink:0;margin:0 2px}
 .dt-clear-all{margin-left:auto}
+.dt-toolbar-end{display:flex;align-items:center;gap:8px;margin-left:auto}
+.dt-clear-all~.dt-toolbar-end{margin-left:0}
 .dt-stats{margin-left:auto;font-size:12px;color:var(--color-text-secondary,#6b6a66);white-space:nowrap}
 .dt-btn{display:inline-flex;align-items:center;gap:4px;padding:5px 10px;background:none;border:0.5px solid var(--color-border-secondary,#dddcd8);border-radius:6px;font-size:13px;cursor:pointer;color:var(--color-text-primary,#1a1916);font-family:inherit;line-height:1}
 .dt-btn--active{background:var(--color-background-secondary,#f7f6f3)}

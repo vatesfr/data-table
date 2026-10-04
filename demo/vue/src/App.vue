@@ -1064,8 +1064,10 @@ function fmtSalary(n: number | null) {
       <code>useTableState</code> instance you own instead — reorder or hide a column, then reload
       the page. <span v-html="docLink('view-persistence--sharing', '📖 Docs')" />
     </p>
-    <ViewControls @reset="resetPersistedTable" />
     <DataTableView :table="persistedTable" :data="SAMPLE_DATA" :columns="COLUMNS" row-key="id">
+      <template #toolbar-end>
+        <ViewControls in-toolbar @reset="resetPersistedTable" />
+      </template>
       <template #cell-department="{ value }">
         <Badge :value="String(value)" :color-map="DEPT_COLORS" />
       </template>
