@@ -22,6 +22,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Fixed
 
+- **Category submenus on narrow screens** (Solid, React, Vue, vanilla): a submenu that fits on neither side of its row now stays on screen, overlapping the row, instead of opening past the left edge.
 - **Focus after clearing** (Solid, React, Vue, vanilla): "Clear all" and (Solid, vanilla) the search box's × no longer drop keyboard focus to the page once they disappear; it moves to the search box, or the first toolbar button when search is hidden.
 
 ## [0.14.0] - 2026-09-14

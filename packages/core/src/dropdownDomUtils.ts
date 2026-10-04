@@ -118,7 +118,11 @@ export function computeSubmenuPosition(
   margin = 8,
 ): { left: number; top: number } {
   const openRight = triggerRect.right + submenuSize.width <= viewportWidth - margin
-  const left = openRight ? triggerRect.right : triggerRect.left - submenuSize.width
+  // Fits neither side (a narrow screen): stay on screen, overlapping the trigger
+  const left = Math.max(
+    margin,
+    openRight ? triggerRect.right : triggerRect.left - submenuSize.width,
+  )
   let top = triggerRect.top
   if (top + submenuSize.height > viewportHeight - margin)
     top = viewportHeight - margin - submenuSize.height
