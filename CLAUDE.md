@@ -62,7 +62,7 @@ Load-bearing: the core public/internal split above (enforced by ESLint for demos
 ## Code conventions
 
 - **Tests**: Vitest, in each package's `src/__tests__/`; every new behavior is covered. Core logic is tested as pure functions; adapter UI via Testing Library (React), `@vue/test-utils` (Vue), or Solid's `render()` against jsdom. Vanilla tests drive `createDataTable` end to end.
-- **Typing/strictness**: `strict: true` in every package; `any` is a lint warning. `npm run type-check` covers every package's `src/` (Vue via `vue-tsc`).
+- **Typing/strictness**: `strict: true` in every package; `any` is a lint warning. `npm run type-check` covers every package's and demo's `src/` (Vue via `vue-tsc`).
 - **Error handling**: core functions don't throw on stale or malformed input (unknown column keys, non-finite page sizes, missing values); they degrade to a sane fallback so the table still renders.
 - **Parity**: a feature lands in React, Vue and Solid (vanilla inherits it through Solid) unless explicitly scoped otherwise.
 - **Simplicity**: build for current needs only — no speculative abstractions, options or extension points. Fix root causes rather than stacking special cases (propose it if that widens the change). Delete what the change makes dead (code, params, flags, tests, docs). Temporary code (shims, flags, workarounds) states its removal condition.
