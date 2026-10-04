@@ -1,16 +1,40 @@
 import { For, Show, createSignal, onCleanup } from 'solid-js'
 import {
+  HEADER_MENU_ITEMS,
   columnHasActiveFilter,
-  computeMenuPosition,
   ddNavFocusables,
+  getHeaderMenuItems,
+  keepHeaderMenuFocus,
+  moveMenuIndex,
+  onMenuDismiss,
+  placeMenu,
+  type HeaderMenuItem,
 } from '@vates/data-table-core/internal'
 import type { ColumnDef } from '../types'
 import type { TableState } from '../createTableState'
+import { CategorySubmenu } from './CategorySubmenu'
+import { FilterPane } from './FilterPane'
 
 interface HeaderMenuProps<TRow extends object> {
   table: TableState<TRow>
   col: ColumnDef<TRow>
-  onOpenFilter?: (key: string) => void
+  onOpenChange: (open: boolean) => void
+}
+
+function Icon(props: { item: HeaderMenuItem }) {
+  return (
+    <svg
+      class="dt-th-menu-icon"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.5"
+      stroke-linejoin="round"
+      aria-hidden="true"
+    >
+      <path d={HEADER_MENU_ITEMS[props.item].icon} />
+    </svg>
+  )
 }
 
 // A header's ▾ menu. `position: fixed` (like CategorySubmenu) so the table's scrolling wrapper
@@ -18,35 +42,15 @@ interface HeaderMenuProps<TRow extends object> {
 export function HeaderMenu<TRow extends object>(props: HeaderMenuProps<TRow>) {
   const { table } = props
   const [open, setOpen] = createSignal(false)
+  const [filterOpen, setFilterOpen] = createSignal(false)
   const [pos, setPos] = createSignal({ left: 0, top: 0 })
   let triggerRef: HTMLButtonElement | undefined
   let menuRef: HTMLDivElement | undefined
+  let stopDismiss: (() => void) | undefined
 
   const key = () => props.col.key
-  // [label, action] for each item the column supports
-  const items = (): [string, () => void][] => {
-    const L = table.labels()
-    const list: [string, () => void][] = []
-    if (props.col.sortable !== false)
-      list.push(
-        [`↑ ${L.sortAscending}`, () => act(() => table.sort.set(key(), 'asc'))],
-        [`↓ ${L.sortDescending}`, () => act(() => table.sort.set(key(), 'desc'))],
-      )
-    const onOpenFilter = props.onOpenFilter
-    if (props.col.filterable !== false && onOpenFilter)
-      list.push([
-        `${L.filter}…`,
-        () => {
-          close(false)
-          onOpenFilter(key())
-        },
-      ])
-    if (props.col.groupable === true && !table.group.by().includes(key()))
-      list.push([L.groupByColumn, () => act(() => table.group.toggle(key()))])
-    if (table.columns.active().length > 1)
-      list.push([L.hideColumn, () => act(() => table.columns.toggleVisibility(key()))])
-    return list
-  }
+  const items = () => getHeaderMenuItems(props.col, table.group.by(), table.columns.active().length)
+  const label = (item: HeaderMenuItem) => table.labels()[HEADER_MENU_ITEMS[item].label]
   const isFiltered = () =>
     columnHasActiveFilter(
       key(),
@@ -55,58 +59,44 @@ export function HeaderMenu<TRow extends object>(props: HeaderMenuProps<TRow>) {
       table.filter.ranges(),
     )
 
-  function onOutside(e: Event): void {
-    if (!menuRef?.contains(e.target as Node) && !triggerRef?.contains(e.target as Node))
-      close(false)
-  }
-  function onScroll(e: Event): void {
-    if (!menuRef?.contains(e.target as Node)) close(false)
-  }
-  function listen(on: boolean): void {
-    const method = on ? 'addEventListener' : 'removeEventListener'
-    document[method]('mousedown', onOutside)
-    window[method]('scroll', onScroll, true)
-  }
-  onCleanup(() => listen(false))
+  onCleanup(() => {
+    stopDismiss?.()
+    if (open()) props.onOpenChange(false)
+  })
 
   function openMenu(): void {
     setOpen(true)
-    listen(true)
+    props.onOpenChange(true)
+    stopDismiss = onMenuDismiss(
+      () => [menuRef, triggerRef],
+      () => close(false),
+    )
     queueMicrotask(() => {
       if (!menuRef || !triggerRef) return
-      const rect = menuRef.getBoundingClientRect()
-      setPos(
-        computeMenuPosition(
-          triggerRef.getBoundingClientRect(),
-          { width: rect.width, height: rect.height },
-          window.innerWidth,
-          window.innerHeight,
-        ),
-      )
+      setPos(placeMenu(triggerRef, menuRef))
       ddNavFocusables(menuRef)[0]?.focus()
     })
   }
   function close(focusTrigger: boolean): void {
     setOpen(false)
-    listen(false)
+    props.onOpenChange(false)
+    setFilterOpen(false)
+    stopDismiss?.()
     if (focusTrigger) triggerRef?.focus()
   }
 
-  // Hiding or grouping can remove this header: focus the menu button now at its position instead.
-  function act(action: () => void): void {
-    const row = triggerRef?.closest('tr')
-    const buttons = row ? [...row.querySelectorAll<HTMLElement>('[data-col-menu]')] : []
-    const index = triggerRef ? buttons.indexOf(triggerRef) : -1
+  // Grouping or hiding can remove this header: focus the ▾ now at its position instead
+  function act(item: 'group' | 'hide'): void {
+    const restoreFocus = triggerRef && keepHeaderMenuFocus(triggerRef)
     close(true)
-    action()
-    queueMicrotask(() => {
-      if (triggerRef?.isConnected || !row) return
-      const next = row.querySelectorAll<HTMLElement>('[data-col-menu]')
-      next[Math.min(index, next.length - 1)]?.focus()
-    })
+    if (item === 'group') table.group.toggle(key())
+    else table.columns.toggleVisibility(key())
+    if (restoreFocus) queueMicrotask(restoreFocus)
   }
 
   function onMenuKeyDown(e: KeyboardEvent): void {
+    // Keys inside the filter flyout are the flyout's
+    if (!(e.target as Element).matches('[role=menuitem]')) return
     if (e.key === 'Escape') {
       e.preventDefault()
       close(true)
@@ -116,17 +106,16 @@ export function HeaderMenu<TRow extends object>(props: HeaderMenuProps<TRow>) {
       close(false)
       return
     }
-    if (!menuRef || !['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(e.key)) return
+    if (!menuRef) return
+    const focusables = ddNavFocusables(menuRef)
+    const next = moveMenuIndex(
+      e.key,
+      focusables.indexOf(document.activeElement as HTMLElement),
+      focusables.length,
+    )
+    if (next === null) return
     e.preventDefault()
-    const items = ddNavFocusables(menuRef)
-    const idx = items.indexOf(document.activeElement as HTMLElement)
-    const next =
-      e.key === 'Home'
-        ? 0
-        : e.key === 'End'
-          ? items.length - 1
-          : (idx + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length
-    items[next]?.focus()
+    focusables[next]?.focus()
   }
 
   return (
@@ -159,17 +148,32 @@ export function HeaderMenu<TRow extends object>(props: HeaderMenuProps<TRow>) {
           onKeyDown={onMenuKeyDown}
         >
           <For each={items()}>
-            {([label, run]) => (
-              <button
-                type="button"
-                role="menuitem"
-                class="dt-dd-item dt-dd-item--click"
-                data-dd-row
-                onClick={run}
-              >
-                {label}
-              </button>
-            )}
+            {(item) =>
+              item === 'filter' ? (
+                <CategorySubmenu
+                  name={label(item)}
+                  icon={<Icon item={item} />}
+                  role="menuitem"
+                  class="dt-th-filter-flyout"
+                  isOpen={filterOpen()}
+                  onOpen={() => setFilterOpen(true)}
+                  onClose={() => setFilterOpen(false)}
+                >
+                  <FilterPane table={table} col={props.col} />
+                </CategorySubmenu>
+              ) : (
+                <button
+                  type="button"
+                  role="menuitem"
+                  class="dt-dd-item dt-dd-item--click"
+                  data-dd-row
+                  onClick={() => act(item)}
+                >
+                  <Icon item={item} />
+                  {label(item)}
+                </button>
+              )
+            }
           </For>
         </div>
       </Show>

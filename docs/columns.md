@@ -32,11 +32,12 @@ Each dropdown's search box narrows only what's being _added_ (Sort/Group's addab
 
 ## Header menu
 
-Each header has a ▾ button (`data-col-menu`) opening a menu of the actions that column supports, so a column is acted on where it is rather than picked again from a toolbar dropdown (UC11).
+Each header has a ▾ button (`data-col-menu`) at its end, opening a menu of what that column supports, so a column is acted on where it is rather than picked again from a toolbar dropdown (UC11). Shared logic lives in core's `headerMenu.ts`; adapters only render it.
 
-- **Items**: Sort ascending/descending (`sortable !== false`, see [sorting](sorting.md)), Filter… (`filterable !== false`), Group by this column (`groupable: true`, not already grouped), Hide column (more than one visible column). A column with none gets no button.
-- **Filter…** opens the Filter dropdown on that column, through the same path as an active-bar chip; the dropdown keeps that column's category expanded on open so its row can take focus (Solid: `FilterDropdown`'s `openOn` prop).
-- **Header click** still sorts and shift-click still adds a sort; clicks inside the button and menu don't reach the `<th>`.
-- **Positioning**: `position: fixed` at `computeMenuPosition(anchorRect, menuSize, viewportWidth, viewportHeight)` (core): below the button, slid inside the viewport, flipped above when it doesn't fit. Same no-portal reasoning as category submenus above; closes on any scroll instead of tracking its header.
-- **Keyboard**: the button is the header's only Tab stop (the `<th>` itself isn't focusable); ↑/↓/Home/End move through items, Esc closes back to the button, Tab closes. Hide and Group by can remove the header, so focus moves to the menu button now at the same position.
-- **Filtered marker**: the button takes the info color (`dt-th-menu--filtered`) while its column has an active filter (`columnHasActiveFilter`), so filter state shows on the header, not only in the active bar.
+- **Sorting stays on the header**: the label is a button (when `sortable !== false`) whose click bubbles to the `<th>`'s sort handler, so Enter sorts and Shift+Enter adds a sort, like a click and shift-click.
+- **Items**: `getHeaderMenuItems(col, groupBy, visibleColumnCount)` — Filter (`filterable !== false`), Group by this column (`groupable: true`, not already grouped), Hide column (more than one visible column). None → no ▾. Icons and label keys: `HEADER_MENU_ITEMS`.
+- **Filter** is a category-submenu-style flyout (hover, click, → or Enter) holding the column's `FilterPane` — the Filter dropdown's right pane, extracted so both share it. The pane owns its view state (value search, value order, shift-click anchor, expanded date nodes), so the dropdown renders it keyed by column and a column's value search resets on switching columns. Escape clears a non-empty value search before closing; ← in a text field moves the caret instead of closing the flyout.
+- **Positioning**: `position: fixed` at `placeMenu(trigger, menu)` (`computeMenuPosition`: below the ▾, slid inside the viewport, flipped above when needed); same no-portal reasoning as category submenus above. `onMenuDismiss` closes it on an outside mousedown or any scroll.
+- **Dragging**: the menu renders inside the draggable `<th>`, so the `<th>` stops being draggable while its menu is open — otherwise dragging the flyout's range slider dragged the column.
+- **Keyboard**: label and ▾ are the header's Tab stops; in the menu ↑/↓/Home/End (`moveMenuIndex`) move between items, Esc closes back to ▾, Tab closes. Group by and Hide can remove the header, so `keepHeaderMenuFocus` moves focus to the ▾ now at the same position.
+- **Filtered marker**: the ▾ takes the info color (`dt-th-menu--filtered`) while its column has an active filter (`columnHasActiveFilter`).

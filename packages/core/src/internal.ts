@@ -14,6 +14,7 @@
 
 export * from './logic'
 export * from './dropdownDomUtils'
+export * from './headerMenu'
 // `DateTreeNode` (types.ts) isn't produced by any exported `types.ts` re-export elsewhere — the
 // date-tree filter (computeDateTree/getDateTreeNodeState/etc., all internal) is the only thing
 // that needs it, and every adapter's own date-tree component types against it.

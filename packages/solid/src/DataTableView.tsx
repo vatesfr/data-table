@@ -52,26 +52,12 @@ export function DataTableView<TRow extends object>(props: DataTableViewProps<TRo
   injectStyles()
   const { table } = props
   const [openDropdown, setOpenDropdown] = createSignal<DropdownId | null>(null)
-  // Column the Filter dropdown opens on, from a chip or a header menu; null from its own button.
-  const [filterOpenOn, setFilterOpenOn] = createSignal<string | null>(null)
   const groupableCols = () => table.columns.list().filter((c) => c.groupable === true)
   const sortableCols = () => table.columns.list().filter((c) => c.sortable !== false)
   const filterableCols = () => table.columns.list().filter((c) => c.filterable !== false)
 
   function toggleDd(id: DropdownId): void {
-    setFilterOpenOn(null)
     setOpenDropdown((cur) => (cur === id ? null : id))
-  }
-
-  function openFilterOn(key: string): void {
-    setFilterOpenOn(key)
-    setOpenDropdown('filter')
-    // Same later-queued-microtask reasoning as onOpenGroup below. Focusing the column button is
-    // enough on its own — FilterDropdown's own delegated `focusin` listener (see "focus follows
-    // selection" in FilterDropdown.tsx) selects that column in the detail pane.
-    queueMicrotask(() => {
-      document.querySelector<HTMLElement>(`[data-filter-col-key="${key}"]`)?.focus()
-    })
   }
 
   return (
@@ -117,7 +103,6 @@ export function DataTableView<TRow extends object>(props: DataTableViewProps<TRo
               table={table}
               columns={table.columns.list()}
               isOpen={openDropdown() === 'filter'}
-              openOn={filterOpenOn()}
               onToggle={() => toggleDd('filter')}
               onClose={() => setOpenDropdown(null)}
             />
@@ -163,7 +148,16 @@ export function DataTableView<TRow extends object>(props: DataTableViewProps<TRo
             document.querySelector<HTMLElement>(`[data-group-key="${key}"]`)?.focus()
           })
         }}
-        onOpenFilter={openFilterOn}
+        onOpenFilter={(key) => {
+          setOpenDropdown('filter')
+          // Same later-queued-microtask reasoning as onOpenGroup above. Focusing the column
+          // button is enough on its own — FilterDropdown's own delegated `focusin` listener
+          // (see "focus follows selection" in FilterDropdown.tsx) picks it up and selects that
+          // column in the detail pane, no separate "which column" state to set from here.
+          queueMicrotask(() => {
+            document.querySelector<HTMLElement>(`[data-filter-col-key="${key}"]`)?.focus()
+          })
+        }}
       />
       <TableBody
         table={table}
@@ -171,7 +165,6 @@ export function DataTableView<TRow extends object>(props: DataTableViewProps<TRo
         rowKey={props.rowKey}
         selectable={props.selectable}
         onRowClick={props.onRowClick}
-        onOpenFilter={openFilterOn}
       />
       <Pagination table={table} />
     </div>
