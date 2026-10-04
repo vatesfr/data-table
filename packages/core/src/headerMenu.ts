@@ -4,14 +4,15 @@ import { computeMenuPosition, viewportWidth } from './dropdownDomUtils'
 
 // The header ▾ menu's shared logic (see docs/columns.md's "Header menu"); adapters only render it.
 
-export type HeaderMenuItem = 'filter' | 'group' | 'hide'
+export type HeaderMenuItem = 'filter' | 'clear' | 'group' | 'hide'
 
 /** Each item's 16×16 outline icon path, stroked in the text color, and its label key */
 export const HEADER_MENU_ITEMS: Record<
   HeaderMenuItem,
-  { icon: string; label: 'filter' | 'groupByColumn' | 'hideColumn' }
+  { icon: string; label: 'filter' | 'clearColumnFilter' | 'groupByColumn' | 'hideColumn' }
 > = {
   filter: { icon: 'M2 3h12l-4.5 5.5V13l-3-1.5V8.5z', label: 'filter' },
+  clear: { icon: 'M2 3h12l-4.5 5.5V13l-3-1.5V8.5zM2.5 2.5l11 11', label: 'clearColumnFilter' },
   group: {
     icon: 'M2.5 2.5h4v4h-4zM9.5 2.5h4v4h-4zM2.5 9.5h4v4h-4zM9.5 9.5h4v4h-4z',
     label: 'groupByColumn',
@@ -27,9 +28,11 @@ export function getHeaderMenuItems(
   col: { key: string; filterable?: boolean; groupable?: boolean },
   groupBy: string[],
   visibleColumnCount: number,
+  filtered: boolean,
 ): HeaderMenuItem[] {
   const items: HeaderMenuItem[] = []
   if (col.filterable !== false) items.push('filter')
+  if (filtered) items.push('clear')
   if (col.groupable === true && !groupBy.includes(col.key)) items.push('group')
   if (visibleColumnCount > 1) items.push('hide')
   return items

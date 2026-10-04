@@ -217,6 +217,24 @@ describe('HeaderMenu', () => {
     unmount()
   })
 
+  it('clears a filtered column from its menu, then refocuses its button', async () => {
+    const { table, trigger, items, item, unmount } = mountView(COLS, {
+      excludeFilters: { dept: ['HR'] },
+    })
+    trigger('Name')!.click()
+    await tick()
+    expect(items()).not.toContain('Clear filter')
+    trigger('Name')!.click()
+    trigger('Dept')!.click()
+    await tick()
+    expect(items()).toEqual(['Filter▸', 'Clear filter', 'Group by this column', 'Hide column'])
+    item('Clear filter').click()
+    await tick()
+    expect(table.filter.activeCount.value).toBe(0)
+    expect(document.activeElement).toBe(trigger('Dept'))
+    unmount()
+  })
+
   it('marks the button of a filtered column', () => {
     const { trigger, unmount } = mountView(COLS, { filters: { dept: ['Eng'] } })
     expect(trigger('Dept')!.classList.contains('dt__th-menu--filtered')).toBe(true)

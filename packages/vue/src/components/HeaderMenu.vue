@@ -42,6 +42,7 @@ const items = computed(() =>
     props.col,
     props.table.group.by.value,
     props.table.columns.active.value.length,
+    isFiltered.value,
   ),
 )
 const isFiltered = computed(() =>
@@ -79,10 +80,13 @@ function close(focusTrigger: boolean): void {
 }
 
 // Grouping or hiding can remove this header: focus the ▾ now at its position instead
-function act(item: 'group' | 'hide'): void {
+function act(item: 'clear' | 'group' | 'hide'): void {
   const restoreFocus = triggerRef.value && keepHeaderMenuFocus(triggerRef.value)
   close(true)
-  if (item === 'group') props.table.group.toggle(props.col.key)
+  if (item === 'clear')
+    for (const kind of ['include', 'exclude', 'range'] as const)
+      props.table.filter.clearColumn(props.col.key, kind)
+  else if (item === 'group') props.table.group.toggle(props.col.key)
   else props.table.columns.toggleVisibility(props.col.key)
   if (restoreFocus) void nextTick(restoreFocus)
 }

@@ -3,7 +3,7 @@ import { getHeaderMenuItems, moveMenuIndex } from '../headerMenu'
 
 describe('getHeaderMenuItems', () => {
   it('offers filter, group and hide when the column supports them', () => {
-    expect(getHeaderMenuItems({ key: 'dept', groupable: true }, [], 3)).toEqual([
+    expect(getHeaderMenuItems({ key: 'dept', groupable: true }, [], 3, false)).toEqual([
       'filter',
       'group',
       'hide',
@@ -11,15 +11,21 @@ describe('getHeaderMenuItems', () => {
   })
 
   it('leaves out grouping for a non-groupable or already grouped column', () => {
-    expect(getHeaderMenuItems({ key: 'name' }, [], 3)).toEqual(['filter', 'hide'])
-    expect(getHeaderMenuItems({ key: 'dept', groupable: true }, ['dept'], 3)).toEqual([
+    expect(getHeaderMenuItems({ key: 'name' }, [], 3, false)).toEqual(['filter', 'hide'])
+    expect(getHeaderMenuItems({ key: 'dept', groupable: true }, ['dept'], 3, false)).toEqual([
       'filter',
       'hide',
     ])
   })
 
   it('never hides the last visible column', () => {
-    expect(getHeaderMenuItems({ key: 'name', filterable: false }, [], 1)).toEqual([])
+    expect(getHeaderMenuItems({ key: 'name', filterable: false }, [], 1, false)).toEqual([])
+  })
+})
+
+describe('getHeaderMenuItems — clear filter', () => {
+  it('offers clearing right after Filter while the column is filtered', () => {
+    expect(getHeaderMenuItems({ key: 'name' }, [], 3, true)).toEqual(['filter', 'clear', 'hide'])
   })
 })
 

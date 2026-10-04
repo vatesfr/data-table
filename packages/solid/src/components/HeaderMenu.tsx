@@ -37,6 +37,8 @@ function Icon(props: { item: HeaderMenuItem }) {
   )
 }
 
+const FILTER_KINDS = ['include', 'exclude', 'range'] as const
+
 // A header's ▾ menu. `position: fixed` (like CategorySubmenu) so the table's scrolling wrapper
 // doesn't clip it; it closes on any scroll rather than tracking its header.
 export function HeaderMenu<TRow extends object>(props: HeaderMenuProps<TRow>) {
@@ -49,8 +51,6 @@ export function HeaderMenu<TRow extends object>(props: HeaderMenuProps<TRow>) {
   let stopDismiss: (() => void) | undefined
 
   const key = () => props.col.key
-  const items = () => getHeaderMenuItems(props.col, table.group.by(), table.columns.active().length)
-  const label = (item: HeaderMenuItem) => table.labels()[HEADER_MENU_ITEMS[item].label]
   const isFiltered = () =>
     columnHasActiveFilter(
       key(),
@@ -58,6 +58,9 @@ export function HeaderMenu<TRow extends object>(props: HeaderMenuProps<TRow>) {
       table.filter.exclude(),
       table.filter.ranges(),
     )
+  const items = () =>
+    getHeaderMenuItems(props.col, table.group.by(), table.columns.active().length, isFiltered())
+  const label = (item: HeaderMenuItem) => table.labels()[HEADER_MENU_ITEMS[item].label]
 
   onCleanup(() => {
     stopDismiss?.()
@@ -86,10 +89,11 @@ export function HeaderMenu<TRow extends object>(props: HeaderMenuProps<TRow>) {
   }
 
   // Grouping or hiding can remove this header: focus the ▾ now at its position instead
-  function act(item: 'group' | 'hide'): void {
+  function act(item: 'clear' | 'group' | 'hide'): void {
     const restoreFocus = triggerRef && keepHeaderMenuFocus(triggerRef)
     close(true)
-    if (item === 'group') table.group.toggle(key())
+    if (item === 'clear') for (const kind of FILTER_KINDS) table.filter.clearColumn(key(), kind)
+    else if (item === 'group') table.group.toggle(key())
     else table.columns.toggleVisibility(key())
     if (restoreFocus) queueMicrotask(restoreFocus)
   }

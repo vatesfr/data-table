@@ -28,6 +28,7 @@ interface HeaderMenuProps {
   filtered: boolean
   /** The column's filter pane, shown in the Filter flyout */
   filterPane: ReactNode
+  onClearFilter: () => void
   onGroup: () => void
   onHide: () => void
 }
@@ -111,6 +112,7 @@ export function HeaderMenu({
   items,
   filtered,
   filterPane,
+  onClearFilter,
   onGroup,
   onHide,
 }: HeaderMenuProps) {
@@ -159,10 +161,11 @@ export function HeaderMenu({
   }
 
   // Grouping or hiding can remove this header: focus the ▾ now at its position instead
-  function act(item: 'group' | 'hide'): void {
+  function act(item: 'clear' | 'group' | 'hide'): void {
     const restoreFocus = triggerRef.current && keepHeaderMenuFocus(triggerRef.current)
     close(true)
-    if (item === 'group') onGroup()
+    if (item === 'clear') onClearFilter()
+    else if (item === 'group') onGroup()
     else onHide()
     if (restoreFocus) queueMicrotask(restoreFocus)
   }

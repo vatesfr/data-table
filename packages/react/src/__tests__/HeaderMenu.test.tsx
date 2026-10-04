@@ -181,6 +181,20 @@ describe('HeaderMenu', () => {
     expect(th().getAttribute('draggable')).toBe('true')
   })
 
+  it('clears a filtered column from its menu, then refocuses its button', async () => {
+    const { table, trigger, items, item, click } = mount(COLS, {
+      excludeFilters: { dept: ['HR'] },
+    })
+    await click(trigger('Name')!)
+    expect(items()).not.toContain('Clear filter')
+    await click(trigger('Name')!)
+    await click(trigger('Dept')!)
+    expect(items()).toEqual(['Filter▸', 'Clear filter', 'Group by this column', 'Hide column'])
+    await click(item('Clear filter'))
+    expect(table().filter.activeCount).toBe(0)
+    expect(document.activeElement).toBe(trigger('Dept'))
+  })
+
   it('marks the button of a filtered column', () => {
     const { trigger } = mount(COLS, { filters: { dept: ['Eng'] } })
     expect(isFiltered(trigger('Dept')!)).toBe(true)

@@ -3473,7 +3473,12 @@ export function DataTableView<TRow extends object>({
                             columnHasActiveFilter(col.key, filters, excludeFilters, rangeFilters),
                           )}
                           labels={L}
-                          items={getHeaderMenuItems(col, groupBy, activeColumns.length)}
+                          items={getHeaderMenuItems(
+                            col,
+                            groupBy,
+                            activeColumns.length,
+                            columnHasActiveFilter(col.key, filters, excludeFilters, rangeFilters),
+                          )}
                           filtered={columnHasActiveFilter(
                             col.key,
                             filters,
@@ -3483,6 +3488,11 @@ export function DataTableView<TRow extends object>({
                           filterPane={
                             <FilterPane table={table} data={data} columns={columns} col={col} />
                           }
+                          onClearFilter={() => {
+                            clearColumnFilter(col.key, 'include')
+                            clearColumnFilter(col.key, 'exclude')
+                            clearColumnFilter(col.key, 'range')
+                          }}
                           onGroup={() => toggleGroup(col.key)}
                           onHide={() => toggleColVisibility(col.key)}
                         />
