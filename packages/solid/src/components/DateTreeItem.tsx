@@ -4,8 +4,9 @@ import {
   getDateTreeNodeState,
   sumDateTreeNodeCount,
   type DateTreeNode,
+  applyCheckboxState,
+  deferCheckboxCorrection,
 } from '@vates/data-table-core/internal'
-import { applyCheckboxState, deferCheckboxCorrection } from './checkboxSync'
 
 interface DateTreeItemProps {
   node: DateTreeNode

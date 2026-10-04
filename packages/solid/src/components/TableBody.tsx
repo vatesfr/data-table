@@ -1,6 +1,8 @@
 import { For, Index, Show, createEffect, createMemo, createSignal, onCleanup } from 'solid-js'
 import {
   getColumnValue,
+  cellText,
+  groupText,
   computeAggregate,
   getSortIcon,
   getSortIndex,
@@ -8,10 +10,12 @@ import {
   isSameVisibleItem,
   getCrossPageFocusTarget,
   type VisibleItem,
+  applyCheckboxState,
 } from '@vates/data-table-core/internal'
 import type { TableState } from '../createTableState'
 import type { ColumnDef } from '../types'
-import { applyCheckboxState } from './checkboxSync'
+import { HeaderMenu } from './HeaderMenu'
+import { focusSearch } from './SearchBox'
 
 interface TableBodyProps<TRow extends object> {
   table: TableState<TRow>
@@ -218,6 +222,9 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
 
   // --- Header drag-and-drop reorder ---
   const [dragColKey, setDragColKey] = createSignal<string | null>(null)
+  // The open header menu's column: its <th> stops being draggable, or dragging a control inside
+  // the menu (a range slider) would drag the column instead
+  const [menuColKey, setMenuColKey] = createSignal<string | null>(null)
   const [dragOverColKey, setDragOverColKey] = createSignal<string | null>(null)
   let headerRow: HTMLTableRowElement | undefined
   function headerCellEls(): { key: string; el: HTMLElement }[] {
@@ -295,6 +302,7 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
                   type="checkbox"
                   checked={allSelected()}
                   ref={selectAllEl}
+                  aria-label={table.labels().selectAll}
                   onClick={() => table.selection.toggleAll(table.processedData())}
                 />
               </th>
@@ -304,7 +312,8 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
             </Show>
             <For each={table.columns.active()}>
               {(col) => {
-                const isSorted = createMemo(() => headerSorts().some((s) => s.key === col.key))
+                const sortDir = createMemo(() => headerSorts().find((s) => s.key === col.key)?.dir)
+                const isSorted = () => sortDir() !== undefined
                 const sortIdx = createMemo(() =>
                   isSorted() && headerSorts().length > 1
                     ? getSortIndex(headerSorts(), col.key)
@@ -313,12 +322,26 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
                 const icon = createMemo(() =>
                   isSorted() ? getSortIcon(headerSorts(), col.key) : '↕',
                 )
+                const labelAndIcon = () => (
+                  <>
+                    {col.label}
+                    <span
+                      class={`dt-sort-icon${isSorted() ? ' dt-sort-icon--active' : ''}`}
+                      aria-hidden="true"
+                    >
+                      {sortIdx() ? `${sortIdx()}${icon()}` : icon()}
+                    </span>
+                  </>
+                )
                 return (
                   <th
                     class="dt-th"
                     classList={{ 'dt-dd-item--drag-over': dragOverColKey() === col.key }}
-                    draggable="true"
+                    draggable={menuColKey() === col.key ? 'false' : 'true'}
                     data-col-key={col.key}
+                    aria-sort={
+                      sortDir() ? (sortDir() === 'asc' ? 'ascending' : 'descending') : undefined
+                    }
                     style={col.width ? { width: `${col.width}px` } : undefined}
                     onDragStart={() => setDragColKey(col.key)}
                     onDragEnd={() => {
@@ -328,10 +351,19 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
                     onClick={(e) => handleHeaderClick(col, e)}
                   >
                     <span class="dt-th-inner">
-                      {col.label}{' '}
-                      <span class={`dt-sort-icon${isSorted() ? ' dt-sort-icon--active' : ''}`}>
-                        {sortIdx() ? `${sortIdx()}${icon()}` : icon()}
-                      </span>
+                      {/* A button so keyboard users can sort; its click bubbles to the <th>'s handler */}
+                      <Show when={col.sortable !== false} fallback={col.label}>
+                        <button type="button" class="dt-th-sort">
+                          {labelAndIcon()}
+                        </button>
+                      </Show>
+                      <HeaderMenu
+                        table={table}
+                        col={col}
+                        onOpenChange={(open) =>
+                          setMenuColKey((cur) => (open ? col.key : cur === col.key ? null : cur))
+                        }
+                      />
                     </span>
                   </th>
                 )
@@ -435,6 +467,34 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
               </Show>
             )}
           </Index>
+          <Show when={table.processedData().length === 0}>
+            <tr>
+              <td
+                class="dt-td dt-empty"
+                colspan={
+                  table.columns.active().length +
+                  (props.selectable ? 1 : 0) +
+                  (table.group.by().length > 0 ? 1 : 0)
+                }
+              >
+                <Show when={table.data().length > 0} fallback={table.labels().noRows}>
+                  {table.labels().noMatchingRows}{' '}
+                  <button
+                    type="button"
+                    class="dt-btn"
+                    onClick={(e) => {
+                      const root = e.currentTarget.closest('.dt')
+                      table.filter.clear()
+                      table.search.setQuery('')
+                      focusSearch(root)
+                    }}
+                  >
+                    {table.labels().clearSearchAndFilters}
+                  </button>
+                </Show>
+              </td>
+            </tr>
+          </Show>
         </tbody>
       </table>
     </div>
@@ -512,6 +572,16 @@ function GroupHeaderRow<TRow extends object>(props: GroupHeaderRowProps<TRow>) {
               type="checkbox"
               checked={groupAllSelected()}
               ref={cbEl}
+              aria-label={table
+                .labels()
+                .selectGroup(
+                  groupText(
+                    props.columns,
+                    table.group.by(),
+                    props.group.keyParts,
+                    props.group.sampleRow!,
+                  ),
+                )}
               onClick={(e) => {
                 e.stopPropagation()
                 table.selection.toggleAll(props.group.rows)
@@ -603,6 +673,10 @@ interface DataRowProps<TRow extends object> {
 function DataRow<TRow extends object>(props: DataRowProps<TRow>) {
   const { table, row } = props
   const isSelected = createMemo(() => table.selection.all().has(row))
+  const firstCellText = () => {
+    const col = table.columns.active()[0]
+    return col ? cellText(col, row) : ''
+  }
   const rk = createMemo(() =>
     props.rowKey
       ? String((row as Record<string, unknown>)[props.rowKey] ?? props.procIdx)
@@ -657,6 +731,7 @@ function DataRow<TRow extends object>(props: DataRowProps<TRow>) {
             type="checkbox"
             tabIndex={-1}
             checked={isSelected()}
+            aria-label={table.labels().selectRow(firstCellText())}
             onClick={(e) => table.selection.toggle(row, (e as MouseEvent).shiftKey)}
           />
         </td>

@@ -1,6 +1,6 @@
 {
   "name": "@vates/data-table-core",
-  "version": "0.14.0",
+  "version": "0.15.0",
   "description": "Framework-agnostic core logic for data-table",
   "license": "MIT",
   "author": "Vates",
@@ -61,7 +61,7 @@
     "test:watch": "vitest",
     "bench": "vitest bench --run",
     "type-check": "tsc --noEmit",
-    "size": "npm run build && size-limit",
+    "size": "size-limit",
     "prepublishOnly": "npm run build"
   },
   "size-limit": [

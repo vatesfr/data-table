@@ -1,6 +1,6 @@
 {
   "name": "@vates/data-table-vue",
-  "version": "0.14.0",
+  "version": "0.15.0",
   "description": "Vue 3 adapter for data-table",
   "license": "MIT",
   "author": "Vates",
@@ -53,7 +53,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "type-check": "vue-tsc --noEmit",
-    "size": "npm run build && size-limit",
+    "size": "size-limit",
     "prepublishOnly": "npm run build"
   },
   "size-limit": [
@@ -61,11 +61,11 @@
       "name": "ESM bundle (gzip)",
       "path": "dist/data-table-vue.js",
       "gzip": true,
-      "limit": "19.6 KB"
+      "limit": "21.4 KB"
     }
   ],
   "dependencies": {
-    "@vates/data-table-core": "^0.14.0"
+    "@vates/data-table-core": "^0.15.0"
   },
   "peerDependencies": {
     "vue": ">=3.3.0"

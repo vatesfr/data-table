@@ -33,7 +33,7 @@ function setInput(el: HTMLInputElement, value: string): void {
 
 function colHeaders(container: HTMLElement): string[] {
   return [...container.querySelectorAll('th.dt-th')].map((th) =>
-    th.textContent!.replace(/[↕↑↓0-9]/g, '').trim(),
+    th.textContent!.replace(/[↕↑↓▾0-9]/g, '').trim(),
   )
 }
 
@@ -143,7 +143,7 @@ describe('createDataTable', () => {
 
   it('passes the full row as the second argument to format', () => {
     const cols: ColumnDef<Row>[] = [
-      { key: 'score', label: 'Score', format: (v, row) => `${row.name}:${v}` },
+      { key: 'score', label: 'Score', format: (v, row) => `${row?.name}:${v}` },
     ]
     createDataTable(container, { data: ROWS, columns: cols })
     expect(container.innerHTML).toContain('Alice:90')

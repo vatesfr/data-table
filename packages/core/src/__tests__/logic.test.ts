@@ -24,10 +24,14 @@ import {
   findDateTreeNode,
   computeAggregate,
   getColumnValue,
+  cellText,
+  groupText,
   paginateData,
   computeTotalPages,
   toggleSort,
   replaceSort,
+  summarizeFilterValues,
+  formatFilterValue,
   appendOrToggleSort,
   toggleFilterAll,
   setFilterValues,
@@ -138,6 +142,43 @@ describe('getColumnValue', () => {
   })
 })
 
+describe('cellText', () => {
+  it('uses format, ignoring render', () => {
+    const col = { key: 'salary', label: 'Salary', format: (v: unknown) => `$${v}` }
+    expect(cellText(col, ROWS[0])).toBe('$90000')
+  })
+
+  it('joins array values and blanks missing ones', () => {
+    expect(cellText({ key: 'tags', label: 'Tags' }, { tags: ['a', 'b'] })).toBe('a, b')
+    expect(cellText({ key: 'nope', label: 'Nope' }, ROWS[0])).toBe('')
+  })
+})
+
+describe('groupText', () => {
+  const cols = [
+    { key: 'dept', label: 'Dept' },
+    {
+      key: 'salary',
+      label: 'Salary',
+      groupValue: (v: unknown) => Math.floor((v as number) / 50000) * 50000,
+      groupFormat: (k: string) => `${k}+`,
+    },
+    { key: 'tags', label: 'Tags' },
+  ]
+
+  it('joins every level, bucketed ones through groupFormat', () => {
+    expect(groupText(cols, ['dept', 'salary'], ['Eng', '50000'], ROWS[0])).toBe('Eng › 50000+')
+  })
+
+  it("names a multi-value group by its own keyPart, not the row's whole array", () => {
+    expect(groupText(cols, ['tags'], ['b'], { tags: ['a', 'b'] })).toBe('b')
+  })
+
+  it('falls back to the keyPart for an unknown column', () => {
+    expect(groupText(cols, ['gone'], ['x'], ROWS[0])).toBe('x')
+  })
+})
+
 // ─── searchData ───────────────────────────────────────────────────────────────
 
 describe('searchData', () => {
@@ -170,7 +211,7 @@ describe('searchData', () => {
       {
         key: 'salary' as const,
         label: 'Salary',
-        format: (v: unknown, row: Row) => `${row.name}:${v}`,
+        format: (v: unknown, row?: Row) => `${row?.name}:${v}`,
       },
     ]
     const result = searchData(ROWS, 'clara:110000', cols)
@@ -3604,5 +3645,36 @@ describe('getVirtualScrollTarget', () => {
 
   it('scrolls back to 0 when the target is the first row and the list is only slightly scrolled', () => {
     expect(getVirtualScrollTarget(5, 260, 32, 0)).toBe(0)
+  })
+})
+
+describe('formatFilterValue', () => {
+  const salary = {
+    key: 'salary',
+    label: 'Salary',
+    type: 'number' as const,
+    format: (v: unknown) => `$${Number(v).toLocaleString('en-US')}`,
+  }
+
+  it('shows a value through the column format, numbers as numbers', () => {
+    expect(formatFilterValue(salary, '90000', '(none)')).toBe('$90,000')
+  })
+
+  it('leaves the empty placeholder, empty bounds and unformatted columns alone', () => {
+    expect(formatFilterValue(salary, '(none)', '(none)')).toBe('(none)')
+    expect(formatFilterValue(salary, '', '(none)')).toBe('')
+    expect(formatFilterValue({ key: 'name', label: 'Name' }, 'Ada', '(none)')).toBe('Ada')
+  })
+})
+
+describe('summarizeFilterValues with a format', () => {
+  it('formats each named value', () => {
+    expect(
+      summarizeFilterValues(
+        new Set(['a', 'b']),
+        (n) => `+${n}`,
+        (v) => v.toUpperCase(),
+      ),
+    ).toBe('A, B')
   })
 })

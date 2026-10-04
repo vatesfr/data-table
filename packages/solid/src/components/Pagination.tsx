@@ -16,6 +16,7 @@ export function Pagination<TRow extends object>(props: PaginationProps<TRow>) {
           type="button"
           class="dt-page-btn"
           disabled={table.pagination.page() === 1}
+          aria-label={table.labels().firstPage}
           onClick={() => table.pagination.setPage(1)}
         >
           «
@@ -24,6 +25,7 @@ export function Pagination<TRow extends object>(props: PaginationProps<TRow>) {
           type="button"
           class="dt-page-btn"
           disabled={table.pagination.page() === 1}
+          aria-label={table.labels().previousPage}
           onClick={() => table.pagination.setPage(table.pagination.page() - 1)}
         >
           ‹
@@ -35,6 +37,7 @@ export function Pagination<TRow extends object>(props: PaginationProps<TRow>) {
           type="button"
           class="dt-page-btn"
           disabled={table.pagination.page() >= table.pagination.numPages()}
+          aria-label={table.labels().nextPage}
           onClick={() => table.pagination.setPage(table.pagination.page() + 1)}
         >
           ›
@@ -43,6 +46,7 @@ export function Pagination<TRow extends object>(props: PaginationProps<TRow>) {
           type="button"
           class="dt-page-btn"
           disabled={table.pagination.page() >= table.pagination.numPages()}
+          aria-label={table.labels().lastPage}
           onClick={() => table.pagination.setPage(table.pagination.numPages())}
         >
           »

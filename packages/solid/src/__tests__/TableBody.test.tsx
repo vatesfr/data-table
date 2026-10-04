@@ -87,6 +87,38 @@ describe('TableBody — rendering', () => {
   })
 })
 
+describe('TableBody — empty states', () => {
+  it('says no rows match, with a way out clearing search and filters', () => {
+    const { container, table, dispose } = mount()
+    table.sort.toggle('name')
+    table.filter.setValues('dept', ['Eng'], true)
+    table.search.setQuery('zzz')
+    expect(container.querySelector('tbody')?.textContent).toContain('No matching rows')
+    const btn = [...container.querySelectorAll<HTMLButtonElement>('tbody button')].find(
+      (b) => b.textContent === 'Clear search and filters',
+    )!
+    btn.click()
+    expect(table.search.query()).toBe('')
+    expect(table.filter.activeCount()).toBe(0)
+    expect(table.sort.entries()).toHaveLength(1)
+    expect(container.querySelectorAll('tbody tr.dt-tr')).toHaveLength(3)
+    dispose()
+  })
+
+  it('says "No rows", with no button, when there is no data at all', () => {
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const dispose = createRoot((d) => {
+      const table = createTableState<Row>([], COLS)
+      render(() => <TableBody table={table} columns={COLS} />, container)
+      return d
+    })
+    expect(container.querySelector('tbody')?.textContent).toBe('No rows')
+    expect(container.querySelector('tbody button')).toBeNull()
+    dispose()
+  })
+})
+
 describe('TableBody — header sorting', () => {
   it('plain click replaces the whole sort with this column ascending', () => {
     const { container, table, dispose } = mount()
@@ -107,6 +139,22 @@ describe('TableBody — header sorting', () => {
     table.sort.toggle('name')
     scoreHeader.dispatchEvent(new MouseEvent('click', { bubbles: true, shiftKey: true }))
     expect(table.sort.entries().map((s) => s.key)).toEqual(['name', 'score'])
+    dispose()
+  })
+
+  it('exposes each sorted header direction as aria-sort', () => {
+    const { container, table, dispose } = mount()
+    const header = (label: string) =>
+      [...container.querySelectorAll('th')].find((th) => th.textContent?.includes(label))!
+    table.setViewState({
+      sorts: [
+        { key: 'score', dir: 'desc' },
+        { key: 'name', dir: 'asc' },
+      ],
+    })
+    expect(header('Score').getAttribute('aria-sort')).toBe('descending')
+    expect(header('Name').getAttribute('aria-sort')).toBe('ascending')
+    expect(header('Dept').hasAttribute('aria-sort')).toBe(false)
     dispose()
   })
 
@@ -149,6 +197,26 @@ describe('TableBody — header sorting', () => {
 })
 
 describe('TableBody — selection', () => {
+  it('names the select-all, group and row checkboxes', () => {
+    const { container, dispose } = mount({
+      selectable: true,
+      initialViewState: { groupBy: ['dept'] },
+      defaultGroupsCollapsed: false,
+    })
+    const names = [...container.querySelectorAll('input[type="checkbox"]')].map((c) =>
+      c.getAttribute('aria-label'),
+    )
+    expect(names).toEqual([
+      'Select all',
+      'Select group Eng',
+      'Select row Alice',
+      'Select row Clara',
+      'Select group HR',
+      'Select row Bob',
+    ])
+    dispose()
+  })
+
   it('clicking a row checkbox toggles selection', () => {
     const { container, table, dispose } = mount({ selectable: true })
     const cb = container.querySelector<HTMLInputElement>(

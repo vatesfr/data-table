@@ -1,6 +1,6 @@
 {
   "name": "@vates/data-table-react",
-  "version": "0.14.0",
+  "version": "0.15.0",
   "description": "React adapter for data-table",
   "license": "MIT",
   "author": "Vates",
@@ -51,7 +51,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "type-check": "tsc --noEmit",
-    "size": "npm run build && size-limit",
+    "size": "size-limit",
     "prepublishOnly": "npm run build"
   },
   "size-limit": [
@@ -59,11 +59,11 @@
       "name": "ESM bundle (gzip)",
       "path": "dist/data-table-react.js",
       "gzip": true,
-      "limit": "18 KB"
+      "limit": "19.8 KB"
     }
   ],
   "dependencies": {
-    "@vates/data-table-core": "^0.14.0"
+    "@vates/data-table-core": "^0.15.0"
   },
   "peerDependencies": {
     "react": ">=18.0.0",

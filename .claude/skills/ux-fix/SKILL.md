@@ -1,11 +1,11 @@
 ---
 name: ux-fix
-description: Fix items from the UX backlog (docs/improvements.md) — test first, fix in every adapter, check on the demos, close the item, one commit each. Use when asked to fix, implement or close a U-item or a ux-review finding.
+description: Fix items from the UX backlog (docs/improvements.md) or build ◇ target steps of docs/use-cases.md — test first, fix in every adapter, check on the demos, close the item, one commit each. Use when asked to fix, implement or close a U-item, a ux-review finding or a ◇ step.
 ---
 
 # UX fix
 
-Works through the named `U<n>` items in [improvements.md](../../../docs/improvements.md), in order, one commit each. Finding new problems is `ux-review`'s job; this one fixes what's there.
+Works through the named `U<n>` items in [improvements.md](../../../docs/improvements.md), in order, one commit each. Finding new problems is `ux-review`'s job; this one fixes what's there. A ◇ step of a use case is handled like an item: its line is the Direction, and closing it drops the ◇.
 
 ## 0. Before starting
 
@@ -16,7 +16,7 @@ Works through the named `U<n>` items in [improvements.md](../../../docs/improvem
 
 - Behavior: a test per adapter (React, Vue, Solid — vanilla too when its wrapper is involved) in that package's `src/__tests__/`, next to the area's existing tests; logic: a pure-function test in core. See [testing](../../../docs/testing.md).
 - Run it alone (`npx vitest run <path>` from the package) and confirm it fails for the reason the item describes.
-- What jsdom can't show (layout, overflow, sizes, scroll) skips the test; step 3 measures it instead, before and after.
+- What jsdom can't show (layout, overflow, sizes, scroll, accessibility) gets a Playwright test in `e2e/` instead, on the Solid demo; step 3 still measures it before and after. An item listed in `e2e/axe.spec.ts`'s `KNOWN` leaves that list with its fix.
 
 ## 2. Fix
 
@@ -24,8 +24,9 @@ The smallest change closing the item, the same in every adapter (CLAUDE.md's Par
 
 ## 3. Look at it
 
-- Solid demo (`npm run dev:solid`, `:58983`), at **1440×900** and **390×844**: for layout, `node scripts/ux-measure.mjs --name=ux-U<n> #section…` then `browser_run_code_unsafe` with `filename: .playwright-mcp/measure.js`; otherwise one `browser_run_code_unsafe` call per step that acts, measures what the item is about (focus, bounding boxes, accessible names) and screenshots to `.playwright-mcp/ux-U<n>-<what>.png`.
-- Then the same check on the React (`:58981`) and Vue (`:58982`) demos — they render their own UI; for layout, one `--demo=solid,react,vue` run covers all three.
+- Follow ux-review's Server and Mechanics sections: clean state, `--view`, scoped locators, keyboard row picking.
+- Solid demo (`:58983`), then React (`:58981`) and Vue (`:58982`), which render their own UI. At **1440×900**, plus **390×844** for layout or touch items.
+- Layout: `node scripts/ux-measure.mjs --demo=solid,react,vue --name=ux-U<n> #section…`. Otherwise one step per check, written with `node scripts/ux-step.mjs` (see ux-review's Mechanics), that acts, measures what the item is about (focus, bounding boxes, accessible names) and screenshots to `.playwright-mcp/ux-U<n>-<what>.png`.
 - This is the item's re-check — no separate ux-review run.
 
 ## 4. Close and commit
@@ -37,3 +38,5 @@ The smallest change closing the item, the same in every adapter (CLAUDE.md's Par
 ## Report
 
 One table — item, commit, how it was verified (tests, measurement, adapters checked) — then anything narrowed rather than closed, and side effects worth knowing.
+
+<!-- check-docs-ignore: AskUserQuestion ux-U -->

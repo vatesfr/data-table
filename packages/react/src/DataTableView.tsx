@@ -10,8 +10,12 @@ import {
 import {
   computeAggregate,
   computeStringValueCounts,
-  isMultiValueColumn,
+  isMultiValueColumnCached,
+  isExcludeOnlyColumn,
+  exclusionChip,
   getColumnValue,
+  cellText,
+  groupText,
   filterValuesBySearch,
   filterValuesByCount,
   filterValuesByRange,
@@ -29,34 +33,41 @@ import {
   computeDateTree,
   getDateTreeNodeState,
   sumDateTreeNodeCount,
-  findDateTreeNode,
-  selectDateRange,
-  selectRange,
   isGroupCollapsed,
   isSameVisibleItem,
   indexOfVisibleItem,
   paginateVisibleItems,
   mergePageSizeOptions,
+  checklistBulkState,
+  clickChecklistValue,
+  clickDateTreeNode,
+  toggleChecklistValues,
   computeVirtualRange,
   getVirtualScrollTarget,
   getCrossPageFocusTarget,
   getSortIndex as getHeaderSortIndex,
   getSortIcon as getHeaderSortIcon,
   summarizeFilterValues,
+  formatFilterValue,
   columnHasActiveFilter,
   orderFilterColumnsByActive,
   applyColumnOrderSnapshot,
   columnMatchesSearch,
   groupColumnsByCategory,
+  getHeaderMenuItems,
+  watchMedia,
+  FILTER_NARROW_QUERY,
   type VisibleItem,
   type DateTreeNode,
 } from '@vates/data-table-core/internal'
 import type { ValueSort, SortEntry } from '@vates/data-table-core'
 import { Dropdown } from './components/Dropdown'
 import { CategorySubmenu } from './components/CategorySubmenu'
+import { HeaderMenu } from './components/HeaderMenu'
 import { ToolbarBtn } from './components/ToolbarBtn'
 import { useDropdownReorder } from './hooks/useDropdownReorder'
 import type { ColumnDef, DataTableViewProps } from './types'
+import type { TableState } from './useTableState'
 
 // Fixed row height for the filter dropdown's virtualized checklist (see computeVirtualRange) —
 // must match the actual rendered height of a checklist row exactly, which is why each row gets
@@ -70,6 +81,17 @@ const FILTER_LIST_ITEM_HEIGHT = 32
 const FILTER_LIST_VIEWPORT_HEIGHT = 260
 
 const S = {
+  thSort: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 4,
+    padding: 0,
+    border: 'none',
+    background: 'none',
+    font: 'inherit',
+    color: 'inherit',
+    cursor: 'inherit',
+  },
   wrap: {
     fontFamily: 'inherit',
     fontSize: 14,
@@ -217,6 +239,7 @@ const S = {
     fontFamily: 'inherit',
     cursor: 'pointer',
     lineHeight: 1.4,
+    minHeight: 24,
   } as CSSProperties,
   chipX: {
     cursor: 'pointer',
@@ -228,6 +251,9 @@ const S = {
     color: 'var(--color-text-secondary)',
     fontFamily: 'inherit',
     lineHeight: 1.4,
+    // 24 px touch target (docs/ui-guidelines.md)
+    minHeight: 24,
+    minWidth: 24,
   } as CSSProperties,
   // The one deliberate color accent in the active bar — filters already carried this "narrowing
   // your view" meaning before sort/group chips existed, so they keep it; sort/group chips reuse
@@ -265,6 +291,8 @@ const S = {
     color: 'var(--color-text-tertiary)',
     fontFamily: 'inherit',
     lineHeight: 1.4,
+    minHeight: 24,
+    minWidth: 24,
   } as CSSProperties,
   groupRow: {
     background: 'var(--color-background-secondary)',
@@ -273,6 +301,10 @@ const S = {
     fontSize: 12,
     color: 'var(--color-text-primary)',
     cursor: 'pointer',
+  } as CSSProperties,
+  empty: {
+    padding: '24px 12px',
+    color: 'var(--color-text-secondary)',
   } as CSSProperties,
   groupTd: {
     padding: '6px 12px',
@@ -313,7 +345,7 @@ const S = {
     flexWrap: 'wrap',
   } as CSSProperties,
   pageBtn: {
-    padding: '4px 9px',
+    padding: '5px 9px',
     background: 'none',
     border: '0.5px solid var(--color-border-secondary)',
     borderRadius: 4,
@@ -436,6 +468,18 @@ const S = {
     minWidth: 460,
     maxHeight: 380,
     overflow: 'hidden',
+  } as CSSProperties,
+  filterPanelNarrow: {
+    flexDirection: 'column',
+    minWidth: 0,
+    // 100vw counts a classic scrollbar too, hence more than twice the 8 px viewport margin
+    width: 'calc(100vw - 40px)',
+  } as CSSProperties,
+  filterColsNarrow: { width: 'auto', borderRight: 'none' } as CSSProperties,
+  filterBack: {
+    flexShrink: 0,
+    fontWeight: 500,
+    borderBottom: '0.5px solid var(--color-border-tertiary)',
   } as CSSProperties,
   filterCols: {
     width: 150,
@@ -873,6 +917,669 @@ function DdSearchInput({
 
 const DEFAULT_VALUE_SORT: ValueSort = { by: 'alpha', dir: 'asc' }
 
+// Escape on the value search clears it first (see the search input below); the Filter dropdown's
+// own handler only crosses panes (→/←) and clears columns.
+/**
+ * One column's filter controls — checklist (string, virtualized), range + slider (number), or a
+ * Year›Month›Day tree + range + slider (date). Shown by the Filter dropdown's right pane and the
+ * header menu's Filter flyout; owns its view state (value search, value order, shift-click
+ * anchor, expanded date nodes), so render it keyed by column.
+ */
+function FilterPane<TRow extends object>({
+  table,
+  data,
+  columns,
+  col,
+}: {
+  table: TableState<TRow>
+  data: TRow[]
+  columns: ColumnDef<TRow>[]
+  col: ColumnDef<TRow>
+}) {
+  const L = table.labels
+  const {
+    include: filters,
+    exclude: excludeFilters,
+    ranges: rangeFilters,
+    modes: filterModes,
+    valueMap: stringValueMap,
+    setMode: setFilterMode,
+    setRange: setRangeFilter,
+  } = table.filter
+  const [searchTerm, setSearchTerm] = useState('')
+  const [anchor, setAnchor] = useState<string | null>(null)
+  const [expandedDateNodes, setExpandedDateNodes] = useState<Set<string>>(new Set())
+  const [valueSort, setValueSort] = useState<ValueSort>(col.defaultValueSort ?? DEFAULT_VALUE_SORT)
+  const [filterListScrollTop, setFilterListScrollTop] = useState(0)
+  const filterListRef = useRef<HTMLDivElement>(null)
+  const filterListRafPending = useRef(false)
+  const filterSelectAllRef = useRef<HTMLInputElement>(null)
+  const filterOthersRef = useRef<HTMLInputElement>(null)
+
+  const stringValueCounts = computeStringValueCounts(
+    data,
+    filters,
+    rangeFilters,
+    columns,
+    L.emptyValue,
+    [col.key],
+    excludeFilters,
+    filterModes,
+  )
+  // Bounds are the column's actual min/max across the full, unfiltered `data` (not
+  // filtered/processed data) — see computeValueBounds — so they don't shift under a mid-drag
+  // user just because some other filter narrowed the row set. Computed once by the caller (see
+  // filterDetailBounds below) and shared with the plain min/max inputs' own default value, rather
+  // than recomputed here on every render.
+  const renderRangeSliderFor = (
+    col: ColumnDef<TRow>,
+    bounds: { min: number; max: number } | null,
+  ) => {
+    if (!bounds || bounds.min >= bounds.max) return null
+    const rf = rangeFilters[col.key]
+    const geo = computeRangeSliderGeometry(rf, bounds, col.type === 'date')
+    return (
+      <RangeSlider
+        bounds={bounds}
+        low={geo.low}
+        high={geo.high}
+        step={geo.step}
+        pctLo={geo.pctLo}
+        pctHi={geo.pctHi}
+        onChange={(lo, hi) => {
+          setRangeFilter(col.key, 'min', formatRangeBound(lo, col))
+          setRangeFilter(col.key, 'max', formatRangeBound(hi, col))
+        }}
+      />
+    )
+  }
+  // The plain min/max inputs (+ slider below them) for a number/date range filter — the two
+  // types differ only in <input type>, whether the label is a placeholder (number) or
+  // aria-label (date, since a native date input has no room for placeholder text) and the
+  // date input's own fixed width. Unset min/max default to `bounds` (via formatRangeBound)
+  // rather than sitting empty — a blank box gives no hint of what range is even meaningful for
+  // this column, and it means the slider's own thumbs (which already fell back to these bounds)
+  // no longer visually disagree with the text inputs next to them.
+  const renderRangeInputsFor = (
+    col: ColumnDef<TRow>,
+    bounds: { min: number; max: number } | null,
+  ) => {
+    const isDate = col.type === 'date'
+    const inputStyle = isDate ? { ...S.rangeInput, width: 118 } : S.rangeInput
+    const valueFor = (kind: 'min' | 'max') =>
+      rangeFilters[col.key]?.[kind] ?? (bounds ? formatRangeBound(bounds[kind], col) : '')
+    return (
+      <div style={{ padding: '4px 14px 8px' }}>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          <input
+            type={isDate ? 'date' : 'number'}
+            placeholder={isDate ? undefined : L.min}
+            aria-label={isDate ? L.min : undefined}
+            value={valueFor('min')}
+            onChange={(e) => setRangeFilter(col.key, 'min', e.target.value)}
+            style={inputStyle}
+          />
+          <span style={{ color: 'var(--color-text-tertiary)', fontSize: 12 }}>–</span>
+          <input
+            type={isDate ? 'date' : 'number'}
+            placeholder={isDate ? undefined : L.max}
+            aria-label={isDate ? L.max : undefined}
+            value={valueFor('max')}
+            onChange={(e) => setRangeFilter(col.key, 'max', e.target.value)}
+            style={inputStyle}
+          />
+        </div>
+        {renderRangeSliderFor(col, bounds)}
+      </div>
+    )
+  }
+  const filterDetailBounds =
+    col.type === 'number' || col.type === 'date' ? computeValueBounds(data, col) : null
+  // Any/all match-mode control — only meaningful for a column whose values are actually
+  // array-shaped in the data (see isMultiValueColumn's own doc comment), and only for the
+  // string checklist, not the date tree (mirrors Solid's FilterDropdown.tsx).
+  const isMultiValueFilterCol = isMultiValueColumnCached(data, col)
+  // A non-multi-value column's checklist uses a checked-by-default, exclude-only model instead
+  // of the tri-state include/exclude cycle (see docs/filter-dropdown.md's "Filter dropdown"): `filters` is
+  // never written for such a column, "checked" simply means "not in `excludeFilters`". Date/
+  // number columns (their own detail branches) and genuinely multi-value columns keep the
+  // original include-based model untouched. Mirrors Solid's `usesExcludeOnly`.
+  const usesExcludeOnly = col.type !== 'date' && col.type !== 'number' && !isMultiValueFilterCol
+  // The set a value must be in to stay visible even at a 0 facet count (see
+  // filterValuesByCount) — whichever map the active column's model actually writes to.
+  const filterAlreadyTouched = (col: ColumnDef<TRow>) =>
+    usesExcludeOnly
+      ? (excludeFilters[col.key] ?? new Set<string>())
+      : (filters[col.key] ?? new Set<string>())
+  const filterMatchMode = filterModes[col.key] ?? col.multiMode ?? 'or'
+  const cycleFilterValueSort = () =>
+    setValueSort(
+      col.type === 'date'
+        ? { ...valueSort, dir: toggleValueSortDir(valueSort.dir) }
+        : cycleValueSort(valueSort),
+    )
+  // Range/count-filtered, but not yet narrowed by the checklist's own value search — kept
+  // separate from filterDetailValues below so filterOtherValues can diff the two to find exactly
+  // what the search is currently hiding. Order relative to search doesn't matter here: range/
+  // count filtering and search are independent per-value predicates, so computing them in either
+  // order yields the same final set. Mirrors Solid's detailValuesBeforeSearch.
+  const detailValuesBeforeSearch =
+    col.type !== 'number'
+      ? filterValuesByCount(
+          // Narrowed by the date range filter (if any) — a value outside the active range never
+          // becomes a tree leaf, rather than merely being ANDed onto the final row set once
+          // ticked. A no-op for string columns (they never populate rangeFilters).
+          filterValuesByRange(stringValueMap[col.key] ?? [], rangeFilters[col.key], col.parseDate),
+          stringValueCounts[col.key] ?? new Map(),
+          filterAlreadyTouched(col),
+        )
+      : []
+  const filterDetailValues =
+    col.type !== 'number'
+      ? sortFilterValues(
+          filterValuesBySearch(detailValuesBeforeSearch, searchTerm),
+          stringValueCounts[col.key] ?? new Map(),
+          valueSort,
+          col.compare,
+        )
+      : []
+  // "Others" — the values the checklist's own value search is currently hiding (see docs/filter-dropdown.md's
+  // "Filter dropdown"). Only meaningful once a search term actually narrows the list; empty
+  // otherwise.
+  const filterOtherValues = (() => {
+    if (!searchTerm) return []
+    const shown = new Set(filterDetailValues)
+    return detailValuesBeforeSearch.filter((v) => !shown.has(v))
+  })()
+  const filterBulkState = (values: string[]) =>
+    checklistBulkState(
+      values,
+      (usesExcludeOnly ? excludeFilters : filters)[col.key],
+      usesExcludeOnly,
+    )
+  const filterAllSelected = filterBulkState(filterDetailValues).checked
+  const filterSomeSelected = filterBulkState(filterDetailValues).indeterminate
+  const filterOthersState = filterBulkState(filterOtherValues)
+
+  useEffect(() => {
+    if (filterSelectAllRef.current) filterSelectAllRef.current.indeterminate = filterSomeSelected
+  }, [filterSomeSelected])
+
+  useEffect(() => {
+    if (filterOthersRef.current)
+      filterOthersRef.current.indeterminate = filterOthersState.indeterminate
+  }, [filterOthersState.indeterminate])
+
+  // Reset the virtualized checklist's scroll position whenever the values it's scrolled
+  // through change identity — switching columns or narrowing by search both shift what row 0
+  // even means, so staying scrolled to the same pixel offset would show an unrelated slice.
+  // Comparing against the previous render (rather than an effect) is React's own documented
+  // pattern for "adjust state when a prop changes" — https://react.dev/reference/react/useState#storing-information-from-previous-renders —
+  // and avoids the cascading-render lint error a setState-in-effect would trigger.
+  const filterListResetKey = searchTerm
+  const [prevFilterListResetKey, setPrevFilterListResetKey] = useState(filterListResetKey)
+  if (filterListResetKey !== prevFilterListResetKey) {
+    setPrevFilterListResetKey(filterListResetKey)
+    setFilterListScrollTop(0)
+  }
+  // Keyed on filterListResetKey, NOT filterListScrollTop — this only needs to imperatively move
+  // the DOM's scroll position when we're the ones forcing it back to 0 above. Keying it on
+  // filterListScrollTop instead (every state update, including ones the user's own scrolling
+  // just caused) re-applies a snapshot of scrollTop taken at a slightly earlier point in time on
+  // every scroll-driven re-render, fighting the live native scroll and making it flicker back —
+  // in practice, feeling like the list won't scroll at all.
+  useEffect(() => {
+    if (filterListRef.current) filterListRef.current.scrollTop = 0
+  }, [filterListResetKey])
+
+  const filterListVirtualRange = computeVirtualRange(
+    filterListScrollTop,
+    FILTER_LIST_VIEWPORT_HEIGHT,
+    FILTER_LIST_ITEM_HEIGHT,
+    filterDetailValues.length,
+  )
+
+  // Up/Down/Home/End on the flat checklist (see handleFilterPanelKeyDown below) needs to reach a
+  // value that isn't currently rendered — the list is virtualized (see filterListVirtualRange
+  // above), so only a scrolled-into-view window of rows actually exists in the DOM at any
+  // moment. Scrolling there is a state update (setFilterListScrollTop), which re-renders
+  // asynchronously — the row to focus can't be reached via a ref until that render commits, so
+  // it's stashed here and a layout effect below (keyed on filterListScrollTop, the same shape as
+  // pendingFocusTarget/[page] elsewhere in this file) picks it up once the new window's rows are
+  // actually mounted.
+  const pendingFilterValueFocus = useRef<string | null>(null)
+  useLayoutEffect(() => {
+    if (!pendingFilterValueFocus.current) return
+    const value = pendingFilterValueFocus.current
+    pendingFilterValueFocus.current = null
+    const list = filterListRef.current
+    if (!list) return
+    for (const cb of list.querySelectorAll<HTMLInputElement>('input[data-dd-value-row]')) {
+      if (cb.dataset.value === value) {
+        cb.focus()
+        break
+      }
+    }
+  }, [filterListScrollTop])
+
+  const focusChecklistIndex = (targetIdx: number) => {
+    if (targetIdx < 0 || targetIdx >= filterDetailValues.length) return
+    const value = filterDetailValues[targetIdx]
+    const newScrollTop = getVirtualScrollTarget(
+      filterListScrollTop,
+      FILTER_LIST_VIEWPORT_HEIGHT,
+      FILTER_LIST_ITEM_HEIGHT,
+      targetIdx,
+    )
+    if (newScrollTop !== null) {
+      pendingFilterValueFocus.current = value
+      if (filterListRef.current) filterListRef.current.scrollTop = newScrollTop
+      setFilterListScrollTop(newScrollTop)
+      return
+    }
+    // Already in the rendered window — focus directly, no need to wait for a re-render.
+    const list = filterListRef.current
+    if (!list) return
+    for (const cb of list.querySelectorAll<HTMLInputElement>('input[data-dd-value-row]')) {
+      if (cb.dataset.value === value) {
+        cb.focus()
+        break
+      }
+    }
+  }
+
+  // Up/Down/Home/End over the value search and the checklist or date tree rows
+  const handleKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (e.altKey) return
+    const filterDetailEl = e.currentTarget
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Home' || e.key === 'End') {
+      // Only the value-search box joins the vertical Up/Down chain, mirroring every other
+      // dropdown's "search input, then rows" pattern — the select-all checkbox and sort-order
+      // button sit beside it on the *same* row (filterSearchRow), not above the rows, so
+      // stepping Down/Up through all three before reaching the list would move focus somewhere
+      // that doesn't visually correspond to "down". They stay reachable via Tab/click as before.
+      const headerControls = Array.from(
+        filterDetailEl.querySelectorAll<HTMLElement>('input[data-dd-value-search]'),
+      )
+      const rowInputs = Array.from(
+        filterDetailEl.querySelectorAll<HTMLInputElement>('input[data-dd-value-row]'),
+      )
+      const focusables = [...headerControls, ...rowInputs]
+      const active = document.activeElement as HTMLElement | null
+      if (!active || focusables.indexOf(active) === -1) return
+
+      // The flat checklist is virtualized — crossing out of the rendered window, or Home/End
+      // (which must reach the *logical* first/last value, not just whatever's currently
+      // rendered), needs the scroll-then-focus dance in focusChecklistIndex above. The date tree
+      // has no such window (every currently-expanded row is already in the DOM), so it falls
+      // straight through to the plain DOM-order nav below.
+      if (filterListRef.current && col.type !== 'date') {
+        const activeValue =
+          active instanceof HTMLInputElement && active.dataset.value !== undefined
+            ? active.dataset.value
+            : undefined
+        let targetIdx: number | null = null
+        if (e.key === 'Home') targetIdx = 0
+        else if (e.key === 'End') targetIdx = filterDetailValues.length - 1
+        else if (activeValue !== undefined) {
+          const curIdx = filterDetailValues.indexOf(activeValue)
+          targetIdx = e.key === 'ArrowDown' ? curIdx + 1 : curIdx - 1
+        }
+        if (targetIdx !== null) {
+          // Falls through to the plain header-control nav below in two cases: moving Up out of
+          // the checklist's very first row (there's no row above it — the previous stop is the
+          // value-search box instead), and Home/End on an empty list.
+          const fallsThrough = targetIdx < 0 && e.key === 'ArrowUp' && activeValue !== undefined
+          if (!fallsThrough) {
+            e.preventDefault()
+            e.stopPropagation()
+            if (targetIdx >= 0 && targetIdx < filterDetailValues.length) {
+              focusChecklistIndex(targetIdx)
+            }
+            return
+          }
+        }
+      }
+
+      if (e.key === 'Home' || e.key === 'End') {
+        if (rowInputs.length === 0) return
+        e.preventDefault()
+        e.stopPropagation()
+        ;(e.key === 'Home' ? rowInputs[0] : rowInputs[rowInputs.length - 1]).focus()
+        return
+      }
+      const idx = focusables.indexOf(active)
+      const nextIdx = e.key === 'ArrowDown' ? idx + 1 : idx - 1
+      if (nextIdx < 0 || nextIdx >= focusables.length) return
+      e.preventDefault()
+      e.stopPropagation()
+      focusables[nextIdx].focus()
+    }
+  }
+
+  const filterDetailTree =
+    col.type === 'date'
+      ? computeDateTree(filterDetailValues, L.emptyValue, valueSort.dir, col.parseDate)
+      : []
+  const toggleDateNodeExpand = (path: string) =>
+    setExpandedDateNodes((prev) => {
+      const next = new Set(prev)
+      if (next.has(path)) next.delete(path)
+      else next.add(path)
+      return next
+    })
+  const renderDateTreeNodes = (
+    nodes: DateTreeNode[],
+    colKey: string,
+    depth: number,
+    parseDate: ((value: string) => number) | undefined,
+  ): ReactNode => {
+    const searchActive = searchTerm !== ''
+    return nodes.map((node) => {
+      const state = getDateTreeNodeState(node, filters[colKey] ?? new Set())
+      const isLeaf = node.children.length === 0
+      const expanded = searchActive || expandedDateNodes.has(node.path)
+      const label = formatDateTreeLabel(node.key, depth)
+      return (
+        <div key={node.path}>
+          <label style={{ ...S.ddItem, paddingLeft: 14 + depth * 16 }}>
+            {isLeaf ? (
+              <span style={S.dateTreeToggle} />
+            ) : (
+              <span
+                style={{ ...S.dateTreeToggle, cursor: 'pointer' }}
+                onClick={(e) => {
+                  e.preventDefault()
+                  toggleDateNodeExpand(node.path)
+                }}
+              >
+                {expanded ? '▼' : '▶'}
+              </span>
+            )}
+            <input
+              type="checkbox"
+              data-dd-value-row
+              checked={state === 'checked'}
+              readOnly
+              ref={(el) => {
+                if (el) el.indeterminate = state === 'indeterminate'
+              }}
+              onClick={(e) => {
+                clickDateTreeNode(table.filter, colKey, node, e.shiftKey, {
+                  anchorPath: anchor,
+                  tree: filterDetailTree,
+                  values: filterDetailValues,
+                  include: filters[colKey],
+                  parseDate,
+                })
+                setAnchor(node.path)
+              }}
+              style={{ margin: 0 }}
+            />
+            <span style={{ flex: 1 }}>{label}</span>
+            <span style={S.filterCount} aria-hidden="true">
+              {sumDateTreeNodeCount(node, stringValueCounts[colKey] ?? new Map())}
+            </span>
+          </label>
+          {!isLeaf && expanded && renderDateTreeNodes(node.children, colKey, depth + 1, parseDate)}
+        </div>
+      )
+    })
+  }
+
+  return (
+    <div style={S.filterDetail} data-filter-detail onKeyDown={handleKeyDown}>
+      {col.type === 'number' ? (
+        renderRangeInputsFor(col, filterDetailBounds)
+      ) : (
+        <>
+          {col.type === 'date' && renderRangeInputsFor(col, filterDetailBounds)}
+          <div style={S.filterSearchRow}>
+            {filterDetailValues.length > 0 && (
+              <input
+                ref={filterSelectAllRef}
+                type="checkbox"
+                checked={filterAllSelected}
+                onChange={() =>
+                  toggleChecklistValues(table.filter, col.key, filterDetailValues, usesExcludeOnly)
+                }
+                title={L.selectAll}
+                aria-label={L.selectAll}
+                style={S.filterSelectAll}
+              />
+            )}
+            <span style={S.ddSearchWrap}>
+              <input
+                type="text"
+                data-dd-value-search
+                placeholder={L.filterSearchPlaceholder}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape' && e.currentTarget.value !== '') {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    setSearchTerm('')
+                  }
+                }}
+                style={S.ddSearch}
+              />
+              {searchTerm !== '' && (
+                <button
+                  type="button"
+                  title={L.clearSearch}
+                  aria-label={L.clearSearch}
+                  onClick={() => setSearchTerm('')}
+                  style={S.ddSearchClear}
+                >
+                  ×
+                </button>
+              )}
+            </span>
+            <button
+              type="button"
+              onClick={cycleFilterValueSort}
+              title={L.sortValues}
+              aria-label={L.sortValues}
+              style={S.valueSortBtn}
+            >
+              {col.type === 'date' ? getDateSortIcon(valueSort.dir) : getValueSortIcon(valueSort)}
+            </button>
+            {isMultiValueFilterCol && (
+              <div style={S.filterMatchModeGroup} role="group">
+                <button
+                  type="button"
+                  onClick={() => setFilterMode(col.key, 'or')}
+                  title={L.filterMatchAny}
+                  aria-label={L.filterMatchAny}
+                  aria-pressed={filterMatchMode === 'or'}
+                  style={{
+                    ...S.valueSortBtn,
+                    ...S.filterMatchModeLeft,
+                    ...(filterMatchMode === 'or' ? S.filterMatchModeActive : {}),
+                  }}
+                >
+                  {L.filterMatchAny}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFilterMode(col.key, 'and')}
+                  title={L.filterMatchAll}
+                  aria-label={L.filterMatchAll}
+                  aria-pressed={filterMatchMode === 'and'}
+                  style={{
+                    ...S.valueSortBtn,
+                    ...S.filterMatchModeRight,
+                    ...(filterMatchMode === 'and' ? S.filterMatchModeActive : {}),
+                  }}
+                >
+                  {L.filterMatchAll}
+                </button>
+              </div>
+            )}
+          </div>
+          {col.type === 'date' ? (
+            <div style={S.filterDateTreeWrap}>
+              {renderDateTreeNodes(filterDetailTree, col.key, 0, col.parseDate)}
+            </div>
+          ) : (
+            (() => {
+              // Virtualized: only the rows scrolled into view (+ overscan) are
+              // ever mounted, regardless of how many thousands of distinct values
+              // filterDetailValues holds — see computeVirtualRange/FILTER_LIST_*.
+              // Select-all/shift-range above still operate on the full array, so
+              // behavior is unaffected by how much of it is actually rendered.
+              const { startIndex, endIndex, offsetY, totalHeight } = filterListVirtualRange
+              return (
+                <>
+                  {/* Bulk (de)select everything the value search above is
+                                    currently hiding — see docs/filter-dropdown.md's "Filter dropdown". Only
+                                    rendered once a search term actually narrows the list. Not
+                                    extended to the date tree, which has its own branch above. */}
+                  {filterOtherValues.length > 0 && (
+                    <label style={{ ...S.ddItem, ...S.filterOthers }}>
+                      <input
+                        ref={filterOthersRef}
+                        type="checkbox"
+                        title={L.filterOthers}
+                        aria-label={L.filterOthers}
+                        checked={filterOthersState.checked}
+                        readOnly
+                        // No preventDefault, like the value rows: the browser reverts a prevented
+                        // click after React's update, leaving the box stale
+                        onClick={() => {
+                          toggleChecklistValues(
+                            table.filter,
+                            col.key,
+                            filterOtherValues,
+                            usesExcludeOnly,
+                          )
+                        }}
+                      />
+                      <span style={{ flex: 1 }}>{L.filterOthers}</span>
+                      <span style={S.filterCount} aria-hidden="true">
+                        {filterOtherValues.length}
+                      </span>
+                    </label>
+                  )}
+                  <div
+                    ref={filterListRef}
+                    style={S.filterList}
+                    onScroll={() => {
+                      if (!filterListRafPending.current) {
+                        filterListRafPending.current = true
+                        requestAnimationFrame(() => {
+                          filterListRafPending.current = false
+                          // Read the live scrollTop here (not a value captured back
+                          // in the triggering onScroll call) — several scroll events
+                          // can fire before this callback runs, and only the latest
+                          // position matters.
+                          if (filterListRef.current) {
+                            setFilterListScrollTop(filterListRef.current.scrollTop)
+                          }
+                        })
+                      }
+                    }}
+                  >
+                    <div style={{ height: totalHeight, position: 'relative' }}>
+                      <div
+                        style={{
+                          position: 'absolute',
+                          top: offsetY,
+                          left: 0,
+                          right: 0,
+                        }}
+                      >
+                        {filterDetailValues.slice(startIndex, endIndex).map((v) => {
+                          // Non-multi-value column: plain checked/unchecked, "checked"
+                          // meaning "not excluded" — no tri-state indeterminate cue.
+                          // Multi-value column: unchanged include/exclude tri-state,
+                          // shown as checked/indeterminate.
+                          const checked = usesExcludeOnly
+                            ? !(excludeFilters[col.key]?.has(v) ?? false)
+                            : (filters[col.key]?.has(v) ?? false)
+                          const excluded = usesExcludeOnly
+                            ? false
+                            : (excludeFilters[col.key]?.has(v) ?? false)
+                          const itemTitle = usesExcludeOnly
+                            ? checked
+                              ? L.filterValueHideTitle
+                              : L.filterValueShowTitle
+                            : excluded
+                              ? L.filterExcludedTitle
+                              : L.filterValueTitle
+                          return (
+                            <label
+                              key={v}
+                              style={{
+                                ...S.ddItem,
+                                height: FILTER_LIST_ITEM_HEIGHT,
+                                boxSizing: 'border-box',
+                                cursor: 'pointer',
+                                ...(excluded ? S.filterValueExcluded : null),
+                              }}
+                            >
+                              {/* Tri-state checkbox (multi-value column): unchecked
+                                            (neutral) → checked (include) → indeterminate (exclude,
+                                            the browser's dash glyph reused as the "not this"
+                                            indicator) → back to unchecked, via cycleFilterValue.
+                                            Non-multi-value column: plain checked/unchecked toggle
+                                            via setExcludeValues, see docs/filter-dropdown.md's "Filter dropdown".
+                                            `indeterminate` isn't a prop React can set
+                                            declaratively, so a callback ref sets it imperatively,
+                                            same pattern as the date tree's node checkboxes above
+                                            and the select-all checkboxes. */}
+                              <input
+                                type="checkbox"
+                                data-dd-value-row
+                                data-value={v}
+                                checked={checked}
+                                readOnly
+                                ref={(el) => {
+                                  if (el) el.indeterminate = excluded
+                                }}
+                                onClick={(e) => {
+                                  clickChecklistValue(table.filter, col.key, v, e.shiftKey, {
+                                    anchor,
+                                    values: filterDetailValues,
+                                    include: filters[col.key],
+                                    exclude: excludeFilters[col.key],
+                                    excludeOnly: usesExcludeOnly,
+                                  })
+                                  setAnchor(v)
+                                }}
+                                title={itemTitle}
+                                style={{
+                                  margin: 0,
+                                  ...(excluded
+                                    ? { accentColor: 'var(--color-text-danger)' }
+                                    : null),
+                                }}
+                              />
+                              <span style={{ flex: 1 }}>
+                                {col.renderFilterLabel
+                                  ? col.renderFilterLabel(v)
+                                  : formatFilterValue(col, v, L.emptyValue)}
+                              </span>
+                              <span style={S.filterCount} aria-hidden="true">
+                                {stringValueCounts[col.key]?.get(v) ?? 0}
+                              </span>
+                            </label>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )
+            })()
+          )}
+        </>
+      )}
+    </div>
+  )
+}
+
 /**
  * Renders the built-in table UI for a `useTableState` result you own yourself — the same
  * markup `<DataTable>` renders, minus the internal `useTableState` call. Use this instead of
@@ -900,6 +1607,13 @@ export function DataTableView<TRow extends object>({
   const [openColsDD, setOpenColsDD] = useState(false)
   const [openSortDD, setOpenSortDD] = useState(false)
   const [openFilterDD, setOpenFilterDD] = useState(false)
+  // Header under the pointer or with focus: only then does an unsorted column show its ↕
+  const [litHeader, setLitHeader] = useState<string | null>(null)
+  // Narrow screen (U16): the Filter dropdown shows one pane at a time — columns, or values
+  const [narrowFilter, setNarrowFilter] = useState(false)
+  useEffect(() => watchMedia(FILTER_NARROW_QUERY, setNarrowFilter), [])
+  const [filterShowValues, setFilterShowValues] = useState(false)
+  const pendingFilterValuesFocus = useRef(false)
   const [openGroupDD, setOpenGroupDD] = useState(false)
   const [hoveredRow, setHoveredRow] = useState<TRow | null>(null)
   const rowRefs = useRef(new Map<TRow | string, HTMLTableRowElement>())
@@ -907,13 +1621,6 @@ export function DataTableView<TRow extends object>({
   const [dragOverColKey, setDragOverColKey] = useState<string | null>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const [filterActiveCol, setFilterActiveCol] = useState<string | null>(null)
-  const [filterSearchTerms, setFilterSearchTerms] = useState<Record<string, string>>({})
-  const [filterSelectionAnchor, setFilterSelectionAnchor] = useState<Record<string, string>>({})
-  const [expandedDateNodes, setExpandedDateNodes] = useState<Record<string, Set<string>>>({})
-  const [filterValueSort, setFilterValueSort] = useState<Record<string, ValueSort>>({})
-  const [filterListScrollTop, setFilterListScrollTop] = useState(0)
-  const filterListRef = useRef<HTMLDivElement>(null)
-  const filterListRafPending = useRef(false)
   // Narrows the *column list* itself in the Columns/Sort/Group dropdowns and the Filter
   // dropdown's left column pane — a separate concern from `filterSearchTerms` above, which
   // narrows one column's *values* in the Filter dropdown's right detail pane. Keyed by dropdown
@@ -923,6 +1630,9 @@ export function DataTableView<TRow extends object>({
   // table instance — a plain `document.querySelector` by column key would risk matching another
   // <DataTable> on the same page whose columns happen to share a key.
   const rootRef = useRef<HTMLDivElement>(null)
+  // Focus target after a clear button unmounts itself: the search box, else the first toolbar button.
+  const focusSearch = () =>
+    (searchInputRef.current ?? rootRef.current?.querySelector('button'))?.focus()
   // Activating an addable Sort/Group column (or removing an active one) moves its row between
   // the active and addable sections — a different DOM element, since they're different JSX
   // subtrees (not just a reordered list React could keep the same node for), so the button/row
@@ -953,6 +1663,15 @@ export function DataTableView<TRow extends object>({
     focusPendingKey(root, pendingSortFocusKey, ['data-sort-key', 'data-sort-add-key'])
     focusPendingKey(root, pendingGroupFocusKey, ['data-group-key', 'data-group-add-key'])
     focusPendingKey(root, pendingFilterColFocusKey, ['data-filter-col-key'])
+    if (pendingFilterValuesFocus.current) {
+      pendingFilterValuesFocus.current = false
+      // A number column has no value rows: fall back to the back button
+      ;(
+        root.querySelector<HTMLElement>(
+          '[data-filter-detail] input, [data-filter-detail] button',
+        ) ?? root.querySelector<HTMLElement>('[data-filter-back]')
+      )?.focus()
+    }
     focusPendingKey(root, pendingColFocusKey, [
       'data-col-row-key',
       'data-col-key',
@@ -1051,17 +1770,7 @@ export function DataTableView<TRow extends object>({
     include: filters,
     exclude: excludeFilters,
     ranges: rangeFilters,
-    modes: filterModes,
     activeCount: activeFilterCount,
-    valueMap: stringValueMap,
-    setMode: setFilterMode,
-    toggleAll: toggleFilterAll,
-    setValues: setFilterValues,
-    cycleValue: cycleFilterValue,
-    clearExcludeValues,
-    setExcludeValues,
-    toggleExcludeAll,
-    setRange: setRangeFilter,
     clearColumn: clearColumnFilter,
     clear: clearFilters,
   } = table.filter
@@ -1141,52 +1850,6 @@ export function DataTableView<TRow extends object>({
   useEffect(() => {
     if (selectAllRef.current) selectAllRef.current.indeterminate = someSelected
   }, [someSelected])
-
-  const filterSelectAllRef = useRef<HTMLInputElement>(null)
-  const filterOthersRef = useRef<HTMLInputElement>(null)
-  // Per-column cache for isMultiValueColumn. A plain `useRef<Map>` read/written during render
-  // (the obvious first approach) trips `react-hooks/refs` — refs are for effects/handlers, not
-  // render, since a ref mutated mid-render isn't safe under Strict Mode's double-invoke or
-  // concurrent rendering. Uses `useState` instead, via the same "adjust state during render"
-  // idiom this file already relies on for `filterListResetKey`/`prevFilterListResetKey` below and
-  // the `visibleCols` reconciliation (see docs/table-state.md) — a plain conditional `setState` call in the
-  // render body itself, React's own documented pattern for exactly this ("you can cache a value
-  // from a previous render"), safe because it only actually re-renders when the state reference
-  // changes (a genuine cache miss), not on every render.
-  //
-  // This isn't the render-value memoization the file's own "no manual useMemo, let the React
-  // Compiler handle it" policy targets (see `stringValueCounts`'s comment above) — a single
-  // compiler-inserted memo for this call site would still only remember the *last* `(data, col)`
-  // pair, the same one-slot limitation a hand-written `useMemo` here would have. This is a
-  // targeted fix for a different cost: `isMultiValueColumn`'s scan never short-circuits for a
-  // scalar column (no array value to find), so without a cache keyed by column, revisiting an
-  // already-checked column in the left pane reran a full O(rows) scan on every render while the
-  // dropdown stays open — not just on column switch, since this component re-renders on every
-  // keystroke/click. Mirrors Solid's identical fix in FilterDropdown.tsx (which can use a plain
-  // `createMemo` + closure-scoped `let`s there, since Solid's setup-once model has no equivalent
-  // "refs/state during render" restriction).
-  const [multiValueCache, setMultiValueCache] = useState<{
-    data: TRow[] | null
-    map: Map<string, boolean>
-  }>(() => ({ data: null, map: new Map() }))
-  function isMultiValueColumnCached(col: ColumnDef<TRow>): boolean {
-    let cacheData = multiValueCache.data
-    let cacheMap = multiValueCache.map
-    if (cacheData !== data) {
-      cacheData = data
-      cacheMap = new Map()
-    }
-    let cached = cacheMap.get(col.key)
-    if (cached === undefined) {
-      cached = isMultiValueColumn(data, col, col.key)
-      cacheMap = new Map(cacheMap)
-      cacheMap.set(col.key, cached)
-    }
-    if (cacheData !== multiValueCache.data || cacheMap !== multiValueCache.map) {
-      setMultiValueCache({ data: cacheData, map: cacheMap })
-    }
-    return cached
-  }
 
   const groupAllSelected = (rows: TRow[]) => rows.length > 0 && rows.every((r) => selection.has(r))
   const groupSomeSelected = (rows: TRow[]) =>
@@ -1455,6 +2118,7 @@ export function DataTableView<TRow extends object>({
   if (openFilterDD !== prevOpenFilterDD) {
     setPrevOpenFilterDD(openFilterDD)
     if (openFilterDD) {
+      setFilterShowValues(false)
       setFilterColOrderKeys(
         orderFilterColumnsByActive(filterableCols, filters, excludeFilters, rangeFilters),
       )
@@ -1518,7 +2182,12 @@ export function DataTableView<TRow extends object>({
           onFocus={() => {
             if (col.key !== filterActiveKey) setFilterActiveCol(col.key)
           }}
-          onClick={() => setFilterActiveCol(col.key)}
+          onClick={() => {
+            setFilterActiveCol(col.key)
+            if (!narrowFilter) return
+            setFilterShowValues(true)
+            pendingFilterValuesFocus.current = true
+          }}
           style={{
             ...S.ddItemButton,
             ...S.filterColItem,
@@ -1551,285 +2220,6 @@ export function DataTableView<TRow extends object>({
         )}
       </div>
     )
-  }
-  // The filter dropdown is master-detail — only filterDetailCol's checklist is ever rendered —
-  // so facet counts only need computing for that one column, not every filterable column (see
-  // computeStringValueCounts's targetKeys param). Deliberately not wrapped in a manual useMemo:
-  // this package's vite.config.ts doesn't wire in the actual React Compiler babel plugin yet, so
-  // this genuinely does recompute on every render for now — but eslint.config.mjs's
-  // eslint-plugin-react-hooks@7 `recommended` ruleset already enforces the compiler's own
-  // constraints (`react-hooks/preserve-manual-memoization`) in preparation for enabling it, and
-  // that rule actively rejects hand-written `useMemo` here (its dependency-mutability analysis
-  // can't verify these particular deps stay safe to preserve). Adding manual memoization now would
-  // have to be undone the moment the compiler is actually wired in, so this is intentionally left
-  // for the compiler to take over rather than hand-optimized in a way that fights it.
-  const stringValueCounts = computeStringValueCounts(
-    data,
-    filters,
-    rangeFilters,
-    columns,
-    L.emptyValue,
-    filterActiveKey ? [filterActiveKey] : [],
-    excludeFilters,
-    filterModes,
-  )
-  // Bounds are the column's actual min/max across the full, unfiltered `data` (not
-  // filtered/processed data) — see computeValueBounds — so they don't shift under a mid-drag
-  // user just because some other filter narrowed the row set. Computed once by the caller (see
-  // filterDetailBounds below) and shared with the plain min/max inputs' own default value, rather
-  // than recomputed here on every render.
-  const renderRangeSliderFor = (
-    col: ColumnDef<TRow>,
-    bounds: { min: number; max: number } | null,
-  ) => {
-    if (!bounds || bounds.min >= bounds.max) return null
-    const rf = rangeFilters[col.key]
-    const geo = computeRangeSliderGeometry(rf, bounds, col.type === 'date')
-    return (
-      <RangeSlider
-        bounds={bounds}
-        low={geo.low}
-        high={geo.high}
-        step={geo.step}
-        pctLo={geo.pctLo}
-        pctHi={geo.pctHi}
-        onChange={(lo, hi) => {
-          setRangeFilter(col.key, 'min', formatRangeBound(lo, col))
-          setRangeFilter(col.key, 'max', formatRangeBound(hi, col))
-        }}
-      />
-    )
-  }
-  // The plain min/max inputs (+ slider below them) for a number/date range filter — the two
-  // types differ only in <input type>, whether the label is a placeholder (number) or
-  // aria-label (date, since a native date input has no room for placeholder text) and the
-  // date input's own fixed width. Unset min/max default to `bounds` (via formatRangeBound)
-  // rather than sitting empty — a blank box gives no hint of what range is even meaningful for
-  // this column, and it means the slider's own thumbs (which already fell back to these bounds)
-  // no longer visually disagree with the text inputs next to them.
-  const renderRangeInputsFor = (
-    col: ColumnDef<TRow>,
-    bounds: { min: number; max: number } | null,
-  ) => {
-    const isDate = col.type === 'date'
-    const inputStyle = isDate ? { ...S.rangeInput, width: 118 } : S.rangeInput
-    const valueFor = (kind: 'min' | 'max') =>
-      rangeFilters[col.key]?.[kind] ?? (bounds ? formatRangeBound(bounds[kind], col) : '')
-    return (
-      <div style={{ padding: '4px 14px 8px' }}>
-        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-          <input
-            type={isDate ? 'date' : 'number'}
-            placeholder={isDate ? undefined : L.min}
-            aria-label={isDate ? L.min : undefined}
-            value={valueFor('min')}
-            onChange={(e) => setRangeFilter(col.key, 'min', e.target.value)}
-            style={inputStyle}
-          />
-          <span style={{ color: 'var(--color-text-tertiary)', fontSize: 12 }}>–</span>
-          <input
-            type={isDate ? 'date' : 'number'}
-            placeholder={isDate ? undefined : L.max}
-            aria-label={isDate ? L.max : undefined}
-            value={valueFor('max')}
-            onChange={(e) => setRangeFilter(col.key, 'max', e.target.value)}
-            style={inputStyle}
-          />
-        </div>
-        {renderRangeSliderFor(col, bounds)}
-      </div>
-    )
-  }
-  const filterDetailBounds =
-    filterDetailCol && (filterDetailCol.type === 'number' || filterDetailCol.type === 'date')
-      ? computeValueBounds(data, filterDetailCol)
-      : null
-  // Any/all match-mode control — only meaningful for a column whose values are actually
-  // array-shaped in the data (see isMultiValueColumn's own doc comment), and only for the
-  // string checklist, not the date tree (mirrors Solid's FilterDropdown.tsx).
-  const isMultiValueFilterCol =
-    filterDetailCol && filterDetailCol.type !== 'date' && filterDetailCol.type !== 'number'
-      ? isMultiValueColumnCached(filterDetailCol)
-      : false
-  // A non-multi-value column's checklist uses a checked-by-default, exclude-only model instead
-  // of the tri-state include/exclude cycle (see docs/filter-dropdown.md's "Filter dropdown"): `filters` is
-  // never written for such a column, "checked" simply means "not in `excludeFilters`". Date/
-  // number columns (their own detail branches) and genuinely multi-value columns keep the
-  // original include-based model untouched. Mirrors Solid's `usesExcludeOnly`.
-  const usesExcludeOnly = Boolean(
-    filterDetailCol &&
-    filterDetailCol.type !== 'date' &&
-    filterDetailCol.type !== 'number' &&
-    !isMultiValueFilterCol,
-  )
-  // The set a value must be in to stay visible even at a 0 facet count (see
-  // filterValuesByCount) — whichever map the active column's model actually writes to.
-  const filterAlreadyTouched = (col: ColumnDef<TRow>) =>
-    usesExcludeOnly
-      ? (excludeFilters[col.key] ?? new Set<string>())
-      : (filters[col.key] ?? new Set<string>())
-  const filterMatchMode = filterDetailCol
-    ? (filterModes[filterDetailCol.key] ?? filterDetailCol.multiMode ?? 'or')
-    : 'or'
-  const valueSortFor = (key: string) =>
-    filterValueSort[key] ??
-    columns.find((c) => c.key === key)?.defaultValueSort ??
-    DEFAULT_VALUE_SORT
-  const cycleFilterValueSort = (col: ColumnDef<TRow>) => {
-    const current = valueSortFor(col.key)
-    const next =
-      col.type === 'date'
-        ? { ...current, dir: toggleValueSortDir(current.dir) }
-        : cycleValueSort(current)
-    setFilterValueSort({ ...filterValueSort, [col.key]: next })
-  }
-  // Range/count-filtered, but not yet narrowed by the checklist's own value search — kept
-  // separate from filterDetailValues below so filterOtherValues can diff the two to find exactly
-  // what the search is currently hiding. Order relative to search doesn't matter here: range/
-  // count filtering and search are independent per-value predicates, so computing them in either
-  // order yields the same final set. Mirrors Solid's detailValuesBeforeSearch.
-  const detailValuesBeforeSearch =
-    filterDetailCol && filterDetailCol.type !== 'number'
-      ? filterValuesByCount(
-          // Narrowed by the date range filter (if any) — a value outside the active range never
-          // becomes a tree leaf, rather than merely being ANDed onto the final row set once
-          // ticked. A no-op for string columns (they never populate rangeFilters).
-          filterValuesByRange(
-            stringValueMap[filterDetailCol.key] ?? [],
-            rangeFilters[filterDetailCol.key],
-            filterDetailCol.parseDate,
-          ),
-          stringValueCounts[filterDetailCol.key] ?? new Map(),
-          filterAlreadyTouched(filterDetailCol),
-        )
-      : []
-  const filterDetailValues =
-    filterDetailCol && filterDetailCol.type !== 'number'
-      ? sortFilterValues(
-          filterValuesBySearch(
-            detailValuesBeforeSearch,
-            filterSearchTerms[filterDetailCol.key] ?? '',
-          ),
-          stringValueCounts[filterDetailCol.key] ?? new Map(),
-          valueSortFor(filterDetailCol.key),
-          filterDetailCol.compare,
-        )
-      : []
-  // "Others" — the values the checklist's own value search is currently hiding (see docs/filter-dropdown.md's
-  // "Filter dropdown"). Only meaningful once a search term actually narrows the list; empty
-  // otherwise.
-  const filterOtherValues = (() => {
-    if (!filterDetailCol) return []
-    const term = filterSearchTerms[filterDetailCol.key] ?? ''
-    if (!term) return []
-    const shown = new Set(filterDetailValues)
-    return detailValuesBeforeSearch.filter((v) => !shown.has(v))
-  })()
-  function filterBulkState(values: string[]): { checked: boolean; indeterminate: boolean } {
-    if (!filterDetailCol) return { checked: false, indeterminate: false }
-    if (usesExcludeOnly) {
-      const excludedCount = values.filter((v) => excludeFilters[filterDetailCol.key]?.has(v)).length
-      return {
-        checked: excludedCount === 0,
-        indeterminate: excludedCount > 0 && excludedCount < values.length,
-      }
-    }
-    const selectedCount = values.filter((v) => filters[filterDetailCol.key]?.has(v)).length
-    return {
-      checked: selectedCount > 0 && selectedCount === values.length,
-      indeterminate: selectedCount > 0 && selectedCount < values.length,
-    }
-  }
-  const filterAllSelected = filterBulkState(filterDetailValues).checked
-  const filterSomeSelected = filterBulkState(filterDetailValues).indeterminate
-  const filterOthersState = filterBulkState(filterOtherValues)
-
-  useEffect(() => {
-    if (filterSelectAllRef.current) filterSelectAllRef.current.indeterminate = filterSomeSelected
-  }, [filterSomeSelected])
-
-  useEffect(() => {
-    if (filterOthersRef.current)
-      filterOthersRef.current.indeterminate = filterOthersState.indeterminate
-  }, [filterOthersState.indeterminate])
-
-  // Reset the virtualized checklist's scroll position whenever the values it's scrolled
-  // through change identity — switching columns or narrowing by search both shift what row 0
-  // even means, so staying scrolled to the same pixel offset would show an unrelated slice.
-  // Comparing against the previous render (rather than an effect) is React's own documented
-  // pattern for "adjust state when a prop changes" — https://react.dev/reference/react/useState#storing-information-from-previous-renders —
-  // and avoids the cascading-render lint error a setState-in-effect would trigger.
-  const filterListSearchTerm = filterDetailCol ? (filterSearchTerms[filterDetailCol.key] ?? '') : ''
-  const filterListResetKey = `${filterActiveKey ?? ''}::${filterListSearchTerm}`
-  const [prevFilterListResetKey, setPrevFilterListResetKey] = useState(filterListResetKey)
-  if (filterListResetKey !== prevFilterListResetKey) {
-    setPrevFilterListResetKey(filterListResetKey)
-    setFilterListScrollTop(0)
-  }
-  // Keyed on filterListResetKey, NOT filterListScrollTop — this only needs to imperatively move
-  // the DOM's scroll position when we're the ones forcing it back to 0 above. Keying it on
-  // filterListScrollTop instead (every state update, including ones the user's own scrolling
-  // just caused) re-applies a snapshot of scrollTop taken at a slightly earlier point in time on
-  // every scroll-driven re-render, fighting the live native scroll and making it flicker back —
-  // in practice, feeling like the list won't scroll at all.
-  useEffect(() => {
-    if (filterListRef.current) filterListRef.current.scrollTop = 0
-  }, [filterListResetKey])
-
-  const filterListVirtualRange = computeVirtualRange(
-    filterListScrollTop,
-    FILTER_LIST_VIEWPORT_HEIGHT,
-    FILTER_LIST_ITEM_HEIGHT,
-    filterDetailValues.length,
-  )
-
-  // Up/Down/Home/End on the flat checklist (see handleFilterPanelKeyDown below) needs to reach a
-  // value that isn't currently rendered — the list is virtualized (see filterListVirtualRange
-  // above), so only a scrolled-into-view window of rows actually exists in the DOM at any
-  // moment. Scrolling there is a state update (setFilterListScrollTop), which re-renders
-  // asynchronously — the row to focus can't be reached via a ref until that render commits, so
-  // it's stashed here and a layout effect below (keyed on filterListScrollTop, the same shape as
-  // pendingFocusTarget/[page] elsewhere in this file) picks it up once the new window's rows are
-  // actually mounted.
-  const pendingFilterValueFocus = useRef<string | null>(null)
-  useLayoutEffect(() => {
-    if (!pendingFilterValueFocus.current) return
-    const value = pendingFilterValueFocus.current
-    pendingFilterValueFocus.current = null
-    const list = filterListRef.current
-    if (!list) return
-    for (const cb of list.querySelectorAll<HTMLInputElement>('input[data-dd-value-row]')) {
-      if (cb.dataset.value === value) {
-        cb.focus()
-        break
-      }
-    }
-  }, [filterListScrollTop])
-
-  const focusChecklistIndex = (targetIdx: number) => {
-    if (targetIdx < 0 || targetIdx >= filterDetailValues.length) return
-    const value = filterDetailValues[targetIdx]
-    const newScrollTop = getVirtualScrollTarget(
-      filterListScrollTop,
-      FILTER_LIST_VIEWPORT_HEIGHT,
-      FILTER_LIST_ITEM_HEIGHT,
-      targetIdx,
-    )
-    if (newScrollTop !== null) {
-      pendingFilterValueFocus.current = value
-      if (filterListRef.current) filterListRef.current.scrollTop = newScrollTop
-      setFilterListScrollTop(newScrollTop)
-      return
-    }
-    // Already in the rendered window — focus directly, no need to wait for a re-render.
-    const list = filterListRef.current
-    if (!list) return
-    for (const cb of list.querySelectorAll<HTMLInputElement>('input[data-dd-value-row]')) {
-      if (cb.dataset.value === value) {
-        cb.focus()
-        break
-      }
-    }
   }
 
   // Filter dropdown: ArrowRight/ArrowLeft cross between the left column pane and the right
@@ -1865,6 +2255,11 @@ export function DataTableView<TRow extends object>({
     if (filterColBtn && e.key === 'ArrowRight') {
       e.preventDefault()
       e.stopPropagation()
+      if (narrowFilter) {
+        setFilterShowValues(true)
+        pendingFilterValuesFocus.current = true
+        return
+      }
       e.currentTarget
         .querySelector<HTMLElement>('[data-filter-detail] input, [data-filter-detail] button')
         ?.focus()
@@ -1887,6 +2282,11 @@ export function DataTableView<TRow extends object>({
       if (!isEditable) {
         e.preventDefault()
         e.stopPropagation()
+        if (narrowFilter) {
+          setFilterShowValues(false)
+          pendingFilterColFocusKey.current = filterActiveKey
+          return
+        }
         const cols = e.currentTarget.querySelector<HTMLElement>('[data-filter-cols]')
         for (const el of cols?.querySelectorAll<HTMLElement>('[data-filter-col-key]') ?? []) {
           if (el.dataset.filterColKey === filterActiveKey) {
@@ -1897,156 +2297,6 @@ export function DataTableView<TRow extends object>({
         return
       }
     }
-
-    if (
-      filterDetailEl &&
-      (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Home' || e.key === 'End')
-    ) {
-      // Only the value-search box joins the vertical Up/Down chain, mirroring every other
-      // dropdown's "search input, then rows" pattern — the select-all checkbox and sort-order
-      // button sit beside it on the *same* row (filterSearchRow), not above the rows, so
-      // stepping Down/Up through all three before reaching the list would move focus somewhere
-      // that doesn't visually correspond to "down". They stay reachable via Tab/click as before.
-      const headerControls = Array.from(
-        filterDetailEl.querySelectorAll<HTMLElement>('input[data-dd-value-search]'),
-      )
-      const rowInputs = Array.from(
-        filterDetailEl.querySelectorAll<HTMLInputElement>('input[data-dd-value-row]'),
-      )
-      const focusables = [...headerControls, ...rowInputs]
-      const active = document.activeElement as HTMLElement | null
-      if (!active || focusables.indexOf(active) === -1) return
-
-      // The flat checklist is virtualized — crossing out of the rendered window, or Home/End
-      // (which must reach the *logical* first/last value, not just whatever's currently
-      // rendered), needs the scroll-then-focus dance in focusChecklistIndex above. The date tree
-      // has no such window (every currently-expanded row is already in the DOM), so it falls
-      // straight through to the plain DOM-order nav below.
-      if (filterListRef.current && filterDetailCol && filterDetailCol.type !== 'date') {
-        const activeValue =
-          active instanceof HTMLInputElement && active.dataset.value !== undefined
-            ? active.dataset.value
-            : undefined
-        let targetIdx: number | null = null
-        if (e.key === 'Home') targetIdx = 0
-        else if (e.key === 'End') targetIdx = filterDetailValues.length - 1
-        else if (activeValue !== undefined) {
-          const curIdx = filterDetailValues.indexOf(activeValue)
-          targetIdx = e.key === 'ArrowDown' ? curIdx + 1 : curIdx - 1
-        }
-        if (targetIdx !== null) {
-          // Falls through to the plain header-control nav below in two cases: moving Up out of
-          // the checklist's very first row (there's no row above it — the previous stop is the
-          // value-search box instead), and Home/End on an empty list.
-          const fallsThrough = targetIdx < 0 && e.key === 'ArrowUp' && activeValue !== undefined
-          if (!fallsThrough) {
-            e.preventDefault()
-            e.stopPropagation()
-            if (targetIdx >= 0 && targetIdx < filterDetailValues.length) {
-              focusChecklistIndex(targetIdx)
-            }
-            return
-          }
-        }
-      }
-
-      if (e.key === 'Home' || e.key === 'End') {
-        if (rowInputs.length === 0) return
-        e.preventDefault()
-        e.stopPropagation()
-        ;(e.key === 'Home' ? rowInputs[0] : rowInputs[rowInputs.length - 1]).focus()
-        return
-      }
-      const idx = focusables.indexOf(active)
-      const nextIdx = e.key === 'ArrowDown' ? idx + 1 : idx - 1
-      if (nextIdx < 0 || nextIdx >= focusables.length) return
-      e.preventDefault()
-      e.stopPropagation()
-      focusables[nextIdx].focus()
-    }
-  }
-
-  const filterDetailTree =
-    filterDetailCol && filterDetailCol.type === 'date'
-      ? computeDateTree(
-          filterDetailValues,
-          L.emptyValue,
-          valueSortFor(filterDetailCol.key).dir,
-          filterDetailCol.parseDate,
-        )
-      : []
-  const isDateNodeExpanded = (colKey: string, path: string, searchActive: boolean) =>
-    searchActive || (expandedDateNodes[colKey]?.has(path) ?? false)
-  const toggleDateNodeExpand = (colKey: string, path: string) =>
-    setExpandedDateNodes((prev) => {
-      const next = new Set(prev[colKey] ?? [])
-      if (next.has(path)) next.delete(path)
-      else next.add(path)
-      return { ...prev, [colKey]: next }
-    })
-  const renderDateTreeNodes = (
-    nodes: DateTreeNode[],
-    colKey: string,
-    depth: number,
-    parseDate: ((value: string) => number) | undefined,
-  ): ReactNode => {
-    const searchActive = (filterSearchTerms[colKey] ?? '') !== ''
-    return nodes.map((node) => {
-      const state = getDateTreeNodeState(node, filters[colKey] ?? new Set())
-      const isLeaf = node.children.length === 0
-      const expanded = isDateNodeExpanded(colKey, node.path, searchActive)
-      const label = formatDateTreeLabel(node.key, depth)
-      return (
-        <div key={node.path}>
-          <label style={{ ...S.ddItem, paddingLeft: 14 + depth * 16 }}>
-            {isLeaf ? (
-              <span style={S.dateTreeToggle} />
-            ) : (
-              <span
-                style={{ ...S.dateTreeToggle, cursor: 'pointer' }}
-                onClick={(e) => {
-                  e.preventDefault()
-                  toggleDateNodeExpand(colKey, node.path)
-                }}
-              >
-                {expanded ? '▼' : '▶'}
-              </span>
-            )}
-            <input
-              type="checkbox"
-              data-dd-value-row
-              checked={state === 'checked'}
-              readOnly
-              ref={(el) => {
-                if (el) el.indeterminate = state === 'indeterminate'
-              }}
-              onClick={(e) => {
-                const anchor = filterSelectionAnchor[colKey]
-                const anchorNode =
-                  anchor != null ? findDateTreeNode(filterDetailTree, anchor) : null
-                if (e.shiftKey && anchorNode) {
-                  const shouldSelect = state !== 'checked'
-                  const values = selectDateRange(filterDetailValues, anchorNode, node, parseDate)
-                  setFilterValues(colKey, values, shouldSelect)
-                  // Same "only clear exclusions when selecting" guard as the flat checklist's
-                  // shift-click handler above.
-                  if (shouldSelect) clearExcludeValues(colKey, values)
-                } else {
-                  toggleFilterAll(colKey, node.values)
-                }
-                setFilterSelectionAnchor({ ...filterSelectionAnchor, [colKey]: node.path })
-              }}
-              style={{ margin: 0 }}
-            />
-            <span style={{ flex: 1 }}>{label}</span>
-            <span style={S.filterCount} aria-hidden="true">
-              {sumDateTreeNodeCount(node, stringValueCounts[colKey] ?? new Map())}
-            </span>
-          </label>
-          {!isLeaf && expanded && renderDateTreeNodes(node.children, colKey, depth + 1, parseDate)}
-        </div>
-      )
-    })
   }
 
   const hasActiveState =
@@ -2741,7 +2991,7 @@ export function DataTableView<TRow extends object>({
                   type="button"
                   onClick={() => {
                     setSearchQuery('')
-                    searchInputRef.current?.focus()
+                    focusSearch()
                   }}
                   title={L.clearSearch}
                   aria-label={L.clearSearch}
@@ -2777,356 +3027,84 @@ export function DataTableView<TRow extends object>({
                 )
               }
             >
-              <div style={S.filterPanel} onKeyDown={handleFilterPanelKeyDown}>
-                <div style={S.filterCols} data-filter-cols>
-                  {/* Narrows the column list itself — separate from filterSearchTerms, which
+              <div
+                style={narrowFilter ? { ...S.filterPanel, ...S.filterPanelNarrow } : S.filterPanel}
+                onKeyDown={handleFilterPanelKeyDown}
+              >
+                {(!narrowFilter || !filterShowValues) && (
+                  <div
+                    style={narrowFilter ? { ...S.filterCols, ...S.filterColsNarrow } : S.filterCols}
+                    data-filter-cols
+                  >
+                    {/* Narrows the column list itself — separate from filterSearchTerms, which
                       narrows the *values* shown in the right-hand detail pane for whichever
                       column is currently selected. Order follows filterColOrderKeys (a snapshot
                       taken when the dropdown opens — active-filter columns first, then the rest,
                       alphabetized within each group) instead of a plain alphabetize, since
                       active-filter columns are the ones most worth finding at a glance in a long
                       list. */}
-                  <DdSearchInput
-                    value={ddSearchTerms.filter ?? ''}
-                    onChange={(v) => setDdSearchTerms({ ...ddSearchTerms, filter: v })}
-                    placeholder={L.filterSearchPlaceholder}
-                    clearLabel={L.clearSearch}
-                    extraStyle={S.filterColsSearch}
-                  />
-                  {categorizedFilterCols.uncategorized.map((col) => renderFilterColRow(col, false))}
-                  {categorizedFilterCols.categories.map((category) => {
-                    // While searching, a category only ever renders here at all when it has a
-                    // matching column (categorizedFilterCols buckets the already-searched list)
-                    // — so force it open rather than let a stale collapsed snapshot hide the very
-                    // match the search just surfaced, with no visible sign it's there.
-                    // collapsedCategories itself is left untouched: clearing the search reverts
-                    // to whatever collapse state the user had (manually toggled, or the open-time
-                    // snapshot), exactly as before this fix.
-                    const isCollapsed =
-                      !isFilterColSearching && collapsedCategories.has(category.name)
-                    return (
-                      <div key={category.name}>
-                        <button
-                          type="button"
-                          data-dd-row
-                          data-filter-category-header={category.name}
-                          aria-expanded={!isCollapsed}
-                          onClick={() => toggleCategoryCollapsed(category.name)}
-                          style={S.filterCategoryHeader}
-                        >
-                          <span style={S.filterCategoryToggle}>{isCollapsed ? '▶' : '▼'}</span>
-                          <span style={{ flex: 1 }}>{category.name}</span>
-                        </button>
-                        {!isCollapsed &&
-                          category.columns.map((col) => renderFilterColRow(col, true))}
-                      </div>
-                    )
-                  })}
-                </div>
-                <div style={S.filterDetail} data-filter-detail>
-                  {filterDetailCol &&
-                    (filterDetailCol.type === 'number' ? (
-                      renderRangeInputsFor(filterDetailCol, filterDetailBounds)
-                    ) : (
-                      <>
-                        {filterDetailCol.type === 'date' &&
-                          renderRangeInputsFor(filterDetailCol, filterDetailBounds)}
-                        <div style={S.filterSearchRow}>
-                          {filterDetailValues.length > 0 && (
-                            <input
-                              ref={filterSelectAllRef}
-                              type="checkbox"
-                              checked={filterAllSelected}
-                              onChange={() =>
-                                usesExcludeOnly
-                                  ? toggleExcludeAll(filterDetailCol.key, filterDetailValues)
-                                  : toggleFilterAll(filterDetailCol.key, filterDetailValues)
-                              }
-                              title={L.selectAll}
-                              aria-label={L.selectAll}
-                              style={S.filterSelectAll}
-                            />
-                          )}
-                          <span style={S.ddSearchWrap}>
-                            <input
-                              type="text"
-                              data-dd-value-search
-                              placeholder={L.filterSearchPlaceholder}
-                              value={filterSearchTerms[filterDetailCol.key] ?? ''}
-                              onChange={(e) =>
-                                setFilterSearchTerms({
-                                  ...filterSearchTerms,
-                                  [filterDetailCol.key]: e.target.value,
-                                })
-                              }
-                              onKeyDown={(e) => {
-                                if (e.key === 'Escape' && e.currentTarget.value !== '') {
-                                  e.preventDefault()
-                                  e.stopPropagation()
-                                  setFilterSearchTerms({
-                                    ...filterSearchTerms,
-                                    [filterDetailCol.key]: '',
-                                  })
-                                }
-                              }}
-                              style={S.ddSearch}
-                            />
-                            {(filterSearchTerms[filterDetailCol.key] ?? '') !== '' && (
-                              <button
-                                type="button"
-                                title={L.clearSearch}
-                                aria-label={L.clearSearch}
-                                onClick={() =>
-                                  setFilterSearchTerms({
-                                    ...filterSearchTerms,
-                                    [filterDetailCol.key]: '',
-                                  })
-                                }
-                                style={S.ddSearchClear}
-                              >
-                                ×
-                              </button>
-                            )}
-                          </span>
+                    <DdSearchInput
+                      value={ddSearchTerms.filter ?? ''}
+                      onChange={(v) => setDdSearchTerms({ ...ddSearchTerms, filter: v })}
+                      placeholder={L.filterSearchPlaceholder}
+                      clearLabel={L.clearSearch}
+                      extraStyle={S.filterColsSearch}
+                    />
+                    {categorizedFilterCols.uncategorized.map((col) =>
+                      renderFilterColRow(col, false),
+                    )}
+                    {categorizedFilterCols.categories.map((category) => {
+                      // While searching, a category only ever renders here at all when it has a
+                      // matching column (categorizedFilterCols buckets the already-searched list)
+                      // — so force it open rather than let a stale collapsed snapshot hide the very
+                      // match the search just surfaced, with no visible sign it's there.
+                      // collapsedCategories itself is left untouched: clearing the search reverts
+                      // to whatever collapse state the user had (manually toggled, or the open-time
+                      // snapshot), exactly as before this fix.
+                      const isCollapsed =
+                        !isFilterColSearching && collapsedCategories.has(category.name)
+                      return (
+                        <div key={category.name}>
                           <button
                             type="button"
-                            onClick={() => cycleFilterValueSort(filterDetailCol)}
-                            title={L.sortValues}
-                            aria-label={L.sortValues}
-                            style={S.valueSortBtn}
+                            data-dd-row
+                            data-filter-category-header={category.name}
+                            aria-expanded={!isCollapsed}
+                            onClick={() => toggleCategoryCollapsed(category.name)}
+                            style={S.filterCategoryHeader}
                           >
-                            {filterDetailCol.type === 'date'
-                              ? getDateSortIcon(valueSortFor(filterDetailCol.key).dir)
-                              : getValueSortIcon(valueSortFor(filterDetailCol.key))}
+                            <span style={S.filterCategoryToggle}>{isCollapsed ? '▶' : '▼'}</span>
+                            <span style={{ flex: 1 }}>{category.name}</span>
                           </button>
-                          {isMultiValueFilterCol && (
-                            <div style={S.filterMatchModeGroup} role="group">
-                              <button
-                                type="button"
-                                onClick={() => setFilterMode(filterDetailCol.key, 'or')}
-                                title={L.filterMatchAny}
-                                aria-label={L.filterMatchAny}
-                                aria-pressed={filterMatchMode === 'or'}
-                                style={{
-                                  ...S.valueSortBtn,
-                                  ...S.filterMatchModeLeft,
-                                  ...(filterMatchMode === 'or' ? S.filterMatchModeActive : {}),
-                                }}
-                              >
-                                {L.filterMatchAny}
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setFilterMode(filterDetailCol.key, 'and')}
-                                title={L.filterMatchAll}
-                                aria-label={L.filterMatchAll}
-                                aria-pressed={filterMatchMode === 'and'}
-                                style={{
-                                  ...S.valueSortBtn,
-                                  ...S.filterMatchModeRight,
-                                  ...(filterMatchMode === 'and' ? S.filterMatchModeActive : {}),
-                                }}
-                              >
-                                {L.filterMatchAll}
-                              </button>
-                            </div>
-                          )}
+                          {!isCollapsed &&
+                            category.columns.map((col) => renderFilterColRow(col, true))}
                         </div>
-                        {filterDetailCol.type === 'date' ? (
-                          <div style={S.filterDateTreeWrap}>
-                            {renderDateTreeNodes(
-                              filterDetailTree,
-                              filterDetailCol.key,
-                              0,
-                              filterDetailCol.parseDate,
-                            )}
-                          </div>
-                        ) : (
-                          (() => {
-                            // Virtualized: only the rows scrolled into view (+ overscan) are
-                            // ever mounted, regardless of how many thousands of distinct values
-                            // filterDetailValues holds — see computeVirtualRange/FILTER_LIST_*.
-                            // Select-all/shift-range above still operate on the full array, so
-                            // behavior is unaffected by how much of it is actually rendered.
-                            const { startIndex, endIndex, offsetY, totalHeight } =
-                              filterListVirtualRange
-                            return (
-                              <>
-                                {/* Bulk (de)select everything the value search above is
-                                    currently hiding — see docs/filter-dropdown.md's "Filter dropdown". Only
-                                    rendered once a search term actually narrows the list. Not
-                                    extended to the date tree, which has its own branch above. */}
-                                {filterOtherValues.length > 0 && (
-                                  <label style={{ ...S.ddItem, ...S.filterOthers }}>
-                                    <input
-                                      ref={filterOthersRef}
-                                      type="checkbox"
-                                      title={L.filterOthers}
-                                      aria-label={L.filterOthers}
-                                      checked={filterOthersState.checked}
-                                      onClick={(e) => {
-                                        e.preventDefault()
-                                        if (usesExcludeOnly) {
-                                          toggleExcludeAll(filterDetailCol.key, filterOtherValues)
-                                        } else {
-                                          toggleFilterAll(filterDetailCol.key, filterOtherValues)
-                                        }
-                                      }}
-                                    />
-                                    <span style={{ flex: 1 }}>{L.filterOthers}</span>
-                                    <span style={S.filterCount} aria-hidden="true">
-                                      {filterOtherValues.length}
-                                    </span>
-                                  </label>
-                                )}
-                                <div
-                                  ref={filterListRef}
-                                  style={S.filterList}
-                                  onScroll={() => {
-                                    if (!filterListRafPending.current) {
-                                      filterListRafPending.current = true
-                                      requestAnimationFrame(() => {
-                                        filterListRafPending.current = false
-                                        // Read the live scrollTop here (not a value captured back
-                                        // in the triggering onScroll call) — several scroll events
-                                        // can fire before this callback runs, and only the latest
-                                        // position matters.
-                                        if (filterListRef.current) {
-                                          setFilterListScrollTop(filterListRef.current.scrollTop)
-                                        }
-                                      })
-                                    }
-                                  }}
-                                >
-                                  <div style={{ height: totalHeight, position: 'relative' }}>
-                                    <div
-                                      style={{
-                                        position: 'absolute',
-                                        top: offsetY,
-                                        left: 0,
-                                        right: 0,
-                                      }}
-                                    >
-                                      {filterDetailValues.slice(startIndex, endIndex).map((v) => {
-                                        // Non-multi-value column: plain checked/unchecked, "checked"
-                                        // meaning "not excluded" — no tri-state indeterminate cue.
-                                        // Multi-value column: unchanged include/exclude tri-state,
-                                        // shown as checked/indeterminate.
-                                        const checked = usesExcludeOnly
-                                          ? !(excludeFilters[filterDetailCol.key]?.has(v) ?? false)
-                                          : (filters[filterDetailCol.key]?.has(v) ?? false)
-                                        const excluded = usesExcludeOnly
-                                          ? false
-                                          : (excludeFilters[filterDetailCol.key]?.has(v) ?? false)
-                                        const itemTitle = usesExcludeOnly
-                                          ? checked
-                                            ? L.filterValueHideTitle
-                                            : L.filterValueShowTitle
-                                          : excluded
-                                            ? L.filterExcludedTitle
-                                            : L.filterValueTitle
-                                        return (
-                                          <label
-                                            key={v}
-                                            style={{
-                                              ...S.ddItem,
-                                              height: FILTER_LIST_ITEM_HEIGHT,
-                                              boxSizing: 'border-box',
-                                              cursor: 'pointer',
-                                              ...(excluded ? S.filterValueExcluded : null),
-                                            }}
-                                          >
-                                            {/* Tri-state checkbox (multi-value column): unchecked
-                                            (neutral) → checked (include) → indeterminate (exclude,
-                                            the browser's dash glyph reused as the "not this"
-                                            indicator) → back to unchecked, via cycleFilterValue.
-                                            Non-multi-value column: plain checked/unchecked toggle
-                                            via setExcludeValues, see docs/filter-dropdown.md's "Filter dropdown".
-                                            `indeterminate` isn't a prop React can set
-                                            declaratively, so a callback ref sets it imperatively,
-                                            same pattern as the date tree's node checkboxes above
-                                            and the select-all checkboxes. */}
-                                            <input
-                                              type="checkbox"
-                                              data-dd-value-row
-                                              data-value={v}
-                                              checked={checked}
-                                              readOnly
-                                              ref={(el) => {
-                                                if (el) el.indeterminate = excluded
-                                              }}
-                                              onClick={(e) => {
-                                                const key = filterDetailCol.key
-                                                if (usesExcludeOnly) {
-                                                  const excludedNow =
-                                                    excludeFilters[key]?.has(v) ?? false
-                                                  const anchor = filterSelectionAnchor[key]
-                                                  if (e.shiftKey && anchor != null) {
-                                                    const range = selectRange(
-                                                      filterDetailValues,
-                                                      anchor,
-                                                      v,
-                                                    )
-                                                    // Direction mirrors what a plain click on the
-                                                    // target itself would do.
-                                                    setExcludeValues(key, range, !excludedNow)
-                                                  } else {
-                                                    setExcludeValues(key, [v], !excludedNow)
-                                                  }
-                                                } else {
-                                                  const anchor = filterSelectionAnchor[key]
-                                                  if (e.shiftKey && anchor != null) {
-                                                    const shouldSelect = !(
-                                                      filters[key]?.has(v) ?? false
-                                                    )
-                                                    const range = selectRange(
-                                                      filterDetailValues,
-                                                      anchor,
-                                                      v,
-                                                    )
-                                                    setFilterValues(key, range, shouldSelect)
-                                                    // Shift-range stays include-only (see the docs) — clear
-                                                    // the swept range out of the exclude set too, so a
-                                                    // previously-excluded value doesn't end up in both.
-                                                    if (shouldSelect) clearExcludeValues(key, range)
-                                                  } else {
-                                                    cycleFilterValue(key, v)
-                                                  }
-                                                }
-                                                setFilterSelectionAnchor({
-                                                  ...filterSelectionAnchor,
-                                                  [key]: v,
-                                                })
-                                              }}
-                                              title={itemTitle}
-                                              style={{
-                                                margin: 0,
-                                                ...(excluded
-                                                  ? { accentColor: 'var(--color-text-danger)' }
-                                                  : null),
-                                              }}
-                                            />
-                                            <span style={{ flex: 1 }}>
-                                              {filterDetailCol.renderFilterLabel
-                                                ? filterDetailCol.renderFilterLabel(v)
-                                                : v}
-                                            </span>
-                                            <span style={S.filterCount} aria-hidden="true">
-                                              {stringValueCounts[filterDetailCol.key]?.get(v) ?? 0}
-                                            </span>
-                                          </label>
-                                        )
-                                      })}
-                                    </div>
-                                  </div>
-                                </div>
-                              </>
-                            )
-                          })()
-                        )}
-                      </>
-                    ))}
-                </div>
+                      )
+                    })}
+                  </div>
+                )}
+                {narrowFilter && filterShowValues && (
+                  <button
+                    type="button"
+                    data-filter-back
+                    onClick={() => {
+                      setFilterShowValues(false)
+                      pendingFilterColFocusKey.current = filterActiveKey
+                    }}
+                    style={{ ...S.ddItemButton, ...S.filterBack }}
+                  >
+                    ‹ {L.columns}
+                  </button>
+                )}
+                {filterDetailCol && (!narrowFilter || filterShowValues) && (
+                  <FilterPane
+                    key={filterDetailCol.key}
+                    table={table}
+                    data={data}
+                    columns={columns}
+                    col={filterDetailCol}
+                  />
+                )}
               </div>
             </Dropdown>
           )}
@@ -3135,7 +3113,13 @@ export function DataTableView<TRow extends object>({
               S.clearAll) — nothing else in the row needs to reflow when it mounts/unmounts,
               unlike the old layout where it sat between search and the stats text. */}
           {hasActiveState && (
-            <button onClick={clearAll} style={S.clearAll}>
+            <button
+              onClick={() => {
+                clearAll()
+                focusSearch()
+              }}
+              style={S.clearAll}
+            >
               {L.clearAll}
             </button>
           )}
@@ -3296,7 +3280,13 @@ export function DataTableView<TRow extends object>({
                   style={{ ...S.chipBody, ...S.chipFilter }}
                 >
                   {columns.find((c) => c.key === key)?.label}:{' '}
-                  {summarizeFilterValues(vals, L.moreValues)}
+                  {summarizeFilterValues(vals, L.moreValues, (v) =>
+                    formatFilterValue(
+                      columns.find((c) => c.key === key),
+                      v,
+                      L.emptyValue,
+                    ),
+                  )}
                 </button>
                 <button
                   type="button"
@@ -3317,31 +3307,43 @@ export function DataTableView<TRow extends object>({
           // actions at a glance, not just different text.
           Object.entries(excludeFilters)
             .filter(([, v]) => v.size > 0)
-            .map(([key, vals]) => (
-              <span key={`exclude-${key}`} style={S.chip}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setFilterActiveCol(key)
-                    setOpenFilterDD(true)
-                    pendingFilterColFocusKey.current = key
-                  }}
-                  style={{ ...S.chipBody, ...S.chipExclude }}
-                >
-                  {columns.find((c) => c.key === key)?.label}: ≠{' '}
-                  {summarizeFilterValues(vals, L.moreValues)}
-                </button>
-                <button
-                  type="button"
-                  title={L.clearColumnFilter}
-                  aria-label={L.clearColumnFilter}
-                  onClick={() => clearColumnFilter(key, 'exclude')}
-                  style={{ ...S.chipX, ...S.chipExclude }}
-                >
-                  ×
-                </button>
-              </span>
-            ))}
+            .map(([key, vals]) => {
+              const col = columns.find((c) => c.key === key)
+              // Names the kept values when fewer are kept than hidden
+              const chip = exclusionChip(
+                vals,
+                table.filter.valueMap[key],
+                !!col && isExcludeOnlyColumn(data, col),
+              )
+              const tint = chip.kept ? S.chipFilter : S.chipExclude
+              return (
+                <span key={`exclude-${key}`} style={S.chip}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFilterActiveCol(key)
+                      setOpenFilterDD(true)
+                      pendingFilterColFocusKey.current = key
+                    }}
+                    style={{ ...S.chipBody, ...tint }}
+                  >
+                    {col?.label}: {chip.kept ? '' : '≠ '}
+                    {summarizeFilterValues(chip.values, L.moreValues, (v) =>
+                      formatFilterValue(col, v, L.emptyValue),
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    title={L.clearColumnFilter}
+                    aria-label={L.clearColumnFilter}
+                    onClick={() => clearColumnFilter(key, 'exclude')}
+                    style={{ ...S.chipX, ...tint }}
+                  >
+                    ×
+                  </button>
+                </span>
+              )
+            })}
         {activeFilterCount > 0 &&
           // A range filter (number or date) didn't get a chip at all before — it's a distinct
           // active filter from the checklist above, so it needs its own (a date column can have
@@ -3359,7 +3361,18 @@ export function DataTableView<TRow extends object>({
                   }}
                   style={{ ...S.chipBody, ...S.chipFilter }}
                 >
-                  {columns.find((c) => c.key === key)?.label}: {rf.min}–{rf.max}
+                  {columns.find((c) => c.key === key)?.label}:{' '}
+                  {formatFilterValue(
+                    columns.find((c) => c.key === key),
+                    rf.min,
+                    L.emptyValue,
+                  )}
+                  –
+                  {formatFilterValue(
+                    columns.find((c) => c.key === key),
+                    rf.max,
+                    L.emptyValue,
+                  )}
                 </button>
                 <button
                   type="button"
@@ -3392,6 +3405,7 @@ export function DataTableView<TRow extends object>({
                     ref={selectAllRef}
                     type="checkbox"
                     checked={allSelected}
+                    aria-label={L.selectAll}
                     onChange={() => toggleSelectAll(processedData)}
                     style={{ margin: 0 }}
                   />
@@ -3405,7 +3419,8 @@ export function DataTableView<TRow extends object>({
               {(() => {
                 const headerSorts = sorts.filter((s) => activeColumns.some((c) => c.key === s.key))
                 return activeColumns.map((col) => {
-                  const isSorted = headerSorts.some((s) => s.key === col.key)
+                  const sortDir = headerSorts.find((s) => s.key === col.key)?.dir
+                  const isSorted = sortDir !== undefined
                   // A number is only useful to disambiguate priority when more than one visible
                   // header is sorted — with just one, "1↑" is noise next to a plain "↑".
                   const sortIdx =
@@ -3413,10 +3428,34 @@ export function DataTableView<TRow extends object>({
                       ? getHeaderSortIndex(headerSorts, col.key)
                       : null
                   const icon = isSorted ? getHeaderSortIcon(headerSorts, col.key) : '↕'
+                  const labelAndIcon = (
+                    <>
+                      {col.label}
+                      {col.sortable !== false && (
+                        <span
+                          aria-hidden="true"
+                          style={{
+                            fontSize: 10,
+                            color: isSorted
+                              ? 'var(--color-text-primary)'
+                              : 'var(--color-border-secondary)',
+                            opacity: isSorted || litHeader === col.key ? 1 : 0,
+                          }}
+                        >
+                          {sortIdx ? `${sortIdx}${icon}` : icon}
+                        </span>
+                      )}
+                    </>
+                  )
                   return (
                     <th
                       key={col.key}
+                      aria-sort={
+                        sortDir ? (sortDir === 'asc' ? 'ascending' : 'descending') : undefined
+                      }
                       draggable
+                      onMouseEnter={() => setLitHeader(col.key)}
+                      onMouseLeave={() => setLitHeader(null)}
                       onDragStart={() => setDragColKey(col.key)}
                       onDragOver={(e) => {
                         e.preventDefault()
@@ -3452,18 +3491,49 @@ export function DataTableView<TRow extends object>({
                         else replaceSort(col.key)
                       }}
                     >
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                        {col.label}
-                        <span
-                          style={{
-                            fontSize: 10,
-                            color: isSorted
-                              ? 'var(--color-text-primary)'
-                              : 'var(--color-border-secondary)',
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        {/* A button so keyboard users can sort; its click bubbles to the <th>'s handler */}
+                        {col.sortable === false ? (
+                          labelAndIcon
+                        ) : (
+                          <button
+                            type="button"
+                            style={S.thSort}
+                            onFocus={() => setLitHeader(col.key)}
+                            onBlur={() => setLitHeader(null)}
+                          >
+                            {labelAndIcon}
+                          </button>
+                        )}
+                        <HeaderMenu
+                          label={L.columnMenu(
+                            col.label,
+                            columnHasActiveFilter(col.key, filters, excludeFilters, rangeFilters),
+                          )}
+                          labels={L}
+                          items={getHeaderMenuItems(
+                            col,
+                            groupBy,
+                            activeColumns.length,
+                            columnHasActiveFilter(col.key, filters, excludeFilters, rangeFilters),
+                          )}
+                          filtered={columnHasActiveFilter(
+                            col.key,
+                            filters,
+                            excludeFilters,
+                            rangeFilters,
+                          )}
+                          filterPane={
+                            <FilterPane table={table} data={data} columns={columns} col={col} />
+                          }
+                          onClearFilter={() => {
+                            clearColumnFilter(col.key, 'include')
+                            clearColumnFilter(col.key, 'exclude')
+                            clearColumnFilter(col.key, 'range')
                           }}
-                        >
-                          {sortIdx ? `${sortIdx}${icon}` : icon}
-                        </span>
+                          onGroup={() => toggleGroup(col.key)}
+                          onHide={() => toggleColVisibility(col.key)}
+                        />
                       </span>
                     </th>
                   )
@@ -3498,6 +3568,9 @@ export function DataTableView<TRow extends object>({
                           }}
                           type="checkbox"
                           checked={groupAllSelected(rows)}
+                          aria-label={L.selectGroup(
+                            groupText(columns, groupBy, keyParts, sampleRow!),
+                          )}
                           onChange={() => toggleSelectAll(rows)}
                           style={{ margin: 0 }}
                         />
@@ -3597,6 +3670,9 @@ export function DataTableView<TRow extends object>({
                             type="checkbox"
                             checked={selection.has(row)}
                             readOnly
+                            aria-label={L.selectRow(
+                              activeColumns[0] ? cellText(activeColumns[0], row) : '',
+                            )}
                             tabIndex={-1}
                             onClick={(e) => toggleRowSelection(row, e.shiftKey)}
                             style={{ margin: 0 }}
@@ -3613,6 +3689,34 @@ export function DataTableView<TRow extends object>({
                   )),
               ]
             })}
+            {processedData.length === 0 && (
+              <tr>
+                <td
+                  colSpan={
+                    activeColumns.length + (selectable ? 1 : 0) + (groupBy.length > 0 ? 1 : 0)
+                  }
+                  style={{ ...S.td, ...S.empty }}
+                >
+                  {data.length === 0 ? (
+                    L.noRows
+                  ) : (
+                    <>
+                      {L.noMatchingRows}{' '}
+                      <button
+                        onClick={() => {
+                          clearFilters()
+                          setSearchQuery('')
+                          focusSearch()
+                        }}
+                        style={S.clearAll}
+                      >
+                        {L.clearSearchAndFilters}
+                      </button>
+                    </>
+                  )}
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
@@ -3622,6 +3726,7 @@ export function DataTableView<TRow extends object>({
         <div style={S.pagination}>
           <button
             onClick={() => setPage(1)}
+            aria-label={L.firstPage}
             disabled={page === 1}
             style={{ ...S.pageBtn, ...(page === 1 ? S.pageBtnDisabled : {}) }}
           >
@@ -3629,6 +3734,7 @@ export function DataTableView<TRow extends object>({
           </button>
           <button
             onClick={() => setPage(page - 1)}
+            aria-label={L.previousPage}
             disabled={page === 1}
             style={{ ...S.pageBtn, ...(page === 1 ? S.pageBtnDisabled : {}) }}
           >
@@ -3637,6 +3743,7 @@ export function DataTableView<TRow extends object>({
           <span style={S.pageInfo}>{L.pageOf(page, numPages)}</span>
           <button
             onClick={() => setPage(page + 1)}
+            aria-label={L.nextPage}
             disabled={page >= numPages}
             style={{ ...S.pageBtn, ...(page >= numPages ? S.pageBtnDisabled : {}) }}
           >
@@ -3644,6 +3751,7 @@ export function DataTableView<TRow extends object>({
           </button>
           <button
             onClick={() => setPage(numPages)}
+            aria-label={L.lastPage}
             disabled={page >= numPages}
             style={{ ...S.pageBtn, ...(page >= numPages ? S.pageBtnDisabled : {}) }}
           >

@@ -87,8 +87,11 @@ export interface ColumnDefBase<TRow extends object = Record<string, unknown>> {
    * nested access, and columns with no single backing property (e.g. `price * qty`).
    */
   value?: (row: TRow) => unknown
-  /** Format a value to a plain string (framework-agnostic alternative to render) */
-  format?: (value: unknown, row: TRow) => string
+  /**
+   * Format a value to a plain string (framework-agnostic alternative to render). `row` is absent
+   * where a value stands alone: filter chips, checklist values, range bounds.
+   */
+  format?: (value: unknown, row?: TRow) => string
   /**
    * Excludes this column from both header-click sorting and the Sort dropdown's "add a sort"
    * list. Default: true. Enforced by each adapter, not core — `toggleSort`/`replaceSort`/
@@ -247,10 +250,29 @@ export interface DataTableLabels {
   groupCount: (count: number) => string
   groupLabel: (index: number) => string
   rowsInGroup: (count: number) => string
+  /** Accessible name of a group header's checkbox, from the group's name (e.g. "Engineering") */
+  selectGroup: (group: string) => string
+  /** Accessible name of a row's checkbox, from its first visible cell's text */
+  selectRow: (row: string) => string
+  /** Header menu: add the column to the grouping */
+  groupByColumn: string
+  /** Accessible name of a header's menu button, from the column's label and whether it's filtered */
+  columnMenu: (column: string, filtered: boolean) => string
   /** Marker shown on a group header that repeats mid-way down a page — see "Pagination" — because the group's rows split across a page boundary */
   groupContinued: string
   rowsPerPage: string
   pageOf: (page: number, total: number) => string
+  /** Empty table body: no data at all */
+  noRows: string
+  /** Empty table body: search and filters match nothing */
+  noMatchingRows: string
+  /** Empty-body button resetting search and filters (sorts, groups kept) */
+  clearSearchAndFilters: string
+  /** Accessible names of the «, ‹, › and » pagination buttons */
+  firstPage: string
+  previousPage: string
+  nextPage: string
+  lastPage: string
   search: string
   /** Filter/group label for rows whose array-valued column is empty (e.g. `tags: []`) */
   emptyValue: string

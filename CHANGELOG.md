@@ -10,10 +10,41 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ### Added
 
 - **Toolbar end slot** (Solid, React, Vue, vanilla): `toolbarEnd` (`JSXElement`/`ReactNode`) on `DataTableViewProps`/`DataTableProps`, Vue's `#toolbar-end` slot, and vanilla's `toolbarEnd` option + `setToolbarEnd(node)` render consumer controls (e.g. "Share view"/"Reset view") at the right end of the toolbar's action row, in a `.dt-toolbar-end` (Vue: `.dt__toolbar-end`) wrapper — instead of a separate row above the table, or DOM appended into the toolbar's internal markup.
+- **Clear filter from the column menu** (Solid, React, Vue, vanilla): a filtered column's ▾ menu offers "Clear filter" right after Filter, dropping that column's filter in one step.
 
 ### Changed
 
+- **Filter values as the column shows them** (Solid, React, Vue, vanilla): checklist values, filter chips and range bounds go through the column's `format` ("Salary: $60,000–$100,000" instead of "60000–100000").
+- **BREAKING (all four adapters):** `ColumnDef.format`'s `row` argument is now optional (`format(value, row?)`): filter displays call it without a row, so a `format` reading `row` must handle it being absent.
+- **Header sort arrows** (Solid, React, Vue, vanilla): an unsorted column's muted ↕ now appears only on hover or keyboard focus, and never on a column that can't be sorted; sorted columns keep ↑/↓.
+
+## [0.15.0] - 2026-10-04
+
+### Added
+
+- **Accessible checkbox names** (Solid, React, Vue, vanilla): the select-all, group and row checkboxes are now named "Select all", "Select group Engineering" and "Select row Alice Martin" (the row's first visible cell), instead of a bare "checkbox". New labels `selectGroup(group)`/`selectRow(row)` in all 5 locales.
+- **Sorted headers expose `aria-sort`** (Solid, React, Vue, vanilla): each sorted column header reports "ascending" or "descending" to screen readers, instead of the direction living only in the ↑/↓ glyph.
+- **Named, larger pagination buttons** (Solid, React, Vue, vanilla): «, ‹, › and » are named "First page", "Previous page", "Next page" and "Last page" for screen readers, and grow from 23 to 25 px tall to meet the 24 px minimum touch target. New labels `firstPage`/`previousPage`/`nextPage`/`lastPage` in all 5 locales.
+- **Empty table message** (Solid, React, Vue, vanilla): a search or filter matching nothing now shows "No matching rows" in the table body with a "Clear search and filters" button (sorts and groups are kept; focus moves to the search box); a table with no data says "No rows". New labels `noRows`/`noMatchingRows`/`clearSearchAndFilters` in all 5 locales.
+- **Header menu** (Solid, React, Vue, vanilla): each header's label is now a button (Enter sorts, Shift+Enter adds a sort), and a ▾ button at the header's end opens a menu to filter that column from a flyout, group by it, or hide it. A filtered column's ▾ becomes a blue funnel, named "…, filtered" for screen readers. New labels `groupByColumn`/`columnMenu(column, filtered)` in all 5 locales.
+- **Demos**: a Delete button in the Row selection section's "N selected" bar removes the selected rows, to exercise the table when its data changes.
+
+### Changed
+
+- **BREAKING (all four adapters):** `DataTableLabels` gains required labels — `selectGroup`, `selectRow`, `firstPage`, `previousPage`, `nextPage`, `lastPage`, `noRows`, `noMatchingRows`, `clearSearchAndFilters`, `groupByColumn`, `columnMenu` — so a complete custom locale must add them; partial `labels` overrides are unaffected.
+- **Filter chips** (Solid, React, Vue, vanilla): narrowing a single-value column to a few values now reads as those values ("Department: Engineering") instead of a red list of everything hidden ("Department: ≠ Design, HR, Product, +1 more").
+- **Filter dropdown** (Solid, React, Vue, vanilla): a column's value search and value order now reset when switching to another column, since that pane is now shared with the header menu's Filter flyout.
 - **React**: `table.focus.consumeDomFocus` now keeps a stable identity across renders, so `DataTableView`'s scroll/focus effect lists it as a dependency (clears a `react-hooks/exhaustive-deps` lint warning).
+
+### Fixed
+
+- **Chip touch targets** (Solid, React, Vue, vanilla): an active-bar chip's × and ⊞ grow from 20×23 to at least 24×24 px.
+- **Escape in the filter checklist** (Solid, Vue, vanilla): clearing the value search with Escape while on the "Others" row now keeps focus on the search box; focus used to drop to the page, leaving the menu or dropdown stuck open.
+- **React filter checklist**: the "Others" checkbox now follows its state when clicked (it used to stay checked while the filter applied), and React no longer logs console warnings for it or for the header menu's ▾ button.
+- **Filter dropdown on phones** (Solid, React, Vue, vanilla): below 480 px it shows the column list, then the chosen column's values with a "‹ Columns" way back, instead of a two-pane panel running off the screen. Opening any dropdown near the screen's edge no longer scrolls the page sideways (Solid, vanilla), and dropdowns and menus now account for a desktop scrollbar when keeping themselves on screen.
+- **Vue filter checklist**: hiding a value of a single-value column (or toggling "Others") now unchecks its checkbox; it used to stay checked while the filter applied.
+- **Category submenus on narrow screens** (Solid, React, Vue, vanilla): a submenu that fits on neither side of its row now stays on screen, overlapping the row, instead of opening past the left edge.
+- **Focus after clearing** (Solid, React, Vue, vanilla): "Clear all" and (Solid, vanilla) the search box's × no longer drop keyboard focus to the page once they disappear; it moves to the search box, or the first toolbar button when search is hidden.
 
 ## [0.14.0] - 2026-09-14
 

@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { computeSubmenuPosition, ddNavFocusables } from '@vates/data-table-core/internal'
+import {
+  computeSubmenuPosition,
+  ddNavFocusables,
+  viewportWidth,
+} from '@vates/data-table-core/internal'
 
 // Hover-intent delays (see docs/columns.md's "Column categories") — a native OS/app-menu-style flyout
 // opens on hover once its parent menu is already open. OPEN_DELAY avoids a flicker-open while the
@@ -48,7 +52,12 @@ const props = defineProps<{
   // owns one shared "which category is open" value across every CategorySubmenu in its list, so
   // opening one always closes any other that was open in the same dropdown.
   isOpen: boolean
+  role?: 'menuitem'
+  /** Extra class on the flyout */
+  submenuClass?: string
 }>()
+// `icon`: shown before `name` (the header menu's Filter item)
+defineSlots<{ default?: () => unknown; icon?: () => unknown }>()
 const emit = defineEmits<{ open: []; close: [] }>()
 
 const left = ref(0)
@@ -73,7 +82,14 @@ function cancelClose(): void {
 
 function focusFirstRow(): void {
   queueMicrotask(() => {
-    if (submenuRef.value) ddNavFocusables(submenuRef.value, SUBMENU_ROW_SELECTOR)[0]?.focus()
+    const el = submenuRef.value
+    if (!el) return
+    // A flyout without rows (the header menu's filter pane) starts on its first text field
+    ;(
+      ddNavFocusables(el, SUBMENU_ROW_SELECTOR)[0] ??
+      el.querySelector<HTMLElement>('input[type=text]') ??
+      el.querySelector<HTMLElement>('input, button')
+    )?.focus()
   })
 }
 function openNow(focusFirst: boolean): void {
@@ -128,7 +144,7 @@ function onSubmenuMounted(el: Element | null): void {
     const pos = computeSubmenuPosition(
       triggerRect,
       { width: rect.width, height: rect.height },
-      window.innerWidth,
+      viewportWidth(),
       window.innerHeight,
     )
     left.value = pos.left
@@ -137,7 +153,9 @@ function onSubmenuMounted(el: Element | null): void {
 }
 
 function onSubmenuKeydown(e: KeyboardEvent): void {
-  if (e.key === 'Escape' || e.key === 'ArrowLeft') {
+  // ← in a text field moves its caret instead
+  const inText = e.target instanceof HTMLInputElement && e.target.type !== 'checkbox'
+  if (e.key === 'Escape' || (e.key === 'ArrowLeft' && !inText)) {
     e.preventDefault()
     e.stopPropagation()
     closeNow(true)
@@ -172,6 +190,7 @@ defineExpose({ triggerRef })
       class="dt__dd-item dt__dd-item--clickable dt__dd-category-trigger"
       data-dd-row
       :data-category-name="props.name"
+      :role="props.role"
       :aria-expanded="props.isOpen"
       @mouseenter="scheduleOpen"
       @mouseleave="scheduleClose"
@@ -185,13 +204,14 @@ defineExpose({ triggerRef })
         }
       "
     >
+      <slot name="icon" />
       <span class="dt__dd-category-label">{{ props.name }}</span>
       <span class="dt__dd-category-arrow">▸</span>
     </button>
     <div
       v-if="props.isOpen"
       :ref="(el) => onSubmenuMounted(el as Element | null)"
-      class="dt__dd-submenu"
+      :class="['dt__dd-submenu', props.submenuClass]"
       data-category-submenu
       :style="{ position: 'fixed', left: `${left}px`, top: `${top}px` }"
       @mouseenter="cancelClose"

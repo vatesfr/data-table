@@ -19,7 +19,7 @@ import {
 } from '@vates/data-table-solid'
 import { badge } from './components/Badge'
 import { scoreBar } from './components/ScoreBar'
-import { HUGE_DATA, HUGE_COLUMNS, HUGE_ROW_COUNT } from './hugeData'
+import { hugeData, HUGE_COLUMNS, HUGE_ROW_COUNT } from './hugeData'
 
 interface Employee {
   id: number
@@ -687,13 +687,18 @@ function FullTable(props: { labels?: Partial<DataTableLabels> }) {
 }
 
 function SelectionTable(props: {
+  data: Employee[]
   labels?: Partial<DataTableLabels>
   onSelectionChange: (rows: Employee[]) => void
 }) {
-  const table = createTableState(SAMPLE_DATA, COLUMNS, () => ({
-    initialViewState: { visibleCols: SELECTION_VISIBLE, pageSize: 5 },
-    labels: props.labels,
-  }))
+  const table = createTableState(
+    () => props.data,
+    COLUMNS,
+    () => ({
+      initialViewState: { visibleCols: SELECTION_VISIBLE, pageSize: 5 },
+      labels: props.labels,
+    }),
+  )
   usePersistedView(table, VIEW_KEYS.selection.storageKey)
   useUrlView(table, { paramName: VIEW_KEYS.selection.paramName })
   // DataTableViewProps has no onSelectionChange (that convenience only exists on <DataTable>,
@@ -729,8 +734,34 @@ function ClickTable(props: {
 
 // No `labels` prop — matches the huge-dataset table's pre-existing behavior in the other demos of
 // always using the default English labels regardless of the page's locale switcher.
+// Mounts its children once they near the viewport: the 200k-row table is too heavy to build on
+// every page load
+function WhenVisible(props: { children: JSX.Element }) {
+  const [visible, setVisible] = createSignal(false)
+  let el: HTMLDivElement | undefined
+  onMount(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting) return
+        setVisible(true)
+        observer.disconnect()
+      },
+      { rootMargin: '400px' },
+    )
+    if (el) observer.observe(el)
+    onCleanup(() => observer.disconnect())
+  })
+  return (
+    <div ref={(e) => (el = e)}>
+      <Show when={visible()} fallback={<div style={{ height: '400px' }} />}>
+        {props.children}
+      </Show>
+    </div>
+  )
+}
+
 function HugeTable() {
-  const table = createTableState(HUGE_DATA, HUGE_COLUMNS, { initialViewState: { pageSize: 100 } })
+  const table = createTableState(hugeData(), HUGE_COLUMNS, { initialViewState: { pageSize: 100 } })
   usePersistedView(table, VIEW_KEYS.huge.storageKey)
   useUrlView(table, { paramName: VIEW_KEYS.huge.paramName })
   return (
@@ -747,6 +778,7 @@ const THEME_LABELS = { '': 'Auto', dark: 'Dark', light: 'Light' }
 export default function App() {
   const [localeKey, setLocaleKey] = createSignal('EN')
   const [selected, setSelected] = createSignal<Employee[]>([])
+  const [selectionData, setSelectionData] = createSignal(SAMPLE_DATA)
   const [clicked, setClicked] = createSignal<Employee | null>(null)
   const [theme, setTheme] = createSignal<'' | 'dark' | 'light'>('')
   const [activeSection, setActiveSection] = createSignal(SECTIONS[0].id)
@@ -1007,9 +1039,28 @@ export default function App() {
           >
             Export
           </button>
+          <button
+            onClick={() => setSelectionData((rows) => rows.filter((r) => !selected().includes(r)))}
+            style={{
+              padding: '3px 10px',
+              'border-radius': '4px',
+              border: '0.5px solid var(--color-border-info)',
+              background: 'transparent',
+              color: 'var(--color-text-info)',
+              cursor: 'pointer',
+              'font-size': '13px',
+              'font-family': 'inherit',
+            }}
+          >
+            Delete
+          </button>
         </div>
       </Show>
-      <SelectionTable labels={LOCALES[localeKey()]} onSelectionChange={setSelected} />
+      <SelectionTable
+        data={selectionData()}
+        labels={LOCALES[localeKey()]}
+        onSelectionChange={setSelected}
+      />
 
       <h2
         id="row-click"
@@ -1105,7 +1156,9 @@ export default function App() {
         its checklist only ever mounts the rows scrolled into view. Try grouping by{' '}
         <code>Category</code> and/or <code>Region</code>.
       </p>
-      <HugeTable />
+      <WhenVisible>
+        <HugeTable />
+      </WhenVisible>
     </div>
   )
 }

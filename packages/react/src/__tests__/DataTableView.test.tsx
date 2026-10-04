@@ -116,4 +116,39 @@ describe('DataTableView', () => {
     })
     expect(document.activeElement).toBe(getByText('Bob').closest('tr'))
   })
+  it('exposes each sorted header direction as aria-sort', () => {
+    let table: ReturnType<typeof useTableState<Row>> | undefined
+    const { getByRole } = render(
+      <Harness
+        onReady={(t) => {
+          table = t
+        }}
+      />,
+    )
+    act(() => {
+      table!.setViewState({ sorts: [{ key: 'score', dir: 'desc' }] })
+    })
+    expect(getByRole('columnheader', { name: /Score/ }).getAttribute('aria-sort')).toBe(
+      'descending',
+    )
+    expect(getByRole('columnheader', { name: /Name/ }).hasAttribute('aria-sort')).toBe(false)
+  })
+
+  it('names the select-all, group and row checkboxes', () => {
+    let table: ReturnType<typeof useTableState<Row>> | undefined
+    const { getByRole } = render(
+      <Harness
+        selectable
+        onReady={(t) => {
+          table = t
+        }}
+      />,
+    )
+    expect(getByRole('checkbox', { name: 'Select all' })).toBeTruthy()
+    expect(getByRole('checkbox', { name: 'Select row Alice' })).toBeTruthy()
+    act(() => {
+      table!.setViewState({ groupBy: ['score'] })
+    })
+    expect(getByRole('checkbox', { name: 'Select group 90' })).toBeTruthy()
+  })
 })

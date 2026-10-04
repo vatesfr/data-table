@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import { ref, watch, onMounted, onUnmounted } from 'vue'
-import { computeDropdownClampOffset, ddNavFocusables } from '@vates/data-table-core/internal'
+import {
+  computeDropdownClampOffset,
+  ddNavFocusables,
+  viewportWidth,
+} from '@vates/data-table-core/internal'
 
 // Listeners like @dragover/@drop passed to <Dropdown> are meant for the menu panel itself (so a
 // drag-and-drop reorder list inside can resolve a drop that lands past its last row / in
@@ -102,7 +106,7 @@ watch(
     const menu = menuRef.value
     if (!menu) return
     const rect = menu.getBoundingClientRect()
-    const { dx, flipUp } = computeDropdownClampOffset(rect, window.innerWidth, window.innerHeight)
+    const { dx, flipUp } = computeDropdownClampOffset(rect, viewportWidth(), window.innerHeight)
     if (dx !== 0) menu.style.transform = `translateX(${dx}px)`
     if (flipUp) {
       menu.style.top = 'auto'

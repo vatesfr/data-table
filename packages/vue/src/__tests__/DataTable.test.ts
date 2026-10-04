@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import DataTableRaw from '../DataTable.vue'
 import type { ColumnDef } from '../types'
+import { stubMatchMedia } from './stubMatchMedia'
 
 // vue-tsc can't carry the SFC's `generic="TRow extends object"` parameter through
 // to consumers, so `mount()` sees props typed for the unbounded default — cast once
@@ -77,6 +78,72 @@ describe('DataTable — v-model:page / v-model:search-query', () => {
     })
     expect(wrapper.emitted('update:page')![0]).toEqual([1])
     expect(wrapper.emitted('update:searchQuery')![0]).toEqual([''])
+  })
+
+  it('says no rows match, with a way out clearing search and filters', async () => {
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: COLS, rowKey: 'id' } })
+    await wrapper.find('input.dt__search-input').setValue('zzz')
+    expect(wrapper.find('tbody').text()).toContain('No matching rows')
+    const btn = wrapper
+      .findAll('tbody button')
+      .find((b) => b.text() === 'Clear search and filters')!
+    await btn.trigger('click')
+    expect((wrapper.find('input.dt__search-input').element as HTMLInputElement).value).toBe('')
+    expect(wrapper.findAll('tbody tr')).toHaveLength(ROWS.length)
+  })
+
+  it('says "No rows", with no button, when there is no data at all', () => {
+    const wrapper = mount(DataTable, { props: { data: [], columns: COLS, rowKey: 'id' } })
+    expect(wrapper.find('tbody').text()).toBe('No rows')
+    expect(wrapper.find('tbody button').exists()).toBe(false)
+  })
+
+  it('moves focus to the search box when a clear button removes itself', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS, columns: COLS, rowKey: 'id' },
+      attachTo: document.body,
+    })
+    const search = wrapper.find('input.dt__search-input')
+    for (const name of ['× Clear all', 'Clear search', 'Clear search and filters']) {
+      await search.setValue('zzz')
+      const btn = wrapper
+        .findAll('button')
+        .find((b) => b.text() === name || b.attributes('aria-label') === name)!
+      ;(btn.element as HTMLElement).focus()
+      await btn.trigger('click')
+      expect(document.activeElement).toBe(search.element)
+    }
+    wrapper.unmount()
+  })
+
+  it('moves focus to the first toolbar button after Clear all when search is hidden', async () => {
+    const wrapper = mount(DataTable, {
+      props: {
+        data: ROWS,
+        columns: COLS,
+        rowKey: 'id',
+        showSearch: false,
+        initialViewState: { sorts: [{ key: 'name', dir: 'asc' }] },
+      },
+      attachTo: document.body,
+    })
+    const clearAll = wrapper.findAll('button').find((b) => b.text() === '× Clear all')!
+    ;(clearAll.element as HTMLElement).focus()
+    await clearAll.trigger('click')
+    expect(document.activeElement).toBe(wrapper.find('button').element)
+    wrapper.unmount()
+  })
+
+  it('names the pagination buttons from the labels', () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS, columns: COLS, rowKey: 'id', initialViewState: { pageSize: 1 } },
+    })
+    expect(wrapper.findAll('.dt__page-btn').map((b) => b.attributes('aria-label'))).toEqual([
+      'First page',
+      'Previous page',
+      'Next page',
+      'Last page',
+    ])
   })
 
   it('emits update:page when the page changes via pagination controls', async () => {
@@ -574,6 +641,25 @@ describe('DataTable — filter dropdown', () => {
     expect(alice.attributes('title')).toBe('Click to hide this value')
     await alice.trigger('click')
     expect(alice.attributes('title')).toBe('Hidden — click to show again')
+  })
+
+  it('Escape on the Others row clears the search and keeps focus in the pane (U17)', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS, columns: FILTER_COLS, rowKey: 'id' },
+      attachTo: document.body,
+    })
+    await wrapper
+      .findAll('button')
+      .find((b) => b.text() === 'Filter')!
+      .trigger('click')
+    await valueSearchInput(wrapper).setValue('ali')
+    const others = wrapper.find('.dt__filter-others input[type="checkbox"]')
+    ;(others.element as HTMLElement).focus()
+    await others.trigger('keydown', { key: 'Escape' })
+    await new Promise((r) => setTimeout(r))
+    expect(wrapper.find('.dt__filter-others').exists()).toBe(false)
+    expect(document.activeElement).toBe(valueSearchInput(wrapper).element)
+    wrapper.unmount()
   })
 
   it('an "Others" row appears once the value search narrows the list, bulk-(un)checking everything it hides', async () => {
@@ -3823,5 +3909,154 @@ describe('DataTable — active-bar chip click actions', () => {
     expect(document.activeElement).toBe(
       wrapper.findAll('.dt__filter-col-item').find((el) => el.text().startsWith('Name'))!.element,
     )
+  })
+})
+
+describe('DataTable — filter dropdown on a narrow screen (U16)', () => {
+  const NARROW_COLS: ColumnDef<Row>[] = [
+    { key: 'name', label: 'Name', filterable: true },
+    { key: 'score', label: 'Score', type: 'number', filterable: true },
+  ]
+  let restore = () => {}
+
+  // 10 ms, not 0: Vue drops a key event sent within a few ms of a menu opening
+  // (docs/pitfalls.md); 5 ms already passed 80/80 runs
+  const tick = () => new Promise((r) => setTimeout(r, 10))
+  async function open(matches: boolean) {
+    restore = stubMatchMedia(matches)
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS, columns: NARROW_COLS, rowKey: 'id' },
+      attachTo: document.body,
+    })
+    await openDdByLabel(wrapper, 'Filter')
+    return wrapper
+  }
+  const nameBtn = (wrapper: ReturnType<typeof mount>) =>
+    wrapper.findAll('.dt__filter-col-item').find((el) => el.text().startsWith('Name'))
+
+  it('shows the column list, then one column at a time with a way back', async () => {
+    const wrapper = await open(true)
+    expect(wrapper.find('.dt__filter-cols').exists()).toBe(true)
+    expect(wrapper.find('.dt__filter-detail').exists()).toBe(false)
+    await nameBtn(wrapper)!.trigger('click')
+    await tick()
+    expect(wrapper.find('.dt__filter-cols').exists()).toBe(false)
+    expect(wrapper.find('.dt__filter-detail').exists()).toBe(true)
+    const back = wrapper.find('.dt__filter-back')
+    expect(back.text()).toContain('Columns')
+    await back.trigger('click')
+    await tick()
+    expect(wrapper.find('.dt__filter-detail').exists()).toBe(false)
+    expect(document.activeElement).toBe(nameBtn(wrapper)!.element)
+    wrapper.unmount()
+    restore()
+  })
+
+  it('crosses panes with → and ←', async () => {
+    const wrapper = await open(true)
+    ;(nameBtn(wrapper)!.element as HTMLElement).focus()
+    await nameBtn(wrapper)!.trigger('keydown', { key: 'ArrowRight' })
+    await tick()
+    expect(wrapper.find('.dt__filter-detail').element.contains(document.activeElement)).toBe(true)
+    const row = wrapper.find('.dt__filter-detail input[data-value]')
+    ;(row.element as HTMLElement).focus()
+    await row.trigger('keydown', { key: 'ArrowLeft' })
+    await tick()
+    expect(wrapper.find('.dt__filter-detail').exists()).toBe(false)
+    expect(document.activeElement).toBe(nameBtn(wrapper)!.element)
+    wrapper.unmount()
+    restore()
+  })
+
+  it('keeps both panes on a wide screen', async () => {
+    const wrapper = await open(false)
+    expect(wrapper.find('.dt__filter-cols').exists()).toBe(true)
+    expect(wrapper.find('.dt__filter-detail').exists()).toBe(true)
+    expect(wrapper.find('.dt__filter-back').exists()).toBe(false)
+    wrapper.unmount()
+    restore()
+  })
+})
+
+describe('DataTable — exclusion chip wording (U18)', () => {
+  interface DeptRow {
+    id: number
+    dept: string
+  }
+  const DEPT_COLS: ColumnDef<DeptRow>[] = [{ key: 'dept', label: 'Dept', filterable: true }]
+  const DEPT_ROWS: DeptRow[] = ['Eng', 'HR', 'Ops', 'Sales'].map((dept, id) => ({ id, dept }))
+  function chip(excluded: string[]) {
+    const wrapper = mount(DataTable, {
+      props: {
+        data: DEPT_ROWS,
+        columns: DEPT_COLS,
+        rowKey: 'id',
+        initialViewState: { excludeFilters: { dept: excluded } },
+      },
+    })
+    const body = wrapper.findAll('.dt__chip-body').find((b) => b.text().startsWith('Dept:'))!
+    return {
+      text: body.text().replace(/\s+/g, ' '),
+      classes: body.element.parentElement!.className,
+    }
+  }
+
+  it('names the one value kept rather than the three hidden', () => {
+    const { text, classes } = chip(['HR', 'Ops', 'Sales'])
+    expect(text).toBe('Dept: Eng')
+    expect(classes).not.toContain('dt__chip--danger')
+  })
+
+  it('names the hidden value when fewer are hidden', () => {
+    const { text, classes } = chip(['HR'])
+    expect(text).toBe('Dept: ≠ HR')
+    expect(classes).toContain('dt__chip--danger')
+  })
+})
+
+describe('DataTable — filter values through the column format', () => {
+  interface Item {
+    id: number
+    code: string
+    price: number
+  }
+  const ITEM_COLS: ColumnDef<Item>[] = [
+    { key: 'code', label: 'Code', format: (v) => String(v).toUpperCase() },
+    {
+      key: 'price',
+      label: 'Price',
+      type: 'number',
+      format: (v) => `$${Number(v).toLocaleString('en-US')}`,
+    },
+  ]
+  const ITEMS: Item[] = [
+    { id: 1, code: 'ab', price: 1500 },
+    { id: 2, code: 'cd', price: 90000 },
+  ]
+
+  it('shows chips and checklist values as the column formats them', async () => {
+    const wrapper = mount(DataTable, {
+      props: {
+        data: ITEMS,
+        columns: ITEM_COLS,
+        rowKey: 'id',
+        initialViewState: {
+          filters: { code: ['ab'] },
+          rangeFilters: { price: { min: '1000', max: '' } },
+        },
+      },
+    })
+    const chips = wrapper.findAll('.dt__chip-body').map((b) => b.text().replace(/\s+/g, ' '))
+    expect(chips).toContain('Code: AB')
+    expect(chips).toContain('Price: $1,000–')
+    await openDdByLabel(wrapper, 'Filter')
+    await wrapper.find('[data-filter-col-key="code"]').trigger('click')
+    const labels = wrapper.findAll('input[data-dd-value-row]').map((i) =>
+      i.element
+        .closest('label')!
+        .textContent!.replace(/\d+\s*$/, '')
+        .trim(),
+    )
+    expect(labels).toEqual(['AB', 'CD'])
   })
 })

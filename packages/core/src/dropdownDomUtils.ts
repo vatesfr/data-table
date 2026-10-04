@@ -118,11 +118,60 @@ export function computeSubmenuPosition(
   margin = 8,
 ): { left: number; top: number } {
   const openRight = triggerRect.right + submenuSize.width <= viewportWidth - margin
-  const left = openRight ? triggerRect.right : triggerRect.left - submenuSize.width
+  // Fits neither side (a narrow screen): stay on screen, overlapping the trigger
+  const left = Math.max(
+    margin,
+    openRight ? triggerRect.right : triggerRect.left - submenuSize.width,
+  )
   let top = triggerRect.top
   if (top + submenuSize.height > viewportHeight - margin)
     top = viewportHeight - margin - submenuSize.height
   if (top < margin) top = margin
+  return { left, top }
+}
+
+/**
+ * The viewport width a fixed or clamped panel must fit in: `innerWidth` minus a classic vertical
+ * scrollbar, which `innerWidth` (and `100vw`) include. Falls back to `innerWidth` where layout is
+ * absent (jsdom reports 0).
+ */
+export function viewportWidth(): number {
+  return document.documentElement.clientWidth || window.innerWidth
+}
+
+/** Below this width the Filter dropdown (460 px plus margins) shows one pane at a time */
+export const FILTER_NARROW_QUERY = '(max-width: 479px)'
+
+/**
+ * Calls `onChange` with whether `query` matches, now and on every change; returns the function
+ * removing the listener. Reports `false` where `matchMedia` is missing (jsdom).
+ */
+export function watchMedia(query: string, onChange: (matches: boolean) => void): () => void {
+  if (typeof window === 'undefined' || !window.matchMedia) {
+    onChange(false)
+    return () => {}
+  }
+  const list = window.matchMedia(query)
+  const listener = () => onChange(list.matches)
+  listener()
+  list.addEventListener('change', listener)
+  return () => list.removeEventListener('change', listener)
+}
+
+/**
+ * A header menu's fixed-viewport `left`/`top`: below `anchorRect`, left-aligned with it, slid back
+ * inside the viewport horizontally, and flipped above the anchor when it doesn't fit below.
+ */
+export function computeMenuPosition(
+  anchorRect: { top: number; right: number; bottom: number; left: number },
+  menuSize: { width: number; height: number },
+  viewportWidth: number,
+  viewportHeight: number,
+  margin = 8,
+): { left: number; top: number } {
+  const left = Math.max(margin, Math.min(anchorRect.left, viewportWidth - margin - menuSize.width))
+  const fitsBelow = anchorRect.bottom + menuSize.height <= viewportHeight - margin
+  const top = fitsBelow ? anchorRect.bottom : Math.max(margin, anchorRect.top - menuSize.height)
   return { left, top }
 }
 

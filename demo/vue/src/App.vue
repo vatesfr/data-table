@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, shallowRef, computed, onMounted, onUnmounted } from 'vue'
 import {
   DataTableView,
   useTableState,
@@ -20,7 +20,7 @@ import {
 } from '@vates/data-table-vue'
 import Badge from './components/Badge.vue'
 import ScoreBar from './components/ScoreBar.vue'
-import { HUGE_DATA, HUGE_COLUMNS, HUGE_ROW_COUNT } from './hugeData'
+import { hugeData, HUGE_COLUMNS, HUGE_ROW_COUNT, type HugeRow } from './hugeData'
 import ViewControls from './ViewControls.vue'
 
 interface Employee {
@@ -493,6 +493,7 @@ function docLink(anchor: string, label: string): string {
 }
 
 const selected = ref<Employee[]>([])
+const selectionData = ref(SAMPLE_DATA)
 const clicked = ref<Employee | null>(null)
 
 type Theme = '' | 'dark' | 'light'
@@ -573,7 +574,7 @@ const fullTable = useTableState(SAMPLE_DATA, COLUMNS, () => ({
 usePersistedView(fullTable, VIEW_KEYS.full.storageKey)
 useUrlView(fullTable, { paramName: VIEW_KEYS.full.paramName })
 
-const selectionTable = useTableState(SAMPLE_DATA, COLUMNS, () => ({
+const selectionTable = useTableState(selectionData, COLUMNS, () => ({
   initialViewState: { visibleCols: SELECTION_VISIBLE, pageSize: 5 },
   labels: currentLocale.value,
 }))
@@ -589,7 +590,23 @@ useUrlView(clickTable, { paramName: VIEW_KEYS.click.paramName })
 
 // No `labels` option — matches the huge-dataset table's pre-existing behavior of always using
 // the default English labels regardless of the page's locale switcher.
-const hugeTable = useTableState(HUGE_DATA, HUGE_COLUMNS, () => ({
+// Filled once the section nears the viewport: 200k rows are too heavy to build on every page load
+const hugeRows = shallowRef<HugeRow[]>([])
+const hugeSection = ref<HTMLElement | null>(null)
+let hugeObserver: IntersectionObserver | undefined
+onMounted(() => {
+  hugeObserver = new IntersectionObserver(
+    ([entry]) => {
+      if (!entry.isIntersecting) return
+      hugeRows.value = hugeData()
+      hugeObserver?.disconnect()
+    },
+    { rootMargin: '400px' },
+  )
+  if (hugeSection.value) hugeObserver.observe(hugeSection.value)
+})
+onUnmounted(() => hugeObserver?.disconnect())
+const hugeTable = useTableState(hugeRows, HUGE_COLUMNS, () => ({
   initialViewState: { pageSize: 100 },
 }))
 usePersistedView(hugeTable, VIEW_KEYS.huge.storageKey)
@@ -866,11 +883,25 @@ function fmtSalary(n: number | null) {
       >
         Export
       </button>
+      <button
+        style="
+          padding: 3px 10px;
+          border-radius: 4px;
+          border: 0.5px solid var(--color-border-info);
+          background: transparent;
+          color: var(--color-text-info);
+          cursor: pointer;
+          font-size: 13px;
+        "
+        @click="selectionData = selectionData.filter((r) => !selected.includes(r))"
+      >
+        Delete
+      </button>
     </div>
     <ViewControls @reset="resetView(selectionTable, VIEW_KEYS.selection)" />
     <DataTableView
       :table="selectionTable"
-      :data="SAMPLE_DATA"
+      :data="selectionData"
       :columns="COLUMNS"
       row-key="id"
       :selectable="true"
@@ -1079,7 +1110,12 @@ function fmtSalary(n: number | null) {
       only ever mounts the rows scrolled into view. Try grouping by <code>Category</code> and/or
       <code>Region</code>.
     </p>
-    <ViewControls @reset="resetView(hugeTable, VIEW_KEYS.huge)" />
-    <DataTableView :table="hugeTable" :data="HUGE_DATA" :columns="HUGE_COLUMNS" row-key="id" />
+    <div ref="hugeSection">
+      <template v-if="hugeRows.length">
+        <ViewControls @reset="resetView(hugeTable, VIEW_KEYS.huge)" />
+        <DataTableView :table="hugeTable" :data="hugeRows" :columns="HUGE_COLUMNS" row-key="id" />
+      </template>
+      <div v-else style="height: 400px" />
+    </div>
   </div>
 </template>

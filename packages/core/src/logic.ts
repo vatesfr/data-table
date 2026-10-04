@@ -21,6 +21,33 @@ export function getColumnValue<TRow extends object>(col: ColumnDefBase<TRow>, ro
   return col.value ? col.value(row) : asRecord(row)[col.key]
 }
 
+/** A cell's plain text (`format`, never `render`), e.g. for an accessible name. */
+export function cellText<TRow extends object>(col: ColumnDefBase<TRow>, row: TRow): string {
+  const v = getColumnValue(col, row)
+  if (col.format) return col.format(v, row)
+  if (Array.isArray(v)) return v.join(', ')
+  return v != null ? String(v) : ''
+}
+
+/** A group's plain-text name, every `groupBy` level joined with " › " as in its header. */
+export function groupText<TRow extends object>(
+  columns: ColumnDefBase<TRow>[],
+  groupBy: string[],
+  keyParts: string[],
+  sampleRow: TRow,
+): string {
+  return groupBy
+    .map((key, i) => {
+      const col = columns.find((c) => c.key === key)
+      if (!col) return keyParts[i]
+      if (col.groupValue) return col.groupFormat?.(keyParts[i]) ?? keyParts[i]
+      const raw = getColumnValue(col, sampleRow)
+      const value = Array.isArray(raw) ? keyParts[i] : raw
+      return col.format ? col.format(value, sampleRow) : String(value ?? '')
+    })
+    .join(' › ')
+}
+
 /** Indexes columns by key for O(1) lookup — shared by every function that resolves a raw filter/
  * sort/group key back to its column definition. */
 function buildColByKey<TRow extends object>(
@@ -807,6 +834,20 @@ export function filterValuesByCount(
   return values.filter((v) => selected.has(v) || (counts.get(v) ?? 0) > 0)
 }
 
+/**
+ * A filter value (checklist value, chip value or range bound, all strings) shown through the
+ * column's `format`, without a row; a number column's value goes back to a number first. The
+ * empty-value placeholder and columns without `format` show as is.
+ */
+export function formatFilterValue<TRow extends object>(
+  col: ColumnDefBase<TRow> | undefined,
+  value: string,
+  emptyLabel: string,
+): string {
+  if (!col?.format || value === emptyLabel || value === '') return value
+  return col.format(col.type === 'number' ? Number(value) : value)
+}
+
 /** Max values shown by name on an active-bar filter chip before falling back to a "+N more"
  * suffix — see `summarizeFilterValues`. */
 export const FILTER_CHIP_MAX = 3
@@ -820,8 +861,9 @@ export const FILTER_CHIP_MAX = 3
 export function summarizeFilterValues(
   vals: Set<string>,
   moreValues: (n: number) => string,
+  format: (value: string) => string = (v) => v,
 ): string {
-  const arr = [...vals]
+  const arr = [...vals].map(format)
   if (arr.length <= FILTER_CHIP_MAX) return arr.join(', ')
   return `${arr.slice(0, FILTER_CHIP_MAX).join(', ')}, ${moreValues(arr.length - FILTER_CHIP_MAX)}`
 }

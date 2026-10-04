@@ -455,6 +455,19 @@ describe('DataTable — filter dropdown', () => {
     expect(someCalls).toBe(2)
   })
 
+  it('renders the "Others" row without a controlled-checkbox warning (U22)', () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const { getByText, getAllByPlaceholderText, getByLabelText } = render(
+      <DataTable data={ROWS} columns={FILTER_COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Filter'))
+    const searchInputs = getAllByPlaceholderText('Search…')
+    fireEvent.change(searchInputs[searchInputs.length - 1], { target: { value: 'ali' } })
+    expect(getByLabelText('Others', { exact: false })).toBeTruthy()
+    expect(error.mock.calls.flat().join(' ')).not.toContain('without an `onChange` handler')
+    error.mockRestore()
+  })
+
   it('an "Others" row appears once the value search narrows the list, bulk-(un)checking everything it hides', () => {
     const { getByText, getAllByPlaceholderText, getByLabelText, queryByLabelText } = render(
       <DataTable data={ROWS} columns={FILTER_COLS} rowKey="id" />,
@@ -2288,6 +2301,61 @@ describe('DataTable — keyboard navigation across pages', () => {
     fireEvent.click([...container.querySelectorAll('button')].find((b) => b.textContent === '›')!)
   }
 
+  it('says no rows match, with a way out clearing search and filters', () => {
+    const { container, getByText, getByRole, getAllByPlaceholderText } = render(
+      <DataTable data={ROWS6} columns={COLS} rowKey="id" />,
+    )
+    fireEvent.change(getAllByPlaceholderText('Search…')[0], { target: { value: 'zzz' } })
+    expect(getByText('No matching rows')).toBeTruthy()
+    fireEvent.click(getByRole('button', { name: 'Clear search and filters' }))
+    expect(getAllByPlaceholderText('Search…')[0]).toHaveProperty('value', '')
+    expect(container.querySelectorAll('tbody tr')).toHaveLength(ROWS6.length)
+  })
+
+  it('says "No rows", with no button, when there is no data at all', () => {
+    const { container } = render(<DataTable data={[]} columns={COLS} rowKey="id" />)
+    expect(container.querySelector('tbody')?.textContent).toBe('No rows')
+    expect(container.querySelector('tbody button')).toBeNull()
+  })
+
+  it('moves focus to the search box when a clear button removes itself', () => {
+    const { getByRole, getAllByPlaceholderText } = render(
+      <DataTable data={ROWS6} columns={COLS} rowKey="id" />,
+    )
+    const search = getAllByPlaceholderText('Search…')[0]
+    for (const name of ['× Clear all', 'Clear search', 'Clear search and filters']) {
+      fireEvent.change(search, { target: { value: 'zzz' } })
+      const btn = getByRole('button', { name })
+      btn.focus()
+      fireEvent.click(btn)
+      expect(document.activeElement).toBe(search)
+    }
+  })
+
+  it('moves focus to the first toolbar button after Clear all when search is hidden', () => {
+    const { container, getByRole } = render(
+      <DataTable
+        data={ROWS6}
+        columns={COLS}
+        rowKey="id"
+        showSearch={false}
+        initialViewState={{ sorts: [{ key: 'name', dir: 'asc' }] }}
+      />,
+    )
+    const clearAll = getByRole('button', { name: '× Clear all' })
+    clearAll.focus()
+    fireEvent.click(clearAll)
+    expect(document.activeElement).toBe(container.querySelector('button'))
+  })
+
+  it('names the pagination buttons from the labels', () => {
+    const { getByRole } = render(
+      <DataTable data={ROWS6} columns={COLS} rowKey="id" initialViewState={{ pageSize: 2 }} />,
+    )
+    for (const name of ['First page', 'Previous page', 'Next page', 'Last page'])
+      expect(getByRole('button', { name })).toBeTruthy()
+  })
+
   it('the rows-per-page dropdown includes and selects a custom initialViewState.pageSize not among the defaults', () => {
     const { container } = render(
       <DataTable data={ROWS6} columns={COLS} rowKey="id" initialViewState={{ pageSize: 2 }} />,
@@ -2646,5 +2714,86 @@ describe('DataTable — bucketed grouping (groupValue/groupFormat)', () => {
     // scores 90 and 60 bucket to 80 and 60 -> "80–100" and "60–80"
     expect(container.textContent).toContain('80–100')
     expect(container.textContent).toContain('60–80')
+  })
+})
+
+describe('DataTable — exclusion chip wording (U18)', () => {
+  interface DeptRow {
+    id: number
+    dept: string
+  }
+  const DEPT_COLS: ColumnDef<DeptRow>[] = [{ key: 'dept', label: 'Dept', filterable: true }]
+  const DEPT_ROWS: DeptRow[] = ['Eng', 'HR', 'Ops', 'Sales'].map((dept, id) => ({ id, dept }))
+  const chipText = (container: HTMLElement) =>
+    [...container.querySelectorAll('button')]
+      .map((b) => b.textContent)
+      .find((t) => t?.startsWith('Dept:'))
+
+  it('names the one value kept rather than the three hidden', () => {
+    const { container } = render(
+      <DataTable
+        data={DEPT_ROWS}
+        columns={DEPT_COLS}
+        rowKey="id"
+        initialViewState={{ excludeFilters: { dept: ['HR', 'Ops', 'Sales'] } }}
+      />,
+    )
+    expect(chipText(container)).toBe('Dept: Eng')
+  })
+
+  it('names the hidden value when fewer are hidden', () => {
+    const { container } = render(
+      <DataTable
+        data={DEPT_ROWS}
+        columns={DEPT_COLS}
+        rowKey="id"
+        initialViewState={{ excludeFilters: { dept: ['HR'] } }}
+      />,
+    )
+    expect(chipText(container)).toBe('Dept: ≠ HR')
+  })
+})
+
+describe('DataTable — filter values through the column format', () => {
+  interface Item {
+    id: number
+    code: string
+    price: number
+  }
+  const ITEM_COLS: ColumnDef<Item>[] = [
+    { key: 'code', label: 'Code', format: (v) => String(v).toUpperCase() },
+    {
+      key: 'price',
+      label: 'Price',
+      type: 'number',
+      format: (v) => `$${Number(v).toLocaleString('en-US')}`,
+    },
+  ]
+  const ITEMS: Item[] = [
+    { id: 1, code: 'ab', price: 1500 },
+    { id: 2, code: 'cd', price: 90000 },
+  ]
+
+  it('shows chips and checklist values as the column formats them', () => {
+    const { container, getByText } = render(
+      <DataTable
+        data={ITEMS}
+        columns={ITEM_COLS}
+        rowKey="id"
+        initialViewState={{
+          filters: { code: ['ab'] },
+          rangeFilters: { price: { min: '1000', max: '' } },
+        }}
+      />,
+    )
+    const texts = [...container.querySelectorAll('button')].map((b) => b.textContent)
+    expect(texts).toContain('Code: AB')
+    expect(texts).toContain('Price: $1,000–')
+    fireEvent.click(getByText('Filter'))
+    fireEvent.click(container.querySelector('[data-filter-col-key="code"]')!)
+    const labels = [...container.querySelectorAll('input[data-dd-value-row]')].map((i) =>
+      i.closest('label')!.textContent!.replace(/\d+$/, '').trim(),
+    )
+    expect(labels).toEqual(['AB', 'CD'])
   })
 })

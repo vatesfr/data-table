@@ -146,7 +146,11 @@ function makeHugeData(n: number): HugeRow[] {
   return rows
 }
 
-export const HUGE_DATA: HugeRow[] = makeHugeData(HUGE_ROW_COUNT)
+let hugeDataCache: HugeRow[] | undefined
+// Generated on first use: the demos mount this table only once its section scrolls into view
+export function hugeData(): HugeRow[] {
+  return (hugeDataCache ??= makeHugeData(HUGE_ROW_COUNT))
+}
 
 export const HUGE_COLUMNS: ColumnDef<HugeRow>[] = [
   { key: 'id', label: 'Order ID', type: 'number' },

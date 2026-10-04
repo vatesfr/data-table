@@ -15,6 +15,8 @@ Grouping and pagination compose as: group the _full_ `processedData` → flatten
 - **`numPages`** is `computeTotalPages(visibleItems.length, pageSize)` — `visibleItems.length` (headers + visible rows) rather than `processedData.length`, so it grows when groups are expanded and shrinks when they're collapsed. Toggling a group's collapse state can therefore change `numPages` out from under the current `page`; this is handled the same way a filter change already could shrink `numPages` — no state reset on toggle, just the pre-existing `Math.min(page, numPages)` clamp applied wherever `page` is used.
 - The toolbar's group count stat dedupes `groupedData` by `key` before counting (`new Set(groupedData.map(g => g.key)).size`) rather than using `groupedData.length` directly, since a split group's `continued` chunk would otherwise be counted as a second group.
 
+The «, ‹, › and » buttons are named by the `firstPage`/`previousPage`/`nextPage`/`lastPage` labels (`aria-label`), since the glyph alone reads as nothing useful.
+
 The "Rows per page" `<select>`'s options are hardcoded to `[10, 20, 50, 100]` in each adapter, but a consumer's `initialViewState.pageSize`/`setPageSize` isn't restricted to those four — a plain `<select>` bound to a value absent from its own `<option>`s can't select anything, so the browser falls back to displaying the first option, silently showing the wrong number while the actual `pageSize` (and the row count on screen) stays correct. `mergePageSizeOptions(options, pageSize)` (core) inserts `pageSize` into the option list (sorted) when it's missing, so the dropdown always has a matching option; each adapter calls it with its own `[10, 20, 50, 100]` base list rather than rendering it directly.
 
 ---

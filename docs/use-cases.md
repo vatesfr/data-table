@@ -6,6 +6,8 @@ What people do with a table built on this library, end to end — the yardstick 
 - A use case wrong about the library (a step that doesn't exist, a stale expectation) is itself a finding.
 - **Who** is someone using an app that embeds the table, not the developer integrating it.
 - Each names the demo section it runs on (`demo/*`, same anchors in every adapter). Data: the demo's 20 employees; `#huge-dataset`'s generated orders.
+- A step or edge marked ◇ is a target, not built yet: add it before building a feature, so the feature has a line to meet, and drop the ◇ when it ships. A missing ◇ behavior isn't a finding.
+- UC01 and UC07 also run as Playwright tests in `e2e/` ([testing](testing.md)).
 - IDs are never reused.
 
 ## UC01 Find rows in a list
@@ -22,7 +24,7 @@ What people do with a table built on this library, end to end — the yardstick 
 6. Click the sort chip to flip its direction; remove the filter chip with its ×.
 7. Clear all: every row is back, sorted as at first.
 
-**Edges**: a filter matching nothing (says so, offers a way out); missing values (Eva's salary, unreviewed scores) placed and labelled consistently; a column whose values are badges, in cells and in its checklist.
+**Edges**: a filter matching nothing (says so, offers a way out); missing values (Eva's salary, unreviewed scores) placed and labelled consistently; a column whose values are badges, in cells and in its checklist; another locale or the dark theme (nav switchers): every string translated, plurals right ("1 row"), chips, focus and excluded values still distinct.
 
 **Docs**: [sorting](sorting.md), [filter dropdown](filter-dropdown.md), [columns](columns.md), [toolbar](toolbar.md)
 
@@ -84,7 +86,7 @@ What people do with a table built on this library, end to end — the yardstick 
 3. Reload: the layout is kept.
 4. Reset: the default layout is back.
 
-**Edges**: hiding the column the table is sorted, grouped or filtered by; a narrow viewport with many visible columns.
+**Edges**: hiding the column the table is sorted, grouped or filtered by; a narrow viewport with many visible columns; 200% browser zoom (toolbar and dropdowns reflow, nothing clipped).
 
 **Docs**: [column reordering](column-reordering.md), [columns](columns.md)
 
@@ -98,7 +100,7 @@ What people do with a table built on this library, end to end — the yardstick 
 2. Open it in a fresh browser context: same view.
 3. Reset there: the default view, and the URL no longer carries one.
 
-**Edges**: a link naming a removed column or a value no longer present (renders, doesn't throw); a link without changes.
+**Edges**: a link naming a removed column or a value no longer present (renders, doesn't throw); a link without changes; the same for a view saved in `#persisted-table` and reopened later.
 
 **Docs**: [view persistence](view-persistence.md)
 
@@ -113,7 +115,7 @@ What people do with a table built on this library, end to end — the yardstick 
 3. Scroll the table sideways inside its own area, not the page.
 4. Select a few rows by tapping.
 
-**Edges**: touch targets on checkboxes, chips' ×, pagination; dropdowns near the screen edge.
+**Edges**: touch targets on checkboxes, chips' ×, pagination; dropdowns near the screen edge; a longer locale (DE, FR) still fitting the toolbar.
 
 **Docs**: [toolbar](toolbar.md) (viewport clamping)
 
@@ -130,3 +132,51 @@ What people do with a table built on this library, end to end — the yardstick 
 **Edges**: a checklist search narrowing thousands of values; clearing everything at once.
 
 **Docs**: [performance](performance.md), [pagination](pagination.md)
+
+## UC09 Screen reader
+
+**Who**: someone using a screen reader (NVDA, VoiceOver). **Demo**: `#full-table`, `#row-selection`.
+
+**Done when**: after each UC01–UC03 action they hear what changed without looking, and every control's name says what it does.
+
+1. Search "lead": the new row count is announced.
+2. Sort by Salary: the header reports its direction.
+3. Group by Department, reach a group header: its name, count and collapsed state are read; Enter toggles it and the new state is heard.
+4. Select rows: each checkbox names its row and its state.
+5. Page forward: the new page is announced.
+6. Remove a chip: its × is named after what it removes; focus lands on something announced.
+
+**Edges**: "No matching rows" announced; a dropdown's open state and the active item while searching its list.
+
+**Docs**: [keyboard navigation](keyboard-navigation.md), [dropdown keyboard nav](dropdown-keyboard-nav.md), [toolbar](toolbar.md)
+
+## UC10 Rows change underneath
+
+**Who**: someone whose list changes while they work on it, e.g. after a bulk action. **Demo**: `#row-selection` (Delete; reload restores the rows).
+
+**Done when**: removed rows never change what the user meant: selection, focus, page and counts stay coherent.
+
+1. Go to page 2, select two rows, Delete: they're gone, the "N selected" bar clears, the row count drops.
+2. Filter Department to Sales, select all, Delete: the filter stays and the table says nothing matches.
+3. Delete rows from the last page until it empties: the table shows the new last page.
+4. Delete every row: the table says "No rows", not "No matching rows".
+
+**Edges**: deleting the keyboard-focused row; a group losing its last row; a checklist filter on a value no longer present.
+
+**Docs**: [selection and row click](selection-and-row-click.md), [pagination](pagination.md), [table state](table-state.md)
+
+## UC11 Act on a column where it is
+
+**Who**: someone who spots something in a column and wants to act on it right there. **Demo**: `#full-table`.
+
+**Done when**: every action on a column starts from that column in at most two clicks or taps, and the header shows the column's state.
+
+1. Sort Salary from its header, then flip it.
+2. Filter Department to Engineering from its header.
+3. Group by Department from its header.
+4. Hide Status from its header.
+5. From the headers alone, tell which columns are sorted, filtered and grouped.
+
+**Edges**: on a phone (no shift-click, no hover); from the keyboard; a narrow column; a column that can't be filtered or grouped (offers only what applies).
+
+**Docs**: [sorting](sorting.md), [filter dropdown](filter-dropdown.md), [grouped columns](grouped-columns.md), [columns](columns.md)

@@ -4,6 +4,7 @@ import { render } from 'solid-js/web'
 import { createTableState } from '../createTableState'
 import { FilterDropdown } from '../components/FilterDropdown'
 import type { ColumnDef } from '../types'
+import { stubMatchMedia } from './stubMatchMedia'
 
 interface Row {
   id: number
@@ -354,6 +355,21 @@ describe('FilterDropdown — string checklist', () => {
 })
 
 describe('FilterDropdown — "Others" row', () => {
+  it('Escape on the Others row clears the search and keeps focus in the pane (U17)', () => {
+    const { container, dispose } = mount()
+    const search = container.querySelector<HTMLInputElement>('.dt-filter-search-row .dt-dd-search')!
+    search.value = 'ali'
+    search.dispatchEvent(new Event('input', { bubbles: true }))
+    const others = container.querySelector<HTMLInputElement>('.dt-filter-others input')!
+    others.focus()
+    others.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    expect(container.querySelector('.dt-filter-others')).toBeNull()
+    expect(document.activeElement).toBe(
+      container.querySelector('.dt-filter-search-row .dt-dd-search'),
+    )
+    dispose()
+  })
+
   it('is hidden until the value search narrows the list, then bulk-(un)checks everything it hides (non-multi-value column)', () => {
     const { container, table, dispose } = mount()
     expect(container.querySelector('.dt-filter-others')).toBeNull()
@@ -1076,5 +1092,53 @@ describe('FilterDropdown — clear', () => {
     clearBtn!.click()
     expect(table.filter.activeCount()).toBe(0)
     dispose()
+  })
+})
+
+describe('FilterDropdown — narrow screen (U16)', () => {
+  it('shows the column list, then one column at a time with a way back', () => {
+    const restore = stubMatchMedia(true)
+    const { container, dispose } = mount()
+    expect(container.querySelector('.dt-filter-cols')).not.toBeNull()
+    expect(container.querySelector('.dt-filter-detail')).toBeNull()
+    selectCol(container, 'Dept')
+    expect(container.querySelector('.dt-filter-cols')).toBeNull()
+    expect(container.querySelector('.dt-filter-detail')).not.toBeNull()
+    const back = container.querySelector<HTMLButtonElement>('.dt-filter-back')!
+    expect(back.textContent).toContain('Columns')
+    back.click()
+    expect(container.querySelector('.dt-filter-detail')).toBeNull()
+    expect(document.activeElement?.textContent).toContain('Dept')
+    dispose()
+    restore()
+  })
+
+  it('crosses panes with → and ←', () => {
+    const restore = stubMatchMedia(true)
+    const { container, dispose } = mount()
+    const dept = [...container.querySelectorAll<HTMLButtonElement>('.dt-filter-col-item')].find(
+      (b) => b.textContent?.includes('Dept'),
+    )!
+    dept.focus()
+    dept.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }))
+    const search = container.querySelector<HTMLInputElement>('input[data-dd-value-search]')!
+    expect(document.activeElement).toBe(search)
+    const firstRow = container.querySelector<HTMLInputElement>('input[data-dd-value-row]')!
+    firstRow.focus()
+    firstRow.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }))
+    expect(container.querySelector('.dt-filter-detail')).toBeNull()
+    expect(document.activeElement?.textContent).toContain('Dept')
+    dispose()
+    restore()
+  })
+
+  it('keeps both panes on a wide screen', () => {
+    const restore = stubMatchMedia(false)
+    const { container, dispose } = mount()
+    expect(container.querySelector('.dt-filter-cols')).not.toBeNull()
+    expect(container.querySelector('.dt-filter-detail')).not.toBeNull()
+    expect(container.querySelector('.dt-filter-back')).toBeNull()
+    dispose()
+    restore()
   })
 })

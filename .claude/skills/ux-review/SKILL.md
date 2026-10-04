@@ -11,13 +11,13 @@ Judges the table against [use cases](../../../docs/use-cases.md) and [UI guideli
 
 - **Default: every use case.** A named UC, area or demo section narrows it.
 - **Re-check `U<n>`**: walk only the use cases the item names, confirm the fix, then drop or narrow the item.
-- A use case wrong about the library (missing step, stale expectation) is a finding against the doc.
+- A use case wrong about the library (missing step, stale expectation) is a finding against the doc. A ◇ step isn't built yet: skip it.
 - Say which use cases were walked and which skipped, and why.
 
 ## Server
 
 - **Solid demo** (`npm run dev:solid`, `:58983`; `run_in_background`, check with `curl -s localhost:58983` first). Vanilla inherits Solid's UI; React and Vue render their own, so a finding about markup, styling or behavior gets a spot-check there (`dev:react` `:58981`, `dev:vue` `:58982`; `ux-measure.mjs --demo=solid,react,vue` covers layout in one pass) before it's recorded as cross-adapter or adapter-specific.
-- Every table persists its view to localStorage and the URL: start from a clean state (`node scripts/ux-measure.mjs` clears it; or `localStorage.clear()` and load `/` without a query).
+- Every table persists its view to localStorage and the URL: start from a clean state. `ux-measure.mjs` handles it; in your own calls, open a new page with `addInitScript(() => localStorage.clear())` and load `/` without a query — clearing after load loses to the demo re-saving its view.
 - A finding about the demo page itself (its nav, its own buttons) isn't a library finding: report it separately, don't record it.
 
 ## Walk each use case
@@ -35,16 +35,19 @@ At **1440×900**, then **390×844**, following its steps as a user would — mou
 
 ## Mechanics
 
-- **Layout per section**: `node scripts/ux-measure.mjs [--demo=solid[,react,vue]] [--name=ux-UC<n>] [#section…]`, then `browser_run_code_unsafe` with `filename: .playwright-mcp/measure.js` — controls height above the table, first-row position, page/in-table overflow, targets under 24 px, unnamed controls, console errors, screenshots at both widths.
+- **Layout per section**: `node scripts/ux-measure.mjs [--demo=solid[,react,vue]] [--name=ux-UC<n>] [--view=<param>:<json>] [#section…]`, then `browser_run_code_unsafe` with `filename: .playwright-mcp/measure.js` — controls height above the table, first-row position, page/in-table overflow, targets under 24 px, unnamed controls, console errors, screenshots at both widths.
+- **Close every page you open**, in `try/finally`, and reuse one page across steps; don't run two browser-driving agents at once. A page that visits `#huge-dataset` holds its 200k rows, so leaked pages grow Chromium until the OOM killer takes the terminal down with it ([pitfalls](../../../docs/pitfalls.md)).
 - **Batch each step in one `browser_run_code_unsafe` call**: act, then measure with `page.evaluate` (`document.activeElement`, bounding boxes, accessible names, `scrollWidth > innerWidth`), then screenshot. Far cheaper than click-by-click snapshots.
-- **Scope locators to a section**: every table has the same toolbar; anchor on the section heading (`#full-table`) and its following table.
+- **Write steps with `node scripts/ux-step.mjs <step.js>`**, then `browser_run_code_unsafe` with `filename: .playwright-mcp/step.js`: it adds `open` (clean storage, optional view), `after` (section scoping), `clickAt` (mouse click, works inside fixed menus) and `rowCount`, and closes the page. Target the `data-*` markers listed in its header — the same in every adapter — not adapter class names.
+- **Start a section in a given view** (grouped, filtered…): `--view=<param>:<json>`, e.g. `--view=sel:'{"groupBy":["department"]}'`; params are the demo's `VIEW_KEYS`.
+- **Scope locators to a section**: every table has the same toolbar. The section id (`#full-table`) is on a bare `h2`, not a container: take the first `table` after it in document order, as `measureSection` in `ux-measure.mjs` does.
 - **Pick dropdown rows by keyboard**: type in the dropdown's search, then ↓ and Enter. Matching rows by text breaks when a column sits in a category submenu, and row markup differs per adapter; the keyboard path is the same in all three.
 - **Screenshots** go to `.playwright-mcp/ux-<UC>-<what>.png` (gitignored); `Read` them to look, `magick <in> -crop WxH+X+Y <out>` for detail.
 - **Copied links** (UC06): stub `navigator.clipboard.writeText` to capture them; open them in `page.context().browser().newContext()` for a fresh storage.
 
 ## Record and report
 
-- Record every finding in [improvements.md](../../../docs/improvements.md): next free `U` number (never reused), under its area, `**U<n> · <severity> · <use cases>** — problem. Direction.` Note adapters when not all three. Update or drop items the run shows fixed.
+- Record every finding in [improvements.md](../../../docs/improvements.md): the file's "Next free ID" (then bump it), under its area, `**U<n> · <severity> · <use cases>** — problem. Direction.` Note adapters when not all three. Update or drop items the run shows fixed.
 - UI text goes in quotes, not backticks — `npm run check:docs` fails on a backticked name absent from the code.
 - **Severity**: _blocker_ (the goal can't be reached) · _major_ (reached with real confusion or a workaround) · _minor_ (friction) · _polish_.
 - Report one table ranked by severity, then demo-only findings, then one line on what worked well enough to keep:
@@ -52,4 +55,7 @@ At **1440×900**, then **390×844**, following its steps as a user would — mou
 | U   | Severity | Use case | Where | Finding | Suggestion |
 | --- | -------- | -------- | ----- | ------- | ---------- |
 
+- Publish the report as an Artifact when the tool is available: the same table, each finding with its screenshot cropped to the problem, so whoever picks fixes sees them.
 - The user picks what to fix (`ux-fix`); commit the improvements.md update only when asked.
+
+<!-- check-docs-ignore: run_in_background curl ux-UC magick crop newContext severity -->

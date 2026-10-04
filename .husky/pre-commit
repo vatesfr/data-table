@@ -1,11 +1,3 @@
 ./scripts/check-changelog.sh
-npm run check:docs
-npx lint-staged
-npm run type-check
-npm run test
-npm run build
-npm run size -w packages/core
-npm run size -w packages/react
-npm run size -w packages/vue
-npm run size -w packages/solid
-npm run size -w packages/vanilla
+npx lint-staged --quiet
+./scripts/check.sh check:docs type-check test build size

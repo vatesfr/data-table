@@ -1,5 +1,9 @@
 import { type JSX, Show, createSignal, onCleanup } from 'solid-js'
-import { computeSubmenuPosition, ddNavFocusables } from '@vates/data-table-core/internal'
+import {
+  computeSubmenuPosition,
+  ddNavFocusables,
+  viewportWidth,
+} from '@vates/data-table-core/internal'
 
 // Hover-intent delays (see docs/columns.md's "Column categories"): a native OS/app-menu-style flyout
 // opens on hover once its parent menu is already open — a plain click-to-open (the first version
@@ -23,6 +27,11 @@ interface CategorySubmenuProps {
   onOpen: () => void
   onClose: () => void
   children: JSX.Element
+  /** Shown before `name` (the header menu's Filter item) */
+  icon?: JSX.Element
+  role?: 'menuitem'
+  /** Extra class on the flyout */
+  class?: string
 }
 
 // A category row in the Columns/Sort/Group dropdowns' column lists (see docs/columns.md's "Column
@@ -87,7 +96,13 @@ export function CategorySubmenu(props: CategorySubmenuProps) {
 
   function focusFirstRow(): void {
     queueMicrotask(() => {
-      if (submenuRef) ddNavFocusables(submenuRef)[0]?.focus()
+      if (!submenuRef) return
+      // A flyout without rows (the header menu's filter pane) starts on its first text field
+      ;(
+        ddNavFocusables(submenuRef)[0] ??
+        submenuRef.querySelector<HTMLElement>('input[type=text]') ??
+        submenuRef.querySelector<HTMLElement>('input, button')
+      )?.focus()
     })
   }
   function openNow(focusFirst: boolean): void {
@@ -141,6 +156,7 @@ export function CategorySubmenu(props: CategorySubmenuProps) {
         // (see ColumnsDropdown.tsx's own comment on this exact lookup).
         data-category-name={props.name}
         ref={triggerRef}
+        role={props.role}
         aria-expanded={props.isOpen}
         onMouseEnter={scheduleOpen}
         onMouseLeave={scheduleClose}
@@ -152,12 +168,13 @@ export function CategorySubmenu(props: CategorySubmenuProps) {
           }
         }}
       >
+        {props.icon}
         <span class="dt-flex1">{props.name}</span>
         <span class="dt-dd-category-arrow">▸</span>
       </button>
       <Show when={props.isOpen}>
         <div
-          class="dt-dd-submenu"
+          class={`dt-dd-submenu${props.class ? ` ${props.class}` : ''}`}
           ref={(el) => {
             submenuRef = el
             // Same "measure after the real children exist" reasoning as Dropdown.tsx's own
@@ -169,7 +186,7 @@ export function CategorySubmenu(props: CategorySubmenuProps) {
               const pos = computeSubmenuPosition(
                 triggerRect,
                 { width: rect.width, height: rect.height },
-                window.innerWidth,
+                viewportWidth(),
                 window.innerHeight,
               )
               setLeft(pos.left)
@@ -180,7 +197,9 @@ export function CategorySubmenu(props: CategorySubmenuProps) {
           onMouseEnter={cancelClose}
           onMouseLeave={scheduleClose}
           onKeyDown={(e) => {
-            if (e.key === 'Escape' || e.key === 'ArrowLeft') {
+            // ← in a text field moves its caret instead
+            const inText = e.target instanceof HTMLInputElement && e.target.type !== 'checkbox'
+            if (e.key === 'Escape' || (e.key === 'ArrowLeft' && !inText)) {
               e.preventDefault()
               e.stopPropagation()
               closeNow(true)

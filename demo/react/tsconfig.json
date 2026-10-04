@@ -10,6 +10,8 @@
     "noEmit": true,
     "paths": {
       "@vates/data-table-core": ["../../packages/core/src/index.ts"],
+      "@vates/data-table-core/locales": ["../../packages/core/src/locales.ts"],
+      "@vates/data-table-core/internal": ["../../packages/core/src/internal.ts"],
       "@vates/data-table-core/theme": ["../../packages/core/src/theme.ts"],
       "@vates/data-table-react": ["../../packages/react/src/index.ts"],
       "@vates/data-table-react/theme": ["../../packages/react/src/theme.ts"]

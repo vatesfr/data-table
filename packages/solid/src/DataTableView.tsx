@@ -1,7 +1,7 @@
 import { Show, children, createSignal, type JSXElement } from 'solid-js'
 import type { TableState } from './createTableState'
 import { injectStyles } from './styles'
-import { SearchBox } from './components/SearchBox'
+import { SearchBox, focusSearch } from './components/SearchBox'
 import { ColumnsDropdown } from './components/ColumnsDropdown'
 import { SortDropdown } from './components/SortDropdown'
 import { GroupDropdown } from './components/GroupDropdown'
@@ -124,7 +124,15 @@ export function DataTableView<TRow extends object>(props: DataTableViewProps<TRo
               table.search.query() !== ''
             }
           >
-            <button type="button" class="dt-btn dt-clear-all" onClick={table.clearAll}>
+            <button
+              type="button"
+              class="dt-btn dt-clear-all"
+              onClick={(e) => {
+                const root = e.currentTarget.closest('.dt')
+                table.clearAll()
+                focusSearch(root)
+              }}
+            >
               {table.labels().clearAll}
             </button>
           </Show>
