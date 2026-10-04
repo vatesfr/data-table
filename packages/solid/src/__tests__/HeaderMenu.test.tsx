@@ -76,6 +76,14 @@ describe('HeaderMenu', () => {
     dispose()
   })
 
+  it('shows a sort arrow on sortable headers only', () => {
+    const { trigger, dispose } = mount()
+    const th = (label: string) => trigger(label)!.closest('th')!
+    expect(th('Name').textContent).toContain('↕')
+    expect(th('Score').textContent).not.toContain('↕')
+    dispose()
+  })
+
   it('has no button when nothing applies', () => {
     const { trigger, dispose } = mount([
       { key: 'name', label: 'Name', sortable: false, filterable: false },

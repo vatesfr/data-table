@@ -78,6 +78,13 @@ describe('HeaderMenu', () => {
     expect(items()).toContain('Group by this column')
   })
 
+  it('shows a sort arrow on sortable headers only', () => {
+    const { trigger } = mount()
+    const th = (label: string) => trigger(label)!.closest('th')!
+    expect(th('Name').textContent).toContain('↕')
+    expect(th('Score').textContent).not.toContain('↕')
+  })
+
   it('has no button when nothing applies', () => {
     const { trigger } = mount([{ key: 'name', label: 'Name', sortable: false, filterable: false }])
     expect(trigger('Name')).toBeNull()

@@ -74,6 +74,14 @@ describe('HeaderMenu', () => {
     unmount()
   })
 
+  it('shows a sort arrow on sortable headers only', () => {
+    const { trigger, unmount } = mountView()
+    const th = (label: string) => trigger(label)!.closest('th')!
+    expect(th('Name').textContent).toContain('↕')
+    expect(th('Score').textContent).not.toContain('↕')
+    unmount()
+  })
+
   it('has no button when nothing applies', () => {
     const { trigger, unmount } = mountView([
       { key: 'name', label: 'Name', sortable: false, filterable: false },
