@@ -32,8 +32,6 @@ Seeded 2026-10-04 from issues reported by a consumer app, each reproduced on the
 
 - **U20 · minor · UC07** — on a phone the toolbar dropdowns focus their search box on open, raising the on-screen keyboard before the user asked to type (the header menu's Filter no longer does). On a coarse pointer, focus the panel rather than its search box.
 
-- **U24 · polish · UC01, UC09** — header labels are #6b6a66 on the #eae9e5 header background: 4.45:1, just under WCAG AA's 4.5:1 for 12 px text; seen in Solid. Darken the label color or lighten the header. Found by `e2e/axe.spec.ts`, which lists it as known until fixed.
-
 ## Empty and cleared states
 
 - **U8 · polish · UC01** — Clear all drops every sort, group and filter at once with no undo. Consider an Undo next to the stats line for a few seconds.

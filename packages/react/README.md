@@ -533,7 +533,7 @@ All colors are CSS custom properties. Define them in your own stylesheet (typica
   --color-background-primary: #ffffff;
   --color-background-secondary: #f7f6f3;
   --color-text-primary: #1a1916;
-  --color-text-secondary: #6b6a66;
+  --color-text-secondary: #666561;
   /* ... other tokens ... */
 }
 @media (prefers-color-scheme: dark) {

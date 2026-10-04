@@ -83,7 +83,7 @@ To override individual tokens, define the custom property in your own stylesheet
 | `--color-background-info`      | `#e6f1fb` | `#0d2640` |
 | `--color-background-warning`   | `#faeeda` | `#2a1900` |
 | `--color-text-primary`         | `#1a1916` | `#e8e7e4` |
-| `--color-text-secondary`       | `#6b6a66` | `#9b9a96` |
+| `--color-text-secondary`       | `#666561` | `#a6a5a1` |
 | `--color-text-tertiary`        | `#9b9a96` | `#86847e` |
 | `--color-text-info`            | `#185fa5` | `#5b9fe0` |
 | `--color-text-warning`         | `#854f0b` | `#e8a040` |

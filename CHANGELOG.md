@@ -21,6 +21,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Fixed
 
+- **Secondary text contrast** (Solid, React, Vue, vanilla): `--color-text-secondary` is darker in light mode (`#666561`, was `#6b6a66`) and lighter in dark mode (`#a6a5a1`, was `#9b9a96`), so header labels meet WCAG AA's 4.5:1 on the header background in both, instead of 4.45:1 and 4.17:1.
 - **Rows-per-page name** (Solid, React, Vue, vanilla): the rows-per-page `<select>` is labelled by its visible "Rows per page:" text, instead of a screen reader announcing only "combo box, 10".
 - **Solid** (and vanilla): `<DataTable columns={[...cols, extra]}>` written inline no longer overflows the stack ("Maximum call stack size exceeded").
 - **Column menu Filter on a phone** (Solid, React, Vue, vanilla): below 480 px, Filter replaces the ▾ menu's items with the filter pane under a "‹ Genres" back row, within the screen width, instead of a flyout running past the right edge and covering the menu; it no longer raises the on-screen keyboard on open.
