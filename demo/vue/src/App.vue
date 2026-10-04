@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, shallowRef, computed, onMounted, onUnmounted } from 'vue'
 import {
   DataTableView,
   useTableState,
@@ -20,7 +20,7 @@ import {
 } from '@vates/data-table-vue'
 import Badge from './components/Badge.vue'
 import ScoreBar from './components/ScoreBar.vue'
-import { HUGE_DATA, HUGE_COLUMNS, HUGE_ROW_COUNT } from './hugeData'
+import { hugeData, HUGE_COLUMNS, HUGE_ROW_COUNT, type HugeRow } from './hugeData'
 import ViewControls from './ViewControls.vue'
 
 interface Employee {
@@ -590,7 +590,23 @@ useUrlView(clickTable, { paramName: VIEW_KEYS.click.paramName })
 
 // No `labels` option — matches the huge-dataset table's pre-existing behavior of always using
 // the default English labels regardless of the page's locale switcher.
-const hugeTable = useTableState(HUGE_DATA, HUGE_COLUMNS, () => ({
+// Filled once the section nears the viewport: 200k rows are too heavy to build on every page load
+const hugeRows = shallowRef<HugeRow[]>([])
+const hugeSection = ref<HTMLElement | null>(null)
+let hugeObserver: IntersectionObserver | undefined
+onMounted(() => {
+  hugeObserver = new IntersectionObserver(
+    ([entry]) => {
+      if (!entry.isIntersecting) return
+      hugeRows.value = hugeData()
+      hugeObserver?.disconnect()
+    },
+    { rootMargin: '400px' },
+  )
+  if (hugeSection.value) hugeObserver.observe(hugeSection.value)
+})
+onUnmounted(() => hugeObserver?.disconnect())
+const hugeTable = useTableState(hugeRows, HUGE_COLUMNS, () => ({
   initialViewState: { pageSize: 100 },
 }))
 usePersistedView(hugeTable, VIEW_KEYS.huge.storageKey)
@@ -1092,7 +1108,12 @@ function fmtSalary(n: number | null) {
       only ever mounts the rows scrolled into view. Try grouping by <code>Category</code> and/or
       <code>Region</code>.
     </p>
-    <ViewControls @reset="resetView(hugeTable, VIEW_KEYS.huge)" />
-    <DataTableView :table="hugeTable" :data="HUGE_DATA" :columns="HUGE_COLUMNS" row-key="id" />
+    <div ref="hugeSection">
+      <template v-if="hugeRows.length">
+        <ViewControls @reset="resetView(hugeTable, VIEW_KEYS.huge)" />
+        <DataTableView :table="hugeTable" :data="hugeRows" :columns="HUGE_COLUMNS" row-key="id" />
+      </template>
+      <div v-else style="height: 400px" />
+    </div>
   </div>
 </template>

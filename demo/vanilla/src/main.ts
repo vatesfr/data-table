@@ -16,7 +16,7 @@ import {
 } from '@vates/data-table-vanilla'
 import { createScoreBar } from './components/scoreBar'
 import { badge, muted } from './components/badge'
-import { HUGE_DATA, HUGE_COLUMNS, HUGE_ROW_COUNT } from './hugeData'
+import { hugeData, HUGE_COLUMNS, HUGE_ROW_COUNT } from './hugeData'
 
 interface Employee {
   id: number
@@ -818,23 +818,35 @@ document.getElementById('add-row-btn')!.addEventListener('click', () => {
 //
 // No `labels` option here, matching the other three demos' convention of always showing this
 // section in English regardless of the page's locale switcher.
-const tableHuge = createDataTable(document.getElementById('table-huge')!, {
-  data: HUGE_DATA,
-  columns: HUGE_COLUMNS,
-  rowKey: 'id',
-  initialViewState: { pageSize: 100 },
-})
-wireViewPersistence(tableHuge, 'huge')
+// Created once the section nears the viewport: 200k rows are too heavy to build on every page load
+const hugeContainer = document.getElementById('table-huge')!
+hugeContainer.style.minHeight = '400px'
+const hugeObserver = new IntersectionObserver(
+  ([entry]) => {
+    if (!entry.isIntersecting) return
+    hugeObserver.disconnect()
+    hugeContainer.style.minHeight = ''
+    const tableHuge = createDataTable(hugeContainer, {
+      data: hugeData(),
+      columns: HUGE_COLUMNS,
+      rowKey: 'id',
+      initialViewState: { pageSize: 100 },
+    })
+    wireViewPersistence(tableHuge, 'huge')
+    RESET_TARGETS.huge = tableHuge
+  },
+  { rootMargin: '400px' },
+)
+hugeObserver.observe(hugeContainer)
 
 // ---- Reset / copy-share-link buttons: one delegated listener for every table's controls ----
 
-const RESET_TARGETS: Record<string, ViewStateTable> = {
+const RESET_TARGETS: Partial<Record<string, ViewStateTable>> = {
   full: table1,
   selection: table2,
   click: tableClick,
   persisted: tablePersist,
   dynamic: table3,
-  huge: tableHuge,
 }
 
 app.addEventListener('click', (e) => {
@@ -849,15 +861,16 @@ app.addEventListener('click', (e) => {
   const resetBtn = target.closest<HTMLButtonElement>('[data-view-reset]')
   if (resetBtn) {
     const key = resetBtn.dataset.viewReset!
-    resetView(RESET_TARGETS[key], VIEW_KEYS[key])
+    const table = RESET_TARGETS[key]
+    if (table) resetView(table, VIEW_KEYS[key])
   }
 })
 
 // ---- Locale switcher: update every table's labels in place ----
 //
 // setLabels() replaces the label overrides on a live instance — no destroy/recreate needed, so
-// each table's sort/filter/group/selection state survives a locale switch untouched. `tableHuge`
-// is deliberately skipped, matching the other three demos' huge-dataset table always staying
+// each table's sort/filter/group/selection state survives a locale switch untouched. The huge
+// table is deliberately skipped, matching the other three demos' huge-dataset table always staying
 // English.
 
 localeBtns.addEventListener('click', (e) => {

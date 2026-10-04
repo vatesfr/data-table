@@ -1,4 +1,4 @@
-import { useState, useEffect, type ReactNode } from 'react'
+import { useState, useEffect, useRef, type ReactNode } from 'react'
 import {
   DataTableView,
   useTableState,
@@ -19,7 +19,7 @@ import {
 } from '@vates/data-table-react'
 import { Badge } from './components/Badge'
 import { ScoreBar } from './components/ScoreBar'
-import { HUGE_DATA, HUGE_COLUMNS, HUGE_ROW_COUNT } from './hugeData'
+import { hugeData, HUGE_COLUMNS, HUGE_ROW_COUNT } from './hugeData'
 
 interface Employee {
   id: number
@@ -728,15 +728,36 @@ function ClickTable({
 // No `labels` prop — matches the huge-dataset table's pre-existing behavior of always using the
 // default English labels regardless of the page's locale switcher.
 function HugeTable() {
-  const table = useTableState(HUGE_DATA, HUGE_COLUMNS, { initialViewState: { pageSize: 100 } })
+  const data = hugeData()
+  const table = useTableState(data, HUGE_COLUMNS, { initialViewState: { pageSize: 100 } })
   usePersistedView(table, VIEW_KEYS.huge.storageKey)
   useUrlView(table, { paramName: VIEW_KEYS.huge.paramName })
   return (
     <>
       <ViewControls onReset={() => resetView(table, VIEW_KEYS.huge)} />
-      <DataTableView table={table} data={HUGE_DATA} columns={HUGE_COLUMNS} rowKey="id" />
+      <DataTableView table={table} data={data} columns={HUGE_COLUMNS} rowKey="id" />
     </>
   )
+}
+
+// Mounts its children once they near the viewport: the 200k-row table is too heavy to build on
+// every page load
+function WhenVisible({ children }: { children: ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null)
+  const [visible, setVisible] = useState(false)
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting) return
+        setVisible(true)
+        observer.disconnect()
+      },
+      { rootMargin: '400px' },
+    )
+    if (ref.current) observer.observe(ref.current)
+    return () => observer.disconnect()
+  }, [])
+  return <div ref={ref}>{visible ? children : <div style={{ height: 400 }} />}</div>
 }
 
 const THEME_CYCLE = { '': 'dark', dark: 'light', light: '' } as const
@@ -1170,7 +1191,9 @@ export default function App() {
         its checklist only ever mounts the rows scrolled into view. Try grouping by{' '}
         <code>Category</code> and/or <code>Region</code>.
       </p>
-      <HugeTable />
+      <WhenVisible>
+        <HugeTable />
+      </WhenVisible>
     </div>
   )
 }

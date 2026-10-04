@@ -19,8 +19,8 @@ Symptom first, then cause and fix. Delete entries once obsolete.
 ## Session dies during browser checks: OOM-killed Chromium
 
 - Symptom: the terminal running Claude Code closes mid-task; `journalctl -k` shows `Out of memory: Killed process … (chromium-browse)` and the terminal's scope `Failed with result 'oom-kill'`.
-- Cause: every demo page builds `#huge-dataset` (200k rows); pages opened by `browser_run_code_unsafe` scripts and never closed (a step threw before `close()`) piled up to ~12 GB of Chromium.
-- Fix: close pages in `try/finally` (`scripts/ux-measure.mjs` does), reuse one page, and don't run several browser-driving agents at once.
+- Cause: pages opened by `browser_run_code_unsafe` scripts and never closed (a step threw before `close()`) piled up to ~12 GB of Chromium; each held `#huge-dataset`'s 200k rows, which the demos now build only once that section scrolls into view.
+- Fix: close pages in `try/finally` (`scripts/ux-measure.mjs` and `scripts/ux-step.mjs` do), reuse one page, and don't run several browser-driving agents at once.
 
 ## Demo type-check: "has no exported member" from a core sub-path
 

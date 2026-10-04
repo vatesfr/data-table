@@ -136,6 +136,14 @@ const script = `async (mcpPage) => {
         for (const section of ${JSON.stringify(sections.length ? sections : SECTIONS)}) {
           const id = section.slice(1);
           await page.evaluate((id) => document.getElementById(id)?.scrollIntoView(), id);
+          // #huge-dataset builds its table only once scrolled into view
+          await page
+            .waitForFunction(
+              (id) => document.evaluate('//*[@id="' + id + '"]/following::table[1]', document, null, 9, null).singleNodeValue,
+              id,
+              { timeout: 15000 },
+            )
+            .catch(() => {});
           await page.waitForTimeout(300);
           const m = await page.evaluate(measureSection, id);
           out[demo + ' ' + section + ' @' + w] = m;
