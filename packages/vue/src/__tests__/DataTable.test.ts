@@ -3959,3 +3959,39 @@ describe('DataTable — filter dropdown on a narrow screen (U16)', () => {
     restore()
   })
 })
+
+describe('DataTable — exclusion chip wording (U18)', () => {
+  interface DeptRow {
+    id: number
+    dept: string
+  }
+  const DEPT_COLS: ColumnDef<DeptRow>[] = [{ key: 'dept', label: 'Dept', filterable: true }]
+  const DEPT_ROWS: DeptRow[] = ['Eng', 'HR', 'Ops', 'Sales'].map((dept, id) => ({ id, dept }))
+  function chip(excluded: string[]) {
+    const wrapper = mount(DataTable, {
+      props: {
+        data: DEPT_ROWS,
+        columns: DEPT_COLS,
+        rowKey: 'id',
+        initialViewState: { excludeFilters: { dept: excluded } },
+      },
+    })
+    const body = wrapper.findAll('.dt__chip-body').find((b) => b.text().startsWith('Dept:'))!
+    return {
+      text: body.text().replace(/\s+/g, ' '),
+      classes: body.element.parentElement!.className,
+    }
+  }
+
+  it('names the one value kept rather than the three hidden', () => {
+    const { text, classes } = chip(['HR', 'Ops', 'Sales'])
+    expect(text).toBe('Dept: Eng')
+    expect(classes).not.toContain('dt__chip--danger')
+  })
+
+  it('names the hidden value when fewer are hidden', () => {
+    const { text, classes } = chip(['HR'])
+    expect(text).toBe('Dept: ≠ HR')
+    expect(classes).toContain('dt__chip--danger')
+  })
+})

@@ -3,6 +3,8 @@ import {
   checklistBulkState,
   clickChecklistValue,
   clickDateTreeNode,
+  exclusionChip,
+  isExcludeOnlyColumn,
   toggleChecklistValues,
   type ChecklistFilterActions,
 } from '../filterChecklist'
@@ -131,5 +133,38 @@ describe('clickDateTreeNode', () => {
       ['setValues', 'k', values, true],
       ['clearExcludeValues', 'k', values],
     ])
+  })
+})
+
+describe('exclusionChip', () => {
+  const ALL = ['Design', 'Engineering', 'HR', 'Product', 'Sales']
+
+  it('names the kept values when fewer are kept than hidden', () => {
+    const excluded = new Set(['Design', 'HR', 'Product', 'Sales'])
+    expect(exclusionChip(excluded, ALL, true)).toEqual({
+      kept: true,
+      values: new Set(['Engineering']),
+    })
+  })
+
+  it('names the hidden values otherwise', () => {
+    const excluded = new Set(['HR'])
+    expect(exclusionChip(excluded, ALL, true)).toEqual({ kept: false, values: excluded })
+  })
+
+  it('keeps naming hidden values when nothing is left, or on a multi-value column', () => {
+    expect(exclusionChip(new Set(ALL), ALL, true).kept).toBe(false)
+    expect(exclusionChip(new Set(['Design', 'HR', 'Product', 'Sales']), ALL, false).kept).toBe(
+      false,
+    )
+  })
+})
+
+describe('isExcludeOnlyColumn', () => {
+  it('is true for a plain string column only', () => {
+    const data = [{ dept: 'Eng', skills: ['TS'], n: 1 }]
+    expect(isExcludeOnlyColumn(data, { key: 'dept', label: 'Dept' })).toBe(true)
+    expect(isExcludeOnlyColumn(data, { key: 'skills', label: 'Skills' })).toBe(false)
+    expect(isExcludeOnlyColumn(data, { key: 'n', label: 'N', type: 'number' })).toBe(false)
   })
 })

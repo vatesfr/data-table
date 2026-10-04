@@ -103,3 +103,52 @@ describe('ActiveBar — chip button labels', () => {
     dispose()
   })
 })
+
+describe('ActiveBar — exclusion chip wording (U18)', () => {
+  function mountDepts() {
+    const rows = ['Eng', 'HR', 'Ops', 'Sales'].map((dept, i) => ({
+      id: i,
+      name: `P${i}`,
+      dept,
+      score: i,
+    }))
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    let table!: ReturnType<typeof createTableState<Row>>
+    const dispose = createRoot((d) => {
+      table = createTableState(rows, COLS)
+      render(
+        () => (
+          <ActiveBar
+            table={table}
+            columns={COLS}
+            groupableCols={[]}
+            totalRows={rows.length}
+            onOpenGroup={() => {}}
+            onOpenFilter={() => {}}
+          />
+        ),
+        container,
+      )
+      return d
+    })
+    const chip = () => container.querySelector<HTMLElement>('.dt-chip--filter')!
+    return { table, chip, dispose }
+  }
+
+  it('names the one value kept rather than the three hidden', () => {
+    const { table, chip, dispose } = mountDepts()
+    table.filter.setExcludeValues('dept', ['HR', 'Ops', 'Sales'], true)
+    expect(chip().querySelector('.dt-chip-body')!.textContent).toBe('Dept: Eng')
+    expect(chip().classList.contains('dt-chip--exclude')).toBe(false)
+    dispose()
+  })
+
+  it('names the hidden value when fewer are hidden', () => {
+    const { table, chip, dispose } = mountDepts()
+    table.filter.setExcludeValues('dept', ['HR'], true)
+    expect(chip().querySelector('.dt-chip-body')!.textContent).toBe('Dept: ≠ HR')
+    expect(chip().classList.contains('dt-chip--exclude')).toBe(true)
+    dispose()
+  })
+})

@@ -2687,3 +2687,40 @@ describe('DataTable — bucketed grouping (groupValue/groupFormat)', () => {
     expect(container.textContent).toContain('60–80')
   })
 })
+
+describe('DataTable — exclusion chip wording (U18)', () => {
+  interface DeptRow {
+    id: number
+    dept: string
+  }
+  const DEPT_COLS: ColumnDef<DeptRow>[] = [{ key: 'dept', label: 'Dept', filterable: true }]
+  const DEPT_ROWS: DeptRow[] = ['Eng', 'HR', 'Ops', 'Sales'].map((dept, id) => ({ id, dept }))
+  const chipText = (container: HTMLElement) =>
+    [...container.querySelectorAll('button')]
+      .map((b) => b.textContent)
+      .find((t) => t?.startsWith('Dept:'))
+
+  it('names the one value kept rather than the three hidden', () => {
+    const { container } = render(
+      <DataTable
+        data={DEPT_ROWS}
+        columns={DEPT_COLS}
+        rowKey="id"
+        initialViewState={{ excludeFilters: { dept: ['HR', 'Ops', 'Sales'] } }}
+      />,
+    )
+    expect(chipText(container)).toBe('Dept: Eng')
+  })
+
+  it('names the hidden value when fewer are hidden', () => {
+    const { container } = render(
+      <DataTable
+        data={DEPT_ROWS}
+        columns={DEPT_COLS}
+        rowKey="id"
+        initialViewState={{ excludeFilters: { dept: ['HR'] } }}
+      />,
+    )
+    expect(chipText(container)).toBe('Dept: ≠ HR')
+  })
+})

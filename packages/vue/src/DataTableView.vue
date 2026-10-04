@@ -26,6 +26,8 @@ import {
   type VisibleItem,
   watchMedia,
   FILTER_NARROW_QUERY,
+  exclusionChip,
+  isExcludeOnlyColumn,
 } from '@vates/data-table-core/internal'
 import { type SortEntry } from '@vates/data-table-core'
 import type { ColumnDef, DataTableViewInternalProps } from './types'
@@ -512,6 +514,24 @@ function clearColFilter(key: string): void {
   clearColumnFilter(key, 'exclude')
   clearColumnFilter(key, 'range')
 }
+// Exclusion chips name the kept values when fewer are kept than hidden
+const exclusionChips = computed(() =>
+  Object.entries(excludeFilters.value)
+    .filter(([, vals]) => vals.size > 0)
+    .map(([key, vals]) => {
+      const col = props.columns.find((c) => c.key === key)
+      return {
+        key,
+        label: col?.label,
+        ...exclusionChip(
+          vals,
+          props.table.filter.valueMap.value[key],
+          !!col && isExcludeOnlyColumn(props.data, col),
+        ),
+      }
+    }),
+)
+
 // Narrow screen (U16): the Filter dropdown shows one pane at a time — columns, or values
 const narrowFilter = ref(false)
 let stopNarrowFilter = () => {}
@@ -1867,18 +1887,18 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
              icons already use symbols (↑/↓, ABC/#) rather than growing every locale file.
              dt__chip--danger tints it apart from a plain include chip so the two read as opposite
              actions at a glance, not just different text. -->
-        <template v-for="[key, vals] in Object.entries(excludeFilters)" :key="`exclude-${key}`">
-          <span v-if="vals.size > 0" class="dt__chip dt__chip--danger">
-            <button type="button" class="dt__chip-body" @click="onOpenFilterCol(key)">
-              {{ columns.find((c) => c.key === key)?.label }}: ≠
-              {{ summarizeFilterValues(vals, L.moreValues) }}
+        <template v-for="chip in exclusionChips" :key="`exclude-${chip.key}`">
+          <span class="dt__chip" :class="chip.kept ? 'dt__chip--info' : 'dt__chip--danger'">
+            <button type="button" class="dt__chip-body" @click="onOpenFilterCol(chip.key)">
+              {{ chip.label }}: {{ chip.kept ? '' : '≠' }}
+              {{ summarizeFilterValues(chip.values, L.moreValues) }}
             </button>
             <button
               type="button"
               class="dt__chip-remove"
               :title="L.clearColumnFilter"
               :aria-label="L.clearColumnFilter"
-              @click="clearColumnFilter(key, 'exclude')"
+              @click="clearColumnFilter(chip.key, 'exclude')"
             >
               ×
             </button>

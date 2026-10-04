@@ -2,14 +2,13 @@
 // Per data array and column key: revisiting a column (panes are recreated per column) otherwise
 // reruns a full O(rows) scan, which never short-circuits for a scalar column. Multi-valueness is a
 // property of the data shape, stable while `data` is.
-const multiValueCache = new WeakMap<object[], Map<string, boolean>>()
 </script>
 
 <script setup lang="ts" generic="TRow extends object">
 import { computed, nextTick, ref, watch } from 'vue'
 import {
   computeStringValueCounts,
-  isMultiValueColumn,
+  isMultiValueColumnCached,
   filterValuesBySearch,
   filterValuesByCount,
   filterValuesByRange,
@@ -92,18 +91,7 @@ const valueCounts = computed(
 
 // Any/all match mode — only for a column whose values are actually arrays (see
 // isMultiValueColumn), and only for the string checklist.
-const isMultiValue = computed(() => {
-  const col = props.col
-  if (col.type === 'date' || col.type === 'number') return false
-  let byKey = multiValueCache.get(props.data)
-  if (!byKey) multiValueCache.set(props.data, (byKey = new Map()))
-  let cached = byKey.get(col.key)
-  if (cached === undefined) {
-    cached = isMultiValueColumn(props.data, col, col.key)
-    byKey.set(col.key, cached)
-  }
-  return cached
-})
+const isMultiValue = computed(() => isMultiValueColumnCached(props.data, props.col))
 // A non-multi-value string column uses a checked-by-default, exclude-only model (see
 // docs/filter-dropdown.md's "Filter dropdown"): "checked" means "not in `excludeFilters`".
 const usesExcludeOnly = computed(

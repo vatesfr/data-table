@@ -10,7 +10,9 @@ import {
 import {
   computeAggregate,
   computeStringValueCounts,
-  isMultiValueColumn,
+  isMultiValueColumnCached,
+  isExcludeOnlyColumn,
+  exclusionChip,
   getColumnValue,
   cellText,
   groupText,
@@ -909,23 +911,6 @@ const DEFAULT_VALUE_SORT: ValueSort = { by: 'alpha', dir: 'asc' }
 
 // Escape on the value search clears it first (see the search input below); the Filter dropdown's
 // own handler only crosses panes (→/←) and clears columns.
-const multiValueCache = new WeakMap<object[], Map<string, boolean>>()
-// Per data array and column: `isMultiValueColumn`'s scan never short-circuits for a scalar
-// column, and a pane is recreated per column, so revisiting one would rescan the whole dataset.
-function isMultiValueColumnCached<TRow extends object>(
-  data: TRow[],
-  col: ColumnDef<TRow>,
-): boolean {
-  let byKey = multiValueCache.get(data)
-  if (!byKey) multiValueCache.set(data, (byKey = new Map()))
-  let cached = byKey.get(col.key)
-  if (cached === undefined) {
-    cached = isMultiValueColumn(data, col, col.key)
-    byKey.set(col.key, cached)
-  }
-  return cached
-}
-
 /**
  * One column's filter controls — checklist (string, virtualized), range + slider (number), or a
  * Year›Month›Day tree + range + slider (date). Shown by the Filter dropdown's right pane and the
@@ -1045,8 +1030,7 @@ function FilterPane<TRow extends object>({
   // Any/all match-mode control — only meaningful for a column whose values are actually
   // array-shaped in the data (see isMultiValueColumn's own doc comment), and only for the
   // string checklist, not the date tree (mirrors Solid's FilterDropdown.tsx).
-  const isMultiValueFilterCol =
-    col.type !== 'date' && col.type !== 'number' ? isMultiValueColumnCached(data, col) : false
+  const isMultiValueFilterCol = isMultiValueColumnCached(data, col)
   // A non-multi-value column's checklist uses a checked-by-default, exclude-only model instead
   // of the tri-state include/exclude cycle (see docs/filter-dropdown.md's "Filter dropdown"): `filters` is
   // never written for such a column, "checked" simply means "not in `excludeFilters`". Date/
@@ -3296,31 +3280,41 @@ export function DataTableView<TRow extends object>({
           // actions at a glance, not just different text.
           Object.entries(excludeFilters)
             .filter(([, v]) => v.size > 0)
-            .map(([key, vals]) => (
-              <span key={`exclude-${key}`} style={S.chip}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setFilterActiveCol(key)
-                    setOpenFilterDD(true)
-                    pendingFilterColFocusKey.current = key
-                  }}
-                  style={{ ...S.chipBody, ...S.chipExclude }}
-                >
-                  {columns.find((c) => c.key === key)?.label}: ≠{' '}
-                  {summarizeFilterValues(vals, L.moreValues)}
-                </button>
-                <button
-                  type="button"
-                  title={L.clearColumnFilter}
-                  aria-label={L.clearColumnFilter}
-                  onClick={() => clearColumnFilter(key, 'exclude')}
-                  style={{ ...S.chipX, ...S.chipExclude }}
-                >
-                  ×
-                </button>
-              </span>
-            ))}
+            .map(([key, vals]) => {
+              const col = columns.find((c) => c.key === key)
+              // Names the kept values when fewer are kept than hidden
+              const chip = exclusionChip(
+                vals,
+                table.filter.valueMap[key],
+                !!col && isExcludeOnlyColumn(data, col),
+              )
+              const tint = chip.kept ? S.chipFilter : S.chipExclude
+              return (
+                <span key={`exclude-${key}`} style={S.chip}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFilterActiveCol(key)
+                      setOpenFilterDD(true)
+                      pendingFilterColFocusKey.current = key
+                    }}
+                    style={{ ...S.chipBody, ...tint }}
+                  >
+                    {col?.label}: {chip.kept ? '' : '≠ '}
+                    {summarizeFilterValues(chip.values, L.moreValues)}
+                  </button>
+                  <button
+                    type="button"
+                    title={L.clearColumnFilter}
+                    aria-label={L.clearColumnFilter}
+                    onClick={() => clearColumnFilter(key, 'exclude')}
+                    style={{ ...S.chipX, ...tint }}
+                  >
+                    ×
+                  </button>
+                </span>
+              )
+            })}
         {activeFilterCount > 0 &&
           // A range filter (number or date) didn't get a chip at all before — it's a distinct
           // active filter from the checklist above, so it needs its own (a date column can have

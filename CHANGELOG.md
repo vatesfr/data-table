@@ -18,6 +18,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Changed
 
+- **Filter chips** (Solid, React, Vue, vanilla): narrowing a single-value column to a few values now reads as those values ("Department: Engineering") instead of a red list of everything hidden ("Department: ≠ Design, HR, Product, +1 more").
 - **Filter dropdown** (Solid, React, Vue, vanilla): a column's value search and value order now reset when switching to another column, since that pane is now shared with the header menu's Filter flyout.
 - **React**: `table.focus.consumeDomFocus` now keeps a stable identity across renders, so `DataTableView`'s scroll/focus effect lists it as a dependency (clears a `react-hooks/exhaustive-deps` lint warning).
 

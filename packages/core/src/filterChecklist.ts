@@ -1,5 +1,11 @@
-import type { DateTreeNode } from './types'
-import { findDateTreeNode, getDateTreeNodeState, selectDateRange, selectRange } from './logic'
+import type { ColumnDefBase, DateTreeNode } from './types'
+import {
+  findDateTreeNode,
+  getDateTreeNodeState,
+  isMultiValueColumn,
+  selectDateRange,
+  selectRange,
+} from './logic'
 
 // The filter pane's checklist and date-tree clicks, shared by every adapter's FilterPane (see
 // docs/filter-dropdown.md's "Filter dropdown"). Adapters keep the anchor and render; these decide
@@ -100,4 +106,56 @@ export function clickDateTreeNode(
   const range = selectDateRange(ctx.values, anchorNode, node, ctx.parseDate)
   filter.setValues(key, range, select)
   if (select) filter.clearExcludeValues(key, range)
+}
+
+const multiValueCache = new WeakMap<object[], Map<string, boolean>>()
+
+/**
+ * `isMultiValueColumn`, cached per data array and column key: its scan never short-circuits for a
+ * scalar column, and filter panes are recreated per column, so revisiting one would rescan the
+ * whole dataset. Date and number columns are never multi-value here.
+ */
+export function isMultiValueColumnCached<TRow extends object>(
+  data: TRow[],
+  col: ColumnDefBase<TRow>,
+): boolean {
+  if (col.type === 'date' || col.type === 'number') return false
+  let byKey = multiValueCache.get(data)
+  if (!byKey) multiValueCache.set(data, (byKey = new Map()))
+  let cached = byKey.get(col.key)
+  if (cached === undefined) {
+    cached = isMultiValueColumn(data, col, col.key)
+    byKey.set(col.key, cached)
+  }
+  return cached
+}
+
+/**
+ * Whether `col`'s checklist is the checked-by-default, exclude-only kind (a plain string column)
+ * rather than the include/exclude tri-state of a multi-value column.
+ */
+export function isExcludeOnlyColumn<TRow extends object>(
+  data: TRow[],
+  col: ColumnDefBase<TRow>,
+): boolean {
+  return col.type !== 'date' && col.type !== 'number' && !isMultiValueColumnCached(data, col)
+}
+
+/**
+ * The values an exclusion's active-bar chip names, the shorter way round: on an exclude-only
+ * column, the kept values when fewer are kept than hidden (`kept: true` — "Department:
+ * Engineering" rather than "Department: ≠ Design, HR, Product, +1 more"), else the excluded ones.
+ * A multi-value column's exclusion hides every row containing the value, so it can't be reworded
+ * as the rest. `allValues` is the column's value list (`table.filter.valueMap()[key]`).
+ */
+export function exclusionChip(
+  excluded: Set<string>,
+  allValues: string[] | undefined,
+  excludeOnly: boolean,
+): { kept: boolean; values: Set<string> } {
+  if (!excludeOnly) return { kept: false, values: excluded }
+  const kept = (allValues ?? []).filter((v) => !excluded.has(v))
+  return kept.length > 0 && kept.length < excluded.size
+    ? { kept: true, values: new Set(kept) }
+    : { kept: false, values: excluded }
 }

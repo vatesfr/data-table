@@ -12,7 +12,7 @@ import {
   getValueSortIcon,
   getDateSortIcon,
   computeDateTree,
-  isMultiValueColumn,
+  isMultiValueColumnCached,
   computeVirtualRange,
   getVirtualScrollTarget,
   checklistBulkState,
@@ -142,8 +142,6 @@ function FilterSearchRow(props: FilterSearchRowProps) {
   )
 }
 
-const multiValueCache = new WeakMap<object[], Map<string, boolean>>()
-
 /** The pane's keyboard stops, in order: value search, then checklist rows or date tree checkboxes */
 export function detailFocusables(detailEl: Element): HTMLElement[] {
   return Array.from(
@@ -192,25 +190,9 @@ export function FilterPane<TRow extends object>(props: FilterPaneProps<TRow>) {
     return computeValueBounds(table.data(), col)
   })
 
-  // Any/all match mode — only surfaced in the UI for a column whose values are actually
-  // array-shaped in the data (see `isMultiValueColumn`'s own doc comment for why a plain scalar
-  // column has no meaningful "all" mode to switch to).
-  //
-  // Cached per data array and column key (module-level, since a pane is recreated per column):
-  // revisiting a column otherwise reruns a full O(rows) scan, which never short-circuits for a
-  // scalar column. Multi-valueness is a property of the data shape, stable while `data` is.
-  const isMultiValueCol = createMemo(() => {
-    const col = activeCol()
-    const data = table.data()
-    let byKey = multiValueCache.get(data)
-    if (!byKey) multiValueCache.set(data, (byKey = new Map()))
-    let cached = byKey.get(col.key)
-    if (cached === undefined) {
-      cached = isMultiValueColumn(data, col, col.key)
-      byKey.set(col.key, cached)
-    }
-    return cached
-  })
+  // Any/all match mode — only for a column whose values are actually arrays (see
+  // `isMultiValueColumn`); cached in core per data array and column
+  const isMultiValueCol = createMemo(() => isMultiValueColumnCached(table.data(), activeCol()))
   const matchMode = createMemo(() => {
     const col = activeCol()
     return table.filter.modes()[col.key] ?? col.multiMode ?? 'or'
