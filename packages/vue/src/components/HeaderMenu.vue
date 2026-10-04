@@ -214,6 +214,7 @@ function onMenuKeydown(e: KeyboardEvent): void {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
   width: 24px;
   height: 24px;
   margin: -4px 0 -4px auto;

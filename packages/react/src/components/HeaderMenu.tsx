@@ -37,6 +37,7 @@ const triggerStyle: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
+  flexShrink: 0,
   width: 24,
   height: 24,
   margin: '-4px 0 -4px auto',
