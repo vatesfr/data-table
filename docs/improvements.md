@@ -31,7 +31,7 @@ Seeded 2026-10-04 from issues reported by a consumer app, each reproduced on the
 
 ## Column headers
 
-- **U20 · minor · UC07, UC11** — on a phone the header menu's Filter flyout covers the whole menu, so getting back to Group by or Hide means closing everything; it also focuses its search box, raising the on-screen keyboard before the user asked to type (the toolbar dropdowns do the same). On a coarse pointer, focus the panel rather than its search box, and give the flyout a way back to the menu.
+- **U20 · minor · UC07** — on a phone the toolbar dropdowns focus their search box on open, raising the on-screen keyboard before the user asked to type (the header menu's Filter no longer does). On a coarse pointer, focus the panel rather than its search box.
 
 - **U24 · polish · UC01, UC09** — header labels are #6b6a66 on the #eae9e5 header background: 4.45:1, just under WCAG AA's 4.5:1 for 12 px text; seen in Solid. Darken the label color or lighten the header. Found by `e2e/axe.spec.ts`, which lists it as known until fixed.
 

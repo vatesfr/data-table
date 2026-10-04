@@ -1,5 +1,6 @@
 import { For, Show, createSignal, onCleanup } from 'solid-js'
 import {
+  FILTER_NARROW_QUERY,
   HEADER_MENU_ITEMS,
   columnHasActiveFilter,
   ddNavFocusables,
@@ -8,6 +9,7 @@ import {
   moveMenuIndex,
   onMenuDismiss,
   placeMenu,
+  watchMedia,
   type HeaderMenuItem,
 } from '@vates/data-table-core/internal'
 import type { ColumnDef } from '../types'
@@ -61,6 +63,10 @@ export function HeaderMenu<TRow extends object>(props: HeaderMenuProps<TRow>) {
   const items = () =>
     getHeaderMenuItems(props.col, table.group.by(), table.columns.active().length, isFiltered())
   const label = (item: HeaderMenuItem) => table.labels()[HEADER_MENU_ITEMS[item].label]
+  // No room for a flyout beside the menu: Filter swaps the panel's items for its pane instead
+  const [narrow, setNarrow] = createSignal(false)
+  onCleanup(watchMedia(FILTER_NARROW_QUERY, setNarrow))
+  const drilled = () => narrow() && filterOpen()
 
   onCleanup(() => {
     stopDismiss?.()
@@ -86,6 +92,16 @@ export function HeaderMenu<TRow extends object>(props: HeaderMenuProps<TRow>) {
     setFilterOpen(false)
     stopDismiss?.()
     if (focusTrigger) triggerRef?.focus()
+  }
+
+  // Focuses the back row rather than the search box, so the on-screen keyboard waits for a tap
+  function drill(into: boolean): void {
+    setFilterOpen(into)
+    queueMicrotask(() => {
+      if (!menuRef || !triggerRef) return
+      setPos(placeMenu(triggerRef, menuRef))
+      menuRef.querySelector<HTMLElement>(into ? '[data-menu-back]' : '[data-menu-filter]')?.focus()
+    })
   }
 
   // Grouping or hiding can remove this header: focus the ▾ now at its position instead
@@ -144,6 +160,7 @@ export function HeaderMenu<TRow extends object>(props: HeaderMenuProps<TRow>) {
       <Show when={open()}>
         <div
           class="dt-dd-submenu dt-th-menu-panel"
+          classList={{ 'dt-th-menu-panel--drilled': drilled() }}
           role="dialog"
           aria-label={table.labels().columnMenu(props.col.label, false)}
           ref={menuRef}
@@ -156,33 +173,75 @@ export function HeaderMenu<TRow extends object>(props: HeaderMenuProps<TRow>) {
             if (to && !menuRef?.contains(to) && to !== triggerRef) close(false)
           }}
         >
-          <For each={items()}>
-            {(item) =>
-              item === 'filter' ? (
-                <CategorySubmenu
-                  name={label(item)}
-                  icon={<Icon item={item} />}
-                  groupLabel={label(item)}
-                  class="dt-th-filter-flyout"
-                  isOpen={filterOpen()}
-                  onOpen={() => setFilterOpen(true)}
-                  onClose={() => setFilterOpen(false)}
-                >
-                  <FilterPane table={table} col={props.col} />
-                </CategorySubmenu>
-              ) : (
-                <button
-                  type="button"
-                  class="dt-dd-item dt-dd-item--click"
-                  data-dd-row
-                  onClick={() => act(item)}
-                >
-                  <Icon item={item} />
-                  {label(item)}
-                </button>
-              )
+          <Show
+            when={drilled()}
+            fallback={
+              <For each={items()}>
+                {(item) =>
+                  item === 'filter' && narrow() ? (
+                    <button
+                      type="button"
+                      class="dt-dd-item dt-dd-item--click"
+                      data-dd-row
+                      data-menu-filter
+                      onClick={() => drill(true)}
+                      onKeyDown={(e) => e.key === 'ArrowRight' && drill(true)}
+                    >
+                      <Icon item={item} />
+                      <span class="dt-flex1">{label(item)}</span>
+                      <span class="dt-dd-category-arrow">▸</span>
+                    </button>
+                  ) : item === 'filter' ? (
+                    <CategorySubmenu
+                      name={label(item)}
+                      icon={<Icon item={item} />}
+                      groupLabel={label(item)}
+                      class="dt-th-filter-flyout"
+                      isOpen={filterOpen()}
+                      onOpen={() => setFilterOpen(true)}
+                      onClose={() => setFilterOpen(false)}
+                    >
+                      <FilterPane table={table} col={props.col} />
+                    </CategorySubmenu>
+                  ) : (
+                    <button
+                      type="button"
+                      class="dt-dd-item dt-dd-item--click"
+                      data-dd-row
+                      onClick={() => act(item)}
+                    >
+                      <Icon item={item} />
+                      {label(item)}
+                    </button>
+                  )
+                }
+              </For>
             }
-          </For>
+          >
+            <div
+              class="dt-th-filter-flyout"
+              role="group"
+              aria-label={label('filter')}
+              onKeyDown={(e) => {
+                // ← in a text field moves its caret instead
+                const inText = e.target instanceof HTMLInputElement && e.target.type !== 'checkbox'
+                if (e.key !== 'Escape' && (e.key !== 'ArrowLeft' || inText)) return
+                e.preventDefault()
+                e.stopPropagation()
+                drill(false)
+              }}
+            >
+              <button
+                type="button"
+                class="dt-dd-item dt-dd-item--click dt-filter-back"
+                data-menu-back
+                onClick={() => drill(false)}
+              >
+                ‹ {props.col.label}
+              </button>
+              <FilterPane table={table} col={props.col} />
+            </div>
+          </Show>
         </div>
       </Show>
     </Show>

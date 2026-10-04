@@ -1,10 +1,11 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { createRoot } from 'solid-js'
 import { render } from 'solid-js/web'
 import { createTableState } from '../createTableState'
 import { DataTableView } from '../DataTableView'
 import type { ColumnDef } from '../types'
 import type { TableViewState } from '@vates/data-table-core'
+import { stubMatchMedia } from './stubMatchMedia'
 
 interface Row {
   id: number
@@ -269,6 +270,49 @@ describe('HeaderMenu', () => {
     expect(trigger('Dept')!.querySelector('svg')).not.toBeNull()
     expect(trigger('Name')!.getAttribute('aria-label')).toBe('Name options')
     expect(trigger('Name')!.querySelector('svg')).toBeNull()
+    dispose()
+  })
+})
+
+describe('HeaderMenu — narrow screen', () => {
+  let restore: () => void
+  beforeEach(() => {
+    restore = stubMatchMedia(true)
+  })
+  afterEach(() => restore())
+
+  it('swaps its items for the filter pane, focusing the back row, and goes back', async () => {
+    const { trigger, items, item, menu, dispose } = mount()
+    trigger('Dept')!.click()
+    await tick()
+    item('Filter').click()
+    await tick()
+    const back = menu()!.querySelector<HTMLButtonElement>('[data-menu-back]')!
+    expect(back.textContent).toContain('Dept')
+    expect(document.activeElement).toBe(back)
+    expect(
+      menu()!.querySelector('[role=group][aria-label="Filter"] input[data-dd-value-search]'),
+    ).not.toBeNull()
+    expect(items()).not.toContain('Hide column')
+    back.click()
+    await tick()
+    expect(items()).toContain('Hide column')
+    expect(document.activeElement).toBe(item('Filter'))
+    dispose()
+  })
+
+  it('goes back to its items on Escape', async () => {
+    const { trigger, items, item, menu, dispose } = mount()
+    trigger('Dept')!.click()
+    await tick()
+    item('Filter').click()
+    await tick()
+    document.activeElement!.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
+    )
+    await tick()
+    expect(menu()).not.toBeNull()
+    expect(items()).toContain('Hide column')
     dispose()
   })
 })

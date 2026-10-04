@@ -1,6 +1,7 @@
 <script setup lang="ts" generic="TRow extends object">
 import { computed, nextTick, onUnmounted, ref } from 'vue'
 import {
+  FILTER_NARROW_QUERY,
   HEADER_MENU_ITEMS,
   columnHasActiveFilter,
   ddNavFocusables,
@@ -9,6 +10,7 @@ import {
   moveMenuIndex,
   onMenuDismiss,
   placeMenu,
+  watchMedia,
   type HeaderMenuItem,
 } from '@vates/data-table-core/internal'
 import type { ColumnDef } from '../types'
@@ -37,6 +39,10 @@ const pos = ref({ left: 0, top: 0 })
 const triggerRef = ref<HTMLButtonElement | null>(null)
 const menuRef = ref<HTMLDivElement | null>(null)
 let stopDismiss: (() => void) | undefined
+// No room for a flyout beside the menu: Filter swaps the panel's items for its pane instead
+const narrow = ref(false)
+const stopWatch = watchMedia(FILTER_NARROW_QUERY, (m) => (narrow.value = m))
+const drilled = computed(() => narrow.value && filterOpen.value)
 
 const L = props.table.labels
 const items = computed(() =>
@@ -57,6 +63,7 @@ const isFiltered = computed(() =>
 )
 
 onUnmounted(() => {
+  stopWatch()
   stopDismiss?.()
   if (open.value) emit('openChange', false)
 })
@@ -79,6 +86,25 @@ function close(focusTrigger: boolean): void {
   emit('openChange', false)
   stopDismiss?.()
   if (focusTrigger) triggerRef.value?.focus()
+}
+
+// Focuses the back row rather than the search box, so the on-screen keyboard waits for a tap
+async function drill(into: boolean): Promise<void> {
+  filterOpen.value = into
+  await nextTick()
+  if (!menuRef.value || !triggerRef.value) return
+  pos.value = placeMenu(triggerRef.value, menuRef.value)
+  menuRef.value
+    .querySelector<HTMLElement>(into ? '[data-menu-back]' : '[data-menu-filter]')
+    ?.focus()
+}
+function onPaneKeydown(e: KeyboardEvent): void {
+  // ← in a text field moves its caret instead
+  const inText = e.target instanceof HTMLInputElement && e.target.type !== 'checkbox'
+  if (e.key !== 'Escape' && (e.key !== 'ArrowLeft' || inText)) return
+  e.preventDefault()
+  e.stopPropagation()
+  void drill(false)
 }
 
 // Grouping or hiding can remove this header: focus the ▾ now at its position instead
@@ -152,7 +178,8 @@ function onMenuKeydown(e: KeyboardEvent): void {
     <div
       v-if="open"
       ref="menuRef"
-      class="dt__dd-submenu"
+      class="dt__dd-submenu dt__th-menu-panel"
+      :class="{ 'dt__th-menu-panel--drilled': drilled }"
       role="dialog"
       :aria-label="L.columnMenu(col.label, false)"
       :style="{ position: 'fixed', left: `${pos.left}px`, top: `${pos.top}px` }"
@@ -160,17 +187,37 @@ function onMenuKeydown(e: KeyboardEvent): void {
       @keydown="onMenuKeydown"
       @focusout="onMenuFocusout"
     >
-      <template v-for="item in items" :key="item">
-        <CategorySubmenu
-          v-if="item === 'filter'"
-          :name="L[HEADER_MENU_ITEMS[item].label]"
-          :group-label="L[HEADER_MENU_ITEMS[item].label]"
-          submenu-class="dt__th-filter-flyout"
-          :is-open="filterOpen"
-          @open="filterOpen = true"
-          @close="filterOpen = false"
+      <div
+        v-if="drilled"
+        class="dt__th-filter-flyout"
+        role="group"
+        :aria-label="L.filter"
+        @keydown="onPaneKeydown"
+      >
+        <button
+          type="button"
+          class="dt__dd-item dt__dd-item--clickable dt__th-menu-back"
+          data-menu-back
+          @click="drill(false)"
         >
-          <template #icon>
+          ‹ {{ col.label }}
+        </button>
+        <FilterPane :table="table" :col="col" :data="data" :columns="columns">
+          <template #value="{ value, label }"
+            ><slot name="value" :value="value" :label="label"
+          /></template>
+        </FilterPane>
+      </div>
+      <template v-else>
+        <template v-for="item in items" :key="item">
+          <button
+            v-if="item === 'filter' && narrow"
+            type="button"
+            class="dt__dd-item dt__dd-item--clickable"
+            data-menu-filter
+            @click="drill(true)"
+            @keydown.right="drill(true)"
+          >
             <svg
               class="dt__th-menu-icon"
               viewBox="0 0 16 16"
@@ -182,27 +229,57 @@ function onMenuKeydown(e: KeyboardEvent): void {
             >
               <path :d="HEADER_MENU_ITEMS[item].icon" />
             </svg>
-          </template>
-          <FilterPane :table="table" :col="col" :data="data" :columns="columns">
-            <template #value="{ value, label }"
-              ><slot name="value" :value="value" :label="label"
-            /></template>
-          </FilterPane>
-        </CategorySubmenu>
-        <button v-else type="button" class="dt__dd-item dt__dd-item--clickable" @click="act(item)">
-          <svg
-            class="dt__th-menu-icon"
-            viewBox="0 0 16 16"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.5"
-            stroke-linejoin="round"
-            aria-hidden="true"
+            <span class="dt__th-menu-label">{{ L[HEADER_MENU_ITEMS[item].label] }}</span>
+            <span class="dt__th-menu-arrow">▸</span>
+          </button>
+          <CategorySubmenu
+            v-else-if="item === 'filter'"
+            :name="L[HEADER_MENU_ITEMS[item].label]"
+            :group-label="L[HEADER_MENU_ITEMS[item].label]"
+            submenu-class="dt__th-filter-flyout"
+            :is-open="filterOpen"
+            @open="filterOpen = true"
+            @close="filterOpen = false"
           >
-            <path :d="HEADER_MENU_ITEMS[item].icon" />
-          </svg>
-          {{ L[HEADER_MENU_ITEMS[item].label] }}
-        </button>
+            <template #icon>
+              <svg
+                class="dt__th-menu-icon"
+                viewBox="0 0 16 16"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path :d="HEADER_MENU_ITEMS[item].icon" />
+              </svg>
+            </template>
+            <FilterPane :table="table" :col="col" :data="data" :columns="columns">
+              <template #value="{ value, label }"
+                ><slot name="value" :value="value" :label="label"
+              /></template>
+            </FilterPane>
+          </CategorySubmenu>
+          <button
+            v-else
+            type="button"
+            class="dt__dd-item dt__dd-item--clickable"
+            @click="act(item)"
+          >
+            <svg
+              class="dt__th-menu-icon"
+              viewBox="0 0 16 16"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path :d="HEADER_MENU_ITEMS[item].icon" />
+            </svg>
+            {{ L[HEADER_MENU_ITEMS[item].label] }}
+          </button>
+        </template>
       </template>
     </div>
   </template>
@@ -274,6 +351,30 @@ function onMenuKeydown(e: KeyboardEvent): void {
   height: 14px;
   flex-shrink: 0;
 }
+.dt__th-menu-panel {
+  /* 100vw counts a classic scrollbar too, hence more than twice the 8 px viewport margin */
+  max-width: calc(100vw - 40px);
+}
+/* Holds the filter pane itself, which scrolls its own list */
+.dt__th-menu-panel--drilled {
+  max-height: none;
+  overflow: hidden;
+  padding: 0;
+}
+.dt__th-menu-back {
+  flex-shrink: 0;
+  font-weight: 500;
+  border-bottom: 0.5px solid var(--color-border-tertiary);
+}
+.dt__th-menu-label {
+  flex: 1;
+}
+.dt__th-menu-arrow {
+  flex-shrink: 0;
+  font-size: 10px;
+  color: var(--color-text-tertiary);
+}
+.dt__th-filter-flyout,
 :deep(.dt__dd-submenu.dt__th-filter-flyout) {
   display: flex;
   flex-direction: column;

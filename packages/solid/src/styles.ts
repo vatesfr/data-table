@@ -106,7 +106,8 @@ ${renderThemeCss()}
 .dt-th-menu{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;width:24px;height:24px;margin:-4px 0 -4px auto;padding:0;border:none;border-radius:4px;background:none;color:var(--color-text-secondary,#6b6a66);font:inherit;cursor:pointer}
 .dt-th-menu:hover,.dt-th-menu[aria-expanded=true]{background:var(--color-background-secondary,#f7f6f3)}
 .dt-th-menu--filtered{color:var(--color-text-info,#185fa5);font-weight:700}
-.dt-th-menu-panel{padding:4px 0}
+.dt-th-menu-panel{padding:4px 0;max-width:calc(100vw - 40px)}
+.dt-th-menu-panel--drilled{max-height:none;padding:0;overflow:hidden}
 .dt-th-filter-flyout{display:flex;flex-direction:column;max-height:380px;overflow:hidden;font-weight:400}
 .dt-td{padding:8px 12px;border-bottom:0.5px solid var(--color-border-tertiary,#eeedea);color:var(--color-text-primary,#1a1916);vertical-align:middle}
 .dt-tr--odd .dt-td{background:color-mix(in srgb,var(--color-background-secondary,#f7f6f3) 45%,transparent)}

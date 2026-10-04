@@ -55,3 +55,19 @@ test('UC07 on a phone', async ({ page, section }) => {
   await expect(boxes.nth(1)).not.toBeChecked()
   await expect(boxes.nth(2)).toBeChecked()
 })
+
+test('UC11 on a phone: a header menu filters in place, within the screen', async ({
+  page,
+  section,
+}) => {
+  const dt = await section('full-table')
+  await dt.getByRole('button', { name: /^Skills options/ }).tap()
+  const menu = page.getByRole('dialog', { name: 'Skills options' })
+  await menu.getByRole('button', { name: /Filter/ }).tap()
+  // The pane replaces the menu's items, back row focused so no keyboard pops up yet
+  await expect(menu.getByRole('button', { name: '‹ Skills' })).toBeFocused()
+  await expectInViewport(page, menu)
+  await menu.getByRole('button', { name: 'All', exact: true }).tap()
+  await menu.getByRole('button', { name: '‹ Skills' }).tap()
+  await expect(menu.getByRole('button', { name: 'Hide column' })).toBeVisible()
+})

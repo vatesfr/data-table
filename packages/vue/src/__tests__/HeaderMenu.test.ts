@@ -1,10 +1,11 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { defineComponent, h, nextTick } from 'vue'
 import { mount } from '@vue/test-utils'
 import { useTableState } from '../useTableState'
 import DataTableViewRaw from '../DataTableView.vue'
 import type { ColumnDef } from '../types'
 import type { TableViewState } from '@vates/data-table-core'
+import { stubMatchMedia } from './stubMatchMedia'
 
 const DataTableView = DataTableViewRaw as unknown as new () => { $props: Record<string, unknown> }
 
@@ -293,6 +294,49 @@ describe('HeaderMenu', () => {
     expect(trigger('Dept')!.querySelector('svg')).not.toBeNull()
     expect(trigger('Name')!.getAttribute('aria-label')).toBe('Name options')
     expect(trigger('Name')!.querySelector('svg')).toBeNull()
+    unmount()
+  })
+})
+
+describe('HeaderMenu — narrow screen', () => {
+  let restore: () => void
+  beforeEach(() => {
+    restore = stubMatchMedia(true)
+  })
+  afterEach(() => restore())
+
+  it('swaps its items for the filter pane, focusing the back row, and goes back', async () => {
+    const { trigger, items, item, menu, unmount } = mountView()
+    trigger('Dept')!.click()
+    await tick()
+    item('Filter').click()
+    await tick()
+    const back = menu()!.querySelector<HTMLButtonElement>('[data-menu-back]')!
+    expect(back.textContent).toContain('Dept')
+    expect(document.activeElement).toBe(back)
+    expect(
+      menu()!.querySelector('[role=group][aria-label="Filter"] input[data-dd-value-search]'),
+    ).not.toBeNull()
+    expect(items()).not.toContain('Hide column')
+    back.click()
+    await tick()
+    expect(items()).toContain('Hide column')
+    expect(document.activeElement).toBe(item('Filter'))
+    unmount()
+  })
+
+  it('goes back to its items on Escape', async () => {
+    const { trigger, items, item, menu, unmount } = mountView()
+    trigger('Dept')!.click()
+    await tick()
+    item('Filter').click()
+    await tick()
+    document.activeElement!.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
+    )
+    await tick()
+    expect(menu()).not.toBeNull()
+    expect(items()).toContain('Hide column')
     unmount()
   })
 })

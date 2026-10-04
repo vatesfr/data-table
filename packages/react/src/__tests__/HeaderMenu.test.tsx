@@ -1,9 +1,10 @@
-import { describe, it, expect, afterEach } from 'vitest'
+import { describe, it, expect, afterEach, beforeEach } from 'vitest'
 import { render, cleanup, act, fireEvent } from '@testing-library/react'
 import type { TableViewState } from '@vates/data-table-core'
 import { useTableState } from '../useTableState'
 import { DataTableView } from '../DataTableView'
 import type { ColumnDef } from '../types'
+import { stubMatchMedia } from './stubMatchMedia'
 
 interface Row {
   id: number
@@ -240,5 +241,39 @@ describe('HeaderMenu', () => {
     expect(trigger('Dept')!.querySelector('svg')).not.toBeNull()
     expect(trigger('Name')!.getAttribute('aria-label')).toBe('Name options')
     expect(trigger('Name')!.querySelector('svg')).toBeNull()
+  })
+})
+
+describe('HeaderMenu — narrow screen', () => {
+  let restore: () => void
+  beforeEach(() => {
+    restore = stubMatchMedia(true)
+  })
+  afterEach(() => restore())
+
+  it('swaps its items for the filter pane, focusing the back row, and goes back', async () => {
+    const { trigger, items, item, menu, click } = mount()
+    await click(trigger('Dept')!)
+    await click(item('Filter'))
+    const back = menu()!.querySelector<HTMLButtonElement>('[data-menu-back]')!
+    expect(back.textContent).toContain('Dept')
+    expect(document.activeElement).toBe(back)
+    expect(
+      menu()!.querySelector('[role=group][aria-label="Filter"] input[data-dd-value-search]'),
+    ).not.toBeNull()
+    expect(items()).not.toContain('Hide column')
+    await click(back)
+    expect(items()).toContain('Hide column')
+    expect(document.activeElement).toBe(item('Filter'))
+  })
+
+  it('goes back to its items on Escape', async () => {
+    const { trigger, items, item, menu, click } = mount()
+    await click(trigger('Dept')!)
+    await click(item('Filter'))
+    fireEvent.keyDown(document.activeElement!, { key: 'Escape' })
+    await tick()
+    expect(menu()).not.toBeNull()
+    expect(items()).toContain('Hide column')
   })
 })

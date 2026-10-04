@@ -8,12 +8,14 @@ import {
   type ReactNode,
 } from 'react'
 import {
+  FILTER_NARROW_QUERY,
   HEADER_MENU_ITEMS,
   ddNavFocusables,
   keepHeaderMenuFocus,
   moveMenuIndex,
   onMenuDismiss,
   placeMenu,
+  watchMedia,
   type HeaderMenuItem,
 } from '@vates/data-table-core/internal'
 import type { DataTableLabels } from '@vates/data-table-core'
@@ -24,6 +26,8 @@ interface HeaderMenuProps {
   label: string
   /** Accessible name of the panel */
   menuLabel: string
+  /** The column's label, naming the narrow screen's back row */
+  column: string
   labels: DataTableLabels
   /** From `getHeaderMenuItems`; empty renders nothing */
   items: HeaderMenuItem[]
@@ -60,10 +64,29 @@ const panelStyle: CSSProperties = {
   borderRadius: 8,
   boxShadow: '0 4px 16px rgba(0,0,0,0.10)',
   minWidth: 160,
+  // 100vw counts a classic scrollbar too, hence more than twice the 8 px viewport margin
+  maxWidth: 'calc(100vw - 40px)',
   maxHeight: 320,
   overflowY: 'auto',
   padding: '4px 0',
   fontWeight: 400,
+}
+// Holds the filter pane itself, which scrolls its own list
+const drilledPanelStyle: CSSProperties = {
+  ...panelStyle,
+  maxHeight: 'none',
+  overflow: 'hidden',
+  padding: 0,
+}
+const backStyle: CSSProperties = {
+  flexShrink: 0,
+  fontWeight: 500,
+  borderBottom: '0.5px solid var(--color-border-tertiary)',
+}
+const arrowStyle: CSSProperties = {
+  flexShrink: 0,
+  fontSize: 10,
+  color: 'var(--color-text-tertiary)',
 }
 const itemStyle: CSSProperties = {
   display: 'flex',
@@ -112,6 +135,7 @@ function Icon({ item }: { item: HeaderMenuItem }) {
 export function HeaderMenu({
   label,
   menuLabel,
+  column,
   labels: L,
   items,
   filtered,
@@ -127,6 +151,11 @@ export function HeaderMenu({
   const [lit, setLit] = useState<number | null>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
+  // No room for a flyout beside the menu: Filter swaps the panel's items for its pane instead
+  const [narrow, setNarrow] = useState(false)
+  useEffect(() => watchMedia(FILTER_NARROW_QUERY, setNarrow), [])
+  const drilled = narrow && filterOpen
+  const drillFocus = useRef<string | null>(null)
 
   useLayoutEffect(() => {
     const menu = menuRef.current
@@ -135,6 +164,21 @@ export function HeaderMenu({
     setPos(placeMenu(trigger, menu))
     ddNavFocusables(menu)[0]?.focus()
   }, [open])
+
+  // Focuses the back row rather than the search box, so the on-screen keyboard waits for a tap
+  function drill(into: boolean): void {
+    drillFocus.current = into ? '[data-menu-back]' : '[data-menu-filter]'
+    setFilterOpen(into)
+  }
+  useLayoutEffect(() => {
+    const menu = menuRef.current
+    const trigger = triggerRef.current
+    const target = drillFocus.current
+    if (!target || !menu || !trigger) return
+    drillFocus.current = null
+    setPos(placeMenu(trigger, menu))
+    menu.querySelector<HTMLElement>(target)?.focus()
+  }, [filterOpen])
 
   useEffect(() => {
     if (!open) return
@@ -176,7 +220,7 @@ export function HeaderMenu({
 
   function onMenuKeyDown(e: KeyboardEvent<HTMLDivElement>): void {
     // Keys inside the filter flyout are the flyout's
-    if ((e.target as Element).closest('[data-category-submenu]')) return
+    if ((e.target as Element).closest('[data-category-submenu], [data-menu-pane]')) return
     if (e.key === 'Escape') {
       e.preventDefault()
       close(true)
@@ -234,38 +278,91 @@ export function HeaderMenu({
             const to = e.relatedTarget
             if (to && !e.currentTarget.contains(to) && to !== triggerRef.current) close(false)
           }}
-          style={{ ...panelStyle, left: pos.left, top: pos.top }}
+          style={{ ...(drilled ? drilledPanelStyle : panelStyle), left: pos.left, top: pos.top }}
         >
-          {items.map((item, i) =>
-            item === 'filter' ? (
-              <CategorySubmenu
-                key={item}
-                name={L[HEADER_MENU_ITEMS[item].label]}
-                icon={<Icon item={item} />}
-                groupLabel={L[HEADER_MENU_ITEMS[item].label]}
-                panelStyle={flyoutStyle}
-                isOpen={filterOpen}
-                onOpen={() => setFilterOpen(true)}
-                onClose={() => setFilterOpen(false)}
-              >
-                {filterPane}
-              </CategorySubmenu>
-            ) : (
+          {drilled ? (
+            <div
+              data-menu-pane
+              role="group"
+              aria-label={L.filter}
+              onKeyDown={(e) => {
+                // ← in a text field moves its caret instead
+                const inText = e.target instanceof HTMLInputElement && e.target.type !== 'checkbox'
+                if (e.key !== 'Escape' && (e.key !== 'ArrowLeft' || inText)) return
+                e.preventDefault()
+                e.stopPropagation()
+                drill(false)
+              }}
+              style={flyoutStyle}
+            >
               <button
-                key={item}
                 type="button"
-                data-dd-row
-                onClick={() => act(item)}
-                onMouseEnter={() => setLit(i)}
+                data-menu-back
+                onClick={() => drill(false)}
+                onMouseEnter={() => setLit(-2)}
                 onMouseLeave={() => setLit(null)}
-                onFocus={() => setLit(i)}
+                onFocus={() => setLit(-2)}
                 onBlur={() => setLit(null)}
-                style={lit === i ? { ...itemStyle, background: hoverBg } : itemStyle}
+                style={{
+                  ...itemStyle,
+                  ...backStyle,
+                  ...(lit === -2 ? { background: hoverBg } : null),
+                }}
               >
-                <Icon item={item} />
-                {L[HEADER_MENU_ITEMS[item].label]}
+                ‹ {column}
               </button>
-            ),
+              {filterPane}
+            </div>
+          ) : (
+            items.map((item, i) =>
+              item === 'filter' && narrow ? (
+                <button
+                  key={item}
+                  type="button"
+                  data-dd-row
+                  data-menu-filter
+                  onClick={() => drill(true)}
+                  onKeyDown={(e) => e.key === 'ArrowRight' && drill(true)}
+                  onMouseEnter={() => setLit(i)}
+                  onMouseLeave={() => setLit(null)}
+                  onFocus={() => setLit(i)}
+                  onBlur={() => setLit(null)}
+                  style={lit === i ? { ...itemStyle, background: hoverBg } : itemStyle}
+                >
+                  <Icon item={item} />
+                  <span style={{ flex: 1 }}>{L[HEADER_MENU_ITEMS[item].label]}</span>
+                  <span style={arrowStyle}>▸</span>
+                </button>
+              ) : item === 'filter' ? (
+                <CategorySubmenu
+                  key={item}
+                  name={L[HEADER_MENU_ITEMS[item].label]}
+                  icon={<Icon item={item} />}
+                  groupLabel={L[HEADER_MENU_ITEMS[item].label]}
+                  panelStyle={flyoutStyle}
+                  isOpen={filterOpen}
+                  onOpen={() => setFilterOpen(true)}
+                  onClose={() => setFilterOpen(false)}
+                >
+                  {filterPane}
+                </CategorySubmenu>
+              ) : (
+                <button
+                  key={item}
+                  type="button"
+                  data-dd-row
+                  onClick={() => act(item)}
+                  onMouseEnter={() => setLit(i)}
+                  onMouseLeave={() => setLit(null)}
+                  onFocus={() => setLit(i)}
+                  onBlur={() => setLit(null)}
+                  style={lit === i ? { ...itemStyle, background: hoverBg } : itemStyle}
+                >
+                  <Icon item={item} />
+                  {L[HEADER_MENU_ITEMS[item].label]}
+                </button>
+              ),
+            )
           )}
         </div>
       )}
