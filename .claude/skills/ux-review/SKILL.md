@@ -11,7 +11,7 @@ Judges the table against [use cases](../../../docs/use-cases.md) and [UI guideli
 
 - **Default: every use case.** A named UC, area or demo section narrows it.
 - **Re-check `U<n>`**: walk only the use cases the item names, confirm the fix, then drop or narrow the item.
-- A use case wrong about the library (missing step, stale expectation) is a finding against the doc.
+- A use case wrong about the library (missing step, stale expectation) is a finding against the doc. A ◇ step isn't built yet: skip it.
 - Say which use cases were walked and which skipped, and why.
 
 ## Server
@@ -55,6 +55,7 @@ At **1440×900**, then **390×844**, following its steps as a user would — mou
 | U   | Severity | Use case | Where | Finding | Suggestion |
 | --- | -------- | -------- | ----- | ------- | ---------- |
 
+- Publish the report as an Artifact when the tool is available: the same table, each finding with its screenshot cropped to the problem, so whoever picks fixes sees them.
 - The user picks what to fix (`ux-fix`); commit the improvements.md update only when asked.
 
 <!-- check-docs-ignore: run_in_background curl ux-UC magick crop newContext severity -->

@@ -1,11 +1,11 @@
 ---
 name: ux-fix
-description: Fix items from the UX backlog (docs/improvements.md) — test first, fix in every adapter, check on the demos, close the item, one commit each. Use when asked to fix, implement or close a U-item or a ux-review finding.
+description: Fix items from the UX backlog (docs/improvements.md) or build ◇ target steps of docs/use-cases.md — test first, fix in every adapter, check on the demos, close the item, one commit each. Use when asked to fix, implement or close a U-item, a ux-review finding or a ◇ step.
 ---
 
 # UX fix
 
-Works through the named `U<n>` items in [improvements.md](../../../docs/improvements.md), in order, one commit each. Finding new problems is `ux-review`'s job; this one fixes what's there.
+Works through the named `U<n>` items in [improvements.md](../../../docs/improvements.md), in order, one commit each. Finding new problems is `ux-review`'s job; this one fixes what's there. A ◇ step of a use case is handled like an item: its line is the Direction, and closing it drops the ◇.
 
 ## 0. Before starting
 
