@@ -36,6 +36,7 @@ At **1440×900**, then **390×844**, following its steps as a user would — mou
 ## Mechanics
 
 - **Layout per section**: `node scripts/ux-measure.mjs [--demo=solid[,react,vue]] [--name=ux-UC<n>] [--view=<param>:<json>] [#section…]`, then `browser_run_code_unsafe` with `filename: .playwright-mcp/measure.js` — controls height above the table, first-row position, page/in-table overflow, targets under 24 px, unnamed controls, console errors, screenshots at both widths.
+- **Close every page you open**, in `try/finally`, and reuse one page across steps; don't run two browser-driving agents at once. Each demo page holds `#huge-dataset`'s 200k rows, so leaked pages grow Chromium until the OOM killer takes the terminal down with it ([pitfalls](../../../docs/pitfalls.md)).
 - **Batch each step in one `browser_run_code_unsafe` call**: act, then measure with `page.evaluate` (`document.activeElement`, bounding boxes, accessible names, `scrollWidth > innerWidth`), then screenshot. Far cheaper than click-by-click snapshots.
 - **Start a section in a given view** (grouped, filtered…): `--view=<param>:<json>`, e.g. `--view=sel:'{"groupBy":["department"]}'`; params are the demo's `VIEW_KEYS`.
 - **Scope locators to a section**: every table has the same toolbar. The section id (`#full-table`) is on a bare `h2`, not a container: take the first `table` after it in document order, as `measureSection` in `ux-measure.mjs` does.

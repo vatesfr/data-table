@@ -2,13 +2,19 @@
 
 Symptom first, then cause and fix. Delete entries once obsolete.
 
-<!-- check-docs-ignore: exceeded -->
+<!-- check-docs-ignore: exceeded journalctl memory Killed chromium-browse Failed oom-kill -->
 
 ## Empty `dist/index.d.ts` after a dependency bump
 
 - Symptom: `packages/{react,vue,solid,vanilla}/dist/index.d.ts` is empty; `build` still exits 0, so CI doesn't catch it.
 - Cause: peer ranges of `typescript-eslint`/`vue-tsc` reach into `typescript@6.x`, which npm can hoist to the root; `vite-plugin-dts`'s cross-package rollup then uses it instead of each package's pinned 5.x.
 - Fix: root `package.json`'s `"overrides": { "typescript": "^5.5.0" }` — keep it. After touching `typescript`, `typescript-eslint`, `vue-tsc` or `vite-plugin-dts`, check those `.d.ts` files are non-trivial.
+
+## Session dies during browser checks: OOM-killed Chromium
+
+- Symptom: the terminal running Claude Code closes mid-task; `journalctl -k` shows `Out of memory: Killed process … (chromium-browse)` and the terminal's scope `Failed with result 'oom-kill'`.
+- Cause: every demo page builds `#huge-dataset` (200k rows); pages opened by `browser_run_code_unsafe` scripts and never closed (a step threw before `close()`) piled up to ~12 GB of Chromium.
+- Fix: close pages in `try/finally` (`scripts/ux-measure.mjs` does), reuse one page, and don't run several browser-driving agents at once.
 
 ## Demo type-check: "has no exported member" from a core sub-path
 

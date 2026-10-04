@@ -117,31 +117,36 @@ const script = `async (mcpPage) => {
   const measureSection = ${measureSection.toString()};
   const views = ${JSON.stringify(views)};
   const out = {};
-  for (const [demo, port] of ${JSON.stringify(demos.map((d) => [d, PORTS[d]]))}) {
-    const base = 'http://localhost:' + port + '/';
-    await page.goto(base);
-    if (views.length) {
-      const query = await page.evaluate(async ([mod, views]) => {
-        const { encodeViewState } = await import(mod);
-        return views.map(([param, view]) => param + '=' + encodeViewState(view)).join('&');
-      }, [${JSON.stringify(viewModule)}, views]);
-      await page.goto(base + '?' + query);
-    }
-    await page.locator('table').first().waitFor({ timeout: 15000 });
-    for (const [w, h] of ${JSON.stringify(SIZES)}) {
-      await page.setViewportSize({ width: w, height: h });
-      for (const section of ${JSON.stringify(sections.length ? sections : SECTIONS)}) {
-        const id = section.slice(1);
-        await page.evaluate((id) => document.getElementById(id)?.scrollIntoView(), id);
-        await page.waitForTimeout(300);
-        const m = await page.evaluate(measureSection, id);
-        out[demo + ' ' + section + ' @' + w] = m;
-        if (m.missing || m.table === false) continue;
-        await page.screenshot({ path: '.playwright-mcp/${name}-' + demo + '-' + id + '-' + w + '.png' });
+  // Closed even when a step throws: each demo page holds #huge-dataset's 200k rows, and leaked
+  // pages grew Chromium past 10 GB until the OOM killer took down the terminal with it.
+  try {
+    for (const [demo, port] of ${JSON.stringify(demos.map((d) => [d, PORTS[d]]))}) {
+      const base = 'http://localhost:' + port + '/';
+      await page.goto(base);
+      if (views.length) {
+        const query = await page.evaluate(async ([mod, views]) => {
+          const { encodeViewState } = await import(mod);
+          return views.map(([param, view]) => param + '=' + encodeViewState(view)).join('&');
+        }, [${JSON.stringify(viewModule)}, views]);
+        await page.goto(base + '?' + query);
+      }
+      await page.locator('table').first().waitFor({ timeout: 15000 });
+      for (const [w, h] of ${JSON.stringify(SIZES)}) {
+        await page.setViewportSize({ width: w, height: h });
+        for (const section of ${JSON.stringify(sections.length ? sections : SECTIONS)}) {
+          const id = section.slice(1);
+          await page.evaluate((id) => document.getElementById(id)?.scrollIntoView(), id);
+          await page.waitForTimeout(300);
+          const m = await page.evaluate(measureSection, id);
+          out[demo + ' ' + section + ' @' + w] = m;
+          if (m.missing || m.table === false) continue;
+          await page.screenshot({ path: '.playwright-mcp/${name}-' + demo + '-' + id + '-' + w + '.png' });
+        }
       }
     }
+  } finally {
+    await page.close();
   }
-  await page.close();
   return { ...out, consoleErrors: errors };
 }`
 
