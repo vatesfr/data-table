@@ -4,6 +4,7 @@ import { render } from 'solid-js/web'
 import { createTableState } from '../createTableState'
 import { FilterDropdown } from '../components/FilterDropdown'
 import type { ColumnDef } from '../types'
+import { stubMatchMedia } from './stubMatchMedia'
 
 interface Row {
   id: number
@@ -1095,21 +1096,8 @@ describe('FilterDropdown — clear', () => {
 })
 
 describe('FilterDropdown — narrow screen (U16)', () => {
-  function narrowScreen(matches: boolean): () => void {
-    const original = window.matchMedia
-    window.matchMedia = ((query: string) => ({
-      matches,
-      media: query,
-      addEventListener: () => {},
-      removeEventListener: () => {},
-    })) as unknown as typeof window.matchMedia
-    return () => {
-      window.matchMedia = original
-    }
-  }
-
   it('shows the column list, then one column at a time with a way back', () => {
-    const restore = narrowScreen(true)
+    const restore = stubMatchMedia(true)
     const { container, dispose } = mount()
     expect(container.querySelector('.dt-filter-cols')).not.toBeNull()
     expect(container.querySelector('.dt-filter-detail')).toBeNull()
@@ -1126,7 +1114,7 @@ describe('FilterDropdown — narrow screen (U16)', () => {
   })
 
   it('crosses panes with → and ←', () => {
-    const restore = narrowScreen(true)
+    const restore = stubMatchMedia(true)
     const { container, dispose } = mount()
     const dept = [...container.querySelectorAll<HTMLButtonElement>('.dt-filter-col-item')].find(
       (b) => b.textContent?.includes('Dept'),
@@ -1145,7 +1133,7 @@ describe('FilterDropdown — narrow screen (U16)', () => {
   })
 
   it('keeps both panes on a wide screen', () => {
-    const restore = narrowScreen(false)
+    const restore = stubMatchMedia(false)
     const { container, dispose } = mount()
     expect(container.querySelector('.dt-filter-cols')).not.toBeNull()
     expect(container.querySelector('.dt-filter-detail')).not.toBeNull()

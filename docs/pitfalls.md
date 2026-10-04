@@ -10,6 +10,12 @@ Symptom first, then cause and fix. Delete entries once obsolete.
 - Cause: peer ranges of `typescript-eslint`/`vue-tsc` reach into `typescript@6.x`, which npm can hoist to the root; `vite-plugin-dts`'s cross-package rollup then uses it instead of each package's pinned 5.x.
 - Fix: root `package.json`'s `"overrides": { "typescript": "^5.5.0" }` — keep it. After touching `typescript`, `typescript-eslint`, `vue-tsc` or `vite-plugin-dts`, check those `.d.ts` files are non-trivial.
 
+## Checkbox stays checked in the browser, test passes in jsdom
+
+- Symptom: clicking a filter checkbox applies the filter but the box keeps its old state; the adapter's test of the same click passes.
+- Cause: a click handler calling `preventDefault()` makes the browser revert `.checked` after the click — after React's or Vue's DOM update, so the stale value sticks. jsdom never reverts, so tests can't see it.
+- Fix: don't cancel the click when the binding can follow it (React: `readOnly`, no `preventDefault`), or re-apply the state after the revert with core's `deferCheckboxCorrection` (Solid, Vue). Tests simulate the revert: set `.checked` back after the framework's update, then assert after a macrotask. jsdom also lacks `matchMedia`: use each package's `stubMatchMedia`.
+
 ## Session dies during browser checks: OOM-killed Chromium
 
 - Symptom: the terminal running Claude Code closes mid-task; `journalctl -k` shows `Out of memory: Killed process … (chromium-browse)` and the terminal's scope `Failed with result 'oom-kill'`.

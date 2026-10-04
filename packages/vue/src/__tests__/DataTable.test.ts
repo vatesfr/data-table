@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import DataTableRaw from '../DataTable.vue'
 import type { ColumnDef } from '../types'
+import { stubMatchMedia } from './stubMatchMedia'
 
 // vue-tsc can't carry the SFC's `generic="TRow extends object"` parameter through
 // to consumers, so `mount()` sees props typed for the unbounded default — cast once
@@ -3901,21 +3902,10 @@ describe('DataTable — filter dropdown on a narrow screen (U16)', () => {
     { key: 'score', label: 'Score', type: 'number', filterable: true },
   ]
   let restore = () => {}
-  function narrowScreen(matches: boolean): void {
-    const original = window.matchMedia
-    window.matchMedia = ((query: string) => ({
-      matches,
-      media: query,
-      addEventListener: () => {},
-      removeEventListener: () => {},
-    })) as unknown as typeof window.matchMedia
-    restore = () => {
-      window.matchMedia = original
-    }
-  }
+
   const tick = () => new Promise((r) => setTimeout(r))
   async function open(matches: boolean) {
-    narrowScreen(matches)
+    restore = stubMatchMedia(matches)
     const wrapper = mount(DataTable, {
       props: { data: ROWS, columns: NARROW_COLS, rowKey: 'id' },
       attachTo: document.body,

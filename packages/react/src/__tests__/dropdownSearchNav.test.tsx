@@ -3,6 +3,7 @@ import { act } from 'react'
 import { render, cleanup, fireEvent } from '@testing-library/react'
 import { DataTable } from '../DataTable'
 import type { ColumnDef } from '../types'
+import { stubMatchMedia } from './stubMatchMedia'
 
 interface Row {
   id: number
@@ -995,22 +996,11 @@ describe('DataTable — Columns/Group keyboard fixes (Enter/Space, drag handle, 
 
 describe('DataTable — filter dropdown on a narrow screen (U16)', () => {
   let restore = () => {}
-  function narrowScreen(matches: boolean): void {
-    const original = window.matchMedia
-    window.matchMedia = ((query: string) => ({
-      matches,
-      media: query,
-      addEventListener: () => {},
-      removeEventListener: () => {},
-    })) as unknown as typeof window.matchMedia
-    restore = () => {
-      window.matchMedia = original
-    }
-  }
+
   afterEach(() => restore())
 
   it('shows the column list, then one column at a time with a way back', () => {
-    narrowScreen(true)
+    restore = stubMatchMedia(true)
     const { getByText, container } = render(<DataTable data={ROWS} columns={COLS} rowKey="id" />)
     fireEvent.click(getByText('Filter'))
     expect(container.querySelector('[data-filter-cols]')).not.toBeNull()
@@ -1026,7 +1016,7 @@ describe('DataTable — filter dropdown on a narrow screen (U16)', () => {
   })
 
   it('crosses panes with → and ←', () => {
-    narrowScreen(true)
+    restore = stubMatchMedia(true)
     const { getByText, container } = render(<DataTable data={ROWS} columns={COLS} rowKey="id" />)
     fireEvent.click(getByText('Filter'))
     const nameBtn = container.querySelector<HTMLElement>('[data-filter-col-key="name"]')!
@@ -1043,7 +1033,7 @@ describe('DataTable — filter dropdown on a narrow screen (U16)', () => {
   })
 
   it('keeps both panes on a wide screen', () => {
-    narrowScreen(false)
+    restore = stubMatchMedia(false)
     const { getByText, container } = render(<DataTable data={ROWS} columns={COLS} rowKey="id" />)
     fireEvent.click(getByText('Filter'))
     expect(container.querySelector('[data-filter-cols]')).not.toBeNull()
