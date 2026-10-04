@@ -26,6 +26,11 @@ export interface CategorySubmenuProps {
   onOpen: () => void
   onClose: () => void
   children: ReactNode
+  /** Shown before `name` (the header menu's Filter item) */
+  icon?: ReactNode
+  role?: 'menuitem'
+  /** Extra style on the flyout */
+  panelStyle?: CSSProperties
 }
 
 const triggerStyle: CSSProperties = {
@@ -115,7 +120,14 @@ export function CategorySubmenu(props: CategorySubmenuProps) {
 
   function focusFirstRow(): void {
     queueMicrotask(() => {
-      if (submenuRef.current) ddNavFocusables(submenuRef.current)[0]?.focus()
+      const submenu = submenuRef.current
+      if (!submenu) return
+      // A flyout without rows (the header menu's filter pane) starts on its first text field
+      ;(
+        ddNavFocusables(submenu)[0] ??
+        submenu.querySelector<HTMLElement>('input[type=text]') ??
+        submenu.querySelector<HTMLElement>('input, button')
+      )?.focus()
     })
   }
   function openNow(focusFirst: boolean): void {
@@ -178,7 +190,9 @@ export function CategorySubmenu(props: CategorySubmenuProps) {
   }, [props.isOpen])
 
   function handleSubmenuKeyDown(e: KeyboardEvent<HTMLDivElement>): void {
-    if (e.key === 'Escape' || e.key === 'ArrowLeft') {
+    // ← in a text field moves its caret instead
+    const inText = e.target instanceof HTMLInputElement && e.target.type !== 'checkbox'
+    if (e.key === 'Escape' || (e.key === 'ArrowLeft' && !inText)) {
       e.preventDefault()
       e.stopPropagation()
       closeNow(true)
@@ -210,6 +224,7 @@ export function CategorySubmenu(props: CategorySubmenuProps) {
         data-dd-row
         data-category-header={props.name}
         ref={triggerRef}
+        role={props.role}
         aria-expanded={props.isOpen}
         onMouseEnter={scheduleOpen}
         onMouseLeave={scheduleClose}
@@ -222,6 +237,7 @@ export function CategorySubmenu(props: CategorySubmenuProps) {
         }}
         style={triggerStyle}
       >
+        {props.icon}
         <span style={{ flex: 1 }}>{props.name}</span>
         <span style={arrowStyle}>▸</span>
       </button>
@@ -232,7 +248,7 @@ export function CategorySubmenu(props: CategorySubmenuProps) {
           onMouseEnter={cancelClose}
           onMouseLeave={scheduleClose}
           onKeyDown={handleSubmenuKeyDown}
-          style={{ ...submenuStyle, left, top }}
+          style={{ ...submenuStyle, ...props.panelStyle, left, top }}
         >
           {props.children}
         </div>

@@ -63,14 +63,16 @@ function mount(cols = COLS, initialViewState?: TableViewState) {
   return { container, table: () => table, trigger, items, item, menu, click }
 }
 
+const isFiltered = (el: HTMLElement) => el.style.color === 'var(--color-text-info)'
+
 describe('HeaderMenu', () => {
   it('offers only the actions a column supports', async () => {
     const { trigger, items, click } = mount()
     await click(trigger('Name')!)
-    expect(items()).toEqual(['↑ Sort ascending', '↓ Sort descending', 'Filter…', 'Hide column'])
+    expect(items()).toEqual(['Filter▸', 'Hide column'])
     await click(trigger('Name')!)
     await click(trigger('Score')!)
-    expect(items()).toEqual(['Filter…', 'Hide column'])
+    expect(items()).toEqual(['Filter▸', 'Hide column'])
     await click(trigger('Score')!)
     await click(trigger('Dept')!)
     expect(items()).toContain('Group by this column')
@@ -81,13 +83,25 @@ describe('HeaderMenu', () => {
     expect(trigger('Name')).toBeNull()
   })
 
-  it('sorts in the chosen direction without the header click toggling it, then refocuses its button', async () => {
-    const { container, table, trigger, item, click } = mount()
+  it('sorts from the header label button, adding with Shift, but not from ▾', async () => {
+    const { container, table, trigger, click } = mount()
+    const sortButton = (label: string) =>
+      [...container.querySelectorAll<HTMLButtonElement>('th button:not([data-col-menu])')].find(
+        (b) => b.textContent!.startsWith(label),
+      )
     await click(trigger('Name')!)
-    await click(item('Sort descending'))
-    expect(table().sort.entries).toEqual([{ key: 'name', dir: 'desc' }])
-    expect(container.querySelector('th[aria-sort]')?.getAttribute('aria-sort')).toBe('descending')
-    expect(document.activeElement).toBe(trigger('Name'))
+    expect(table().sort.entries).toEqual([])
+    await click(sortButton('Name')!)
+    expect(table().sort.entries).toEqual([{ key: 'name', dir: 'asc' }])
+    act(() => {
+      fireEvent.click(sortButton('Dept')!, { shiftKey: true })
+    })
+    await tick()
+    expect(table().sort.entries).toEqual([
+      { key: 'name', dir: 'asc' },
+      { key: 'dept', dir: 'asc' },
+    ])
+    expect(sortButton('Score')).toBeUndefined()
   })
 
   it('moves focus to the button now in place of a hidden column', async () => {
@@ -108,32 +122,68 @@ describe('HeaderMenu', () => {
     expect(items()).not.toContain('Group by this column')
   })
 
-  it('opens the Filter dropdown on the column, expanding its category', async () => {
+  it('filters the column from a flyout', async () => {
+    const { container, table, trigger, item, click } = mount()
+    await click(trigger('Dept')!)
+    await click(item('Filter'))
+    const flyout = container.querySelector<HTMLElement>('[data-category-submenu]')!
+    expect(document.activeElement).toBe(flyout.querySelector('input[data-dd-value-search]'))
+    await click(flyout.querySelector<HTMLInputElement>('input[data-value="HR"]')!)
+    expect([...(table().filter.exclude.dept ?? [])]).toEqual(['HR'])
+    expect(isFiltered(trigger('Dept')!)).toBe(true)
+  })
+
+  it('keeps ← in the flyout search box, and backs out one level per Escape', async () => {
     const { container, trigger, item, menu, click } = mount()
-    await click(trigger('Score')!)
-    await click(item('Filter…'))
-    await tick()
-    const active = container.querySelector('[data-filter-col-key="score"]')
-    expect(active).not.toBeNull()
-    expect(document.activeElement).toBe(active)
+    await click(trigger('Dept')!)
+    await click(item('Filter'))
+    const search = document.activeElement as HTMLInputElement
+    const key = async (k: string) => {
+      act(() => {
+        fireEvent.keyDown(document.activeElement!, { key: k })
+      })
+      await tick()
+    }
+    act(() => {
+      fireEvent.change(search, { target: { value: 'E' } })
+    })
+    await key('ArrowLeft')
+    expect(container.querySelector('[data-category-submenu]')).not.toBeNull()
+    await key('Escape')
+    expect(search.value).toBe('')
+    await key('Escape')
+    expect(container.querySelector('[data-category-submenu]')).toBeNull()
+    expect(document.activeElement).toBe(item('Filter'))
+    await key('Escape')
     expect(menu()).toBeNull()
+    expect(document.activeElement).toBe(trigger('Dept'))
   })
 
   it('closes on Escape back to its button and moves between items with arrows', async () => {
     const { trigger, menu, click } = mount()
     await click(trigger('Name')!)
-    expect(document.activeElement?.textContent).toContain('Sort ascending')
-    fireEvent.keyDown(menu()!, { key: 'ArrowUp' })
+    expect(document.activeElement?.textContent).toContain('Filter')
+    fireEvent.keyDown(document.activeElement!, { key: 'ArrowUp' })
     expect(document.activeElement?.textContent).toContain('Hide column')
-    fireEvent.keyDown(menu()!, { key: 'Escape' })
+    fireEvent.keyDown(document.activeElement!, { key: 'Escape' })
     await tick()
     expect(menu()).toBeNull()
     expect(document.activeElement).toBe(trigger('Name'))
   })
 
+  it('stops its header from dragging while open, so the flyout slider drags its thumb', async () => {
+    const { trigger, click } = mount()
+    const th = () => trigger('Score')!.closest('th')!
+    expect(th().getAttribute('draggable')).toBe('true')
+    await click(trigger('Score')!)
+    expect(th().getAttribute('draggable')).toBe('false')
+    await click(trigger('Score')!)
+    expect(th().getAttribute('draggable')).toBe('true')
+  })
+
   it('marks the button of a filtered column', () => {
     const { trigger } = mount(COLS, { filters: { dept: ['Eng'] } })
-    expect(trigger('Dept')!.style.color).toBe('var(--color-text-info)')
-    expect(trigger('Name')!.style.color).toBe('var(--color-text-secondary)')
+    expect(isFiltered(trigger('Dept')!)).toBe(true)
+    expect(isFiltered(trigger('Name')!)).toBe(false)
   })
 })
