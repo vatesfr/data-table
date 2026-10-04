@@ -36,15 +36,14 @@ function mount(cols = COLS, initialViewState?: TableViewState) {
   })
   const trigger = (label: string) =>
     container.querySelector<HTMLButtonElement>(`[aria-label^="${label} options"]`)
-  const items = () =>
-    [...container.querySelectorAll<HTMLButtonElement>('[role=menuitem]')].map((b) =>
-      b.textContent!.trim(),
+  const menu = () => container.querySelector<HTMLElement>('[role=dialog]')
+  // The panel's own items, not the filter flyout's controls
+  const menuItems = () =>
+    [...(menu()?.querySelectorAll<HTMLButtonElement>('button') ?? [])].filter(
+      (b) => !b.closest('.dt-th-filter-flyout'),
     )
-  const item = (name: string) =>
-    [...container.querySelectorAll<HTMLButtonElement>('[role=menuitem]')].find((b) =>
-      b.textContent!.includes(name),
-    )!
-  const menu = () => container.querySelector<HTMLElement>('[role=menu]')
+  const items = () => menuItems().map((b) => b.textContent!.trim())
+  const item = (name: string) => menuItems().find((b) => b.textContent!.includes(name))!
   return {
     container,
     table,
@@ -178,6 +177,38 @@ describe('HeaderMenu', () => {
     await tick()
     expect(menu()).toBeNull()
     expect(document.activeElement).toBe(trigger('Dept'))
+    dispose()
+  })
+
+  it('is a dialog named after its column, with a labelled filter group', async () => {
+    const { container, trigger, item, menu, dispose } = mount()
+    trigger('Dept')!.click()
+    await tick()
+    expect(trigger('Dept')!.getAttribute('aria-haspopup')).toBe('dialog')
+    expect(menu()!.getAttribute('aria-label')).toBe('Dept options')
+    item('Filter').click()
+    await tick()
+    const flyout = container.querySelector<HTMLElement>('.dt-th-filter-flyout')!
+    expect(flyout.getAttribute('role')).toBe('group')
+    expect(flyout.getAttribute('aria-label')).toBe('Filter')
+    dispose()
+  })
+
+  it('lets Tab move through it, and closes once focus leaves it', async () => {
+    const outside = document.createElement('button')
+    document.body.appendChild(outside)
+    const { trigger, menu, dispose } = mount()
+    trigger('Name')!.click()
+    await tick()
+    document.activeElement!.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Tab', bubbles: true }),
+    )
+    await tick()
+    expect(menu()).not.toBeNull()
+    outside.focus()
+    await tick()
+    expect(menu()).toBeNull()
+    outside.remove()
     dispose()
   })
 

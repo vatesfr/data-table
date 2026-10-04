@@ -52,7 +52,8 @@ const props = defineProps<{
   // owns one shared "which category is open" value across every CategorySubmenu in its list, so
   // opening one always closes any other that was open in the same dropdown.
   isOpen: boolean
-  role?: 'menuitem'
+  /** Names the flyout as a group (the header menu's filter controls) */
+  groupLabel?: string
   /** Extra class on the flyout */
   submenuClass?: string
 }>()
@@ -190,7 +191,6 @@ defineExpose({ triggerRef })
       class="dt__dd-item dt__dd-item--clickable dt__dd-category-trigger"
       data-dd-row
       :data-category-name="props.name"
-      :role="props.role"
       :aria-expanded="props.isOpen"
       @mouseenter="scheduleOpen"
       @mouseleave="scheduleClose"
@@ -213,6 +213,8 @@ defineExpose({ triggerRef })
       :ref="(el) => onSubmenuMounted(el as Element | null)"
       :class="['dt__dd-submenu', props.submenuClass]"
       data-category-submenu
+      :role="props.groupLabel ? 'group' : undefined"
+      :aria-label="props.groupLabel"
       :style="{ position: 'fixed', left: `${left}px`, top: `${top}px` }"
       @mouseenter="cancelClose"
       @mouseleave="scheduleClose"

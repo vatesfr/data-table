@@ -47,15 +47,14 @@ function mount(cols = COLS, initialViewState?: TableViewState) {
   )
   const trigger = (label: string) =>
     container.querySelector<HTMLButtonElement>(`[aria-label^="${label} options"]`)
-  const items = () =>
-    [...container.querySelectorAll<HTMLButtonElement>('[role=menuitem]')].map((b) =>
-      b.textContent!.trim(),
+  const menu = () => container.querySelector<HTMLElement>('[role=dialog]')
+  // The panel's own items, not the filter flyout's controls
+  const menuItems = () =>
+    [...(menu()?.querySelectorAll<HTMLButtonElement>('button') ?? [])].filter(
+      (b) => !b.closest('[data-category-submenu]'),
     )
-  const item = (name: string) =>
-    [...container.querySelectorAll<HTMLButtonElement>('[role=menuitem]')].find((b) =>
-      b.textContent!.includes(name),
-    )!
-  const menu = () => container.querySelector<HTMLElement>('[role=menu]')
+  const items = () => menuItems().map((b) => b.textContent!.trim())
+  const item = (name: string) => menuItems().find((b) => b.textContent!.includes(name))!
   const click = async (el: HTMLElement) => {
     act(() => el.click())
     await tick()
@@ -167,6 +166,33 @@ describe('HeaderMenu', () => {
     await key('Escape')
     expect(menu()).toBeNull()
     expect(document.activeElement).toBe(trigger('Dept'))
+  })
+
+  it('is a dialog named after its column, with a labelled filter group', async () => {
+    const { container, trigger, item, menu, click } = mount()
+    await click(trigger('Dept')!)
+    expect(trigger('Dept')!.getAttribute('aria-haspopup')).toBe('dialog')
+    expect(menu()!.getAttribute('aria-label')).toBe('Dept options')
+    await click(item('Filter'))
+    const flyout = container.querySelector<HTMLElement>('[data-category-submenu]')!
+    expect(flyout.getAttribute('role')).toBe('group')
+    expect(flyout.getAttribute('aria-label')).toBe('Filter')
+  })
+
+  it('lets Tab move through it, and closes once focus leaves it', async () => {
+    const outside = document.createElement('button')
+    document.body.appendChild(outside)
+    const { trigger, menu, click } = mount()
+    await click(trigger('Name')!)
+    document.activeElement!.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Tab', bubbles: true }),
+    )
+    await tick()
+    expect(menu()).not.toBeNull()
+    act(() => outside.focus())
+    await tick()
+    expect(menu()).toBeNull()
+    outside.remove()
   })
 
   it('closes on Escape back to its button and moves between items with arrows', async () => {

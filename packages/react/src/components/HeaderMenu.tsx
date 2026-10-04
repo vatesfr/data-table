@@ -22,6 +22,8 @@ import { CategorySubmenu } from './CategorySubmenu'
 interface HeaderMenuProps {
   /** Accessible name of the ▾ button */
   label: string
+  /** Accessible name of the panel */
+  menuLabel: string
   labels: DataTableLabels
   /** From `getHeaderMenuItems`; empty renders nothing */
   items: HeaderMenuItem[]
@@ -109,6 +111,7 @@ function Icon({ item }: { item: HeaderMenuItem }) {
 // HeaderMenu.tsx; the shared logic lives in core's headerMenu.ts.
 export function HeaderMenu({
   label,
+  menuLabel,
   labels: L,
   items,
   filtered,
@@ -173,14 +176,10 @@ export function HeaderMenu({
 
   function onMenuKeyDown(e: KeyboardEvent<HTMLDivElement>): void {
     // Keys inside the filter flyout are the flyout's
-    if (!(e.target as Element).matches('[role=menuitem]')) return
+    if ((e.target as Element).closest('[data-category-submenu]')) return
     if (e.key === 'Escape') {
       e.preventDefault()
       close(true)
-      return
-    }
-    if (e.key === 'Tab') {
-      close(false)
       return
     }
     const menu = menuRef.current
@@ -204,7 +203,7 @@ export function HeaderMenu({
         data-col-menu
         ref={triggerRef}
         aria-label={label}
-        aria-haspopup="menu"
+        aria-haspopup="dialog"
         aria-expanded={open}
         draggable={false}
         onClick={(e) => {
@@ -226,9 +225,15 @@ export function HeaderMenu({
       {open && (
         <div
           ref={menuRef}
-          role="menu"
+          role="dialog"
+          aria-label={menuLabel}
           onClick={(e) => e.stopPropagation()}
           onKeyDown={onMenuKeyDown}
+          onBlur={(e) => {
+            // Focus leaving the panel closes it; a click inside may blur to nothing (null)
+            const to = e.relatedTarget
+            if (to && !e.currentTarget.contains(to) && to !== triggerRef.current) close(false)
+          }}
           style={{ ...panelStyle, left: pos.left, top: pos.top }}
         >
           {items.map((item, i) =>
@@ -237,7 +242,7 @@ export function HeaderMenu({
                 key={item}
                 name={L[HEADER_MENU_ITEMS[item].label]}
                 icon={<Icon item={item} />}
-                role="menuitem"
+                groupLabel={L[HEADER_MENU_ITEMS[item].label]}
                 panelStyle={flyoutStyle}
                 isOpen={filterOpen}
                 onOpen={() => setFilterOpen(true)}
@@ -249,7 +254,6 @@ export function HeaderMenu({
               <button
                 key={item}
                 type="button"
-                role="menuitem"
                 data-dd-row
                 onClick={() => act(item)}
                 onMouseEnter={() => setLit(i)}

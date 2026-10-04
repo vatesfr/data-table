@@ -29,7 +29,8 @@ interface CategorySubmenuProps {
   children: JSX.Element
   /** Shown before `name` (the header menu's Filter item) */
   icon?: JSX.Element
-  role?: 'menuitem'
+  /** Names the flyout as a group (the header menu's filter controls) */
+  groupLabel?: string
   /** Extra class on the flyout */
   class?: string
 }
@@ -156,7 +157,6 @@ export function CategorySubmenu(props: CategorySubmenuProps) {
         // (see ColumnsDropdown.tsx's own comment on this exact lookup).
         data-category-name={props.name}
         ref={triggerRef}
-        role={props.role}
         aria-expanded={props.isOpen}
         onMouseEnter={scheduleOpen}
         onMouseLeave={scheduleClose}
@@ -193,6 +193,8 @@ export function CategorySubmenu(props: CategorySubmenuProps) {
               setTop(pos.top)
             })
           }}
+          role={props.groupLabel ? 'group' : undefined}
+          aria-label={props.groupLabel}
           style={{ position: 'fixed', left: `${left()}px`, top: `${top()}px` }}
           onMouseEnter={cancelClose}
           onMouseLeave={scheduleClose}

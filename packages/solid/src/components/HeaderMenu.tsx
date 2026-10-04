@@ -100,14 +100,10 @@ export function HeaderMenu<TRow extends object>(props: HeaderMenuProps<TRow>) {
 
   function onMenuKeyDown(e: KeyboardEvent): void {
     // Keys inside the filter flyout are the flyout's
-    if (!(e.target as Element).matches('[role=menuitem]')) return
+    if ((e.target as Element).closest('.dt-th-filter-flyout')) return
     if (e.key === 'Escape') {
       e.preventDefault()
       close(true)
-      return
-    }
-    if (e.key === 'Tab') {
-      close(false)
       return
     }
     if (!menuRef) return
@@ -131,7 +127,7 @@ export function HeaderMenu<TRow extends object>(props: HeaderMenuProps<TRow>) {
         data-col-menu
         ref={triggerRef}
         aria-label={table.labels().columnMenu(props.col.label, isFiltered())}
-        aria-haspopup="menu"
+        aria-haspopup="dialog"
         aria-expanded={open()}
         draggable={false}
         onClick={(e) => {
@@ -148,11 +144,17 @@ export function HeaderMenu<TRow extends object>(props: HeaderMenuProps<TRow>) {
       <Show when={open()}>
         <div
           class="dt-dd-submenu dt-th-menu-panel"
-          role="menu"
+          role="dialog"
+          aria-label={table.labels().columnMenu(props.col.label, false)}
           ref={menuRef}
           style={{ position: 'fixed', left: `${pos().left}px`, top: `${pos().top}px` }}
           onClick={(e) => e.stopPropagation()}
           onKeyDown={onMenuKeyDown}
+          onFocusOut={(e) => {
+            // Focus leaving the panel closes it; a click inside may blur to nothing (null)
+            const to = e.relatedTarget as Node | null
+            if (to && !menuRef?.contains(to) && to !== triggerRef) close(false)
+          }}
         >
           <For each={items()}>
             {(item) =>
@@ -160,7 +162,7 @@ export function HeaderMenu<TRow extends object>(props: HeaderMenuProps<TRow>) {
                 <CategorySubmenu
                   name={label(item)}
                   icon={<Icon item={item} />}
-                  role="menuitem"
+                  groupLabel={label(item)}
                   class="dt-th-filter-flyout"
                   isOpen={filterOpen()}
                   onOpen={() => setFilterOpen(true)}
@@ -171,7 +173,6 @@ export function HeaderMenu<TRow extends object>(props: HeaderMenuProps<TRow>) {
               ) : (
                 <button
                   type="button"
-                  role="menuitem"
                   class="dt-dd-item dt-dd-item--click"
                   data-dd-row
                   onClick={() => act(item)}

@@ -93,16 +93,18 @@ function act(item: Exclude<HeaderMenuItem, 'filter'>): void {
   if (restoreFocus) void nextTick(restoreFocus)
 }
 
+// Focus leaving the panel closes it; a click inside may blur to nothing (null)
+function onMenuFocusout(e: FocusEvent): void {
+  const to = e.relatedTarget as Node | null
+  if (to && !menuRef.value?.contains(to) && to !== triggerRef.value) close(false)
+}
+
 function onMenuKeydown(e: KeyboardEvent): void {
   // Keys inside the filter flyout are the flyout's
-  if (!(e.target as Element).matches('[role=menuitem]')) return
+  if ((e.target as Element).closest('.dt__th-filter-flyout')) return
   if (e.key === 'Escape') {
     e.preventDefault()
     close(true)
-    return
-  }
-  if (e.key === 'Tab') {
-    close(false)
     return
   }
   if (!menuRef.value) return
@@ -127,7 +129,7 @@ function onMenuKeydown(e: KeyboardEvent): void {
       :class="{ 'dt__th-menu--filtered': isFiltered }"
       data-col-menu
       :aria-label="L.columnMenu(col.label, isFiltered)"
-      aria-haspopup="menu"
+      aria-haspopup="dialog"
       :aria-expanded="open"
       draggable="false"
       @click.stop="open ? close(false) : openMenu()"
@@ -151,16 +153,18 @@ function onMenuKeydown(e: KeyboardEvent): void {
       v-if="open"
       ref="menuRef"
       class="dt__dd-submenu"
-      role="menu"
+      role="dialog"
+      :aria-label="L.columnMenu(col.label, false)"
       :style="{ position: 'fixed', left: `${pos.left}px`, top: `${pos.top}px` }"
       @click.stop
       @keydown="onMenuKeydown"
+      @focusout="onMenuFocusout"
     >
       <template v-for="item in items" :key="item">
         <CategorySubmenu
           v-if="item === 'filter'"
           :name="L[HEADER_MENU_ITEMS[item].label]"
-          role="menuitem"
+          :group-label="L[HEADER_MENU_ITEMS[item].label]"
           submenu-class="dt__th-filter-flyout"
           :is-open="filterOpen"
           @open="filterOpen = true"
@@ -185,13 +189,7 @@ function onMenuKeydown(e: KeyboardEvent): void {
             /></template>
           </FilterPane>
         </CategorySubmenu>
-        <button
-          v-else
-          type="button"
-          role="menuitem"
-          class="dt__dd-item dt__dd-item--clickable"
-          @click="act(item)"
-        >
+        <button v-else type="button" class="dt__dd-item dt__dd-item--clickable" @click="act(item)">
           <svg
             class="dt__th-menu-icon"
             viewBox="0 0 16 16"

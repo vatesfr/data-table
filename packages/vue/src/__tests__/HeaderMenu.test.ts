@@ -45,10 +45,14 @@ function mountView(cols = COLS, initialViewState?: TableViewState) {
   const el = wrapper.element as HTMLElement
   const trigger = (label: string) =>
     el.querySelector<HTMLButtonElement>(`[aria-label^="${label} options"]`)
-  const menuItems = () => [...el.querySelectorAll<HTMLButtonElement>('[role=menuitem]')]
+  const menu = () => el.querySelector<HTMLElement>('[role=dialog]')
+  // The panel's own items, not the filter flyout's controls
+  const menuItems = () =>
+    [...(menu()?.querySelectorAll<HTMLButtonElement>('button') ?? [])].filter(
+      (b) => !b.closest('.dt__th-filter-flyout'),
+    )
   const items = () => menuItems().map((b) => b.textContent!.trim())
   const item = (name: string) => menuItems().find((b) => b.textContent!.includes(name))!
-  const menu = () => el.querySelector<HTMLElement>('[role=menu]')
   return { table, el, trigger, items, item, menu, unmount: () => wrapper.unmount() }
 }
 
@@ -196,6 +200,38 @@ describe('HeaderMenu', () => {
     await tick()
     expect(menu()).toBeNull()
     expect(document.activeElement).toBe(trigger('Dept'))
+    unmount()
+  })
+
+  it('is a dialog named after its column, with a labelled filter group', async () => {
+    const { el, trigger, item, menu, unmount } = mountView()
+    trigger('Dept')!.click()
+    await tick()
+    expect(trigger('Dept')!.getAttribute('aria-haspopup')).toBe('dialog')
+    expect(menu()!.getAttribute('aria-label')).toBe('Dept options')
+    item('Filter').click()
+    await tick()
+    const flyout = el.querySelector<HTMLElement>('.dt__th-filter-flyout')!
+    expect(flyout.getAttribute('role')).toBe('group')
+    expect(flyout.getAttribute('aria-label')).toBe('Filter')
+    unmount()
+  })
+
+  it('lets Tab move through it, and closes once focus leaves it', async () => {
+    const outside = document.createElement('button')
+    document.body.appendChild(outside)
+    const { trigger, menu, unmount } = mountView()
+    trigger('Name')!.click()
+    await tick()
+    document.activeElement!.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Tab', bubbles: true }),
+    )
+    await tick()
+    expect(menu()).not.toBeNull()
+    outside.focus()
+    await tick()
+    expect(menu()).toBeNull()
+    outside.remove()
     unmount()
   })
 

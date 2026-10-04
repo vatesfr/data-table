@@ -32,7 +32,8 @@ export interface CategorySubmenuProps {
   children: ReactNode
   /** Shown before `name` (the header menu's Filter item) */
   icon?: ReactNode
-  role?: 'menuitem'
+  /** Names the flyout as a group (the header menu's filter controls) */
+  groupLabel?: string
   /** Extra style on the flyout */
   panelStyle?: CSSProperties
 }
@@ -228,7 +229,6 @@ export function CategorySubmenu(props: CategorySubmenuProps) {
         data-dd-row
         data-category-header={props.name}
         ref={triggerRef}
-        role={props.role}
         aria-expanded={props.isOpen}
         onMouseEnter={scheduleOpen}
         onMouseLeave={scheduleClose}
@@ -249,6 +249,8 @@ export function CategorySubmenu(props: CategorySubmenuProps) {
         <div
           ref={submenuRef}
           data-category-submenu
+          role={props.groupLabel ? 'group' : undefined}
+          aria-label={props.groupLabel}
           onMouseEnter={cancelClose}
           onMouseLeave={scheduleClose}
           onKeyDown={handleSubmenuKeyDown}

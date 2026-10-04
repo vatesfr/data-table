@@ -3519,6 +3519,7 @@ export function DataTableView<TRow extends object>({
                           </button>
                         )}
                         <HeaderMenu
+                          menuLabel={L.columnMenu(col.label, false)}
                           label={L.columnMenu(
                             col.label,
                             columnHasActiveFilter(col.key, filters, excludeFilters, rangeFilters),
