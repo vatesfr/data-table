@@ -2768,6 +2768,42 @@ describe('DataTable — exclusion chip wording (U18)', () => {
   })
 })
 
+describe('DataTable — checklist chip in All mode', () => {
+  interface GameRow {
+    id: number
+    tags: string[]
+  }
+  const TAG_COLS: ColumnDef<GameRow>[] = [{ key: 'tags', label: 'Tags' }]
+  const TAG_ROWS: GameRow[] = [
+    { id: 1, tags: ['Action', 'RPG'] },
+    { id: 2, tags: ['Action'] },
+  ]
+  const view = (filterModes?: Record<string, 'and' | 'or'>) => ({
+    filters: { tags: ['Action', 'RPG'] },
+    filterModes,
+  })
+  const chipText = (container: HTMLElement) =>
+    [...container.querySelectorAll('button')]
+      .map((b) => b.textContent)
+      .find((t) => t?.startsWith('Tags:'))
+
+  it('joins the values with & in All mode, with a comma in Any mode', () => {
+    const all = render(
+      <DataTable
+        data={TAG_ROWS}
+        columns={TAG_COLS}
+        rowKey="id"
+        initialViewState={view({ tags: 'and' })}
+      />,
+    )
+    expect(chipText(all.container)).toBe('Tags: Action & RPG')
+    const any = render(
+      <DataTable data={TAG_ROWS} columns={TAG_COLS} rowKey="id" initialViewState={view()} />,
+    )
+    expect(chipText(any.container)).toBe('Tags: Action, RPG')
+  })
+})
+
 describe('DataTable — filter values through the column format', () => {
   interface Item {
     id: number

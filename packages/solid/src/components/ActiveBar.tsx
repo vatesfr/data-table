@@ -5,6 +5,8 @@ import {
   getSortIcon,
   isExcludeOnlyColumn,
   summarizeFilterValues,
+  filterMatchMode,
+  chipSeparator,
 } from '@vates/data-table-core/internal'
 import type { TableState } from '../createTableState'
 import type { ColumnDef } from '../types'
@@ -23,9 +25,15 @@ function chipValues<TRow extends object>(
   table: TableState<TRow>,
   col: ColumnDef<TRow> | undefined,
   vals: Set<string>,
+  separator?: string,
 ): string {
   const L = table.labels()
-  return summarizeFilterValues(vals, L.moreValues, (v) => formatFilterValue(col, v, L.emptyValue))
+  return summarizeFilterValues(
+    vals,
+    L.moreValues,
+    (v) => formatFilterValue(col, v, L.emptyValue),
+    separator,
+  )
 }
 
 // Always rendered (even with nothing active) so the row-count stats have a single stable home and
@@ -159,6 +167,13 @@ export function ActiveBar<TRow extends object>(props: ActiveBarProps<TRow>) {
                   table,
                   props.columns.find((c) => c.key === key),
                   vals,
+                  chipSeparator(
+                    filterMatchMode(
+                      table.filter.modes(),
+                      key,
+                      props.columns.find((c) => c.key === key),
+                    ),
+                  ),
                 )}
               </button>
               <button

@@ -4029,6 +4029,42 @@ describe('DataTable — exclusion chip wording (U18)', () => {
   })
 })
 
+describe('DataTable — checklist chip in All mode', () => {
+  interface GameRow {
+    id: number
+    tags: string[]
+  }
+  const TAG_COLS: ColumnDef<GameRow>[] = [{ key: 'tags', label: 'Tags' }]
+  const TAG_ROWS: GameRow[] = [
+    { id: 1, tags: ['Action', 'RPG'] },
+    { id: 2, tags: ['Action'] },
+  ]
+  const view = (filterModes?: Record<string, 'and' | 'or'>) => ({
+    filters: { tags: ['Action', 'RPG'] },
+    filterModes,
+  })
+  function chipText(filterModes?: Record<string, 'and' | 'or'>) {
+    const wrapper = mount(DataTable, {
+      props: {
+        data: TAG_ROWS,
+        columns: TAG_COLS,
+        rowKey: 'id',
+        initialViewState: view(filterModes),
+      },
+    })
+    return wrapper
+      .findAll('.dt__chip-body')
+      .find((b) => b.text().startsWith('Tags:'))!
+      .text()
+      .replace(/\s+/g, ' ')
+  }
+
+  it('joins the values with & in All mode, with a comma in Any mode', () => {
+    expect(chipText({ tags: 'and' })).toBe('Tags: Action & RPG')
+    expect(chipText()).toBe('Tags: Action, RPG')
+  })
+})
+
 describe('DataTable — filter values through the column format', () => {
   interface Item {
     id: number

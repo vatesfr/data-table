@@ -15,6 +15,8 @@ import {
   getSortIndex as getHeaderSortIndex,
   getSortIcon as getHeaderSortIcon,
   summarizeFilterValues,
+  filterMatchMode,
+  chipSeparator,
   formatFilterValue,
   columnHasActiveFilter,
   orderFilterColumnsByActive,
@@ -105,6 +107,7 @@ const {
   include: filters,
   exclude: excludeFilters,
   ranges: rangeFilters,
+  modes: filterModes,
   activeCount: activeFilterCount,
   clearColumn: clearColumnFilter,
   clear: clearFilters,
@@ -1875,8 +1878,11 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
             <button type="button" class="dt__chip-body" @click="onOpenFilterCol(key)">
               {{ columns.find((c) => c.key === key)?.label }}:
               {{
-                summarizeFilterValues(vals, L.moreValues, (v) =>
-                  formatFilterValue(findCol(key), v, L.emptyValue),
+                summarizeFilterValues(
+                  vals,
+                  L.moreValues,
+                  (v) => formatFilterValue(findCol(key), v, L.emptyValue),
+                  chipSeparator(filterMatchMode(filterModes, key, findCol(key))),
                 )
               }}
             </button>

@@ -48,6 +48,8 @@ import {
   getSortIndex as getHeaderSortIndex,
   getSortIcon as getHeaderSortIcon,
   summarizeFilterValues,
+  filterMatchMode,
+  chipSeparator,
   formatFilterValue,
   columnHasActiveFilter,
   orderFilterColumnsByActive,
@@ -1051,7 +1053,7 @@ function FilterPane<TRow extends object>({
     usesExcludeOnly
       ? (excludeFilters[col.key] ?? new Set<string>())
       : (filters[col.key] ?? new Set<string>())
-  const filterMatchMode = filterModes[col.key] ?? col.multiMode ?? 'or'
+  const matchMode = filterMatchMode(filterModes, col.key, col)
   const cycleFilterValueSort = () =>
     setValueSort(
       col.type === 'date'
@@ -1392,11 +1394,11 @@ function FilterPane<TRow extends object>({
                   onClick={() => setFilterMode(col.key, 'or')}
                   title={L.filterMatchAny}
                   aria-label={L.filterMatchAny}
-                  aria-pressed={filterMatchMode === 'or'}
+                  aria-pressed={matchMode === 'or'}
                   style={{
                     ...S.valueSortBtn,
                     ...S.filterMatchModeLeft,
-                    ...(filterMatchMode === 'or' ? S.filterMatchModeActive : {}),
+                    ...(matchMode === 'or' ? S.filterMatchModeActive : {}),
                   }}
                 >
                   {L.filterMatchAny}
@@ -1406,11 +1408,11 @@ function FilterPane<TRow extends object>({
                   onClick={() => setFilterMode(col.key, 'and')}
                   title={L.filterMatchAll}
                   aria-label={L.filterMatchAll}
-                  aria-pressed={filterMatchMode === 'and'}
+                  aria-pressed={matchMode === 'and'}
                   style={{
                     ...S.valueSortBtn,
                     ...S.filterMatchModeRight,
-                    ...(filterMatchMode === 'and' ? S.filterMatchModeActive : {}),
+                    ...(matchMode === 'and' ? S.filterMatchModeActive : {}),
                   }}
                 >
                   {L.filterMatchAll}
@@ -1770,6 +1772,7 @@ export function DataTableView<TRow extends object>({
     include: filters,
     exclude: excludeFilters,
     ranges: rangeFilters,
+    modes: filterModes,
     activeCount: activeFilterCount,
     clearColumn: clearColumnFilter,
     clear: clearFilters,
@@ -3280,11 +3283,21 @@ export function DataTableView<TRow extends object>({
                   style={{ ...S.chipBody, ...S.chipFilter }}
                 >
                   {columns.find((c) => c.key === key)?.label}:{' '}
-                  {summarizeFilterValues(vals, L.moreValues, (v) =>
-                    formatFilterValue(
-                      columns.find((c) => c.key === key),
-                      v,
-                      L.emptyValue,
+                  {summarizeFilterValues(
+                    vals,
+                    L.moreValues,
+                    (v) =>
+                      formatFilterValue(
+                        columns.find((c) => c.key === key),
+                        v,
+                        L.emptyValue,
+                      ),
+                    chipSeparator(
+                      filterMatchMode(
+                        filterModes,
+                        key,
+                        columns.find((c) => c.key === key),
+                      ),
                     ),
                   )}
                 </button>

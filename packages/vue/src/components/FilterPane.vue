@@ -30,6 +30,7 @@ import {
   computeVirtualRange,
   getVirtualScrollTarget,
   type DateTreeNode,
+  filterMatchMode,
 } from '@vates/data-table-core/internal'
 import type { ValueSort } from '@vates/data-table-core'
 import type { ColumnDef } from '../types'
@@ -99,7 +100,7 @@ const isMultiValue = computed(() => isMultiValueColumnCached(props.data, props.c
 const usesExcludeOnly = computed(
   () => props.col.type !== 'date' && props.col.type !== 'number' && !isMultiValue.value,
 )
-const matchMode = computed(() => filterModes.value[props.col.key] ?? props.col.multiMode ?? 'or')
+const matchMode = computed(() => filterMatchMode(filterModes.value, props.col.key, props.col))
 
 // The set a value must be in to stay visible even at a 0 facet count (see filterValuesByCount).
 const alreadyTouched = computed(() =>

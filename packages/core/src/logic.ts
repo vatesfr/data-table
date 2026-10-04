@@ -252,7 +252,7 @@ export function processData<TRow extends object>(
   for (const [key, vals] of Object.entries(filters)) {
     if (vals.size === 0) continue
     const col = colByKey.get(key)
-    const mode = filterModes[key] ?? col?.multiMode ?? 'or'
+    const mode = filterMatchMode(filterModes, key, col)
     result = result.filter((row) => {
       const rowValues = resolveMultiValues(col, row, key, emptyLabel)
       if (mode === 'and') {
@@ -861,9 +861,21 @@ export function formatFilterValue<TRow extends object>(
  * suffix — see `summarizeFilterValues`. */
 export const FILTER_CHIP_MAX = 3
 
+/** A column's checklist match: its runtime override, else `col.multiMode`, else "any" */
+export function filterMatchMode(
+  filterModes: Record<string, 'and' | 'or'>,
+  key: string,
+  col: { multiMode?: 'and' | 'or' } | undefined,
+): 'and' | 'or' {
+  return filterModes[key] ?? col?.multiMode ?? 'or'
+}
+
+/** Joins an include chip's values: " & " when all must match, so it doesn't read as "any of" */
+export const chipSeparator = (mode: 'and' | 'or'): string => (mode === 'and' ? ' & ' : ', ')
+
 /**
  * Renders a filter chip's label body: the first `FILTER_CHIP_MAX` selected values joined by
- * comma, or — once there are more than that — those plus a `moreValues(n)`-formatted suffix for
+ * `separator`, or — once there are more than that — those plus a `moreValues(n)`-formatted suffix for
  * the rest (`moreValues` is `DataTableLabels.moreValues`, passed in rather than imported so this
  * stays framework-agnostic pure string logic with no dependency on where labels live).
  */
@@ -871,10 +883,11 @@ export function summarizeFilterValues(
   vals: Set<string>,
   moreValues: (n: number) => string,
   format: (value: string) => string = (v) => v,
+  separator = ', ',
 ): string {
   const arr = [...vals].map(format)
-  if (arr.length <= FILTER_CHIP_MAX) return arr.join(', ')
-  return `${arr.slice(0, FILTER_CHIP_MAX).join(', ')}, ${moreValues(arr.length - FILTER_CHIP_MAX)}`
+  if (arr.length <= FILTER_CHIP_MAX) return arr.join(separator)
+  return `${arr.slice(0, FILTER_CHIP_MAX).join(separator)}, ${moreValues(arr.length - FILTER_CHIP_MAX)}`
 }
 
 /**

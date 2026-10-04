@@ -23,6 +23,7 @@ import {
   type DateTreeNode,
   applyCheckboxState,
   deferCheckboxCorrection,
+  filterMatchMode,
 } from '@vates/data-table-core/internal'
 import type { TableState } from '../createTableState'
 import type { ColumnDef } from '../types'
@@ -194,10 +195,9 @@ export function FilterPane<TRow extends object>(props: FilterPaneProps<TRow>) {
   // Any/all match mode — only for a column whose values are actually arrays (see
   // `isMultiValueColumn`); cached in core per data array and column
   const isMultiValueCol = createMemo(() => isMultiValueColumnCached(table.data(), activeCol()))
-  const matchMode = createMemo(() => {
-    const col = activeCol()
-    return table.filter.modes()[col.key] ?? col.multiMode ?? 'or'
-  })
+  const matchMode = createMemo(() =>
+    filterMatchMode(table.filter.modes(), activeCol().key, activeCol()),
+  )
 
   // A non-multi-value column's checklist uses a checked-by-default, exclude-only model instead
   // of the tri-state include/exclude cycle (see docs/filter-dropdown.md's "Filter dropdown"): `filters` is

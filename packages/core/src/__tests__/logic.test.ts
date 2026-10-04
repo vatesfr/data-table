@@ -3687,4 +3687,9 @@ describe('summarizeFilterValues with a format', () => {
       ),
     ).toBe('A, B')
   })
+
+  it('joins with the given separator, keeping a comma before the overflow', () => {
+    const vals = new Set(['a', 'b', 'c', 'd', 'e'])
+    expect(summarizeFilterValues(vals, (n) => `+${n}`, undefined, ' & ')).toBe('a & b & c, +2')
+  })
 })

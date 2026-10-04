@@ -346,4 +346,47 @@ describe('DataTable — filter values through the column format', () => {
     dispose()
     container.remove()
   })
+
+  describe('checklist chip in All mode', () => {
+    interface GameRow {
+      id: number
+      tags: string[]
+    }
+    const TAG_COLS: ColumnDef<GameRow>[] = [{ key: 'tags', label: 'Tags' }]
+    const TAG_ROWS: GameRow[] = [
+      { id: 1, tags: ['Action', 'RPG'] },
+      { id: 2, tags: ['Action'] },
+    ]
+    const view = (filterModes?: Record<string, 'and' | 'or'>) => ({
+      filters: { tags: ['Action', 'RPG'] },
+      filterModes,
+    })
+    function chipText(filterModes?: Record<string, 'and' | 'or'>): string | undefined {
+      const container = document.createElement('div')
+      const dispose = createRoot((d) => {
+        render(
+          () => (
+            <DataTable
+              data={TAG_ROWS}
+              columns={TAG_COLS}
+              rowKey="id"
+              initialViewState={view(filterModes)}
+            />
+          ),
+          container,
+        )
+        return d
+      })
+      const text = [...container.querySelectorAll('.dt-chip-body')]
+        .map((b) => b.textContent)
+        .find((t) => t?.startsWith('Tags:'))
+      dispose()
+      return text
+    }
+
+    it('joins the values with & in All mode, with a comma in Any mode', () => {
+      expect(chipText({ tags: 'and' })).toBe('Tags: Action & RPG')
+      expect(chipText()).toBe('Tags: Action, RPG')
+    })
+  })
 })
