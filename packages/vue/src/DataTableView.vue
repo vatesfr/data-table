@@ -50,6 +50,7 @@ import { type ValueSort, type SortEntry } from '@vates/data-table-core'
 import type { ColumnDef, DataTableViewInternalProps } from './types'
 import Dropdown from './components/Dropdown.vue'
 import CategorySubmenu from './components/CategorySubmenu.vue'
+import HeaderMenu from './components/HeaderMenu.vue'
 import ToolbarBtn from './components/ToolbarBtn.vue'
 import DateTreeItem from './components/DateTreeItem.vue'
 import RangeInputs from './components/RangeInputs.vue'
@@ -482,6 +483,9 @@ const filterColOrderKeys = ref<string[] | null>(null)
 // moment the panel opens starts expanded instead — so opening the dropdown never hides the very
 // filter you're currently using behind a collapsed section with no visual sign why.
 const collapsedCategories = ref<Set<string>>(new Set())
+// Column the Filter dropdown is opening on (onOpenFilterCol): its category starts expanded so its
+// row can take focus. Consumed by the open snapshot below.
+let filterOpenOn: string | null = null
 function toggleCategoryCollapsed(name: string): void {
   const next = new Set(collapsedCategories.value)
   if (next.has(name)) next.delete(name)
@@ -503,9 +507,11 @@ watch(
         const hasActiveInCategory = category.columns.some((c) =>
           columnHasActiveFilter(c.key, filters.value, excludeFilters.value, rangeFilters.value),
         )
-        if (!hasActiveInCategory) startCollapsed.add(category.name)
+        if (!hasActiveInCategory && !category.columns.some((c) => c.key === filterOpenOn))
+          startCollapsed.add(category.name)
       }
       collapsedCategories.value = startCollapsed
+      filterOpenOn = null
     }
   },
 )
@@ -824,6 +830,7 @@ function setFilterColRef(key: string, el: Element | null): void {
 // solely on `onFilterColFocus`'s focus-follows-selection) so the right pane already shows the
 // right thing on the very first render, before focus even lands on the button.
 async function onOpenFilterCol(key: string): Promise<void> {
+  if (!filterDropdownRef.value?.isOpen) filterOpenOn = key
   filterDropdownRef.value?.open()
   filterActiveCol.value = key
   filterListScrollTop.value = 0
@@ -2607,6 +2614,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
               >
                 {{ headerSortLabel(col.key) }}
               </span>
+              <HeaderMenu :table="table" :col="col" @open-filter="onOpenFilterCol" />
             </th>
           </tr>
         </thead>
