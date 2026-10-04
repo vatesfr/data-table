@@ -114,6 +114,9 @@ const script = `async (mcpPage) => {
   const errors = [];
   page.on('console', (m) => m.type() === 'error' && !/favicon/.test(m.location().url) && errors.push(m.text() + ' ' + m.location().url));
   page.on('pageerror', (e) => errors.push(e.message));
+  // A dev server whose dep cache predates \`npm ci\` answers 504 and the page never renders
+  let staleDeps = false;
+  page.on('response', (r) => { if (r.status() === 504 && r.url().includes('/node_modules/.vite/deps/')) staleDeps = true; });
   const measureSection = ${measureSection.toString()};
   const views = ${JSON.stringify(views)};
   const out = {};
@@ -123,6 +126,7 @@ const script = `async (mcpPage) => {
     for (const [demo, port] of ${JSON.stringify(demos.map((d) => [d, PORTS[d]]))}) {
       const base = 'http://localhost:' + port + '/';
       await page.goto(base);
+      if (staleDeps) throw new Error('Outdated Vite deps: restart the dev server (npm run dev:' + demo + ')');
       if (views.length) {
         const query = await page.evaluate(async ([mod, views]) => {
           const { encodeViewState } = await import(mod);

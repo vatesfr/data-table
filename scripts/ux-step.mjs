@@ -35,6 +35,9 @@ const viewModule = '/@fs' + resolve(import.meta.dirname, '../packages/core/src/v
 const script = `async (mcpPage) => {
   const page = await mcpPage.context().newPage();
   await page.addInitScript(() => localStorage.clear());
+  // A dev server whose dep cache predates \`npm ci\` answers 504 and the page never renders
+  let staleDeps = false;
+  page.on('response', (r) => { if (r.status() === 504 && r.url().includes('/node_modules/.vite/deps/')) staleDeps = true; });
   const PORTS = { react: 58981, vue: 58982, solid: 58983, vanilla: 58984 };
   const encodeView = async (view) =>
     page.evaluate(async ([mod, view]) => (await import(mod)).encodeViewState(view), [${JSON.stringify(viewModule)}, view]);
@@ -42,6 +45,7 @@ const script = `async (mcpPage) => {
     await page.setViewportSize({ width, height });
     const base = 'http://localhost:' + PORTS[demo] + '/';
     await page.goto(base);
+    if (staleDeps) throw new Error('Outdated Vite deps: restart the dev server (npm run dev:' + demo + ')');
     if (view) await page.goto(base + '?full=' + (await encodeView(view)));
     await page.locator('table').first().waitFor({ timeout: 15000 });
     await page.evaluate(() => document.getElementById('full-table')?.scrollIntoView());

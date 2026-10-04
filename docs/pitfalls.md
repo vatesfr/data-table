@@ -76,8 +76,8 @@ Symptom first, then cause and fix. Delete entries once obsolete.
 - Cause: locator reads wait for the element to exist; a selector matching nothing waits the whole test timeout, even inside `.catch()`.
 - Fix: check `isVisible()` or `count()` first (they don't wait), or pass `{ timeout }` to the read.
 
-## Every E2E test fails with "Outdated Vite deps"
+## E2E or a UX script fails with "Outdated Vite deps"
 
-- Symptom: `npm run e2e` fails every test with "Outdated Vite deps: restart the dev server" (the `section` fixture's check; before it, each test timed out finding the table). The browser got "504 (Outdated Optimize Dep)" for `node_modules/.vite/deps/…`.
-- Cause: E2E reuses a demo dev server already running on 58983, whose Vite dependency cache predates an `npm ci` (or a lockfile change).
-- Fix: restart that dev server (`npm run dev:solid`).
+- Symptom: `npm run e2e` fails every test, or a `scripts/ux-step.mjs`/`scripts/ux-measure.mjs` script throws, with "Outdated Vite deps: restart the dev server" (before that check, each timed out finding the table). The browser got "504 (Outdated Optimize Dep)" for `node_modules/.vite/deps/…`.
+- Cause: a demo dev server left running (E2E reuses the one on 58983) whose Vite dependency cache predates an `npm ci` (or a lockfile change).
+- Fix: restart that dev server (`npm run dev:<demo>`, as the error names).
