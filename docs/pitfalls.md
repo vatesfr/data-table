@@ -75,3 +75,9 @@ Symptom first, then cause and fix. Delete entries once obsolete.
 - Symptom: a Playwright test stalls on a read like `getAttribute` or `innerText`, then fails at the test timeout, often reported on a later line.
 - Cause: locator reads wait for the element to exist; a selector matching nothing waits the whole test timeout, even inside `.catch()`.
 - Fix: check `isVisible()` or `count()` first (they don't wait), or pass `{ timeout }` to the read.
+
+## Every E2E test times out finding the table
+
+- Symptom: all of `npm run e2e` fails with "locator.scrollIntoViewIfNeeded: Test timeout of 30000ms exceeded"; the trace's console shows "504 (Outdated Optimize Dep)" for `node_modules/.vite/deps/…`.
+- Cause: E2E reuses a demo dev server already running on 58983, whose Vite dependency cache predates an `npm ci` (or a lockfile change); a fresh browser can't load the stale deps.
+- Fix: restart that dev server (`npm run dev:solid`).
