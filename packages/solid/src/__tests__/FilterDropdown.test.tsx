@@ -354,6 +354,21 @@ describe('FilterDropdown — string checklist', () => {
 })
 
 describe('FilterDropdown — "Others" row', () => {
+  it('Escape on the Others row clears the search and keeps focus in the pane (U17)', () => {
+    const { container, dispose } = mount()
+    const search = container.querySelector<HTMLInputElement>('.dt-filter-search-row .dt-dd-search')!
+    search.value = 'ali'
+    search.dispatchEvent(new Event('input', { bubbles: true }))
+    const others = container.querySelector<HTMLInputElement>('.dt-filter-others input')!
+    others.focus()
+    others.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    expect(container.querySelector('.dt-filter-others')).toBeNull()
+    expect(document.activeElement).toBe(
+      container.querySelector('.dt-filter-search-row .dt-dd-search'),
+    )
+    dispose()
+  })
+
   it('is hidden until the value search narrows the list, then bulk-(un)checks everything it hides (non-multi-value column)', () => {
     const { container, table, dispose } = mount()
     expect(container.querySelector('.dt-filter-others')).toBeNull()

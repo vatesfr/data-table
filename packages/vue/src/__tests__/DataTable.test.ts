@@ -642,6 +642,25 @@ describe('DataTable — filter dropdown', () => {
     expect(alice.attributes('title')).toBe('Hidden — click to show again')
   })
 
+  it('Escape on the Others row clears the search and keeps focus in the pane (U17)', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS, columns: FILTER_COLS, rowKey: 'id' },
+      attachTo: document.body,
+    })
+    await wrapper
+      .findAll('button')
+      .find((b) => b.text() === 'Filter')!
+      .trigger('click')
+    await valueSearchInput(wrapper).setValue('ali')
+    const others = wrapper.find('.dt__filter-others input[type="checkbox"]')
+    ;(others.element as HTMLElement).focus()
+    await others.trigger('keydown', { key: 'Escape' })
+    await new Promise((r) => setTimeout(r))
+    expect(wrapper.find('.dt__filter-others').exists()).toBe(false)
+    expect(document.activeElement).toBe(valueSearchInput(wrapper).element)
+    wrapper.unmount()
+  })
+
   it('an "Others" row appears once the value search narrows the list, bulk-(un)checking everything it hides', async () => {
     const wrapper = mount(DataTable, { props: { data: ROWS, columns: FILTER_COLS, rowKey: 'id' } })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!

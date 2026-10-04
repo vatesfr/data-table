@@ -372,6 +372,10 @@ export function FilterPane<TRow extends object>(props: FilterPaneProps<TRow>) {
       e.preventDefault()
       e.stopPropagation()
       setSearchTerm('')
+      // Clearing can remove the focused element (the "Others" row): keep focus on the search box
+      ;(e.currentTarget as HTMLElement)
+        .querySelector<HTMLElement>('input[data-dd-value-search]')
+        ?.focus()
       return
     }
     if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Home' && e.key !== 'End') return

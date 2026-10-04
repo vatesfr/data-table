@@ -23,6 +23,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Fixed
 
+- **Escape in the filter checklist** (Solid, Vue, vanilla): clearing the value search with Escape while on the "Others" row now keeps focus on the search box; focus used to drop to the page, leaving the menu or dropdown stuck open.
 - **React filter checklist**: the "Others" checkbox now follows its state when clicked (it used to stay checked while the filter applied), and React no longer logs console warnings for it or for the header menu's ▾ button.
 - **Filter dropdown on phones** (Solid, React, Vue, vanilla): below 480 px it shows the column list, then the chosen column's values with a "‹ Columns" way back, instead of a two-pane panel running off the screen. Opening any dropdown near the screen's edge no longer scrolls the page sideways (Solid, vanilla), and dropdowns and menus now account for a desktop scrollbar when keeping themselves on screen.
 - **Vue filter checklist**: hiding a value of a single-value column (or toggling "Others") now unchecks its checkbox; it used to stay checked while the filter applied.

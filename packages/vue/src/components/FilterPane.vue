@@ -280,6 +280,10 @@ async function onKeydown(event: KeyboardEvent): Promise<void> {
     event.preventDefault()
     event.stopPropagation()
     searchTerm.value = ''
+    // Clearing can remove the focused element (the "Others" row): keep focus on the search box
+    const pane = event.currentTarget as HTMLElement
+    await nextTick()
+    pane.querySelector<HTMLElement>('input.dt__dd-search')?.focus()
     return
   }
   if (event.altKey || !['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return
