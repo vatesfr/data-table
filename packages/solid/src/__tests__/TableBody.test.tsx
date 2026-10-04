@@ -110,6 +110,22 @@ describe('TableBody — header sorting', () => {
     dispose()
   })
 
+  it('exposes each sorted header direction as aria-sort', () => {
+    const { container, table, dispose } = mount()
+    const header = (label: string) =>
+      [...container.querySelectorAll('th')].find((th) => th.textContent?.includes(label))!
+    table.setViewState({
+      sorts: [
+        { key: 'score', dir: 'desc' },
+        { key: 'name', dir: 'asc' },
+      ],
+    })
+    expect(header('Score').getAttribute('aria-sort')).toBe('descending')
+    expect(header('Name').getAttribute('aria-sort')).toBe('ascending')
+    expect(header('Dept').hasAttribute('aria-sort')).toBe(false)
+    dispose()
+  })
+
   it('sortable: false makes a header click/shift-click a no-op', () => {
     const cols: ColumnDef<Row>[] = [
       { key: 'name', label: 'Name', sortable: false },

@@ -307,7 +307,8 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
             </Show>
             <For each={table.columns.active()}>
               {(col) => {
-                const isSorted = createMemo(() => headerSorts().some((s) => s.key === col.key))
+                const sortDir = createMemo(() => headerSorts().find((s) => s.key === col.key)?.dir)
+                const isSorted = () => sortDir() !== undefined
                 const sortIdx = createMemo(() =>
                   isSorted() && headerSorts().length > 1
                     ? getSortIndex(headerSorts(), col.key)
@@ -322,6 +323,9 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
                     classList={{ 'dt-dd-item--drag-over': dragOverColKey() === col.key }}
                     draggable="true"
                     data-col-key={col.key}
+                    aria-sort={
+                      sortDir() ? (sortDir() === 'asc' ? 'ascending' : 'descending') : undefined
+                    }
                     style={col.width ? { width: `${col.width}px` } : undefined}
                     onDragStart={() => setDragColKey(col.key)}
                     onDragEnd={() => {

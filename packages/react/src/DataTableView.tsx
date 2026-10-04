@@ -3392,7 +3392,8 @@ export function DataTableView<TRow extends object>({
               {(() => {
                 const headerSorts = sorts.filter((s) => activeColumns.some((c) => c.key === s.key))
                 return activeColumns.map((col) => {
-                  const isSorted = headerSorts.some((s) => s.key === col.key)
+                  const sortDir = headerSorts.find((s) => s.key === col.key)?.dir
+                  const isSorted = sortDir !== undefined
                   // A number is only useful to disambiguate priority when more than one visible
                   // header is sorted — with just one, "1↑" is noise next to a plain "↑".
                   const sortIdx =
@@ -3403,6 +3404,9 @@ export function DataTableView<TRow extends object>({
                   return (
                     <th
                       key={col.key}
+                      aria-sort={
+                        sortDir ? (sortDir === 'asc' ? 'ascending' : 'descending') : undefined
+                      }
                       draggable
                       onDragStart={() => setDragColKey(col.key)}
                       onDragOver={(e) => {

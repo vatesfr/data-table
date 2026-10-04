@@ -10,6 +10,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ### Added
 
 - **Accessible checkbox names** (Solid, React, Vue, vanilla): the select-all, group and row checkboxes are now named "Select all", "Select group Engineering" and "Select row Alice Martin" (the row's first visible cell), instead of a bare "checkbox". New labels `selectGroup(group)`/`selectRow(row)` in all 5 locales.
+- **Sorted headers expose `aria-sort`** (Solid, React, Vue, vanilla): each sorted column header reports "ascending" or "descending" to screen readers, instead of the direction living only in the ↑/↓ glyph.
 
 ### Changed
 

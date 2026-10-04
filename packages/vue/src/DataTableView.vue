@@ -991,6 +991,10 @@ const headerSorts = computed(() =>
 function isHeaderSorted(key: string): boolean {
   return headerSorts.value.some((s) => s.key === key)
 }
+function headerAriaSort(key: string): 'ascending' | 'descending' | undefined {
+  const dir = headerSorts.value.find((s) => s.key === key)?.dir
+  return dir && (dir === 'asc' ? 'ascending' : 'descending')
+}
 function headerSortLabel(key: string): string {
   const icon = isHeaderSorted(key) ? getHeaderSortIcon(headerSorts.value, key) : '↕'
   // A number is only useful to disambiguate priority when more than one visible header is
@@ -2565,6 +2569,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
               v-for="col in activeColumns"
               :key="col.key"
               class="dt__th"
+              :aria-sort="headerAriaSort(col.key)"
               :class="{
                 'dt__th--dragging': dragColKey === col.key,
                 'dt__th--drag-over': dragOverColKey === col.key,

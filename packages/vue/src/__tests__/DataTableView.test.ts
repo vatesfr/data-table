@@ -97,6 +97,15 @@ describe('DataTableView', () => {
     expect(document.activeElement).toBe(bobRow.element)
     wrapper.unmount()
   })
+  it('exposes each sorted header direction as aria-sort', async () => {
+    const { table, wrapper } = mountView()
+    table.setViewState({ sorts: [{ key: 'score', dir: 'desc' }] })
+    await wrapper.vm.$nextTick()
+    const header = (label: string) => wrapper.findAll('th').find((th) => th.text().includes(label))!
+    expect(header('Score').attributes('aria-sort')).toBe('descending')
+    expect(header('Name').attributes('aria-sort')).toBeUndefined()
+  })
+
   it('names the select-all, group and row checkboxes', async () => {
     const { table, wrapper } = mountView({ selectable: true })
     const names = () =>

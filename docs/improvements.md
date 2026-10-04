@@ -1,6 +1,6 @@
 # Improvements
 
-<!-- check-docs-ignore: aria-current aria-sort -->
+<!-- check-docs-ignore: aria-current -->
 
 UX backlog from `ux-review` runs against [use cases](use-cases.md) and [UI guidelines](ui-guidelines.md). Each item names the use cases it slows down and, when not all three, the adapters; `ux-fix` fixes one per commit and removes it once shipped. IDs are never reused.
 
@@ -17,7 +17,6 @@ Seeded 2026-10-04 from issues reported by a consumer app, each reproduced on the
 
 ## Accessibility
 
-- **U2 · minor · UC01, UC04** — sorted headers expose no `aria-sort`; the direction only exists as an ↑/↓ glyph in the header text. Set it on the sorted columns' header cells.
 - **U3 · minor · UC07** — pagination buttons are 25–28×23 px (under the 24 px minimum) and named only by their glyph («, ‹, ›, »). Grow them and name them "First page", "Previous page"… from the labels.
 
 ## Filters
