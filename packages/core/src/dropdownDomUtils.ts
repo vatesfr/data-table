@@ -127,6 +127,23 @@ export function computeSubmenuPosition(
 }
 
 /**
+ * A header menu's fixed-viewport `left`/`top`: below `anchorRect`, left-aligned with it, slid back
+ * inside the viewport horizontally, and flipped above the anchor when it doesn't fit below.
+ */
+export function computeMenuPosition(
+  anchorRect: { top: number; right: number; bottom: number; left: number },
+  menuSize: { width: number; height: number },
+  viewportWidth: number,
+  viewportHeight: number,
+  margin = 8,
+): { left: number; top: number } {
+  const left = Math.max(margin, Math.min(anchorRect.left, viewportWidth - margin - menuSize.width))
+  const fitsBelow = anchorRect.bottom + menuSize.height <= viewportHeight - margin
+  const top = fitsBelow ? anchorRect.bottom : Math.max(margin, anchorRect.top - menuSize.height)
+  return { left, top }
+}
+
+/**
  * The roving Up/Down/Home/End nav shared by every Columns/Sort/Group dropdown panel (and the
  * Filter dropdown's left column pane) needs an ordered list of that panel's own focusable
  * row/search elements. `DD_NAV_SELECTOR` is the default selector for the `data-*`-attribute-based

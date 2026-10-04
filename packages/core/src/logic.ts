@@ -1299,6 +1299,20 @@ export function replaceSort(
 }
 
 /**
+ * The header menu's "Sort ascending/descending": sort by `key` alone in `dir`, keeping grouped
+ * columns' entries like `replaceSort`. A grouped `key` changes direction in place instead.
+ */
+export function setSortDir(
+  sorts: SortEntry[],
+  key: string,
+  dir: SortDir,
+  groupBy: string[] = [],
+): SortEntry[] {
+  if (groupBy.includes(key)) return sorts.map((s) => (s.key === key ? { ...s, dir } : s))
+  return [...sorts.filter((s) => groupBy.includes(s.key)), { key, dir }]
+}
+
+/**
  * A shift-clicked header: add `key` to the existing multi-sort (at `defaultDir`, default `'asc'`)
  * if it isn't already part of it, or just flip its direction in place if it is. Deliberately never
  * removes an entry — a shift-click's intent is "adjust the multi-sort", and cycling through "none"
