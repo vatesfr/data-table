@@ -14,6 +14,8 @@ export default defineConfig({
   resolve: {
     alias: {
       '@vates/data-table-core': resolve(import.meta.dirname, '../../packages/core/src'),
+      // Solid's source too, not its dist: the demo shows Solid changes without a rebuild
+      '@vates/data-table-solid': resolve(import.meta.dirname, '../../packages/solid/src'),
       '@vates/data-table-vanilla': resolve(
         import.meta.dirname,
         '../../packages/vanilla/src/index.tsx',
