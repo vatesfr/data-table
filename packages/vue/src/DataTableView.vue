@@ -2735,13 +2735,37 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
 
     <!-- ── Pagination ── -->
     <div v-if="pageSize > 0" class="dt__pagination">
-      <button class="dt__page-btn" :disabled="page === 1" @click="setPage(1)">«</button>
-      <button class="dt__page-btn" :disabled="page === 1" @click="setPage(page - 1)">‹</button>
+      <button
+        class="dt__page-btn"
+        :disabled="page === 1"
+        :aria-label="L.firstPage"
+        @click="setPage(1)"
+      >
+        «
+      </button>
+      <button
+        class="dt__page-btn"
+        :disabled="page === 1"
+        :aria-label="L.previousPage"
+        @click="setPage(page - 1)"
+      >
+        ‹
+      </button>
       <span class="dt__page-info">{{ L.pageOf(page, numPages) }}</span>
-      <button class="dt__page-btn" :disabled="page >= numPages" @click="setPage(page + 1)">
+      <button
+        class="dt__page-btn"
+        :disabled="page >= numPages"
+        :aria-label="L.nextPage"
+        @click="setPage(page + 1)"
+      >
         ›
       </button>
-      <button class="dt__page-btn" :disabled="page >= numPages" @click="setPage(numPages)">
+      <button
+        class="dt__page-btn"
+        :disabled="page >= numPages"
+        :aria-label="L.lastPage"
+        @click="setPage(numPages)"
+      >
         »
       </button>
       <span class="dt__rows-per-page-group">
@@ -3355,7 +3379,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
   flex-wrap: wrap;
 }
 .dt__page-btn {
-  padding: 4px 9px;
+  padding: 5px 9px;
   background: none;
   border: 0.5px solid var(--color-border-secondary);
   border-radius: 4px;

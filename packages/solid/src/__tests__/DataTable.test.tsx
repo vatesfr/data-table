@@ -34,6 +34,25 @@ describe('DataTable', () => {
     dispose()
   })
 
+  it('names the pagination buttons from the labels', () => {
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const dispose = createRoot((d) => {
+      render(
+        () => (
+          <DataTable data={ROWS} columns={COLS} rowKey="id" initialViewState={{ pageSize: 1 }} />
+        ),
+        container,
+      )
+      return d
+    })
+    const names = [...container.querySelectorAll('.dt-page-btn')].map((b) =>
+      b.getAttribute('aria-label'),
+    )
+    expect(names).toEqual(['First page', 'Previous page', 'Next page', 'Last page'])
+    dispose()
+  })
+
   it('tracks reactive data/columns props with no manual sync effect from the consumer', () => {
     const container = document.createElement('div')
     document.body.appendChild(container)

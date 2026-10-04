@@ -2259,6 +2259,14 @@ describe('DataTable — keyboard navigation across pages', () => {
     fireEvent.click([...container.querySelectorAll('button')].find((b) => b.textContent === '›')!)
   }
 
+  it('names the pagination buttons from the labels', () => {
+    const { getByRole } = render(
+      <DataTable data={ROWS6} columns={COLS} rowKey="id" initialViewState={{ pageSize: 2 }} />,
+    )
+    for (const name of ['First page', 'Previous page', 'Next page', 'Last page'])
+      expect(getByRole('button', { name })).toBeTruthy()
+  })
+
   it('the rows-per-page dropdown includes and selects a custom initialViewState.pageSize not among the defaults', () => {
     const { container } = render(
       <DataTable data={ROWS6} columns={COLS} rowKey="id" initialViewState={{ pageSize: 2 }} />,

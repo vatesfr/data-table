@@ -79,6 +79,18 @@ describe('DataTable — v-model:page / v-model:search-query', () => {
     expect(wrapper.emitted('update:searchQuery')![0]).toEqual([''])
   })
 
+  it('names the pagination buttons from the labels', () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS, columns: COLS, rowKey: 'id', initialViewState: { pageSize: 1 } },
+    })
+    expect(wrapper.findAll('.dt__page-btn').map((b) => b.attributes('aria-label'))).toEqual([
+      'First page',
+      'Previous page',
+      'Next page',
+      'Last page',
+    ])
+  })
+
   it('emits update:page when the page changes via pagination controls', async () => {
     const manyRows: Row[] = Array.from({ length: 25 }, (_, i) => ({
       id: i,

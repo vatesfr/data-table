@@ -8,16 +8,11 @@ Severity: **blocker** (goal unreachable) · **major** (reached with confusion or
 
 Seeded 2026-10-04 from issues reported by a consumer app, each reproduced on the demos (Solid, spot-checked on React and Vue).
 
-- [Accessibility](#accessibility)
 - [Filters](#filters)
 - [Active bar](#active-bar)
 - [Empty and cleared states](#empty-and-cleared-states)
 - [Layout and integration](#layout-and-integration)
 - [Adapter-specific](#adapter-specific)
-
-## Accessibility
-
-- **U3 · minor · UC07** — pagination buttons are 25–28×23 px (under the 24 px minimum) and named only by their glyph («, ‹, ›, »). Grow them and name them "First page", "Previous page"… from the labels.
 
 ## Filters
 

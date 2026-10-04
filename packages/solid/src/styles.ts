@@ -110,7 +110,7 @@ ${renderThemeCss()}
 .dt-group-count{margin-left:10px;font-weight:400;opacity:.6}
 .dt-group-continued{margin-left:8px;font-weight:400;opacity:.6}
 .dt-pagination{display:flex;align-items:center;gap:6px;padding:10px 2px;justify-content:flex-end;flex-wrap:wrap}
-.dt-page-btn{padding:4px 9px;background:none;border:0.5px solid var(--color-border-secondary,#dddcd8);border-radius:4px;cursor:pointer;font-size:13px;color:var(--color-text-primary,#1a1916);font-family:inherit;line-height:1}
+.dt-page-btn{padding:5px 9px;background:none;border:0.5px solid var(--color-border-secondary,#dddcd8);border-radius:4px;cursor:pointer;font-size:13px;color:var(--color-text-primary,#1a1916);font-family:inherit;line-height:1}
 .dt-page-btn:disabled{opacity:.35;cursor:default}
 .dt-page-info{font-size:12px;color:var(--color-text-secondary,#6b6a66);padding:0 6px}
 .dt-page-select{padding:4px 6px;font-size:12px;border:0.5px solid var(--color-border-secondary,#dddcd8);border-radius:4px;background:transparent;color:inherit;font-family:inherit;cursor:pointer}

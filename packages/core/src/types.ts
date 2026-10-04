@@ -255,6 +255,11 @@ export interface DataTableLabels {
   groupContinued: string
   rowsPerPage: string
   pageOf: (page: number, total: number) => string
+  /** Accessible names of the «, ‹, › and » pagination buttons */
+  firstPage: string
+  previousPage: string
+  nextPage: string
+  lastPage: string
   search: string
   /** Filter/group label for rows whose array-valued column is empty (e.g. `tags: []`) */
   emptyValue: string

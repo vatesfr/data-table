@@ -11,6 +11,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 - **Accessible checkbox names** (Solid, React, Vue, vanilla): the select-all, group and row checkboxes are now named "Select all", "Select group Engineering" and "Select row Alice Martin" (the row's first visible cell), instead of a bare "checkbox". New labels `selectGroup(group)`/`selectRow(row)` in all 5 locales.
 - **Sorted headers expose `aria-sort`** (Solid, React, Vue, vanilla): each sorted column header reports "ascending" or "descending" to screen readers, instead of the direction living only in the ↑/↓ glyph.
+- **Named, larger pagination buttons** (Solid, React, Vue, vanilla): «, ‹, › and » are named "First page", "Previous page", "Next page" and "Last page" for screen readers, and grow from 23 to 25 px tall to meet the 24 px minimum touch target. New labels `firstPage`/`previousPage`/`nextPage`/`lastPage` in all 5 locales.
 
 ### Changed
 

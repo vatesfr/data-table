@@ -308,7 +308,7 @@ const S = {
     flexWrap: 'wrap',
   } as CSSProperties,
   pageBtn: {
-    padding: '4px 9px',
+    padding: '5px 9px',
     background: 'none',
     border: '0.5px solid var(--color-border-secondary)',
     borderRadius: 4,
@@ -3619,6 +3619,7 @@ export function DataTableView<TRow extends object>({
         <div style={S.pagination}>
           <button
             onClick={() => setPage(1)}
+            aria-label={L.firstPage}
             disabled={page === 1}
             style={{ ...S.pageBtn, ...(page === 1 ? S.pageBtnDisabled : {}) }}
           >
@@ -3626,6 +3627,7 @@ export function DataTableView<TRow extends object>({
           </button>
           <button
             onClick={() => setPage(page - 1)}
+            aria-label={L.previousPage}
             disabled={page === 1}
             style={{ ...S.pageBtn, ...(page === 1 ? S.pageBtnDisabled : {}) }}
           >
@@ -3634,6 +3636,7 @@ export function DataTableView<TRow extends object>({
           <span style={S.pageInfo}>{L.pageOf(page, numPages)}</span>
           <button
             onClick={() => setPage(page + 1)}
+            aria-label={L.nextPage}
             disabled={page >= numPages}
             style={{ ...S.pageBtn, ...(page >= numPages ? S.pageBtnDisabled : {}) }}
           >
@@ -3641,6 +3644,7 @@ export function DataTableView<TRow extends object>({
           </button>
           <button
             onClick={() => setPage(numPages)}
+            aria-label={L.lastPage}
             disabled={page >= numPages}
             style={{ ...S.pageBtn, ...(page >= numPages ? S.pageBtnDisabled : {}) }}
           >
