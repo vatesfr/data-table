@@ -1,5 +1,5 @@
 <script setup lang="ts" generic="TRow extends object">
-import { computed, ref, watch, nextTick, useSlots } from 'vue'
+import { computed, ref, watch, nextTick, useSlots, onMounted, onBeforeUnmount } from 'vue'
 import {
   computeAggregate,
   getColumnValue,
@@ -24,6 +24,8 @@ import {
   moveVisibleColumnBy as _moveVisibleColumnBy,
   type PagedGroup,
   type VisibleItem,
+  watchMedia,
+  FILTER_NARROW_QUERY,
 } from '@vates/data-table-core/internal'
 import { type SortEntry } from '@vates/data-table-core'
 import type { ColumnDef, DataTableViewInternalProps } from './types'
@@ -447,6 +449,7 @@ watch(
   () => filterDropdownRef.value?.isOpen,
   (open, prevOpen) => {
     if (open && !prevOpen) {
+      filterShowValues.value = false
       filterColOrderKeys.value = orderFilterColumnsByActive(
         filterableCols.value,
         filters.value,
@@ -509,8 +512,33 @@ function clearColFilter(key: string): void {
   clearColumnFilter(key, 'exclude')
   clearColumnFilter(key, 'range')
 }
+// Narrow screen (U16): the Filter dropdown shows one pane at a time — columns, or values
+const narrowFilter = ref(false)
+let stopNarrowFilter = () => {}
+onMounted(() => {
+  stopNarrowFilter = watchMedia(FILTER_NARROW_QUERY, (matches) => (narrowFilter.value = matches))
+})
+onBeforeUnmount(() => stopNarrowFilter())
+const filterShowValues = ref(false)
+async function showFilterValues(): Promise<void> {
+  filterShowValues.value = true
+  await nextTick()
+  const root = rootRef.value
+  // A number column has no value rows: fall back to the back button
+  ;(
+    root?.querySelector<HTMLElement>('.dt__filter-detail input, .dt__filter-detail button') ??
+    root?.querySelector<HTMLElement>('.dt__filter-back')
+  )?.focus()
+}
+async function showFilterColumns(): Promise<void> {
+  filterShowValues.value = false
+  await nextTick()
+  rootRef.value?.querySelector<HTMLElement>('.dt__filter-col-item--active')?.focus()
+}
+
 function selectFilterCol(key: string): void {
   filterActiveCol.value = key
+  if (narrowFilter.value) void showFilterValues()
 }
 // The left column pane behaves like a listbox/radiogroup rather than needing a separate
 // Enter/Space "activate" step — moving focus onto a column button by *any* means (Tab, the
@@ -969,6 +997,10 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
 
     if (filterColBtn && event.key === 'ArrowRight') {
       event.preventDefault()
+      if (narrowFilter.value) {
+        await showFilterValues()
+        return
+      }
       const menu = event.currentTarget as HTMLElement
       menu
         .querySelector<HTMLElement>('.dt__filter-detail input, .dt__filter-detail button')
@@ -986,6 +1018,10 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
       const isEditable = active instanceof HTMLInputElement && active.type !== 'checkbox'
       if (!isEditable) {
         event.preventDefault()
+        if (narrowFilter.value) {
+          await showFilterColumns()
+          return
+        }
         const menu = event.currentTarget as HTMLElement
         menu.querySelector<HTMLElement>('.dt__filter-col-item--active')?.focus()
         return
@@ -1531,8 +1567,8 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
               ×
             </button>
           </template>
-          <div class="dt__filter-panel">
-            <div class="dt__filter-cols">
+          <div class="dt__filter-panel" :class="{ 'dt__filter-panel--narrow': narrowFilter }">
+            <div v-if="!narrowFilter || !filterShowValues" class="dt__filter-cols">
               <!--
                 Search box (sticky within this scrollable pane, see styles below) narrows the
                 column list itself — separate from FilterPane's value search, which narrows the
@@ -1671,8 +1707,16 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                 </div>
               </template>
             </div>
+            <button
+              v-if="narrowFilter && filterShowValues"
+              type="button"
+              class="dt__dd-item dt__dd-item--clickable dt__filter-back"
+              @click="showFilterColumns"
+            >
+              ‹ {{ L.columns }}
+            </button>
             <FilterPane
-              v-if="filterDetailCol"
+              v-if="filterDetailCol && (!narrowFilter || filterShowValues)"
               :key="filterDetailCol.key"
               :table="table"
               :col="filterDetailCol"
@@ -2353,6 +2397,21 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
   /* Safety net for the date tree (see .dt__date-tree-wrap below) — without it, content that
      outgrows max-height would bleed past the panel onto the page instead of being clipped. */
   overflow: hidden;
+}
+.dt__filter-panel--narrow {
+  flex-direction: column;
+  min-width: 0;
+  /* 100vw counts a classic scrollbar too, hence more than twice the 8 px viewport margin */
+  width: calc(100vw - 40px);
+}
+.dt__filter-panel--narrow .dt__filter-cols {
+  width: auto;
+  border-right: none;
+}
+.dt__filter-back {
+  flex-shrink: 0;
+  font-weight: 500;
+  border-bottom: 0.5px solid var(--color-border-tertiary);
 }
 .dt__filter-cols {
   width: 150px;

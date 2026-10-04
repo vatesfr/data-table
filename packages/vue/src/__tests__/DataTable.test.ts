@@ -3875,3 +3875,78 @@ describe('DataTable — active-bar chip click actions', () => {
     )
   })
 })
+
+describe('DataTable — filter dropdown on a narrow screen (U16)', () => {
+  const NARROW_COLS: ColumnDef<Row>[] = [
+    { key: 'name', label: 'Name', filterable: true },
+    { key: 'score', label: 'Score', type: 'number', filterable: true },
+  ]
+  let restore = () => {}
+  function narrowScreen(matches: boolean): void {
+    const original = window.matchMedia
+    window.matchMedia = ((query: string) => ({
+      matches,
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    })) as unknown as typeof window.matchMedia
+    restore = () => {
+      window.matchMedia = original
+    }
+  }
+  const tick = () => new Promise((r) => setTimeout(r))
+  async function open(matches: boolean) {
+    narrowScreen(matches)
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS, columns: NARROW_COLS, rowKey: 'id' },
+      attachTo: document.body,
+    })
+    await openDdByLabel(wrapper, 'Filter')
+    return wrapper
+  }
+  const nameBtn = (wrapper: ReturnType<typeof mount>) =>
+    wrapper.findAll('.dt__filter-col-item').find((el) => el.text().startsWith('Name'))
+
+  it('shows the column list, then one column at a time with a way back', async () => {
+    const wrapper = await open(true)
+    expect(wrapper.find('.dt__filter-cols').exists()).toBe(true)
+    expect(wrapper.find('.dt__filter-detail').exists()).toBe(false)
+    await nameBtn(wrapper)!.trigger('click')
+    await tick()
+    expect(wrapper.find('.dt__filter-cols').exists()).toBe(false)
+    expect(wrapper.find('.dt__filter-detail').exists()).toBe(true)
+    const back = wrapper.find('.dt__filter-back')
+    expect(back.text()).toContain('Columns')
+    await back.trigger('click')
+    await tick()
+    expect(wrapper.find('.dt__filter-detail').exists()).toBe(false)
+    expect(document.activeElement).toBe(nameBtn(wrapper)!.element)
+    wrapper.unmount()
+    restore()
+  })
+
+  it('crosses panes with → and ←', async () => {
+    const wrapper = await open(true)
+    ;(nameBtn(wrapper)!.element as HTMLElement).focus()
+    await nameBtn(wrapper)!.trigger('keydown', { key: 'ArrowRight' })
+    await tick()
+    expect(wrapper.find('.dt__filter-detail').element.contains(document.activeElement)).toBe(true)
+    const row = wrapper.find('.dt__filter-detail input[data-value]')
+    ;(row.element as HTMLElement).focus()
+    await row.trigger('keydown', { key: 'ArrowLeft' })
+    await tick()
+    expect(wrapper.find('.dt__filter-detail').exists()).toBe(false)
+    expect(document.activeElement).toBe(nameBtn(wrapper)!.element)
+    wrapper.unmount()
+    restore()
+  })
+
+  it('keeps both panes on a wide screen', async () => {
+    const wrapper = await open(false)
+    expect(wrapper.find('.dt__filter-cols').exists()).toBe(true)
+    expect(wrapper.find('.dt__filter-detail').exists()).toBe(true)
+    expect(wrapper.find('.dt__filter-back').exists()).toBe(false)
+    wrapper.unmount()
+    restore()
+  })
+})

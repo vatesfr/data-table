@@ -52,6 +52,8 @@ import {
   columnMatchesSearch,
   groupColumnsByCategory,
   getHeaderMenuItems,
+  watchMedia,
+  FILTER_NARROW_QUERY,
   type VisibleItem,
   type DateTreeNode,
 } from '@vates/data-table-core/internal'
@@ -450,6 +452,18 @@ const S = {
     minWidth: 460,
     maxHeight: 380,
     overflow: 'hidden',
+  } as CSSProperties,
+  filterPanelNarrow: {
+    flexDirection: 'column',
+    minWidth: 0,
+    // 100vw counts a classic scrollbar too, hence more than twice the 8 px viewport margin
+    width: 'calc(100vw - 40px)',
+  } as CSSProperties,
+  filterColsNarrow: { width: 'auto', borderRight: 'none' } as CSSProperties,
+  filterBack: {
+    flexShrink: 0,
+    fontWeight: 500,
+    borderBottom: '0.5px solid var(--color-border-tertiary)',
   } as CSSProperties,
   filterCols: {
     width: 150,
@@ -1590,6 +1604,11 @@ export function DataTableView<TRow extends object>({
   const [openColsDD, setOpenColsDD] = useState(false)
   const [openSortDD, setOpenSortDD] = useState(false)
   const [openFilterDD, setOpenFilterDD] = useState(false)
+  // Narrow screen (U16): the Filter dropdown shows one pane at a time — columns, or values
+  const [narrowFilter, setNarrowFilter] = useState(false)
+  useEffect(() => watchMedia(FILTER_NARROW_QUERY, setNarrowFilter), [])
+  const [filterShowValues, setFilterShowValues] = useState(false)
+  const pendingFilterValuesFocus = useRef(false)
   const [openGroupDD, setOpenGroupDD] = useState(false)
   const [hoveredRow, setHoveredRow] = useState<TRow | null>(null)
   const rowRefs = useRef(new Map<TRow | string, HTMLTableRowElement>())
@@ -1639,6 +1658,15 @@ export function DataTableView<TRow extends object>({
     focusPendingKey(root, pendingSortFocusKey, ['data-sort-key', 'data-sort-add-key'])
     focusPendingKey(root, pendingGroupFocusKey, ['data-group-key', 'data-group-add-key'])
     focusPendingKey(root, pendingFilterColFocusKey, ['data-filter-col-key'])
+    if (pendingFilterValuesFocus.current) {
+      pendingFilterValuesFocus.current = false
+      // A number column has no value rows: fall back to the back button
+      ;(
+        root.querySelector<HTMLElement>(
+          '[data-filter-detail] input, [data-filter-detail] button',
+        ) ?? root.querySelector<HTMLElement>('[data-filter-back]')
+      )?.focus()
+    }
     focusPendingKey(root, pendingColFocusKey, [
       'data-col-row-key',
       'data-col-key',
@@ -2085,6 +2113,7 @@ export function DataTableView<TRow extends object>({
   if (openFilterDD !== prevOpenFilterDD) {
     setPrevOpenFilterDD(openFilterDD)
     if (openFilterDD) {
+      setFilterShowValues(false)
       setFilterColOrderKeys(
         orderFilterColumnsByActive(filterableCols, filters, excludeFilters, rangeFilters),
       )
@@ -2148,7 +2177,12 @@ export function DataTableView<TRow extends object>({
           onFocus={() => {
             if (col.key !== filterActiveKey) setFilterActiveCol(col.key)
           }}
-          onClick={() => setFilterActiveCol(col.key)}
+          onClick={() => {
+            setFilterActiveCol(col.key)
+            if (!narrowFilter) return
+            setFilterShowValues(true)
+            pendingFilterValuesFocus.current = true
+          }}
           style={{
             ...S.ddItemButton,
             ...S.filterColItem,
@@ -2216,6 +2250,11 @@ export function DataTableView<TRow extends object>({
     if (filterColBtn && e.key === 'ArrowRight') {
       e.preventDefault()
       e.stopPropagation()
+      if (narrowFilter) {
+        setFilterShowValues(true)
+        pendingFilterValuesFocus.current = true
+        return
+      }
       e.currentTarget
         .querySelector<HTMLElement>('[data-filter-detail] input, [data-filter-detail] button')
         ?.focus()
@@ -2238,6 +2277,11 @@ export function DataTableView<TRow extends object>({
       if (!isEditable) {
         e.preventDefault()
         e.stopPropagation()
+        if (narrowFilter) {
+          setFilterShowValues(false)
+          pendingFilterColFocusKey.current = filterActiveKey
+          return
+        }
         const cols = e.currentTarget.querySelector<HTMLElement>('[data-filter-cols]')
         for (const el of cols?.querySelectorAll<HTMLElement>('[data-filter-col-key]') ?? []) {
           if (el.dataset.filterColKey === filterActiveKey) {
@@ -2978,53 +3022,76 @@ export function DataTableView<TRow extends object>({
                 )
               }
             >
-              <div style={S.filterPanel} onKeyDown={handleFilterPanelKeyDown}>
-                <div style={S.filterCols} data-filter-cols>
-                  {/* Narrows the column list itself — separate from filterSearchTerms, which
+              <div
+                style={narrowFilter ? { ...S.filterPanel, ...S.filterPanelNarrow } : S.filterPanel}
+                onKeyDown={handleFilterPanelKeyDown}
+              >
+                {(!narrowFilter || !filterShowValues) && (
+                  <div
+                    style={narrowFilter ? { ...S.filterCols, ...S.filterColsNarrow } : S.filterCols}
+                    data-filter-cols
+                  >
+                    {/* Narrows the column list itself — separate from filterSearchTerms, which
                       narrows the *values* shown in the right-hand detail pane for whichever
                       column is currently selected. Order follows filterColOrderKeys (a snapshot
                       taken when the dropdown opens — active-filter columns first, then the rest,
                       alphabetized within each group) instead of a plain alphabetize, since
                       active-filter columns are the ones most worth finding at a glance in a long
                       list. */}
-                  <DdSearchInput
-                    value={ddSearchTerms.filter ?? ''}
-                    onChange={(v) => setDdSearchTerms({ ...ddSearchTerms, filter: v })}
-                    placeholder={L.filterSearchPlaceholder}
-                    clearLabel={L.clearSearch}
-                    extraStyle={S.filterColsSearch}
-                  />
-                  {categorizedFilterCols.uncategorized.map((col) => renderFilterColRow(col, false))}
-                  {categorizedFilterCols.categories.map((category) => {
-                    // While searching, a category only ever renders here at all when it has a
-                    // matching column (categorizedFilterCols buckets the already-searched list)
-                    // — so force it open rather than let a stale collapsed snapshot hide the very
-                    // match the search just surfaced, with no visible sign it's there.
-                    // collapsedCategories itself is left untouched: clearing the search reverts
-                    // to whatever collapse state the user had (manually toggled, or the open-time
-                    // snapshot), exactly as before this fix.
-                    const isCollapsed =
-                      !isFilterColSearching && collapsedCategories.has(category.name)
-                    return (
-                      <div key={category.name}>
-                        <button
-                          type="button"
-                          data-dd-row
-                          data-filter-category-header={category.name}
-                          aria-expanded={!isCollapsed}
-                          onClick={() => toggleCategoryCollapsed(category.name)}
-                          style={S.filterCategoryHeader}
-                        >
-                          <span style={S.filterCategoryToggle}>{isCollapsed ? '▶' : '▼'}</span>
-                          <span style={{ flex: 1 }}>{category.name}</span>
-                        </button>
-                        {!isCollapsed &&
-                          category.columns.map((col) => renderFilterColRow(col, true))}
-                      </div>
-                    )
-                  })}
-                </div>
-                {filterDetailCol && (
+                    <DdSearchInput
+                      value={ddSearchTerms.filter ?? ''}
+                      onChange={(v) => setDdSearchTerms({ ...ddSearchTerms, filter: v })}
+                      placeholder={L.filterSearchPlaceholder}
+                      clearLabel={L.clearSearch}
+                      extraStyle={S.filterColsSearch}
+                    />
+                    {categorizedFilterCols.uncategorized.map((col) =>
+                      renderFilterColRow(col, false),
+                    )}
+                    {categorizedFilterCols.categories.map((category) => {
+                      // While searching, a category only ever renders here at all when it has a
+                      // matching column (categorizedFilterCols buckets the already-searched list)
+                      // — so force it open rather than let a stale collapsed snapshot hide the very
+                      // match the search just surfaced, with no visible sign it's there.
+                      // collapsedCategories itself is left untouched: clearing the search reverts
+                      // to whatever collapse state the user had (manually toggled, or the open-time
+                      // snapshot), exactly as before this fix.
+                      const isCollapsed =
+                        !isFilterColSearching && collapsedCategories.has(category.name)
+                      return (
+                        <div key={category.name}>
+                          <button
+                            type="button"
+                            data-dd-row
+                            data-filter-category-header={category.name}
+                            aria-expanded={!isCollapsed}
+                            onClick={() => toggleCategoryCollapsed(category.name)}
+                            style={S.filterCategoryHeader}
+                          >
+                            <span style={S.filterCategoryToggle}>{isCollapsed ? '▶' : '▼'}</span>
+                            <span style={{ flex: 1 }}>{category.name}</span>
+                          </button>
+                          {!isCollapsed &&
+                            category.columns.map((col) => renderFilterColRow(col, true))}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+                {narrowFilter && filterShowValues && (
+                  <button
+                    type="button"
+                    data-filter-back
+                    onClick={() => {
+                      setFilterShowValues(false)
+                      pendingFilterColFocusKey.current = filterActiveKey
+                    }}
+                    style={{ ...S.ddItemButton, ...S.filterBack }}
+                  >
+                    ‹ {L.columns}
+                  </button>
+                )}
+                {filterDetailCol && (!narrowFilter || filterShowValues) && (
                   <FilterPane
                     key={filterDetailCol.key}
                     table={table}

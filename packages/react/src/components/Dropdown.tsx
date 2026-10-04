@@ -6,7 +6,11 @@ import {
   type KeyboardEvent,
   type ReactNode,
 } from 'react'
-import { computeDropdownClampOffset, ddNavFocusables } from '@vates/data-table-core/internal'
+import {
+  computeDropdownClampOffset,
+  ddNavFocusables,
+  viewportWidth,
+} from '@vates/data-table-core/internal'
 
 export interface DropdownProps {
   trigger: ReactNode
@@ -67,7 +71,7 @@ export function Dropdown({
     const panel = panelRef.current
     if (!panel) return
     const rect = panel.getBoundingClientRect()
-    const { dx, flipUp } = computeDropdownClampOffset(rect, window.innerWidth, window.innerHeight)
+    const { dx, flipUp } = computeDropdownClampOffset(rect, viewportWidth(), window.innerHeight)
     if (dx !== 0) panel.style.transform = `translateX(${dx}px)`
     if (flipUp) {
       panel.style.top = 'auto'

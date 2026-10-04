@@ -992,3 +992,62 @@ describe('DataTable — Columns/Group keyboard fixes (Enter/Space, drag handle, 
     expect(fireEvent.keyDown(row, { key: ' ' })).toBe(false)
   })
 })
+
+describe('DataTable — filter dropdown on a narrow screen (U16)', () => {
+  let restore = () => {}
+  function narrowScreen(matches: boolean): void {
+    const original = window.matchMedia
+    window.matchMedia = ((query: string) => ({
+      matches,
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    })) as unknown as typeof window.matchMedia
+    restore = () => {
+      window.matchMedia = original
+    }
+  }
+  afterEach(() => restore())
+
+  it('shows the column list, then one column at a time with a way back', () => {
+    narrowScreen(true)
+    const { getByText, container } = render(<DataTable data={ROWS} columns={COLS} rowKey="id" />)
+    fireEvent.click(getByText('Filter'))
+    expect(container.querySelector('[data-filter-cols]')).not.toBeNull()
+    expect(container.querySelector('[data-filter-detail]')).toBeNull()
+    fireEvent.click(container.querySelector('[data-filter-col-key="name"]')!)
+    expect(container.querySelector('[data-filter-cols]')).toBeNull()
+    expect(container.querySelector('[data-filter-detail]')).not.toBeNull()
+    const back = container.querySelector<HTMLButtonElement>('[data-filter-back]')!
+    expect(back.textContent).toContain('Columns')
+    fireEvent.click(back)
+    expect(container.querySelector('[data-filter-detail]')).toBeNull()
+    expect(document.activeElement).toBe(container.querySelector('[data-filter-col-key="name"]'))
+  })
+
+  it('crosses panes with → and ←', () => {
+    narrowScreen(true)
+    const { getByText, container } = render(<DataTable data={ROWS} columns={COLS} rowKey="id" />)
+    fireEvent.click(getByText('Filter'))
+    const nameBtn = container.querySelector<HTMLElement>('[data-filter-col-key="name"]')!
+    nameBtn.focus()
+    fireEvent.keyDown(nameBtn, { key: 'ArrowRight' })
+    expect(container.querySelector('[data-filter-detail]')!.contains(document.activeElement)).toBe(
+      true,
+    )
+    const row = container.querySelector<HTMLInputElement>('input[data-dd-value-row]')!
+    row.focus()
+    fireEvent.keyDown(row, { key: 'ArrowLeft' })
+    expect(container.querySelector('[data-filter-detail]')).toBeNull()
+    expect(document.activeElement).toBe(container.querySelector('[data-filter-col-key="name"]'))
+  })
+
+  it('keeps both panes on a wide screen', () => {
+    narrowScreen(false)
+    const { getByText, container } = render(<DataTable data={ROWS} columns={COLS} rowKey="id" />)
+    fireEvent.click(getByText('Filter'))
+    expect(container.querySelector('[data-filter-cols]')).not.toBeNull()
+    expect(container.querySelector('[data-filter-detail]')).not.toBeNull()
+    expect(container.querySelector('[data-filter-back]')).toBeNull()
+  })
+})

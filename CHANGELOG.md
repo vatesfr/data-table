@@ -23,6 +23,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Fixed
 
+- **Filter dropdown on phones** (Solid, React, Vue, vanilla): below 480 px it shows the column list, then the chosen column's values with a "‹ Columns" way back, instead of a two-pane panel running off the screen. Opening any dropdown near the screen's edge no longer scrolls the page sideways (Solid, vanilla), and dropdowns and menus now account for a desktop scrollbar when keeping themselves on screen.
 - **Vue filter checklist**: hiding a value of a single-value column (or toggling "Others") now unchecks its checkbox; it used to stay checked while the filter applied.
 - **Category submenus on narrow screens** (Solid, React, Vue, vanilla): a submenu that fits on neither side of its row now stays on screen, overlapping the row, instead of opening past the left edge.
 - **Focus after clearing** (Solid, React, Vue, vanilla): "Clear all" and (Solid, vanilla) the search box's × no longer drop keyboard focus to the page once they disappear; it moves to the search box, or the first toolbar button when search is hidden.

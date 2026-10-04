@@ -19,7 +19,6 @@ Seeded 2026-10-04 from issues reported by a consumer app, each reproduced on the
 
 - **U4 · minor · UC01, UC08** — the Filter dropdown's column pane is 149 px wide for 222 px of content, so it scrolls sideways even with short names like "Order Date" and clips its own search box; all adapters. Size the pane to its content, within the dropdown's max width.
 - **U5 · minor · UC01** — a range filter's inputs are named only by their "Min"/"Max" placeholders, with no column label, and show raw bounds instead of the column's format ("0 – 1000" for amounts shown as "$12.34"). Label them with the column and show bounds through its `format`.
-- **U16 · major · UC07, UC01** — on a phone the toolbar's Filter dropdown is ~475 px wide on a 390 px screen: its values pane runs off the right edge, cutting off the counts and the sort-order button. Below the dropdown's width, show one pane at a time (columns, then a column's values with a way back).
 - **U17 · minor · UC11, UC04 · Solid, Vue** — with focus on the "Others" row, Escape clears the value search, the row disappears and focus drops to the page; further Escapes do nothing and the menu or dropdown stays open. Move focus to the value search box when clearing it.
 
 ## Active bar

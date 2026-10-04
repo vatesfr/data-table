@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { computeSubmenuPosition, ddNavFocusables } from '@vates/data-table-core/internal'
+import {
+  computeSubmenuPosition,
+  ddNavFocusables,
+  viewportWidth,
+} from '@vates/data-table-core/internal'
 
 // Hover-intent delays (see docs/columns.md's "Column categories") — a native OS/app-menu-style flyout
 // opens on hover once its parent menu is already open. OPEN_DELAY avoids a flicker-open while the
@@ -140,7 +144,7 @@ function onSubmenuMounted(el: Element | null): void {
     const pos = computeSubmenuPosition(
       triggerRect,
       { width: rect.width, height: rect.height },
-      window.innerWidth,
+      viewportWidth(),
       window.innerHeight,
     )
     left.value = pos.left

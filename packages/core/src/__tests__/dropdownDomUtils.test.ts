@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { computeMenuPosition, computeSubmenuPosition } from '../dropdownDomUtils'
+import { computeMenuPosition, computeSubmenuPosition, watchMedia } from '../dropdownDomUtils'
 
 describe('computeMenuPosition', () => {
   const anchor = { top: 100, bottom: 120, left: 200, right: 280 }
@@ -44,5 +44,14 @@ describe('computeSubmenuPosition', () => {
 
   it('stays on screen when it fits neither side', () => {
     expect(computeSubmenuPosition(trigger, { width: 330, height: 100 }, 390, 844).left).toBe(8)
+  })
+})
+
+describe('watchMedia', () => {
+  it('reports no match where matchMedia is missing', () => {
+    const seen: boolean[] = []
+    const stop = watchMedia('(max-width: 479px)', (m) => seen.push(m))
+    expect(seen).toEqual([false])
+    stop()
   })
 })

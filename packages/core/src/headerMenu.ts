@@ -1,6 +1,6 @@
 /// <reference lib="dom" />
 // DOM-typed like dropdownDomUtils.ts (see its top comment)
-import { computeMenuPosition } from './dropdownDomUtils'
+import { computeMenuPosition, viewportWidth } from './dropdownDomUtils'
 
 // The header ▾ menu's shared logic (see docs/columns.md's "Header menu"); adapters only render it.
 
@@ -84,7 +84,7 @@ export function placeMenu(trigger: Element, menu: Element): { left: number; top:
   return computeMenuPosition(
     trigger.getBoundingClientRect(),
     { width: rect.width, height: rect.height },
-    window.innerWidth,
+    viewportWidth(),
     window.innerHeight,
   )
 }

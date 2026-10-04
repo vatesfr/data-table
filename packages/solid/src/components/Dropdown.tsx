@@ -1,5 +1,9 @@
 import { type JSX, Show, createSignal, onCleanup, onMount } from 'solid-js'
-import { computeDropdownClampOffset, ddNavFocusables } from '@vates/data-table-core/internal'
+import {
+  computeDropdownClampOffset,
+  ddNavFocusables,
+  viewportWidth,
+} from '@vates/data-table-core/internal'
 
 interface DropdownProps {
   isOpen: boolean
@@ -106,7 +110,7 @@ export function Dropdown(props: DropdownProps) {
 
   function clampToViewport(el: HTMLDivElement): void {
     const rect = el.getBoundingClientRect()
-    const { dx, flipUp } = computeDropdownClampOffset(rect, window.innerWidth, window.innerHeight)
+    const { dx, flipUp } = computeDropdownClampOffset(rect, viewportWidth(), window.innerHeight)
     setTranslateX(dx)
     setFlipUp(flipUp)
   }
@@ -135,12 +139,13 @@ export function Dropdown(props: DropdownProps) {
               // search box renders *after* the active-entries section but is still the preferred
               // landing spot), else the first row (e.g. Sort with every column already sorted has
               // no addable section and therefore no search box).
+              // Measure after the panel's real content is laid out — same microtask, since both
+              // depend on the same "children actually exist" precondition. Clamp first: focusing a
+              // field still past the viewport's edge scrolls the whole page sideways (phones).
+              clampToViewport(panelRef)
               const search = panelRef.querySelector<HTMLElement>('input[data-dd-search]')
               if (search) search.focus()
               else ddNavFocusables(panelRef)[0]?.focus()
-              // Measure after the panel's real content is laid out — same microtask, since both
-              // now depend on the same "children actually exist" precondition.
-              clampToViewport(panelRef)
             })
           }}
           style={{ transform: translateX() ? `translateX(${translateX()}px)` : undefined }}

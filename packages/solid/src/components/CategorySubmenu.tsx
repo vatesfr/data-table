@@ -1,5 +1,9 @@
 import { type JSX, Show, createSignal, onCleanup } from 'solid-js'
-import { computeSubmenuPosition, ddNavFocusables } from '@vates/data-table-core/internal'
+import {
+  computeSubmenuPosition,
+  ddNavFocusables,
+  viewportWidth,
+} from '@vates/data-table-core/internal'
 
 // Hover-intent delays (see docs/columns.md's "Column categories"): a native OS/app-menu-style flyout
 // opens on hover once its parent menu is already open — a plain click-to-open (the first version
@@ -182,7 +186,7 @@ export function CategorySubmenu(props: CategorySubmenuProps) {
               const pos = computeSubmenuPosition(
                 triggerRect,
                 { width: rect.width, height: rect.height },
-                window.innerWidth,
+                viewportWidth(),
                 window.innerHeight,
               )
               setLeft(pos.left)

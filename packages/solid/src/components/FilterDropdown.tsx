@@ -1,10 +1,20 @@
-import { For, Show, createMemo, createRenderEffect, createSignal, untrack } from 'solid-js'
+import {
+  For,
+  Show,
+  createMemo,
+  createRenderEffect,
+  createSignal,
+  onCleanup,
+  untrack,
+} from 'solid-js'
 import {
   columnHasActiveFilter,
   orderFilterColumnsByActive,
   applyColumnOrderSnapshot,
   groupColumnsByCategory,
   columnMatchesSearch,
+  watchMedia,
+  FILTER_NARROW_QUERY,
 } from '@vates/data-table-core/internal'
 import type { TableState } from '../createTableState'
 import type { ColumnDef } from '../types'
@@ -75,9 +85,28 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
   // that flips the panel's `<Show>` open, so the very first render of the left-pane list already
   // reads the fresh snapshot instead of one stale tick of plain alpha order — same reasoning as
   // `data`/`columns`' own accessor-tracking effects in createTableState.ts.
+  // Narrow screen (U16): one pane at a time — the column list, or the chosen column's values
+  const [narrow, setNarrow] = createSignal(false)
+  onCleanup(watchMedia(FILTER_NARROW_QUERY, setNarrow))
+  const [showValues, setShowValues] = createSignal(false)
+  function focusActiveColumn(): void {
+    panelEl?.querySelector<HTMLElement>('.dt-filter-cols .dt-filter-col-item--active')?.focus()
+  }
+  // A number column has no value rows: fall back to its first field, else the back button
+  function focusFirstValue(): boolean {
+    const detailEl = panelEl?.querySelector('.dt-filter-detail')
+    const first =
+      (detailEl &&
+        (detailFocusables(detailEl)[0] ?? detailEl.querySelector<HTMLElement>('input'))) ??
+      panelEl?.querySelector<HTMLElement>('.dt-filter-back')
+    first?.focus()
+    return !!first
+  }
+
   createRenderEffect(() => {
     const open = props.isOpen
     if (open && !wasOpen) {
+      setShowValues(false)
       // Untracked: this must not re-run (and thus can't accidentally reorder mid-session) just
       // because a filter changes while the panel is open — only `props.isOpen`'s own transition
       // to `true` should ever produce a new snapshot.
@@ -167,23 +196,15 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
       return
     }
     if (e.key === 'ArrowRight' && target.matches('.dt-filter-col-item')) {
-      const detailEl = panelEl.querySelector('.dt-filter-detail')
-      const first = detailEl && detailFocusables(detailEl)[0]
-      if (first) {
-        e.preventDefault()
-        first.focus()
-      }
+      setShowValues(true)
+      if (focusFirstValue()) e.preventDefault()
       return
     }
     if (e.key !== 'ArrowLeft' || !target.closest('.dt-filter-detail')) return
     if (isEditableTarget(document.activeElement)) return
-    const activeColBtn = panelEl.querySelector<HTMLElement>(
-      '.dt-filter-cols .dt-filter-col-item--active',
-    )
-    if (activeColBtn) {
-      e.preventDefault()
-      activeColBtn.focus()
-    }
+    e.preventDefault()
+    setShowValues(false)
+    focusActiveColumn()
   }
 
   // One left-pane column row — shared by the flat uncategorized list and each category section
@@ -204,7 +225,12 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
           class={`dt-filter-col-item${isSelected() ? ' dt-filter-col-item--active' : ''}`}
           data-dd-row
           data-filter-col-key={col.key}
-          onClick={() => setActiveKey(col.key)}
+          onClick={() => {
+            setActiveKey(col.key)
+            if (!narrow()) return
+            setShowValues(true)
+            focusFirstValue()
+          }}
         >
           <span>{col.label}</span>
         </button>
@@ -262,78 +288,99 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
         return false
       }}
     >
-      <div class="dt-filter-panel" ref={panelEl} onKeyDown={handlePanelKeyDown}>
-        <div
-          class="dt-filter-cols"
-          // Listbox/radiogroup-style: focusing a column button by any means (click, Tab, the
-          // arrow-nav above) drives which column's detail pane shows — not just an explicit
-          // click/activate step. `focusin` (unlike `focus`) bubbles, so one delegated listener
-          // here covers every column button without per-row wiring.
-          onFocusIn={(e) => {
-            const key = (e.target as HTMLElement).closest<HTMLElement>('.dt-filter-col-item')
-              ?.dataset.filterColKey
-            if (key) setActiveKey(key)
-          }}
-        >
-          <span class="dt-dd-search-wrap dt-filter-cols-search-wrap">
-            <input
-              type="text"
-              class="dt-dd-search dt-filter-cols-search"
-              data-dd-search
-              placeholder={table.labels().filterSearchPlaceholder}
-              value={colSearchTerm()}
-              onInput={(e) => setColSearchTerm(e.currentTarget.value)}
-            />
-            <Show when={colSearchTerm()}>
-              <button
-                type="button"
-                class="dt-dd-search-clear"
-                title={table.labels().clearSearch}
-                aria-label={table.labels().clearSearch}
-                onClick={() => setColSearchTerm('')}
-              >
-                ×
-              </button>
-            </Show>
-          </span>
-          <For each={categorizedFilterCols().uncategorized}>
-            {(col) => <FilterColRow col={col} />}
-          </For>
-          <For each={categorizedFilterCols().categories}>
-            {(category) => {
-              // While searching, a category only ever renders here at all when it has a matching
-              // column (categorizedFilterCols buckets the already-searched list) — so force it
-              // open rather than let a stale collapsed snapshot hide the very match the search
-              // just surfaced, with no visible sign it's there. `collapsedCategories` itself is
-              // left untouched: clearing the search reverts to whatever collapse state the user
-              // had (manually toggled, or the open-time snapshot), exactly as before this fix.
-              const isCollapsed = createMemo(
-                () => !isColSearching() && collapsedCategories().has(category.name),
-              )
-              return (
-                <div class="dt-filter-category">
-                  <button
-                    type="button"
-                    class="dt-filter-category-header"
-                    data-dd-row
-                    aria-expanded={!isCollapsed()}
-                    onClick={() => toggleCategoryCollapsed(category.name)}
-                  >
-                    <span class="dt-filter-category-toggle">{isCollapsed() ? '▶' : '▼'}</span>
-                    <span class="dt-flex1">{category.name}</span>
-                  </button>
-                  <Show when={!isCollapsed()}>
-                    <div class="dt-filter-category-cols">
-                      <For each={category.columns}>{(col) => <FilterColRow col={col} />}</For>
-                    </div>
-                  </Show>
-                </div>
-              )
+      <div
+        class="dt-filter-panel"
+        classList={{ 'dt-filter-panel--narrow': narrow() }}
+        ref={panelEl}
+        onKeyDown={handlePanelKeyDown}
+      >
+        <Show when={!narrow() || !showValues()}>
+          <div
+            class="dt-filter-cols"
+            // Listbox/radiogroup-style: focusing a column button by any means (click, Tab, the
+            // arrow-nav above) drives which column's detail pane shows — not just an explicit
+            // click/activate step. `focusin` (unlike `focus`) bubbles, so one delegated listener
+            // here covers every column button without per-row wiring.
+            onFocusIn={(e) => {
+              const key = (e.target as HTMLElement).closest<HTMLElement>('.dt-filter-col-item')
+                ?.dataset.filterColKey
+              if (key) setActiveKey(key)
             }}
-          </For>
-        </div>
-        <Show when={activeCol()} keyed>
-          {(col) => <FilterPane table={table} col={col} />}
+          >
+            <span class="dt-dd-search-wrap dt-filter-cols-search-wrap">
+              <input
+                type="text"
+                class="dt-dd-search dt-filter-cols-search"
+                data-dd-search
+                placeholder={table.labels().filterSearchPlaceholder}
+                value={colSearchTerm()}
+                onInput={(e) => setColSearchTerm(e.currentTarget.value)}
+              />
+              <Show when={colSearchTerm()}>
+                <button
+                  type="button"
+                  class="dt-dd-search-clear"
+                  title={table.labels().clearSearch}
+                  aria-label={table.labels().clearSearch}
+                  onClick={() => setColSearchTerm('')}
+                >
+                  ×
+                </button>
+              </Show>
+            </span>
+            <For each={categorizedFilterCols().uncategorized}>
+              {(col) => <FilterColRow col={col} />}
+            </For>
+            <For each={categorizedFilterCols().categories}>
+              {(category) => {
+                // While searching, a category only ever renders here at all when it has a matching
+                // column (categorizedFilterCols buckets the already-searched list) — so force it
+                // open rather than let a stale collapsed snapshot hide the very match the search
+                // just surfaced, with no visible sign it's there. `collapsedCategories` itself is
+                // left untouched: clearing the search reverts to whatever collapse state the user
+                // had (manually toggled, or the open-time snapshot), exactly as before this fix.
+                const isCollapsed = createMemo(
+                  () => !isColSearching() && collapsedCategories().has(category.name),
+                )
+                return (
+                  <div class="dt-filter-category">
+                    <button
+                      type="button"
+                      class="dt-filter-category-header"
+                      data-dd-row
+                      aria-expanded={!isCollapsed()}
+                      onClick={() => toggleCategoryCollapsed(category.name)}
+                    >
+                      <span class="dt-filter-category-toggle">{isCollapsed() ? '▶' : '▼'}</span>
+                      <span class="dt-flex1">{category.name}</span>
+                    </button>
+                    <Show when={!isCollapsed()}>
+                      <div class="dt-filter-category-cols">
+                        <For each={category.columns}>{(col) => <FilterColRow col={col} />}</For>
+                      </div>
+                    </Show>
+                  </div>
+                )
+              }}
+            </For>
+          </div>
+        </Show>
+        <Show when={!narrow() || showValues()}>
+          <Show when={narrow()}>
+            <button
+              type="button"
+              class="dt-dd-item dt-dd-item--click dt-filter-back"
+              onClick={() => {
+                setShowValues(false)
+                focusActiveColumn()
+              }}
+            >
+              ‹ {table.labels().columns}
+            </button>
+          </Show>
+          <Show when={activeCol()} keyed>
+            {(col) => <FilterPane table={table} col={col} />}
+          </Show>
         </Show>
       </div>
     </Dropdown>

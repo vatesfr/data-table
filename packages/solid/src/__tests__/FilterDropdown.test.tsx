@@ -1078,3 +1078,64 @@ describe('FilterDropdown — clear', () => {
     dispose()
   })
 })
+
+describe('FilterDropdown — narrow screen (U16)', () => {
+  function narrowScreen(matches: boolean): () => void {
+    const original = window.matchMedia
+    window.matchMedia = ((query: string) => ({
+      matches,
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    })) as unknown as typeof window.matchMedia
+    return () => {
+      window.matchMedia = original
+    }
+  }
+
+  it('shows the column list, then one column at a time with a way back', () => {
+    const restore = narrowScreen(true)
+    const { container, dispose } = mount()
+    expect(container.querySelector('.dt-filter-cols')).not.toBeNull()
+    expect(container.querySelector('.dt-filter-detail')).toBeNull()
+    selectCol(container, 'Dept')
+    expect(container.querySelector('.dt-filter-cols')).toBeNull()
+    expect(container.querySelector('.dt-filter-detail')).not.toBeNull()
+    const back = container.querySelector<HTMLButtonElement>('.dt-filter-back')!
+    expect(back.textContent).toContain('Columns')
+    back.click()
+    expect(container.querySelector('.dt-filter-detail')).toBeNull()
+    expect(document.activeElement?.textContent).toContain('Dept')
+    dispose()
+    restore()
+  })
+
+  it('crosses panes with → and ←', () => {
+    const restore = narrowScreen(true)
+    const { container, dispose } = mount()
+    const dept = [...container.querySelectorAll<HTMLButtonElement>('.dt-filter-col-item')].find(
+      (b) => b.textContent?.includes('Dept'),
+    )!
+    dept.focus()
+    dept.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }))
+    const search = container.querySelector<HTMLInputElement>('input[data-dd-value-search]')!
+    expect(document.activeElement).toBe(search)
+    const firstRow = container.querySelector<HTMLInputElement>('input[data-dd-value-row]')!
+    firstRow.focus()
+    firstRow.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }))
+    expect(container.querySelector('.dt-filter-detail')).toBeNull()
+    expect(document.activeElement?.textContent).toContain('Dept')
+    dispose()
+    restore()
+  })
+
+  it('keeps both panes on a wide screen', () => {
+    const restore = narrowScreen(false)
+    const { container, dispose } = mount()
+    expect(container.querySelector('.dt-filter-cols')).not.toBeNull()
+    expect(container.querySelector('.dt-filter-detail')).not.toBeNull()
+    expect(container.querySelector('.dt-filter-back')).toBeNull()
+    dispose()
+    restore()
+  })
+})
