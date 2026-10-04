@@ -56,6 +56,7 @@ import {
 import type { ValueSort, SortEntry } from '@vates/data-table-core'
 import { Dropdown } from './components/Dropdown'
 import { CategorySubmenu } from './components/CategorySubmenu'
+import { HeaderMenu } from './components/HeaderMenu'
 import { ToolbarBtn } from './components/ToolbarBtn'
 import { useDropdownReorder } from './hooks/useDropdownReorder'
 import type { ColumnDef, DataTableViewProps } from './types'
@@ -1040,6 +1041,7 @@ export function DataTableView<TRow extends object>({
     entries: sorts,
     toggle: toggleSort,
     replace: replaceSort,
+    set: setSortDir,
     appendOrToggle: appendOrToggleSort,
     remove: removeSort,
     toggleDir: toggleSortDir,
@@ -1461,8 +1463,11 @@ export function DataTableView<TRow extends object>({
       )
       const startCollapsed = new Set<string>()
       for (const category of groupColumnsByCategory(filterableCols).categories) {
-        const hasActiveInCategory = category.columns.some((c) =>
-          columnHasActiveFilter(c.key, filters, excludeFilters, rangeFilters),
+        // The column a chip or header menu opens on stays reachable too
+        const hasActiveInCategory = category.columns.some(
+          (c) =>
+            c.key === filterActiveCol ||
+            columnHasActiveFilter(c.key, filters, excludeFilters, rangeFilters),
         )
         if (!hasActiveInCategory) startCollapsed.add(category.name)
       }
@@ -3468,6 +3473,38 @@ export function DataTableView<TRow extends object>({
                         >
                           {sortIdx ? `${sortIdx}${icon}` : icon}
                         </span>
+                        <HeaderMenu
+                          label={L.columnMenu(col.label)}
+                          labels={L}
+                          filtered={columnHasActiveFilter(
+                            col.key,
+                            filters,
+                            excludeFilters,
+                            rangeFilters,
+                          )}
+                          onSort={
+                            col.sortable !== false ? (dir) => setSortDir(col.key, dir) : undefined
+                          }
+                          onFilter={
+                            col.filterable !== false
+                              ? () => {
+                                  setFilterActiveCol(col.key)
+                                  setOpenFilterDD(true)
+                                  pendingFilterColFocusKey.current = col.key
+                                }
+                              : undefined
+                          }
+                          onGroup={
+                            col.groupable === true && !groupBy.includes(col.key)
+                              ? () => toggleGroup(col.key)
+                              : undefined
+                          }
+                          onHide={
+                            activeColumns.length > 1
+                              ? () => toggleColVisibility(col.key)
+                              : undefined
+                          }
+                        />
                       </span>
                     </th>
                   )
