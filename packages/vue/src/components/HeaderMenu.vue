@@ -1,112 +1,95 @@
 <script setup lang="ts" generic="TRow extends object">
 import { computed, nextTick, onUnmounted, ref } from 'vue'
 import {
+  HEADER_MENU_ITEMS,
   columnHasActiveFilter,
-  computeMenuPosition,
   ddNavFocusables,
+  getHeaderMenuItems,
+  keepHeaderMenuFocus,
+  moveMenuIndex,
+  onMenuDismiss,
+  placeMenu,
 } from '@vates/data-table-core/internal'
 import type { ColumnDef } from '../types'
 import type { TableState } from '../useTableState'
+import CategorySubmenu from './CategorySubmenu.vue'
+import FilterPane from './FilterPane.vue'
 
 // A header's ▾ menu. `position: fixed` (like CategorySubmenu) so the table's scrolling wrapper
 // doesn't clip it; it closes on any scroll rather than tracking its header.
-const props = defineProps<{ table: TableState<TRow>; col: ColumnDef<TRow> }>()
-const emit = defineEmits<{ openFilter: [key: string] }>()
+const props = defineProps<{
+  table: TableState<TRow>
+  col: ColumnDef<TRow>
+  data: TRow[]
+  columns: ColumnDef<TRow>[]
+}>()
+const emit = defineEmits<{ openChange: [open: boolean] }>()
+// `value`: the filter flyout's value label, forwarded to FilterPane
+defineSlots<{ value?: (props: { value: string }) => unknown }>()
 
 const ROW_SELECTOR = 'button.dt__dd-item--clickable'
 
 const open = ref(false)
+const filterOpen = ref(false)
 const pos = ref({ left: 0, top: 0 })
 const triggerRef = ref<HTMLButtonElement | null>(null)
 const menuRef = ref<HTMLDivElement | null>(null)
+let stopDismiss: (() => void) | undefined
 
 const L = props.table.labels
-const key = computed(() => props.col.key)
+const items = computed(() =>
+  getHeaderMenuItems(
+    props.col,
+    props.table.group.by.value,
+    props.table.columns.active.value.length,
+  ),
+)
 const isFiltered = computed(() =>
   columnHasActiveFilter(
-    key.value,
+    props.col.key,
     props.table.filter.include.value,
     props.table.filter.exclude.value,
     props.table.filter.ranges.value,
   ),
 )
-// [label, action] for each item the column supports
-const items = computed(() => {
-  const list: [string, () => void][] = []
-  if (props.col.sortable !== false)
-    list.push(
-      [`↑ ${L.value.sortAscending}`, () => act(() => props.table.sort.set(key.value, 'asc'))],
-      [`↓ ${L.value.sortDescending}`, () => act(() => props.table.sort.set(key.value, 'desc'))],
-    )
-  if (props.col.filterable !== false)
-    list.push([
-      `${L.value.filter}…`,
-      () => {
-        close(false)
-        emit('openFilter', key.value)
-      },
-    ])
-  if (props.col.groupable === true && !props.table.group.by.value.includes(key.value))
-    list.push([L.value.groupByColumn, () => act(() => props.table.group.toggle(key.value))])
-  if (props.table.columns.active.value.length > 1)
-    list.push([
-      L.value.hideColumn,
-      () => act(() => props.table.columns.toggleVisibility(key.value)),
-    ])
-  return list
-})
 
-function onOutside(e: Event): void {
-  const target = e.target as Node
-  if (!menuRef.value?.contains(target) && !triggerRef.value?.contains(target)) close(false)
-}
-function onScroll(e: Event): void {
-  if (!menuRef.value?.contains(e.target as Node)) close(false)
-}
-function listen(on: boolean): void {
-  const method = on ? 'addEventListener' : 'removeEventListener'
-  document[method]('mousedown', onOutside)
-  window[method]('scroll', onScroll, true)
-}
-onUnmounted(() => listen(false))
+onUnmounted(() => {
+  stopDismiss?.()
+  if (open.value) emit('openChange', false)
+})
 
 async function openMenu(): Promise<void> {
   open.value = true
-  listen(true)
-  await nextTick()
-  const menu = menuRef.value
-  if (!menu || !triggerRef.value) return
-  const rect = menu.getBoundingClientRect()
-  pos.value = computeMenuPosition(
-    triggerRef.value.getBoundingClientRect(),
-    { width: rect.width, height: rect.height },
-    window.innerWidth,
-    window.innerHeight,
+  emit('openChange', true)
+  stopDismiss = onMenuDismiss(
+    () => [menuRef.value, triggerRef.value],
+    () => close(false),
   )
-  ddNavFocusables(menu, ROW_SELECTOR)[0]?.focus()
+  await nextTick()
+  if (!menuRef.value || !triggerRef.value) return
+  pos.value = placeMenu(triggerRef.value, menuRef.value)
+  ddNavFocusables(menuRef.value, ROW_SELECTOR)[0]?.focus()
 }
 function close(focusTrigger: boolean): void {
   open.value = false
-  listen(false)
+  filterOpen.value = false
+  emit('openChange', false)
+  stopDismiss?.()
   if (focusTrigger) triggerRef.value?.focus()
 }
 
-// Hiding or grouping can remove this header: focus the menu button now at its position instead.
-function act(action: () => void): void {
-  const trigger = triggerRef.value
-  const row = trigger?.closest('tr')
-  const buttons = row ? [...row.querySelectorAll<HTMLElement>('[data-col-menu]')] : []
-  const index = trigger ? buttons.indexOf(trigger) : -1
+// Grouping or hiding can remove this header: focus the ▾ now at its position instead
+function act(item: 'group' | 'hide'): void {
+  const restoreFocus = triggerRef.value && keepHeaderMenuFocus(triggerRef.value)
   close(true)
-  action()
-  void nextTick(() => {
-    if (trigger?.isConnected || !row) return
-    const next = row.querySelectorAll<HTMLElement>('[data-col-menu]')
-    next[Math.min(index, next.length - 1)]?.focus()
-  })
+  if (item === 'group') props.table.group.toggle(props.col.key)
+  else props.table.columns.toggleVisibility(props.col.key)
+  if (restoreFocus) void nextTick(restoreFocus)
 }
 
 function onMenuKeydown(e: KeyboardEvent): void {
+  // Keys inside the filter flyout are the flyout's
+  if (!(e.target as Element).matches('[role=menuitem]')) return
   if (e.key === 'Escape') {
     e.preventDefault()
     close(true)
@@ -116,16 +99,15 @@ function onMenuKeydown(e: KeyboardEvent): void {
     close(false)
     return
   }
-  if (!menuRef.value || !['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(e.key)) return
-  e.preventDefault()
+  if (!menuRef.value) return
   const rows = ddNavFocusables(menuRef.value, ROW_SELECTOR)
-  const idx = rows.indexOf(document.activeElement as HTMLElement)
-  const next =
-    e.key === 'Home'
-      ? 0
-      : e.key === 'End'
-        ? rows.length - 1
-        : (idx + (e.key === 'ArrowDown' ? 1 : -1) + rows.length) % rows.length
+  const next = moveMenuIndex(
+    e.key,
+    rows.indexOf(document.activeElement as HTMLElement),
+    rows.length,
+  )
+  if (next === null) return
+  e.preventDefault()
   rows[next]?.focus()
 }
 </script>
@@ -155,16 +137,54 @@ function onMenuKeydown(e: KeyboardEvent): void {
       @click.stop
       @keydown="onMenuKeydown"
     >
-      <button
-        v-for="[label, run] in items"
-        :key="label"
-        type="button"
-        role="menuitem"
-        class="dt__dd-item dt__dd-item--clickable"
-        @click="run"
-      >
-        {{ label }}
-      </button>
+      <template v-for="item in items" :key="item">
+        <CategorySubmenu
+          v-if="item === 'filter'"
+          :name="L[HEADER_MENU_ITEMS[item].label]"
+          role="menuitem"
+          submenu-class="dt__th-filter-flyout"
+          :is-open="filterOpen"
+          @open="filterOpen = true"
+          @close="filterOpen = false"
+        >
+          <template #icon>
+            <svg
+              class="dt__th-menu-icon"
+              viewBox="0 0 16 16"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path :d="HEADER_MENU_ITEMS[item].icon" />
+            </svg>
+          </template>
+          <FilterPane :table="table" :col="col" :data="data" :columns="columns">
+            <template #value="{ value }"><slot name="value" :value="value" /></template>
+          </FilterPane>
+        </CategorySubmenu>
+        <button
+          v-else
+          type="button"
+          role="menuitem"
+          class="dt__dd-item dt__dd-item--clickable"
+          @click="act(item)"
+        >
+          <svg
+            class="dt__th-menu-icon"
+            viewBox="0 0 16 16"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path :d="HEADER_MENU_ITEMS[item].icon" />
+          </svg>
+          {{ L[HEADER_MENU_ITEMS[item].label] }}
+        </button>
+      </template>
     </div>
   </template>
 </template>
@@ -176,7 +196,7 @@ function onMenuKeydown(e: KeyboardEvent): void {
   justify-content: center;
   width: 24px;
   height: 24px;
-  margin: -4px 0 -4px 4px;
+  margin: -4px 0 -4px auto;
   padding: 0;
   border: none;
   border-radius: 4px;
@@ -203,6 +223,7 @@ function onMenuKeydown(e: KeyboardEvent): void {
   max-height: 320px;
   overflow-y: auto;
   padding: 4px 0;
+  font-weight: 400;
 }
 .dt__dd-item {
   display: flex;
@@ -225,5 +246,19 @@ function onMenuKeydown(e: KeyboardEvent): void {
 .dt__dd-item--clickable:hover,
 .dt__dd-item--clickable:focus {
   background: var(--color-background-secondary);
+}
+/* The icon in the Filter item sits in CategorySubmenu's trigger, the flyout in its template */
+:deep(.dt__th-menu-icon),
+.dt__th-menu-icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+:deep(.dt__dd-submenu.dt__th-filter-flyout) {
+  display: flex;
+  flex-direction: column;
+  max-height: 380px;
+  overflow: hidden;
+  padding: 0;
 }
 </style>

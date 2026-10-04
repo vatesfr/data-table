@@ -2,34 +2,15 @@
 import { computed, ref, shallowRef, watch, nextTick, useSlots } from 'vue'
 import {
   computeAggregate,
-  computeStringValueCounts,
-  isMultiValueColumn,
   getColumnValue,
   cellText,
   groupText,
-  filterValuesBySearch,
-  filterValuesByCount,
-  filterValuesByRange,
-  computeValueBounds,
-  computeRangeSliderGeometry,
-  formatRangeBound,
-  sortFilterValues,
-  cycleValueSort,
-  toggleSortDir as toggleValueSortDir,
-  getValueSortIcon,
-  getDateSortIcon,
-  computeDateTree,
-  getDateTreeNodeState,
-  findDateTreeNode,
-  selectDateRange,
-  selectRange,
   isGroupCollapsed,
   isSameVisibleItem,
   indexOfVisibleItem,
   paginateVisibleItems,
   mergePageSizeOptions,
   computeVirtualRange,
-  getVirtualScrollTarget,
   getCrossPageFocusTarget,
   getSortIndex as getHeaderSortIndex,
   getSortIcon as getHeaderSortIcon,
@@ -44,16 +25,14 @@ import {
   moveVisibleColumnBy as _moveVisibleColumnBy,
   type PagedGroup,
   type VisibleItem,
-  type DateTreeNode,
 } from '@vates/data-table-core/internal'
-import { type ValueSort, type SortEntry } from '@vates/data-table-core'
+import { type SortEntry } from '@vates/data-table-core'
 import type { ColumnDef, DataTableViewInternalProps } from './types'
 import Dropdown from './components/Dropdown.vue'
 import CategorySubmenu from './components/CategorySubmenu.vue'
 import HeaderMenu from './components/HeaderMenu.vue'
+import FilterPane from './components/FilterPane.vue'
 import ToolbarBtn from './components/ToolbarBtn.vue'
-import DateTreeItem from './components/DateTreeItem.vue'
-import RangeInputs from './components/RangeInputs.vue'
 import { vIndeterminate } from './directives/vIndeterminate'
 import { useDropdownReorder } from './composables/useDropdownReorder'
 import { useSelfDetectedListener } from './composables/useSelfDetectedListener'
@@ -382,25 +361,12 @@ function isGroupSomeSelected(rows: TRow[]) {
   return rows.some((r) => selection.value.has(r)) && !isGroupAllSelected(rows)
 }
 
-const DEFAULT_VALUE_SORT: ValueSort = { by: 'alpha', dir: 'asc' }
-// Fixed row height for the filter dropdown's virtualized checklist (see computeVirtualRange) —
-// must match the actual rendered height of a checklist row exactly, which is why each row gets
-// an explicit inline height below instead of relying on dt__dd-item's padding + line-height.
-const FILTER_LIST_ITEM_HEIGHT = 32
-// The checklist itself no longer has a fixed height (see .dt__filter-list, which flex-fills
-// .dt__filter-detail instead) — this is now only the *assumed* viewport height fed to
-// computeVirtualRange's windowing math. Safe to leave un-measured: .dt__filter-panel's own
-// max-height:380px bounds how much taller the checklist can actually grow past this default,
-// well within computeVirtualRange's own overscan margin (see .dt__filter-list's CSS comment for
-// the full math).
-const FILTER_LIST_VIEWPORT_HEIGHT = 260
-
 const filterableCols = computed(() => props.columns.filter((c) => c.filterable !== false))
 const groupableCols = computed(() => props.columns.filter((c) => c.groupable === true))
 const sortableCols = computed(() => props.columns.filter((c) => c.sortable !== false))
 // Narrows the *column list* itself in the Columns/Sort/Group dropdowns and the Filter dropdown's
-// left column pane — a completely separate concern from `filterSearchTerms` below, which narrows
-// one column's *values* in the Filter dropdown's right detail pane. Keyed by dropdown id
+// left column pane — a completely separate concern from FilterPane's own value search, which
+// narrows one column's *values*. Keyed by dropdown id
 // ('cols'/'sort'/'group'/'filter'), same category of ephemeral UI state as `filterActiveCol`.
 const ddSearchTerms = ref<Record<string, string>>({})
 function ddSearchTerm(dd: string): string {
@@ -483,9 +449,6 @@ const filterColOrderKeys = ref<string[] | null>(null)
 // moment the panel opens starts expanded instead — so opening the dropdown never hides the very
 // filter you're currently using behind a collapsed section with no visual sign why.
 const collapsedCategories = ref<Set<string>>(new Set())
-// Column the Filter dropdown is opening on (onOpenFilterCol): its category starts expanded so its
-// row can take focus. Consumed by the open snapshot below.
-let filterOpenOn: string | null = null
 function toggleCategoryCollapsed(name: string): void {
   const next = new Set(collapsedCategories.value)
   if (next.has(name)) next.delete(name)
@@ -507,11 +470,9 @@ watch(
         const hasActiveInCategory = category.columns.some((c) =>
           columnHasActiveFilter(c.key, filters.value, excludeFilters.value, rangeFilters.value),
         )
-        if (!hasActiveInCategory && !category.columns.some((c) => c.key === filterOpenOn))
-          startCollapsed.add(category.name)
+        if (!hasActiveInCategory) startCollapsed.add(category.name)
       }
       collapsedCategories.value = startCollapsed
-      filterOpenOn = null
     }
   },
 )
@@ -537,46 +498,6 @@ const categorizedFilterCols = computed(() => groupColumnsByCategory(searchedFilt
 // open-time snapshot) — see each template usage below.
 const isFilterSearching = computed(() => ddSearchTerm('filter').trim() !== '')
 const filterActiveCol = ref<string | null>(null)
-const filterSearchTerms = ref<Record<string, string>>({})
-const filterSelectionAnchor = ref<Record<string, string>>({})
-const filterValueSort = ref<Record<string, ValueSort>>({})
-
-function onFilterValueClick(col: ColumnDef<TRow>, value: string, event: MouseEvent) {
-  // Unlike React (which force-syncs a controlled `checked` prop on every commit), Vue's plain
-  // `:checked` binding (no v-model) only rewrites the DOM property when the *bound value* itself
-  // changes between renders. The old boolean toggle always flipped `checked` on every click, so
-  // this never mattered — but cycleFilterValue's exclude→neutral transition changes `indeterminate`
-  // while `checked` stays `false` across both renders, so Vue would skip rewriting `.checked` and
-  // leave whatever the browser's own native click-toggle left in the DOM. preventDefault() stops
-  // that native toggle entirely, so the checkbox's visible state is exclusively driven by Vue's
-  // binding (matching what happens anyway, since the click handler already decides the new state
-  // itself rather than reading it back off the DOM).
-  event.preventDefault()
-  const anchor = filterSelectionAnchor.value[col.key]
-  if (usesExcludeOnly.value) {
-    // Checked-by-default: "checked" means absent from `excludeFilters`, so a plain click and a
-    // shift-range select both just flip/set membership there — no `filters`/tri-state involved.
-    const excludedNow = excludeFilters.value[col.key]?.has(value) ?? false
-    if (event.shiftKey && anchor != null) {
-      const range = selectRange(filteredValuesFor(col), anchor, value)
-      // Direction mirrors what a plain click on the target itself would do.
-      setExcludeValues(col.key, range, !excludedNow)
-    } else {
-      setExcludeValues(col.key, [value], !excludedNow)
-    }
-  } else if (event.shiftKey && anchor != null) {
-    const shouldSelect = !(filters.value[col.key]?.has(value) ?? false)
-    const range = selectRange(filteredValuesFor(col), anchor, value)
-    setFilterValues(col.key, range, shouldSelect)
-    // Shift-range selection stays include-only (see the docs) — clear the swept range out of the
-    // exclude set too, so a previously-excluded value doesn't end up in both.
-    if (shouldSelect) clearExcludeValues(col.key, range)
-  } else {
-    // Cycles the value neutral → include → exclude → neutral — see `cycleFilterValue` in the docs.
-    cycleFilterValue(col.key, value)
-  }
-  filterSelectionAnchor.value = { ...filterSelectionAnchor.value, [col.key]: value }
-}
 const filterActiveKey = computed(
   () =>
     (filterActiveCol.value && filterableCols.value.some((c) => c.key === filterActiveCol.value)
@@ -585,21 +506,6 @@ const filterActiveKey = computed(
 )
 const filterDetailCol = computed(
   () => filterableCols.value.find((c) => c.key === filterActiveKey.value) ?? null,
-)
-// The filter dropdown is master-detail — only filterDetailCol's checklist is ever rendered —
-// so facet counts only need computing for that one column, not every filterable column (see
-// computeStringValueCounts's targetKeys param).
-const stringValueCounts = computed(() =>
-  computeStringValueCounts(
-    props.data,
-    filters.value,
-    rangeFilters.value,
-    props.columns,
-    L.value.emptyValue,
-    filterDetailCol.value ? [filterDetailCol.value.key] : [],
-    excludeFilters.value,
-    filterModes.value,
-  ),
 )
 // A date column can have both an active checklist selection (tree) *and* an active range filter
 // above it at once — either one alone should light the dot, not just whichever one a plain
@@ -615,196 +521,6 @@ function clearColFilter(key: string): void {
   clearColumnFilter(key, 'exclude')
   clearColumnFilter(key, 'range')
 }
-function valueSortFor(key: string): ValueSort {
-  return filterValueSort.value[key] ?? findCol(key)?.defaultValueSort ?? DEFAULT_VALUE_SORT
-}
-function cycleFilterValueSort(col: ColumnDef<TRow>): void {
-  const current = valueSortFor(col.key)
-  const next =
-    col.type === 'date'
-      ? { ...current, dir: toggleValueSortDir(current.dir) }
-      : cycleValueSort(current)
-  filterValueSort.value = { ...filterValueSort.value, [col.key]: next }
-}
-// The set a value must be in to stay visible even at a 0 facet count (see filterValuesByCount)
-// — whichever map the active column's model actually writes to. `col` is always
-// `filterDetailCol.value` in practice (the only column whose detail pane is ever rendered), the
-// same assumption `usesExcludeOnly` itself makes.
-function alreadyTouchedFor(col: ColumnDef<TRow>): Set<string> {
-  return usesExcludeOnly.value
-    ? (excludeFilters.value[col.key] ?? new Set())
-    : (filters.value[col.key] ?? new Set())
-}
-// Range/count-filtered, but not yet narrowed by the checklist's own value search — kept separate
-// from filteredValuesFor below so otherValuesFor can diff the two to find exactly what the
-// search is currently hiding. Order relative to search doesn't matter here: range/count
-// filtering and search are independent per-value predicates.
-function beforeSearchValuesFor(col: ColumnDef<TRow>): string[] {
-  return filterValuesByCount(
-    // Narrowed by the date range filter (if any) — a value outside the active range never
-    // becomes a tree leaf, rather than merely being ANDed onto the final row set once ticked. A
-    // no-op for string columns (they never populate rangeFilters).
-    filterValuesByRange(
-      stringValueMap.value[col.key] ?? [],
-      rangeFilters.value[col.key],
-      col.parseDate,
-    ),
-    stringValueCounts.value[col.key] ?? new Map(),
-    alreadyTouchedFor(col),
-  )
-}
-function filteredValuesFor(col: ColumnDef<TRow>): string[] {
-  return sortFilterValues(
-    filterValuesBySearch(beforeSearchValuesFor(col), filterSearchTerms.value[col.key] ?? ''),
-    stringValueCounts.value[col.key] ?? new Map(),
-    valueSortFor(col.key),
-    col.compare,
-  )
-}
-// "Others" — the values the checklist's own value search is currently hiding (see docs/filter-dropdown.md's
-// "Filter dropdown"). Only meaningful once a search term actually narrows the list; empty
-// otherwise.
-function otherValuesFor(col: ColumnDef<TRow>): string[] {
-  const term = filterSearchTerms.value[col.key] ?? ''
-  if (!term) return []
-  const shown = new Set(filteredValuesFor(col))
-  return beforeSearchValuesFor(col).filter((v) => !shown.has(v))
-}
-// Non-multi-value column: plain checked/unchecked, "checked" meaning "not excluded" — no
-// tri-state indeterminate cue. Multi-value column: unchanged include/exclude tri-state, shown as
-// checked/indeterminate.
-function isValueChecked(col: ColumnDef<TRow>, value: string): boolean {
-  return usesExcludeOnly.value
-    ? !(excludeFilters.value[col.key]?.has(value) ?? false)
-    : (filters.value[col.key]?.has(value) ?? false)
-}
-function isValueExcludedVisual(col: ColumnDef<TRow>, value: string): boolean {
-  return usesExcludeOnly.value ? false : (excludeFilters.value[col.key]?.has(value) ?? false)
-}
-// Explains each model's own click behavior — the checked-by-default model has no tri-state cycle
-// to describe, so it gets its own plain hide/show copy instead of reusing the tri-state labels
-// (see docs/filter-dropdown.md's "Filter dropdown").
-function valueTitleFor(col: ColumnDef<TRow>, value: string): string {
-  if (usesExcludeOnly.value) {
-    return isValueChecked(col, value) ? L.value.filterValueHideTitle : L.value.filterValueShowTitle
-  }
-  return isValueExcludedVisual(col, value) ? L.value.filterExcludedTitle : L.value.filterValueTitle
-}
-function countFor(col: ColumnDef<TRow>, value: string): number {
-  return stringValueCounts.value[col.key]?.get(value) ?? 0
-}
-// Slider bounds are the column's actual min/max across the full, unfiltered props.data (not
-// filtered/processed data) — see computeValueBounds — so they don't shift under a mid-drag user
-// just because some other filter narrowed the row set. null when the column has no parseable
-// values at all, or all its values are identical (nothing to bound a slider to) — callers hide
-// the slider in that case, the two plain min/max inputs above it keep working regardless.
-// Single memoized source for filterDetailCol's own data bounds, shared by the slider config below
-// and by the plain min/max inputs' own default value — filterDetailCol changes identity whenever
-// the active column switches, so this recomputes exactly when needed and no more.
-const filterDetailBounds = computed(() => {
-  const col = filterDetailCol.value
-  if (!col || (col.type !== 'number' && col.type !== 'date')) return null
-  return computeValueBounds(props.data, col)
-})
-// Per-column cache for isMultiValueColumn — a single-slot computed() (the original shape here)
-// only remembers the *most recently* computed column, so switching back to an already-visited
-// column in the left pane reran the full scan every time; for a scalar column that scan never
-// short-circuits (no array value to find), so every switch was a full O(rows) pass over
-// props.data regardless of dataset size (mirrors the identical fix in Solid's FilterDropdown.tsx
-// and React's DataTableView.tsx). A plain ref<Map>, reset whenever props.data changes identity —
-// mutated in place inside the computed getter below rather than reassigned, so it's a cache Vue's
-// own reactivity doesn't need to track writes to (only isMultiValueFilterCol's own dependencies —
-// filterDetailCol, props.data — matter for when this computed should re-run).
-const multiValueCache = ref<{ data: TRow[] | null; map: Map<string, boolean> }>({
-  data: null,
-  map: new Map(),
-})
-// Any/all match-mode control — only meaningful for a column whose values are actually
-// array-shaped in the data (see isMultiValueColumn's own doc comment), and only for the string
-// checklist, not the date tree (mirrors Solid's FilterDropdown.tsx).
-const isMultiValueFilterCol = computed(() => {
-  const col = filterDetailCol.value
-  if (!col || col.type === 'date' || col.type === 'number') return false
-  if (multiValueCache.value.data !== props.data) {
-    multiValueCache.value = { data: props.data, map: new Map() }
-  }
-  const cache = multiValueCache.value.map
-  let cached = cache.get(col.key)
-  if (cached === undefined) {
-    cached = isMultiValueColumn(props.data, col, col.key)
-    cache.set(col.key, cached)
-  }
-  return cached
-})
-// A non-multi-value column's checklist uses a checked-by-default, exclude-only model instead of
-// the tri-state include/exclude cycle (see docs/filter-dropdown.md's "Filter dropdown"): `filters` is never
-// written for such a column, "checked" simply means "not in `excludeFilters`". Date/number
-// columns (their own detail branches) and genuinely multi-value columns keep the original
-// include-based model untouched.
-const usesExcludeOnly = computed(() => {
-  const col = filterDetailCol.value
-  return !!col && col.type !== 'date' && col.type !== 'number' && !isMultiValueFilterCol.value
-})
-const filterMatchMode = computed(() => {
-  const col = filterDetailCol.value
-  if (!col) return 'or' as const
-  return filterModes.value[col.key] ?? col.multiMode ?? 'or'
-})
-function rangeSliderFor(
-  col: ColumnDef<TRow>,
-  bounds: { min: number; max: number } | null,
-): { min: number; max: number; low: number; high: number; step: number | 'any' } | null {
-  if (!bounds || bounds.min >= bounds.max) return null
-  const rf = rangeFilters.value[col.key]
-  const geo = computeRangeSliderGeometry(rf, bounds, col.type === 'date')
-  return { min: bounds.min, max: bounds.max, low: geo.low, high: geo.high, step: geo.step }
-}
-// Single memoized source for filterDetailCol's own slider config, mirroring filterDetailValues
-// below — filterDetailCol changes identity whenever the active column switches, so this
-// recomputes exactly when needed and no more.
-const filterDetailSlider = computed(() =>
-  filterDetailCol.value ? rangeSliderFor(filterDetailCol.value, filterDetailBounds.value) : null,
-)
-function onRangeSliderChange(col: ColumnDef<TRow>, low: number, high: number): void {
-  setRangeFilter(col.key, 'min', formatRangeBound(low, col))
-  setRangeFilter(col.key, 'max', formatRangeBound(high, col))
-}
-// Single memoized source for the checklist's rendered/sliced values — filteredValuesFor(col) is
-// a plain function re-run on every call, so computing it once here (rather than once for the
-// v-if length check and again for the v-for) avoids doubling the search/count/sort pipeline's
-// cost on top of what virtualization itself needs (slicing the array).
-const filterDetailValues = computed(() =>
-  filterDetailCol.value ? filteredValuesFor(filterDetailCol.value) : [],
-)
-const filterListScrollTop = ref(0)
-const filterListRef = ref<HTMLElement | null>(null)
-let filterListRafPending = false
-function onFilterListScroll(): void {
-  if (!filterListRafPending) {
-    filterListRafPending = true
-    requestAnimationFrame(() => {
-      filterListRafPending = false
-      // Read the live scrollTop here (not a value captured back in the triggering scroll
-      // event) — several scroll events can fire before this callback runs, and only the
-      // latest position matters.
-      if (filterListRef.value) filterListScrollTop.value = filterListRef.value.scrollTop
-    })
-  }
-}
-// Reset scroll whenever the checklist's values change identity — switching columns or
-// narrowing by search both shift what row 0 even means.
-watch([filterActiveKey, () => filterSearchTerms.value[filterActiveKey.value ?? '']], () => {
-  filterListScrollTop.value = 0
-  if (filterListRef.value) filterListRef.value.scrollTop = 0
-})
-const filterListVirtualRange = computed(() =>
-  computeVirtualRange(
-    filterListScrollTop.value,
-    FILTER_LIST_VIEWPORT_HEIGHT,
-    FILTER_LIST_ITEM_HEIGHT,
-    filterDetailValues.value.length,
-  ),
-)
 function selectFilterCol(key: string): void {
   filterActiveCol.value = key
 }
@@ -830,98 +546,10 @@ function setFilterColRef(key: string, el: Element | null): void {
 // solely on `onFilterColFocus`'s focus-follows-selection) so the right pane already shows the
 // right thing on the very first render, before focus even lands on the button.
 async function onOpenFilterCol(key: string): Promise<void> {
-  if (!filterDropdownRef.value?.isOpen) filterOpenOn = key
   filterDropdownRef.value?.open()
   filterActiveCol.value = key
-  filterListScrollTop.value = 0
   await nextTick()
   filterColRefs.get(key)?.focus()
-}
-function setFilterSearchTerm(key: string, term: string): void {
-  filterSearchTerms.value = { ...filterSearchTerms.value, [key]: term }
-}
-// Bulk checked/indeterminate state for a given `values` array, reading either map depending on
-// which model `col`'s own column currently uses — shared by the master select-all checkbox and
-// the "Others" row below, which differ only in which values array they pass in.
-function bulkFilterState(
-  col: ColumnDef<TRow>,
-  values: string[],
-): { checked: boolean; indeterminate: boolean } {
-  if (usesExcludeOnly.value) {
-    const excludedCount = values.filter((v) => excludeFilters.value[col.key]?.has(v)).length
-    return {
-      checked: excludedCount === 0,
-      indeterminate: excludedCount > 0 && excludedCount < values.length,
-    }
-  }
-  const selectedCount = values.filter((v) => filters.value[col.key]?.has(v)).length
-  return {
-    checked: selectedCount > 0 && selectedCount === values.length,
-    indeterminate: selectedCount > 0 && selectedCount < values.length,
-  }
-}
-function isFilterAllSelected(col: ColumnDef<TRow>): boolean {
-  return bulkFilterState(col, filteredValuesFor(col)).checked
-}
-function isFilterSomeSelected(col: ColumnDef<TRow>): boolean {
-  return bulkFilterState(col, filteredValuesFor(col)).indeterminate
-}
-function onToggleFilterAll(col: ColumnDef<TRow>): void {
-  if (usesExcludeOnly.value) toggleExcludeAll(col.key, filteredValuesFor(col))
-  else toggleFilterAll(col.key, filteredValuesFor(col))
-}
-function isOthersAllSelected(col: ColumnDef<TRow>): boolean {
-  return bulkFilterState(col, otherValuesFor(col)).checked
-}
-function isOthersSomeSelected(col: ColumnDef<TRow>): boolean {
-  return bulkFilterState(col, otherValuesFor(col)).indeterminate
-}
-function onToggleOthers(col: ColumnDef<TRow>): void {
-  const values = otherValuesFor(col)
-  if (values.length === 0) return
-  if (usesExcludeOnly.value) toggleExcludeAll(col.key, values)
-  else toggleFilterAll(col.key, values)
-}
-function onOthersCheckboxClick(col: ColumnDef<TRow>, event: MouseEvent): void {
-  event.preventDefault()
-  onToggleOthers(col)
-}
-const expandedDateNodes = ref<Record<string, Set<string>>>({})
-const filterDetailTree = computed(() =>
-  filterDetailCol.value && filterDetailCol.value.type === 'date'
-    ? computeDateTree(
-        filteredValuesFor(filterDetailCol.value),
-        L.value.emptyValue,
-        valueSortFor(filterDetailCol.value.key).dir,
-        filterDetailCol.value.parseDate,
-      )
-    : [],
-)
-function isDateSearchActive(col: ColumnDef<TRow>): boolean {
-  return (filterSearchTerms.value[col.key] ?? '') !== ''
-}
-function toggleDateNodeExpand(colKey: string, path: string): void {
-  const next = new Set(expandedDateNodes.value[colKey] ?? [])
-  if (next.has(path)) next.delete(path)
-  else next.add(path)
-  expandedDateNodes.value = { ...expandedDateNodes.value, [colKey]: next }
-}
-function onDateNodeClick(col: ColumnDef<TRow>, node: DateTreeNode, event: MouseEvent): void {
-  const key = col.key
-  const anchor = filterSelectionAnchor.value[key]
-  const anchorNode = anchor != null ? findDateTreeNode(filterDetailTree.value, anchor) : null
-  const state = getDateTreeNodeState(node, filters.value[key] ?? new Set())
-  if (event.shiftKey && anchorNode) {
-    const shouldSelect = state !== 'checked'
-    const values = selectDateRange(filteredValuesFor(col), anchorNode, node, col.parseDate)
-    setFilterValues(key, values, shouldSelect)
-    // Shift-range selection stays include-only (see the docs) — clear the swept range out of the
-    // exclude set too, so a previously-excluded value doesn't end up in both.
-    if (shouldSelect) clearExcludeValues(key, values)
-  } else {
-    toggleFilterAll(key, node.values)
-  }
-  filterSelectionAnchor.value = { ...filterSelectionAnchor.value, [key]: node.path }
 }
 const hasActiveState = computed(
   () =>
@@ -970,6 +598,9 @@ function hasSlot(name: string): boolean {
 }
 
 const dragColKey = ref<string | null>(null)
+// The open header menu's column: its <th> stops being draggable, or dragging a control inside the
+// menu (a range slider) would drag the column instead
+const menuColKey = ref<string | null>(null)
 const dragOverColKey = ref<string | null>(null)
 
 function onColDragStart(key: string): void {
@@ -1305,33 +936,19 @@ const groupDropdownRef = ref<InstanceType<typeof Dropdown> | null>(null)
 // filterDropdownRef itself is declared much earlier (see the filterColOrderKeys watch above) —
 // this comment marks where it'd otherwise sit, alongside its sibling above.
 
-// The Filter dropdown's own Escape callback: unlike Columns/Sort/Group (a single column-search
-// term), it has a second, per-column value-search term to check too — see filterSearchTerms.
+// The Filter dropdown's own Escape callback for its left-pane column search (FilterPane handles
+// Escape in its own value search).
 function filterEscapeClearable(): boolean {
   const active = document.activeElement as HTMLElement | null
   // Scoped to focus actually being in the left-pane column search box — same reasoning as
-  // makeDdEscapeClearable above, and as the detail-pane check right below: without it, Escape
+  // makeDdEscapeClearable above: without it, Escape
   // pressed while focused elsewhere in the panel would still silently clear this term.
   if (active?.matches?.('.dt__filter-cols-search') && ddSearchTerm('filter') !== '') {
     setDdSearchTerm('filter', '')
     return true
   }
-  // Scoped to focus actually being inside the right detail pane — without this, Escape pressed
-  // while focused anywhere else in the panel (e.g. a left-pane column button) could still
-  // silently clear the *currently selected* column's own value search term, even though the user
-  // isn't interacting with that search box at all.
-  const inDetailPane = active?.closest?.('.dt__filter-detail')
-  if (inDetailPane && filterDetailCol.value) {
-    const valueSearchTerm = filterSearchTerms.value[filterDetailCol.value.key] ?? ''
-    if (valueSearchTerm !== '') {
-      setFilterSearchTerm(filterDetailCol.value.key, '')
-      return true
-    }
-  }
   return false
 }
-
-const FILTER_LIST_VIRTUAL_ITEM_HEIGHT = FILTER_LIST_ITEM_HEIGHT
 
 /**
  * Filter dropdown only: Left/Right crosses between the left column pane and the right detail
@@ -1385,96 +1002,6 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
         menu.querySelector<HTMLElement>('.dt__filter-col-item--active')?.focus()
         return
       }
-    }
-
-    if (filterDetail && ['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
-      // Only the value-search box joins the vertical Up/Down chain, mirroring every other
-      // dropdown's "search input, then rows" pattern — the select-all checkbox and sort-order
-      // button sit beside it on the *same* row (.dt__filter-search-row), not above the rows, so
-      // stepping through all three before reaching the list wouldn't visually correspond to
-      // "down". They stay reachable via Tab/click as before.
-      const headerControls = Array.from(
-        filterDetail.querySelectorAll<HTMLElement>('input.dt__dd-search'),
-      )
-      const rowInputs = Array.from(
-        filterDetail.querySelectorAll<HTMLInputElement>(
-          '.dt__dd-item input[type="checkbox"], .dt__date-tree-item input[type="checkbox"]',
-        ),
-      )
-      const focusables = [...headerControls, ...rowInputs]
-      const active = document.activeElement as HTMLElement | null
-      if (!active || focusables.indexOf(active) === -1) return
-
-      // The flat checklist is virtualized — only a scrolled-into-view window of rows actually
-      // exists in the DOM at any moment (see filterListVirtualRange), so crossing out of that
-      // window (or Home/End, which must reach the *logical* first/last value, not just whatever's
-      // currently rendered) needs to adjust the scroll state first. Unlike vanilla (which has to
-      // manually patch the checklist's innerHTML in the same step, since nothing there is
-      // reactive), this just writes filterListScrollTop and awaits Vue's own reactive re-render —
-      // the `v-for`/computeVirtualRange slice picks up the new window on its own.
-      const checklistEl = filterDetail.querySelector<HTMLElement>('.dt__filter-list')
-      if (checklistEl && filterDetailCol.value) {
-        const values = filterDetailValues.value
-        const activeValue =
-          active instanceof HTMLInputElement && rowInputs.includes(active)
-            ? active.dataset.value
-            : undefined
-        let targetIdx: number | null = null
-        if (event.key === 'Home') targetIdx = 0
-        else if (event.key === 'End') targetIdx = values.length - 1
-        else if (activeValue !== undefined) {
-          const curIdx = values.indexOf(activeValue)
-          targetIdx = event.key === 'ArrowDown' ? curIdx + 1 : curIdx - 1
-        }
-        if (targetIdx !== null) {
-          // Falls through to the plain header-control nav below in two cases: moving Up out of
-          // the checklist's very first row (there's no row above it — the previous stop is a
-          // header control instead), and Home/End on an empty list.
-          const fallsThrough = targetIdx < 0 && event.key === 'ArrowUp' && activeValue !== undefined
-          if (!fallsThrough) {
-            if (targetIdx < 0 || targetIdx >= values.length) {
-              event.preventDefault()
-              return
-            }
-            event.preventDefault()
-            const newScrollTop =
-              getVirtualScrollTarget(
-                filterListScrollTop.value,
-                FILTER_LIST_VIEWPORT_HEIGHT,
-                FILTER_LIST_VIRTUAL_ITEM_HEIGHT,
-                targetIdx,
-              ) ?? filterListScrollTop.value
-            filterListScrollTop.value = newScrollTop
-            if (filterListRef.value) filterListRef.value.scrollTop = newScrollTop
-            const targetValue = values[targetIdx]
-            await nextTick()
-            for (const cb of checklistEl.querySelectorAll<HTMLInputElement>(
-              'input[type="checkbox"]',
-            )) {
-              if (cb.dataset.value === targetValue) {
-                cb.focus()
-                break
-              }
-            }
-            return
-          }
-        }
-      }
-
-      // Plain DOM-order nav: the header control (value-search), date-tree rows, and — via the
-      // fallthrough above — moving out of the checklist's first row back into the header control.
-      if (event.key === 'Home' || event.key === 'End') {
-        if (rowInputs.length === 0) return
-        event.preventDefault()
-        ;(event.key === 'Home' ? rowInputs[0] : rowInputs[rowInputs.length - 1]).focus()
-        return
-      }
-      const idx = focusables.indexOf(active)
-      const nextIdx = event.key === 'ArrowDown' ? idx + 1 : idx - 1
-      if (nextIdx < 0 || nextIdx >= focusables.length) return
-      event.preventDefault()
-      focusables[nextIdx].focus()
-      return
     }
   }
 }
@@ -2020,7 +1547,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
             <div class="dt__filter-cols">
               <!--
                 Search box (sticky within this scrollable pane, see styles below) narrows the
-                column list itself — separate from `filterSearchTerms`, which narrows the
+                column list itself — separate from FilterPane's value search, which narrows the
                 *values* shown in the right-hand detail pane. No inherent order to preserve here
                 (unlike the Columns dropdown, this list isn't reorderable), so it's alphabetized
                 by label rather than raw column-definition order.
@@ -2156,241 +1683,20 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                 </div>
               </template>
             </div>
-            <div class="dt__filter-detail">
-              <template v-if="filterDetailCol">
-                <RangeInputs
-                  v-if="filterDetailCol.type === 'number'"
-                  :is-date="false"
-                  :min="
-                    rangeFilters[filterDetailCol.key]?.min ??
-                    (filterDetailBounds
-                      ? formatRangeBound(filterDetailBounds.min, filterDetailCol)
-                      : '')
-                  "
-                  :max="
-                    rangeFilters[filterDetailCol.key]?.max ??
-                    (filterDetailBounds
-                      ? formatRangeBound(filterDetailBounds.max, filterDetailCol)
-                      : '')
-                  "
-                  :min-label="L.min"
-                  :max-label="L.max"
-                  :slider="filterDetailSlider"
-                  @update:min="setRangeFilter(filterDetailCol.key, 'min', $event)"
-                  @update:max="setRangeFilter(filterDetailCol.key, 'max', $event)"
-                  @slider-change="(lo, hi) => onRangeSliderChange(filterDetailCol!, lo, hi)"
-                />
-                <template v-else>
-                  <RangeInputs
-                    v-if="filterDetailCol.type === 'date'"
-                    :is-date="true"
-                    :min="
-                      rangeFilters[filterDetailCol.key]?.min ??
-                      (filterDetailBounds
-                        ? formatRangeBound(filterDetailBounds.min, filterDetailCol)
-                        : '')
-                    "
-                    :max="
-                      rangeFilters[filterDetailCol.key]?.max ??
-                      (filterDetailBounds
-                        ? formatRangeBound(filterDetailBounds.max, filterDetailCol)
-                        : '')
-                    "
-                    :min-label="L.min"
-                    :max-label="L.max"
-                    :slider="filterDetailSlider"
-                    @update:min="setRangeFilter(filterDetailCol.key, 'min', $event)"
-                    @update:max="setRangeFilter(filterDetailCol.key, 'max', $event)"
-                    @slider-change="(lo, hi) => onRangeSliderChange(filterDetailCol!, lo, hi)"
-                  />
-                  <div class="dt__filter-search-row">
-                    <input
-                      v-if="filterDetailValues.length > 0"
-                      v-indeterminate="isFilterSomeSelected(filterDetailCol)"
-                      type="checkbox"
-                      class="dt__filter-select-all"
-                      :checked="isFilterAllSelected(filterDetailCol)"
-                      :title="L.selectAll"
-                      :aria-label="L.selectAll"
-                      @change="onToggleFilterAll(filterDetailCol)"
-                    />
-                    <span class="dt__dd-search-wrap">
-                      <input
-                        type="text"
-                        class="dt__dd-search"
-                        :placeholder="L.filterSearchPlaceholder"
-                        :value="filterSearchTerms[filterDetailCol.key] ?? ''"
-                        @input="
-                          setFilterSearchTerm(
-                            filterDetailCol.key,
-                            ($event.target as HTMLInputElement).value,
-                          )
-                        "
-                      />
-                      <button
-                        v-if="filterSearchTerms[filterDetailCol.key]"
-                        type="button"
-                        class="dt__dd-search-clear"
-                        :title="L.clearSearch"
-                        :aria-label="L.clearSearch"
-                        @click="setFilterSearchTerm(filterDetailCol.key, '')"
-                      >
-                        ×
-                      </button>
-                    </span>
-                    <button
-                      type="button"
-                      class="dt__value-sort-btn"
-                      :title="L.sortValues"
-                      :aria-label="L.sortValues"
-                      @click="cycleFilterValueSort(filterDetailCol)"
-                    >
-                      {{
-                        filterDetailCol.type === 'date'
-                          ? getDateSortIcon(valueSortFor(filterDetailCol.key).dir)
-                          : getValueSortIcon(valueSortFor(filterDetailCol.key))
-                      }}
-                    </button>
-                    <div
-                      v-if="isMultiValueFilterCol"
-                      class="dt__filter-match-mode-group"
-                      role="group"
-                    >
-                      <button
-                        type="button"
-                        class="dt__value-sort-btn dt__filter-match-mode dt__filter-match-mode--left"
-                        :class="{ 'dt__filter-match-mode--active': filterMatchMode === 'or' }"
-                        :title="L.filterMatchAny"
-                        :aria-label="L.filterMatchAny"
-                        :aria-pressed="filterMatchMode === 'or'"
-                        @click="setFilterMode(filterDetailCol.key, 'or')"
-                      >
-                        {{ L.filterMatchAny }}
-                      </button>
-                      <button
-                        type="button"
-                        class="dt__value-sort-btn dt__filter-match-mode dt__filter-match-mode--right"
-                        :class="{ 'dt__filter-match-mode--active': filterMatchMode === 'and' }"
-                        :title="L.filterMatchAll"
-                        :aria-label="L.filterMatchAll"
-                        :aria-pressed="filterMatchMode === 'and'"
-                        @click="setFilterMode(filterDetailCol.key, 'and')"
-                      >
-                        {{ L.filterMatchAll }}
-                      </button>
-                    </div>
-                  </div>
-                  <div v-if="filterDetailCol.type === 'date'" class="dt__date-tree-wrap">
-                    <DateTreeItem
-                      :nodes="filterDetailTree"
-                      :depth="0"
-                      :selected="filters[filterDetailCol.key] ?? new Set()"
-                      :counts="stringValueCounts[filterDetailCol.key] ?? new Map()"
-                      :expanded="expandedDateNodes[filterDetailCol.key] ?? new Set()"
-                      :search-active="isDateSearchActive(filterDetailCol)"
-                      @toggle-node="(node, event) => onDateNodeClick(filterDetailCol!, node, event)"
-                      @toggle-expand="(path) => toggleDateNodeExpand(filterDetailCol!.key, path)"
-                    />
-                  </div>
-                  <!--
-                  Virtualized: only the rows scrolled into view (+ overscan) are ever mounted,
-                  regardless of how many thousands of distinct values filterDetailValues holds —
-                  see computeVirtualRange/FILTER_LIST_*. Select-all/shift-range above still
-                  operate on the full filterDetailValues array, so behavior is unaffected by how
-                  much of it is actually rendered.
-                -->
-                  <template v-else>
-                    <!--
-                    Bulk (de)select everything the value search above is currently hiding — see
-                    docs/filter-dropdown.md's "Filter dropdown". Only rendered once a search term actually
-                    narrows the list.
-                  -->
-                    <label
-                      v-if="otherValuesFor(filterDetailCol).length > 0"
-                      class="dt__dd-item dt__filter-others"
-                    >
-                      <input
-                        type="checkbox"
-                        v-indeterminate="isOthersSomeSelected(filterDetailCol)"
-                        :title="L.filterOthers"
-                        :aria-label="L.filterOthers"
-                        :checked="isOthersAllSelected(filterDetailCol)"
-                        @click="onOthersCheckboxClick(filterDetailCol, $event)"
-                      />
-                      <span class="dt__flex1">{{ L.filterOthers }}</span>
-                      <span class="dt__filter-count">{{
-                        otherValuesFor(filterDetailCol).length
-                      }}</span>
-                    </label>
-                    <div ref="filterListRef" class="dt__filter-list" @scroll="onFilterListScroll">
-                      <div
-                        :style="{
-                          height: filterListVirtualRange.totalHeight + 'px',
-                          position: 'relative',
-                        }"
-                      >
-                        <div
-                          :style="{
-                            position: 'absolute',
-                            top: filterListVirtualRange.offsetY + 'px',
-                            left: 0,
-                            right: 0,
-                          }"
-                        >
-                          <label
-                            v-for="v in filterDetailValues.slice(
-                              filterListVirtualRange.startIndex,
-                              filterListVirtualRange.endIndex,
-                            )"
-                            :key="v"
-                            class="dt__dd-item dt__dd-item--clickable"
-                            :class="{
-                              'dt__dd-item--exclude': isValueExcludedVisual(filterDetailCol, v),
-                            }"
-                            :style="{
-                              height: FILTER_LIST_ITEM_HEIGHT + 'px',
-                              boxSizing: 'border-box',
-                            }"
-                          >
-                            <!--
-                            Tri-state checkbox (multi-value column): unchecked (neutral) → checked
-                            (include) → indeterminate (exclude, the browser's dash glyph reused as
-                            the "not this" indicator) → back to unchecked, via
-                            onFilterValueClick's call to cycleFilterValue. Non-multi-value column:
-                            plain checked/unchecked toggle via setExcludeValues, see docs/filter-dropdown.md's
-                            "Filter dropdown". v-indeterminate (see above) is what actually sets
-                            the DOM property, same as the select-all/group checkboxes.
-                          -->
-                            <input
-                              type="checkbox"
-                              :data-value="v"
-                              :checked="isValueChecked(filterDetailCol, v)"
-                              v-indeterminate="isValueExcludedVisual(filterDetailCol, v)"
-                              :title="valueTitleFor(filterDetailCol, v)"
-                              @click="onFilterValueClick(filterDetailCol, v, $event)"
-                            />
-                            <!--
-                            Slot #filter-{key} — custom label in the filter dropdown.
-                            Slot scope: { value: string }
-                            Falls back to the raw string value.
-                            Not applied to `type: 'date'` columns (DateTreeItem.vue below) — a
-                            tree branch node's label (a year/month) has no single raw value to
-                            pass through, and even a day leaf can bundle more than one raw value.
-                          -->
-                            <span class="dt__flex1">
-                              <slot :name="`filter-${filterDetailCol.key}`" :value="v">{{
-                                v
-                              }}</slot>
-                            </span>
-                            <span class="dt__filter-count">{{ countFor(filterDetailCol, v) }}</span>
-                          </label>
-                        </div>
-                      </div>
-                    </div>
-                  </template>
-                </template>
+            <FilterPane
+              v-if="filterDetailCol"
+              :key="filterDetailCol.key"
+              :table="table"
+              :col="filterDetailCol"
+              :data="data"
+              :columns="columns"
+            >
+              <!-- Slot #filter-{key}: custom value label in the filter checklist (not the date
+                   tree), scope { value: string }; falls back to the raw value -->
+              <template #value="{ value }">
+                <slot :name="`filter-${filterDetailCol.key}`" :value="value">{{ value }}</slot>
               </template>
-            </div>
+            </FilterPane>
           </div>
         </Dropdown>
 
@@ -2596,25 +1902,48 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                 'dt__th--drag-over': dragOverColKey === col.key,
               }"
               :style="{ width: col.width ? `${col.width}px` : undefined }"
-              draggable="true"
+              :draggable="menuColKey === col.key ? 'false' : 'true'"
               @dragstart="onColDragStart(col.key)"
               @dragover.prevent="onColDragOver(col.key)"
               @drop.prevent="onColDrop(col.key)"
               @dragend="onColDragEnd"
               @click="onHeaderSortClick(col, $event)"
             >
-              {{ col.label }}
-              <span
-                :style="{
-                  fontSize: '10px',
-                  color: isHeaderSorted(col.key)
-                    ? 'var(--color-text-primary)'
-                    : 'var(--color-border-secondary)',
-                }"
-              >
-                {{ headerSortLabel(col.key) }}
+              <span class="dt__th-inner">
+                <!-- A button so keyboard users can sort; its click bubbles to the <th>'s handler -->
+                <component
+                  :is="col.sortable === false ? 'span' : 'button'"
+                  :type="col.sortable === false ? undefined : 'button'"
+                  class="dt__th-sort"
+                >
+                  {{ col.label }}
+                  <span
+                    aria-hidden="true"
+                    :style="{
+                      fontSize: '10px',
+                      color: isHeaderSorted(col.key)
+                        ? 'var(--color-text-primary)'
+                        : 'var(--color-border-secondary)',
+                    }"
+                  >
+                    {{ headerSortLabel(col.key) }}
+                  </span>
+                </component>
+                <HeaderMenu
+                  :table="table"
+                  :col="col"
+                  :data="data"
+                  :columns="columns"
+                  @open-change="
+                    (open: boolean) =>
+                      (menuColKey = open ? col.key : menuColKey === col.key ? null : menuColKey)
+                  "
+                >
+                  <template #value="{ value }">
+                    <slot :name="`filter-${col.key}`" :value="value">{{ value }}</slot>
+                  </template>
+                </HeaderMenu>
               </span>
-              <HeaderMenu :table="table" :col="col" @open-filter="onOpenFilterCol" />
             </th>
           </tr>
         </thead>
@@ -2941,7 +2270,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
   font-size: 11px;
   color: var(--color-text-tertiary);
 }
-.dt__dd-item {
+:deep(.dt__dd-item) {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -2958,11 +2287,11 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
   width: 100%;
   box-sizing: border-box;
 }
-.dt__dd-item--clickable {
+:deep(.dt__dd-item--clickable) {
   cursor: pointer;
 }
-.dt__dd-item--clickable:hover,
-.dt__dd-item--clickable:focus {
+:deep(.dt__dd-item--clickable:hover),
+:deep(.dt__dd-item--clickable:focus) {
   background: var(--color-background-secondary);
 }
 .dt__dd-item--col {
@@ -3135,7 +2464,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
    whatever height .dt__filter-cols (the column list) ends up stretching this to via the row's
    cross-axis stretch, instead of a hardcoded height leaving dead space below it once
    .dt__filter-cols renders taller than that default (see .dt__filter-list/.dt__date-tree-wrap). */
-.dt__filter-detail {
+:deep(.dt__filter-detail) {
   display: flex;
   flex-direction: column;
   flex: 1;
@@ -3153,7 +2482,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
    min-height: auto would let its content push .dt__filter-detail taller instead). The search row
    above stays outside this element (in normal flow, flex-shrink: 0 below), so it never scrolls
    away. */
-.dt__filter-list {
+:deep(.dt__filter-list) {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
@@ -3161,19 +2490,19 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
 /* Same reasoning as .dt__filter-list above, applied to the date tree — which has no
    virtualization of its own, so this wrapper alone is what turns "overflow past the panel onto
    the page" (no wrapper at all previously) into "fills available space, scrolls the rest". */
-.dt__date-tree-wrap {
+:deep(.dt__date-tree-wrap) {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
 }
-.dt__filter-search-row {
+:deep(.dt__filter-search-row) {
   display: flex;
   align-items: center;
   gap: 6px;
   margin: 2px 12px 6px;
   flex-shrink: 0;
 }
-.dt__dd-search {
+:deep(.dt__dd-search) {
   display: block;
   flex: 1;
   /* Right padding always reserved (whether or not the clear button is currently shown) so it
@@ -3190,13 +2519,13 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
 /* Wraps a .dt__dd-search input + its optional clear button — same idea as .dt__search-wrap for
    the toolbar's own search box, just reused here since every dropdown search box gained the same
    clear affordance (previously Escape-only). */
-.dt__dd-search-wrap {
+:deep(.dt__dd-search-wrap) {
   position: relative;
   display: flex;
   flex: 1;
   min-width: 0;
 }
-.dt__dd-search-clear {
+:deep(.dt__dd-search-clear) {
   position: absolute;
   right: 4px;
   top: 50%;
@@ -3210,7 +2539,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
   color: var(--color-text-tertiary);
   font-family: inherit;
 }
-.dt__dd-search-clear:hover {
+:deep(.dt__dd-search-clear:hover) {
   color: var(--color-text-primary);
 }
 /* Wraps the Columns/Sort/Group dropdowns' own column-search box — sticky within the dropdown
@@ -3236,11 +2565,11 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
   margin-bottom: 4px;
   background: var(--color-background-primary);
 }
-.dt__filter-select-all {
+:deep(.dt__filter-select-all) {
   flex-shrink: 0;
   margin: 0;
 }
-.dt__value-sort-btn {
+:deep(.dt__value-sort-btn) {
   flex-shrink: 0;
   padding: 4px 7px;
   font-size: 11px;
@@ -3252,18 +2581,18 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
   font-family: inherit;
   white-space: nowrap;
 }
-.dt__filter-match-mode-group {
+:deep(.dt__filter-match-mode-group) {
   display: inline-flex;
   flex-shrink: 0;
 }
-.dt__filter-match-mode--left {
+:deep(.dt__filter-match-mode--left) {
   border-radius: 6px 0 0 6px;
   border-right: none;
 }
-.dt__filter-match-mode--right {
+:deep(.dt__filter-match-mode--right) {
   border-radius: 0 6px 6px 0;
 }
-.dt__filter-match-mode--active {
+:deep(.dt__filter-match-mode--active) {
   background: var(--color-background-secondary);
   color: var(--color-text-primary);
   font-weight: 500;
@@ -3274,7 +2603,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
   color: var(--color-text-tertiary);
   font-weight: 500;
 }
-.dt__flex1 {
+:deep(.dt__flex1) {
   flex: 1;
 }
 /* Drag-handle glyph on Columns' Visible rows and Sort/Group's active rows (not Sort's
@@ -3294,22 +2623,22 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
   flex-shrink: 0;
   white-space: nowrap;
 }
-.dt__filter-count {
+:deep(.dt__filter-count) {
   font-size: 12px;
   color: var(--color-text-tertiary);
   flex-shrink: 0;
 }
 /* A checklist value cycled to "exclude" (see cycleFilterValue) — tints the row's text and the
    checkbox's own accent-color to match. */
-.dt__dd-item--exclude {
+:deep(.dt__dd-item--exclude) {
   color: var(--color-text-danger);
 }
-.dt__dd-item--exclude input[type='checkbox'] {
+:deep(.dt__dd-item--exclude input[type='checkbox']) {
   accent-color: var(--color-text-danger);
 }
 /* The "Others" checklist row (see docs/filter-dropdown.md's "Filter dropdown") — shaded/italic/bordered so it
    reads as a distinct bulk control, not just another value blending into the results below it. */
-.dt__filter-others {
+:deep(.dt__filter-others) {
   background: var(--color-background-secondary);
   border-top: 0.5px solid var(--color-border-tertiary);
   border-bottom: 0.5px solid var(--color-border-secondary);
@@ -3478,6 +2807,22 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
   white-space: nowrap;
   user-select: none;
   cursor: pointer;
+}
+.dt__th-inner {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.dt__th-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: inherit;
 }
 .dt__td {
   padding: 8px 12px;

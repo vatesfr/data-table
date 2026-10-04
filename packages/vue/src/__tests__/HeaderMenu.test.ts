@@ -55,11 +55,11 @@ describe('HeaderMenu', () => {
     const { trigger, items, unmount } = mountView()
     trigger('Name')!.click()
     await tick()
-    expect(items()).toEqual(['↑ Sort ascending', '↓ Sort descending', 'Filter…', 'Hide column'])
+    expect(items()).toEqual(['Filter▸', 'Hide column'])
     trigger('Name')!.click()
     trigger('Score')!.click()
     await tick()
-    expect(items()).toEqual(['Filter…', 'Hide column'])
+    expect(items()).toEqual(['Filter▸', 'Hide column'])
     trigger('Score')!.click()
     trigger('Dept')!.click()
     await tick()
@@ -75,15 +75,23 @@ describe('HeaderMenu', () => {
     unmount()
   })
 
-  it('sorts in the chosen direction without the header click toggling it, then refocuses its button', async () => {
-    const { el, table, trigger, item, unmount } = mountView()
+  it('sorts from the header label button, adding with Shift, but not from ▾', async () => {
+    const { el, table, trigger, unmount } = mountView()
+    const sortButton = (label: string) =>
+      [...el.querySelectorAll<HTMLButtonElement>('button.dt__th-sort')].find((b) =>
+        b.textContent!.trim().startsWith(label),
+      )
     trigger('Name')!.click()
     await tick()
-    item('Sort descending').click()
-    await tick()
-    expect(table.sort.entries.value).toEqual([{ key: 'name', dir: 'desc' }])
-    expect(el.querySelector('th[aria-sort]')?.getAttribute('aria-sort')).toBe('descending')
-    expect(document.activeElement).toBe(trigger('Name'))
+    expect(table.sort.entries.value).toEqual([])
+    sortButton('Name')!.click()
+    expect(table.sort.entries.value).toEqual([{ key: 'name', dir: 'asc' }])
+    sortButton('Dept')!.dispatchEvent(new MouseEvent('click', { bubbles: true, shiftKey: true }))
+    expect(table.sort.entries.value).toEqual([
+      { key: 'name', dir: 'asc' },
+      { key: 'dept', dir: 'asc' },
+    ])
+    expect(sortButton('Score')).toBeUndefined()
     unmount()
   })
 
@@ -112,17 +120,47 @@ describe('HeaderMenu', () => {
     unmount()
   })
 
-  it('opens the Filter dropdown on the column, expanding its category', async () => {
+  it('filters the column from a flyout', async () => {
+    const { el, table, trigger, item, unmount } = mountView()
+    trigger('Dept')!.click()
+    await tick()
+    item('Filter').click()
+    await tick()
+    const flyout = el.querySelector<HTMLElement>('.dt__th-filter-flyout')!
+    expect(document.activeElement).toBe(flyout.querySelector('input.dt__dd-search'))
+    flyout.querySelector<HTMLInputElement>('input[data-value="HR"]')!.click()
+    await tick()
+    expect([...(table.filter.exclude.value.dept ?? [])]).toEqual(['HR'])
+    expect(trigger('Dept')!.classList.contains('dt__th-menu--filtered')).toBe(true)
+    unmount()
+  })
+
+  it('keeps ← in the flyout search box, and backs out one level per Escape', async () => {
     const { el, trigger, item, menu, unmount } = mountView()
-    trigger('Score')!.click()
+    trigger('Dept')!.click()
     await tick()
-    item('Filter…').click()
+    item('Filter').click()
     await tick()
+    const search = document.activeElement as HTMLInputElement
+    const key = (k: string) =>
+      document.activeElement!.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true }))
+    search.value = 'E'
+    search.dispatchEvent(new Event('input', { bubbles: true }))
     await tick()
-    const active = el.querySelector('[data-filter-col-key="score"]')
-    expect(active).not.toBeNull()
-    expect(document.activeElement).toBe(active)
+    key('ArrowLeft')
+    await tick()
+    expect(el.querySelector('.dt__th-filter-flyout')).not.toBeNull()
+    key('Escape')
+    await tick()
+    expect(search.value).toBe('')
+    key('Escape')
+    await tick()
+    expect(el.querySelector('.dt__th-filter-flyout')).toBeNull()
+    expect(document.activeElement).toBe(item('Filter'))
+    key('Escape')
+    await tick()
     expect(menu()).toBeNull()
+    expect(document.activeElement).toBe(trigger('Dept'))
     unmount()
   })
 
@@ -130,13 +168,30 @@ describe('HeaderMenu', () => {
     const { trigger, menu, unmount } = mountView()
     trigger('Name')!.click()
     await tick()
-    expect(document.activeElement?.textContent).toContain('Sort ascending')
-    menu()!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }))
+    expect(document.activeElement?.textContent).toContain('Filter')
+    document.activeElement!.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }),
+    )
     expect(document.activeElement?.textContent).toContain('Hide column')
-    menu()!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    document.activeElement!.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
+    )
     await tick()
     expect(menu()).toBeNull()
     expect(document.activeElement).toBe(trigger('Name'))
+    unmount()
+  })
+
+  it('stops its header from dragging while open, so the flyout slider drags its thumb', async () => {
+    const { trigger, unmount } = mountView()
+    const th = () => trigger('Score')!.closest('th')!
+    expect(th().getAttribute('draggable')).toBe('true')
+    trigger('Score')!.click()
+    await tick()
+    expect(th().getAttribute('draggable')).toBe('false')
+    trigger('Score')!.click()
+    await tick()
+    expect(th().getAttribute('draggable')).toBe('true')
     unmount()
   })
 
