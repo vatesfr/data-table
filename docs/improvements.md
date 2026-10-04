@@ -45,7 +45,6 @@ Seeded 2026-10-04 from issues reported by a consumer app, each reproduced on the
 
 ## Layout and integration
 
-- **U9 · minor · UC07** — at 390 px the library's controls take 132 px above the first row (toolbar on two lines plus the active bar), and an app has no way to put its own actions on the toolbar line, so they add yet another row. Add a toolbar slot.
 - **U10 · minor · UC03** — no per-row attribute or class hook, so an app can't mark or expose its current row (`aria-current`). Add a row-attributes callback.
 - **U21 · minor · UC07, UC03** — row and select-all checkboxes are 13×13 px, under the 24 px touch target. Grow their hit area to the whole checkbox cell (a label filling it), keeping Shift+click range selection working; the chips' × and ⊞ already reach 24 px.
 
