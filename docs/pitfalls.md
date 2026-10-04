@@ -2,6 +2,8 @@
 
 Symptom first, then cause and fix. Delete entries once obsolete.
 
+<!-- check-docs-ignore: exceeded -->
+
 ## Empty `dist/index.d.ts` after a dependency bump
 
 - Symptom: `packages/{react,vue,solid,vanilla}/dist/index.d.ts` is empty; `build` still exits 0, so CI doesn't catch it.
@@ -12,6 +14,12 @@ Symptom first, then cause and fix. Delete entries once obsolete.
 
 - Cause: an incrementally updated `node_modules` drifts from `package-lock.json` (different hoisting than `npm ci`).
 - Fix: `.husky/post-merge`/`post-checkout` run `npm ci` when the lockfile changes; run `npm ci` manually if in doubt.
+
+## A new label fails pre-commit `size` (vue, solid, vanilla)
+
+- Symptom: `Package size limit has exceeded by N B` after adding a `DataTableLabels` key.
+- Cause: each adapter's main entry re-exports every locale (`export * from '@vates/data-table-core/locales'`), so a label costs its string in all 5 locales; consumers tree-shake the unused ones, `size-limit` doesn't.
+- Fix: budget about 5× the string per label; raising a limit needs approval.
 
 ## Vue boolean prop silently `false` when omitted
 
