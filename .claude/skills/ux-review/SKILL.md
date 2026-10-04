@@ -46,7 +46,7 @@ At **1440×900**, then **390×844**, following its steps as a user would — mou
 
 ## Record and report
 
-- Record every finding in [improvements.md](../../../docs/improvements.md): next free `U` number (never reused), under its area, `**U<n> · <severity> · <use cases>** — problem. Direction.` Note adapters when not all three. Update or drop items the run shows fixed.
+- Record every finding in [improvements.md](../../../docs/improvements.md): the file's "Next free ID" (then bump it), under its area, `**U<n> · <severity> · <use cases>** — problem. Direction.` Note adapters when not all three. Update or drop items the run shows fixed.
 - UI text goes in quotes, not backticks — `npm run check:docs` fails on a backticked name absent from the code.
 - **Severity**: _blocker_ (the goal can't be reached) · _major_ (reached with real confusion or a workaround) · _minor_ (friction) · _polish_.
 - Report one table ranked by severity, then demo-only findings, then one line on what worked well enough to keep:
