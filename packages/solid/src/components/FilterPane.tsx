@@ -462,7 +462,7 @@ export function FilterPane<TRow extends object>(props: FilterPaneProps<TRow>) {
   }
 
   return (
-    <div class="dt-filter-detail" onKeyDown={handleKeyDown}>
+    <div class="dt-filter-detail" data-filter-detail onKeyDown={handleKeyDown}>
       <Show
         when={col().type === 'number'}
         fallback={

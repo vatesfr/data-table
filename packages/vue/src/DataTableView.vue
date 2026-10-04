@@ -1568,7 +1568,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
             </button>
           </template>
           <div class="dt__filter-panel" :class="{ 'dt__filter-panel--narrow': narrowFilter }">
-            <div v-if="!narrowFilter || !filterShowValues" class="dt__filter-cols">
+            <div v-if="!narrowFilter || !filterShowValues" class="dt__filter-cols" data-filter-cols>
               <!--
                 Search box (sticky within this scrollable pane, see styles below) narrows the
                 column list itself — separate from FilterPane's value search, which narrows the
@@ -1711,6 +1711,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
               v-if="narrowFilter && filterShowValues"
               type="button"
               class="dt__dd-item dt__dd-item--clickable dt__filter-back"
+              data-filter-back
               @click="showFilterColumns"
             >
               ‹ {{ L.columns }}

@@ -26,7 +26,7 @@ The smallest change closing the item, the same in every adapter (CLAUDE.md's Par
 
 - Follow ux-review's Server and Mechanics sections: clean state, `--view`, scoped locators, keyboard row picking.
 - Solid demo (`:58983`), then React (`:58981`) and Vue (`:58982`), which render their own UI. At **1440×900**, plus **390×844** for layout or touch items.
-- Layout: `node scripts/ux-measure.mjs --demo=solid,react,vue --name=ux-U<n> #section…`. Otherwise one `browser_run_code_unsafe` call per step that acts, measures what the item is about (focus, bounding boxes, accessible names) and screenshots to `.playwright-mcp/ux-U<n>-<what>.png`.
+- Layout: `node scripts/ux-measure.mjs --demo=solid,react,vue --name=ux-U<n> #section…`. Otherwise one step per check, written with `node scripts/ux-step.mjs` (see ux-review's Mechanics), that acts, measures what the item is about (focus, bounding boxes, accessible names) and screenshots to `.playwright-mcp/ux-U<n>-<what>.png`.
 - This is the item's re-check — no separate ux-review run.
 
 ## 4. Close and commit

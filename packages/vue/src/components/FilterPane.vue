@@ -354,7 +354,7 @@ async function onKeydown(event: KeyboardEvent): Promise<void> {
 </script>
 
 <template>
-  <div class="dt__filter-detail" @keydown="onKeydown">
+  <div class="dt__filter-detail" data-filter-detail @keydown="onKeydown">
     <RangeInputs
       v-if="col.type === 'number' || col.type === 'date'"
       :is-date="col.type === 'date'"
@@ -384,6 +384,7 @@ async function onKeydown(event: KeyboardEvent): Promise<void> {
             v-model="searchTerm"
             type="text"
             class="dt__dd-search"
+            data-dd-value-search
             :placeholder="L.filterSearchPlaceholder"
           />
           <button
@@ -475,6 +476,7 @@ async function onKeydown(event: KeyboardEvent): Promise<void> {
                 <input
                   v-indeterminate="isValueExcluded(v)"
                   type="checkbox"
+                  data-dd-value-row
                   :data-value="v"
                   :checked="isValueChecked(v)"
                   :title="valueTitle(v)"

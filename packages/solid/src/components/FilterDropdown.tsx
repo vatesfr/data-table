@@ -297,6 +297,7 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
         <Show when={!narrow() || !showValues()}>
           <div
             class="dt-filter-cols"
+            data-filter-cols
             // Listbox/radiogroup-style: focusing a column button by any means (click, Tab, the
             // arrow-nav above) drives which column's detail pane shows — not just an explicit
             // click/activate step. `focusin` (unlike `focus`) bubbles, so one delegated listener
@@ -370,6 +371,7 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
             <button
               type="button"
               class="dt-dd-item dt-dd-item--click dt-filter-back"
+              data-filter-back
               onClick={() => {
                 setShowValues(false)
                 focusActiveColumn()
