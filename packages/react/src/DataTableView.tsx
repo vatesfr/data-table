@@ -31,14 +31,15 @@ import {
   computeDateTree,
   getDateTreeNodeState,
   sumDateTreeNodeCount,
-  findDateTreeNode,
-  selectDateRange,
-  selectRange,
   isGroupCollapsed,
   isSameVisibleItem,
   indexOfVisibleItem,
   paginateVisibleItems,
   mergePageSizeOptions,
+  checklistBulkState,
+  clickChecklistValue,
+  clickDateTreeNode,
+  toggleChecklistValues,
   computeVirtualRange,
   getVirtualScrollTarget,
   getCrossPageFocusTarget,
@@ -930,12 +931,6 @@ function FilterPane<TRow extends object>({
     modes: filterModes,
     valueMap: stringValueMap,
     setMode: setFilterMode,
-    toggleAll: toggleFilterAll,
-    setValues: setFilterValues,
-    cycleValue: cycleFilterValue,
-    clearExcludeValues,
-    setExcludeValues,
-    toggleExcludeAll,
     setRange: setRangeFilter,
   } = table.filter
   const [searchTerm, setSearchTerm] = useState('')
@@ -1084,20 +1079,12 @@ function FilterPane<TRow extends object>({
     const shown = new Set(filterDetailValues)
     return detailValuesBeforeSearch.filter((v) => !shown.has(v))
   })()
-  function filterBulkState(values: string[]): { checked: boolean; indeterminate: boolean } {
-    if (usesExcludeOnly) {
-      const excludedCount = values.filter((v) => excludeFilters[col.key]?.has(v)).length
-      return {
-        checked: excludedCount === 0,
-        indeterminate: excludedCount > 0 && excludedCount < values.length,
-      }
-    }
-    const selectedCount = values.filter((v) => filters[col.key]?.has(v)).length
-    return {
-      checked: selectedCount > 0 && selectedCount === values.length,
-      indeterminate: selectedCount > 0 && selectedCount < values.length,
-    }
-  }
+  const filterBulkState = (values: string[]) =>
+    checklistBulkState(
+      values,
+      (usesExcludeOnly ? excludeFilters : filters)[col.key],
+      usesExcludeOnly,
+    )
   const filterAllSelected = filterBulkState(filterDetailValues).checked
   const filterSomeSelected = filterBulkState(filterDetailValues).indeterminate
   const filterOthersState = filterBulkState(filterOtherValues)
@@ -1306,18 +1293,13 @@ function FilterPane<TRow extends object>({
                 if (el) el.indeterminate = state === 'indeterminate'
               }}
               onClick={(e) => {
-                const anchorNode =
-                  anchor != null ? findDateTreeNode(filterDetailTree, anchor) : null
-                if (e.shiftKey && anchorNode) {
-                  const shouldSelect = state !== 'checked'
-                  const values = selectDateRange(filterDetailValues, anchorNode, node, parseDate)
-                  setFilterValues(colKey, values, shouldSelect)
-                  // Same "only clear exclusions when selecting" guard as the flat checklist's
-                  // shift-click handler above.
-                  if (shouldSelect) clearExcludeValues(colKey, values)
-                } else {
-                  toggleFilterAll(colKey, node.values)
-                }
+                clickDateTreeNode(table.filter, colKey, node, e.shiftKey, {
+                  anchorPath: anchor,
+                  tree: filterDetailTree,
+                  values: filterDetailValues,
+                  include: filters[colKey],
+                  parseDate,
+                })
                 setAnchor(node.path)
               }}
               style={{ margin: 0 }}
@@ -1347,9 +1329,7 @@ function FilterPane<TRow extends object>({
                 type="checkbox"
                 checked={filterAllSelected}
                 onChange={() =>
-                  usesExcludeOnly
-                    ? toggleExcludeAll(col.key, filterDetailValues)
-                    : toggleFilterAll(col.key, filterDetailValues)
+                  toggleChecklistValues(table.filter, col.key, filterDetailValues, usesExcludeOnly)
                 }
                 title={L.selectAll}
                 aria-label={L.selectAll}
@@ -1454,11 +1434,12 @@ function FilterPane<TRow extends object>({
                         checked={filterOthersState.checked}
                         onClick={(e) => {
                           e.preventDefault()
-                          if (usesExcludeOnly) {
-                            toggleExcludeAll(col.key, filterOtherValues)
-                          } else {
-                            toggleFilterAll(col.key, filterOtherValues)
-                          }
+                          toggleChecklistValues(
+                            table.filter,
+                            col.key,
+                            filterOtherValues,
+                            usesExcludeOnly,
+                          )
                         }}
                       />
                       <span style={{ flex: 1 }}>{L.filterOthers}</span>
@@ -1544,30 +1525,13 @@ function FilterPane<TRow extends object>({
                                   if (el) el.indeterminate = excluded
                                 }}
                                 onClick={(e) => {
-                                  const key = col.key
-                                  if (usesExcludeOnly) {
-                                    const excludedNow = excludeFilters[key]?.has(v) ?? false
-                                    if (e.shiftKey && anchor != null) {
-                                      const range = selectRange(filterDetailValues, anchor, v)
-                                      // Direction mirrors what a plain click on the
-                                      // target itself would do.
-                                      setExcludeValues(key, range, !excludedNow)
-                                    } else {
-                                      setExcludeValues(key, [v], !excludedNow)
-                                    }
-                                  } else {
-                                    if (e.shiftKey && anchor != null) {
-                                      const shouldSelect = !(filters[key]?.has(v) ?? false)
-                                      const range = selectRange(filterDetailValues, anchor, v)
-                                      setFilterValues(key, range, shouldSelect)
-                                      // Shift-range stays include-only (see the docs) — clear
-                                      // the swept range out of the exclude set too, so a
-                                      // previously-excluded value doesn't end up in both.
-                                      if (shouldSelect) clearExcludeValues(key, range)
-                                    } else {
-                                      cycleFilterValue(key, v)
-                                    }
-                                  }
+                                  clickChecklistValue(table.filter, col.key, v, e.shiftKey, {
+                                    anchor,
+                                    values: filterDetailValues,
+                                    include: filters[col.key],
+                                    exclude: excludeFilters[col.key],
+                                    excludeOnly: usesExcludeOnly,
+                                  })
                                   setAnchor(v)
                                 }}
                                 title={itemTitle}

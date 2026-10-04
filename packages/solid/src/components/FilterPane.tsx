@@ -12,12 +12,13 @@ import {
   getValueSortIcon,
   getDateSortIcon,
   computeDateTree,
-  selectDateRange,
-  findDateTreeNode,
-  selectRange,
   isMultiValueColumn,
   computeVirtualRange,
   getVirtualScrollTarget,
+  checklistBulkState,
+  clickChecklistValue,
+  clickDateTreeNode,
+  toggleChecklistValues,
   type DateTreeNode,
 } from '@vates/data-table-core/internal'
 import type { TableState } from '../createTableState'
@@ -313,116 +314,54 @@ export function FilterPane<TRow extends object>(props: FilterPaneProps<TRow>) {
     )
   }
 
-  // --- Flat checklist (string columns) ---
+  // --- Flat checklist (string columns), "Others" and date tree: shared click logic in core ---
+  const touched = () =>
+    (usesExcludeOnly() ? table.filter.exclude() : table.filter.include())[activeCol().key]
   function handleValueClick(value: string, shiftKey: boolean): void {
-    const col = activeCol()
-    const anchor = anchorValue()
-    if (usesExcludeOnly()) {
-      // Checked-by-default: "checked" means absent from `excludeFilters`, so a plain click and a
-      // shift-range select both just flip/set membership there — no `filters`/tri-state involved.
-      const excludedNow = table.filter.exclude()[col.key]?.has(value) ?? false
-      if (shiftKey && anchor) {
-        const range = selectRange(filterDetailValues(), anchor, value)
-        // Direction mirrors what a plain click on the target itself would do.
-        table.filter.setExcludeValues(col.key, range, !excludedNow)
-      } else {
-        table.filter.setExcludeValues(col.key, [value], !excludedNow)
-      }
-    } else if (shiftKey && anchor) {
-      const included = table.filter.include()[col.key]?.has(value) ?? false
-      const shouldSelect = !included
-      const range = selectRange(filterDetailValues(), anchor, value)
-      table.filter.setValues(col.key, range, shouldSelect)
-      // Only clear exclusions when values are moving *into* filters — deselecting a range must
-      // not silently drop an unrelated exclude flag on a value that happens to be in the swept
-      // range (matches react/vue's own `if (shouldSelect)` guard around this same call).
-      if (shouldSelect) table.filter.clearExcludeValues(col.key, range)
-    } else {
-      table.filter.cycleValue(col.key, value)
-    }
+    clickChecklistValue(table.filter, activeCol().key, value, shiftKey, {
+      anchor: anchorValue(),
+      values: filterDetailValues(),
+      include: table.filter.include()[activeCol().key],
+      exclude: table.filter.exclude()[activeCol().key],
+      excludeOnly: usesExcludeOnly(),
+    })
     setAnchor(value)
   }
   function handleSelectAll(): void {
-    const col = activeCol()
-    if (usesExcludeOnly()) table.filter.toggleExcludeAll(col.key, filterDetailValues())
-    else table.filter.toggleAll(col.key, filterDetailValues())
+    toggleChecklistValues(table.filter, activeCol().key, filterDetailValues(), usesExcludeOnly())
     // No preventDefault() here (this checkbox is a plain two-state toggle, not tri-state), but
     // the native pre-click activation can still race Solid's own synchronous write on rare
     // event-ordering — deferring a correction alongside the state update is cheap insurance.
     deferCheckboxCorrection(selectAllEl, () => selectAllState())
   }
-  const selectAllState = createMemo(() => {
-    const col = activeCol()
-    const values = filterDetailValues()
-    if (usesExcludeOnly()) {
-      const excluded = table.filter.exclude()[col.key] ?? new Set()
-      const excludedCount = values.filter((v) => excluded.has(v)).length
-      return {
-        checked: excludedCount === 0,
-        indeterminate: excludedCount > 0 && excludedCount < values.length,
-      }
-    }
-    const selected = table.filter.include()[col.key] ?? new Set()
-    const selectedCount = values.filter((v) => selected.has(v)).length
-    return {
-      checked: selectedCount > 0 && selectedCount === values.length,
-      indeterminate: selectedCount > 0 && selectedCount < values.length,
-    }
-  })
+  const selectAllState = createMemo(() =>
+    checklistBulkState(filterDetailValues(), touched(), usesExcludeOnly()),
+  )
   let selectAllEl: HTMLInputElement | undefined
   createEffect(() => {
     applyCheckboxState(selectAllEl, selectAllState().checked, selectAllState().indeterminate)
   })
 
-  // --- "Others" (values hidden by the checklist's own value search) ---
   function handleOthersToggle(): void {
-    const col = activeCol()
-    const values = otherValues()
-    if (values.length === 0) return
-    if (usesExcludeOnly()) table.filter.toggleExcludeAll(col.key, values)
-    else table.filter.toggleAll(col.key, values)
+    toggleChecklistValues(table.filter, activeCol().key, otherValues(), usesExcludeOnly())
     deferCheckboxCorrection(othersEl, () => othersState())
   }
-  const othersState = createMemo(() => {
-    const col = activeCol()
-    const values = otherValues()
-    if (values.length === 0) return { checked: false, indeterminate: false }
-    if (usesExcludeOnly()) {
-      const excluded = table.filter.exclude()[col.key] ?? new Set()
-      const excludedCount = values.filter((v) => excluded.has(v)).length
-      return {
-        checked: excludedCount === 0,
-        indeterminate: excludedCount > 0 && excludedCount < values.length,
-      }
-    }
-    const selected = table.filter.include()[col.key] ?? new Set()
-    const selectedCount = values.filter((v) => selected.has(v)).length
-    return {
-      checked: selectedCount > 0 && selectedCount === values.length,
-      indeterminate: selectedCount > 0 && selectedCount < values.length,
-    }
-  })
+  const othersState = createMemo(() =>
+    checklistBulkState(otherValues(), touched(), usesExcludeOnly()),
+  )
   let othersEl: HTMLInputElement | undefined
   createEffect(() => {
     applyCheckboxState(othersEl, othersState().checked, othersState().indeterminate)
   })
 
-  // --- Date tree ---
   function handleDateNodeToggle(node: DateTreeNode, shiftKey: boolean): void {
-    const col = activeCol()
-    const anchorPath = anchorValue()
-    const anchorNode = anchorPath ? findDateTreeNode(dateTree(), anchorPath) : undefined
-    if (shiftKey && anchorNode) {
-      const selected = table.filter.include()[col.key] ?? new Set()
-      const wasChecked = node.values.length > 0 && node.values.every((v) => selected.has(v))
-      const shouldSelect = !wasChecked
-      const range = selectDateRange(filterDetailValues(), anchorNode, node, col.parseDate)
-      table.filter.setValues(col.key, range, shouldSelect)
-      // Same "only clear exclusions when selecting" guard as the flat checklist's handleValueClick.
-      if (shouldSelect) table.filter.clearExcludeValues(col.key, range)
-    } else {
-      table.filter.toggleAll(col.key, node.values)
-    }
+    clickDateTreeNode(table.filter, activeCol().key, node, shiftKey, {
+      anchorPath: anchorValue(),
+      tree: dateTree(),
+      values: filterDetailValues(),
+      include: table.filter.include()[activeCol().key],
+      parseDate: activeCol().parseDate,
+    })
     setAnchor(node.path)
   }
 

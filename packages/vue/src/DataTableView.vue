@@ -1,5 +1,5 @@
 <script setup lang="ts" generic="TRow extends object">
-import { computed, ref, shallowRef, watch, nextTick, useSlots } from 'vue'
+import { computed, ref, watch, nextTick, useSlots } from 'vue'
 import {
   computeAggregate,
   getColumnValue,
@@ -10,7 +10,6 @@ import {
   indexOfVisibleItem,
   paginateVisibleItems,
   mergePageSizeOptions,
-  computeVirtualRange,
   getCrossPageFocusTarget,
   getSortIndex as getHeaderSortIndex,
   getSortIcon as getHeaderSortIcon,
@@ -82,7 +81,6 @@ const {
   ordered: orderedColumns,
   toggleVisibility: toggleColVisibility,
   move: moveColumn,
-  moveBy: moveColumnBy,
   moveVisibleBy: moveVisibleColumnBy,
 } = props.table.columns
 const {
@@ -101,17 +99,7 @@ const {
   include: filters,
   exclude: excludeFilters,
   ranges: rangeFilters,
-  modes: filterModes,
   activeCount: activeFilterCount,
-  valueMap: stringValueMap,
-  setMode: setFilterMode,
-  toggleAll: toggleFilterAll,
-  setValues: setFilterValues,
-  cycleValue: cycleFilterValue,
-  clearExcludeValues,
-  setExcludeValues,
-  toggleExcludeAll,
-  setRange: setRangeFilter,
   clearColumn: clearColumnFilter,
   clear: clearFilters,
 } = props.table.filter

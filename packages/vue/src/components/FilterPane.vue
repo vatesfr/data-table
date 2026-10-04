@@ -22,10 +22,10 @@ import {
   getValueSortIcon,
   getDateSortIcon,
   computeDateTree,
-  getDateTreeNodeState,
-  findDateTreeNode,
-  selectDateRange,
-  selectRange,
+  checklistBulkState,
+  clickChecklistValue,
+  clickDateTreeNode,
+  toggleChecklistValues,
   computeVirtualRange,
   getVirtualScrollTarget,
   type DateTreeNode,
@@ -65,12 +65,6 @@ const {
   modes: filterModes,
   valueMap: stringValueMap,
   setMode: setFilterMode,
-  toggleAll: toggleFilterAll,
-  setValues: setFilterValues,
-  cycleValue: cycleFilterValue,
-  clearExcludeValues,
-  setExcludeValues,
-  toggleExcludeAll,
   setRange: setRangeFilter,
 } = props.table.filter
 
@@ -163,48 +157,27 @@ function valueTitle(value: string): string {
   return isValueExcluded(value) ? L.value.filterExcludedTitle : L.value.filterValueTitle
 }
 
-// Bulk checked/indeterminate state over `vals` — the select-all checkbox and the "Others" row.
-function bulkState(vals: string[]): { checked: boolean; indeterminate: boolean } {
-  const set = usesExcludeOnly.value
-    ? excludeFilters.value[props.col.key]
-    : filters.value[props.col.key]
-  const count = vals.filter((v) => set?.has(v)).length
-  if (usesExcludeOnly.value)
-    return { checked: count === 0, indeterminate: count > 0 && count < vals.length }
-  return {
-    checked: count > 0 && count === vals.length,
-    indeterminate: count > 0 && count < vals.length,
-  }
-}
-const allState = computed(() => bulkState(values.value))
-const othersState = computed(() => bulkState(otherValues.value))
+// Select-all and "Others" state and clicks: shared logic in core
+const touched = () => (usesExcludeOnly.value ? excludeFilters.value : filters.value)[props.col.key]
+const allState = computed(() => checklistBulkState(values.value, touched(), usesExcludeOnly.value))
+const othersState = computed(() =>
+  checklistBulkState(otherValues.value, touched(), usesExcludeOnly.value),
+)
 function toggleAllOf(vals: string[]): void {
-  if (vals.length === 0) return
-  if (usesExcludeOnly.value) toggleExcludeAll(props.col.key, vals)
-  else toggleFilterAll(props.col.key, vals)
+  toggleChecklistValues(props.table.filter, props.col.key, vals, usesExcludeOnly.value)
 }
 
 function onValueClick(value: string, event: MouseEvent): void {
   // Vue's `:checked` only rewrites the DOM property when the bound value changes, so the native
   // toggle is prevented and the binding alone drives the checkbox (see the tri-state cycle).
   event.preventDefault()
-  const key = props.col.key
-  if (usesExcludeOnly.value) {
-    const excludedNow = excludeFilters.value[key]?.has(value) ?? false
-    const range =
-      event.shiftKey && anchor.value != null
-        ? selectRange(values.value, anchor.value, value)
-        : [value]
-    setExcludeValues(key, range, !excludedNow)
-  } else if (event.shiftKey && anchor.value != null) {
-    const shouldSelect = !(filters.value[key]?.has(value) ?? false)
-    const range = selectRange(values.value, anchor.value, value)
-    setFilterValues(key, range, shouldSelect)
-    // Shift-range stays include-only: clear the swept range's exclusions when selecting.
-    if (shouldSelect) clearExcludeValues(key, range)
-  } else {
-    cycleFilterValue(key, value)
-  }
+  clickChecklistValue(props.table.filter, props.col.key, value, event.shiftKey, {
+    anchor: anchor.value,
+    values: values.value,
+    include: filters.value[props.col.key],
+    exclude: excludeFilters.value[props.col.key],
+    excludeOnly: usesExcludeOnly.value,
+  })
   anchor.value = value
 }
 
@@ -254,16 +227,13 @@ function toggleExpand(path: string): void {
   expanded.value = next
 }
 function onDateNodeClick(node: DateTreeNode, event: MouseEvent): void {
-  const key = props.col.key
-  const anchorNode = anchor.value != null ? findDateTreeNode(dateTree.value, anchor.value) : null
-  if (event.shiftKey && anchorNode) {
-    const shouldSelect = getDateTreeNodeState(node, filters.value[key] ?? new Set()) !== 'checked'
-    const range = selectDateRange(values.value, anchorNode, node, props.col.parseDate)
-    setFilterValues(key, range, shouldSelect)
-    if (shouldSelect) clearExcludeValues(key, range)
-  } else {
-    toggleFilterAll(key, node.values)
-  }
+  clickDateTreeNode(props.table.filter, props.col.key, node, event.shiftKey, {
+    anchorPath: anchor.value,
+    tree: dateTree.value,
+    values: values.value,
+    include: filters.value[props.col.key],
+    parseDate: props.col.parseDate,
+  })
   anchor.value = node.path
 }
 
