@@ -42,7 +42,7 @@ function mountView(cols = COLS, initialViewState?: TableViewState) {
   const wrapper = mount(Comp, { attachTo: document.body })
   const el = wrapper.element as HTMLElement
   const trigger = (label: string) =>
-    el.querySelector<HTMLButtonElement>(`[aria-label="${label} options"]`)
+    el.querySelector<HTMLButtonElement>(`[aria-label^="${label} options"]`)
   const menuItems = () => [...el.querySelectorAll<HTMLButtonElement>('[role=menuitem]')]
   const items = () => menuItems().map((b) => b.textContent!.trim())
   const item = (name: string) => menuItems().find((b) => b.textContent!.includes(name))!
@@ -221,6 +221,11 @@ describe('HeaderMenu', () => {
     const { trigger, unmount } = mountView(COLS, { filters: { dept: ['Eng'] } })
     expect(trigger('Dept')!.classList.contains('dt__th-menu--filtered')).toBe(true)
     expect(trigger('Name')!.classList.contains('dt__th-menu--filtered')).toBe(false)
+    // Named and shaped as filtered, not only colored (U19)
+    expect(trigger('Dept')!.getAttribute('aria-label')).toBe('Dept options, filtered')
+    expect(trigger('Dept')!.querySelector('svg')).not.toBeNull()
+    expect(trigger('Name')!.getAttribute('aria-label')).toBe('Name options')
+    expect(trigger('Name')!.querySelector('svg')).toBeNull()
     unmount()
   })
 })

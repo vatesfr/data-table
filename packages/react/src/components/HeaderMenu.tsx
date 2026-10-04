@@ -216,7 +216,8 @@ export function HeaderMenu({
           ...(filtered ? { color: 'var(--color-text-info)', fontWeight: 700 } : null),
         }}
       >
-        ▾
+        {/* A funnel, not just a color, tells a filtered column apart */}
+        {filtered ? <Icon item="filter" /> : '▾'}
       </button>
       {open && (
         <div

@@ -126,7 +126,7 @@ export function HeaderMenu<TRow extends object>(props: HeaderMenuProps<TRow>) {
         classList={{ 'dt-th-menu--filtered': isFiltered() }}
         data-col-menu
         ref={triggerRef}
-        aria-label={table.labels().columnMenu(props.col.label)}
+        aria-label={table.labels().columnMenu(props.col.label, isFiltered())}
         aria-haspopup="menu"
         aria-expanded={open()}
         draggable={false}
@@ -136,7 +136,10 @@ export function HeaderMenu<TRow extends object>(props: HeaderMenuProps<TRow>) {
           else openMenu()
         }}
       >
-        ▾
+        {/* A funnel, not just a color, tells a filtered column apart */}
+        <Show when={isFiltered()} fallback="▾">
+          <Icon item="filter" />
+        </Show>
       </button>
       <Show when={open()}>
         <div

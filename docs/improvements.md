@@ -28,7 +28,6 @@ Seeded 2026-10-04 from issues reported by a consumer app, each reproduced on the
 
 ## Column headers
 
-- **U19 · minor · UC11, UC09** — a filtered column's ▾ differs from the others only by color, and its accessible name ("Department options") doesn't say it's filtered. Give it a distinct shape (a funnel) and say it in the name ("Department options, filtered").
 - **U20 · minor · UC07, UC11** — on a phone the header menu's Filter flyout covers the whole menu, so getting back to Group by or Hide means closing everything; it also focuses its search box, raising the on-screen keyboard before the user asked to type (the toolbar dropdowns do the same). On a coarse pointer, focus the panel rather than its search box, and give the flyout a way back to the menu.
 
 ## Empty and cleared states

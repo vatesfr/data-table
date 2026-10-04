@@ -120,13 +120,26 @@ function onMenuKeydown(e: KeyboardEvent): void {
       class="dt__th-menu"
       :class="{ 'dt__th-menu--filtered': isFiltered }"
       data-col-menu
-      :aria-label="L.columnMenu(col.label)"
+      :aria-label="L.columnMenu(col.label, isFiltered)"
       aria-haspopup="menu"
       :aria-expanded="open"
       draggable="false"
       @click.stop="open ? close(false) : openMenu()"
     >
-      ▾
+      <!-- A funnel, not just a color, tells a filtered column apart -->
+      <svg
+        v-if="isFiltered"
+        class="dt__th-menu-icon"
+        viewBox="0 0 16 16"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.5"
+        stroke-linejoin="round"
+        aria-hidden="true"
+      >
+        <path :d="HEADER_MENU_ITEMS.filter.icon" />
+      </svg>
+      <template v-else>▾</template>
     </button>
     <div
       v-if="open"

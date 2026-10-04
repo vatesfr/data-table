@@ -35,7 +35,7 @@ function mount(cols = COLS, initialViewState?: TableViewState) {
     return d
   })
   const trigger = (label: string) =>
-    container.querySelector<HTMLButtonElement>(`[aria-label="${label} options"]`)
+    container.querySelector<HTMLButtonElement>(`[aria-label^="${label} options"]`)
   const items = () =>
     [...container.querySelectorAll<HTMLButtonElement>('[role=menuitem]')].map((b) =>
       b.textContent!.trim(),
@@ -202,6 +202,11 @@ describe('HeaderMenu', () => {
     const { trigger, dispose } = mount(COLS, { filters: { dept: ['Eng'] } })
     expect(trigger('Dept')!.classList.contains('dt-th-menu--filtered')).toBe(true)
     expect(trigger('Name')!.classList.contains('dt-th-menu--filtered')).toBe(false)
+    // Named and shaped as filtered, not only colored (U19)
+    expect(trigger('Dept')!.getAttribute('aria-label')).toBe('Dept options, filtered')
+    expect(trigger('Dept')!.querySelector('svg')).not.toBeNull()
+    expect(trigger('Name')!.getAttribute('aria-label')).toBe('Name options')
+    expect(trigger('Name')!.querySelector('svg')).toBeNull()
     dispose()
   })
 })

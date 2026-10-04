@@ -46,7 +46,7 @@ function mount(cols = COLS, initialViewState?: TableViewState) {
     <Harness cols={cols} initialViewState={initialViewState} onReady={(t) => (table = t)} />,
   )
   const trigger = (label: string) =>
-    container.querySelector<HTMLButtonElement>(`[aria-label="${label} options"]`)
+    container.querySelector<HTMLButtonElement>(`[aria-label^="${label} options"]`)
   const items = () =>
     [...container.querySelectorAll<HTMLButtonElement>('[role=menuitem]')].map((b) =>
       b.textContent!.trim(),
@@ -185,5 +185,10 @@ describe('HeaderMenu', () => {
     const { trigger } = mount(COLS, { filters: { dept: ['Eng'] } })
     expect(isFiltered(trigger('Dept')!)).toBe(true)
     expect(isFiltered(trigger('Name')!)).toBe(false)
+    // Named and shaped as filtered, not only colored (U19)
+    expect(trigger('Dept')!.getAttribute('aria-label')).toBe('Dept options, filtered')
+    expect(trigger('Dept')!.querySelector('svg')).not.toBeNull()
+    expect(trigger('Name')!.getAttribute('aria-label')).toBe('Name options')
+    expect(trigger('Name')!.querySelector('svg')).toBeNull()
   })
 })
