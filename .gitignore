@@ -3,4 +3,5 @@ dist/
 *.tsbuildinfo
 *.local
 .playwright-mcp/
+.playwright-e2e/
 demo-*.png

@@ -2,7 +2,7 @@
 # Runs the given npm scripts in order (default: every check), printing one line per step and a
 # step's full output only when it fails.
 set -u
-[ $# -eq 0 ] && set -- check:docs lint type-check test build size
+[ $# -eq 0 ] && set -- check:docs lint type-check test e2e build size
 log=$(mktemp)
 trap 'rm -f "$log"' EXIT
 for step in "$@"; do

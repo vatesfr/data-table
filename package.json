@@ -11,7 +11,8 @@
     "dev:vue": "npm run dev -w demo/vue",
     "dev:solid": "npm run dev -w demo/solid",
     "dev:vanilla": "npm run dev -w demo/vanilla",
-    "type-check": "npm run type-check -w packages/core && npm run type-check -w packages/react && npm run type-check -w packages/vue && npm run type-check -w packages/solid && npm run type-check -w packages/vanilla && npm run type-check -w demo/react -w demo/vue -w demo/solid -w demo/vanilla",
+    "type-check": "npm run type-check -w packages/core && npm run type-check -w packages/react && npm run type-check -w packages/vue && npm run type-check -w packages/solid && npm run type-check -w packages/vanilla && npm run type-check -w demo/react -w demo/vue -w demo/solid -w demo/vanilla && tsc -p e2e",
+    "e2e": "playwright test -c e2e",
     "test": "npm run test -w packages/core && npm run test -w packages/react && npm run test -w packages/vue && npm run test -w packages/solid && npm run test -w packages/vanilla",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -26,7 +27,9 @@
     "*.{js,mjs,cjs,ts,tsx,vue}": "eslint --fix"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
     "@eslint/js": "^10.0.0",
+    "@playwright/test": "^1.63.0",
     "eslint": "^10.0.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "husky": "^9.1.7",

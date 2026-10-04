@@ -16,7 +16,7 @@ Works through the named `U<n>` items in [improvements.md](../../../docs/improvem
 
 - Behavior: a test per adapter (React, Vue, Solid — vanilla too when its wrapper is involved) in that package's `src/__tests__/`, next to the area's existing tests; logic: a pure-function test in core. See [testing](../../../docs/testing.md).
 - Run it alone (`npx vitest run <path>` from the package) and confirm it fails for the reason the item describes.
-- What jsdom can't show (layout, overflow, sizes, scroll) skips the test; step 3 measures it instead, before and after.
+- What jsdom can't show (layout, overflow, sizes, scroll, accessibility) gets a Playwright test in `e2e/` instead, on the Solid demo; step 3 still measures it before and after. An item listed in `e2e/axe.spec.ts`'s `KNOWN` leaves that list with its fix.
 
 ## 2. Fix
 

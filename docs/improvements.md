@@ -4,7 +4,7 @@
 
 UX backlog from `ux-review` runs against [use cases](use-cases.md) and [UI guidelines](ui-guidelines.md). Each item names the use cases it slows down and, when not all three, the adapters; `ux-fix` fixes one per commit and removes it once shipped. IDs are never reused.
 
-Next free ID: **U23** (IDs are never reused, including ones dropped before committing).
+Next free ID: **U25** (IDs are never reused, including ones dropped before committing).
 
 Severity: **blocker** (goal unreachable) · **major** (reached with confusion or a workaround) · **minor** (friction) · **polish**.
 
@@ -14,6 +14,7 @@ Seeded 2026-10-04 from issues reported by a consumer app, each reproduced on the
 - [Active bar](#active-bar)
 - [Column headers](#column-headers)
 - [Empty and cleared states](#empty-and-cleared-states)
+- [Pagination](#pagination)
 - [Layout and integration](#layout-and-integration)
 - [Adapter-specific](#adapter-specific)
 
@@ -30,9 +31,15 @@ Seeded 2026-10-04 from issues reported by a consumer app, each reproduced on the
 
 - **U20 · minor · UC07, UC11** — on a phone the header menu's Filter flyout covers the whole menu, so getting back to Group by or Hide means closing everything; it also focuses its search box, raising the on-screen keyboard before the user asked to type (the toolbar dropdowns do the same). On a coarse pointer, focus the panel rather than its search box, and give the flyout a way back to the menu.
 
+- **U24 · polish · UC01, UC09** — header labels are #6b6a66 on the #eae9e5 header background: 4.45:1, just under WCAG AA's 4.5:1 for 12 px text; seen in Solid. Darken the label color or lighten the header. Found by `e2e/axe.spec.ts`, which lists it as known until fixed.
+
 ## Empty and cleared states
 
 - **U8 · polish · UC01** — Clear all drops every sort, group and filter at once with no undo. Consider an Undo next to the stats line for a few seconds.
+
+## Pagination
+
+- **U23 · minor · UC09** — the rows-per-page `<select>` has no accessible name: its visible "Rows per page:" text is a sibling span, so a screen reader announces only "combo box, 10"; all adapters. Wrap both in a `<label>`. Found by `e2e/axe.spec.ts`, which lists it as known until fixed.
 
 ## Layout and integration
 
