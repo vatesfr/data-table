@@ -3,6 +3,7 @@ import { ref, watch, onMounted, onUnmounted } from 'vue'
 import {
   computeDropdownClampOffset,
   ddNavFocusables,
+  keepDropdownClamped,
   viewportWidth,
 } from '@vates/data-table-core/internal'
 
@@ -101,19 +102,29 @@ onUnmounted(() => document.removeEventListener('mousedown', onMousedown))
 // trigger.
 watch(
   isOpen,
-  (open) => {
+  (open, _, onCleanup) => {
     if (!open) return
     const menu = menuRef.value
     if (!menu) return
     const rect = menu.getBoundingClientRect()
-    const { dx, flipUp } = computeDropdownClampOffset(rect, viewportWidth(), window.innerHeight)
-    if (dx !== 0) menu.style.transform = `translateX(${dx}px)`
+    const { flipUp } = computeDropdownClampOffset(rect, viewportWidth(), window.innerHeight)
     if (flipUp) {
       menu.style.top = 'auto'
       menu.style.marginTop = '0'
       menu.style.bottom = '100%'
       menu.style.marginBottom = '4px'
     }
+    let dx = 0
+    onCleanup(
+      keepDropdownClamped(
+        menu,
+        () => dx,
+        (next) => {
+          dx = next
+          menu.style.transform = next ? `translateX(${next}px)` : ''
+        },
+      ),
+    )
     // Focus follows open, rather than leaving it on the trigger button — otherwise every open
     // still needs an extra Tab press before typing into a search box or using arrow-key nav does
     // anything. `[data-dd-search]` is a generic marker a consumer puts on whichever input should

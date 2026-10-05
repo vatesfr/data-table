@@ -89,6 +89,45 @@ export function computeDropdownClampOffset(
 }
 
 /**
+ * Clamps an open panel horizontally now and after every DOM change: its trigger can move while the
+ * panel is open (a filter count badge widens the Filter button, the toolbar rewraps). `getDx`/
+ * `setDx` read and apply the panel's `translateX`. Returns the function stopping it.
+ */
+export function keepDropdownClamped(
+  panel: HTMLElement,
+  getDx: () => number,
+  setDx: (dx: number) => void,
+): () => void {
+  const clamp = () => {
+    const rect = panel.getBoundingClientRect()
+    // Not laid out (jsdom, hidden): the rect ignores the translateX, so each write would grow it
+    if (!rect.width) return
+    const current = getDx()
+    const { dx } = computeDropdownClampOffset(
+      {
+        top: rect.top,
+        bottom: rect.bottom,
+        left: rect.left - current,
+        right: rect.right - current,
+      },
+      viewportWidth(),
+      window.innerHeight,
+    )
+    // Sub-pixel noise would otherwise re-trigger this observer through the style write
+    if (Math.abs(dx - current) >= 0.5) setDx(dx)
+  }
+  clamp()
+  const observer = new MutationObserver(clamp)
+  observer.observe(document.body, {
+    subtree: true,
+    childList: true,
+    attributes: true,
+    characterData: true,
+  })
+  return () => observer.disconnect()
+}
+
+/**
  * Computes a category submenu's (see `ColumnDefBase.category`) fixed-viewport `left`/`top`,
  * flying out from `triggerRow`'s own rect. Rendered via a portal (straight to `document.body`,
  * not nested under the trigger's own scrollable dropdown panel — see `CategorySubmenu.tsx`'s own

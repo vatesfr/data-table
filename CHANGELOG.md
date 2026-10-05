@@ -7,6 +7,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Fixed
+
+- **Dropdowns stay on screen while open** (Solid, React, Vue, vanilla): a panel whose trigger moves while it's open — checking a filter value adds a count to the Filter button — is clamped to the viewport again, instead of keeping the offset measured at open and sliding past the right edge on a phone.
+
 ## [0.16.0] - 2026-10-04
 
 ### Added

@@ -9,6 +9,7 @@ import {
 import {
   computeDropdownClampOffset,
   ddNavFocusables,
+  keepDropdownClamped,
   viewportWidth,
 } from '@vates/data-table-core/internal'
 
@@ -71,14 +72,22 @@ export function Dropdown({
     const panel = panelRef.current
     if (!panel) return
     const rect = panel.getBoundingClientRect()
-    const { dx, flipUp } = computeDropdownClampOffset(rect, viewportWidth(), window.innerHeight)
-    if (dx !== 0) panel.style.transform = `translateX(${dx}px)`
+    const { flipUp } = computeDropdownClampOffset(rect, viewportWidth(), window.innerHeight)
     if (flipUp) {
       panel.style.top = 'auto'
       panel.style.marginTop = '0'
       panel.style.bottom = '100%'
       panel.style.marginBottom = '4px'
     }
+    let dx = 0
+    const stopClamping = keepDropdownClamped(
+      panel,
+      () => dx,
+      (next) => {
+        dx = next
+        panel.style.transform = next ? `translateX(${next}px)` : ''
+      },
+    )
     // Opening a dropdown should hand it focus immediately — its own search box if it has one
     // (preferred regardless of where it sits in the DOM, e.g. Sort/Group's search box renders
     // *after* the active-entries section but is still the preferred landing spot, matching
@@ -87,6 +96,7 @@ export function Dropdown({
     const search = panel.querySelector<HTMLElement>('input[data-dd-search]')
     if (search) search.focus()
     else ddNavFocusables(panel)[0]?.focus()
+    return stopClamping
   }, [open])
 
   // Roving Up/Down/Home/End/Escape navigation across this panel's own search box + rows — see

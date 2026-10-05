@@ -88,6 +88,12 @@ Symptom first, then cause and fix. Delete entries once obsolete.
 - Cause: a demo dev server left running (E2E reuses the one on 58983) whose Vite dependency cache predates an `npm ci` (or a lockfile change).
 - Fix: restart that dev server (`npm run dev:<demo>`, as the error names).
 
+## E2E geometry check passes locally, fails in CI
+
+- Symptom: a phone E2E check like `expect(box.x + box.width).toBeLessThanOrEqual(width)` fails only in CI ("Received: 390.625"), on retry too.
+- Cause: CI's Linux fonts give different text widths, so controls shift differently; a layout bug that local metrics happen to hide (here: a dropdown's clamp measured once at open, then its trigger moved) shows up there.
+- Fix: find the layout dependency rather than loosening the check; probing positions step by step locally shows what moves.
+
 ## Unit tests fail in CI with "webidl.util.markAsUncloneable is not a function"
 
 - Cause: jsdom 30 needs Node `^22.22.2 || ^24.15.0 || >=26` (its undici, `>=22.19.0`); CI ran an older Node.

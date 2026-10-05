@@ -2,6 +2,7 @@ import { type JSX, Show, createSignal, onCleanup, onMount } from 'solid-js'
 import {
   computeDropdownClampOffset,
   ddNavFocusables,
+  keepDropdownClamped,
   viewportWidth,
 } from '@vates/data-table-core/internal'
 
@@ -110,9 +111,7 @@ export function Dropdown(props: DropdownProps) {
 
   function clampToViewport(el: HTMLDivElement): void {
     const rect = el.getBoundingClientRect()
-    const { dx, flipUp } = computeDropdownClampOffset(rect, viewportWidth(), window.innerHeight)
-    setTranslateX(dx)
-    setFlipUp(flipUp)
+    setFlipUp(computeDropdownClampOffset(rect, viewportWidth(), window.innerHeight).flipUp)
   }
 
   return (
@@ -126,6 +125,13 @@ export function Dropdown(props: DropdownProps) {
           class={`dt-dd${flipUp() ? ' dt-dd--up' : ''}`}
           ref={(el) => {
             panelRef = el
+            // Registered here: the microtask below runs outside this branch's owner
+            let stopClamping: (() => void) | undefined
+            let closed = false
+            onCleanup(() => {
+              closed = true
+              stopClamping?.()
+            })
             // A ref callback fires at this element's own insertion time — before `props.children`
             // (passed down from Columns/Sort/Group/Filter, several component boundaries away) has
             // actually been resolved and appended underneath it. Querying for a search box/row
@@ -133,7 +139,7 @@ export function Dropdown(props: DropdownProps) {
             // underlying reason the viewport-clamp measurement below already needs to wait a
             // microtask, just for DOM presence instead of layout.
             queueMicrotask(() => {
-              if (!panelRef) return
+              if (!panelRef || closed) return
               // Opening a dropdown should hand it focus immediately — its own search box if it
               // has one (preferred regardless of where it sits in the DOM, e.g. Sort/Group's
               // search box renders *after* the active-entries section but is still the preferred
@@ -143,6 +149,7 @@ export function Dropdown(props: DropdownProps) {
               // depend on the same "children actually exist" precondition. Clamp first: focusing a
               // field still past the viewport's edge scrolls the whole page sideways (phones).
               clampToViewport(panelRef)
+              stopClamping = keepDropdownClamped(panelRef, translateX, setTranslateX)
               const search = panelRef.querySelector<HTMLElement>('input[data-dd-search]')
               if (search) search.focus()
               else ddNavFocusables(panelRef)[0]?.focus()
