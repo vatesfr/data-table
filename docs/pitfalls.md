@@ -87,3 +87,8 @@ Symptom first, then cause and fix. Delete entries once obsolete.
 - Symptom: `npm run e2e` fails every test, or a `scripts/ux-step.mjs`/`scripts/ux-measure.mjs` script throws, with "Outdated Vite deps: restart the dev server" (before that check, each timed out finding the table). The browser got "504 (Outdated Optimize Dep)" for `node_modules/.vite/deps/…`.
 - Cause: a demo dev server left running (E2E reuses the one on 58983) whose Vite dependency cache predates an `npm ci` (or a lockfile change).
 - Fix: restart that dev server (`npm run dev:<demo>`, as the error names).
+
+## Unit tests fail in CI with "webidl.util.markAsUncloneable is not a function"
+
+- Cause: jsdom 30 needs Node `^22.22.2 || ^24.15.0 || >=26` (its undici, `>=22.19.0`); CI ran an older Node.
+- Fix: workflows take Node from the root `package.json`'s `engines.node` (`node-version-file`); keep that range in line with jsdom's.
