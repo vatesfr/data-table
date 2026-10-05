@@ -9,7 +9,6 @@
     "type-check": "vue-tsc --noEmit"
   },
   "dependencies": {
-    "@vates/data-table-core": "*",
     "@vates/data-table-vue": "*",
     "vue": "^3.5.0"
   },

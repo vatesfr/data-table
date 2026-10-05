@@ -9,7 +9,6 @@
     "type-check": "tsc --noEmit -p ."
   },
   "dependencies": {
-    "@vates/data-table-core": "*",
     "@vates/data-table-react": "*",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"

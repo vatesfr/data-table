@@ -9,7 +9,6 @@
     "type-check": "tsc --noEmit -p ."
   },
   "dependencies": {
-    "@vates/data-table-core": "*",
     "@vates/data-table-solid": "*",
     "solid-js": "^1.9.15"
   },
