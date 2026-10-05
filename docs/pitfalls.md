@@ -2,13 +2,19 @@
 
 Symptom first, then cause and fix. Delete entries once obsolete.
 
-<!-- check-docs-ignore: exceeded journalctl memory Killed chromium-browse Failed oom-kill _vts invoker -->
+<!-- check-docs-ignore: exceeded journalctl memory Killed chromium-browse Failed oom-kill _vts invoker bundleTypes unplugin-dts -->
 
 ## Empty `dist/index.d.ts` after a dependency bump
 
 - Symptom: `packages/{react,vue,solid,vanilla}/dist/index.d.ts` is empty; `build` still exits 0, so CI doesn't catch it.
 - Cause: peer ranges of `typescript-eslint`/`vue-tsc` reach into `typescript@6.x`, which npm can hoist to the root; `vite-plugin-dts`'s cross-package rollup then uses it instead of each package's pinned 5.x.
 - Fix: root `package.json`'s `"overrides": { "typescript": "^5.5.0" }` — keep it. After touching `typescript`, `typescript-eslint`, `vue-tsc` or `vite-plugin-dts`, check those `.d.ts` files are non-trivial.
+
+## `vite-plugin-dts` 5 breaks the adapter `.d.ts` builds
+
+- Symptom: after renaming `rollupTypes` to `bundleTypes` and installing `@microsoft/api-extractor` (plus `@vue/language-core` for Vue), the react build fails with `Internal Error: Unable to determine semantic information for declaration: …/packages/core/src/logic.ts:522:11`; without `bundleTypes`, `dist/index.d.ts` is just `export * from './react/src/index.js'`.
+- Cause: v5 (a wrapper around `unplugin-dts`) follows the tsconfig `paths` into core's source, and API Extractor applies them itself, so `compilerOptions: { paths: {} }` isn't enough. Resolving core through its `dist/` instead fails with TS4058 (`ColumnDefBase` … cannot be named): core's `index.d.ts` and `internal.d.ts` each bundle their own copy of shared types.
+- Fix: stay on `vite-plugin-dts` 4. Upgrading needs the adapters to type-check against core differently, beyond a version bump.
 
 ## Checkbox stays checked in the browser, test passes in jsdom
 
