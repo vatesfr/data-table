@@ -4,7 +4,8 @@
 //
 //   node scripts/ux-step.mjs <step.js>   → writes .playwright-mcp/step.js
 //
-// then `browser_run_code_unsafe` with `filename: .playwright-mcp/step.js`. The step file holds one
+// then `browser_run_code_unsafe` with `filename: .playwright-mcp/step.js` — or add `--run` to run
+// it right away in a local headless Chromium and print its result. The step file holds one
 // async function receiving the helpers:
 //
 //   async ({ page, open, after, clickAt, rowCount, encodeView }) => { … return result }
@@ -24,10 +25,9 @@ import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { join, relative, resolve } from 'node:path'
 import process from 'node:process'
 import console from 'node:console'
-
-const file = process.argv[2]
+const file = process.argv.slice(2).find((a) => !a.startsWith('--'))
 if (!file) {
-  console.error('Usage: node scripts/ux-step.mjs <step.js>')
+  console.error('Usage: node scripts/ux-step.mjs <step.js> [--run]')
   process.exit(1)
 }
 const step = readFileSync(file, 'utf8').trim()
@@ -72,3 +72,5 @@ mkdirSync(dir, { recursive: true })
 const out = join(dir, 'step.js')
 writeFileSync(out, script)
 console.log(relative(process.cwd(), out))
+if (process.argv.includes('--run'))
+  await (await import('./run-in-browser.mjs')).runInBrowser(script)

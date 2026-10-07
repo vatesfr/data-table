@@ -2,11 +2,13 @@
 // Writes .playwright-mcp/measure.js, a Playwright MCP `browser_run_code_unsafe` script (pass it as
 // `filename`) measuring demo sections at desktop and phone widths, with screenshots — the layout
 // checks ux-review/ux-fix need, instead of hand-writing them each time.
-//   node scripts/ux-measure.mjs [--demo=<demo>[,<demo>…]] [--name=<prefix>] [--keep] [--view=<param>:<json>…] [#section…]
+//   node scripts/ux-measure.mjs [--demo=<demo>[,<demo>…]] [--name=<prefix>] [--keep] [--view=<param>:<json>…] [--run] [#section…]
 //   --demo  which demos' dev servers to hit, comma-separated among react, vue, solid, vanilla
 //           (default solid; start each with `npm run dev:<demo>`)
 //   --name  screenshot prefix (default "measure"): .playwright-mcp/<name>-<demo>-<section>-<width>.png
 //   --keep  keep the demo's persisted views (localStorage, URL); cleared by default
+//   --run   run it right away in a local headless Chromium and print the result, instead of
+//           through the Playwright MCP
 //   --view  open with a section's view set, e.g. --view=sel:'{"groupBy":["department"]}' (repeatable;
 //           <param> is the section's URL param in the demo's VIEW_KEYS, <json> a TableViewState)
 // Sections default to every one rendering a table. Per demo, section and width it returns: how far below
@@ -50,7 +52,7 @@ if (
   args.some((a) => !a.startsWith('#') && !a.startsWith('--'))
 ) {
   console.error(
-    'Usage: node scripts/ux-measure.mjs [--demo=<demo>[,<demo>…]] [--name=<prefix>] [--keep] [--view=<param>:<json>…] [#section…]',
+    'Usage: node scripts/ux-measure.mjs [--demo=<demo>[,<demo>…]] [--name=<prefix>] [--keep] [--view=<param>:<json>…] [--run] [#section…]',
   )
   process.exit(1)
 }
@@ -167,3 +169,4 @@ mkdirSync(dir, { recursive: true })
 const file = join(dir, 'measure.js')
 writeFileSync(file, script)
 console.log(relative(process.cwd(), file))
+if (args.includes('--run')) await (await import('./run-in-browser.mjs')).runInBrowser(script)
