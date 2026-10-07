@@ -18,7 +18,6 @@ Seeded 2026-10-04 from issues reported by a consumer app, each reproduced on the
 ## Filters
 
 - **U4 · minor · UC01, UC08** — the Filter dropdown's column pane is 149 px wide for 222 px of content, so it scrolls sideways even with short names like "Order Date" and clips its own search box; all adapters. Size the pane to its content, within the dropdown's max width.
-- **U5 · minor · UC01** — a range filter's inputs are named only by their "Min"/"Max" placeholders, with no column label, and show raw bounds instead of the column's format ("0 – 1000" for amounts shown as "$12.34"). Label them with the column and show bounds through its `format`.
 
 ## Active bar
 

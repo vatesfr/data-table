@@ -7,6 +7,8 @@ interface RangeSliderProps<TRow extends object> {
   col: ColumnDef<TRow>
   rangeFilter: RangeFilter | undefined
   bounds: { min: number; max: number } | null
+  minLabel: string
+  maxLabel: string
   onCommit: (min: string, max: string) => void
 }
 
@@ -65,7 +67,7 @@ export function RangeSlider<TRow extends object>(props: RangeSliderProps<TRow>) 
           max={props.bounds?.max}
           step={step()}
           value={lo()}
-          aria-label="min"
+          aria-label={props.minLabel}
           ref={thumbA}
           onInput={handleInput}
         />
@@ -76,7 +78,7 @@ export function RangeSlider<TRow extends object>(props: RangeSliderProps<TRow>) 
           max={props.bounds?.max}
           step={step()}
           value={hi()}
-          aria-label="max"
+          aria-label={props.maxLabel}
           ref={thumbB}
           onInput={handleInput}
         />

@@ -16,6 +16,7 @@ import {
   computeValueBounds,
   computeRangeSliderGeometry,
   formatRangeBound,
+  rangeInputProps,
   sortFilterValues,
   cycleValueSort,
   toggleSortDir,
@@ -217,11 +218,9 @@ const slider = computed(() => {
   )
   return { min: b.min, max: b.max, low: geo.low, high: geo.high, step: geo.step }
 })
-function rangeValue(kind: 'min' | 'max'): string {
-  return (
-    rangeFilters.value[props.col.key]?.[kind] ??
-    (bounds.value ? formatRangeBound(bounds.value[kind], props.col) : '')
-  )
+function rangeInput(kind: 'min' | 'max') {
+  const label = kind === 'min' ? L.value.min : L.value.max
+  return rangeInputProps(props.col, kind, rangeFilters.value[props.col.key], bounds.value, label)
 }
 function onSliderChange(low: number, high: number): void {
   setRangeFilter(props.col.key, 'min', formatRangeBound(low, props.col))
@@ -381,10 +380,8 @@ async function onKeydown(event: KeyboardEvent): Promise<void> {
     <RangeInputs
       v-if="col.type === 'number' || col.type === 'date'"
       :is-date="col.type === 'date'"
-      :min="rangeValue('min')"
-      :max="rangeValue('max')"
-      :min-label="L.min"
-      :max-label="L.max"
+      :min="rangeInput('min')"
+      :max="rangeInput('max')"
       :slider="slider"
       @update:min="setRangeFilter(col.key, 'min', $event)"
       @update:max="setRangeFilter(col.key, 'max', $event)"

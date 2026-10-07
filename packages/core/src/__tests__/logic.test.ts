@@ -89,6 +89,7 @@ import {
   formatLogRange,
   logRangeGroup,
   compareMissingLast,
+  rangeInputProps,
 } from '../logic'
 
 interface Row {
@@ -3691,5 +3692,42 @@ describe('summarizeFilterValues with a format', () => {
   it('joins with the given separator, keeping a comma before the overflow', () => {
     const vals = new Set(['a', 'b', 'c', 'd', 'e'])
     expect(summarizeFilterValues(vals, (n) => `+${n}`, undefined, ' & ')).toBe('a & b & c, +2')
+  })
+})
+
+describe('rangeInputProps', () => {
+  const price = {
+    key: 'price',
+    label: 'Price',
+    type: 'number' as const,
+    format: (v: unknown) => `$${v}`,
+  }
+  const day = { key: 'day', label: 'Day', type: 'date' as const }
+  const bounds = { min: 0, max: 1000 }
+
+  it('leaves a number input empty, with the formatted bound as placeholder', () => {
+    expect(rangeInputProps(price, 'max', undefined, bounds, 'Max')).toEqual({
+      value: '',
+      placeholder: '$1000',
+      ariaLabel: 'Price Max',
+    })
+  })
+
+  it('shows a set bound as typed, and falls back to the label without data', () => {
+    expect(rangeInputProps(price, 'min', { min: '5', max: '' }, null, 'Min')).toEqual({
+      value: '5',
+      placeholder: 'Min',
+      ariaLabel: 'Price Min',
+    })
+  })
+
+  it('shows a date bound as the value, with no placeholder', () => {
+    expect(
+      rangeInputProps(day, 'min', undefined, { min: Date.UTC(2024, 0, 2), max: 0 }, 'Min'),
+    ).toEqual({
+      value: '2024-01-02',
+      placeholder: undefined,
+      ariaLabel: 'Day Min',
+    })
   })
 })

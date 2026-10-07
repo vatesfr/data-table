@@ -13,6 +13,8 @@ defineProps<{
   low: number
   high: number
   step: number | 'any'
+  minLabel: string
+  maxLabel: string
 }>()
 
 const emit = defineEmits<{
@@ -41,6 +43,7 @@ function handleThumb(raw: number, other: number): void {
       :max="max"
       :step="step"
       :value="low"
+      :aria-label="minLabel"
       @input="handleThumb(Number(($event.target as HTMLInputElement).value), high)"
     />
     <input
@@ -50,6 +53,7 @@ function handleThumb(raw: number, other: number): void {
       :max="max"
       :step="step"
       :value="high"
+      :aria-label="maxLabel"
       @input="handleThumb(Number(($event.target as HTMLInputElement).value), low)"
     />
   </div>

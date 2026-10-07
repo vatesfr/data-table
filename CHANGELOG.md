@@ -14,6 +14,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ### Changed
 
 - **Excluding a value from a multi-value filter** (Solid, React, Vue, vanilla): each value in a multi-value column's checklist now has a ≠ button that excludes it, and its checkbox only includes. This replaces the hidden "click again to exclude" cycle. An excluded value is struck through in the exclusion colour, like its chip, instead of showing a "partly selected" checkbox. ←/→ move between a checkbox and its ≠ button. Fixes #34.
+- **Range filter inputs** (Solid, React, Vue, vanilla): a number range's inputs stay empty until a bound is set, showing the column's bounds through its `format` as placeholders ("$0" – "$180,000") instead of raw prefilled numbers. The inputs and slider thumbs are named after the column ("Salary Min", "Salary Max") instead of a bare "Min"/"Max".
 - **BREAKING (all four adapters):** the `filterValueTitle` and `filterExcludedTitle` labels are removed; the new `excludeValue(value)` label names the ≠ button. `table.filter.cycleValue` is unchanged.
 
 ### Fixed

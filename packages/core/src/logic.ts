@@ -1021,6 +1021,32 @@ export function formatRangeBound<TRow extends object>(n: number, col: ColumnDefB
 }
 
 /**
+ * A range filter input's value, placeholder and accessible name ("Salary Min"). A number input
+ * stays empty until its bound is set, showing the data's bound through the column's `format` as
+ * its placeholder ("$180,000"): a formatted value can't be typed back. A date input has no
+ * placeholder, so it shows the bound as its value, which the browser formats.
+ */
+export function rangeInputProps<TRow extends object>(
+  col: ColumnDefBase<TRow>,
+  kind: 'min' | 'max',
+  rangeFilter: RangeFilter | undefined,
+  bounds: { min: number; max: number } | null,
+  label: string,
+): { value: string; placeholder: string | undefined; ariaLabel: string } {
+  const isDate = col.type === 'date'
+  const set = rangeFilter?.[kind]
+  return {
+    value: set ?? (isDate && bounds ? formatRangeBound(bounds[kind], col) : ''),
+    placeholder: isDate
+      ? undefined
+      : bounds
+        ? formatFilterValue(col, String(bounds[kind]), '')
+        : label,
+    ariaLabel: `${col.label} ${label}`,
+  }
+}
+
+/**
  * Pure numeric derivation for the "2 inputs + a slider" range control: given the currently active
  * `range` filter (if any) and the column's data `bounds`, resolves the slider's own `low`/`high`
  * thumb positions (already sorted — `range.min`/`.max` empty strings fall back to `bounds`),

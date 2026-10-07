@@ -1,5 +1,5 @@
 import type { RangeFilter } from '@vates/data-table-core'
-import { formatRangeBound } from '@vates/data-table-core/internal'
+import { rangeInputProps } from '@vates/data-table-core/internal'
 import type { ColumnDef } from '../types'
 import { RangeSlider } from './RangeSlider'
 
@@ -14,19 +14,15 @@ interface RangeInputsProps<TRow extends object> {
 }
 
 /**
- * The plain min/max inputs (+ RangeSlider below them) for a number/date range filter — the two
- * types used to be two near-identical blocks in FilterDropdown.tsx's number/date `<Show>`
- * branches, differing only in `<input type>`/`inputmode`, whether the label is a placeholder
- * (number) or aria-label (date, since a native date input has no room for placeholder text), and
- * — previously a latent inconsistency fixed by unifying the two here — the date input was
- * missing the `dt-range-input` class the number input already carried, so `styles.ts`'s
- * `.dt-range-input[type=date]` width rule never actually matched a date input in practice.
+ * The min/max inputs (+ RangeSlider below them) for a number/date range filter. Value,
+ * placeholder and name come from core's `rangeInputProps`.
  */
 export function RangeInputs<TRow extends object>(props: RangeInputsProps<TRow>) {
   const isDate = () => props.col.type === 'date'
-  const valueFor = (kind: 'min' | 'max') =>
-    props.rangeFilter?.[kind] ??
-    (props.bounds ? formatRangeBound(props.bounds[kind], props.col) : '')
+  const min = () =>
+    rangeInputProps(props.col, 'min', props.rangeFilter, props.bounds, props.minLabel)
+  const max = () =>
+    rangeInputProps(props.col, 'max', props.rangeFilter, props.bounds, props.maxLabel)
 
   return (
     <div style={{ padding: '4px 14px 8px' }}>
@@ -35,9 +31,9 @@ export function RangeInputs<TRow extends object>(props: RangeInputsProps<TRow>) 
           type={isDate() ? 'date' : 'text'}
           inputmode={isDate() ? undefined : 'decimal'}
           class="dt-range-input"
-          placeholder={isDate() ? undefined : props.minLabel}
-          aria-label={isDate() ? props.minLabel : undefined}
-          value={valueFor('min')}
+          placeholder={min().placeholder}
+          aria-label={min().ariaLabel}
+          value={min().value}
           onInput={(e) => props.onChange('min', e.currentTarget.value)}
         />
         <span class="dt-range-sep">–</span>
@@ -45,9 +41,9 @@ export function RangeInputs<TRow extends object>(props: RangeInputsProps<TRow>) 
           type={isDate() ? 'date' : 'text'}
           inputmode={isDate() ? undefined : 'decimal'}
           class="dt-range-input"
-          placeholder={isDate() ? undefined : props.maxLabel}
-          aria-label={isDate() ? props.maxLabel : undefined}
-          value={valueFor('max')}
+          placeholder={max().placeholder}
+          aria-label={max().ariaLabel}
+          value={max().value}
           onInput={(e) => props.onChange('max', e.currentTarget.value)}
         />
       </div>
@@ -55,6 +51,8 @@ export function RangeInputs<TRow extends object>(props: RangeInputsProps<TRow>) 
         col={props.col}
         rangeFilter={props.rangeFilter}
         bounds={props.bounds}
+        minLabel={min().ariaLabel}
+        maxLabel={max().ariaLabel}
         onCommit={props.onSliderCommit}
       />
     </div>

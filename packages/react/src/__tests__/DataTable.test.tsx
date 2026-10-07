@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { render, cleanup, fireEvent } from '@testing-library/react'
+import { render, cleanup, fireEvent, screen } from '@testing-library/react'
 import { DataTable } from '../DataTable'
 import type { ColumnDef } from '../types'
 import { stubMatchMedia } from './stubMatchMedia'
@@ -107,22 +107,22 @@ describe('DataTable — filter dropdown', () => {
   }
 
   it('defaults the detail pane to the first filterable column', () => {
-    const { getByText, container, queryByPlaceholderText } = render(
+    const { getByText, container } = render(
       <DataTable data={ROWS} columns={FILTER_COLS} rowKey="id" />,
     )
     fireEvent.click(getByText('Filter'))
     expect(checklistLabels(container).some((t) => t.includes('Alice'))).toBe(true)
-    expect(queryByPlaceholderText('Min')).toBeNull()
+    expect(screen.queryByRole('spinbutton', { name: / Min$/ })).toBeNull()
   })
 
   it('clicking a column in the list switches the detail pane to it', () => {
-    const { getByText, getAllByText, container, getByPlaceholderText } = render(
+    const { getByText, getAllByText, container } = render(
       <DataTable data={ROWS} columns={FILTER_COLS} rowKey="id" />,
     )
     fireEvent.click(getByText('Filter'))
     const scoreItem = getAllByText('Score').find((el) => el.closest('th') === null)!
     fireEvent.click(scoreItem)
-    expect(getByPlaceholderText('Min')).toBeTruthy()
+    expect(screen.getByRole('spinbutton', { name: / Min$/ })).toBeTruthy()
     expect(checklistLabels(container)).toHaveLength(0)
   })
 
@@ -254,7 +254,7 @@ describe('DataTable — filter dropdown', () => {
       { id: 1, name: 'Alice', dept: 'Eng', score: 90 },
       { id: 2, name: 'Bob', dept: 'HR', score: 60 },
     ]
-    const { getByText, getAllByText, getByLabelText, getByPlaceholderText } = render(
+    const { getByText, getAllByText, getByLabelText } = render(
       <DataTable data={ROWS2} columns={COLS2} rowKey="id" />,
     )
     fireEvent.click(getByText('Filter'))
@@ -267,7 +267,9 @@ describe('DataTable — filter dropdown', () => {
     fireEvent.click(scoreItem)
     // A min-score range filter that excludes Bob (score 60) zeroes HR's live facet count —
     // range filters, unlike a column's own checklist filter, are never excluded from a facet.
-    fireEvent.change(getByPlaceholderText('Min'), { target: { value: '100' } })
+    fireEvent.change(screen.getByRole('spinbutton', { name: / Min$/ }), {
+      target: { value: '100' },
+    })
     fireEvent.click(deptItem)
     expect((getByLabelText('HR', { exact: false }) as HTMLInputElement).checked).toBe(false)
   })
@@ -349,22 +351,31 @@ describe('DataTable — filter dropdown', () => {
     expect(thumbs[1].value).toBe('90')
   })
 
-  it("defaults the plain min/max inputs to the column's data bounds when no filter is set", () => {
-    const { getByText, getAllByText, getByPlaceholderText, container } = render(
-      <DataTable data={ROWS} columns={FILTER_COLS} rowKey="id" />,
+  it("shows the column's data bounds through its format as placeholders, and names the inputs", () => {
+    const cols = FILTER_COLS.map((c) =>
+      c.key === 'score' ? { ...c, format: (v: unknown) => `${v} pts` } : c,
+    )
+    const { getByText, getAllByText, container } = render(
+      <DataTable data={ROWS} columns={cols} rowKey="id" />,
     )
     fireEvent.click(getByText('Filter'))
     const scoreItem = getAllByText('Score').find((el) => el.closest('th') === null)!
     fireEvent.click(scoreItem)
-    expect((getByPlaceholderText('Min') as HTMLInputElement).value).toBe('60') // Bob
-    expect((getByPlaceholderText('Max') as HTMLInputElement).value).toBe('90') // Alice
+    const min = screen.getByRole('spinbutton', { name: 'Score Min' }) as HTMLInputElement
+    expect(min.value).toBe('')
+    expect(min.placeholder).toBe('60 pts') // Bob
+    expect(
+      (screen.getByRole('spinbutton', { name: 'Score Max' }) as HTMLInputElement).placeholder,
+    ).toBe('90 pts') // Alice
+    expect(screen.getByRole('slider', { name: 'Score Min' })).toBeTruthy()
+    expect(screen.getByRole('slider', { name: 'Score Max' })).toBeTruthy()
     // Bounds are a display-only default — no filter is actually active yet.
     expect(container.querySelectorAll('tbody tr')).toHaveLength(2)
     expect(scoreItem.parentElement?.querySelectorAll('span')).toHaveLength(1) // no dot
   })
 
   it('dragging a slider thumb updates the plain min/max inputs and filters rows', () => {
-    const { getByText, getAllByText, getByPlaceholderText, container } = render(
+    const { getByText, getAllByText, container } = render(
       <DataTable data={ROWS} columns={FILTER_COLS} rowKey="id" />,
     )
     fireEvent.click(getByText('Filter'))
@@ -372,18 +383,18 @@ describe('DataTable — filter dropdown', () => {
     fireEvent.click(scoreItem)
     const thumbs = container.querySelectorAll<HTMLInputElement>('input[type="range"]')
     fireEvent.change(thumbs[0], { target: { value: '75' } })
-    expect((getByPlaceholderText('Min') as HTMLInputElement).value).toBe('75')
+    expect((screen.getByRole('spinbutton', { name: / Min$/ }) as HTMLInputElement).value).toBe('75')
     expect(container.querySelectorAll('tbody tr')).toHaveLength(1) // only Alice (90) remains
   })
 
   it('marks the column with a clear button and an active-bar chip once a range filter is set', () => {
-    const { getByText, getAllByText, getByPlaceholderText, container } = render(
+    const { getByText, getAllByText, container } = render(
       <DataTable data={ROWS} columns={FILTER_COLS} rowKey="id" />,
     )
     fireEvent.click(getByText('Filter'))
     const scoreItem = getAllByText('Score').find((el) => el.closest('th') === null)!
     fireEvent.click(scoreItem)
-    fireEvent.change(getByPlaceholderText('Min'), { target: { value: '80' } })
+    fireEvent.change(screen.getByRole('spinbutton', { name: / Min$/ }), { target: { value: '80' } })
     // The clear button is a sibling <button> of the column button, rendered only when the
     // column has an active filter — before this fix a range-only filter left it with no clear
     // button at all, even though the range itself was active.
@@ -396,13 +407,13 @@ describe('DataTable — filter dropdown', () => {
   })
 
   it("clicking a range filter's active-bar chip clears it and unfilters the rows", () => {
-    const { getByText, getAllByText, getByPlaceholderText, container } = render(
+    const { getByText, getAllByText, container } = render(
       <DataTable data={ROWS} columns={FILTER_COLS} rowKey="id" />,
     )
     fireEvent.click(getByText('Filter'))
     const scoreItem = getAllByText('Score').find((el) => el.closest('th') === null)!
     fireEvent.click(scoreItem)
-    fireEvent.change(getByPlaceholderText('Min'), { target: { value: '80' } })
+    fireEvent.change(screen.getByRole('spinbutton', { name: / Min$/ }), { target: { value: '80' } })
     expect(container.querySelectorAll('tbody tr')).toHaveLength(1) // only Alice (90)
     // The × is now a real <button> (a sibling of the chip's own body button, not nested inside
     // it — a <button> can't contain another interactive element) — see "Active-bar chip click
@@ -411,7 +422,7 @@ describe('DataTable — filter dropdown', () => {
       .find((el) => el.textContent?.trim().startsWith('Score: 80'))!
       .querySelector('button:last-child')!
     fireEvent.click(chipX)
-    expect((getByPlaceholderText('Min') as HTMLInputElement).value).toBe('')
+    expect((screen.getByRole('spinbutton', { name: / Min$/ }) as HTMLInputElement).value).toBe('')
     expect(container.querySelectorAll('tbody tr')).toHaveLength(2)
   })
 
@@ -1119,29 +1130,37 @@ describe('DataTable — date filter tree', () => {
   })
 
   it('renders 2 native date inputs above the tree for a date column', () => {
-    const { getByText, getByLabelText } = render(
-      <DataTable data={DATE_ROWS} columns={DATE_COLS} rowKey="id" />,
-    )
+    const { getByText } = render(<DataTable data={DATE_ROWS} columns={DATE_COLS} rowKey="id" />)
     fireEvent.click(getByText('Filter'))
-    expect((getByLabelText('Min') as HTMLInputElement).type).toBe('date')
-    expect((getByLabelText('Max') as HTMLInputElement).type).toBe('date')
+    expect(
+      (screen.getByLabelText(/ Min$/, { selector: 'input[type="date"]' }) as HTMLInputElement).type,
+    ).toBe('date')
+    expect(
+      (screen.getByLabelText(/ Max$/, { selector: 'input[type="date"]' }) as HTMLInputElement).type,
+    ).toBe('date')
   })
 
   it("defaults the date inputs to the column's earliest/latest date when no filter is set", () => {
-    const { getByText, getByLabelText } = render(
-      <DataTable data={DATE_ROWS} columns={DATE_COLS} rowKey="id" />,
-    )
+    const { getByText } = render(<DataTable data={DATE_ROWS} columns={DATE_COLS} rowKey="id" />)
     fireEvent.click(getByText('Filter'))
-    expect((getByLabelText('Min') as HTMLInputElement).value).toBe('2021-01-02') // Game C
-    expect((getByLabelText('Max') as HTMLInputElement).value).toBe('2023-05-20') // Game B
+    expect(
+      (screen.getByLabelText(/ Min$/, { selector: 'input[type="date"]' }) as HTMLInputElement)
+        .value,
+    ).toBe('2021-01-02') // Game C
+    expect(
+      (screen.getByLabelText(/ Max$/, { selector: 'input[type="date"]' }) as HTMLInputElement)
+        .value,
+    ).toBe('2023-05-20') // Game B
   })
 
   it('a date range narrows the tree itself and filters rows, without needing a checkbox ticked', () => {
-    const { getByText, getByLabelText, queryByText, container } = render(
+    const { getByText, queryByText, container } = render(
       <DataTable data={DATE_ROWS} columns={DATE_COLS} rowKey="id" />,
     )
     fireEvent.click(getByText('Filter'))
-    fireEvent.change(getByLabelText('Min'), { target: { value: '2022-01-01' } })
+    fireEvent.change(screen.getByLabelText(/ Min$/, { selector: 'input[type="date"]' }), {
+      target: { value: '2022-01-01' },
+    })
     // The 2021 year (Game C) drops out of the tree entirely — narrowed like a search term, not
     // merely ANDed onto the final result once a checkbox is ticked.
     expect(queryByText('2021')).toBeNull()
@@ -1161,11 +1180,13 @@ describe('DataTable — date filter tree', () => {
   })
 
   it('marks the date column with a clear button and an active-bar chip once a range filter is set, with no checkbox ticked', () => {
-    const { getByText, getAllByText, getByLabelText, container } = render(
+    const { getByText, getAllByText, container } = render(
       <DataTable data={DATE_ROWS} columns={DATE_COLS} rowKey="id" />,
     )
     fireEvent.click(getByText('Filter'))
-    fireEvent.change(getByLabelText('Min'), { target: { value: '2022-01-01' } })
+    fireEvent.change(screen.getByLabelText(/ Min$/, { selector: 'input[type="date"]' }), {
+      target: { value: '2022-01-01' },
+    })
     const releasedItem = getAllByText('Released').find((el) => el.closest('th') === null)!
     const row = releasedItem.closest('[data-filter-row-key]')!
     expect(row.querySelectorAll('button')).toHaveLength(2)
@@ -1176,11 +1197,13 @@ describe('DataTable — date filter tree', () => {
   })
 
   it("clicking a date range filter's active-bar chip clears it, restoring the full tree and rows", () => {
-    const { getByText, getByLabelText, queryByText, container } = render(
+    const { getByText, queryByText, container } = render(
       <DataTable data={DATE_ROWS} columns={DATE_COLS} rowKey="id" />,
     )
     fireEvent.click(getByText('Filter'))
-    fireEvent.change(getByLabelText('Min'), { target: { value: '2022-01-01' } })
+    fireEvent.change(screen.getByLabelText(/ Min$/, { selector: 'input[type="date"]' }), {
+      target: { value: '2022-01-01' },
+    })
     expect(queryByText('2021')).toBeNull()
     // The × is now a real <button>, a sibling of the chip's own body button — see
     // "Active-bar chip click actions".
@@ -2141,55 +2164,55 @@ describe('DataTable — filter column ordering & clear button', () => {
   })
 
   it('does not reorder mid-session when a filter is toggled while the panel stays open', () => {
-    const { getByText, getByPlaceholderText, container } = render(
+    const { getByText, container } = render(
       <DataTable data={ORDER_ROWS} columns={ORDER_COLS} rowKey="id" />,
     )
     fireEvent.click(getByText('Filter'))
     fireEvent.click(rowFor(container, 'Score').querySelector('[data-filter-col-key]')!)
-    fireEvent.change(getByPlaceholderText('Min'), { target: { value: '80' } })
+    fireEvent.change(screen.getByRole('spinbutton', { name: / Min$/ }), { target: { value: '80' } })
     expect(filterColLabels(container)).toEqual(['Dept', 'Joined', 'Name', 'Score'])
   })
 
   it('moves active-filter columns to the top on the next open', () => {
-    const { getByText, getByPlaceholderText, container } = render(
+    const { getByText, container } = render(
       <DataTable data={ORDER_ROWS} columns={ORDER_COLS} rowKey="id" />,
     )
     fireEvent.click(getByText('Filter'))
     fireEvent.click(rowFor(container, 'Score').querySelector('[data-filter-col-key]')!)
-    fireEvent.change(getByPlaceholderText('Min'), { target: { value: '80' } })
+    fireEvent.change(screen.getByRole('spinbutton', { name: / Min$/ }), { target: { value: '80' } })
     fireEvent.click(getByText('Filter')) // close
     fireEvent.click(getByText('Filter')) // reopen — snapshot re-taken
     expect(filterColLabels(container)).toEqual(['Score', 'Dept', 'Joined', 'Name'])
   })
 
   it('shows a clear button only for a column with an active filter', () => {
-    const { getByText, getByPlaceholderText, container } = render(
+    const { getByText, container } = render(
       <DataTable data={ORDER_ROWS} columns={ORDER_COLS} rowKey="id" />,
     )
     fireEvent.click(getByText('Filter'))
     expect(rowFor(container, 'Score').querySelectorAll('button')).toHaveLength(1)
     fireEvent.click(rowFor(container, 'Score').querySelector('[data-filter-col-key]')!)
-    fireEvent.change(getByPlaceholderText('Min'), { target: { value: '80' } })
+    fireEvent.change(screen.getByRole('spinbutton', { name: / Min$/ }), { target: { value: '80' } })
     expect(rowFor(container, 'Score').querySelectorAll('button')).toHaveLength(2)
   })
 
   it('clear button removes the filter without opening that column', () => {
-    const { getByText, getByPlaceholderText, queryByPlaceholderText, container } = render(
+    const { getByText, container } = render(
       <DataTable data={ORDER_ROWS} columns={ORDER_COLS} rowKey="id" />,
     )
     fireEvent.click(getByText('Filter'))
     fireEvent.click(rowFor(container, 'Score').querySelector('[data-filter-col-key]')!)
-    fireEvent.change(getByPlaceholderText('Min'), { target: { value: '80' } })
+    fireEvent.change(screen.getByRole('spinbutton', { name: / Min$/ }), { target: { value: '80' } })
     fireEvent.click(rowFor(container, 'Name').querySelector('[data-filter-col-key]')!) // switch away
     const scoreRow = rowFor(container, 'Score')
     fireEvent.click(scoreRow.querySelectorAll('button')[1]) // the clear button
     expect(scoreRow.querySelectorAll('button')).toHaveLength(1)
     // Still showing Name's pane (a checklist, no Min/Max inputs), not reopened onto Score's.
-    expect(queryByPlaceholderText('Min')).toBeNull()
+    expect(screen.queryByRole('spinbutton', { name: / Min$/ })).toBeNull()
   })
 
   it('Delete on a focused, active column row clears its filter', () => {
-    const { getByText, getByPlaceholderText, container } = render(
+    const { getByText, container } = render(
       <DataTable data={ORDER_ROWS} columns={ORDER_COLS} rowKey="id" />,
     )
     fireEvent.click(getByText('Filter'))
@@ -2197,7 +2220,7 @@ describe('DataTable — filter column ordering & clear button', () => {
       '[data-filter-col-key]',
     )!
     fireEvent.click(scoreBtn)
-    fireEvent.change(getByPlaceholderText('Min'), { target: { value: '80' } })
+    fireEvent.change(screen.getByRole('spinbutton', { name: / Min$/ }), { target: { value: '80' } })
     fireEvent.keyDown(scoreBtn, { key: 'Delete' })
     expect(rowFor(container, 'Score').querySelectorAll('button')).toHaveLength(1)
   })

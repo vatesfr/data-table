@@ -435,7 +435,7 @@ describe('DataTable — filter dropdown', () => {
     await scoreItem.trigger('click')
     // A min-score range filter that excludes Bob (score 60) zeroes HR's live facet count —
     // range filters, unlike a column's own checklist filter, are never excluded from a facet.
-    await wrapper.find('input[placeholder="Min"]').setValue('100')
+    await wrapper.find('input[type="number"][aria-label$=" Min"]').setValue('100')
     await deptItem.trigger('click')
     expect((checklistCheckbox(wrapper, 'HR').element as HTMLInputElement).checked).toBe(false)
   })
@@ -582,20 +582,27 @@ describe('DataTable — filter dropdown', () => {
     expect((thumbs[1].element as HTMLInputElement).value).toBe('90')
   })
 
-  it("defaults the plain min/max inputs to the column's data bounds when no filter is set", async () => {
-    const wrapper = mount(DataTable, { props: { data: ROWS, columns: FILTER_COLS, rowKey: 'id' } })
+  it("shows the column's data bounds through its format as placeholders, and names the inputs", async () => {
+    const cols = FILTER_COLS.map((c) =>
+      c.key === 'score' ? { ...c, format: (v: unknown) => `${v} pts` } : c,
+    )
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: cols, rowKey: 'id' } })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
     const scoreItem = wrapper
       .findAll('.dt__filter-col-item')
       .find((el) => el.text().includes('Score'))!
     await scoreItem.trigger('click')
-    expect((wrapper.find('input[placeholder="Min"]').element as HTMLInputElement).value).toBe(
-      '60', // Bob
-    )
-    expect((wrapper.find('input[placeholder="Max"]').element as HTMLInputElement).value).toBe(
-      '90', // Alice
-    )
+    const min = wrapper.find('input[type="number"][aria-label="Score Min"]')
+    expect((min.element as HTMLInputElement).value).toBe('')
+    expect(min.attributes('placeholder')).toBe('60 pts') // Bob
+    expect(
+      wrapper.find('input[type="number"][aria-label="Score Max"]').attributes('placeholder'),
+    ).toBe('90 pts') // Alice
+    expect(wrapper.findAll('input[type="range"]').map((t) => t.attributes('aria-label'))).toEqual([
+      'Score Min',
+      'Score Max',
+    ])
     // Bounds are a display-only default — no filter is actually active yet.
     expect(wrapper.findAll('tbody tr')).toHaveLength(2)
     expect(scoreItem.find('.dt__filter-col-dot').exists()).toBe(false)
@@ -611,7 +618,9 @@ describe('DataTable — filter dropdown', () => {
     await scoreItem.trigger('click')
     const low = wrapper.findAll('.dt__range-slider-thumb')[0]
     await low.setValue('75')
-    expect((wrapper.find('input[placeholder="Min"]').element as HTMLInputElement).value).toBe('75')
+    expect(
+      (wrapper.find('input[type="number"][aria-label$=" Min"]').element as HTMLInputElement).value,
+    ).toBe('75')
     expect(wrapper.findAll('tbody tr')).toHaveLength(1) // only Alice (90) remains
   })
 
@@ -623,7 +632,7 @@ describe('DataTable — filter dropdown', () => {
       .findAll('.dt__filter-col-item')
       .find((el) => el.text().includes('Score'))!
     await scoreItem.trigger('click')
-    await wrapper.find('input[placeholder="Min"]').setValue('80')
+    await wrapper.find('input[type="number"][aria-label$=" Min"]').setValue('80')
     const scoreRow = wrapper
       .findAll('.dt__filter-col-row')
       .find((el) => el.text().includes('Score'))!
@@ -640,11 +649,13 @@ describe('DataTable — filter dropdown', () => {
       .findAll('.dt__filter-col-item')
       .find((el) => el.text().includes('Score'))!
     await scoreItem.trigger('click')
-    await wrapper.find('input[placeholder="Min"]').setValue('80')
+    await wrapper.find('input[type="number"][aria-label$=" Min"]').setValue('80')
     expect(wrapper.findAll('tbody tr')).toHaveLength(1) // only Alice (90) remains
     const chip = wrapper.findAll('.dt__chip--info').find((el) => el.text().includes('Score'))!
     await chip.find('.dt__chip-remove').trigger('click')
-    expect((wrapper.find('input[placeholder="Min"]').element as HTMLInputElement).value).toBe('')
+    expect(
+      (wrapper.find('input[type="number"][aria-label$=" Min"]').element as HTMLInputElement).value,
+    ).toBe('')
     expect(wrapper.findAll('tbody tr')).toHaveLength(2)
   })
 
@@ -2199,7 +2210,7 @@ describe('DataTable — filter column ordering & clear button', () => {
     })
     await openFilter(wrapper)
     await rowFor(wrapper, 'Score').find('.dt__filter-col-item').trigger('click')
-    await wrapper.find('input[placeholder="Min"]').setValue('80')
+    await wrapper.find('input[type="number"][aria-label$=" Min"]').setValue('80')
     expect(filterColLabels(wrapper)).toEqual(['Dept', 'Joined', 'Name', 'Score'])
   })
 
@@ -2209,7 +2220,7 @@ describe('DataTable — filter column ordering & clear button', () => {
     })
     await openFilter(wrapper)
     await rowFor(wrapper, 'Score').find('.dt__filter-col-item').trigger('click')
-    await wrapper.find('input[placeholder="Min"]').setValue('80')
+    await wrapper.find('input[type="number"][aria-label$=" Min"]').setValue('80')
     await openFilter(wrapper) // close
     await openFilter(wrapper) // reopen — snapshot re-taken
     expect(filterColLabels(wrapper)).toEqual(['Score', 'Dept', 'Joined', 'Name'])
@@ -2222,7 +2233,7 @@ describe('DataTable — filter column ordering & clear button', () => {
     await openFilter(wrapper)
     expect(rowFor(wrapper, 'Score').find('.dt__filter-col-clear').exists()).toBe(false)
     await rowFor(wrapper, 'Score').find('.dt__filter-col-item').trigger('click')
-    await wrapper.find('input[placeholder="Min"]').setValue('80')
+    await wrapper.find('input[type="number"][aria-label$=" Min"]').setValue('80')
     expect(rowFor(wrapper, 'Score').find('.dt__filter-col-clear').exists()).toBe(true)
   })
 
@@ -2232,12 +2243,12 @@ describe('DataTable — filter column ordering & clear button', () => {
     })
     await openFilter(wrapper)
     await rowFor(wrapper, 'Score').find('.dt__filter-col-item').trigger('click')
-    await wrapper.find('input[placeholder="Min"]').setValue('80')
+    await wrapper.find('input[type="number"][aria-label$=" Min"]').setValue('80')
     await rowFor(wrapper, 'Name').find('.dt__filter-col-item').trigger('click') // switch away
     await rowFor(wrapper, 'Score').find('.dt__filter-col-clear').trigger('click')
     expect(rowFor(wrapper, 'Score').find('.dt__filter-col-clear').exists()).toBe(false)
     // Still showing Name's pane (a checklist, no Min/Max inputs), not reopened onto Score's.
-    expect(wrapper.find('input[placeholder="Min"]').exists()).toBe(false)
+    expect(wrapper.find('input[type="number"][aria-label$=" Min"]').exists()).toBe(false)
   })
 
   it('Delete on a focused, active column row clears its filter', async () => {
@@ -2247,7 +2258,7 @@ describe('DataTable — filter column ordering & clear button', () => {
     await openFilter(wrapper)
     const scoreBtn = rowFor(wrapper, 'Score').find('.dt__filter-col-item')
     await scoreBtn.trigger('click')
-    await wrapper.find('input[placeholder="Min"]').setValue('80')
+    await wrapper.find('input[type="number"][aria-label$=" Min"]').setValue('80')
     await scoreBtn.trigger('keydown', { key: 'Delete' })
     expect(rowFor(wrapper, 'Score').find('.dt__filter-col-clear').exists()).toBe(false)
   })

@@ -174,12 +174,19 @@ describe('createDataTable', () => {
     expect(rangeMinInput(container).value).toBe('75')
   })
 
-  it("defaults the plain min/max inputs to the column's data bounds when no filter is set", () => {
-    createDataTable(container, { data: ROWS, columns: COLS })
+  it("shows the column's data bounds through its format as placeholders, and names the inputs", () => {
+    const cols = COLS.map((c) =>
+      c.key === 'score' ? { ...c, format: (v: unknown) => `${v} pts` } : c,
+    )
+    createDataTable(container, { data: ROWS, columns: cols })
     openFilterDropdown(container)
     selectFilterCol(container, 'Score')
-    expect(rangeMinInput(container).value).toBe('60') // Bob
-    expect(rangeMaxInput(container).value).toBe('90') // Alice
+    expect(rangeMinInput(container).value).toBe('')
+    expect(rangeMinInput(container).placeholder).toBe('60 pts') // Bob
+    expect(rangeMaxInput(container).placeholder).toBe('90 pts') // Alice
+    expect(rangeMinInput(container).getAttribute('aria-label')).toBe('Score Min')
+    const thumbs = container.querySelectorAll('input[type="range"]')
+    expect([...thumbs].map((t) => t.getAttribute('aria-label'))).toEqual(['Score Min', 'Score Max'])
     // Bounds are a display-only default — no filter is actually active yet.
     expect(container.querySelectorAll('tbody tr')).toHaveLength(4)
     expect(container.querySelector('.dt-chip--filter')).toBeNull()

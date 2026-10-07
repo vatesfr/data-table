@@ -1,16 +1,15 @@
 <script setup lang="ts">
+import type { rangeInputProps } from '@vates/data-table-core/internal'
 import RangeSlider from './RangeSlider.vue'
 
+type InputProps = ReturnType<typeof rangeInputProps>
+
 // The number-range and date-range filter panels' shared shape: a pair of min/max inputs plus the
-// slider below them. The two types differ only in <input type>, whether the label is a
-// placeholder (number) or aria-label (date, since a native date input has no room for
-// placeholder text), and the date input's own fixed-width modifier class.
+// slider below them; value, placeholder and name come from core's rangeInputProps.
 defineProps<{
   isDate: boolean
-  min: string
-  max: string
-  minLabel: string
-  maxLabel: string
+  min: InputProps
+  max: InputProps
   slider: { min: number; max: number; low: number; high: number; step: number | 'any' } | null
 }>()
 
@@ -26,23 +25,29 @@ const emit = defineEmits<{
     <div class="dt__range-inputs">
       <input
         :type="isDate ? 'date' : 'number'"
-        :placeholder="isDate ? undefined : minLabel"
-        :aria-label="isDate ? minLabel : undefined"
-        :value="min"
+        :placeholder="min.placeholder"
+        :aria-label="min.ariaLabel"
+        :value="min.value"
         @input="emit('update:min', ($event.target as HTMLInputElement).value)"
         :class="['dt__range-input', { 'dt__range-input--date': isDate }]"
       />
       <span class="dt__range-sep">–</span>
       <input
         :type="isDate ? 'date' : 'number'"
-        :placeholder="isDate ? undefined : maxLabel"
-        :aria-label="isDate ? maxLabel : undefined"
-        :value="max"
+        :placeholder="max.placeholder"
+        :aria-label="max.ariaLabel"
+        :value="max.value"
         @input="emit('update:max', ($event.target as HTMLInputElement).value)"
         :class="['dt__range-input', { 'dt__range-input--date': isDate }]"
       />
     </div>
-    <RangeSlider v-if="slider" v-bind="slider" @change="(lo, hi) => emit('sliderChange', lo, hi)" />
+    <RangeSlider
+      v-if="slider"
+      v-bind="slider"
+      :min-label="min.ariaLabel"
+      :max-label="max.ariaLabel"
+      @change="(lo, hi) => emit('sliderChange', lo, hi)"
+    />
   </div>
 </template>
 

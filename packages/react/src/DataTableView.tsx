@@ -22,6 +22,7 @@ import {
   computeValueBounds,
   computeRangeSliderGeometry,
   formatRangeBound,
+  rangeInputProps,
   categorizedAlphabetizedByLabel,
   alphabetizedByLabel,
   formatDateTreeLabel,
@@ -813,6 +814,8 @@ function RangeSlider({
   step,
   pctLo,
   pctHi,
+  minLabel,
+  maxLabel,
   onChange,
 }: {
   bounds: { min: number; max: number }
@@ -821,6 +824,8 @@ function RangeSlider({
   step: number | 'any'
   pctLo: number
   pctHi: number
+  minLabel: string
+  maxLabel: string
   onChange: (low: number, high: number) => void
 }) {
   useEffect(() => {
@@ -871,6 +876,7 @@ function RangeSlider({
         max={bounds.max}
         step={step}
         value={low}
+        aria-label={minLabel}
         onChange={(e) => handleThumb(Number(e.target.value), high)}
         style={thumbStyle}
       />
@@ -881,6 +887,7 @@ function RangeSlider({
         max={bounds.max}
         step={step}
         value={high}
+        aria-label={maxLabel}
         onChange={(e) => handleThumb(Number(e.target.value), low)}
         style={thumbStyle}
       />
@@ -1005,6 +1012,8 @@ function FilterPane<TRow extends object>({
   const renderRangeSliderFor = (
     col: ColumnDef<TRow>,
     bounds: { min: number; max: number } | null,
+    minLabel: string,
+    maxLabel: string,
   ) => {
     if (!bounds || bounds.min >= bounds.max) return null
     const rf = rangeFilters[col.key]
@@ -1017,6 +1026,8 @@ function FilterPane<TRow extends object>({
         step={geo.step}
         pctLo={geo.pctLo}
         pctHi={geo.pctHi}
+        minLabel={minLabel}
+        maxLabel={maxLabel}
         onChange={(lo, hi) => {
           setRangeFilter(col.key, 'min', formatRangeBound(lo, col))
           setRangeFilter(col.key, 'max', formatRangeBound(hi, col))
@@ -1024,43 +1035,38 @@ function FilterPane<TRow extends object>({
       />
     )
   }
-  // The plain min/max inputs (+ slider below them) for a number/date range filter — the two
-  // types differ only in <input type>, whether the label is a placeholder (number) or
-  // aria-label (date, since a native date input has no room for placeholder text) and the
-  // date input's own fixed width. Unset min/max default to `bounds` (via formatRangeBound)
-  // rather than sitting empty — a blank box gives no hint of what range is even meaningful for
-  // this column, and it means the slider's own thumbs (which already fell back to these bounds)
-  // no longer visually disagree with the text inputs next to them.
+  // The min/max inputs (+ slider below them) for a number/date range filter; value, placeholder
+  // and name come from core's rangeInputProps
   const renderRangeInputsFor = (
     col: ColumnDef<TRow>,
     bounds: { min: number; max: number } | null,
   ) => {
     const isDate = col.type === 'date'
     const inputStyle = isDate ? { ...S.rangeInput, width: 118 } : S.rangeInput
-    const valueFor = (kind: 'min' | 'max') =>
-      rangeFilters[col.key]?.[kind] ?? (bounds ? formatRangeBound(bounds[kind], col) : '')
+    const min = rangeInputProps(col, 'min', rangeFilters[col.key], bounds, L.min)
+    const max = rangeInputProps(col, 'max', rangeFilters[col.key], bounds, L.max)
     return (
       <div style={{ padding: '4px 14px 8px' }}>
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
           <input
             type={isDate ? 'date' : 'number'}
-            placeholder={isDate ? undefined : L.min}
-            aria-label={isDate ? L.min : undefined}
-            value={valueFor('min')}
+            placeholder={min.placeholder}
+            aria-label={min.ariaLabel}
+            value={min.value}
             onChange={(e) => setRangeFilter(col.key, 'min', e.target.value)}
             style={inputStyle}
           />
           <span style={{ color: 'var(--color-text-tertiary)', fontSize: 12 }}>–</span>
           <input
             type={isDate ? 'date' : 'number'}
-            placeholder={isDate ? undefined : L.max}
-            aria-label={isDate ? L.max : undefined}
-            value={valueFor('max')}
+            placeholder={max.placeholder}
+            aria-label={max.ariaLabel}
+            value={max.value}
             onChange={(e) => setRangeFilter(col.key, 'max', e.target.value)}
             style={inputStyle}
           />
         </div>
-        {renderRangeSliderFor(col, bounds)}
+        {renderRangeSliderFor(col, bounds, min.ariaLabel, max.ariaLabel)}
       </div>
     )
   }

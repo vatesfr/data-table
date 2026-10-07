@@ -32,8 +32,8 @@ test('UC01 find rows in a list', async ({ page, section }) => {
 
   // 3. Salary range; its bounds' format is U5
   await pick('Salary')
-  await detail.getByRole('textbox', { name: 'Min' }).fill('90000')
-  await detail.getByRole('textbox', { name: 'Min' }).press('Enter')
+  await detail.getByRole('textbox', { name: 'Salary Min' }).fill('90000')
+  await detail.getByRole('textbox', { name: 'Salary Min' }).press('Enter')
   await expect(bar.getByRole('button', { name: 'Salary: $90,000–' })).toBeVisible()
   for (const salary of await salaries()) expect(salary).toBeGreaterThanOrEqual(90000)
   expect(await names()).toEqual(['Clara Dubois', 'Olivia Smith', 'Sam Patel'])
