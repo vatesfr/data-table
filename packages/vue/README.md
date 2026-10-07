@@ -403,6 +403,7 @@ interface ColumnDef<TRow extends object> {
   compare?: (a: unknown, b: unknown, dir: SortDir) => number // custom ordering for row sort, group order, and the filter checklist; see Custom sort order
   defaultSortDir?: SortDir // direction a fresh sort on this column starts at; default: 'asc'; see Header click sorting
   defaultValueSort?: ValueSort // starting sort order for this column's filter checklist/date tree; default: `{ by: 'alpha', dir: 'asc' }`
+  rangePresets?: { label: string; min?: number; max?: number }[] // number column: named ranges shown as buttons above its range filter
   sortable?: boolean // default: true
   filterable?: boolean // default: true
   groupable?: boolean // default: false

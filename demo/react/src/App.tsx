@@ -314,6 +314,10 @@ const COLUMNS: ColumnDef<Employee>[] = [
     label: 'Salary',
     type: 'number',
     width: 110,
+    rangePresets: [
+      { label: 'Under $60k', max: 59999 },
+      { label: '$100k and up', min: 100000 },
+    ],
     format: (v) =>
       v == null
         ? '—'

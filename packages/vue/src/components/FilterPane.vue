@@ -17,6 +17,7 @@ import {
   computeRangeSliderGeometry,
   formatRangeBound,
   rangeInputProps,
+  matchingRangePreset,
   sortFilterValues,
   cycleValueSort,
   toggleSortDir,
@@ -382,10 +383,18 @@ async function onKeydown(event: KeyboardEvent): Promise<void> {
       :is-date="col.type === 'date'"
       :min="rangeInput('min')"
       :max="rangeInput('max')"
+      :presets="col.rangePresets"
+      :active-preset="matchingRangePreset(col, rangeFilters[col.key])"
       :slider="slider"
       @update:min="setRangeFilter(col.key, 'min', $event)"
       @update:max="setRangeFilter(col.key, 'max', $event)"
       @slider-change="onSliderChange"
+      @set-range="
+        (range) => {
+          setRangeFilter(col.key, 'min', range.min)
+          setRangeFilter(col.key, 'max', range.max)
+        }
+      "
     />
     <template v-if="col.type !== 'number'">
       <div class="dt__filter-search-row">

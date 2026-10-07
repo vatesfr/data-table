@@ -649,7 +649,7 @@ export function FilterPane<TRow extends object>(props: FilterPaneProps<TRow>) {
               minLabel={table.labels().min}
               maxLabel={table.labels().max}
               onChange={(kind, value) => table.filter.setRange(col().key, kind, value)}
-              onSliderCommit={(min, max) => {
+              onSetRange={(min, max) => {
                 table.filter.setRange(col().key, 'min', min)
                 table.filter.setRange(col().key, 'max', max)
               }}
@@ -694,7 +694,7 @@ export function FilterPane<TRow extends object>(props: FilterPaneProps<TRow>) {
           minLabel={table.labels().min}
           maxLabel={table.labels().max}
           onChange={(kind, value) => table.filter.setRange(col().key, kind, value)}
-          onSliderCommit={(min, max) => {
+          onSetRange={(min, max) => {
             table.filter.setRange(col().key, 'min', min)
             table.filter.setRange(col().key, 'max', max)
           }}

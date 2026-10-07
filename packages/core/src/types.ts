@@ -80,6 +80,12 @@ export interface ColumnDefBase<TRow extends object = Record<string, unknown>> {
    * way regardless of where it started.
    */
   defaultValueSort?: ValueSort
+  /**
+   * Named ranges offered as buttons above a number column's range filter, e.g.
+   * `{ label: 'never played', max: 0 }`. Picking one sets the range; the active-bar chip then reads
+   * the label instead of the bounds. An omitted bound is open.
+   */
+  rangePresets?: { label: string; min?: number; max?: number }[]
   width?: number
   /**
    * How to read this column's cell value from a row. Omitted: reads `row[key]`. Function:

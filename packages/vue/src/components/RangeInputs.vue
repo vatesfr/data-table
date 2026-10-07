@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import type { rangeInputProps } from '@vates/data-table-core/internal'
+import type { ColumnDefBase, RangeFilter } from '@vates/data-table-core'
+import { rangePresetFilter, type rangeInputProps } from '@vates/data-table-core/internal'
 import RangeSlider from './RangeSlider.vue'
 
 type InputProps = ReturnType<typeof rangeInputProps>
+type RangePreset = NonNullable<ColumnDefBase['rangePresets']>[number]
 
 // The number-range and date-range filter panels' shared shape: a pair of min/max inputs plus the
 // slider below them; value, placeholder and name come from core's rangeInputProps.
@@ -10,6 +12,8 @@ defineProps<{
   isDate: boolean
   min: InputProps
   max: InputProps
+  presets: RangePreset[] | undefined
+  activePreset: RangePreset | undefined
   slider: { min: number; max: number; low: number; high: number; step: number | 'any' } | null
 }>()
 
@@ -17,11 +21,30 @@ const emit = defineEmits<{
   'update:min': [value: string]
   'update:max': [value: string]
   sliderChange: [low: number, high: number]
+  setRange: [range: RangeFilter]
 }>()
 </script>
 
 <template>
   <div class="dt__range">
+    <div v-if="!isDate && presets?.length" class="dt__range-presets">
+      <button
+        v-for="preset in presets"
+        :key="preset.label"
+        type="button"
+        class="dt__value-sort-btn dt__range-preset"
+        :class="{ 'dt__filter-match-mode--active': preset === activePreset }"
+        :aria-pressed="preset === activePreset"
+        @click="
+          emit(
+            'setRange',
+            preset === activePreset ? { min: '', max: '' } : rangePresetFilter(preset),
+          )
+        "
+      >
+        {{ preset.label }}
+      </button>
+    </div>
     <div class="dt__range-inputs">
       <input
         :type="isDate ? 'date' : 'number'"
@@ -54,6 +77,15 @@ const emit = defineEmits<{
 <style scoped>
 .dt__range {
   padding: 4px 14px 8px;
+}
+.dt__range-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.dt__range-preset {
+  min-height: 24px;
 }
 .dt__range-inputs {
   display: flex;

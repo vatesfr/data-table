@@ -1249,6 +1249,28 @@ describe('DataTable — showSearch', () => {
   })
 })
 
+describe('DataTable — range presets', () => {
+  it('sets the range from a preset, names the chip after it, and clears on a second click', () => {
+    const cols: ColumnDef<Row>[] = [
+      { key: 'name', label: 'Name' },
+      { key: 'score', label: 'Score', type: 'number', rangePresets: [{ label: 'top', min: 80 }] },
+    ]
+    const { getByText, getAllByText, container } = render(
+      <DataTable data={ROWS} columns={cols} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Filter'))
+    fireEvent.click(getAllByText('Score').find((el) => el.closest('th') === null)!)
+    const top = screen.getByRole('button', { name: 'top' })
+    fireEvent.click(top)
+    expect(container.querySelectorAll('tbody tr')).toHaveLength(1) // Alice (90)
+    expect(top.getAttribute('aria-pressed')).toBe('true')
+    expect(screen.getByRole('button', { name: 'Score: top' })).toBeTruthy()
+    fireEvent.click(top)
+    expect(container.querySelectorAll('tbody tr')).toHaveLength(2)
+    expect(top.getAttribute('aria-pressed')).toBe('false')
+  })
+})
+
 describe('DataTable — currentRow', () => {
   it('marks the current row with aria-current and dt-tr--current, following the prop', () => {
     const { container, rerender } = render(

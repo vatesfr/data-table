@@ -18,6 +18,7 @@ import {
   filterMatchMode,
   chipSeparator,
   formatFilterValue,
+  rangeChipText,
   columnHasActiveFilter,
   orderFilterColumnsByActive,
   applyColumnOrderSnapshot,
@@ -1943,9 +1944,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
           <span v-if="rf.min !== '' || rf.max !== ''" class="dt__chip dt__chip--info">
             <button type="button" class="dt__chip-body" @click="onOpenFilterCol(key)">
               {{ columns.find((c) => c.key === key)?.label }}:
-              {{ formatFilterValue(findCol(key), rf.min, L.emptyValue) }}–{{
-                formatFilterValue(findCol(key), rf.max, L.emptyValue)
-              }}
+              {{ rangeChipText(findCol(key), rf, L.emptyValue) }}
             </button>
             <button
               type="button"

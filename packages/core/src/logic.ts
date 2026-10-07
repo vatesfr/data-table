@@ -1020,6 +1020,40 @@ export function formatRangeBound<TRow extends object>(n: number, col: ColumnDefB
   return col.type === 'date' ? new Date(n).toISOString().slice(0, 10) : String(n)
 }
 
+type RangePreset = NonNullable<ColumnDefBase['rangePresets']>[number]
+
+/** The `rangePresets` entry `rangeFilter` equals, an omitted bound matching an empty one */
+export function matchingRangePreset<TRow extends object>(
+  col: ColumnDefBase<TRow> | undefined,
+  rangeFilter: RangeFilter | undefined,
+): RangePreset | undefined {
+  const same = (bound: number | undefined, value: string | undefined) =>
+    bound === undefined ? !value : !!value && Number(value) === bound
+  return col?.rangePresets?.find(
+    (p) => same(p.min, rangeFilter?.min) && same(p.max, rangeFilter?.max),
+  )
+}
+
+/** The range filter `RangeFilter` a preset sets: an omitted bound is left empty */
+export function rangePresetFilter(preset: RangePreset): RangeFilter {
+  return {
+    min: preset.min === undefined ? '' : String(preset.min),
+    max: preset.max === undefined ? '' : String(preset.max),
+  }
+}
+
+/** A range filter's active-bar chip value: its preset's label, else its bounds through `format` */
+export function rangeChipText<TRow extends object>(
+  col: ColumnDefBase<TRow> | undefined,
+  rangeFilter: RangeFilter,
+  emptyLabel: string,
+): string {
+  return (
+    matchingRangePreset(col, rangeFilter)?.label ??
+    `${formatFilterValue(col, rangeFilter.min, emptyLabel)}–${formatFilterValue(col, rangeFilter.max, emptyLabel)}`
+  )
+}
+
 /**
  * A range filter input's value, placeholder and accessible name ("Salary Min"). A number input
  * stays empty until its bound is set, showing the data's bound through the column's `format` as

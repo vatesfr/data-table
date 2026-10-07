@@ -1486,6 +1486,32 @@ describe('DataTable — showSearch', () => {
   })
 })
 
+describe('DataTable — range presets', () => {
+  it('sets the range from a preset, names the chip after it, and clears on a second click', async () => {
+    const cols: ColumnDef<Row>[] = [
+      { key: 'name', label: 'Name' },
+      { key: 'score', label: 'Score', type: 'number', rangePresets: [{ label: 'top', min: 80 }] },
+    ]
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: cols, rowKey: 'id' } })
+    await wrapper
+      .findAll('button')
+      .find((b) => b.text() === 'Filter')!
+      .trigger('click')
+    await wrapper
+      .findAll('.dt__filter-col-item')
+      .find((el) => el.text().includes('Score'))!
+      .trigger('click')
+    const top = () => wrapper.findAll('.dt__range-presets button').find((b) => b.text() === 'top')!
+    await top().trigger('click')
+    expect(wrapper.findAll('tbody tr')).toHaveLength(1) // Alice (90)
+    expect(top().attributes('aria-pressed')).toBe('true')
+    expect(wrapper.find('.dt__chip--info .dt__chip-body').text()).toBe('Score: top')
+    await top().trigger('click')
+    expect(wrapper.findAll('tbody tr')).toHaveLength(2)
+    expect(top().attributes('aria-pressed')).toBe('false')
+  })
+})
+
 describe('DataTable — currentRow', () => {
   it('marks the current row with aria-current and dt__tr--current, following the prop', async () => {
     const wrapper = mount(DataTable, {

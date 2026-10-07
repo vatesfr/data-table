@@ -399,6 +399,7 @@ interface ColumnDef<TRow extends object> {
   compare?: (a: unknown, b: unknown, dir: SortDir) => number // custom ordering for row sort, group order, and the filter checklist; see Custom sort order
   sortable?: boolean // default: true
   filterable?: boolean // default: true
+  rangePresets?: { label: string; min?: number; max?: number }[] // number column: named ranges shown as buttons above its range filter
   groupable?: boolean // default: false
   groupValue?: (value: unknown, row: TRow) => unknown // bucket a groupBy value into a coarser group key; see Grouped columns
   groupFormat?: (keyPart: string) => string // render a groupValue bucket key in the group header

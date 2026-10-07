@@ -9,6 +9,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Added
 
+- **Range filter presets** (Solid, React, Vue, vanilla): `rangePresets` on a number column (`{ label, min?, max? }[]`, e.g. `{ label: 'never played', max: 0 }`) adds buttons above its range filter. Picking one sets the range, and the filter chip shows the preset's label ("Played (h): never played") instead of the bounds. Fixes #30.
 - **Current row** (Solid, React, Vue, vanilla): `currentRow` on `DataTableView`/`DataTable` (vanilla: the option plus `setCurrentRow(row)`) marks a row, e.g. the one open in a side panel, with `aria-current="true"` and a `dt-tr--current` class (Vue: `dt__tr--current`), so it can be exposed and styled through sorting, paging and data updates. Fixes #40.
 
 ### Changed

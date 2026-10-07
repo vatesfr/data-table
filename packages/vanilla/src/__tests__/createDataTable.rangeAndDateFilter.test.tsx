@@ -483,3 +483,51 @@ describe('createDataTable', () => {
 //   plain behavioral regression check (Solid's DOM-node reuse already makes this trivially true,
 //   so there's no special "restore mechanism" left to test, but the underlying typing behavior is
 //   still worth a smoke test).
+
+describe('createDataTable — range presets', () => {
+  const PRESET_COLS: ColumnDef<Row>[] = COLS.map((c) =>
+    c.key === 'score'
+      ? {
+          ...c,
+          rangePresets: [
+            { label: 'top', min: 80 },
+            { label: 'low', max: 65 },
+          ],
+        }
+      : c,
+  )
+  let container: HTMLElement
+  beforeEach(() => {
+    container = document.createElement('div')
+    document.body.appendChild(container)
+  })
+  afterEach(() => container.remove())
+
+  const preset = (label: string) =>
+    [...container.querySelectorAll<HTMLButtonElement>('.dt-range-presets button')].find(
+      (b) => b.textContent === label,
+    )!
+  const names = () =>
+    [...container.querySelectorAll('tbody tr td:first-child')].map((td) => td.textContent)
+
+  it('sets the range from a preset, names the chip after it, and clears on a second click', () => {
+    createDataTable(container, { data: ROWS, columns: PRESET_COLS })
+    openFilterDropdown(container)
+    selectFilterCol(container, 'Score')
+    click(preset('top'))
+    expect(names()).toEqual(['Alice', 'Clara'])
+    expect(preset('top').getAttribute('aria-pressed')).toBe('true')
+    expect(preset('low').getAttribute('aria-pressed')).toBe('false')
+    expect(container.querySelector('.dt-chip--filter')!.textContent).toContain('Score: top')
+    click(preset('top'))
+    expect(names()).toHaveLength(4)
+    expect(container.querySelector('.dt-chip--filter')).toBeNull()
+  })
+
+  it('shows no presets on a column without any', () => {
+    createDataTable(container, { data: ROWS, columns: COLS })
+    openFilterDropdown(container)
+    selectFilterCol(container, 'Score')
+    expect(container.querySelector('.dt-range-presets')).toBeNull()
+  })
+})

@@ -90,6 +90,9 @@ import {
   logRangeGroup,
   compareMissingLast,
   rangeInputProps,
+  matchingRangePreset,
+  rangePresetFilter,
+  rangeChipText,
 } from '../logic'
 
 interface Row {
@@ -3729,5 +3732,34 @@ describe('rangeInputProps', () => {
       placeholder: undefined,
       ariaLabel: 'Day Min',
     })
+  })
+})
+
+describe('range presets', () => {
+  const played = {
+    key: 'played',
+    label: 'Played (h)',
+    type: 'number' as const,
+    format: (v: unknown) => `${v} h`,
+    rangePresets: [
+      { label: 'never played', max: 0 },
+      { label: 'a lot', min: 100 },
+    ],
+  }
+
+  it('matches a preset by its bounds, an omitted bound matching an empty one', () => {
+    expect(matchingRangePreset(played, { min: '', max: '0' })?.label).toBe('never played')
+    expect(matchingRangePreset(played, { min: '100', max: '' })?.label).toBe('a lot')
+    expect(matchingRangePreset(played, { min: '0', max: '0' })).toBeUndefined()
+    expect(matchingRangePreset(played, undefined)).toBeUndefined()
+  })
+
+  it('turns a preset into a range filter', () => {
+    expect(rangePresetFilter({ label: 'x', max: 0 })).toEqual({ min: '', max: '0' })
+  })
+
+  it("words a chip with the preset's label, else the formatted bounds", () => {
+    expect(rangeChipText(played, { min: '', max: '0' }, '(none)')).toBe('never played')
+    expect(rangeChipText(played, { min: '1', max: '5' }, '(none)')).toBe('1 h–5 h')
   })
 })

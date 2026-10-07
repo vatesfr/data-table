@@ -23,6 +23,9 @@ import {
   computeRangeSliderGeometry,
   formatRangeBound,
   rangeInputProps,
+  matchingRangePreset,
+  rangePresetFilter,
+  rangeChipText,
   categorizedAlphabetizedByLabel,
   alphabetizedByLabel,
   formatDateTreeLabel,
@@ -711,6 +714,12 @@ const S = {
   // so the pair reads as one merged pill; `--active` mirrors filterColItemActive's own "engaged"
   // treatment so whichever of Any/All is currently in effect looks consistent with the rest of
   // the UI's existing active-state convention.
+  rangePresets: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: 8,
+  } as CSSProperties,
   filterMatchModeGroup: {
     display: 'inline-flex',
     flexShrink: 0,
@@ -1045,8 +1054,35 @@ function FilterPane<TRow extends object>({
     const inputStyle = isDate ? { ...S.rangeInput, width: 118 } : S.rangeInput
     const min = rangeInputProps(col, 'min', rangeFilters[col.key], bounds, L.min)
     const max = rangeInputProps(col, 'max', rangeFilters[col.key], bounds, L.max)
+    const activePreset = matchingRangePreset(col, rangeFilters[col.key])
     return (
       <div style={{ padding: '4px 14px 8px' }}>
+        {!isDate && !!col.rangePresets?.length && (
+          <div style={S.rangePresets}>
+            {col.rangePresets.map((preset) => {
+              const pressed = preset === activePreset
+              return (
+                <button
+                  key={preset.label}
+                  type="button"
+                  aria-pressed={pressed}
+                  onClick={() => {
+                    const range = pressed ? { min: '', max: '' } : rangePresetFilter(preset)
+                    setRangeFilter(col.key, 'min', range.min)
+                    setRangeFilter(col.key, 'max', range.max)
+                  }}
+                  style={{
+                    ...S.valueSortBtn,
+                    minHeight: 24,
+                    ...(pressed ? S.filterMatchModeActive : {}),
+                  }}
+                >
+                  {preset.label}
+                </button>
+              )
+            })}
+          </div>
+        )}
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
           <input
             type={isDate ? 'date' : 'number'}
@@ -3446,15 +3482,9 @@ export function DataTableView<TRow extends object>({
                   style={{ ...S.chipBody, ...S.chipFilter }}
                 >
                   {columns.find((c) => c.key === key)?.label}:{' '}
-                  {formatFilterValue(
+                  {rangeChipText(
                     columns.find((c) => c.key === key),
-                    rf.min,
-                    L.emptyValue,
-                  )}
-                  –
-                  {formatFilterValue(
-                    columns.find((c) => c.key === key),
-                    rf.max,
+                    rf,
                     L.emptyValue,
                   )}
                 </button>

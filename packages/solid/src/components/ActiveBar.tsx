@@ -2,6 +2,7 @@ import { For, Show, createMemo } from 'solid-js'
 import {
   exclusionChip,
   formatFilterValue,
+  rangeChipText,
   getSortIcon,
   isExcludeOnlyColumn,
   summarizeFilterValues,
@@ -230,15 +231,9 @@ export function ActiveBar<TRow extends object>(props: ActiveBarProps<TRow>) {
             <span class="dt-chip dt-chip--filter">
               <button type="button" class="dt-chip-body" onClick={() => props.onOpenFilter(key)}>
                 {props.columns.find((c) => c.key === key)?.label ?? key}:{' '}
-                {formatFilterValue(
+                {rangeChipText(
                   props.columns.find((c) => c.key === key),
-                  rf.min,
-                  table.labels().emptyValue,
-                )}
-                –
-                {formatFilterValue(
-                  props.columns.find((c) => c.key === key),
-                  rf.max,
+                  rf,
                   table.labels().emptyValue,
                 )}
               </button>

@@ -1,5 +1,10 @@
 import type { RangeFilter } from '@vates/data-table-core'
-import { rangeInputProps } from '@vates/data-table-core/internal'
+import {
+  matchingRangePreset,
+  rangeInputProps,
+  rangePresetFilter,
+} from '@vates/data-table-core/internal'
+import { For, Show } from 'solid-js'
 import type { ColumnDef } from '../types'
 import { RangeSlider } from './RangeSlider'
 
@@ -10,7 +15,7 @@ interface RangeInputsProps<TRow extends object> {
   minLabel: string
   maxLabel: string
   onChange: (kind: 'min' | 'max', value: string) => void
-  onSliderCommit: (min: string, max: string) => void
+  onSetRange: (min: string, max: string) => void
 }
 
 /**
@@ -26,6 +31,29 @@ export function RangeInputs<TRow extends object>(props: RangeInputsProps<TRow>) 
 
   return (
     <div style={{ padding: '4px 14px 8px' }}>
+      <Show when={!isDate() && props.col.rangePresets?.length}>
+        <div class="dt-range-presets">
+          <For each={props.col.rangePresets}>
+            {(preset) => {
+              const pressed = () => matchingRangePreset(props.col, props.rangeFilter) === preset
+              return (
+                <button
+                  type="button"
+                  class="dt-value-sort-btn dt-range-preset"
+                  classList={{ 'dt-filter-match-mode--active': pressed() }}
+                  aria-pressed={pressed()}
+                  onClick={() => {
+                    const range = pressed() ? { min: '', max: '' } : rangePresetFilter(preset)
+                    props.onSetRange(range.min, range.max)
+                  }}
+                >
+                  {preset.label}
+                </button>
+              )
+            }}
+          </For>
+        </div>
+      </Show>
       <div style={{ display: 'flex', gap: '6px', 'align-items': 'center' }}>
         <input
           type={isDate() ? 'date' : 'text'}
@@ -53,7 +81,7 @@ export function RangeInputs<TRow extends object>(props: RangeInputsProps<TRow>) 
         bounds={props.bounds}
         minLabel={min().ariaLabel}
         maxLabel={max().ariaLabel}
-        onCommit={props.onSliderCommit}
+        onCommit={props.onSetRange}
       />
     </div>
   )

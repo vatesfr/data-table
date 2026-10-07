@@ -354,6 +354,7 @@ interface ColumnDef<TRow extends object> {
   defaultSortDir?: SortDir // direction a fresh sort on this column starts at; default: 'asc'
   sortable?: boolean // default: true
   filterable?: boolean // default: true
+  rangePresets?: { label: string; min?: number; max?: number }[] // number column: named ranges shown as buttons above its range filter
   groupable?: boolean // default: false
   searchable?: boolean // include this column in global search matching; default: true
   groupValue?: (value: unknown, row: TRow) => unknown // bucket a groupBy value into a coarser group key; see Grouped columns

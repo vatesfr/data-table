@@ -162,6 +162,8 @@ ${renderThemeCss()}
 .dt-filter-match-mode-group{display:inline-flex;flex-shrink:0}
 .dt-filter-match-mode--left{border-radius:6px 0 0 6px;border-right:none}
 .dt-filter-match-mode--right{border-radius:0 6px 6px 0}
+.dt-range-presets{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.dt-range-preset{min-height:24px}
 .dt-filter-match-mode--active{background:var(--color-background-secondary,#f7f6f3);color:var(--color-text-primary,#1a1916);font-weight:500}
 .dt-filter-others{background:var(--color-background-secondary,#f7f6f3);border-top:0.5px solid var(--color-border-tertiary,#eeedea);border-bottom:0.5px solid var(--color-border-secondary,#dddcd8);font-style:italic;color:var(--color-text-secondary,#666561)}
 .dt-filter-others:hover,.dt-filter-others:focus-within{background:color-mix(in srgb,var(--color-background-secondary,#f7f6f3) 70%,var(--color-border-secondary,#dddcd8))}
