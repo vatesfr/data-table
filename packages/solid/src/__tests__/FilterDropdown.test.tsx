@@ -453,7 +453,7 @@ describe('FilterDropdown — checklist item tooltips', () => {
     dispose()
   })
 
-  it('a multi-value column keeps the existing tri-state tooltips', () => {
+  it("a multi-value column's checkbox has no tooltip; its ≠ button is named and pressed", () => {
     interface GameRow {
       id: number
       tags: string[]
@@ -486,11 +486,14 @@ describe('FilterDropdown — checklist item tooltips', () => {
       [...container.querySelectorAll('.dt-filter-list .dt-dd-item')]
         .find((el) => el.textContent?.includes(name))!
         .querySelector<HTMLInputElement>('input[type="checkbox"]')!
-    const action = checkboxFor('Action')
-    expect(action.title).toBe(table.labels().filterValueTitle)
-    action.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })) // include
-    action.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })) // exclude
-    expect(action.title).toBe(table.labels().filterExcludedTitle)
+    expect(checkboxFor('Action').title).toBe('')
+    const exclude = container.querySelector<HTMLButtonElement>(
+      'button[data-dd-value-exclude][data-value="Action"]',
+    )!
+    expect(exclude.getAttribute('aria-label')).toBe(table.labels().excludeValue('Action'))
+    exclude.click()
+    expect(exclude.getAttribute('aria-pressed')).toBe('true')
+    expect(table.filter.exclude().tags).toEqual(new Set(['Action']))
     dispose()
   })
 })
@@ -611,7 +614,7 @@ describe('FilterDropdown — shift-range selection', () => {
     // wiping exclude flags on any value in the swept range, not just ones actually moving into
     // `filters`. React/Vue both guard this with `if (shouldSelect)`. This scenario needs a
     // genuinely multi-value column now — a plain scalar column no longer routes through
-    // `filters`/`cycleFilterValue` at all (see the exclude-only test right below).
+    // `filters` at all (see the exclude-only test right below).
     interface TagRow {
       id: number
       tags: string[]
@@ -651,9 +654,7 @@ describe('FilterDropdown — shift-range selection', () => {
     function click(el: HTMLElement, shiftKey = false): void {
       el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, shiftKey }))
     }
-    // Bob -> excluded (two plain clicks: neutral -> include -> exclude).
-    click(checkboxFor('Bob'))
-    click(checkboxFor('Bob'))
+    click(container.querySelector<HTMLElement>('button[data-dd-value-exclude][data-value="Bob"]')!)
     // Clara included first (becomes anchor momentarily), then Alice included (now the anchor) —
     // so a subsequent shift-click on Clara ranges Alice..Clara, sweeping over Bob in between
     // (checklist is alphabetized: Alice, Bob, Clara, David).

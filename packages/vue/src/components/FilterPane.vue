@@ -24,6 +24,7 @@ import {
   computeDateTree,
   checklistBulkState,
   clickChecklistValue,
+  toggleChecklistExclude,
   clickDateTreeNode,
   toggleChecklistValues,
   deferCheckboxCorrection,
@@ -143,10 +144,20 @@ function isValueChecked(value: string): boolean {
 function isValueExcluded(value: string): boolean {
   return usesExcludeOnly.value ? false : (excludeFilters.value[props.col.key]?.has(value) ?? false)
 }
-function valueTitle(value: string): string {
-  if (usesExcludeOnly.value)
-    return isValueChecked(value) ? L.value.filterValueHideTitle : L.value.filterValueShowTitle
-  return isValueExcluded(value) ? L.value.filterExcludedTitle : L.value.filterValueTitle
+function valueTitle(value: string): string | undefined {
+  if (!usesExcludeOnly.value) return undefined
+  return isValueChecked(value) ? L.value.filterValueHideTitle : L.value.filterValueShowTitle
+}
+function excludeLabel(value: string): string {
+  return L.value.excludeValue(formatFilterValue(props.col, value, L.value.emptyValue))
+}
+function onExcludeClick(value: string): void {
+  toggleChecklistExclude(
+    props.table.filter,
+    props.col.key,
+    value,
+    excludeFilters.value[props.col.key],
+  )
 }
 
 // Select-all and "Others" state and clicks: shared logic in core
@@ -166,12 +177,12 @@ function onOthersClick(event: MouseEvent): void {
 
 function onValueClick(value: string, event: MouseEvent): void {
   // Vue's `:checked` only rewrites the DOM property when the bound value changes, so the native
-  // toggle is prevented and the binding alone drives the checkbox (see the tri-state cycle) — but
-  // the browser reverts a prevented click after Vue's write, hence the deferred correction.
+  // toggle is prevented and the binding alone drives the checkbox — but the browser reverts a
+  // prevented click after Vue's write, hence the deferred correction.
   event.preventDefault()
   deferCheckboxCorrection(event.currentTarget as HTMLInputElement, () => ({
     checked: isValueChecked(value),
-    indeterminate: isValueExcluded(value),
+    indeterminate: false,
   }))
   clickChecklistValue(props.table.filter, props.col.key, value, event.shiftKey, {
     anchor: anchor.value,
@@ -277,6 +288,24 @@ async function onKeydown(event: KeyboardEvent): Promise<void> {
     pane.querySelector<HTMLElement>('input.dt__dd-search')?.focus()
     return
   }
+  // ←/→ cross between a value's checkbox and its ≠ button; ← from the checkbox leaves the pane
+  const target = event.target as HTMLElement
+  const partner = (selector: string) =>
+    target.closest('.dt__dd-item')?.querySelector<HTMLElement>(selector)
+  if (event.key === 'ArrowRight' && target.matches('input[data-dd-value-row]')) {
+    const button = partner('[data-dd-value-exclude]')
+    if (button) {
+      event.preventDefault()
+      button.focus()
+    }
+    return
+  }
+  if (event.key === 'ArrowLeft' && target.matches('[data-dd-value-exclude]')) {
+    event.preventDefault()
+    event.stopPropagation()
+    partner('input[data-dd-value-row]')?.focus()
+    return
+  }
   if (event.altKey || !['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return
   const pane = event.currentTarget as HTMLElement
   // Only the value search joins the vertical chain; select-all and the sort button sit beside it
@@ -288,7 +317,9 @@ async function onKeydown(event: KeyboardEvent): Promise<void> {
   )
   const focusables = [...headerControls, ...rowInputs]
   const active = document.activeElement as HTMLElement | null
-  if (!active || focusables.indexOf(active) === -1) return
+  // Up/Down from a ≠ button stays in the ≠ column
+  const onExclude = !!active?.matches('[data-dd-value-exclude]')
+  if (!active || (focusables.indexOf(active) === -1 && !onExclude)) return
 
   // The flat checklist is virtualized: reaching a logical row outside the mounted window (or
   // Home/End) scrolls first, then focuses once Vue re-renders the window.
@@ -296,7 +327,7 @@ async function onKeydown(event: KeyboardEvent): Promise<void> {
   if (checklistEl) {
     const vals = values.value
     const activeValue =
-      active instanceof HTMLInputElement && rowInputs.includes(active)
+      onExclude || (active instanceof HTMLInputElement && rowInputs.includes(active))
         ? active.dataset.value
         : undefined
     let targetIdx: number | null = null
@@ -321,9 +352,10 @@ async function onKeydown(event: KeyboardEvent): Promise<void> {
       if (listRef.value) listRef.value.scrollTop = next
       const targetValue = vals[targetIdx]
       await nextTick()
-      for (const cb of checklistEl.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')) {
-        if (cb.dataset.value === targetValue) {
-          cb.focus()
+      const selector = onExclude ? '[data-dd-value-exclude]' : 'input[type="checkbox"]'
+      for (const el of checklistEl.querySelectorAll<HTMLElement>(selector)) {
+        if (el.dataset.value === targetValue) {
+          el.focus()
           break
         }
       }
@@ -455,31 +487,44 @@ async function onKeydown(event: KeyboardEvent): Promise<void> {
             <div
               :style="{ position: 'absolute', top: virtualRange.offsetY + 'px', left: 0, right: 0 }"
             >
-              <label
+              <div
                 v-for="v in values.slice(virtualRange.startIndex, virtualRange.endIndex)"
                 :key="v"
                 class="dt__dd-item dt__dd-item--clickable"
                 :class="{ 'dt__dd-item--exclude': isValueExcluded(v) }"
                 :style="{ height: FILTER_LIST_ITEM_HEIGHT + 'px', boxSizing: 'border-box' }"
               >
-                <!-- Tri-state for a multi-value column (indeterminate = excluded), plain
-                     checked/unchecked otherwise; v-indeterminate sets the DOM property -->
-                <input
-                  v-indeterminate="isValueExcluded(v)"
-                  type="checkbox"
-                  data-dd-value-row
+                <!-- Multi-value column: the checkbox includes, the ≠ button excludes -->
+                <label class="dt__filter-value">
+                  <input
+                    type="checkbox"
+                    data-dd-value-row
+                    :data-value="v"
+                    :checked="isValueChecked(v)"
+                    :title="valueTitle(v)"
+                    @click="onValueClick(v, $event)"
+                  />
+                  <span class="dt__flex1">
+                    <slot name="value" :value="v" :label="formatFilterValue(col, v, L.emptyValue)">
+                      {{ formatFilterValue(col, v, L.emptyValue) }}
+                    </slot>
+                  </span>
+                  <span class="dt__filter-count">{{ valueCounts.get(v) ?? 0 }}</span>
+                </label>
+                <button
+                  v-if="!usesExcludeOnly"
+                  type="button"
+                  class="dt__filter-exclude"
+                  data-dd-value-exclude
                   :data-value="v"
-                  :checked="isValueChecked(v)"
-                  :title="valueTitle(v)"
-                  @click="onValueClick(v, $event)"
-                />
-                <span class="dt__flex1">
-                  <slot name="value" :value="v" :label="formatFilterValue(col, v, L.emptyValue)">
-                    {{ formatFilterValue(col, v, L.emptyValue) }}
-                  </slot>
-                </span>
-                <span class="dt__filter-count">{{ valueCounts.get(v) ?? 0 }}</span>
-              </label>
+                  :aria-pressed="isValueExcluded(v)"
+                  :aria-label="excludeLabel(v)"
+                  :title="excludeLabel(v)"
+                  @click="onExcludeClick(v)"
+                >
+                  ≠
+                </button>
+              </div>
             </div>
           </div>
         </div>

@@ -2743,13 +2743,44 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
   color: var(--color-text-tertiary);
   flex-shrink: 0;
 }
-/* A checklist value cycled to "exclude" (see cycleFilterValue) — tints the row's text and the
-   checkbox's own accent-color to match. */
+/* A multi-value checklist value excluded by its ≠ button */
 :deep(.dt__dd-item--exclude) {
   color: var(--color-text-danger);
 }
-:deep(.dt__dd-item--exclude input[type='checkbox']) {
-  accent-color: var(--color-text-danger);
+:deep(.dt__dd-item--exclude .dt__flex1) {
+  text-decoration: line-through;
+}
+:deep(.dt__filter-value) {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  align-self: stretch;
+  cursor: pointer;
+}
+:deep(.dt__filter-exclude) {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  margin: -3px -8px -3px 0;
+  padding: 0;
+  border: 0.5px solid transparent;
+  border-radius: 4px;
+  background: none;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+}
+:deep(.dt__filter-exclude:hover) {
+  color: var(--color-text-danger);
+}
+:deep(.dt__filter-exclude[aria-pressed='true']) {
+  background: var(--color-background-danger);
+  border-color: var(--color-border-danger);
+  color: var(--color-text-danger);
 }
 /* The "Others" checklist row (see docs/filter-dropdown.md's "Filter dropdown") — shaded/italic/bordered so it
    reads as a distinct bulk control, not just another value blending into the results below it. */

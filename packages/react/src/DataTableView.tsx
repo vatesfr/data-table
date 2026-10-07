@@ -40,6 +40,7 @@ import {
   mergePageSizeOptions,
   checklistBulkState,
   clickChecklistValue,
+  toggleChecklistExclude,
   clickDateTreeNode,
   toggleChecklistValues,
   computeVirtualRange,
@@ -203,9 +204,37 @@ const S = {
     fontSize: 12,
     color: 'var(--color-text-tertiary)',
   } as CSSProperties,
-  // Applied to a checklist row's <label> when that value is excluded (see cycleFilterValue) —
-  // tints the label text to match the checkbox's own accentColor override at its call site.
+  // A multi-value checklist row whose value is excluded (its ≠ button pressed)
   filterValueExcluded: {
+    color: 'var(--color-text-danger)',
+  } as CSSProperties,
+  filterValue: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+    minWidth: 0,
+    alignSelf: 'stretch',
+    cursor: 'pointer',
+  } as CSSProperties,
+  filterExclude: {
+    flexShrink: 0,
+    width: 24,
+    height: 24,
+    margin: '-3px -8px -3px 0',
+    padding: 0,
+    border: '0.5px solid transparent',
+    borderRadius: 4,
+    background: 'none',
+    font: 'inherit',
+    fontSize: 14,
+    lineHeight: 1,
+    color: 'var(--color-text-tertiary)',
+    cursor: 'pointer',
+  } as CSSProperties,
+  filterExcludePressed: {
+    background: 'var(--color-background-danger)',
+    borderColor: 'var(--color-border-danger)',
     color: 'var(--color-text-danger)',
   } as CSSProperties,
   // The "Others" checklist row (see docs/filter-dropdown.md's "Filter dropdown") — shaded/italic/bordered so it
@@ -1149,22 +1178,25 @@ function FilterPane<TRow extends object>({
   // it's stashed here and a layout effect below (keyed on filterListScrollTop, the same shape as
   // pendingFocusTarget/[page] elsewhere in this file) picks it up once the new window's rows are
   // actually mounted.
-  const pendingFilterValueFocus = useRef<string | null>(null)
-  useLayoutEffect(() => {
-    if (!pendingFilterValueFocus.current) return
-    const value = pendingFilterValueFocus.current
-    pendingFilterValueFocus.current = null
-    const list = filterListRef.current
-    if (!list) return
-    for (const cb of list.querySelectorAll<HTMLInputElement>('input[data-dd-value-row]')) {
-      if (cb.dataset.value === value) {
-        cb.focus()
+  const pendingFilterValueFocus = useRef<{ value: string; onExclude: boolean } | null>(null)
+  // The checkbox of `value`'s row, or its ≠ button
+  const focusChecklistValue = (value: string, onExclude: boolean) => {
+    const selector = onExclude ? '[data-dd-value-exclude]' : 'input[data-dd-value-row]'
+    for (const el of filterListRef.current?.querySelectorAll<HTMLElement>(selector) ?? []) {
+      if (el.dataset.value === value) {
+        el.focus()
         break
       }
     }
+  }
+  useLayoutEffect(() => {
+    if (!pendingFilterValueFocus.current) return
+    const { value, onExclude } = pendingFilterValueFocus.current
+    pendingFilterValueFocus.current = null
+    focusChecklistValue(value, onExclude)
   }, [filterListScrollTop])
 
-  const focusChecklistIndex = (targetIdx: number) => {
+  const focusChecklistIndex = (targetIdx: number, onExclude: boolean) => {
     if (targetIdx < 0 || targetIdx >= filterDetailValues.length) return
     const value = filterDetailValues[targetIdx]
     const newScrollTop = getVirtualScrollTarget(
@@ -1174,26 +1206,37 @@ function FilterPane<TRow extends object>({
       targetIdx,
     )
     if (newScrollTop !== null) {
-      pendingFilterValueFocus.current = value
+      pendingFilterValueFocus.current = { value, onExclude }
       if (filterListRef.current) filterListRef.current.scrollTop = newScrollTop
       setFilterListScrollTop(newScrollTop)
       return
     }
     // Already in the rendered window — focus directly, no need to wait for a re-render.
-    const list = filterListRef.current
-    if (!list) return
-    for (const cb of list.querySelectorAll<HTMLInputElement>('input[data-dd-value-row]')) {
-      if (cb.dataset.value === value) {
-        cb.focus()
-        break
-      }
-    }
+    focusChecklistValue(value, onExclude)
   }
 
   // Up/Down/Home/End over the value search and the checklist or date tree rows
   const handleKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     if (e.altKey) return
     const filterDetailEl = e.currentTarget
+    // ←/→ cross between a value's checkbox and its ≠ button; ← from the checkbox leaves the pane
+    const target = e.target as HTMLElement
+    const partner = (selector: string) =>
+      target.parentElement?.closest('div')?.querySelector<HTMLElement>(selector)
+    if (e.key === 'ArrowRight' && target.matches('input[data-dd-value-row]')) {
+      const button = partner('[data-dd-value-exclude]')
+      if (button) {
+        e.preventDefault()
+        button.focus()
+      }
+      return
+    }
+    if (e.key === 'ArrowLeft' && target.matches('[data-dd-value-exclude]')) {
+      e.preventDefault()
+      e.stopPropagation()
+      partner('input[data-dd-value-row]')?.focus()
+      return
+    }
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Home' || e.key === 'End') {
       // Only the value-search box joins the vertical Up/Down chain, mirroring every other
       // dropdown's "search input, then rows" pattern — the select-all checkbox and sort-order
@@ -1208,7 +1251,9 @@ function FilterPane<TRow extends object>({
       )
       const focusables = [...headerControls, ...rowInputs]
       const active = document.activeElement as HTMLElement | null
-      if (!active || focusables.indexOf(active) === -1) return
+      // Up/Down from a ≠ button stays in the ≠ column
+      const onExclude = !!active?.matches('[data-dd-value-exclude]')
+      if (!active || (focusables.indexOf(active) === -1 && !onExclude)) return
 
       // The flat checklist is virtualized — crossing out of the rendered window, or Home/End
       // (which must reach the *logical* first/last value, not just whatever's currently
@@ -1216,10 +1261,7 @@ function FilterPane<TRow extends object>({
       // has no such window (every currently-expanded row is already in the DOM), so it falls
       // straight through to the plain DOM-order nav below.
       if (filterListRef.current && col.type !== 'date') {
-        const activeValue =
-          active instanceof HTMLInputElement && active.dataset.value !== undefined
-            ? active.dataset.value
-            : undefined
+        const activeValue = active.dataset.value
         let targetIdx: number | null = null
         if (e.key === 'Home') targetIdx = 0
         else if (e.key === 'End') targetIdx = filterDetailValues.length - 1
@@ -1236,7 +1278,7 @@ function FilterPane<TRow extends object>({
             e.preventDefault()
             e.stopPropagation()
             if (targetIdx >= 0 && targetIdx < filterDetailValues.length) {
-              focusChecklistIndex(targetIdx)
+              focusChecklistIndex(targetIdx, onExclude)
             }
             return
           }
@@ -1493,10 +1535,8 @@ function FilterPane<TRow extends object>({
                         }}
                       >
                         {filterDetailValues.slice(startIndex, endIndex).map((v) => {
-                          // Non-multi-value column: plain checked/unchecked, "checked"
-                          // meaning "not excluded" — no tri-state indeterminate cue.
-                          // Multi-value column: unchanged include/exclude tri-state,
-                          // shown as checked/indeterminate.
+                          // Non-multi-value column: "checked" means "not excluded".
+                          // Multi-value column: the checkbox includes, the ≠ button excludes.
                           const checked = usesExcludeOnly
                             ? !(excludeFilters[col.key]?.has(v) ?? false)
                             : (filters[col.key]?.has(v) ?? false)
@@ -1507,66 +1547,80 @@ function FilterPane<TRow extends object>({
                             ? checked
                               ? L.filterValueHideTitle
                               : L.filterValueShowTitle
-                            : excluded
-                              ? L.filterExcludedTitle
-                              : L.filterValueTitle
+                            : undefined
+                          const excludeLabel = L.excludeValue(
+                            formatFilterValue(col, v, L.emptyValue),
+                          )
                           return (
-                            <label
+                            <div
                               key={v}
                               style={{
                                 ...S.ddItem,
                                 height: FILTER_LIST_ITEM_HEIGHT,
                                 boxSizing: 'border-box',
-                                cursor: 'pointer',
                                 ...(excluded ? S.filterValueExcluded : null),
                               }}
                             >
-                              {/* Tri-state checkbox (multi-value column): unchecked
-                                            (neutral) → checked (include) → indeterminate (exclude,
-                                            the browser's dash glyph reused as the "not this"
-                                            indicator) → back to unchecked, via cycleFilterValue.
-                                            Non-multi-value column: plain checked/unchecked toggle
-                                            via setExcludeValues, see docs/filter-dropdown.md's "Filter dropdown".
-                                            `indeterminate` isn't a prop React can set
-                                            declaratively, so a callback ref sets it imperatively,
-                                            same pattern as the date tree's node checkboxes above
-                                            and the select-all checkboxes. */}
-                              <input
-                                type="checkbox"
-                                data-dd-value-row
-                                data-value={v}
-                                checked={checked}
-                                readOnly
-                                ref={(el) => {
-                                  if (el) el.indeterminate = excluded
-                                }}
-                                onClick={(e) => {
-                                  clickChecklistValue(table.filter, col.key, v, e.shiftKey, {
-                                    anchor,
-                                    values: filterDetailValues,
-                                    include: filters[col.key],
-                                    exclude: excludeFilters[col.key],
-                                    excludeOnly: usesExcludeOnly,
-                                  })
-                                  setAnchor(v)
-                                }}
-                                title={itemTitle}
-                                style={{
-                                  margin: 0,
-                                  ...(excluded
-                                    ? { accentColor: 'var(--color-text-danger)' }
-                                    : null),
-                                }}
-                              />
-                              <span style={{ flex: 1 }}>
-                                {col.renderFilterLabel
-                                  ? col.renderFilterLabel(v)
-                                  : formatFilterValue(col, v, L.emptyValue)}
-                              </span>
-                              <span style={S.filterCount} aria-hidden="true">
-                                {stringValueCounts[col.key]?.get(v) ?? 0}
-                              </span>
-                            </label>
+                              <label style={S.filterValue}>
+                                <input
+                                  type="checkbox"
+                                  data-dd-value-row
+                                  data-value={v}
+                                  checked={checked}
+                                  readOnly
+                                  onClick={(e) => {
+                                    clickChecklistValue(table.filter, col.key, v, e.shiftKey, {
+                                      anchor,
+                                      values: filterDetailValues,
+                                      include: filters[col.key],
+                                      exclude: excludeFilters[col.key],
+                                      excludeOnly: usesExcludeOnly,
+                                    })
+                                    setAnchor(v)
+                                  }}
+                                  title={itemTitle}
+                                  style={{ margin: 0 }}
+                                />
+                                <span
+                                  style={{
+                                    flex: 1,
+                                    textDecoration: excluded ? 'line-through' : undefined,
+                                  }}
+                                >
+                                  {col.renderFilterLabel
+                                    ? col.renderFilterLabel(v)
+                                    : formatFilterValue(col, v, L.emptyValue)}
+                                </span>
+                                <span style={S.filterCount} aria-hidden="true">
+                                  {stringValueCounts[col.key]?.get(v) ?? 0}
+                                </span>
+                              </label>
+                              {!usesExcludeOnly && (
+                                <button
+                                  type="button"
+                                  data-dd-value-exclude
+                                  data-value={v}
+                                  aria-pressed={excluded}
+                                  aria-label={excludeLabel}
+                                  title={excludeLabel}
+                                  onClick={() =>
+                                    toggleChecklistExclude(
+                                      table.filter,
+                                      col.key,
+                                      v,
+                                      excludeFilters[col.key],
+                                    )
+                                  }
+                                  style={
+                                    excluded
+                                      ? { ...S.filterExclude, ...S.filterExcludePressed }
+                                      : S.filterExclude
+                                  }
+                                >
+                                  ≠
+                                </button>
+                              )}
+                            </div>
                           )
                         })}
                       </div>

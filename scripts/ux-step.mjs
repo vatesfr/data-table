@@ -17,7 +17,8 @@
 //   where Playwright's own scroll-into-view misjudges visibility
 // - rowCount(id): the "x / y rows" text of a section
 // Shared markers across adapters: data-col-menu, data-filter-cols, data-filter-detail,
-// data-filter-back, data-filter-col-key, data-dd-value-search, data-dd-value-row.
+// data-filter-back, data-filter-col-key, data-dd-value-search, data-dd-value-row,
+// data-dd-value-exclude.
 
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { join, relative, resolve } from 'node:path'

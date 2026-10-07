@@ -11,6 +11,11 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 - **Current row** (Solid, React, Vue, vanilla): `currentRow` on `DataTableView`/`DataTable` (vanilla: the option plus `setCurrentRow(row)`) marks a row, e.g. the one open in a side panel, with `aria-current="true"` and a `dt-tr--current` class (Vue: `dt__tr--current`), so it can be exposed and styled through sorting, paging and data updates. Fixes #40.
 
+### Changed
+
+- **Excluding a value from a multi-value filter** (Solid, React, Vue, vanilla): each value in a multi-value column's checklist now has a ≠ button that excludes it, and its checkbox only includes. This replaces the hidden "click again to exclude" cycle. An excluded value is struck through in the exclusion colour, like its chip, instead of showing a "partly selected" checkbox. ←/→ move between a checkbox and its ≠ button. Fixes #34.
+- **BREAKING (all four adapters):** the `filterValueTitle` and `filterExcludedTitle` labels are removed; the new `excludeValue(value)` label names the ≠ button. `table.filter.cycleValue` is unchanged.
+
 ### Fixed
 
 - **Toolbar end slot on a phone** (Solid, React, Vue, vanilla): on screens up to 479 px wide, `toolbarEnd` (Vue: `#toolbar-end`) ends the toolbar's first line, after Columns/Group/Sort, instead of wrapping onto a line of its own after the search box. Fixes #39.

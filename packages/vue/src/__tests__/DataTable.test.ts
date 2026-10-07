@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { mount, flushPromises } from '@vue/test-utils'
 import DataTableRaw from '../DataTable.vue'
 import type { ColumnDef } from '../types'
 import { stubMatchMedia } from './stubMatchMedia'
@@ -742,7 +742,7 @@ describe('DataTable — filter dropdown', () => {
   })
 })
 
-describe('DataTable — exclude filters (tri-state checklist)', () => {
+describe('DataTable — exclude filters (multi-value checklist)', () => {
   interface Game {
     id: number
     name: string
@@ -764,6 +764,10 @@ describe('DataTable — exclude filters (tri-state checklist)', () => {
       .find('input[type="checkbox"]')
   }
 
+  function excludeButton(wrapper: ReturnType<typeof mount>, value: string) {
+    return wrapper.find(`button[data-dd-value-exclude][data-value="${value}"]`)
+  }
+
   function names(wrapper: ReturnType<typeof mount>): string[] {
     return wrapper.findAll('tbody tr td:first-child').map((td) => td.text())
   }
@@ -776,33 +780,54 @@ describe('DataTable — exclude filters (tri-state checklist)', () => {
     return all[all.length - 1]
   }
 
-  it('a plain click cycles a value through neutral -> include -> exclude -> neutral', async () => {
+  it('the checkbox includes a value and the ≠ button excludes it, each dropping the other', async () => {
     const wrapper = mount(DataTable, { props: { data: GAMES, columns: GAME_COLS, rowKey: 'id' } })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
+    const rpg = () => tagCheckbox(wrapper, 'RPG').element as HTMLInputElement
 
     await tagCheckbox(wrapper, 'RPG').trigger('click')
-    expect((tagCheckbox(wrapper, 'RPG').element as HTMLInputElement).checked).toBe(true)
-    expect((tagCheckbox(wrapper, 'RPG').element as HTMLInputElement).indeterminate).toBe(false)
+    expect(rpg().checked).toBe(true)
     expect(names(wrapper)).toEqual(['Game A'])
 
-    await tagCheckbox(wrapper, 'RPG').trigger('click')
-    expect((tagCheckbox(wrapper, 'RPG').element as HTMLInputElement).checked).toBe(false)
-    expect((tagCheckbox(wrapper, 'RPG').element as HTMLInputElement).indeterminate).toBe(true)
+    await excludeButton(wrapper, 'RPG').trigger('click')
+    expect(rpg().checked).toBe(false)
+    expect(rpg().indeterminate).toBe(false)
+    expect(excludeButton(wrapper, 'RPG').attributes('aria-pressed')).toBe('true')
+    expect(excludeButton(wrapper, 'RPG').attributes('aria-label')).toBe('Exclude RPG')
     expect(names(wrapper)).toEqual(['Game B']) // Game A has RPG, now excluded
 
     await tagCheckbox(wrapper, 'RPG').trigger('click')
-    expect((tagCheckbox(wrapper, 'RPG').element as HTMLInputElement).checked).toBe(false)
-    expect((tagCheckbox(wrapper, 'RPG').element as HTMLInputElement).indeterminate).toBe(false)
+    expect(rpg().checked).toBe(true)
+    expect(excludeButton(wrapper, 'RPG').attributes('aria-pressed')).toBe('false')
+
+    await tagCheckbox(wrapper, 'RPG').trigger('click')
     expect(names(wrapper)).toEqual(['Game A', 'Game B'])
+  })
+
+  it('reaches the ≠ buttons by keyboard: → from a checkbox, ↓ along them, ← back', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: GAMES, columns: GAME_COLS, rowKey: 'id' },
+      attachTo: document.body,
+    })
+    const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
+    await filterBtn.trigger('click')
+    ;(tagCheckbox(wrapper, 'Action').element as HTMLInputElement).focus()
+    await tagCheckbox(wrapper, 'Action').trigger('keydown', { key: 'ArrowRight' })
+    expect(document.activeElement).toBe(excludeButton(wrapper, 'Action').element)
+    await excludeButton(wrapper, 'Action').trigger('keydown', { key: 'ArrowDown' })
+    await flushPromises()
+    expect(document.activeElement).toBe(excludeButton(wrapper, 'Adventure').element)
+    await excludeButton(wrapper, 'Adventure').trigger('keydown', { key: 'ArrowLeft' })
+    expect(document.activeElement).toBe(tagCheckbox(wrapper, 'Adventure').element)
+    wrapper.unmount()
   })
 
   it('renders an exclude filter as its own chip, distinct from an include chip', async () => {
     const wrapper = mount(DataTable, { props: { data: GAMES, columns: GAME_COLS, rowKey: 'id' } })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
-    await tagCheckbox(wrapper, 'RPG').trigger('click')
-    await tagCheckbox(wrapper, 'RPG').trigger('click') // include -> exclude
+    await excludeButton(wrapper, 'RPG').trigger('click')
 
     const chip = wrapper.findAll('.dt__chip--danger').find((el) => el.text().includes('RPG'))
     expect(chip).toBeTruthy()
@@ -814,8 +839,7 @@ describe('DataTable — exclude filters (tri-state checklist)', () => {
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
     await tagCheckbox(wrapper, 'Action').trigger('click') // include Action
-    await tagCheckbox(wrapper, 'RPG').trigger('click')
-    await tagCheckbox(wrapper, 'RPG').trigger('click') // include -> exclude RPG
+    await excludeButton(wrapper, 'RPG').trigger('click')
 
     const includeChip = wrapper
       .findAll('.dt__chip--info')
@@ -825,7 +849,7 @@ describe('DataTable — exclude filters (tri-state checklist)', () => {
     expect(wrapper.findAll('.dt__chip--info').some((el) => el.text().includes('Action'))).toBe(
       false,
     )
-    expect((tagCheckbox(wrapper, 'RPG').element as HTMLInputElement).indeterminate).toBe(true)
+    expect(excludeButton(wrapper, 'RPG').attributes('aria-pressed')).toBe('true')
 
     const excludeChip = wrapper
       .findAll('.dt__chip--danger')
@@ -838,12 +862,11 @@ describe('DataTable — exclude filters (tri-state checklist)', () => {
     const wrapper = mount(DataTable, { props: { data: GAMES, columns: GAME_COLS, rowKey: 'id' } })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
-    await tagCheckbox(wrapper, 'RPG').trigger('click')
-    await tagCheckbox(wrapper, 'RPG').trigger('click') // include -> exclude
+    await excludeButton(wrapper, 'RPG').trigger('click')
 
     await wrapper.find('.dt__filter-select-all').trigger('change')
     expect((tagCheckbox(wrapper, 'RPG').element as HTMLInputElement).checked).toBe(true)
-    expect((tagCheckbox(wrapper, 'RPG').element as HTMLInputElement).indeterminate).toBe(false)
+    expect(excludeButton(wrapper, 'RPG').attributes('aria-pressed')).toBe('false')
   })
 
   it("select-all's deselect branch only clears the include set, leaving an unrelated exclude untouched", async () => {
@@ -851,8 +874,7 @@ describe('DataTable — exclude filters (tri-state checklist)', () => {
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
     await tagCheckbox(wrapper, 'Action').trigger('click') // include Action
-    await tagCheckbox(wrapper, 'RPG').trigger('click')
-    await tagCheckbox(wrapper, 'RPG').trigger('click') // include -> exclude RPG
+    await excludeButton(wrapper, 'RPG').trigger('click')
 
     const selectAll = wrapper.find('.dt__filter-select-all')
     expect((selectAll.element as HTMLInputElement).indeterminate).toBe(true)
@@ -860,19 +882,18 @@ describe('DataTable — exclude filters (tri-state checklist)', () => {
 
     expect((tagCheckbox(wrapper, 'Action').element as HTMLInputElement).checked).toBe(false)
     expect((tagCheckbox(wrapper, 'RPG').element as HTMLInputElement).checked).toBe(false)
-    expect((tagCheckbox(wrapper, 'RPG').element as HTMLInputElement).indeterminate).toBe(true)
+    expect(excludeButton(wrapper, 'RPG').attributes('aria-pressed')).toBe('true')
     expect(names(wrapper)).toEqual(['Game B'])
   })
 
-  it('keeps the tri-state tooltips for a multi-value column', async () => {
+  it("a multi-value column's checkbox has no tooltip; the excluded row is marked", async () => {
     const wrapper = mount(DataTable, { props: { data: GAMES, columns: GAME_COLS, rowKey: 'id' } })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
-    const action = tagCheckbox(wrapper, 'Action')
-    expect(action.attributes('title')).toBe('Click to include, click again to exclude')
-    await action.trigger('click') // include
-    await action.trigger('click') // exclude
-    expect(action.attributes('title')).toBe('Excluded — click to clear')
+    expect(tagCheckbox(wrapper, 'Action').attributes('title')).toBeUndefined()
+    await excludeButton(wrapper, 'Action').trigger('click')
+    const row = wrapper.findAll('.dt__dd-item').find((el) => el.text().startsWith('Action'))!
+    expect(row.classes()).toContain('dt__dd-item--exclude')
   })
 
   it('bulk-(de)selects hidden values via the include set for a multi-value column', async () => {

@@ -15,7 +15,6 @@ import {
 export interface ChecklistFilterActions {
   toggleAll(key: string, values: string[]): void
   setValues(key: string, values: string[], selected: boolean): void
-  cycleValue(key: string, value: string): void
   clearExcludeValues(key: string, values: string[]): void
   setExcludeValues(key: string, values: string[], excluded: boolean): void
   toggleExcludeAll(key: string, values: string[]): void
@@ -51,8 +50,8 @@ export function toggleChecklistValues(
 
 /**
  * A checklist value click. Exclude-only column: flips the value (or the shift-range from `anchor`,
- * in the clicked value's direction). Otherwise a plain click cycles neutral → included → excluded,
- * and a shift-range includes or un-includes, clearing the swept exclusions when including.
+ * in the clicked value's direction). Otherwise includes or un-includes the value (or the
+ * shift-range), clearing the swept exclusions when including; excluding is `toggleChecklistExclude`.
  */
 export function clickChecklistValue(
   filter: ChecklistFilterActions,
@@ -70,13 +69,27 @@ export function clickChecklistValue(
   const range = shift && ctx.anchor != null ? selectRange(ctx.values, ctx.anchor, value) : null
   if (ctx.excludeOnly) {
     filter.setExcludeValues(key, range ?? [value], !(ctx.exclude?.has(value) ?? false))
-  } else if (range) {
-    const select = !(ctx.include?.has(value) ?? false)
-    filter.setValues(key, range, select)
-    if (select) filter.clearExcludeValues(key, range)
   } else {
-    filter.cycleValue(key, value)
+    const values = range ?? [value]
+    const select = !(ctx.include?.has(value) ?? false)
+    filter.setValues(key, values, select)
+    if (select) filter.clearExcludeValues(key, values)
   }
+}
+
+/** A multi-value column's ≠ toggle: excludes the value (dropping its inclusion), or clears that */
+export function toggleChecklistExclude(
+  filter: ChecklistFilterActions,
+  key: string,
+  value: string,
+  exclude: ReadonlySet<string> | undefined,
+): void {
+  if (exclude?.has(value)) {
+    filter.setExcludeValues(key, [value], false)
+    return
+  }
+  filter.setExcludeValues(key, [value], true)
+  filter.setValues(key, [value], false)
 }
 
 /**

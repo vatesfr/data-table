@@ -209,13 +209,10 @@ export interface DataTableLabels {
   selectAll: string
   /** Title/aria-label for the button that cycles a filter checklist's value sort order */
   sortValues: string
-  /** Tooltip on a filter checklist value in its neutral/included state, explaining the tri-state (include/exclude) cycle */
-  filterValueTitle: string
-  /** Tooltip on a filter checklist value that's currently excluded ("not this value") */
-  filterExcludedTitle: string
+  /** Name of a multi-value column's per-value exclude toggle ("rows without this value") */
+  excludeValue: (value: string) => string
   /** Tooltip on a non-multi-value column's checklist value while checked (shown) — the
-   * checked-by-default, exclude-only model (see docs/filter-dropdown.md's "Filter dropdown"); distinct from
-   * `filterValueTitle` since there's no tri-state cycle to explain, just a plain hide/show toggle */
+   * checked-by-default, exclude-only model (see docs/filter-dropdown.md's "Filter dropdown") */
   filterValueHideTitle: string
   /** Tooltip on a non-multi-value column's checklist value while hidden (excluded) */
   filterValueShowTitle: string

@@ -3,6 +3,7 @@ import {
   checklistBulkState,
   clickChecklistValue,
   clickDateTreeNode,
+  toggleChecklistExclude,
   exclusionChip,
   isExcludeOnlyColumn,
   toggleChecklistValues,
@@ -19,7 +20,6 @@ function recorder() {
   const filter: ChecklistFilterActions = {
     toggleAll: rec('toggleAll'),
     setValues: rec('setValues'),
-    cycleValue: rec('cycleValue'),
     clearExcludeValues: rec('clearExcludeValues'),
     setExcludeValues: rec('setExcludeValues'),
     toggleExcludeAll: rec('toggleExcludeAll'),
@@ -83,15 +83,30 @@ describe('clickChecklistValue', () => {
     ])
   })
 
-  it('cycles a plain click and includes a shift-range, clearing its exclusions', () => {
+  it('includes a value, or a shift-range, clearing its exclusions', () => {
     const { filter, calls } = recorder()
-    clickChecklistValue(filter, 'k', 'c', false, { ...ctx, excludeOnly: false })
+    clickChecklistValue(filter, 'k', 'c', false, {
+      ...ctx,
+      exclude: new Set(['c']),
+      excludeOnly: false,
+    })
     clickChecklistValue(filter, 'k', 'c', true, { ...ctx, excludeOnly: false })
     expect(calls).toEqual([
-      ['cycleValue', 'k', 'c'],
+      ['setValues', 'k', ['c'], true],
+      ['clearExcludeValues', 'k', ['c']],
       ['setValues', 'k', ['a', 'b', 'c'], true],
       ['clearExcludeValues', 'k', ['a', 'b', 'c']],
     ])
+  })
+
+  it('un-includes an included value on a plain click', () => {
+    const { filter, calls } = recorder()
+    clickChecklistValue(filter, 'k', 'c', false, {
+      ...ctx,
+      include: new Set(['c']),
+      excludeOnly: false,
+    })
+    expect(calls).toEqual([['setValues', 'k', ['c'], false]])
   })
 
   it('un-includes a shift-range from an included value without touching exclusions', () => {
@@ -102,6 +117,19 @@ describe('clickChecklistValue', () => {
       excludeOnly: false,
     })
     expect(calls).toEqual([['setValues', 'k', ['a', 'b', 'c'], false]])
+  })
+})
+
+describe('toggleChecklistExclude', () => {
+  it('excludes a value, dropping its inclusion, or clears its exclusion', () => {
+    const { filter, calls } = recorder()
+    toggleChecklistExclude(filter, 'k', 'c', undefined)
+    toggleChecklistExclude(filter, 'k', 'c', new Set(['c']))
+    expect(calls).toEqual([
+      ['setExcludeValues', 'k', ['c'], true],
+      ['setValues', 'k', ['c'], false],
+      ['setExcludeValues', 'k', ['c'], false],
+    ])
   })
 })
 

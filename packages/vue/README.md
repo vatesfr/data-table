@@ -94,7 +94,7 @@ A column whose cell value is an array — tags, genres, categories — is detect
 - Cells without a custom `#cell-{key}` slot or `format` display the array joined with `, `.
 - Every checklist item (array-valued columns and plain string columns alike) shows how many rows currently match it — helpful for scanning a high-cardinality column like `tags` before picking a value. The count is faceted: it reflects every other active filter, but not the checklist's own column, so selecting a value elsewhere narrows the counts shown here without a value's own selection state affecting its neighbors. A value with a count of 0 is dropped from the checklist entirely — unless it's already selected, in which case it stays listed so it can still be unticked.
 - A sort-order button next to the search input cycles the checklist between alphabetical (A→Z / Z→A) and by-count (high→low / low→high) order — default is alphabetical ascending.
-- Each checklist value cycles through a tri-state: neutral → include → exclude → neutral (`table.filter.cycleValue`), so a value can be explicitly excluded, not just included. Include/exclude are kept mutually exclusive per value. Active-bar chips are per-kind — an include-values chip, an exclude-values chip, and a range chip for a column can all appear at once, each independently removable.
+- On a multi-value column, each checklist value has a checkbox to include it and a ≠ button to exclude it (`table.filter.cycleValue` cycles neutral → include → exclude programmatically). Include/exclude are kept mutually exclusive per value. Active-bar chips are per-kind — an include-values chip, an exclude-values chip, and a range chip for a column can all appear at once, each independently removable.
 
 ```ts
 interface Game {

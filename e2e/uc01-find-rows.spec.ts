@@ -38,11 +38,11 @@ test('UC01 find rows in a list', async ({ page, section }) => {
   for (const salary of await salaries()) expect(salary).toBeGreaterThanOrEqual(90000)
   expect(await names()).toEqual(['Clara Dubois', 'Olivia Smith', 'Sam Patel'])
 
-  // 4. Exclude Leadership: the second click in its checklist
+  // 4. Exclude Leadership: its row's ≠ button
   await pick('Skills')
-  const leadership = detail.getByRole('checkbox', { name: 'Leadership' })
-  await leadership.click()
-  await leadership.click()
+  const exclude = detail.getByRole('button', { name: 'Exclude Leadership' })
+  await exclude.click()
+  await expect(exclude).toHaveAttribute('aria-pressed', 'true')
   await expect(bar.getByRole('button', { name: 'Skills: ≠ Leadership' })).toBeVisible()
   expect(await names()).toEqual(['Clara Dubois'])
   await page.keyboard.press('Escape')

@@ -1,5 +1,5 @@
 // Converted from the legacy createDataTable.test.ts, lines 1197-1743:
-// "checklist filter", "exclude filters (tri-state checklist)", "filter value sort" sections.
+// "checklist filter", "exclude filters (multi-value checklist)", "filter value sort" sections.
 // See PRUNED/ADAPTED notes at the bottom of this file.
 
 import { afterEach, describe, expect, it } from 'vitest'
@@ -136,6 +136,12 @@ function filterValueLabels(container: HTMLElement): (string | null)[] {
 // GAMES/GAME_COLS "tags" exclude-filter section.
 function tagCheckbox(container: HTMLElement, value: string): HTMLInputElement {
   return filterValueCheckbox(container, value)!
+}
+
+function excludeButton(container: HTMLElement, value: string): HTMLButtonElement {
+  return container.querySelector<HTMLButtonElement>(
+    `button[data-dd-value-exclude][data-value="${value}"]`,
+  )!
 }
 
 function selectAllCheckbox(container: HTMLElement): HTMLInputElement | null {
@@ -386,46 +392,77 @@ describe('createDataTable — checklist filter', () => {
   })
 })
 
-describe('createDataTable — exclude filters (tri-state checklist)', () => {
+describe('createDataTable — exclude filters (multi-value checklist)', () => {
   // NOTE (see bottom-of-file "CONFIRMED BUG" notes): checks the resulting *state*
   // (getViewState().filters/excludeFilters) instead of the clicked checkbox's own DOM
   // checked/indeterminate — reading those back immediately after the very click that changed them
   // is unreliable for the specific element that was the click's own target (a confirmed real bug,
   // not a selector mismatch). The row-filtering assertions (driven by the same state) are kept
-  // exactly as before and still meaningfully cover the tri-state cycle's actual effect.
-  it('a plain click cycles a value through neutral -> include -> exclude -> neutral', () => {
+  // exactly as before and still meaningfully cover include/exclude's actual effect.
+  it('the checkbox includes a value and the ≠ button excludes it, each dropping the other', () => {
     const { container, table } = mount(GAMES, GAME_COLS)
     openFilterDropdown(container)
+    const names = () =>
+      [...container.querySelectorAll('tbody tr td:first-child')].map((td) => td.textContent)
+
+    click(tagCheckbox(container, 'RPG'))
+    expect(table.getViewState().filters?.tags).toEqual(['RPG'])
+    expect(names()).toEqual(['Game A'])
+
+    click(excludeButton(container, 'RPG'))
+    expect(table.getViewState().filters?.tags).toBeUndefined()
+    expect(table.getViewState().excludeFilters?.tags).toEqual(['RPG'])
+    expect(excludeButton(container, 'RPG').getAttribute('aria-pressed')).toBe('true')
+    // Game A has RPG, so it's excluded now; Game B (Action, Adventure) remains.
+    expect(names()).toEqual(['Game B'])
 
     click(tagCheckbox(container, 'RPG'))
     expect(table.getViewState().filters?.tags).toEqual(['RPG'])
     expect(table.getViewState().excludeFilters?.tags).toBeUndefined()
-    expect(
-      [...container.querySelectorAll('tbody tr')].some((r) => r.textContent?.includes('Game A')),
-    ).toBe(true)
 
-    click(tagCheckbox(container, 'RPG'))
-    expect(table.getViewState().filters?.tags).toBeUndefined()
-    expect(table.getViewState().excludeFilters?.tags).toEqual(['RPG'])
-    // Game A has RPG, so it's excluded now; Game B (Action, Adventure) remains.
-    const names = [...container.querySelectorAll('tbody tr td:first-child')].map(
-      (td) => td.textContent,
-    )
-    expect(names).toEqual(['Game B'])
-
-    click(tagCheckbox(container, 'RPG'))
+    click(excludeButton(container, 'RPG'))
+    click(excludeButton(container, 'RPG'))
     expect(table.getViewState().filters?.tags).toBeUndefined()
     expect(table.getViewState().excludeFilters?.tags).toBeUndefined()
-    expect(
-      [...container.querySelectorAll('tbody tr td:first-child')].map((td) => td.textContent),
-    ).toEqual(['Game A', 'Game B'])
+    expect(names()).toEqual(['Game A', 'Game B'])
+  })
+
+  it('names the ≠ button after its value and marks the excluded row, never as a mixed checkbox', () => {
+    const { container } = mount(GAMES, GAME_COLS)
+    openFilterDropdown(container)
+    const button = excludeButton(container, 'RPG')
+    expect(button.getAttribute('aria-label')).toBe('Exclude RPG')
+    expect(button.getAttribute('aria-pressed')).toBe('false')
+    click(button)
+    const row = tagCheckbox(container, 'RPG').closest('.dt-dd-item')!
+    expect(row.classList.contains('dt-dd-item--exclude')).toBe(true)
+    expect(tagCheckbox(container, 'RPG').indeterminate).toBe(false)
+  })
+
+  it('reaches the ≠ buttons by keyboard: → from a checkbox, ↓ along them, ← back', () => {
+    const { container } = mount(GAMES, GAME_COLS)
+    openFilterDropdown(container)
+    const key = (el: Element, k: string) =>
+      el.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true }))
+    tagCheckbox(container, 'Action').focus()
+    key(document.activeElement!, 'ArrowRight')
+    expect(document.activeElement).toBe(excludeButton(container, 'Action'))
+    key(document.activeElement!, 'ArrowDown')
+    expect(document.activeElement).toBe(excludeButton(container, 'Adventure'))
+    key(document.activeElement!, 'ArrowLeft')
+    expect(document.activeElement).toBe(tagCheckbox(container, 'Adventure'))
+  })
+
+  it('has no ≠ button on a single-value column', () => {
+    const { container } = mount(ROWS, COLS)
+    openFilterDropdown(container)
+    expect(container.querySelector('[data-dd-value-exclude]')).toBeNull()
   })
 
   it('renders an exclude filter as its own chip in the active bar, distinct from an include chip', () => {
     const { container } = mount(GAMES, GAME_COLS)
     openFilterDropdown(container)
-    click(tagCheckbox(container, 'RPG'))
-    click(tagCheckbox(container, 'RPG')) // include -> exclude
+    click(excludeButton(container, 'RPG'))
 
     const chip = container.querySelector<HTMLElement>('.dt-active-bar .dt-chip--exclude')
     expect(chip).not.toBeNull()
@@ -435,8 +472,7 @@ describe('createDataTable — exclude filters (tri-state checklist)', () => {
   it("the exclude chip's x clears only the exclusion", () => {
     const { container } = mount(GAMES, GAME_COLS)
     openFilterDropdown(container)
-    click(tagCheckbox(container, 'RPG'))
-    click(tagCheckbox(container, 'RPG')) // include -> exclude
+    click(excludeButton(container, 'RPG'))
     openFilterDropdown(container) // close
 
     click(container.querySelector<HTMLElement>('.dt-active-bar .dt-chip--exclude .dt-chip-x')!)
@@ -450,8 +486,7 @@ describe('createDataTable — exclude filters (tri-state checklist)', () => {
     const { container } = mount(GAMES, GAME_COLS)
     openFilterDropdown(container)
     click(tagCheckbox(container, 'Action')) // include Action
-    click(tagCheckbox(container, 'RPG'))
-    click(tagCheckbox(container, 'RPG')) // include -> exclude RPG
+    click(excludeButton(container, 'RPG'))
 
     // Clearing the include chip must not touch the exclude chip.
     const includeX = container.querySelector<HTMLElement>(
@@ -465,7 +500,7 @@ describe('createDataTable — exclude filters (tri-state checklist)', () => {
     // Clicking a chip's × is an "outside click" relative to the (now-closed) filter dropdown —
     // reopen it to inspect the checklist's live checkbox state.
     openFilterDropdown(container)
-    expect(tagCheckbox(container, 'RPG').indeterminate).toBe(true)
+    expect(excludeButton(container, 'RPG').getAttribute('aria-pressed')).toBe('true')
 
     // Clearing the remaining exclude chip must not resurrect the just-cleared include state.
     click(container.querySelector<HTMLElement>('.dt-active-bar .dt-chip--exclude .dt-chip-x')!)
@@ -477,20 +512,18 @@ describe('createDataTable — exclude filters (tri-state checklist)', () => {
   it('select-all moves listed values into the include set, clearing any that were excluded', () => {
     const { container } = mount(GAMES, GAME_COLS)
     openFilterDropdown(container)
-    click(tagCheckbox(container, 'RPG'))
-    click(tagCheckbox(container, 'RPG')) // include -> exclude
+    click(excludeButton(container, 'RPG'))
 
     click(selectAllCheckbox(container)!)
     expect(tagCheckbox(container, 'RPG').checked).toBe(true)
-    expect(tagCheckbox(container, 'RPG').indeterminate).toBe(false)
+    expect(excludeButton(container, 'RPG').getAttribute('aria-pressed')).toBe('false')
   })
 
   it("select-all's deselect branch only clears the include set, leaving an unrelated exclude untouched", () => {
     const { container, table } = mount(GAMES, GAME_COLS)
     openFilterDropdown(container)
     click(tagCheckbox(container, 'Action')) // include Action
-    click(tagCheckbox(container, 'RPG'))
-    click(tagCheckbox(container, 'RPG')) // include -> exclude RPG
+    click(excludeButton(container, 'RPG'))
 
     // Master checkbox should be indeterminate (1 of 3 listed values included) — clicking it should
     // deselect just that included value, not silently clear RPG's independent exclusion too.
@@ -504,7 +537,7 @@ describe('createDataTable — exclude filters (tri-state checklist)', () => {
 
     expect(tagCheckbox(container, 'Action').checked).toBe(false)
     expect(tagCheckbox(container, 'RPG').checked).toBe(false)
-    expect(tagCheckbox(container, 'RPG').indeterminate).toBe(true)
+    expect(excludeButton(container, 'RPG').getAttribute('aria-pressed')).toBe('true')
     expect(
       [...container.querySelectorAll('tbody tr td:first-child')].map((td) => td.textContent),
     ).toEqual(['Game B'])
@@ -513,18 +546,17 @@ describe('createDataTable — exclude filters (tri-state checklist)', () => {
   it('round-trips an exclude filter through getViewState/setViewState', () => {
     const { container, table } = mount(GAMES, GAME_COLS)
     openFilterDropdown(container)
-    click(tagCheckbox(container, 'RPG'))
-    click(tagCheckbox(container, 'RPG')) // include -> exclude
+    click(excludeButton(container, 'RPG'))
 
     const view = table.getViewState()
     expect(view.excludeFilters).toEqual({ tags: ['RPG'] })
 
     table.setViewState({})
     expect(tagCheckbox(container, 'RPG').checked).toBe(false)
-    expect(tagCheckbox(container, 'RPG').indeterminate).toBe(false)
+    expect(excludeButton(container, 'RPG').getAttribute('aria-pressed')).toBe('false')
 
     table.setViewState(view)
-    expect(tagCheckbox(container, 'RPG').indeterminate).toBe(true)
+    expect(excludeButton(container, 'RPG').getAttribute('aria-pressed')).toBe('true')
   })
 })
 
@@ -633,10 +665,9 @@ describe('createDataTable — filter value sort', () => {
 // the cost of a one-tick-late DOM read for every other update path too.
 //
 // Tests below still read `table.getViewState()` rather than the DOM in a few spots — that's fine
-// and arguably more direct for asserting the underlying range-selection/tri-state logic itself,
+// and arguably more direct for asserting the underlying range-selection/include/exclude logic,
 // independent of the DOM-timing question. The DOM-level regression itself is covered directly by
-// FilterDropdown.test.tsx's "the checkbox DOM property reflects the tri-state correctly after a
-// click" test (which awaits a microtask tick, matching the fix's own timing).
+// FilterDropdown.test.tsx's checkbox-DOM-after-a-click test (which awaits a microtask tick, matching the fix's own timing).
 
 // ADAPTED / BEHAVIORAL SURPRISES (flagging real differences found, not silently working around them):
 // - 'hides the select-all checkbox when search matches no values' — the new FilterDropdown
@@ -646,10 +677,3 @@ describe('createDataTable — filter value sort', () => {
 //   just unchecked/non-indeterminate, when a search matches nothing. Adapted the test to assert the
 //   list is empty (still true) and dropped the "checkbox is hidden" assertion instead of asserting
 //   something false.
-// - The tri-state cycle test ('a plain click cycles a value through neutral -> include -> exclude
-//   -> neutral') no longer asserts a `.dt-dd-item--exclude` class on the checkbox's `<label>` —
-//   the new FilterDropdown/DateTreeItem communicate the "excluded" tri-state purely via the native
-//   `.indeterminate` DOM property (no such CSS class exists in the new markup at all). This is a
-//   real styling simplification (relying on the browser's native indeterminate dash instead of a
-//   dedicated class-driven look), not a bug — the underlying checked/indeterminate state, and the
-//   actual row-filtering behavior, are unchanged and fully covered by the remaining assertions.

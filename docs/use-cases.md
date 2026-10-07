@@ -19,7 +19,7 @@ What people do with a table built on this library, end to end — the yardstick 
 1. Type "lead" in Search: only matching rows remain; the row count says how many.
 2. Filter Department to Engineering and Product: the active bar shows the filter as a chip.
 3. Narrow Salary with the range: bounds read as the column displays them (currency, no raw floats).
-4. Exclude the "Leadership" skill (second click in its checklist): rows having it disappear.
+4. Exclude the "Leadership" skill (the ≠ button on its checklist row): rows having it disappear.
 5. Sort by Salary, then shift-click Joined to add a second sort.
 6. Click the sort chip to flip its direction; remove the filter chip with its ×.
 7. Clear all: every row is back, sorted as at first.

@@ -502,7 +502,7 @@ describe('DataTable — filter dropdown', () => {
   })
 })
 
-describe('DataTable — exclude filters (tri-state checklist)', () => {
+describe('DataTable — exclude filters (multi-value checklist)', () => {
   interface Game {
     id: number
     name: string
@@ -523,37 +523,55 @@ describe('DataTable — exclude filters (tri-state checklist)', () => {
     )
   }
 
-  it('a plain click cycles a value through neutral -> include -> exclude -> neutral', () => {
-    const { getByText, getByLabelText, container } = render(
+  it('the checkbox includes a value and the ≠ button excludes it, each dropping the other', () => {
+    const { getByText, getByLabelText, getByRole, container } = render(
       <DataTable data={GAMES} columns={GAME_COLS} rowKey="id" />,
     )
     fireEvent.click(getByText('Filter'))
-    const rpg = () => getByLabelText('RPG', { exact: false }) as HTMLInputElement
+    const rpg = () => getByLabelText('RPG', { exact: false, selector: 'input' }) as HTMLInputElement
+    const excludeRpg = () => getByRole('button', { name: 'Exclude RPG' })
 
     fireEvent.click(rpg())
     expect(rpg().checked).toBe(true)
-    expect(rpg().indeterminate).toBe(false)
     expect(names(container)).toEqual(['Game A'])
 
-    fireEvent.click(rpg())
+    fireEvent.click(excludeRpg())
     expect(rpg().checked).toBe(false)
-    expect(rpg().indeterminate).toBe(true)
+    expect(rpg().indeterminate).toBe(false)
+    expect(excludeRpg().getAttribute('aria-pressed')).toBe('true')
     expect(names(container)).toEqual(['Game B']) // Game A has RPG, now excluded
 
     fireEvent.click(rpg())
-    expect(rpg().checked).toBe(false)
-    expect(rpg().indeterminate).toBe(false)
+    expect(rpg().checked).toBe(true)
+    expect(excludeRpg().getAttribute('aria-pressed')).toBe('false')
+
+    fireEvent.click(rpg())
     expect(names(container)).toEqual(['Game A', 'Game B'])
   })
 
-  it('renders an exclude filter as its own chip, distinct from an include chip', () => {
-    const { getByText, getByLabelText, container } = render(
+  it('reaches the ≠ buttons by keyboard: → from a checkbox, ↓ along them, ← back', () => {
+    const { getByText, getByLabelText, getByRole } = render(
       <DataTable data={GAMES} columns={GAME_COLS} rowKey="id" />,
     )
     fireEvent.click(getByText('Filter'))
-    const rpg = () => getByLabelText('RPG', { exact: false }) as HTMLInputElement
-    fireEvent.click(rpg())
-    fireEvent.click(rpg()) // include -> exclude
+    const action = getByLabelText('Action', { exact: false, selector: 'input' })
+    action.focus()
+    fireEvent.keyDown(action, { key: 'ArrowRight' })
+    expect(document.activeElement).toBe(getByRole('button', { name: 'Exclude Action' }))
+    fireEvent.keyDown(document.activeElement!, { key: 'ArrowDown' })
+    expect(document.activeElement).toBe(getByRole('button', { name: 'Exclude Adventure' }))
+    fireEvent.keyDown(document.activeElement!, { key: 'ArrowLeft' })
+    expect(document.activeElement).toBe(
+      getByLabelText('Adventure', { exact: false, selector: 'input' }),
+    )
+  })
+
+  it('renders an exclude filter as its own chip, distinct from an include chip', () => {
+    const { getByText, getByRole, container } = render(
+      <DataTable data={GAMES} columns={GAME_COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Filter'))
+    fireEvent.click(getByRole('button', { name: 'Exclude RPG' }))
 
     // Chips (in the active bar) render "Tags: value list" as their button's own text — scoped
     // this way to avoid matching a checklist row's own <span>{v}</span>, which just holds the
@@ -566,15 +584,14 @@ describe('DataTable — exclude filters (tri-state checklist)', () => {
   })
 
   it("clearing an include chip on a column doesn't clear that same column's exclude chip, and vice versa", () => {
-    const { getByText, getByLabelText, container } = render(
+    const { getByText, getByLabelText, getByRole, container } = render(
       <DataTable data={GAMES} columns={GAME_COLS} rowKey="id" />,
     )
     fireEvent.click(getByText('Filter'))
-    const action = () => getByLabelText('Action', { exact: false }) as HTMLInputElement
-    const rpg = () => getByLabelText('RPG', { exact: false }) as HTMLInputElement
+    const action = () =>
+      getByLabelText('Action', { exact: false, selector: 'input' }) as HTMLInputElement
     fireEvent.click(action()) // include Action
-    fireEvent.click(rpg())
-    fireEvent.click(rpg()) // include -> exclude RPG
+    fireEvent.click(getByRole('button', { name: 'Exclude RPG' }))
 
     const includeChip = [...container.querySelectorAll('span')].find((el) =>
       el.textContent?.trim().startsWith('Tags: Action'),
@@ -587,7 +604,7 @@ describe('DataTable — exclude filters (tri-state checklist)', () => {
         el.textContent?.trim().startsWith('Tags: Action'),
       ),
     ).toBe(false)
-    expect(rpg().indeterminate).toBe(true) // exclude untouched
+    expect(getByRole('button', { name: 'Exclude RPG' }).getAttribute('aria-pressed')).toBe('true') // exclude untouched
 
     const excludeChip = [...container.querySelectorAll('span')].find((el) =>
       el.textContent?.trim().startsWith('Tags: ≠'),
@@ -598,13 +615,12 @@ describe('DataTable — exclude filters (tri-state checklist)', () => {
   })
 
   it('select-all moves listed values into the include set, clearing any that were excluded', () => {
-    const { getByText, getByLabelText } = render(
+    const { getByText, getByLabelText, getByRole } = render(
       <DataTable data={GAMES} columns={GAME_COLS} rowKey="id" />,
     )
     fireEvent.click(getByText('Filter'))
-    const rpg = () => getByLabelText('RPG', { exact: false }) as HTMLInputElement
-    fireEvent.click(rpg())
-    fireEvent.click(rpg()) // include -> exclude
+    const rpg = () => getByLabelText('RPG', { exact: false, selector: 'input' }) as HTMLInputElement
+    fireEvent.click(getByRole('button', { name: 'Exclude RPG' }))
 
     fireEvent.click(getByLabelText('Select all'))
     expect(rpg().checked).toBe(true)
@@ -612,35 +628,34 @@ describe('DataTable — exclude filters (tri-state checklist)', () => {
   })
 
   it("select-all's deselect branch only clears the include set, leaving an unrelated exclude untouched", () => {
-    const { getByText, getByLabelText, container } = render(
+    const { getByText, getByLabelText, getByRole, container } = render(
       <DataTable data={GAMES} columns={GAME_COLS} rowKey="id" />,
     )
     fireEvent.click(getByText('Filter'))
-    const action = () => getByLabelText('Action', { exact: false }) as HTMLInputElement
-    const rpg = () => getByLabelText('RPG', { exact: false }) as HTMLInputElement
+    const action = () =>
+      getByLabelText('Action', { exact: false, selector: 'input' }) as HTMLInputElement
+    const rpg = () => getByLabelText('RPG', { exact: false, selector: 'input' }) as HTMLInputElement
     fireEvent.click(action()) // include Action
-    fireEvent.click(rpg())
-    fireEvent.click(rpg()) // include -> exclude RPG
+    fireEvent.click(getByRole('button', { name: 'Exclude RPG' }))
 
     expect((getByLabelText('Select all') as HTMLInputElement).indeterminate).toBe(true)
     fireEvent.click(getByLabelText('Select all'))
 
     expect(action().checked).toBe(false)
     expect(rpg().checked).toBe(false)
-    expect(rpg().indeterminate).toBe(true)
+    expect(getByRole('button', { name: 'Exclude RPG' }).getAttribute('aria-pressed')).toBe('true')
     expect(names(container)).toEqual(['Game B'])
   })
 
-  it('keeps the tri-state tooltips for a multi-value column', () => {
-    const { getByText, getByLabelText } = render(
+  it("a multi-value column's checkbox has no tooltip; the excluded row is struck through", () => {
+    const { getByText, getByLabelText, getByRole } = render(
       <DataTable data={GAMES} columns={GAME_COLS} rowKey="id" />,
     )
     fireEvent.click(getByText('Filter'))
-    const action = getByLabelText('Action', { exact: false }) as HTMLInputElement
-    expect(action.title).toBe('Click to include, click again to exclude')
-    fireEvent.click(action) // include
-    fireEvent.click(action) // exclude
-    expect(action.title).toBe('Excluded — click to clear')
+    const action = getByLabelText('Action', { exact: false, selector: 'input' }) as HTMLInputElement
+    expect(action.title).toBe('')
+    fireEvent.click(getByRole('button', { name: 'Exclude Action' }))
+    expect(getByText('Action', { selector: 'span' }).style.textDecoration).toBe('line-through')
   })
 
   it('bulk-(de)selects hidden values via the include set for a multi-value column', () => {
@@ -656,8 +671,13 @@ describe('DataTable — exclude filters (tri-state checklist)', () => {
     expect(others.checked).toBe(false)
     fireEvent.click(others)
     fireEvent.change(filterSearchInput, { target: { value: '' } })
-    expect((getByLabelText('RPG', { exact: false }) as HTMLInputElement).checked).toBe(true)
-    expect((getByLabelText('Adventure', { exact: false }) as HTMLInputElement).checked).toBe(true)
+    expect(
+      (getByLabelText('RPG', { exact: false, selector: 'input' }) as HTMLInputElement).checked,
+    ).toBe(true)
+    expect(
+      (getByLabelText('Adventure', { exact: false, selector: 'input' }) as HTMLInputElement)
+        .checked,
+    ).toBe(true)
   })
 })
 
@@ -695,8 +715,8 @@ describe('DataTable — any/all filter match mode', () => {
     expect(anyBtn.getAttribute('aria-pressed')).toBe('true')
     expect(allBtn.getAttribute('aria-pressed')).toBe('false')
 
-    fireEvent.click(getByLabelText('Action', { exact: false }))
-    fireEvent.click(getByLabelText('RPG', { exact: false }))
+    fireEvent.click(getByLabelText('Action', { exact: false, selector: 'input' }))
+    fireEvent.click(getByLabelText('RPG', { exact: false, selector: 'input' }))
     expect(names(container).sort()).toEqual(['Game A', 'Game B', 'Game C'])
 
     fireEvent.click(allBtn)
@@ -730,8 +750,8 @@ describe('DataTable — any/all filter match mode', () => {
 
     fireEvent.click(getByText('Filter'))
     selectCol('tags')
-    fireEvent.click(getByLabelText('Action', { exact: false }))
-    fireEvent.click(getByLabelText('RPG', { exact: false }))
+    fireEvent.click(getByLabelText('Action', { exact: false, selector: 'input' }))
+    fireEvent.click(getByLabelText('RPG', { exact: false, selector: 'input' }))
 
     fireEvent.click(getByText('All'))
     selectCol('name')
