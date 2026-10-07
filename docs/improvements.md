@@ -9,24 +9,16 @@ Severity: **blocker** (goal unreachable) · **major** (reached with confusion or
 Seeded 2026-10-04 from issues reported by a consumer app, each reproduced on the demos (Solid, spot-checked on React and Vue).
 
 - [Active bar](#active-bar)
-- [Column headers](#column-headers)
 - [Empty and cleared states](#empty-and-cleared-states)
-- [Layout and integration](#layout-and-integration)
 - [Adapter-specific](#adapter-specific)
 
 ## Active bar
 
 - **U6 · polish · UC01, UC02** — a column both sorted and grouped gets one chip reading "↑ Department × ⊞ ×": two identical × side by side, removing different things (the sort, the group); seen in Solid and React. Tell them apart: separate chips, or a name-revealing tooltip and distinct glyph on the group part.
 
-## Column headers
-
-- **U20 · minor · UC07** — on a phone the toolbar dropdowns focus their search box on open, raising the on-screen keyboard before the user asked to type (the header menu's Filter no longer does). On a coarse pointer, focus the panel rather than its search box.
-
 ## Empty and cleared states
 
 - **U8 · polish · UC01** — Clear all drops every sort, group and filter at once with no undo. Consider an Undo next to the stats line for a few seconds.
-
-## Layout and integration
 
 ## Adapter-specific
 

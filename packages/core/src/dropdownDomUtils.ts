@@ -250,3 +250,18 @@ export function ddNavFocusables(
     .map(ddFocusableFor)
     .filter((el): el is HTMLElement => el !== null)
 }
+
+/**
+ * Where focus lands when a dropdown opens: its search box (`input[data-dd-search]`), else its
+ * first row. On a touch screen (`pointer: coarse`) the first row even when there's a search box:
+ * focusing a text field there raises the on-screen keyboard before the user asked to type.
+ */
+export function ddOpenFocusTarget(
+  panel: HTMLElement,
+  selector: string = DD_NAV_SELECTOR,
+): HTMLElement | undefined {
+  const touch = typeof window !== 'undefined' && !!window.matchMedia?.('(pointer: coarse)').matches
+  const search = panel.querySelector<HTMLElement>('input[data-dd-search]')
+  if (search && !touch) return search
+  return ddNavFocusables(panel, selector).find((el) => !el.matches('input[data-dd-search]'))
+}

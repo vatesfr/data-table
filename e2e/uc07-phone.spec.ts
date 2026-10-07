@@ -94,3 +94,19 @@ test('U21 on a phone: tapping a checkbox cell beside the box selects the row', a
   await cell.tap({ position: { x: 3, y: 3 } })
   await expect(box).toBeChecked()
 })
+
+test('U20 on a phone: opening a toolbar dropdown leaves the keyboard down', async ({
+  page,
+  section,
+}) => {
+  const dt = await section('full-table')
+  for (const name of ['Columns', 'Sort', 'Filter']) {
+    await dt.getByRole('button', { name, exact: true }).tap()
+    const focused = await page.evaluate(() => ({
+      text: document.activeElement?.matches('input[type="text"], input:not([type])'),
+      inPanel: !!document.activeElement?.closest('.dt-dd'),
+    }))
+    expect(focused, name).toEqual({ text: false, inPanel: true })
+    await page.keyboard.press('Escape')
+  }
+})

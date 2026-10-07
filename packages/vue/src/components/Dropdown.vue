@@ -3,6 +3,7 @@ import { ref, watch, onMounted, onUnmounted } from 'vue'
 import {
   computeDropdownClampOffset,
   ddNavFocusables,
+  ddOpenFocusTarget,
   keepDropdownClamped,
   viewportWidth,
 } from '@vates/data-table-core/internal'
@@ -132,11 +133,9 @@ watch(
     // the Sort/Group dropdowns render their active-entries section *above* the search box, but
     // the search box is still the intended first stop. Falling back to the first focusable
     // descendant covers a dropdown with no search box at all (e.g. Sort when every column is
-    // already sorted, so there's no addable section to search).
-    const focusTarget =
-      menu.querySelector<HTMLElement>('[data-dd-search]') ??
-      menu.querySelector<HTMLElement>('button, input, [tabindex]:not([tabindex="-1"])')
-    focusTarget?.focus()
+    // already sorted, so there's no addable section to search). On a touch screen, the first row
+    // regardless, so the keyboard doesn't pop up (see ddOpenFocusTarget).
+    ddOpenFocusTarget(menu, `input[data-dd-search], ${props.rowSelector}`)?.focus()
   },
   { flush: 'post' },
 )

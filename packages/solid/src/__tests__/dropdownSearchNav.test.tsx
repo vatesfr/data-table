@@ -5,6 +5,7 @@ import { DataTable } from '../DataTable'
 import { createTableState } from '../createTableState'
 import { GroupDropdown } from '../components/GroupDropdown'
 import type { ColumnDef } from '../types'
+import { stubMatchMedia } from './stubMatchMedia'
 
 // Mirrors packages/react/src/__tests__/dropdownSearchNav.test.tsx's own fixture/coverage, scoped
 // to what's implemented in Solid so far (see docs/filter-dropdown.md's "Filter dropdown"/keyboard-nav docs for
@@ -83,6 +84,18 @@ describe('DataTable — dropdown focus-on-open', () => {
     await tick()
     expect(document.activeElement).toBe(container.querySelector('.dt-dd-search'))
     dispose()
+  })
+
+  it('on a touch screen, opening a dropdown focuses its first row, not its search box', async () => {
+    const restore = stubMatchMedia(true)
+    const { container, dispose } = mountWithHiddenColumn()
+    clickButtonByText(container, 'Columns')
+    await tick()
+    const active = document.activeElement as HTMLElement
+    expect(active.closest('.dt-dd')).not.toBeNull()
+    expect(active.matches('input[data-dd-search]')).toBe(false)
+    dispose()
+    restore()
   })
 
   it('opening the Columns dropdown focuses its search box', async () => {

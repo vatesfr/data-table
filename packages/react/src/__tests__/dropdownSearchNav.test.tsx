@@ -316,6 +316,26 @@ describe('DataTable — dropdown focus-on-open', () => {
     expect(document.activeElement).toBe(container.querySelector('input[data-dd-search]'))
   })
 
+  it('on a touch screen, opening a dropdown focuses its first row, not its search box', () => {
+    const restore = stubMatchMedia(true)
+    try {
+      const { getByText } = render(
+        <DataTable
+          data={ROWS}
+          columns={COLS}
+          rowKey="id"
+          initialViewState={{ visibleCols: ['name'] }}
+        />,
+      )
+      fireEvent.click(getByText('Columns'))
+      const active = document.activeElement as HTMLElement
+      expect(active).not.toBe(document.body)
+      expect(active.matches('input[data-dd-search]')).toBe(false)
+    } finally {
+      restore()
+    }
+  })
+
   it('opening a dropdown with no search box (nothing left to add) focuses the first active row', () => {
     const { getByText, getAllByText, container } = render(
       <DataTable data={ROWS} columns={COLS} rowKey="id" />,

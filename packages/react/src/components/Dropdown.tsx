@@ -9,6 +9,7 @@ import {
 import {
   computeDropdownClampOffset,
   ddNavFocusables,
+  ddOpenFocusTarget,
   keepDropdownClamped,
   viewportWidth,
 } from '@vates/data-table-core/internal'
@@ -92,10 +93,9 @@ export function Dropdown({
     // (preferred regardless of where it sits in the DOM, e.g. Sort/Group's search box renders
     // *after* the active-entries section but is still the preferred landing spot, matching
     // vanilla's focusFirstInDropdown), else the first row (e.g. Sort with every column already
-    // sorted has no addable section and therefore no search box).
-    const search = panel.querySelector<HTMLElement>('input[data-dd-search]')
-    if (search) search.focus()
-    else ddNavFocusables(panel)[0]?.focus()
+    // sorted has no addable section and therefore no search box). On a touch screen, the first
+    // row regardless, so the keyboard doesn't pop up (see ddOpenFocusTarget).
+    ddOpenFocusTarget(panel)?.focus()
     return stopClamping
   }, [open])
 

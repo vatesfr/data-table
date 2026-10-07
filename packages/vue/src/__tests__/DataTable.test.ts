@@ -3045,6 +3045,28 @@ describe('DataTable — dropdown column search and keyboard navigation', () => {
     wrapper.unmount()
   })
 
+  it('on a touch screen, opening a dropdown focuses its first row, not its search box', async () => {
+    const restore = stubMatchMedia(true)
+    try {
+      const wrapper = mount(DataTable, {
+        props: {
+          data: ROWS,
+          columns: THREE_COLS,
+          rowKey: 'id',
+          initialViewState: { visibleCols: ['name'] },
+        },
+        attachTo: document.body,
+      })
+      await openDd(wrapper, 'Columns')
+      const active = document.activeElement as HTMLElement
+      expect(wrapper.element.contains(active)).toBe(true)
+      expect(active.matches('input[data-dd-search]')).toBe(false)
+      wrapper.unmount()
+    } finally {
+      restore()
+    }
+  })
+
   it('opening a dropdown with no search box (nothing left to add) focuses the first active row', async () => {
     const wrapper = mount(DataTable, {
       props: { data: ROWS, columns: THREE_COLS, rowKey: 'id' },

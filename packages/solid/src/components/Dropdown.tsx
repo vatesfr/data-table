@@ -2,6 +2,7 @@ import { type JSX, Show, createSignal, onCleanup, onMount } from 'solid-js'
 import {
   computeDropdownClampOffset,
   ddNavFocusables,
+  ddOpenFocusTarget,
   keepDropdownClamped,
   viewportWidth,
 } from '@vates/data-table-core/internal'
@@ -144,15 +145,14 @@ export function Dropdown(props: DropdownProps) {
               // has one (preferred regardless of where it sits in the DOM, e.g. Sort/Group's
               // search box renders *after* the active-entries section but is still the preferred
               // landing spot), else the first row (e.g. Sort with every column already sorted has
-              // no addable section and therefore no search box).
+              // no addable section and therefore no search box). On a touch screen, the first row
+              // regardless, so the keyboard doesn't pop up (see ddOpenFocusTarget).
               // Measure after the panel's real content is laid out — same microtask, since both
               // depend on the same "children actually exist" precondition. Clamp first: focusing a
               // field still past the viewport's edge scrolls the whole page sideways (phones).
               clampToViewport(panelRef)
               stopClamping = keepDropdownClamped(panelRef, translateX, setTranslateX)
-              const search = panelRef.querySelector<HTMLElement>('input[data-dd-search]')
-              if (search) search.focus()
-              else ddNavFocusables(panelRef)[0]?.focus()
+              ddOpenFocusTarget(panelRef)?.focus()
             })
           }}
           style={{ transform: translateX() ? `translateX(${translateX()}px)` : undefined }}
