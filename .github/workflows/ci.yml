@@ -30,6 +30,7 @@ jobs:
       - run: npm run e2e
       - run: npm run type-check
       - run: npm run build
+      - run: npm run check:dist-types
 
       # Checks the build above against each package's "size-limit" budget in package.json.
       - run: npm run size

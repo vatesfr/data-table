@@ -35,6 +35,7 @@ jobs:
       - run: npm run test
       - run: npm run type-check
       - run: npm run build
+      - run: npm run check:dist-types
 
       # A release bumps only the packages that changed (see the `release` skill's "Version
       # pool"), so a package whose version is already on the registry is skipped rather than

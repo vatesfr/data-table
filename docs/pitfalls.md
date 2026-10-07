@@ -6,9 +6,9 @@ Symptom first, then cause and fix. Delete entries once obsolete.
 
 ## Empty `dist/index.d.ts` after a dependency bump
 
-- Symptom: `packages/{react,vue,solid,vanilla}/dist/index.d.ts` is empty; `build` still exits 0, so CI doesn't catch it.
+- Symptom: `packages/{react,vue,solid,vanilla}/dist/index.d.ts` is empty; `build` still exits 0; `check:dist-types` catches it.
 - Cause: TypeScript 6 defaults `rootDir` to the tsconfig's directory instead of the common root of the sources, so declarations land in `dist/src/` (adapters: `dist/<pkg>/src/`, as they compile core's source through `paths`) while `vite-plugin-dts` writes entry stubs expecting them one level up. Also, `/// <reference lib="dom" />` is dropped from emitted `.d.ts` unless marked `preserve="true"`, and API Extractor then fails with `Unable to follow symbol for "HTMLElement"`.
-- Fix: explicit `rootDir` in each package's `tsconfig.json` (core: `src`, adapters: `..`); `preserve="true"` on `dropdownDomUtils.ts`'s lib reference. Root `package.json`'s `typescript` override keeps a single TypeScript version (API Extractor pins its own) — keep it. After touching `typescript`, `typescript-eslint`, `vue-tsc` or `vite-plugin-dts`, check those `.d.ts` files are non-trivial.
+- Fix: explicit `rootDir` in each package's `tsconfig.json` (core: `src`, adapters: `..`); `preserve="true"` on `dropdownDomUtils.ts`'s lib reference. Root `package.json`'s `typescript` override keeps a single TypeScript version (API Extractor pins its own) — keep it. After touching `typescript`, `typescript-eslint`, `vue-tsc` or `vite-plugin-dts`, run `npm run check:dist-types`.
 
 ## `vite-plugin-dts` 5: adapter `.d.ts` bundling fails or inlines core
 

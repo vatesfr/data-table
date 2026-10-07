@@ -12,13 +12,14 @@
     solid/   — @vates/data-table-solid   (peer dep: solid-js)
     vanilla/ — @vates/data-table-vanilla (no framework dependency; bundles @vates/data-table-solid)
   demo/      — one Vite app per adapter, written the way a real consumer would use it
+  dist-types/ — consumer imports type-checked against the built `dist/` types (`npm run check:dist-types`)
   docs/      — design docs, see Documentation
   ```
 - **Setup**: `npm install`; husky hooks install via `prepare`. No services needed.
 - **Build**: `npm run build` (order matters: core → react/vue/solid → vanilla); one package: `npm run build -w packages/X`.
 - **Test**: `npm run test` (~20 s) — one package: `npm run test -w packages/X` (`test:watch` for watch mode) — one file: `npx vitest run <path>` from the package dir. Tests run in jsdom with no network or external services. Benchmarks: `npm run bench -w packages/core`. E2E: `npm run e2e` — Playwright on the Solid demo at desktop and phone widths (`e2e/`, see [testing](docs/testing.md)); in `check` and CI, not pre-commit.
 - **Type-check**: `npm run type-check`.
-- **All checks**: `npm run check` (docs, lint, type-check, test, e2e, build, size) — one line per step, a step's output only when it fails.
+- **All checks**: `npm run check` (docs, lint, type-check, test, e2e, build, dist-types, size) — one line per step, a step's output only when it fails.
 - **Lint/format**: ESLint (`npm run lint`) + Prettier (`npm run format`); lint-staged runs both on commit. `npm run check:docs` fails when a code span in `docs/*.md`, CLAUDE.md or a skill names something absent from the code; list intentional mentions (removed or external names) in a `<!-- check-docs-ignore: … -->` comment in that doc.
 - **Size**: per-package gzip budgets in each `package.json`'s `size-limit`, checked by `npm run size` (after `npm run build`) and on commit; raising one needs approval. Set a budget about 100 B above the measured size, so the next small change doesn't fail the commit. Patch updates to bundled deps (solid-js, its compiler) can grow the solid/vanilla bundles: run `npm run size` right after `npm update`.
 - **Demos**: `npm run dev:react|vue|solid|vanilla` (ports 58981–58984).

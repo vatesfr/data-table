@@ -8,6 +8,11 @@ Each package has its own Vitest setup under `src/__tests__/`:
 - **`packages/solid`** — tests for `createTableState` directly (`createTableState.test.ts`, called inside `createRoot` the same way `packages/vanilla`'s own factory does) and for individual components rendered via `solid-js/web`'s `render()` against real DOM nodes (jsdom) — `ColumnsDropdown`/`FilterDropdown`/`GroupDropdown`/`SearchBox`/`SortDropdown`/`TableBody`, plus `solidScaffold.test.tsx` (a bare Solid-in-jsdom sanity check, predating the rest of the suite). `vitest.config.ts` needs `conditions: ['browser']` — see the file's own comment for why (Vitest's default node-oriented resolution otherwise picks solid-js's SSR build, which doesn't wire up DOM reactivity).
 - **`packages/vanilla`** — a much smaller suite now that the UI/state tests above moved to `packages/solid` with the code they test: `createDataTable.*.test.tsx` (one file per feature area) drives `createDataTable` end-to-end against real DOM nodes (jsdom) via its returned `{ setData, setColumns, destroy }` handle and delegated event dispatch (`click`/`input`/`change`/`keydown`) — this is what actually verifies the wrapper still delegates to `@vates/data-table-solid` correctly, not just that the underlying components work — and `persistence.test.ts` covers `persistViewToLocalStorage`/`syncViewToUrl`, which stayed here since they only ever talk to the imperative `ViewStateApi` shape.
 
+## Built types
+
+- `dist-types/` imports each adapter's main entry and `/theme` the way a consumer does, resolved through `node_modules` to the built `dist/`; `npm run check:dist-types` (after `build`) type-checks it.
+- A `@ts-expect-error` on a mistyped prop fails if the types degrade to `any`.
+
 ## End to end
 
 `e2e/` runs Playwright (`npm run e2e`) against the Solid demo's dev server, which it starts unless one is already on `:58983`; React and Vue stay covered by their unit tests.

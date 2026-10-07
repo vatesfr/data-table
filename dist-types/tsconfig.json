@@ -1,0 +1,14 @@
+// Type-checks each adapter's built `dist/` types the way a consumer imports them: an empty or
+// misplaced `.d.ts` still builds fine. Run after `npm run build`.
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "noEmit": true,
+    "types": []
+  },
+  "include": ["*.ts"]
+}

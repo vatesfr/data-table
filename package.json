@@ -21,6 +21,7 @@
     "format:check": "prettier --check .",
     "lint": "eslint .",
     "check:docs": "node scripts/check-docs.mjs",
+    "check:dist-types": "tsc -p dist-types",
     "check": "./scripts/check.sh",
     "size": "npm run size -w packages/core && npm run size -w packages/react && npm run size -w packages/vue && npm run size -w packages/solid && npm run size -w packages/vanilla",
     "prepare": "husky",
