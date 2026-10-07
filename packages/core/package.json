@@ -75,7 +75,7 @@
   "devDependencies": {
     "@size-limit/file": "^14.1.0",
     "size-limit": "^14.1.0",
-    "typescript": "^5.5.0",
+    "typescript": "^6.0.3",
     "vite": "^8.1.4",
     "vite-plugin-dts": "^4.5.4",
     "vitest": "^5.0.3"

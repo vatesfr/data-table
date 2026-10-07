@@ -11,6 +11,7 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "incremental": true,
+    "rootDir": "..",
     "paths": {
       "@vates/data-table-core": ["../core/src/index.ts"],
       "@vates/data-table-core/locales": ["../core/src/locales.ts"],

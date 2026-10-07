@@ -72,7 +72,7 @@
     "size-limit": "^14.1.0",
     "solid-js": "^1.9.15",
     "terser": "^5.50.0",
-    "typescript": "^5.5.0",
+    "typescript": "^6.0.3",
     "vite": "^8.1.4",
     "vite-plugin-dts": "^4.5.4",
     "vite-plugin-solid": "^2.11.14",
