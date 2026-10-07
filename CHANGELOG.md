@@ -7,6 +7,8 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.17.0] - 2026-10-07
+
 ### Added
 
 - **Range filter presets** (Solid, React, Vue, vanilla): `rangePresets` on a number column (`{ label, min?, max? }[]`, e.g. `{ label: 'never played', max: 0 }`) adds buttons above its range filter. Picking one sets the range, and the filter chip shows the preset's label ("Played (h): never played") instead of the bounds. Fixes #30.
