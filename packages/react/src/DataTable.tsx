@@ -13,6 +13,7 @@ export function DataTable<TRow extends object>({
   selectable,
   onSelectionChange,
   onRowClick,
+  currentRow,
   showSearch,
   showColumns,
   toolbarEnd,
@@ -33,6 +34,7 @@ export function DataTable<TRow extends object>({
       selectable={selectable}
       onSelectionChange={onSelectionChange}
       onRowClick={onRowClick}
+      currentRow={currentRow}
       showSearch={showSearch}
       showColumns={showColumns}
       toolbarEnd={toolbarEnd}

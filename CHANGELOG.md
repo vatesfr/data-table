@@ -7,6 +7,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Added
+
+- **Current row** (Solid, React, Vue, vanilla): `currentRow` on `DataTableView`/`DataTable` (vanilla: the option plus `setCurrentRow(row)`) marks a row, e.g. the one open in a side panel, with `aria-current="true"` and a `dt-tr--current` class (Vue: `dt__tr--current`), so it can be exposed and styled through sorting, paging and data updates. Fixes #40.
+
 ### Fixed
 
 - **Toolbar end slot on a phone** (Solid, React, Vue, vanilla): on screens up to 479 px wide, `toolbarEnd` (Vue: `#toolbar-end`) ends the toolbar's first line, after Columns/Group/Sort, instead of wrapping onto a line of its own after the search box. Fixes #39.

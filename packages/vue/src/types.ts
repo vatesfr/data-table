@@ -28,6 +28,11 @@ export interface DataTableViewProps<TRow extends object = Record<string, unknown
   rowKey?: string
   selectable?: boolean
   /**
+   * The row to mark as current (e.g. the one open in a side panel): it gets `aria-current="true"`
+   * and the `dt__tr--current` class, with no default styling. Matched by object identity.
+   */
+  currentRow?: TRow | null
+  /**
    * Shows/hides the toolbar's search box. Defaults to `true`. Unlike the Sort/Group/Filter
    * dropdowns (which already hide themselves when no column qualifies for them), search always
    * applies regardless of column config — there's no equivalent auto-hide signal for it, so this

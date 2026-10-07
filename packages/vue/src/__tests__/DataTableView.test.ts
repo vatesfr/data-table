@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { defineComponent, h } from 'vue'
+import { defineComponent, h, ref } from 'vue'
 import { mount } from '@vue/test-utils'
 import { useTableState } from '../useTableState'
 import DataTableViewRaw from '../DataTableView.vue'
@@ -114,5 +114,26 @@ describe('DataTableView', () => {
     table.setViewState({ groupBy: ['score'] })
     await wrapper.vm.$nextTick()
     expect(names()).toContain('Select group 90')
+  })
+})
+
+describe('DataTableView — currentRow', () => {
+  it('matches a current row held in a ref, which wraps it in a reactive proxy', () => {
+    const current = ref<Row | null>(ROWS[1])
+    const Comp = defineComponent({
+      setup() {
+        const table = useTableState(ROWS, COLS)
+        return () =>
+          h(DataTableView, {
+            table,
+            data: ROWS,
+            columns: COLS,
+            rowKey: 'id',
+            currentRow: current.value,
+          } as Record<string, unknown>)
+      },
+    })
+    const wrapper = mount(Comp)
+    expect(wrapper.findAll('tbody tr[aria-current="true"]')).toHaveLength(1)
   })
 })

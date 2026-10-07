@@ -704,9 +704,11 @@ function SelectionTable({
 
 function ClickTable({
   labels,
+  currentRow,
   onRowClick,
 }: {
   labels?: Partial<DataTableLabels>
+  currentRow: Employee | null
   onRowClick: (row: Employee) => void
 }) {
   const table = useTableState(SAMPLE_DATA, COLUMNS, {
@@ -723,6 +725,7 @@ function ClickTable({
         data={SAMPLE_DATA}
         columns={COLUMNS}
         rowKey="id"
+        currentRow={currentRow}
         onRowClick={onRowClick}
       />
     </>
@@ -1096,6 +1099,7 @@ export default function App() {
       >
         Pass <code>onRowClick</code> to react to a row being clicked — it receives the full row
         object, no key lookup needed. Also fires on <kbd>Enter</kbd> while a row has keyboard focus.{' '}
+        <code>currentRow</code> marks the clicked row (<code>aria-current</code>).{' '}
         <DocLink anchor="row-click">📖 Docs</DocLink>
       </p>
       {clicked && (
@@ -1113,7 +1117,7 @@ export default function App() {
           Last clicked: {clicked.name} ({clicked.role})
         </div>
       )}
-      <ClickTable labels={LOCALES[localeKey]} onRowClick={setClicked} />
+      <ClickTable labels={LOCALES[localeKey]} currentRow={clicked} onRowClick={setClicked} />
 
       <h2
         id="custom-layout"

@@ -29,4 +29,14 @@ Selection lives in `useTableState`/`createTableState` in every adapter. Key desi
 
 Custom cell renders (React/Solid `render`, Vue `#cell-*` slots) that put clickable elements (buttons, links) inside a cell are responsible for calling `stopPropagation()` themselves if they don't want the click to also reach `onRowClick`.
 
+## Current row
+
+`currentRow?: TRow | null` (all four adapters; vanilla adds `setCurrentRow`) marks the row a consumer has open elsewhere, e.g. in a side panel (GitHub issue #40). The matching row gets `aria-current="true"` and `dt-tr--current` (Vue: `dt__tr--current`), with no default styling.
+
+- A prop on `DataTableView`, not `TableState`: only the consumer knows what "current" means, and nothing else in the table reads it.
+- Takes a row, not a key: rows are identified by object, like selection and `table.focus.row`; `rowKey` is a rendering hint only. No `getRowId` matching: `TableState` doesn't expose it to the view.
+- Not the focus target: keyboard focus moves while the side panel's row stays put.
+- **Vue** compares through `toRaw`: a row held in a consumer's `ref` is a reactive proxy, never `===` the raw row the table renders.
+- **React** rows carry an inline `background`, so a class rule setting `background` loses; the demos style `td:first-child` with an inset `box-shadow` instead.
+
 <!-- check-docs-ignore: UnwrapRefSimple -->

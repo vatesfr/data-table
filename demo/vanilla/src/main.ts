@@ -592,6 +592,7 @@ app.innerHTML = `
     <p style="font-size:14px;color:var(--color-text-secondary);margin-top:0;margin-bottom:8px">
       Pass <code>onRowClick</code> to react to a row being clicked — it receives the full row object, no key lookup needed.
       Also fires on <code>Enter</code> while a row has keyboard focus.
+      <code>currentRow</code>/<code>setCurrentRow</code> mark the clicked row (<code>aria-current</code>).
       ${docLink('row-click', '📖 Docs')}
     </p>
     <div id="click-banner" style="display:none;padding:8px 12px;margin-bottom:12px;
@@ -770,6 +771,7 @@ const tableClick = createDataTable<Employee>(document.getElementById('table-clic
   onRowClick(row) {
     clickBanner.style.display = 'block'
     clickBanner.textContent = `Last clicked: ${row.name} (${row.role})`
+    tableClick.setCurrentRow(row)
   },
 })
 wireViewPersistence(tableClick, 'click')

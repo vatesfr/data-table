@@ -1,5 +1,5 @@
 <script setup lang="ts" generic="TRow extends object">
-import { computed, ref, watch, nextTick, useSlots, onMounted, onBeforeUnmount } from 'vue'
+import { computed, ref, toRaw, watch, nextTick, useSlots, onMounted, onBeforeUnmount } from 'vue'
 import {
   computeAggregate,
   getColumnValue,
@@ -536,6 +536,10 @@ const exclusionChips = computed(() =>
       }
     }),
 )
+
+// Raw on both sides: a row held in a consumer's `ref` is a reactive proxy, never `===` the rendered one
+const currentRaw = computed(() => props.currentRow && toRaw(props.currentRow))
+const isCurrent = (row: TRow) => toRaw(row) === currentRaw.value
 
 // Narrow screen (U16): the Filter dropdown shows one pane at a time — columns, or values
 const narrowFilter = ref(false)
@@ -2124,10 +2128,12 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                   isRowNavEnabled ? (isFocusTarget({ kind: 'row', row }) ? 0 : -1) : undefined
                 "
                 :aria-selected="selectable ? selection.has(row) : undefined"
+                :aria-current="isCurrent(row) ? 'true' : undefined"
                 :class="{
                   'dt__tr--stripe': ri % 2 !== 0,
                   'dt__tr--selected': selectable && selection.has(row),
                   'dt__tr--clickable': isRowClickable,
+                  'dt__tr--current': isCurrent(row),
                 }"
                 @click="handleRowClick(row, $event)"
                 @keydown="handleKeyDown($event, { kind: 'row', row })"

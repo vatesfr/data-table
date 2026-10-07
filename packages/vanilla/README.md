@@ -379,6 +379,7 @@ Drag a column header to reorder it, or drag a row (or press Alt+ArrowUp/Alt+Arro
 | `selectable`             | `boolean`                                                 | `false` | Show checkbox column for row selection                                                                                                                 |
 | `onSelectionChange`      | `(rows: TRow[]) => void`                                  | —       | Called when selection changes                                                                                                                          |
 | `onRowClick`             | `(row: TRow, event: MouseEvent \| KeyboardEvent) => void` | —       | Called when a data row is clicked                                                                                                                      |
+| `currentRow`             | `TRow \| null`                                            | —       | Row to mark as current (e.g. open in a side panel): `aria-current="true"` and the `dt-tr--current` class, unstyled. Matched by object identity         |
 | `showSearch`             | `boolean`                                                 | `true`  | Shows/hides the toolbar's search box (Sort/Group/Filter already auto-hide when no column qualifies)                                                    |
 | `showColumns`            | `boolean`                                                 | `true`  | Shows/hides the Columns toolbar button; also auto-hides when `columns.length < 2`                                                                      |
 | `toolbarEnd`             | `Node \| null`                                            | —       | Content at the right end of the toolbar's action row, in a `.dt-toolbar-end` wrapper (e.g. "Share view"/"Reset view" buttons); no wrapper when omitted |
@@ -427,6 +428,7 @@ interface ColumnDef<TRow extends object> {
 | `setShowColumns(value: boolean)`            | Shows/hides the Columns toolbar button after construction                           |
 | `setToolbarEnd(node: Node \| null)`         | Replaces (or removes, with `null`) the toolbar-end node after construction          |
 | `setOnRowClick(cb \| undefined)`            | Changes (or clears) the row-click callback after construction                       |
+| `setCurrentRow(row \| null)`                | Changes (or clears) the current row after construction                              |
 | `setLabels(labels \| undefined)`            | Replaces the label overrides after construction                                     |
 | `setDefaultGroupsCollapsed(value: boolean)` | Changes whether newly-grouped groups start collapsed after construction             |
 | `setGetRowId(getRowId \| undefined)`        | Changes (or clears) the selection-identity function after construction              |

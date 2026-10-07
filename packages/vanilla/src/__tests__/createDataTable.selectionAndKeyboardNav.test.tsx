@@ -75,6 +75,7 @@ function mount(
     initialViewState: TableViewState
     defaultGroupsCollapsed: boolean
     getRowId: (row: Row) => number
+    currentRow: Row | null
   }> = {},
 ) {
   const container = document.createElement('div')
@@ -88,6 +89,7 @@ function mount(
     initialViewState: opts.initialViewState,
     defaultGroupsCollapsed: opts.defaultGroupsCollapsed,
     getRowId: opts.getRowId,
+    currentRow: opts.currentRow,
   })
   return { container, table }
 }
@@ -317,6 +319,19 @@ describe('createDataTable — getRowId (selection identity)', () => {
     table.setData(ROWS.map((r) => ({ ...r }))) // fresh references, same ids
     click(rowCheckbox(container, 0)) // same id (1), different reference
     expect(table.getSelection()).toEqual([])
+  })
+})
+
+describe('createDataTable — currentRow', () => {
+  it('marks the current row from the option, then follows setCurrentRow', () => {
+    const { container, table } = mount({ currentRow: ROWS[1] })
+    const marked = () => [...container.querySelectorAll('.dt-tr[aria-current="true"]')]
+    expect(marked()).toEqual([container.querySelector('.dt-tr[data-proc-idx="1"]')])
+    expect(marked()[0].classList.contains('dt-tr--current')).toBe(true)
+    table.setCurrentRow(ROWS[0])
+    expect(marked()).toEqual([container.querySelector('.dt-tr[data-proc-idx="0"]')])
+    table.setCurrentRow(null)
+    expect(marked()).toEqual([])
   })
 })
 

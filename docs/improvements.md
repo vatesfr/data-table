@@ -1,7 +1,5 @@
 # Improvements
 
-<!-- check-docs-ignore: aria-current -->
-
 UX backlog from `ux-review` runs against [use cases](use-cases.md) and [UI guidelines](ui-guidelines.md). Each item names the use cases it slows down and, when not all three, the adapters; `ux-fix` fixes one per commit and removes it once shipped. IDs are never reused.
 
 Next free ID: **U26** (IDs are never reused, including ones dropped before committing).
@@ -36,7 +34,6 @@ Seeded 2026-10-04 from issues reported by a consumer app, each reproduced on the
 
 ## Layout and integration
 
-- **U10 · minor · UC03** — no per-row attribute or class hook, so an app can't mark or expose its current row (`aria-current`). Add a row-attributes callback.
 - **U21 · minor · UC07, UC03** — row and select-all checkboxes are 13×13 px, under the 24 px touch target. Grow their hit area to the whole checkbox cell (a label filling it), keeping Shift+click range selection working; the chips' × and ⊞ already reach 24 px.
 
 ## Adapter-specific

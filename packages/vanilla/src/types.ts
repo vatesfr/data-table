@@ -56,6 +56,11 @@ export interface DataTableOptions<TRow extends object = Record<string, unknown>>
   /** Fires on a row click, or on Enter while a row has keyboard focus (see "Keyboard navigation"). */
   onRowClick?: (row: TRow, event: MouseEvent | KeyboardEvent) => void
   /**
+   * The row to mark as current (e.g. the one open in a side panel): it gets `aria-current="true"`
+   * and the `dt-tr--current` class, with no default styling. Matched by object identity.
+   */
+  currentRow?: TRow | null
+  /**
    * Shows/hides the toolbar's search box. Defaults to `true`. Unlike the Sort/Group/Filter
    * dropdowns (which already hide themselves when no column qualifies for them), search always
    * applies regardless of column config — there's no equivalent auto-hide signal for it, so this
@@ -141,6 +146,8 @@ export interface DataTableInstance<TRow extends object = Record<string, unknown>
   setToolbarEnd(node: Node | null): void
   /** Changes (or clears, passing `undefined`) the row-click callback after construction. */
   setOnRowClick(cb: ((row: TRow, event: MouseEvent | KeyboardEvent) => void) | undefined): void
+  /** Changes (or clears, passing `null`) the current row — see `DataTableOptions.currentRow`. */
+  setCurrentRow(row: TRow | null): void
   /** Replaces the label overrides after construction — see `DataTableOptions.labels`. */
   setLabels(labels: Partial<DataTableLabels> | undefined): void
   /** Changes whether newly-grouped groups start collapsed after construction. */

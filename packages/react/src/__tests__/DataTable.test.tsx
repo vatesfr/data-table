@@ -1206,6 +1206,21 @@ describe('DataTable — showSearch', () => {
   })
 })
 
+describe('DataTable — currentRow', () => {
+  it('marks the current row with aria-current and dt-tr--current, following the prop', () => {
+    const { container, rerender } = render(
+      <DataTable data={ROWS} columns={COLS} rowKey="id" currentRow={ROWS[1]} />,
+    )
+    const marked = () => [...container.querySelectorAll('tbody tr[aria-current="true"]')]
+    expect(marked()).toHaveLength(1)
+    expect(marked()[0].textContent).toContain(ROWS[1].name)
+    expect(container.querySelector('.dt-tr--current')).toBe(marked()[0])
+    rerender(<DataTable data={ROWS} columns={COLS} rowKey="id" currentRow={null} />)
+    expect(marked()).toHaveLength(0)
+    expect(container.querySelector('.dt-tr--current')).toBeNull()
+  })
+})
+
 describe('DataTable — toolbarEnd', () => {
   it('renders toolbarEnd as the last child of the toolbar actions row', () => {
     const { container, getByText } = render(

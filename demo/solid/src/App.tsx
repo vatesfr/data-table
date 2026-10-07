@@ -716,6 +716,7 @@ function SelectionTable(props: {
 
 function ClickTable(props: {
   labels?: Partial<DataTableLabels>
+  currentRow: Employee | null
   onRowClick: (row: Employee) => void
 }) {
   const table = createTableState(SAMPLE_DATA, COLUMNS, () => ({
@@ -727,7 +728,12 @@ function ClickTable(props: {
   return (
     <>
       <ViewControls onReset={() => resetView(table, VIEW_KEYS.click)} />
-      <DataTableView table={table} rowKey="id" onRowClick={(row) => props.onRowClick(row)} />
+      <DataTableView
+        table={table}
+        rowKey="id"
+        currentRow={props.currentRow}
+        onRowClick={(row) => props.onRowClick(row)}
+      />
     </>
   )
 }
@@ -1076,7 +1082,8 @@ export default function App() {
       </h2>
       <p style={{ 'font-size': '14px', color: 'var(--color-text-secondary)', margin: '0 0 8px' }}>
         Pass <code>onRowClick</code> to react to a row being clicked — it receives the full row
-        object, no key lookup needed. Also fires on <kbd>Enter</kbd> while a row has keyboard focus.
+        object, no key lookup needed. Also fires on <kbd>Enter</kbd> while a row has keyboard focus.{' '}
+        <code>currentRow</code> marks the clicked row (<code>aria-current</code>).
       </p>
       <Show when={clicked()}>
         {(c) => (
@@ -1095,7 +1102,7 @@ export default function App() {
           </div>
         )}
       </Show>
-      <ClickTable labels={LOCALES[localeKey()]} onRowClick={setClicked} />
+      <ClickTable labels={LOCALES[localeKey()]} currentRow={clicked()} onRowClick={setClicked} />
 
       <h2
         id="custom-layout"

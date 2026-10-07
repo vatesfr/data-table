@@ -62,6 +62,12 @@ Symptom first, then cause and fix. Delete entries once obsolete.
 - Cause: Vue casts an absent boolean prop with no `withDefaults` default to `false`, not `undefined`.
 - Fix: spell out the default in `withDefaults` in both `DataTable.vue` and `DataTableView.vue` (e.g. `showSearch: true`, `defaultGroupsCollapsed`).
 
+## Vue demo: "Property … was accessed during render but is not defined on instance"
+
+- Symptom: a prop just added to `packages/vue/src/types.ts` is ignored in the running Vue demo, with that warning in the dev-server log; unit tests pass.
+- Cause: `defineProps<T>()` resolves imported types at SFC compile time, and Vite doesn't recompile the SFC when only the imported type file changes.
+- Fix: restart the dev server (`npm run dev:vue`).
+
 ## New `DataTableViewProps` field inert through `<DataTable>` (React/Solid)
 
 - Cause: `DataTable.tsx` forwards props explicitly, not via spread.

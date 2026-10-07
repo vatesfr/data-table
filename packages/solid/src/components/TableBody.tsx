@@ -23,6 +23,7 @@ interface TableBodyProps<TRow extends object> {
   rowKey?: keyof TRow & string
   selectable?: boolean
   onRowClick?: (row: TRow, event: MouseEvent | KeyboardEvent) => void
+  currentRow?: TRow | null
 }
 
 // A multi-value (array) column's raw value has no natural single-string representation, so it's
@@ -396,6 +397,7 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
                         rowKey={props.rowKey}
                         selectable={props.selectable}
                         onRowClick={props.onRowClick}
+                        current={props.currentRow === row}
                         tabIndex={
                           rowNavEnabled()
                             ? isFocusTarget({ kind: 'row', row })
@@ -446,6 +448,7 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
                         rowKey={props.rowKey}
                         selectable={props.selectable}
                         onRowClick={props.onRowClick}
+                        current={props.currentRow === row}
                         indentGroup
                         tabIndex={
                           rowNavEnabled()
@@ -663,6 +666,7 @@ interface DataRowProps<TRow extends object> {
   selectable?: boolean
   onRowClick?: (row: TRow, event: MouseEvent | KeyboardEvent) => void
   indentGroup?: boolean
+  current?: boolean
   tabIndex?: number
   onFocusRow: () => void
   onArrow: (delta: number, shiftKey: boolean) => void
@@ -691,11 +695,13 @@ function DataRow<TRow extends object>(props: DataRowProps<TRow>) {
         'dt-tr--selected': isSelected(),
         'dt-tr--odd': !isSelected() && props.odd,
         'dt-tr--clickable': !!props.onRowClick,
+        'dt-tr--current': props.current,
       }}
       data-row-key={String(rk())}
       data-proc-idx={props.procIdx}
       tabIndex={props.tabIndex}
       aria-selected={props.selectable ? isSelected() : undefined}
+      aria-current={props.current ? 'true' : undefined}
       ref={(el) => props.registerRef(el)}
       onClick={handleClick}
       onFocus={props.onFocusRow}

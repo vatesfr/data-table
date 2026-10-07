@@ -1602,6 +1602,7 @@ export function DataTableView<TRow extends object>({
   selectable,
   onSelectionChange,
   onRowClick,
+  currentRow,
   showSearch,
   showColumns,
   toolbarEnd,
@@ -3668,6 +3669,8 @@ export function DataTableView<TRow extends object>({
                         rowNavEnabled ? (isFocusTarget({ kind: 'row', row }) ? 0 : -1) : undefined
                       }
                       aria-selected={selectable ? selection.has(row) : undefined}
+                      aria-current={row === currentRow ? 'true' : undefined}
+                      className={row === currentRow ? 'dt-tr--current' : undefined}
                       onKeyDown={
                         rowNavEnabled ? (e) => handleKeyDown(e, { kind: 'row', row }) : undefined
                       }

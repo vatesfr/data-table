@@ -72,6 +72,7 @@ export function DataTable<TRow extends object>(props: DataTableProps<TRow>) {
       rowKey={props.rowKey}
       selectable={props.selectable}
       onRowClick={props.onRowClick}
+      currentRow={props.currentRow}
       showSearch={props.showSearch}
       showColumns={props.showColumns}
       toolbarEnd={props.toolbarEnd}

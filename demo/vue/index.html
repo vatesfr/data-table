@@ -18,6 +18,12 @@
         background: var(--color-background-primary);
         color: var(--color-text-primary);
       }
+
+      /* The library leaves the current row (currentRow) unstyled; inset so it works over React's
+         inline row background too. */
+      .dt__tr--current > td:first-child {
+        box-shadow: inset 3px 0 0 var(--color-text-info);
+      }
     </style>
   </head>
   <body>

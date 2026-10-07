@@ -446,3 +446,28 @@ describe('DataTable — filter values through the column format', () => {
     })
   })
 })
+
+describe('DataTable — currentRow', () => {
+  it('marks the current row with aria-current and dt-tr--current, following the prop', () => {
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const [current, setCurrent] = createSignal<Row | null>(ROWS[1])
+    const dispose = createRoot((d) => {
+      render(
+        () => <DataTable data={ROWS} columns={COLS} rowKey="id" currentRow={current()} />,
+        container,
+      )
+      return d
+    })
+    const marked = () =>
+      [...container.querySelectorAll('tbody tr[aria-current="true"]')].map((tr) => tr.textContent)
+    expect(marked()).toEqual(['Bob'])
+    expect(container.querySelector('.dt-tr--current')?.textContent).toBe('Bob')
+    setCurrent(ROWS[0])
+    expect(marked()).toEqual(['Alice'])
+    setCurrent(null)
+    expect(marked()).toEqual([])
+    expect(container.querySelector('.dt-tr--current')).toBeNull()
+    dispose()
+  })
+})

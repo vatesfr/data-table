@@ -933,6 +933,7 @@ function fmtSalary(n: number | null) {
     >
       Listen to <code>@row-click</code> to react to a row being clicked — it receives the full row
       object, no key lookup needed. Also fires on <kbd>Enter</kbd> while a row has keyboard focus.
+      <code>currentRow</code> marks the clicked row (<code>aria-current</code>).
       <span v-html="docLink('row-click', '📖 Docs')" />
     </p>
     <div
@@ -955,6 +956,7 @@ function fmtSalary(n: number | null) {
       :data="SAMPLE_DATA"
       :columns="COLUMNS"
       row-key="id"
+      :current-row="clicked"
       @row-click="clicked = $event"
     >
       <template #cell-department="{ value }">

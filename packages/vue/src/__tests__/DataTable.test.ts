@@ -1454,6 +1454,21 @@ describe('DataTable — showSearch', () => {
   })
 })
 
+describe('DataTable — currentRow', () => {
+  it('marks the current row with aria-current and dt__tr--current, following the prop', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS, columns: COLS, rowKey: 'id', currentRow: ROWS[1] },
+    })
+    const marked = () => wrapper.findAll('tbody tr[aria-current="true"]')
+    expect(marked()).toHaveLength(1)
+    expect(marked()[0].text()).toContain(ROWS[1].name)
+    expect(marked()[0].classes()).toContain('dt__tr--current')
+    await wrapper.setProps({ currentRow: null })
+    expect(marked()).toHaveLength(0)
+    expect(wrapper.find('.dt__tr--current').exists()).toBe(false)
+  })
+})
+
 describe('DataTable — toolbar-end slot', () => {
   it('renders the slot as the last child of the toolbar actions row', () => {
     const wrapper = mount(DataTable, {
