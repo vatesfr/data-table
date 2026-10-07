@@ -70,6 +70,7 @@
     "react-dom": ">=18.0.0"
   },
   "devDependencies": {
+    "@microsoft/api-extractor": "^7.59.4",
     "@size-limit/file": "^14.1.0",
     "@testing-library/react": "^16.3.2",
     "@types/react": "^19.2.18",
@@ -82,7 +83,7 @@
     "terser": "^5.50.0",
     "typescript": "^6.0.3",
     "vite": "^8.1.4",
-    "vite-plugin-dts": "^4.5.4",
+    "vite-plugin-dts": "^5.1.2",
     "vitest": "^5.0.3"
   }
 }

@@ -10,6 +10,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ### Fixed
 
 - **Dropdowns stay on screen while open** (Solid, React, Vue, vanilla): a panel whose trigger moves while it's open — checking a filter value adds a count to the Filter button — is clamped to the viewport again, instead of keeping the offset measured at open and sliding past the right edge on a phone.
+- **Types for the `/theme` sub-path** (React, Vue, Solid, vanilla): `@vates/data-table-{react,vue,solid,vanilla}/theme` now ships the `dist/theme.d.ts` its `exports` point at, so TypeScript no longer reports the import as untyped.
 
 ## [0.16.0] - 2026-10-04
 
