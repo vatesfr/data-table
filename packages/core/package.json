@@ -70,6 +70,15 @@
       "path": "dist/index.js",
       "gzip": true,
       "limit": "2 KB"
+    },
+    {
+      "name": "internal entry, what adapters import (gzip)",
+      "path": [
+        "dist/internal.js",
+        "dist/logic-*.js"
+      ],
+      "gzip": true,
+      "limit": "13.6 KB"
     }
   ],
   "devDependencies": {
