@@ -36,6 +36,65 @@ describe('DataTable — row checkbox name', () => {
   })
 })
 
+describe('DataTable — checkbox cells as hit areas', () => {
+  const ROWS3: Row[] = [...ROWS, { id: 3, name: 'Clara', score: 75 }]
+  const cellOf = (name: string) => screen.getByRole('checkbox', { name }).closest('td, th')!
+
+  it("a click anywhere in a row's checkbox cell toggles it; shift-click selects the range", () => {
+    const onSelectionChange = vi.fn()
+    const onRowClick = vi.fn()
+    render(
+      <DataTable
+        data={ROWS3}
+        columns={COLS}
+        rowKey="id"
+        selectable
+        onSelectionChange={onSelectionChange}
+        onRowClick={onRowClick}
+      />,
+    )
+    fireEvent.click(cellOf('Select row Alice'))
+    fireEvent.click(cellOf('Select row Clara'), { shiftKey: true })
+    expect(onSelectionChange).toHaveBeenLastCalledWith(ROWS3)
+    expect(onRowClick).not.toHaveBeenCalled()
+  })
+
+  it("the select-all checkbox's cell selects all", () => {
+    const onSelectionChange = vi.fn()
+    render(
+      <DataTable
+        data={ROWS}
+        columns={COLS}
+        rowKey="id"
+        selectable
+        onSelectionChange={onSelectionChange}
+      />,
+    )
+    fireEvent.click(cellOf('Select all'))
+    expect(onSelectionChange).toHaveBeenLastCalledWith(ROWS)
+  })
+
+  it("a group header's checkbox cell selects the group without collapsing it", () => {
+    const onSelectionChange = vi.fn()
+    render(
+      <DataTable
+        data={ROWS}
+        columns={COLS.map((c) => ({ ...c, groupable: true }))}
+        rowKey="id"
+        selectable
+        defaultGroupsCollapsed={false}
+        initialViewState={{ groupBy: ['name'] }}
+        onSelectionChange={onSelectionChange}
+      />,
+    )
+    const cell = cellOf('Select group Alice')
+    const header = cell.closest('tr')!
+    fireEvent.click(cell)
+    expect(onSelectionChange).toHaveBeenLastCalledWith([ROWS[0]])
+    expect(header.getAttribute('aria-expanded')).toBe('true')
+  })
+})
+
 describe('DataTable — onRowClick', () => {
   it('calls onRowClick with the row and the click event', () => {
     const onRowClick = vi.fn()

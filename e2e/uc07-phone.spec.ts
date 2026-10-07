@@ -82,3 +82,15 @@ test('toolbarEnd comes before the search line on a phone, not after it', async (
   expect(end.y + end.height).toBeLessThanOrEqual(search.y)
   await expectInViewport(page, dt.locator('.dt-toolbar-end'))
 })
+
+test('U21 on a phone: tapping a checkbox cell beside the box selects the row', async ({
+  section,
+}) => {
+  const sel = await section('row-selection')
+  const box = sel.locator('tbody').getByRole('checkbox').first()
+  const cell = sel.locator('tbody td').first()
+  const b = (await cell.boundingBox())!
+  expect(Math.min(b.width, b.height)).toBeGreaterThanOrEqual(24)
+  await cell.tap({ position: { x: 3, y: 3 } })
+  await expect(box).toBeChecked()
+})

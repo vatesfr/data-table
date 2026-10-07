@@ -154,6 +154,35 @@ describe('createDataTable — row selection', () => {
   })
 })
 
+describe('createDataTable — checkbox cells as hit areas', () => {
+  const cell = (cb: HTMLInputElement) => cb.closest('td, th')!
+
+  it("a click anywhere in a row's checkbox cell toggles it; shift-click selects the range", () => {
+    const onRowClick = vi.fn()
+    const { container, table } = mount({ selectable: true, onRowClick })
+    click(cell(rowCheckbox(container, 0)))
+    shiftClick(cell(rowCheckbox(container, 2)))
+    expect(table.getSelection()).toEqual([ROWS[0], ROWS[1], ROWS[2]])
+    expect(onRowClick).not.toHaveBeenCalled()
+  })
+
+  it("the select-all checkbox's cell selects all", () => {
+    const { container, table } = mount({ selectable: true })
+    click(cell(container.querySelector<HTMLInputElement>('thead input[type="checkbox"]')!))
+    expect(table.getSelection()).toHaveLength(ROWS.length)
+  })
+
+  it("a group header's checkbox cell selects the group without collapsing it", () => {
+    const { container, table } = mount({ selectable: true, defaultGroupsCollapsed: false })
+    groupByDept(container)
+    const header = container.querySelector<HTMLElement>('.dt-group-row')!
+    const expanded = header.getAttribute('aria-expanded')
+    click(cell(header.querySelector<HTMLInputElement>('input[type="checkbox"]')!))
+    expect(table.getSelection().length).toBeGreaterThan(0)
+    expect(header.getAttribute('aria-expanded')).toBe(expanded)
+  })
+})
+
 describe('createDataTable — imperative selection API', () => {
   it('getSelection reflects clicks made through the UI', () => {
     const { container, table } = mount({ selectable: true })

@@ -1969,7 +1969,11 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
       <table class="dt__table">
         <thead>
           <tr>
-            <th v-if="selectable" class="dt__th dt__th--cb" @click.stop>
+            <th
+              v-if="selectable"
+              class="dt__th dt__th--cb dt__check-cell"
+              @click.stop.self="toggleSelectAll(processedData)"
+            >
               <input
                 v-indeterminate="someSelected"
                 type="checkbox"
@@ -2050,7 +2054,12 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
               @keydown="handleKeyDown($event, { kind: 'group', key: group.key! })"
               @focusin="setFocusTarget({ kind: 'group', key: group.key! })"
             >
-              <td v-if="selectable" class="dt__group-td" style="width: 36px" @click.stop>
+              <td
+                v-if="selectable"
+                class="dt__group-td dt__check-cell"
+                style="width: 36px"
+                @click.stop.self="toggleSelectAll(group.rows)"
+              >
                 <input
                   v-indeterminate="isGroupSomeSelected(group.rows)"
                   type="checkbox"
@@ -2138,7 +2147,12 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                 @keydown="handleKeyDown($event, { kind: 'row', row })"
                 @focusin="setFocusTarget({ kind: 'row', row })"
               >
-                <td v-if="selectable" class="dt__td" style="width: 36px" @click.stop>
+                <td
+                  v-if="selectable"
+                  class="dt__td dt__check-cell"
+                  style="width: 36px"
+                  @click.stop.self="toggleRowSelection(row, $event.shiftKey)"
+                >
                   <input
                     type="checkbox"
                     tabindex="-1"
@@ -3002,9 +3016,11 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
 .dt__tr--clickable:hover {
   background: var(--color-background-secondary);
 }
+.dt__check-cell {
+  cursor: pointer;
+}
 .dt__th--cb {
   width: 36px;
-  cursor: default;
 }
 .dt__th--dragging {
   opacity: 0.4;

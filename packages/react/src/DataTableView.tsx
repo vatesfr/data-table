@@ -3512,8 +3512,11 @@ export function DataTableView<TRow extends object>({
             <tr>
               {selectable && (
                 <th
-                  style={{ ...S.th, width: 36, cursor: 'default' }}
-                  onClick={(e) => e.stopPropagation()}
+                  style={{ ...S.th, width: 36, cursor: 'pointer' }}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    if (e.target === e.currentTarget) toggleSelectAll(processedData)
+                  }}
                 >
                   <input
                     ref={selectAllRef}
@@ -3677,7 +3680,13 @@ export function DataTableView<TRow extends object>({
                     onClick={() => toggleGroupCollapse(gkey)}
                   >
                     {selectable && (
-                      <td style={{ ...S.groupTd, width: 36 }} onClick={(e) => e.stopPropagation()}>
+                      <td
+                        style={{ ...S.groupTd, width: 36, cursor: 'pointer' }}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          if (e.target === e.currentTarget) toggleSelectAll(rows)
+                        }}
+                      >
                         <input
                           ref={(el) => {
                             if (el) el.indeterminate = groupSomeSelected(rows)
@@ -3783,7 +3792,13 @@ export function DataTableView<TRow extends object>({
                       }}
                     >
                       {selectable && (
-                        <td style={{ ...S.td, width: 36 }} onClick={(e) => e.stopPropagation()}>
+                        <td
+                          style={{ ...S.td, width: 36, cursor: 'pointer' }}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            if (e.target === e.currentTarget) toggleRowSelection(row, e.shiftKey)
+                          }}
+                        >
                           <input
                             type="checkbox"
                             checked={selection.has(row)}

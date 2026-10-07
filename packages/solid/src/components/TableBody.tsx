@@ -298,7 +298,13 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
         <thead>
           <tr ref={headerRow} onDragOver={handleHeaderDragOver} onDrop={handleHeaderDrop}>
             <Show when={props.selectable}>
-              <th class="dt-th dt-th--no-sort" style={{ width: '36px' }}>
+              <th
+                class="dt-th dt-check-cell"
+                style={{ width: '36px' }}
+                onClick={(e) => {
+                  if (e.target === e.currentTarget) table.selection.toggleAll(table.processedData())
+                }}
+              >
                 <input
                   type="checkbox"
                   checked={allSelected()}
@@ -570,7 +576,15 @@ function GroupHeaderRow<TRow extends object>(props: GroupHeaderRowProps<TRow>) {
         }}
       >
         <Show when={props.selectable}>
-          <td class="dt-group-td" style={{ width: '36px' }}>
+          <td
+            class="dt-group-td dt-check-cell"
+            style={{ width: '36px' }}
+            onClick={(e) => {
+              if (e.target !== e.currentTarget) return
+              e.stopPropagation()
+              table.selection.toggleAll(props.group.rows)
+            }}
+          >
             <input
               type="checkbox"
               checked={groupAllSelected()}
@@ -728,7 +742,14 @@ function DataRow<TRow extends object>(props: DataRowProps<TRow>) {
       }}
     >
       <Show when={props.selectable}>
-        <td class="dt-td" style={{ width: '36px' }} data-no-row-click>
+        <td
+          class="dt-td dt-check-cell"
+          style={{ width: '36px' }}
+          data-no-row-click
+          onClick={(e) => {
+            if (e.target === e.currentTarget) table.selection.toggle(row, e.shiftKey)
+          }}
+        >
           <input
             type="checkbox"
             tabIndex={-1}

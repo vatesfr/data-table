@@ -33,8 +33,6 @@ Seeded 2026-10-04 from issues reported by a consumer app, each reproduced on the
 
 ## Layout and integration
 
-- **U21 · minor · UC07, UC03** — row and select-all checkboxes are 13×13 px, under the 24 px touch target. Grow their hit area to the whole checkbox cell (a label filling it), keeping Shift+click range selection working; the chips' × and ⊞ already reach 24 px.
-
 ## Adapter-specific
 
 - **U11 · polish · UC01 · React** — the Columns and Filter toolbar buttons render a darker, thicker right edge than the other buttons; Vue's and Solid's don't.

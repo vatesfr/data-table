@@ -7,6 +7,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Fixed
+
+- **Selection checkboxes are easier to hit** (Solid, React, Vue, vanilla): clicking or tapping anywhere in a row's, group header's or the select-all checkbox's cell now toggles it, Shift+click range selection included, instead of only the 13 px box.
+
 ## [0.17.0] - 2026-10-07
 
 ### Added

@@ -1512,6 +1512,57 @@ describe('DataTable — range presets', () => {
   })
 })
 
+describe('DataTable — checkbox cells as hit areas', () => {
+  const ROWS3: Row[] = [...ROWS, { id: 3, name: 'Clara', score: 75 }]
+  const cellOf = (wrapper: ReturnType<typeof mount>, label: string) =>
+    wrapper.find(`input[aria-label="${label}"]`).element.closest('td, th')!
+  const lastSelection = (wrapper: ReturnType<typeof mount>) => {
+    const events = wrapper.emitted('selectionChange')!
+    return events[events.length - 1]
+  }
+  const click = (el: Element, shiftKey = false) =>
+    el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, shiftKey }))
+
+  it("a click anywhere in a row's checkbox cell toggles it; shift-click selects the range", async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS3, columns: COLS, rowKey: 'id', selectable: true },
+    })
+    click(cellOf(wrapper, 'Select row Alice'))
+    await wrapper.vm.$nextTick()
+    click(cellOf(wrapper, 'Select row Clara'), true)
+    await wrapper.vm.$nextTick()
+    expect(lastSelection(wrapper)).toEqual([ROWS3])
+    expect(wrapper.emitted('rowClick')).toBeUndefined()
+  })
+
+  it("the select-all checkbox's cell selects all", async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS, columns: COLS, rowKey: 'id', selectable: true },
+    })
+    click(cellOf(wrapper, 'Select all'))
+    await wrapper.vm.$nextTick()
+    expect(lastSelection(wrapper)).toEqual([ROWS])
+  })
+
+  it("a group header's checkbox cell selects the group without collapsing it", async () => {
+    const wrapper = mount(DataTable, {
+      props: {
+        data: ROWS,
+        columns: COLS.map((c) => ({ ...c, groupable: true })),
+        rowKey: 'id',
+        selectable: true,
+        defaultGroupsCollapsed: false,
+        initialViewState: { groupBy: ['name'] },
+      },
+    })
+    const cell = cellOf(wrapper, 'Select group Alice')
+    click(cell)
+    await wrapper.vm.$nextTick()
+    expect(lastSelection(wrapper)).toEqual([[ROWS[0]]])
+    expect(cell.closest('tr')!.getAttribute('aria-expanded')).toBe('true')
+  })
+})
+
 describe('DataTable — currentRow', () => {
   it('marks the current row with aria-current and dt__tr--current, following the prop', async () => {
     const wrapper = mount(DataTable, {

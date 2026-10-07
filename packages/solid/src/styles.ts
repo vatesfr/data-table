@@ -68,6 +68,7 @@ ${renderThemeCss()}
 .dt-dd-category-arrow{flex-shrink:0;font-size:10px;color:var(--color-text-tertiary,#9b9a96)}
 .dt-dd-submenu{z-index:101;background:var(--color-background-primary,#fff);border:0.5px solid var(--color-border-secondary,#dddcd8);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.1);min-width:160px;max-height:320px;overflow-y:auto}
 .dt-flex1{flex:1}
+.dt-check-cell{cursor:pointer}
 .dt-dd-item-category{font-size:11px;color:var(--color-text-tertiary,#9b9a96);flex-shrink:0;white-space:nowrap}
 .dt-filter-count{font-size:12px;color:var(--color-text-tertiary,#9b9a96);flex-shrink:0}
 .dt-item-remove{background:none;border:none;cursor:pointer;padding:2px 4px;font-size:13px;color:var(--color-text-tertiary,#9b9a96);line-height:1;font-family:inherit}
