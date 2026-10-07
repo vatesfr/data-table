@@ -9,7 +9,7 @@ import dts from 'vite-plugin-dts'
 // only ships "es"/"cjs", matching every other adapter package's own sub-path exports
 // (`@vates/data-table-core/locales`, `/theme`, `/internal`).
 export default defineConfig({
-  plugins: [dts({ include: ['src/theme.ts'], rollupTypes: true, insertTypesEntry: true })],
+  plugins: [dts({ include: ['src/theme.ts'], entryRoot: 'src', pathsToAliases: false })],
   build: {
     emptyOutDir: false,
     lib: {

@@ -7,7 +7,15 @@ export default defineConfig({
   plugins: [
     // Must run before vite-plugin-dts so .tsx sources are compiled before declaration rollup.
     solid(),
-    dts({ include: ['src'], insertTypesEntry: true, rollupTypes: true, pathsToAliases: false }),
+    dts({
+      include: ['src'],
+      insertTypesEntry: true,
+      pathsToAliases: false,
+      // API Extractor reads tsconfig `paths` itself: unset them so core stays an external import.
+      bundleTypes: {
+        extractorConfig: { compiler: { overrideTsconfig: { compilerOptions: { paths: null } } } },
+      },
+    }),
   ],
   build: {
     // Terser over Vite's default esbuild minifier: negligible difference on the UMD build, but

@@ -2,19 +2,25 @@
 
 Symptom first, then cause and fix. Delete entries once obsolete.
 
-<!-- check-docs-ignore: exceeded journalctl memory Killed chromium-browse Failed oom-kill _vts invoker bundleTypes unplugin-dts -->
+<!-- check-docs-ignore: exceeded journalctl memory Killed chromium-browse Failed oom-kill _vts invoker -->
 
 ## Empty `dist/index.d.ts` after a dependency bump
 
 - Symptom: `packages/{react,vue,solid,vanilla}/dist/index.d.ts` is empty; `build` still exits 0, so CI doesn't catch it.
-- Cause: peer ranges of `typescript-eslint`/`vue-tsc` reach into `typescript@6.x`, which npm can hoist to the root; `vite-plugin-dts`'s cross-package rollup then uses it instead of each package's pinned 5.x.
-- Fix: root `package.json`'s `"overrides": { "typescript": "^5.5.0" }` — keep it. After touching `typescript`, `typescript-eslint`, `vue-tsc` or `vite-plugin-dts`, check those `.d.ts` files are non-trivial.
+- Cause: TypeScript 6 defaults `rootDir` to the tsconfig's directory instead of the common root of the sources, so declarations land in `dist/src/` (adapters: `dist/<pkg>/src/`, as they compile core's source through `paths`) while `vite-plugin-dts` writes entry stubs expecting them one level up. Also, `/// <reference lib="dom" />` is dropped from emitted `.d.ts` unless marked `preserve="true"`, and API Extractor then fails with `Unable to follow symbol for "HTMLElement"`.
+- Fix: explicit `rootDir` in each package's `tsconfig.json` (core: `src`, adapters: `..`); `preserve="true"` on `dropdownDomUtils.ts`'s lib reference. Root `package.json`'s `typescript` override keeps a single TypeScript version (API Extractor pins its own) — keep it. After touching `typescript`, `typescript-eslint`, `vue-tsc` or `vite-plugin-dts`, check those `.d.ts` files are non-trivial.
 
-## `vite-plugin-dts` 5 breaks the adapter `.d.ts` builds
+## `vite-plugin-dts` 5: adapter `.d.ts` bundling fails or inlines core
 
-- Symptom: after renaming `rollupTypes` to `bundleTypes` and installing `@microsoft/api-extractor` (plus `@vue/language-core` for Vue), the react build fails with `Internal Error: Unable to determine semantic information for declaration: …/packages/core/src/logic.ts:522:11`; without `bundleTypes`, `dist/index.d.ts` is just `export * from './react/src/index.js'`.
-- Cause: v5 (a wrapper around `unplugin-dts`) follows the tsconfig `paths` into core's source, and API Extractor applies them itself, so `compilerOptions: { paths: {} }` isn't enough. Resolving core through its `dist/` instead fails with TS4058 (`ColumnDefBase` … cannot be named): core's `index.d.ts` and `internal.d.ts` each bundle their own copy of shared types.
-- Fix: stay on `vite-plugin-dts` 4. Upgrading needs the adapters to type-check against core differently, beyond a version bump.
+- Symptom: `Internal Error: Unable to determine semantic information for declaration: …/packages/core/src/logic.ts:522:11`; mapping `paths` to core's `dist/` instead builds, but `dist/index.d.ts` triples in size with core's types inlined.
+- Cause: API Extractor reads the tsconfig `paths` itself, so it follows them into core's source, and treats anything path-mapped as local rather than an external package. `overrideTsconfig` is deep-merged over the plugin's options, so `paths: {}` changes nothing.
+- Fix: `overrideTsconfig: { compilerOptions: { paths: null } }` in each adapter's `bundleTypes`, so core resolves as a package and stays an external import.
+
+## Adapters' `/theme` sub-path has no types, or clobbers `index.d.ts`
+
+- Symptom: up to 0.16.0, `dist/theme.d.ts` was missing from the adapters though `exports["./theme"].types` points at it; with `vite-plugin-dts` 5 and `insertTypesEntry`, the theme pass overwrites `dist/index.d.ts` with the theme re-export.
+- Cause: `insertTypesEntry` names the entry `index.d.ts`, and without `entryRoot` the declaration lands under `dist/<pkg>/src/` (`rootDir` is `..`).
+- Fix: `vite.theme.config.ts` emits without bundling, with `entryRoot: 'src'`, producing `dist/theme.d.ts`.
 
 ## Checkbox stays checked in the browser, test passes in jsdom
 

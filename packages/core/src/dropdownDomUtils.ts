@@ -3,7 +3,8 @@
 // also run in Node/SSR (see `view.ts`'s hand-rolled base64url, `viewPersistence.ts`'s own note). A
 // file-scoped `lib="dom"` reference pulls in just the ambient types this file needs (`DOMRect`,
 // `HTMLElement`) without adding "dom" to the whole package's `tsconfig.json` `lib` array.
-/// <reference lib="dom" />
+// `preserve` keeps it in the emitted `.d.ts`, which API Extractor needs to resolve those types.
+/// <reference lib="dom" preserve="true" />
 
 // Framework-agnostic (DOM-touching, but non-reactive) geometry helpers shared by every adapter's
 // own dropdown drag-and-drop / viewport-clamping / roving-nav code (React's `useDropdownReorder.ts`
