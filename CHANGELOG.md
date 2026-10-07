@@ -9,6 +9,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Fixed
 
+- **Filter dropdown column list** (Solid, React, Vue, vanilla): the column list no longer scrolls sideways or clips its search box. It widens to fit column names, up to 240 px.
 - **Selection checkboxes are easier to hit** (Solid, React, Vue, vanilla): clicking or tapping anywhere in a row's, group header's or the select-all checkbox's cell now toggles it, Shift+click range selection included, instead of only the 13 px box.
 
 ## [0.17.0] - 2026-10-07

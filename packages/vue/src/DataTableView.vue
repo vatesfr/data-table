@@ -2487,6 +2487,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
 }
 .dt__filter-panel--narrow .dt__filter-cols {
   width: auto;
+  max-width: none;
   border-right: none;
 }
 .dt__filter-back {
@@ -2495,7 +2496,10 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
   border-bottom: 0.5px solid var(--color-border-tertiary);
 }
 .dt__filter-cols {
-  width: 150px;
+  /* Sized to the column names; the search box fills it without widening it */
+  width: max-content;
+  min-width: 150px;
+  max-width: 240px;
   flex-shrink: 0;
   overflow-y: auto;
   border-right: 0.5px solid var(--color-border-tertiary);
@@ -2685,6 +2689,9 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
    (the Filter dropdown's left pane doesn't have a dedicated wrapper row the way the others do).
    A distinct class from .dt__dd-search-wrap's own position:relative (applied to the same element,
    see the Filter dropdown's template) so there's no cascade-order conflict between the two. */
+.dt__filter-cols-search {
+  width: 0;
+}
 .dt__filter-cols-search-wrap {
   position: sticky;
   top: 0;

@@ -8,16 +8,11 @@ Severity: **blocker** (goal unreachable) · **major** (reached with confusion or
 
 Seeded 2026-10-04 from issues reported by a consumer app, each reproduced on the demos (Solid, spot-checked on React and Vue).
 
-- [Filters](#filters)
 - [Active bar](#active-bar)
 - [Column headers](#column-headers)
 - [Empty and cleared states](#empty-and-cleared-states)
 - [Layout and integration](#layout-and-integration)
 - [Adapter-specific](#adapter-specific)
-
-## Filters
-
-- **U4 · minor · UC01, UC08** — the Filter dropdown's column pane is 149 px wide for 222 px of content, so it scrolls sideways even with short names like "Order Date" and clips its own search box; all adapters. Size the pane to its content, within the dropdown's max width.
 
 ## Active bar
 

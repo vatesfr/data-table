@@ -510,14 +510,17 @@ const S = {
     // 100vw counts a classic scrollbar too, hence more than twice the 8 px viewport margin
     width: 'calc(100vw - 40px)',
   } as CSSProperties,
-  filterColsNarrow: { width: 'auto', borderRight: 'none' } as CSSProperties,
+  filterColsNarrow: { width: 'auto', maxWidth: 'none', borderRight: 'none' } as CSSProperties,
   filterBack: {
     flexShrink: 0,
     fontWeight: 500,
     borderBottom: '0.5px solid var(--color-border-tertiary)',
   } as CSSProperties,
   filterCols: {
-    width: 150,
+    // Sized to the column names; the search box fills it (filterColsSearch) without widening it
+    width: 'max-content',
+    minWidth: 150,
+    maxWidth: 240,
     flexShrink: 0,
     overflowY: 'auto',
     borderRight: '0.5px solid var(--color-border-tertiary)',
@@ -923,12 +926,14 @@ function DdSearchInput({
   placeholder,
   clearLabel,
   extraStyle,
+  inputStyle,
 }: {
   value: string
   onChange: (value: string) => void
   placeholder: string
   clearLabel: string
   extraStyle?: CSSProperties
+  inputStyle?: CSSProperties
 }) {
   return (
     <span style={{ ...S.ddSearchWrap, ...extraStyle }}>
@@ -945,7 +950,7 @@ function DdSearchInput({
             onChange('')
           }
         }}
-        style={S.ddSearch}
+        style={{ ...S.ddSearch, ...inputStyle }}
       />
       {value !== '' && (
         <button
@@ -3178,6 +3183,7 @@ export function DataTableView<TRow extends object>({
                       placeholder={L.filterSearchPlaceholder}
                       clearLabel={L.clearSearch}
                       extraStyle={S.filterColsSearch}
+                      inputStyle={{ width: 0 }}
                     />
                     {categorizedFilterCols.uncategorized.map((col) =>
                       renderFilterColRow(col, false),
