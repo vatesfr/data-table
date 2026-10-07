@@ -58,10 +58,13 @@
   },
   "size-limit": [
     {
-      "name": "ESM bundle (gzip)",
-      "path": "dist/data-table-vue.js",
+      "name": "ESM bundle + CSS (gzip)",
+      "path": [
+        "dist/data-table-vue.js",
+        "dist/data-table-vue.css"
+      ],
       "gzip": true,
-      "limit": "22.3 KB"
+      "limit": "25.6 KB"
     }
   ],
   "dependencies": {
