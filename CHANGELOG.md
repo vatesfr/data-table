@@ -9,6 +9,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Fixed
 
+- **Toolbar end slot on a phone** (Solid, React, Vue, vanilla): on screens up to 479 px wide, `toolbarEnd` (Vue: `#toolbar-end`) ends the toolbar's first line, after Columns/Group/Sort, instead of wrapping onto a line of its own after the search box. Fixes #39.
 - **Dropdowns stay on screen while open** (Solid, React, Vue, vanilla): a panel whose trigger moves while it's open — checking a filter value adds a count to the Filter button — is clamped to the viewport again, instead of keeping the offset measured at open and sliding past the right edge on a phone.
 - **Types for the `/theme` sub-path** (React, Vue, Solid, vanilla): `@vates/data-table-{react,vue,solid,vanilla}/theme` now ships the `dist/theme.d.ts` its `exports` point at, so TypeScript no longer reports the import as untyped.
 

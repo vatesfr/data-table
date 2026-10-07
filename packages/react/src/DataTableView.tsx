@@ -1614,6 +1614,9 @@ export function DataTableView<TRow extends object>({
   // Narrow screen (U16): the Filter dropdown shows one pane at a time — columns, or values
   const [narrowFilter, setNarrowFilter] = useState(false)
   useEffect(() => watchMedia(FILTER_NARROW_QUERY, setNarrowFilter), [])
+  const hasToolbarEnd = toolbarEnd != null && toolbarEnd !== false
+  // On a phone the toolbar wraps: toolbarEnd ends the first line instead of taking a line of its own.
+  const endFirst = narrowFilter && hasToolbarEnd
   const [filterShowValues, setFilterShowValues] = useState(false)
   const pendingFilterValuesFocus = useRef(false)
   const [openGroupDD, setOpenGroupDD] = useState(false)
@@ -2321,6 +2324,15 @@ export function DataTableView<TRow extends object>({
   const hasActiveState =
     sorts.length > 0 || activeFilterCount > 0 || groupBy.length > 0 || searchQuery !== ''
   const hasAggregates = activeColumns.some((c) => c.aggregate !== undefined)
+  // After "Clear all", which takes the free space itself; not when moved before it
+  const toolbarEndEl = hasToolbarEnd && (
+    <div
+      className="dt-toolbar-end"
+      style={hasActiveState && !endFirst ? { ...S.toolbarEnd, marginLeft: 0 } : S.toolbarEnd}
+    >
+      {toolbarEnd}
+    </div>
+  )
 
   const formatValue = (v: unknown, row: TRow, col: ColumnDef<TRow>) => {
     if (col.render) return col.render(v, row)
@@ -2991,9 +3003,10 @@ export function DataTableView<TRow extends object>({
             </Dropdown>
           )}
 
+          {endFirst && toolbarEndEl}
           {/* Divider between the "shape" controls above (Columns/Sort/Group) and the "find"
               controls below (Search/Filter). */}
-          <span style={S.toolbarDivider} />
+          {!endFirst && <span style={S.toolbarDivider} />}
 
           {showSearch !== false && (
             <span style={S.searchWrap}>
@@ -3142,14 +3155,7 @@ export function DataTableView<TRow extends object>({
               {L.clearAll}
             </button>
           )}
-          {toolbarEnd != null && toolbarEnd !== false && (
-            <div
-              className="dt-toolbar-end"
-              style={hasActiveState ? { ...S.toolbarEnd, marginLeft: 0 } : S.toolbarEnd}
-            >
-              {toolbarEnd}
-            </div>
-          )}
+          {!endFirst && toolbarEndEl}
         </div>
       </div>
 

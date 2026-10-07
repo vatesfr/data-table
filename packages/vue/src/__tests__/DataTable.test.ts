@@ -1468,6 +1468,23 @@ describe('DataTable — toolbar-end slot', () => {
     const wrapper = mount(DataTable, { props: { data: ROWS, columns: COLS, rowKey: 'id' } })
     expect(wrapper.find('.dt__toolbar-end').exists()).toBe(false)
   })
+
+  it('moves the slot before the search box on a phone, so it ends the first line', async () => {
+    const restore = stubMatchMedia(true)
+    try {
+      const wrapper = mount(DataTable, {
+        props: { data: ROWS, columns: COLS, rowKey: 'id' },
+        slots: { 'toolbar-end': '<button class="share">Share</button>' },
+      })
+      await wrapper.vm.$nextTick()
+      const end = wrapper.find('.dt__toolbar-end').element
+      const search = wrapper.find('.dt__search-wrap').element
+      expect(end.compareDocumentPosition(search) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+      expect(wrapper.find('.dt__toolbar-divider').exists()).toBe(false)
+    } finally {
+      restore()
+    }
+  })
 })
 
 describe('DataTable — sort dropdown', () => {

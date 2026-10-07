@@ -1,4 +1,5 @@
-import { Show, children, createSignal, type JSXElement } from 'solid-js'
+import { Show, children, createSignal, onCleanup, type JSXElement } from 'solid-js'
+import { FILTER_NARROW_QUERY, watchMedia } from '@vates/data-table-core/internal'
 import type { TableState } from './createTableState'
 import { injectStyles } from './styles'
 import { SearchBox, focusSearch } from './components/SearchBox'
@@ -65,6 +66,11 @@ export function DataTableView<TRow extends object>(props: DataTableViewProps<TRo
   const filterableCols = () => table.columns.list().filter((c) => c.filterable !== false)
   // Resolved once: reading a JSX prop twice (the `when` and the body) would build it twice.
   const toolbarEnd = children(() => props.toolbarEnd)
+  const hasToolbarEnd = () => toolbarEnd.toArray().length > 0
+  const [narrow, setNarrow] = createSignal(false)
+  onCleanup(watchMedia(FILTER_NARROW_QUERY, setNarrow))
+  // On a phone the toolbar wraps: toolbarEnd ends the first line instead of taking a line of its own.
+  const endFirst = () => narrow() && hasToolbarEnd()
 
   function toggleDd(id: DropdownId): void {
     setOpenDropdown((cur) => (cur === id ? null : id))
@@ -104,7 +110,12 @@ export function DataTableView<TRow extends object>(props: DataTableViewProps<TRo
               onClose={() => setOpenDropdown(null)}
             />
           </Show>
-          <span class="dt-toolbar-divider" />
+          <Show when={endFirst()}>
+            <div class="dt-toolbar-end">{toolbarEnd()}</div>
+          </Show>
+          <Show when={!endFirst()}>
+            <span class="dt-toolbar-divider" />
+          </Show>
           <Show when={props.showSearch !== false}>
             <SearchBox table={table} />
           </Show>
@@ -138,7 +149,7 @@ export function DataTableView<TRow extends object>(props: DataTableViewProps<TRo
               {table.labels().clearAll}
             </button>
           </Show>
-          <Show when={toolbarEnd.toArray().length > 0}>
+          <Show when={hasToolbarEnd() && !endFirst()}>
             <div class="dt-toolbar-end">{toolbarEnd()}</div>
           </Show>
         </div>

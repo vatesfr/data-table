@@ -3,6 +3,7 @@ import { createRoot, createSignal } from 'solid-js'
 import { render } from 'solid-js/web'
 import { DataTable } from '../DataTable'
 import type { ColumnDef } from '../types'
+import { stubMatchMedia } from './stubMatchMedia'
 
 interface Row {
   id: number
@@ -316,6 +317,32 @@ describe('DataTable', () => {
     setShow(false)
     expect(container.querySelector('.dt-toolbar-end')).toBeNull()
     dispose()
+  })
+
+  it('moves toolbarEnd before the search box on a phone, so it ends the first line', () => {
+    const restore = stubMatchMedia(true)
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const dispose = createRoot((d) => {
+      render(
+        () => (
+          <DataTable
+            data={ROWS}
+            columns={COLS}
+            rowKey="id"
+            toolbarEnd={<button class="share">Share</button>}
+          />
+        ),
+        container,
+      )
+      return d
+    })
+    const end = container.querySelector('.dt-toolbar-end')!
+    const search = container.querySelector('.dt-search-wrap')!
+    expect(end.compareDocumentPosition(search) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(container.querySelector('.dt-toolbar-divider')).toBeNull()
+    dispose()
+    restore()
   })
 })
 

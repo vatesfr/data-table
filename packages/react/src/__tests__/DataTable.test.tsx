@@ -2,6 +2,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, cleanup, fireEvent } from '@testing-library/react'
 import { DataTable } from '../DataTable'
 import type { ColumnDef } from '../types'
+import { stubMatchMedia } from './stubMatchMedia'
 
 interface Row {
   id: number
@@ -1231,6 +1232,22 @@ describe('DataTable — toolbarEnd', () => {
     expect(container.querySelector('.dt-toolbar-end')).toBeNull()
     rerender(<DataTable data={ROWS} columns={COLS} rowKey="id" toolbarEnd={false} />)
     expect(container.querySelector('.dt-toolbar-end')).toBeNull()
+  })
+
+  it('moves toolbarEnd before the search box on a phone, so it ends the first line', () => {
+    const restore = stubMatchMedia(true)
+    try {
+      const { container, getAllByPlaceholderText } = render(
+        <DataTable data={ROWS} columns={COLS} rowKey="id" toolbarEnd={<button>Share</button>} />,
+      )
+      fireEvent.change(getAllByPlaceholderText('Search…')[0], { target: { value: 'ali' } })
+      const end = container.querySelector<HTMLElement>('.dt-toolbar-end')!
+      const search = getAllByPlaceholderText('Search…')[0]
+      expect(end.compareDocumentPosition(search) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+      expect(end.style.marginLeft).toBe('auto')
+    } finally {
+      restore()
+    }
   })
 })
 

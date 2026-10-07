@@ -71,3 +71,14 @@ test('UC11 on a phone: a header menu filters in place, within the screen', async
   await menu.getByRole('button', { name: '‹ Skills' }).tap()
   await expect(menu.getByRole('button', { name: 'Hide column' })).toBeVisible()
 })
+
+test('toolbarEnd comes before the search line on a phone, not after it', async ({
+  page,
+  section,
+}) => {
+  const dt = await section('persisted-table')
+  const end = (await dt.locator('.dt-toolbar-end').boundingBox())!
+  const search = (await dt.getByRole('textbox', { name: 'Search…' }).boundingBox())!
+  expect(end.y + end.height).toBeLessThanOrEqual(search.y)
+  await expectInViewport(page, dt.locator('.dt-toolbar-end'))
+})

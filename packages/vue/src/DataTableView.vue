@@ -544,6 +544,8 @@ onMounted(() => {
   stopNarrowFilter = watchMedia(FILTER_NARROW_QUERY, (matches) => (narrowFilter.value = matches))
 })
 onBeforeUnmount(() => stopNarrowFilter())
+// On a phone the toolbar wraps: the toolbar-end slot ends the first line instead of taking a line of its own.
+const endFirst = () => narrowFilter.value && hasSlot('toolbar-end')
 const filterShowValues = ref(false)
 async function showFilterValues(): Promise<void> {
   filterShowValues.value = true
@@ -1546,9 +1548,12 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
           </template>
         </Dropdown>
 
+        <div v-if="endFirst()" class="dt__toolbar-end">
+          <slot name="toolbar-end" />
+        </div>
         <!-- Divider between the "shape" controls above (Columns/Sort/Group) and the "find"
              controls below (Search/Filter). -->
-        <span class="dt__toolbar-divider" />
+        <span v-else class="dt__toolbar-divider" />
 
         <span v-if="showSearch" class="dt__search-wrap">
           <input
@@ -1768,7 +1773,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
         <button v-if="hasActiveState" class="dt__clear-all" @click="clearAllAndFocus">
           {{ L.clearAll }}
         </button>
-        <div v-if="hasSlot('toolbar-end')" class="dt__toolbar-end">
+        <div v-if="hasSlot('toolbar-end') && !endFirst()" class="dt__toolbar-end">
           <slot name="toolbar-end" />
         </div>
       </div>

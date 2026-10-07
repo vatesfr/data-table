@@ -54,6 +54,7 @@ Consumer controls (e.g. "Share view"/"Reset view") go at the end of the toolbar'
 - **Solid**: resolved once via `children()` — reading a JSX prop in both `<Show when>` and the body would build it twice.
 - **Solid**: typed `JSXElement`, not `JSX.Element` — the latter fails `vite:dts`'s type rollup ("Unable to follow symbol for JSX"), only on `npm run build`, not `type-check`.
 - **React**: inline styles can't express the sibling rule, so the margin is picked from `hasActiveState`.
+- **On a phone** (`FILTER_NARROW_QUERY`) the wrapper renders right after Sort, in place of the divider, so it ends the first line rather than wrapping alone after Search/Filter (GitHub issue #39). Moved in the DOM, not with CSS `order`, so Tab order follows what's seen. A slot too wide to share the first line still gets its own, now above the search box.
 
 ## Active-bar chip click actions
 
