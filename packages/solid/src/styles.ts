@@ -12,7 +12,6 @@ ${renderThemeCss()}
 .dt-stats{margin-left:auto;font-size:12px;color:var(--color-text-secondary,#666561);white-space:nowrap}
 .dt-btn{display:inline-flex;align-items:center;gap:4px;padding:5px 10px;background:none;border:0.5px solid var(--color-border-secondary,#dddcd8);border-radius:6px;font-size:13px;cursor:pointer;color:var(--color-text-primary,#1a1916);font-family:inherit;line-height:1}
 .dt-btn--active{background:var(--color-background-secondary,#f7f6f3)}
-.dt-btn-group{display:inline-flex}
 .dt-btn--grouped{border-radius:6px 0 0 6px;border-right:none}
 .dt-btn-clear{display:inline-flex;align-items:center;padding:5px 8px;background:none;border:0.5px solid var(--color-border-secondary,#dddcd8);border-radius:0 6px 6px 0;font-size:14px;line-height:1;cursor:pointer;color:var(--color-text-tertiary,#9b9a96);font-family:inherit}
 .dt-btn-clear:hover{color:var(--color-text-primary,#1a1916)}
@@ -29,7 +28,6 @@ ${renderThemeCss()}
 .dt-dd-search-clear{position:absolute;right:4px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;padding:2px 4px;font-size:13px;line-height:1;color:var(--color-text-tertiary,#9b9a96);font-family:inherit}
 .dt-dd-search-clear:hover{color:var(--color-text-primary,#1a1916)}
 .dt-dd-section{padding:6px 14px 2px;font-size:11px;color:var(--color-text-tertiary,#9b9a96);font-weight:500;letter-spacing:.05em;text-transform:uppercase;white-space:nowrap}
-.dt-dd-sublabel{font-size:12px;margin-bottom:4px;color:var(--color-text-secondary,#666561)}
 .dt-dd-hint{padding:0 14px 6px;font-size:11px;color:var(--color-text-tertiary,#9b9a96)}
 .dt-dd-item{display:flex;align-items:center;gap:8px;padding:7px 14px;font-size:13px;color:var(--color-text-primary,#1a1916);cursor:default;border:none;background:none;font-family:inherit;text-align:left;margin:0;width:100%;box-sizing:border-box}
 .dt-dd-item--click{cursor:pointer}
@@ -55,7 +53,6 @@ ${renderThemeCss()}
    here, which it wouldn't), not restyle the row into looking disabled. Must come after
    .dt-dd-item--sortrow:hover above to win the cascade on the shared hover background. */
 .dt-dd-item--locked:hover{background:none}
-.dt-dd-item--dragging{opacity:.4}
 .dt-dd-item--drag-over{box-shadow:inset 0 2px 0 var(--color-text-primary,#1a1916)}
 .dt-dd-item--drag-over-after{box-shadow:inset 0 -2px 0 var(--color-text-primary,#1a1916)}
 .dt-dd-item--exclude{color:var(--color-text-danger,#a5182f)}
@@ -103,8 +100,6 @@ ${renderThemeCss()}
 .dt-table{width:100%;border-collapse:collapse;font-size:13px}
 .dt-th{padding:8px 12px;text-align:left;font-weight:500;font-size:12px;background:var(--color-background-tertiary,#eae9e5);color:var(--color-text-secondary,#666561);border-bottom:1px solid var(--color-border-secondary,#dddcd8);white-space:nowrap;user-select:none;cursor:pointer}
 .dt-th--no-sort{cursor:default}
-.dt-th--dragging{opacity:.4}
-.dt-th--drag-over{box-shadow:inset 2px 0 0 var(--color-text-primary,#1a1916)}
 .dt-th-inner{display:flex;align-items:center;gap:4px}
 .dt-th-sort{display:inline-flex;align-items:center;gap:4px;padding:0;border:none;background:none;font:inherit;color:inherit;cursor:inherit}
 .dt-th-menu-icon{width:14px;height:14px;flex-shrink:0}
@@ -159,7 +154,6 @@ ${renderThemeCss()}
 .dt-date-tree-wrap{overflow-y:auto;flex:1;min-height:0}
 .dt-filter-search-row{display:flex;align-items:center;gap:6px;margin:2px 12px 6px}
 .dt-dd-search{flex:1;padding:5px 20px 5px 8px;font-size:12px;border:0.5px solid var(--color-border-secondary,#dddcd8);border-radius:6px;background:transparent;color:inherit;font-family:inherit;box-sizing:border-box}
-.dt-filter-select-all{flex-shrink:0;margin:0}
 .dt-value-sort-btn{flex-shrink:0;padding:4px 7px;font-size:11px;background:none;border:0.5px solid var(--color-border-secondary,#dddcd8);border-radius:6px;cursor:pointer;color:var(--color-text-secondary,#666561);font-family:inherit;white-space:nowrap}
 .dt-filter-match-mode-group{display:inline-flex;flex-shrink:0}
 .dt-filter-match-mode--left{border-radius:6px 0 0 6px;border-right:none}

@@ -2843,12 +2843,6 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
   color: var(--color-text-info);
   border-color: var(--color-border-info);
 }
-.dt__chip--warning .dt__chip-body,
-.dt__chip--warning .dt__chip-remove {
-  background: var(--color-background-warning);
-  color: var(--color-text-warning);
-  border-color: var(--color-border-warning);
-}
 /* Exclude filters (see cycleFilterValue in the docs) get their own tint, distinct from the plain
    include .dt__chip--info above, so the two read as opposite actions at a glance. */
 .dt__chip--danger .dt__chip-body,
