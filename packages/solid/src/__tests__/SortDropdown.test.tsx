@@ -351,8 +351,8 @@ describe('SortDropdown', () => {
     const row = container.querySelector<HTMLElement>('[data-sort-key="name"]')!
     expect(row.querySelector('.dt-dd-drag-handle')).not.toBeNull()
     const removeBtn = row.querySelector<HTMLButtonElement>('.dt-item-remove')!
-    expect(removeBtn.title).toBe(table.labels().removeSort)
-    expect(removeBtn.getAttribute('aria-label')).toBe(table.labels().removeSort)
+    expect(removeBtn.title).toBe('Remove sort: Name')
+    expect(removeBtn.getAttribute('aria-label')).toBe('Remove sort: Name')
     dispose()
   })
 
@@ -363,7 +363,7 @@ describe('SortDropdown', () => {
     const row = container.querySelector<HTMLElement>('[data-dd-row].dt-dd-item--locked')!
     expect(row.querySelector('.dt-dd-drag-handle')).toBeNull()
     const removeBtn = row.querySelector<HTMLButtonElement>('.dt-item-remove')!
-    expect(removeBtn.title).toBe(table.labels().removeSort)
+    expect(removeBtn.title).toBe('Remove sort: Name')
     dispose()
   })
 

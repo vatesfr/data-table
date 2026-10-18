@@ -59,24 +59,31 @@ export function ActiveBar<TRow extends object>(props: ActiveBarProps<TRow>) {
           own "Group order" section coming before "Active sorts" (see SortDropdown.tsx), since
           grouping is the structural, primary concern and tie-break sorting is secondary. */}
       <For each={table.group.by()}>
-        {(key) => (
-          <span class="dt-chip">
-            {/* ⊞ tells it apart from the same column's sort chip (U6) */}
-            <button type="button" class="dt-chip-body" onClick={() => props.onOpenGroup(key)}>
-              <span aria-hidden="true">⊞</span>{' '}
-              {props.groupableCols.find((c) => c.key === key)?.label ?? key}
-            </button>
-            <button
-              type="button"
-              class="dt-chip-x"
-              title={table.labels().removeGroup}
-              aria-label={table.labels().removeGroup}
-              onClick={() => table.group.remove(key)}
-            >
-              ×
-            </button>
-          </span>
-        )}
+        {(key) => {
+          const label = () => props.groupableCols.find((c) => c.key === key)?.label ?? key
+          return (
+            <span class="dt-chip">
+              {/* ⊞ tells it apart from the same column's sort chip (U6), groupedBy for screen readers (U28) */}
+              <button
+                type="button"
+                class="dt-chip-body"
+                aria-label={table.labels().groupedBy(label())}
+                onClick={() => props.onOpenGroup(key)}
+              >
+                <span aria-hidden="true">⊞</span> {label()}
+              </button>
+              <button
+                type="button"
+                class="dt-chip-x"
+                title={table.labels().removeGroup(label())}
+                aria-label={table.labels().removeGroup(label())}
+                onClick={() => table.group.remove(key)}
+              >
+                ×
+              </button>
+            </span>
+          )
+        }}
       </For>
       <For each={table.sort.entries()}>
         {(entry) => {
@@ -93,8 +100,8 @@ export function ActiveBar<TRow extends object>(props: ActiveBarProps<TRow>) {
               <button
                 type="button"
                 class="dt-chip-x"
-                title={table.labels().removeSort}
-                aria-label={table.labels().removeSort}
+                title={table.labels().removeSort(col()?.label ?? entry.key)}
+                aria-label={table.labels().removeSort(col()?.label ?? entry.key)}
                 onClick={() => table.sort.remove(entry.key)}
               >
                 ×

@@ -2733,8 +2733,8 @@ export function DataTableView<TRow extends object>({
                         <button
                           type="button"
                           draggable={false}
-                          title={L.removeGroup}
-                          aria-label={L.removeGroup}
+                          title={L.removeGroup(col?.label ?? key)}
+                          aria-label={L.removeGroup(col?.label ?? key)}
                           onClick={() => {
                             // Same reasoning as Sort's remove-focus hand-off above.
                             pendingGroupFocusKey.current = key
@@ -2917,8 +2917,8 @@ export function DataTableView<TRow extends object>({
                         <button
                           type="button"
                           draggable={false}
-                          title={L.removeSort}
-                          aria-label={L.removeSort}
+                          title={L.removeSort(col?.label ?? entry.key)}
+                          aria-label={L.removeSort(col?.label ?? entry.key)}
                           onClick={(e) => {
                             e.stopPropagation()
                             pendingSortFocusKey.current = entry.key
@@ -3019,8 +3019,8 @@ export function DataTableView<TRow extends object>({
                         <button
                           type="button"
                           draggable={false}
-                          title={L.removeSort}
-                          aria-label={L.removeSort}
+                          title={L.removeSort(col?.label ?? entry.key)}
+                          aria-label={L.removeSort(col?.label ?? entry.key)}
                           onClick={(e) => {
                             e.stopPropagation()
                             // Removing this entry unmounts this whole row (a different JSX subtree
@@ -3324,14 +3324,15 @@ export function DataTableView<TRow extends object>({
                   setOpenGroupDD(true)
                 }}
                 style={S.chipBody}
+                aria-label={L.groupedBy(col?.label ?? key)}
               >
-                {/* ⊞ tells it apart from the same column's sort chip (U6) */}
+                {/* ⊞ tells it apart from the same column's sort chip (U6), groupedBy for screen readers (U28) */}
                 <span aria-hidden="true">⊞</span> {col?.label ?? key}
               </button>
               <button
                 type="button"
-                title={L.removeGroup}
-                aria-label={L.removeGroup}
+                title={L.removeGroup(col?.label ?? key)}
+                aria-label={L.removeGroup(col?.label ?? key)}
                 onClick={() => removeGroup(key)}
                 style={S.chipX}
               >
@@ -3355,8 +3356,8 @@ export function DataTableView<TRow extends object>({
               </button>
               <button
                 type="button"
-                title={L.removeSort}
-                aria-label={L.removeSort}
+                title={L.removeSort(col?.label ?? entry.key)}
+                aria-label={L.removeSort(col?.label ?? entry.key)}
                 onClick={() => removeSort(entry.key)}
                 style={S.chipX}
               >

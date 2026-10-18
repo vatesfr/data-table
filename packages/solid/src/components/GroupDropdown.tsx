@@ -139,8 +139,8 @@ export function GroupDropdown<TRow extends object>(props: GroupDropdownProps<TRo
                   <button
                     type="button"
                     class="dt-item-remove"
-                    title={table.labels().removeGroup}
-                    aria-label={table.labels().removeGroup}
+                    title={table.labels().removeGroup(col()?.label ?? key)}
+                    aria-label={table.labels().removeGroup(col()?.label ?? key)}
                     draggable={false}
                     onClick={(e) =>
                       withPanelRefocus(e.currentTarget, `[data-col-key="${key}"]`, () =>

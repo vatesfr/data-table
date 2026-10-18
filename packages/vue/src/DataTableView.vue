@@ -1278,8 +1278,8 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
               <button
                 type="button"
                 class="dt__item-remove"
-                :title="L.removeGroup"
-                :aria-label="L.removeGroup"
+                :title="L.removeGroup(findCol(key)?.label ?? key)"
+                :aria-label="L.removeGroup(findCol(key)?.label ?? key)"
                 draggable="false"
                 @click="onRemoveGroupClick(key)"
               >
@@ -1433,8 +1433,8 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
               <button
                 type="button"
                 class="dt__item-remove"
-                :title="L.removeSort"
-                :aria-label="L.removeSort"
+                :title="L.removeSort(findCol(entry.key)?.label ?? entry.key)"
+                :aria-label="L.removeSort(findCol(entry.key)?.label ?? entry.key)"
                 draggable="false"
                 @click.stop="onRemoveSortClick(entry.key)"
               >
@@ -1479,8 +1479,8 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
               <button
                 type="button"
                 class="dt__item-remove"
-                :title="L.removeSort"
-                :aria-label="L.removeSort"
+                :title="L.removeSort(findCol(entry.key)?.label ?? entry.key)"
+                :aria-label="L.removeSort(findCol(entry.key)?.label ?? entry.key)"
                 draggable="false"
                 @click.stop="onRemoveSortClick(entry.key)"
               >
@@ -1846,15 +1846,20 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
            section coming before "Active sorts", since grouping is the structural, primary
            concern and tie-break sorting is secondary. -->
       <span v-for="key in groupBy" :key="key" class="dt__chip">
-        <!-- ⊞ tells it apart from the same column's sort chip (U6) -->
-        <button type="button" class="dt__chip-body" @click="onOpenGroupEntry(key)">
+        <!-- ⊞ tells it apart from the same column's sort chip (U6), groupedBy for screen readers (U28) -->
+        <button
+          type="button"
+          class="dt__chip-body"
+          :aria-label="L.groupedBy(findCol(key)?.label ?? key)"
+          @click="onOpenGroupEntry(key)"
+        >
           <span aria-hidden="true">⊞</span> {{ findCol(key)?.label ?? key }}
         </button>
         <button
           type="button"
           class="dt__chip-remove"
-          :title="L.removeGroup"
-          :aria-label="L.removeGroup"
+          :title="L.removeGroup(findCol(key)?.label ?? key)"
+          :aria-label="L.removeGroup(findCol(key)?.label ?? key)"
           @click="removeGroup(key)"
         >
           ×
@@ -1867,8 +1872,8 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
         <button
           type="button"
           class="dt__chip-remove"
-          :title="L.removeSort"
-          :aria-label="L.removeSort"
+          :title="L.removeSort(findCol(entry.key)?.label ?? entry.key)"
+          :aria-label="L.removeSort(findCol(entry.key)?.label ?? entry.key)"
           @click="removeSort(entry.key)"
         >
           ×

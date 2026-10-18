@@ -1720,8 +1720,8 @@ describe('DataTable — sort dropdown', () => {
     const row = wrapper.find('.dt__dd-item--sortrow')
     expect(row.find('.dt__dd-drag-handle').exists()).toBe(true)
     const removeBtn = row.find('.dt__item-remove')
-    expect(removeBtn.attributes('title')).toBe('Remove sort')
-    expect(removeBtn.attributes('aria-label')).toBe('Remove sort')
+    expect(removeBtn.attributes('title')).toBe('Remove sort: Score')
+    expect(removeBtn.attributes('aria-label')).toBe('Remove sort: Score')
   })
 
   it('the Sort toolbar button has no clear-sorts button until a sort is active', async () => {
@@ -3650,8 +3650,8 @@ describe('DataTable — Group dropdown column categories', () => {
     const row = wrapper.find('[data-group-key="id"]')
     expect(row.find('.dt__dd-drag-handle').exists()).toBe(true)
     const removeBtn = row.find('.dt__item-remove')
-    expect(removeBtn.attributes('title')).toBe('Remove group')
-    expect(removeBtn.attributes('aria-label')).toBe('Remove group')
+    expect(removeBtn.attributes('title')).toBe('Remove group: Id')
+    expect(removeBtn.attributes('aria-label')).toBe('Remove group: Id')
   })
 
   it('Enter/Space on an active row preventDefault (no click action of its own, but stops the native Space-scroll)', async () => {
@@ -4096,8 +4096,10 @@ describe('DataTable — active-bar chip click actions', () => {
     const bodies = () => wrapper.findAll('.dt__chip-body').map((b) => b.text())
     expect(bodies()).toEqual(['⊞ Name', '↑ Name'])
     const removeBtns = wrapper.findAll('.dt__chip-remove')
-    expect(removeBtns[0].attributes('aria-label')).toBe('Remove group')
-    expect(removeBtns[1].attributes('aria-label')).toBe('Remove sort')
+    // U28: each × and the group chip say which column they act on
+    expect(removeBtns[0].attributes('aria-label')).toBe('Remove group: Name')
+    expect(removeBtns[1].attributes('aria-label')).toBe('Remove sort: Name')
+    expect(wrapper.find('.dt__chip-body').attributes('aria-label')).toBe('Grouped by Name')
     await removeBtns[1].trigger('click')
     expect(bodies()).toEqual(['⊞ Name'])
   })

@@ -150,8 +150,8 @@ export function SortDropdown<TRow extends object>(props: SortDropdownProps<TRow>
                 <button
                   type="button"
                   class="dt-item-remove"
-                  title={table.labels().removeSort}
-                  aria-label={table.labels().removeSort}
+                  title={table.labels().removeSort(col()?.label ?? entry.key)}
+                  aria-label={table.labels().removeSort(col()?.label ?? entry.key)}
                   draggable={false}
                   onClick={(e) => {
                     e.stopPropagation()
@@ -225,8 +225,8 @@ export function SortDropdown<TRow extends object>(props: SortDropdownProps<TRow>
                   <button
                     type="button"
                     class="dt-item-remove"
-                    title={table.labels().removeSort}
-                    aria-label={table.labels().removeSort}
+                    title={table.labels().removeSort(col()?.label ?? entry.key)}
+                    aria-label={table.labels().removeSort(col()?.label ?? entry.key)}
                     draggable={false}
                     onClick={(e) => {
                       e.stopPropagation()

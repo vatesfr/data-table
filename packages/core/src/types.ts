@@ -208,10 +208,9 @@ export interface DataTableLabels {
   groupOrderHint: string
   sortSection: string
   clearSorts: string
-  /** Title/aria-label for a Sort dropdown active-entry row's own "×" (remove) button — both the
-   * "Group order" and "Active sorts" sections use it, since both remove the same kind of thing:
-   * one sort entry. */
-  removeSort: string
+  /** Title/aria-label of a "×" removing one column's sort (active-bar chip, Sort dropdown rows),
+   * from the column's label */
+  removeSort: (column: string) => string
   filter: string
   filterSearchPlaceholder: string
   selectAll: string
@@ -242,8 +241,11 @@ export interface DataTableLabels {
   activeGroupsSection: string
   groupSection: string
   clearGroups: string
-  /** Title/aria-label for a Group dropdown active-entry row's own "×" (remove) button */
-  removeGroup: string
+  /** Title/aria-label of a "×" removing one column's grouping (active-bar chip, Group dropdown
+   * rows), from the column's label */
+  removeGroup: (column: string) => string
+  /** Accessible name of a group chip's body, from the column's label */
+  groupedBy: (column: string) => string
   clearAll: string
   /** Title/aria-label for the button that clears the search input */
   clearSearch: string
@@ -257,6 +259,8 @@ export interface DataTableLabels {
   selectRow: (row: string) => string
   /** Header menu: add the column to the grouping */
   groupByColumn: string
+  /** Header menu: remove the column from the grouping */
+  ungroupColumn: string
   /** Accessible name of a header's menu button, from the column's label and whether it's filtered */
   columnMenu: (column: string, filtered: boolean) => string
   /** Marker shown on a group header that repeats mid-way down a page — see "Pagination" — because the group's rows split across a page boundary */

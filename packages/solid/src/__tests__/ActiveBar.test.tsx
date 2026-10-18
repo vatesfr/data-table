@@ -50,21 +50,22 @@ function mount() {
 // beyond the literal "×" glyph — see docs/toolbar.md. These tests cover each
 // chip kind's own remove button.
 describe('ActiveBar — chip button labels', () => {
-  it('a plain sort chip’s remove button uses removeSort', () => {
+  // U28: every sort ×, and every group ×, read alike
+  it("a sort chip's remove button names its column", () => {
     const { container, table, dispose } = mount()
     table.sort.toggle('score')
     const btn = container.querySelector<HTMLButtonElement>('.dt-chip .dt-chip-x')!
-    expect(btn.title).toBe(table.labels().removeSort)
-    expect(btn.getAttribute('aria-label')).toBe(table.labels().removeSort)
+    expect(btn.title).toBe('Remove sort: Score')
+    expect(btn.getAttribute('aria-label')).toBe('Remove sort: Score')
     dispose()
   })
 
-  it('a plain group chip’s remove button uses removeGroup', () => {
+  it("a group chip's remove button names its column, and its body says it's the grouping", () => {
     const { container, table, dispose } = mount()
     table.group.toggle('dept')
-    const btn = container.querySelector<HTMLButtonElement>('.dt-chip .dt-chip-x')!
-    expect(btn.title).toBe(table.labels().removeGroup)
-    expect(btn.getAttribute('aria-label')).toBe(table.labels().removeGroup)
+    const chip = container.querySelector('.dt-chip')!
+    expect(chip.querySelector('.dt-chip-x')!.getAttribute('aria-label')).toBe('Remove group: Dept')
+    expect(chip.querySelector('.dt-chip-body')!.getAttribute('aria-label')).toBe('Grouped by Dept')
     dispose()
   })
 
@@ -77,8 +78,8 @@ describe('ActiveBar — chip button labels', () => {
     const [removeGroupBtn, removeSortBtn] = [
       ...container.querySelectorAll<HTMLButtonElement>('.dt-chip-x'),
     ]
-    expect(removeGroupBtn.getAttribute('aria-label')).toBe(table.labels().removeGroup)
-    expect(removeSortBtn.getAttribute('aria-label')).toBe(table.labels().removeSort)
+    expect(removeGroupBtn.getAttribute('aria-label')).toBe('Remove group: Dept')
+    expect(removeSortBtn.getAttribute('aria-label')).toBe('Remove sort: Dept')
     removeSortBtn.click()
     expect(bodies()).toEqual(['⊞ Dept'])
     table.sort.toggle('dept')

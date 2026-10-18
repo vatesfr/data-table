@@ -234,8 +234,8 @@ describe('GroupDropdown', () => {
     const row = container.querySelector<HTMLElement>('[data-group-key="dept"]')!
     expect(row.querySelector('.dt-dd-drag-handle')).not.toBeNull()
     const removeBtn = row.querySelector<HTMLButtonElement>('.dt-item-remove')!
-    expect(removeBtn.title).toBe(table.labels().removeGroup)
-    expect(removeBtn.getAttribute('aria-label')).toBe(table.labels().removeGroup)
+    expect(removeBtn.title).toBe('Remove group: Dept')
+    expect(removeBtn.getAttribute('aria-label')).toBe('Remove group: Dept')
     dispose()
   })
 

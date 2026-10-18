@@ -532,7 +532,10 @@ describe('DataTable — active-bar chip click actions', () => {
         .map((b) => b.textContent)
         .filter((t) => t === '⊞ Dept' || t === '↑ Dept')
     expect(chipTexts()).toEqual(['⊞ Dept', '↑ Dept'])
-    fireEvent.click(getAllByRole('button', { name: 'Remove sort' })[0])
+    // U28: each × and the group chip say which column they act on
+    expect(getAllByRole('button', { name: 'Grouped by Dept' })).toHaveLength(1)
+    expect(getAllByRole('button', { name: 'Remove group: Dept' })).toHaveLength(1)
+    fireEvent.click(getAllByRole('button', { name: 'Remove sort: Dept' })[0])
     expect(chipTexts()).toEqual(['⊞ Dept'])
   })
 
