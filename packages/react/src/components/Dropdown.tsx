@@ -148,6 +148,7 @@ export function Dropdown({
       {open && (
         <div
           ref={panelRef}
+          className="dt-dd"
           onDragOver={onDragOver}
           onDrop={onDrop}
           onKeyDown={handlePanelKeyDown}

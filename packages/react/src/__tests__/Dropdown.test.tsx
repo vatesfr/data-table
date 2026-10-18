@@ -35,6 +35,15 @@ describe('Dropdown viewport clamping', () => {
     naturalLeft = 900
   })
 
+  it('gives the panel the dt-dd class shared with the other adapters', () => {
+    const { container } = render(
+      <Dropdown trigger={<button>Open</button>} open setOpen={() => {}}>
+        <div data-body>Items</div>
+      </Dropdown>,
+    )
+    expect(container.querySelector('[data-body]')!.parentElement!.className).toBe('dt-dd')
+  })
+
   it('re-clamps an open panel whose trigger moves', async () => {
     stubLayout()
     const { container } = render(

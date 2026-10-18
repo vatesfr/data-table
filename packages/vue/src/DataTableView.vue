@@ -2682,7 +2682,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
   color: var(--color-text-primary);
 }
 /* Wraps the Columns/Sort/Group dropdowns' own column-search box — sticky within the dropdown
-   panel's own scroll (see .dropdown__menu's max-height/overflow-y in Dropdown.vue) so it stays
+   panel's own scroll (see .dt-dd's max-height/overflow-y in Dropdown.vue) so it stays
    pinned at the top instead of scrolling away with the rest of the list. */
 .dt__dd-search-row {
   position: sticky;

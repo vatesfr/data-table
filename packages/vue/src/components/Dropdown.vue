@@ -202,13 +202,7 @@ function onPanelKeydown(e: KeyboardEvent): void {
       DataTableView.vue), visually merged into one pill with the trigger via shared CSS.
     -->
     <slot name="extra-trigger" />
-    <div
-      v-if="isOpen"
-      ref="menuRef"
-      class="dropdown__menu"
-      v-bind="$attrs"
-      @keydown="onPanelKeydown"
-    >
+    <div v-if="isOpen" ref="menuRef" class="dt-dd" v-bind="$attrs" @keydown="onPanelKeydown">
       <slot />
     </div>
   </div>
@@ -219,7 +213,7 @@ function onPanelKeydown(e: KeyboardEvent): void {
   position: relative;
   display: inline-flex;
 }
-.dropdown__menu {
+.dt-dd {
   position: absolute;
   top: 100%;
   left: 0;

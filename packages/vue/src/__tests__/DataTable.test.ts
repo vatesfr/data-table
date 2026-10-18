@@ -526,7 +526,7 @@ describe('DataTable — filter dropdown', () => {
     await filterToggle().trigger('click') // close it
 
     await wrapper.find('[title="Clear filters"]').trigger('click')
-    expect(wrapper.find('.dropdown__menu').exists()).toBe(false) // still closed, not reopened
+    expect(wrapper.find('.dt-dd').exists()).toBe(false) // still closed, not reopened
     expect(wrapper.findAll('tbody tr')).toHaveLength(2)
   })
 
@@ -1741,7 +1741,7 @@ describe('DataTable — sort dropdown', () => {
 
     await wrapper.find('[title="Clear sorts"]').trigger('click')
     expect(wrapper.find('.dt__dd-item--sortrow').exists()).toBe(false)
-    expect(wrapper.find('.dropdown__menu').exists()).toBe(false) // still closed, not reopened
+    expect(wrapper.find('.dt-dd').exists()).toBe(false) // still closed, not reopened
     const names = wrapper.findAll('tbody tr td:first-child').map((td) => td.text())
     expect(names).toEqual(['Alice', 'Bob']) // original order, no longer sorted
   })
@@ -1793,7 +1793,7 @@ describe('DataTable — sort dropdown', () => {
     const rows = wrapper.findAll('.dt__dd-item--sortrow')
     // jsdom has no layout engine — getBoundingClientRect() returns all zeros unless stubbed.
     rows[2].element.getBoundingClientRect = () => ({ top: 20, bottom: 40, height: 20 }) as DOMRect
-    const panel = wrapper.find('.dropdown__menu')
+    const panel = wrapper.find('.dt-dd')
 
     await rows[0].trigger('dragstart')
     // Pointer is well below the last active row (id), over dead space (blank space in the
@@ -2053,7 +2053,7 @@ describe('DataTable — group dropdown', () => {
 
     await wrapper.find('[title="Clear groups"]').trigger('click')
     expect(wrapper.find('.dt__dd-item--grouprow').exists()).toBe(false)
-    expect(wrapper.find('.dropdown__menu').exists()).toBe(false) // still closed, not reopened
+    expect(wrapper.find('.dt-dd').exists()).toBe(false) // still closed, not reopened
   })
 
   it('dragging an active group row onto another reorders priority', async () => {
@@ -2106,7 +2106,7 @@ describe('DataTable — group dropdown', () => {
     const rows = wrapper.findAll('.dt__dd-item--grouprow')
     // jsdom has no layout engine — getBoundingClientRect() returns all zeros unless stubbed.
     rows[2].element.getBoundingClientRect = () => ({ top: 20, bottom: 40, height: 20 }) as DOMRect
-    const panel = wrapper.find('.dropdown__menu')
+    const panel = wrapper.find('.dt-dd')
 
     await rows[0].trigger('dragstart')
     // Pointer is well below the last active row (id), over dead space (blank space in the
@@ -2209,7 +2209,7 @@ describe('DataTable — columns dropdown', () => {
     const rows = wrapper.findAll('.dt__dd-item--colrow')
     // jsdom has no layout engine — getBoundingClientRect() returns all zeros unless stubbed.
     rows[2].element.getBoundingClientRect = () => ({ top: 20, bottom: 40, height: 20 }) as DOMRect
-    const panel = wrapper.find('.dropdown__menu')
+    const panel = wrapper.find('.dt-dd')
 
     await rows[0].trigger('dragstart')
     await panel.trigger('dragover', { clientY: 100 })
@@ -3027,7 +3027,7 @@ describe('DataTable — dropdown column search and keyboard navigation', () => {
       .trigger('click')
   }
   function ddSearchInput(wrapper: ReturnType<typeof mount>) {
-    return wrapper.find('.dropdown__menu input.dt__dd-search')
+    return wrapper.find('.dt-dd input.dt__dd-search')
   }
 
   it('the columns dropdown search box narrows both Visible and Available (unlike Sort/Group)', async () => {
@@ -3225,9 +3225,9 @@ describe('DataTable — dropdown column search and keyboard navigation', () => {
     await ddSearchInput(wrapper).setValue('sc')
     await ddSearchInput(wrapper).trigger('keydown', { key: 'Escape' })
     expect((ddSearchInput(wrapper).element as HTMLInputElement).value).toBe('')
-    expect(wrapper.find('.dropdown__menu').exists()).toBe(true) // still open
+    expect(wrapper.find('.dt-dd').exists()).toBe(true) // still open
     await ddSearchInput(wrapper).trigger('keydown', { key: 'Escape' })
-    expect(wrapper.find('.dropdown__menu').exists()).toBe(false)
+    expect(wrapper.find('.dt-dd').exists()).toBe(false)
     expect(document.activeElement).toBe(
       wrapper.findAll('button').find((b) => b.text() === 'Columns')!.element,
     )
@@ -3543,7 +3543,7 @@ describe('DataTable — Sort dropdown column categories', () => {
     expect(document.querySelector('[data-category-submenu]')).toBeNull()
     expect(document.activeElement).toBe(trigger.element)
     // The dropdown panel itself is still open — only the submenu closed.
-    expect(wrapper.find('.dropdown__menu').exists()).toBe(true)
+    expect(wrapper.find('.dt-dd').exists()).toBe(true)
     wrapper.unmount()
   })
 
@@ -3577,7 +3577,7 @@ describe('DataTable — Sort dropdown column categories', () => {
       props: { data: ROWS, columns: CATEGORIZED_COLS, rowKey: 'id' },
     })
     await openDdByLabel(wrapper, 'Sort')
-    const search = wrapper.find('.dropdown__menu input.dt__dd-search')
+    const search = wrapper.find('.dt-dd input.dt__dd-search')
     await search.setValue('Score')
     expect(wrapper.find('[data-category-name]').exists()).toBe(false) // no submenu while searching
     const row = wrapper
@@ -3629,7 +3629,7 @@ describe('DataTable — Group dropdown column categories', () => {
       props: { data: ROWS, columns: CATEGORIZED_COLS, rowKey: 'id' },
     })
     await openDdByLabel(wrapper, 'Group')
-    const search = wrapper.find('.dropdown__menu input.dt__dd-search')
+    const search = wrapper.find('.dt-dd input.dt__dd-search')
     await search.setValue('Name')
     expect(wrapper.find('[data-category-name]').exists()).toBe(false)
     const row = wrapper
@@ -3724,7 +3724,7 @@ describe('DataTable — Filter dropdown column categories', () => {
       props: { data: ROWS, columns: categorizedCols, rowKey: 'id' },
     })
     await openDdByLabel(wrapper, 'Filter')
-    const search = wrapper.find('.dropdown__menu input.dt__dd-search')
+    const search = wrapper.find('.dt-dd input.dt__dd-search')
     await search.setValue('Org')
     // The category header itself surfaces — neither Id nor Score's own label contains "Org",
     // only the category does. It's collapsed by default (no active filter), but a search match
@@ -3746,7 +3746,7 @@ describe('DataTable — Filter dropdown column categories', () => {
     const header = () => wrapper.find('[data-filter-category-header="Org"]')
     expect(header().attributes('aria-expanded')).toBe('false') // collapsed by default, no active filter
 
-    const search = wrapper.find('.dropdown__menu input.dt__dd-search')
+    const search = wrapper.find('.dt-dd input.dt__dd-search')
     await search.setValue('Score') // matches only "Score", inside the still-collapsed "Org" category
     expect(header().attributes('aria-expanded')).toBe('true')
     expect(
@@ -3871,7 +3871,7 @@ describe('DataTable — Columns dropdown Visible/Available split', () => {
       new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }),
     )
     await wrapper.vm.$nextTick()
-    expect(wrapper.find('.dropdown__menu').exists()).toBe(false) // closed on the first press
+    expect(wrapper.find('.dt-dd').exists()).toBe(false) // closed on the first press
     wrapper.unmount()
   })
 
@@ -4136,9 +4136,9 @@ describe('DataTable — active-bar chip click actions', () => {
       .trigger('click')
     await openDd(wrapper, 'Group') // close
 
-    expect(wrapper.find('.dropdown__menu').exists()).toBe(false)
+    expect(wrapper.find('.dt-dd').exists()).toBe(false)
     await wrapper.find('.dt__chip-body').trigger('click')
-    expect(wrapper.find('.dropdown__menu').exists()).toBe(true)
+    expect(wrapper.find('.dt-dd').exists()).toBe(true)
     expect(document.activeElement).toBe(wrapper.find('.dt__dd-item--grouprow').element)
   })
 
@@ -4152,13 +4152,13 @@ describe('DataTable — active-bar chip click actions', () => {
     await nameRow.find('input[type="checkbox"]').trigger('click')
     await openDd(wrapper, 'Filter') // close
 
-    expect(wrapper.find('.dropdown__menu').exists()).toBe(false)
+    expect(wrapper.find('.dt-dd').exists()).toBe(false)
     // `name` is checked-by-default (see docs/filter-dropdown.md's "Filter dropdown"): clicking Alice's
     // checkbox excludes her, rendering the danger-tinted exclude chip, not the info one.
     const chipBody = wrapper.find('.dt__chip--danger .dt__chip-body')
     expect(chipBody.text()).toContain('Alice')
     await chipBody.trigger('click')
-    expect(wrapper.find('.dropdown__menu').exists()).toBe(true)
+    expect(wrapper.find('.dt-dd').exists()).toBe(true)
     // Detail pane already shows Name's checklist (not Score's range inputs) on the very first
     // render, and the Name column button in the left pane is focused.
     expect(wrapper.find('.dt__range-input').exists()).toBe(false)
