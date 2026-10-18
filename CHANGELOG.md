@@ -9,6 +9,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Added
 
+- **"No matching columns"** (Solid, React, Vue, vanilla): a Columns, Group, Sort or Filter column search that matches nothing says so instead of leaving the list blank. New `noMatchingColumns` label in every locale.
 - **Column alignment** (Solid, React, Vue, vanilla): `align: 'end'` on a column right-aligns its header, cells and aggregate cells, so a number column's digits line up. The demos right-align their number columns.
 - **Font tokens** (Solid, React, Vue, vanilla): font sizes and weights go through `--font-size-2xs`…`--font-size-xl` and `--font-weight-normal`…`--font-weight-bold`, defaulting to today's values, so an app can bring the table onto its own type scale. See the README's Theming section.
 

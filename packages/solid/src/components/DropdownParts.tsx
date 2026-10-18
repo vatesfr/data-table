@@ -76,6 +76,17 @@ export function CategorizedColumnList<T extends { key: string }>(props: {
   )
 }
 
+/** Stands in for a column list that a search narrowed to nothing (U26) */
+export function NoMatchingColumns(props: { when: boolean; label: string }) {
+  return (
+    <Show when={props.when}>
+      <div class="dt-dd-no-match" data-dd-no-match>
+        {props.label}
+      </div>
+    </Show>
+  )
+}
+
 /** The `.dt-dd-search-row`/`.dt-dd-search` box every dropdown with an addable/available list has.
  * `clearLabel` backs the `×` clear button's title/aria-label — shown only once `value` is
  * non-empty, mirroring the toolbar's own `SearchBox`'s `dt-search-clear` (same reused

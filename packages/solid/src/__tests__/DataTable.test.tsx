@@ -504,3 +504,33 @@ describe('DataTable — currentRow', () => {
     dispose()
   })
 })
+
+// U26: a column search matching nothing left the panel blank, or a section heading over nothing
+describe('DataTable — column search with no match', () => {
+  it.each(['Columns', 'Group', 'Sort', 'Filter'])('%s says no column matches', (dropdown) => {
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const cols: ColumnDef<Row>[] = [
+      { key: 'name', label: 'Name', groupable: true },
+      { key: 'id', label: 'Id', type: 'number' },
+    ]
+    const dispose = createRoot((d) => {
+      render(() => <DataTable data={ROWS} columns={cols} rowKey="id" />, container)
+      return d
+    })
+    ;[...container.querySelectorAll<HTMLButtonElement>('button')]
+      .find((b) => b.textContent === dropdown)!
+      .click()
+    const search = container.querySelector<HTMLInputElement>('input[data-dd-search]')!
+    const type = (v: string) => {
+      search.value = v
+      search.dispatchEvent(new Event('input', { bubbles: true }))
+    }
+    type('zzzz')
+    expect(container.querySelector('[data-dd-no-match]')?.textContent).toBe('No matching columns')
+    type('nam')
+    expect(container.querySelector('[data-dd-no-match]')).toBeNull()
+    dispose()
+    container.remove()
+  })
+})

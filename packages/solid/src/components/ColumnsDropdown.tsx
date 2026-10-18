@@ -4,7 +4,12 @@ import type { TableState } from '../createTableState'
 import type { ColumnDef } from '../types'
 import { Dropdown } from './Dropdown'
 import { createDragReorder } from './dragReorder'
-import { AddableColumnRow, CategorizedColumnList, DropdownSearchRow } from './DropdownParts'
+import {
+  AddableColumnRow,
+  CategorizedColumnList,
+  DropdownSearchRow,
+  NoMatchingColumns,
+} from './DropdownParts'
 import { withPanelRefocus } from './dropdownRowActions'
 
 interface ColumnsDropdownProps<TRow extends object> {
@@ -205,6 +210,10 @@ export function ColumnsDropdown<TRow extends object>(props: ColumnsDropdownProps
           )}
         </For>
       </div>
+      <NoMatchingColumns
+        when={searchedVisible().length === 0 && searchedAvailable().length === 0}
+        label={table.labels().noMatchingColumns}
+      />
       <Show when={searchedAvailable().length > 0}>
         <div class="dt-dd-section">{table.labels().availableColumnsSection}</div>
         <Show

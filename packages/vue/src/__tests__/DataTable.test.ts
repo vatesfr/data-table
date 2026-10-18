@@ -4357,3 +4357,23 @@ describe('DataTable — filter values through the column format', () => {
     expect(labels).toEqual(['AB', 'CD'])
   })
 })
+
+// U26: a column search matching nothing left the panel blank, or a section heading over nothing
+describe('DataTable — column search with no match', () => {
+  it.each(['Columns', 'Group', 'Sort', 'Filter'])('%s says no column matches', async (dropdown) => {
+    const cols: ColumnDef<Row>[] = [
+      { key: 'name', label: 'Name', groupable: true },
+      { key: 'score', label: 'Score', type: 'number' },
+    ]
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: cols, rowKey: 'id' } })
+    await wrapper
+      .findAll('button')
+      .find((b) => b.text() === dropdown)!
+      .trigger('click')
+    const search = wrapper.find('input[data-dd-search]')
+    await search.setValue('zzzz')
+    expect(wrapper.find('[data-dd-no-match]').text()).toBe('No matching columns')
+    await search.setValue('nam')
+    expect(wrapper.find('[data-dd-no-match]').exists()).toBe(false)
+  })
+})

@@ -19,7 +19,7 @@ import {
 import type { TableState } from '../createTableState'
 import type { ColumnDef } from '../types'
 import { Dropdown } from './Dropdown'
-import { DropdownClearButton, DropdownTriggerButton } from './DropdownParts'
+import { DropdownClearButton, DropdownTriggerButton, NoMatchingColumns } from './DropdownParts'
 import { FilterPane, detailFocusables } from './FilterPane'
 
 export interface FilterDropdownHandle {
@@ -353,6 +353,10 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
                 </button>
               </Show>
             </span>
+            <NoMatchingColumns
+              when={searchedFilterableCols().length === 0}
+              label={table.labels().noMatchingColumns}
+            />
             <For each={categorizedFilterCols().uncategorized}>
               {(col) => <FilterColRow col={col} />}
             </For>

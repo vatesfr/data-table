@@ -13,6 +13,7 @@ import {
   DropdownClearButton,
   DropdownSearchRow,
   DropdownTriggerButton,
+  NoMatchingColumns,
 } from './DropdownParts'
 import { withPanelRefocus } from './dropdownRowActions'
 
@@ -163,6 +164,10 @@ export function GroupDropdown<TRow extends object>(props: GroupDropdownProps<TRo
           clearLabel={table.labels().clearSearch}
         />
         <div class="dt-dd-section">{table.labels().groupSection}</div>
+        <NoMatchingColumns
+          when={isSearching() && searchedFlatAddableCols().length === 0}
+          label={table.labels().noMatchingColumns}
+        />
         <Show
           when={!isSearching()}
           fallback={

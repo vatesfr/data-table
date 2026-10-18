@@ -204,6 +204,11 @@ const S = {
     letterSpacing: '0.05em',
     textTransform: 'uppercase',
   } as CSSProperties,
+  ddNoMatch: {
+    padding: '6px 14px',
+    fontSize: 'var(--font-size-sm, 12px)',
+    color: 'var(--color-text-tertiary)',
+  } as CSSProperties,
   ddHint: {
     padding: '0 14px 6px',
     fontSize: 'var(--font-size-xs, 11px)',
@@ -756,6 +761,15 @@ function focusPendingKey(
       break
     }
   }
+}
+
+/** Stands in for a column list that a search narrowed to nothing (U26) */
+function NoMatchingColumns({ label }: { label: string }) {
+  return (
+    <div data-dd-no-match style={S.ddNoMatch}>
+      {label}
+    </div>
+  )
 }
 
 const RANGE_SLIDER_STYLE_ATTR = 'data-dt-range-slider-styles'
@@ -2543,6 +2557,9 @@ export function DataTableView<TRow extends object>({
                   </button>
                 </div>
               ))}
+              {searchedVisibleColumns.length === 0 && searchedAvailableColumns.length === 0 && (
+                <NoMatchingColumns label={L.noMatchingColumns} />
+              )}
               {searchedAvailableColumns.length > 0 && (
                 <>
                   <div style={S.ddSection}>{L.availableColumnsSection}</div>
@@ -2744,6 +2761,9 @@ export function DataTableView<TRow extends object>({
                     />
                   </div>
                   <div style={S.ddSection}>{L.groupSection}</div>
+                  {isGroupSearching && searchedFlatAddableGroupCols.length === 0 && (
+                    <NoMatchingColumns label={L.noMatchingColumns} />
+                  )}
                   {isGroupSearching
                     ? searchedFlatAddableGroupCols.map((col) => (
                         <button
@@ -3031,6 +3051,9 @@ export function DataTableView<TRow extends object>({
                     />
                   </div>
                   <div style={S.ddSection}>{L.sortSection}</div>
+                  {isSortSearching && searchedFlatAddableSortCols.length === 0 && (
+                    <NoMatchingColumns label={L.noMatchingColumns} />
+                  )}
                   {isSortSearching
                     ? searchedFlatAddableSortCols.map((col) => (
                         <button
@@ -3184,6 +3207,9 @@ export function DataTableView<TRow extends object>({
                       extraStyle={S.filterColsSearch}
                       inputStyle={{ width: 0 }}
                     />
+                    {searchedFilterableCols.length === 0 && (
+                      <NoMatchingColumns label={L.noMatchingColumns} />
+                    )}
                     {categorizedFilterCols.uncategorized.map((col) =>
                       renderFilterColRow(col, false),
                     )}

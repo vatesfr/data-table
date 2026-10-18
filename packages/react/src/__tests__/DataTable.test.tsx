@@ -3071,3 +3071,20 @@ describe('DataTable — column align', () => {
     expect(lastCells).toEqual(['end', 'end', 'end', 'end'])
   })
 })
+
+// U26: a column search matching nothing left the panel blank, or a section heading over nothing
+describe('DataTable — column search with no match', () => {
+  it.each(['Columns', 'Group', 'Sort', 'Filter'])('%s says no column matches', (dropdown) => {
+    const cols: ColumnDef<Row>[] = [
+      { key: 'name', label: 'Name', groupable: true },
+      { key: 'score', label: 'Score', type: 'number' },
+    ]
+    const { getByText, container } = render(<DataTable data={ROWS} columns={cols} rowKey="id" />)
+    fireEvent.click(getByText(dropdown))
+    const search = container.querySelector<HTMLInputElement>('input[data-dd-search]')!
+    fireEvent.change(search, { target: { value: 'zzzz' } })
+    expect(container.querySelector('[data-dd-no-match]')?.textContent).toBe('No matching columns')
+    fireEvent.change(search, { target: { value: 'nam' } })
+    expect(container.querySelector('[data-dd-no-match]')).toBeNull()
+  })
+})

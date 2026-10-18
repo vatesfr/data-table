@@ -1156,6 +1156,16 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
               ×
             </button>
           </div>
+          <!-- Stands in for a column list that a search narrowed to nothing (U26) -->
+          <div
+            v-if="
+              searchedVisibleOrderedColumns.length === 0 && searchedFlatAvailableCols.length === 0
+            "
+            class="dt__dd-no-match"
+            data-dd-no-match
+          >
+            {{ L.noMatchingColumns }}
+          </div>
           <template v-if="searchedFlatAvailableCols.length > 0">
             <div class="dt__dd-section">{{ L.availableColumnsSection }}</div>
             <template v-if="isColsSearching">
@@ -1303,6 +1313,13 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
               </span>
             </div>
             <div class="dt__dd-section">{{ L.groupSection }}</div>
+            <div
+              v-if="isGroupSearching && searchedFlatAddableGroupCols.length === 0"
+              class="dt__dd-no-match"
+              data-dd-no-match
+            >
+              {{ L.noMatchingColumns }}
+            </div>
             <template v-if="isGroupSearching">
               <button
                 v-for="col in searchedFlatAddableGroupCols"
@@ -1502,6 +1519,13 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
               </span>
             </div>
             <div class="dt__dd-section">{{ L.sortSection }}</div>
+            <div
+              v-if="isSortSearching && searchedFlatAddableSortCols.length === 0"
+              class="dt__dd-no-match"
+              data-dd-no-match
+            >
+              {{ L.noMatchingColumns }}
+            </div>
             <!--
               A real <button> (not a div) so it's a native Tab stop and Enter/Space "click" it
               for free — no manual tabindex/keydown wiring needed, unlike the active rows above
@@ -1644,6 +1668,13 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                 .dt__filter-col-row/--active below. A <button> can't contain another interactive
                 element, so the clear button is a sibling, not nested.
               -->
+              <div
+                v-if="searchedFilterableCols.length === 0"
+                class="dt__dd-no-match"
+                data-dd-no-match
+              >
+                {{ L.noMatchingColumns }}
+              </div>
               <template v-for="col in categorizedFilterCols.uncategorized" :key="col.key">
                 <div
                   class="dt__filter-col-row"
@@ -2347,6 +2378,11 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
   font-weight: var(--font-weight-medium, 500);
   letter-spacing: 0.05em;
   text-transform: uppercase;
+}
+.dt__dd-no-match {
+  padding: 6px 14px;
+  font-size: var(--font-size-sm, 12px);
+  color: var(--color-text-tertiary);
 }
 .dt__dd-hint {
   padding: 0 14px 6px;
