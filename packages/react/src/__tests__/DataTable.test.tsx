@@ -2543,6 +2543,23 @@ describe('DataTable — keyboard navigation across pages', () => {
       expect(getByRole('button', { name })).toBeTruthy()
   })
 
+  it('hides the pager when no page size would split the rows into pages', () => {
+    const { queryByRole } = render(
+      <DataTable data={ROWS6} columns={COLS} rowKey="id" initialViewState={{ pageSize: 10 }} />,
+    )
+    expect(queryByRole('combobox', { name: 'Rows per page:' })).toBeNull()
+    expect(queryByRole('button', { name: 'Next page' })).toBeNull()
+  })
+
+  it('shows only the rows-per-page select when every row fits on one page', () => {
+    const rows = [...ROWS6, ...ROWS6].map((r, i) => ({ ...r, id: i + 1 }))
+    const { queryByRole } = render(
+      <DataTable data={rows} columns={COLS} rowKey="id" initialViewState={{ pageSize: 20 }} />,
+    )
+    expect(queryByRole('combobox', { name: 'Rows per page:' })).not.toBeNull()
+    expect(queryByRole('button', { name: 'Next page' })).toBeNull()
+  })
+
   it('names the rows-per-page select after its visible label', () => {
     const { getByRole } = render(
       <DataTable data={ROWS6} columns={COLS} rowKey="id" initialViewState={{ pageSize: 2 }} />,

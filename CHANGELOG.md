@@ -7,6 +7,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Changed
+
+- **A pager only when it helps** (Solid, React, Vue, vanilla): the page buttons and "Page 1 of 1" hide when every row fits on one page, and the whole pager hides when even the smallest rows-per-page choice would fit them all (#41).
+
 ### Fixed
 
 - **No empty section headings in the Columns search** (Solid, React, Vue, vanilla): searching the Columns dropdown hides the "Visible columns" or "Available columns" heading when none of its columns match.

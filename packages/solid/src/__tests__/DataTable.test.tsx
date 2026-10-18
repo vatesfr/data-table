@@ -136,6 +136,39 @@ describe('DataTable', () => {
     dispose()
   })
 
+  it('hides the pager when no page size would split the rows into pages', () => {
+    const container = document.createElement('div')
+    const dispose = createRoot((d) => {
+      render(
+        () => (
+          <DataTable data={ROWS} columns={COLS} rowKey="id" initialViewState={{ pageSize: 10 }} />
+        ),
+        container,
+      )
+      return d
+    })
+    expect(container.querySelector('.dt-pagination')).toBeNull()
+    dispose()
+  })
+
+  it('shows only the rows-per-page select when every row fits on one page', () => {
+    const rows = Array.from({ length: 12 }, (_, i) => ({ id: i + 1, name: `Row ${i + 1}` }))
+    const container = document.createElement('div')
+    const dispose = createRoot((d) => {
+      render(
+        () => (
+          <DataTable data={rows} columns={COLS} rowKey="id" initialViewState={{ pageSize: 20 }} />
+        ),
+        container,
+      )
+      return d
+    })
+    expect(container.querySelector('.dt-pagination select')).not.toBeNull()
+    expect(container.querySelector('.dt-page-btn')).toBeNull()
+    expect(container.querySelector('.dt-page-info')).toBeNull()
+    dispose()
+  })
+
   it('names the rows-per-page select after its visible label', () => {
     const container = document.createElement('div')
     const dispose = createRoot((d) => {

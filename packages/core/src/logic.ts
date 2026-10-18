@@ -2260,6 +2260,11 @@ export function mergePageSizeOptions(options: number[], pageSize: number): numbe
   return [...options, pageSize].sort((a, b) => a - b)
 }
 
+/** Whether the pager is worth showing: the smallest of the (sorted) page sizes splits the items into pages */
+export function showsPager(itemCount: number, pageSizeOptions: number[]): boolean {
+  return itemCount > pageSizeOptions[0]
+}
+
 export function searchData<TRow extends object>(
   data: TRow[],
   query: string,

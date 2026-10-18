@@ -42,6 +42,7 @@ import {
   indexOfVisibleItem,
   paginateVisibleItems,
   mergePageSizeOptions,
+  showsPager,
   checklistBulkState,
   clickChecklistValue,
   toggleChecklistExclude,
@@ -1980,6 +1981,7 @@ export function DataTableView<TRow extends object>({
   // group is already a click away regardless of selectable/onRowClick.
   const rowNavEnabled = selectable || !!onRowClick
   const pageVisibleItems = paginateVisibleItems(visibleItems, page, pageSize)
+  const pageSizeOptions = mergePageSizeOptions([10, 20, 50, 100], pageSize)
   const navigableItems = pageVisibleItems.filter((item) => item.kind === 'group' || rowNavEnabled)
   const effectiveFocusTarget =
     focusTarget && indexOfVisibleItem(navigableItems, focusTarget) !== -1
@@ -3861,41 +3863,45 @@ export function DataTableView<TRow extends object>({
       </div>
 
       {/* Pagination */}
-      {pageSize > 0 && (
+      {pageSize > 0 && showsPager(visibleItems.length, pageSizeOptions) && (
         <div style={S.pagination}>
-          <button
-            onClick={() => setPage(1)}
-            aria-label={L.firstPage}
-            disabled={page === 1}
-            style={{ ...S.pageBtn, ...(page === 1 ? S.pageBtnDisabled : {}) }}
-          >
-            «
-          </button>
-          <button
-            onClick={() => setPage(page - 1)}
-            aria-label={L.previousPage}
-            disabled={page === 1}
-            style={{ ...S.pageBtn, ...(page === 1 ? S.pageBtnDisabled : {}) }}
-          >
-            ‹
-          </button>
-          <span style={S.pageInfo}>{L.pageOf(page, numPages)}</span>
-          <button
-            onClick={() => setPage(page + 1)}
-            aria-label={L.nextPage}
-            disabled={page >= numPages}
-            style={{ ...S.pageBtn, ...(page >= numPages ? S.pageBtnDisabled : {}) }}
-          >
-            ›
-          </button>
-          <button
-            onClick={() => setPage(numPages)}
-            aria-label={L.lastPage}
-            disabled={page >= numPages}
-            style={{ ...S.pageBtn, ...(page >= numPages ? S.pageBtnDisabled : {}) }}
-          >
-            »
-          </button>
+          {numPages > 1 && (
+            <>
+              <button
+                onClick={() => setPage(1)}
+                aria-label={L.firstPage}
+                disabled={page === 1}
+                style={{ ...S.pageBtn, ...(page === 1 ? S.pageBtnDisabled : {}) }}
+              >
+                «
+              </button>
+              <button
+                onClick={() => setPage(page - 1)}
+                aria-label={L.previousPage}
+                disabled={page === 1}
+                style={{ ...S.pageBtn, ...(page === 1 ? S.pageBtnDisabled : {}) }}
+              >
+                ‹
+              </button>
+              <span style={S.pageInfo}>{L.pageOf(page, numPages)}</span>
+              <button
+                onClick={() => setPage(page + 1)}
+                aria-label={L.nextPage}
+                disabled={page >= numPages}
+                style={{ ...S.pageBtn, ...(page >= numPages ? S.pageBtnDisabled : {}) }}
+              >
+                ›
+              </button>
+              <button
+                onClick={() => setPage(numPages)}
+                aria-label={L.lastPage}
+                disabled={page >= numPages}
+                style={{ ...S.pageBtn, ...(page >= numPages ? S.pageBtnDisabled : {}) }}
+              >
+                »
+              </button>
+            </>
+          )}
           <label style={S.rowsPerPageGroup}>
             <span style={S.rowsPerPageLabel}>{L.rowsPerPage}:</span>
             <select
@@ -3903,7 +3909,7 @@ export function DataTableView<TRow extends object>({
               onChange={(e) => setPageSize(Number(e.target.value))}
               style={S.pageSelect}
             >
-              {mergePageSizeOptions([10, 20, 50, 100], pageSize).map((n) => (
+              {pageSizeOptions.map((n) => (
                 <option key={n} value={n}>
                   {n}
                 </option>

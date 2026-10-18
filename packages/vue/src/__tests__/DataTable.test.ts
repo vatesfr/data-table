@@ -2542,6 +2542,23 @@ describe('DataTable — keyboard navigation across pages', () => {
     await btn.trigger('click')
   }
 
+  it('hides the pager when no page size would split the rows into pages', () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS6, columns: COLS, rowKey: 'id', initialViewState: { pageSize: 10 } },
+    })
+    expect(wrapper.find('select').exists()).toBe(false)
+    expect(wrapper.find('button[aria-label="Next page"]').exists()).toBe(false)
+  })
+
+  it('shows only the rows-per-page select when every row fits on one page', () => {
+    const rows = [...ROWS6, ...ROWS6].map((r, i) => ({ ...r, id: i + 1 }))
+    const wrapper = mount(DataTable, {
+      props: { data: rows, columns: COLS, rowKey: 'id', initialViewState: { pageSize: 20 } },
+    })
+    expect(wrapper.find('select').exists()).toBe(true)
+    expect(wrapper.find('button[aria-label="Next page"]').exists()).toBe(false)
+  })
+
   it('names the rows-per-page select after its visible label', () => {
     const wrapper = mount(DataTable, {
       props: { data: ROWS6, columns: COLS, rowKey: 'id', initialViewState: { pageSize: 2 } },

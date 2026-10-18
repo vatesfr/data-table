@@ -11,6 +11,7 @@ import {
   indexOfVisibleItem,
   paginateVisibleItems,
   mergePageSizeOptions,
+  showsPager,
   getCrossPageFocusTarget,
   getSortIndex as getHeaderSortIndex,
   getSortIcon as getHeaderSortIcon,
@@ -2205,40 +2206,45 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
     </div>
 
     <!-- ── Pagination ── -->
-    <div v-if="pageSize > 0" class="dt__pagination">
-      <button
-        class="dt__page-btn"
-        :disabled="page === 1"
-        :aria-label="L.firstPage"
-        @click="setPage(1)"
-      >
-        «
-      </button>
-      <button
-        class="dt__page-btn"
-        :disabled="page === 1"
-        :aria-label="L.previousPage"
-        @click="setPage(page - 1)"
-      >
-        ‹
-      </button>
-      <span class="dt__page-info">{{ L.pageOf(page, numPages) }}</span>
-      <button
-        class="dt__page-btn"
-        :disabled="page >= numPages"
-        :aria-label="L.nextPage"
-        @click="setPage(page + 1)"
-      >
-        ›
-      </button>
-      <button
-        class="dt__page-btn"
-        :disabled="page >= numPages"
-        :aria-label="L.lastPage"
-        @click="setPage(numPages)"
-      >
-        »
-      </button>
+    <div
+      v-if="pageSize > 0 && showsPager(visibleItems.length, pageSizeOptions)"
+      class="dt__pagination"
+    >
+      <template v-if="numPages > 1">
+        <button
+          class="dt__page-btn"
+          :disabled="page === 1"
+          :aria-label="L.firstPage"
+          @click="setPage(1)"
+        >
+          «
+        </button>
+        <button
+          class="dt__page-btn"
+          :disabled="page === 1"
+          :aria-label="L.previousPage"
+          @click="setPage(page - 1)"
+        >
+          ‹
+        </button>
+        <span class="dt__page-info">{{ L.pageOf(page, numPages) }}</span>
+        <button
+          class="dt__page-btn"
+          :disabled="page >= numPages"
+          :aria-label="L.nextPage"
+          @click="setPage(page + 1)"
+        >
+          ›
+        </button>
+        <button
+          class="dt__page-btn"
+          :disabled="page >= numPages"
+          :aria-label="L.lastPage"
+          @click="setPage(numPages)"
+        >
+          »
+        </button>
+      </template>
       <label class="dt__rows-per-page-group">
         <span class="dt__rows-per-page-label">{{ L.rowsPerPage }}:</span>
         <select

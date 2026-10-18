@@ -11,6 +11,7 @@ import {
   paginateVisibleItems,
   getCrossPageFocusTarget,
   mergePageSizeOptions,
+  showsPager,
   isSameVisibleItem,
   indexOfVisibleItem,
   computeStringValues,
@@ -1490,6 +1491,14 @@ describe('mergePageSizeOptions', () => {
     expect(mergePageSizeOptions([10, 20, 50, 100], 5)).toEqual([5, 10, 20, 50, 100])
     expect(mergePageSizeOptions([10, 20, 50, 100], 30)).toEqual([10, 20, 30, 50, 100])
     expect(mergePageSizeOptions([10, 20, 50, 100], 200)).toEqual([10, 20, 50, 100, 200])
+  })
+})
+
+describe('showsPager', () => {
+  it('shows the pager only when the smallest page size splits the items into pages', () => {
+    expect(showsPager(10, [10, 20, 50, 100])).toBe(false)
+    expect(showsPager(11, [10, 20, 50, 100])).toBe(true)
+    expect(showsPager(6, [5, 10, 20, 50, 100])).toBe(true)
   })
 })
 

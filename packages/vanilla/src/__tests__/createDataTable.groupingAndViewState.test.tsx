@@ -680,10 +680,10 @@ describe('createDataTable (grouping, group dropdown, pagination+grouping, search
     const instance = createDataTable(container, {
       data: ROWS,
       columns: COLS,
-      initialViewState: { pageSize: 2 },
+      initialViewState: { pageSize: 1 },
     })
     groupByDept(container)
-    click(pageButton(container, '›')) // page 2 — a display slice, shouldn't affect this
+    click(pageButton(container, '›')) // page 2 of the 2 collapsed group headers — a display slice, shouldn't affect this
     // Groups Eng/HR each fan out to their own header, but getProcessedData stays the plain
     // filtered/sorted row list — no headers, no per-group re-chunking. Grouping also auto-inserts
     // a matching sort entry (issue #17), so rows land dept-grouped (Eng before HR) rather than in
