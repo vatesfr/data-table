@@ -13,11 +13,20 @@ const DOCS = /\.md$|^docs\/|^\.claude\//
 
 // Stages of npm scripts, for 'full' (`npm run check`) or 'staged' (a commit touching `files`).
 export function stepsFor(mode, files = []) {
-  if (mode === 'staged' && files.length && files.every((f) => DOCS.test(f))) return [['check:docs']]
+  if (mode === 'staged' && files.length && files.every((f) => DOCS.test(f)))
+    return [['check:docs', 'check:use-cases']]
   const staged = mode === 'staged'
   return [
     // lint-staged already linted a commit's files; e2e stays out of pre-commit (CI runs it).
-    ['check:docs', ...(staged ? [] : ['lint']), 'type-check', 'test', 'test:scripts', 'build'],
+    [
+      'check:docs',
+      'check:use-cases',
+      ...(staged ? [] : ['lint']),
+      'type-check',
+      'test',
+      'test:scripts',
+      'build',
+    ],
     ['check:dist-types', 'size'],
     // Alone: timing-sensitive, and its 200k-row page competes for memory (docs/pitfalls.md).
     ...(staged ? [] : [['e2e']]),

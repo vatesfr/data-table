@@ -1,6 +1,6 @@
 import { expect, test } from './fixtures'
 
-test('UC01 find rows in a list', async ({ page, section }) => {
+test('UC01.1-7 find rows in a list', async ({ page, section }) => {
   const dt = await section('full-table')
   const names = () => dt.locator('tbody tr td:first-child').allInnerTexts()
   const column = (index: number) => dt.locator(`tbody tr td:nth-child(${index})`).allInnerTexts()

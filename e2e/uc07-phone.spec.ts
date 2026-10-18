@@ -13,7 +13,7 @@ async function expectInViewport(page: Page, locator: Locator) {
   expect(box.x + box.width).toBeLessThanOrEqual(width)
 }
 
-test('UC07 on a phone', async ({ page, section }) => {
+test('UC07.1-4 on a phone', async ({ page, section }) => {
   const dt = await section('full-table')
 
   // 1. Search, then Filter: the dropdown fits and both panes are reachable
@@ -56,7 +56,7 @@ test('UC07 on a phone', async ({ page, section }) => {
   await expect(boxes.nth(2)).toBeChecked()
 })
 
-test('UC11 on a phone: a header menu filters in place, within the screen', async ({
+test('UC11.2 on a phone: a header menu filters in place, within the screen', async ({
   page,
   section,
 }) => {
@@ -72,7 +72,7 @@ test('UC11 on a phone: a header menu filters in place, within the screen', async
   await expect(menu.getByRole('button', { name: 'Hide column' })).toBeVisible()
 })
 
-test('toolbarEnd comes before the search line on a phone, not after it', async ({
+test('#39 on a phone: toolbarEnd comes before the search line on a phone, not after it', async ({
   page,
   section,
 }) => {

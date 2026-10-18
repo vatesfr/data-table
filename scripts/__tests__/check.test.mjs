@@ -18,7 +18,7 @@ test('a commit skips lint and e2e', () => {
 test('a docs-only commit runs only the doc checks', () => {
   assert.deepEqual(
     stepsFor('staged', ['docs/sorting.md', 'README.md', '.claude/skills/x/SKILL.md']),
-    [['check:docs']],
+    [['check:docs', 'check:use-cases']],
   )
 })
 
