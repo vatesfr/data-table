@@ -1,3 +1,4 @@
 ./scripts/check-changelog.sh
 npx lint-staged --quiet
+git diff --cached --check
 ./scripts/check.sh check:docs type-check test build check:dist-types size
