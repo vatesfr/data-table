@@ -18,7 +18,7 @@ Each package has its own Vitest setup under `src/__tests__/`:
 `e2e/` runs Playwright (`npm run e2e`) against the Solid demo's dev server, which it starts unless one is already on `:58983`; React and Vue stay covered by their unit tests.
 
 - Two projects: `desktop` (1440×900) and `phone` (390×844, touch). A phone-only spec skips `desktop` with `test.skip(({ isMobile }) => !isMobile)`.
-- One spec per use case it walks (`uc01-*.spec.ts`), asserting its steps and **Done when**; `axe.spec.ts` scans every table in both color schemes.
+- A test's title starts with what it covers: `UC01.1-7 …` the [use case](use-cases.md) steps it walks (asserting them and **Done when**), `U<n> …` a backlog item's regression, `#<n> …` a GitHub issue's; `npm run check:use-cases` enforces it, a ◇ step included (drop the ◇ in the same commit). `axe.spec.ts`, untagged, scans every table in both color schemes.
 - `fixtures.ts`'s `section(id)` opens the demo with cleared storage and returns the table after that section's heading.
 - One worker: pages on `#huge-dataset` hold 200k rows ([pitfalls](pitfalls.md)).
 - First run on a machine: `npx playwright install chromium`. Failures keep a trace in `.playwright-e2e/` (open one with Playwright's trace viewer).

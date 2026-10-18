@@ -6,8 +6,8 @@ What people do with a table built on this library, end to end — the yardstick 
 - A use case wrong about the library (a step that doesn't exist, a stale expectation) is itself a finding.
 - **Who** is someone using an app that embeds the table, not the developer integrating it.
 - Each names the demo section it runs on (`demo/*`, same anchors in every adapter). Data: the demo's 20 employees; `#huge-dataset`'s generated orders.
-- A step or edge marked ◇ is a target, not built yet: add it before building a feature, so the feature has a line to meet, and drop the ◇ when it ships. A missing ◇ behavior isn't a finding.
-- UC01 and UC07 also run as Playwright tests in `e2e/` ([testing](testing.md)).
+- A step or edge marked ◇ (`3. ◇ Text` for a step) is a target, not built yet: add it before building a feature, so the feature has a line to meet, and drop the ◇ when it ships. A missing ◇ behavior isn't a finding.
+- Steps walked by Playwright tests in `e2e/`: `node scripts/use-case-coverage.mjs` ([testing](testing.md)).
 - IDs are never reused.
 
 ## UC01 Find rows in a list

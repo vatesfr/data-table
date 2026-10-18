@@ -1,3 +1,4 @@
-./scripts/check-changelog.sh
-npx lint-staged --quiet
-./scripts/check.sh check:docs type-check test build check:dist-types size
+node scripts/check-changelog.mjs
+# --hide-all: the checks see the commit, not unstaged edits or untracked files.
+npx lint-staged --quiet --hide-all
+git diff --cached --check

@@ -17,19 +17,17 @@
     "type-check": "npm run type-check -w packages/core && npm run type-check -w packages/react && npm run type-check -w packages/vue && npm run type-check -w packages/solid && npm run type-check -w packages/vanilla && npm run type-check -w demo/react -w demo/vue -w demo/solid -w demo/vanilla && tsc -p e2e",
     "e2e": "playwright test -c e2e",
     "test": "npm run test -w packages/core && npm run test -w packages/react && npm run test -w packages/vue && npm run test -w packages/solid && npm run test -w packages/vanilla",
+    "test:scripts": "node --test 'scripts/__tests__/*.test.mjs'",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "eslint .",
     "check:docs": "node scripts/check-docs.mjs",
+    "check:use-cases": "node scripts/use-case-coverage.mjs --check",
     "check:dist-types": "tsc -p dist-types",
-    "check": "./scripts/check.sh",
+    "check": "node scripts/check.mjs",
     "size": "npm run size -w packages/core && npm run size -w packages/react && npm run size -w packages/vue && npm run size -w packages/solid && npm run size -w packages/vanilla",
     "prepare": "husky",
     "deps:check": "npm outdated --workspaces --include-workspace-root; npm dedupe --dry-run"
-  },
-  "lint-staged": {
-    "*": "prettier --ignore-unknown --write",
-    "*.{js,mjs,cjs,ts,tsx,vue}": "eslint --fix"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",
