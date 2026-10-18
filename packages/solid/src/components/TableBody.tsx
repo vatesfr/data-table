@@ -358,6 +358,10 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
                     onClick={(e) => handleHeaderClick(col, e)}
                   >
                     <span class="dt-th-inner">
+                      {/* Takes the free space before the label, since the menu's auto margin defeats justify-content */}
+                      <Show when={col.align === 'end'}>
+                        <span class="dt-th-spacer" />
+                      </Show>
                       {/* A button so keyboard users can sort; its click bubbles to the <th>'s handler */}
                       <Show when={col.sortable !== false} fallback={col.label}>
                         <button type="button" class="dt-th-sort">
@@ -645,7 +649,9 @@ function GroupHeaderRow<TRow extends object>(props: GroupHeaderRowProps<TRow>) {
           <td class="dt-agg-td" style={{ width: '28px' }} />
           <For each={table.columns.active()}>
             {(col) => (
-              <td class="dt-agg-td">{aggValue(col, props.group.rows, props.group.sampleRow!)}</td>
+              <td class="dt-agg-td" style={{ 'text-align': col.align }}>
+                {aggValue(col, props.group.rows, props.group.sampleRow!)}
+              </td>
             )}
           </For>
         </tr>
@@ -763,7 +769,11 @@ function DataRow<TRow extends object>(props: DataRowProps<TRow>) {
         <td class="dt-td" style={{ width: '28px' }} />
       </Show>
       <For each={table.columns.active()}>
-        {(col) => <td class="dt-td">{cellValue(col, row)}</td>}
+        {(col) => (
+          <td class="dt-td" style={{ 'text-align': col.align }}>
+            {cellValue(col, row)}
+          </td>
+        )}
       </For>
     </tr>
   )

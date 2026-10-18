@@ -101,6 +101,7 @@ ${renderThemeCss()}
 .dt-th{padding:8px 12px;text-align:left;font-weight:500;font-size:12px;background:var(--color-background-tertiary,#eae9e5);color:var(--color-text-secondary,#666561);border-bottom:1px solid var(--color-border-secondary,#dddcd8);white-space:nowrap;user-select:none;cursor:pointer}
 .dt-th--no-sort{cursor:default}
 .dt-th-inner{display:flex;align-items:center;gap:4px}
+.dt-th-spacer{flex:1}
 .dt-th-sort{display:inline-flex;align-items:center;gap:4px;padding:0;border:none;background:none;font:inherit;color:inherit;cursor:inherit}
 .dt-th-menu-icon{width:14px;height:14px;flex-shrink:0}
 .dt-th-menu{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;width:24px;height:24px;margin:-4px 0 -4px auto;padding:0;border:none;border-radius:4px;background:none;color:var(--color-text-secondary,#666561);font:inherit;cursor:pointer}

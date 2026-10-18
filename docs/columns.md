@@ -6,6 +6,12 @@
 
 Each adapter's own cell/group-header rendering (React `cellValue()`, Vue `cellText()`/`groupValue()`, Solid `cellValue()`) calls `getColumnValue` instead of reading `row[col.key]` directly. `rowKey` (React/vanilla prop, Vue prop) is a separate, unrelated concept — it identifies a row for list keys/DOM identity and still reads a real row property directly, untouched by this.
 
+## Alignment
+
+- `align: 'end'` sets `text-align` on the column's cells and aggregate cells.
+- Its header puts a flex spacer (`.dt-th-spacer`, `.dt__th-spacer`, React's `data-th-spacer`) before the label: the menu button's `margin-left: auto` would absorb a `justify-content`.
+- No `'center'`: nothing needs it yet, and centering beside the menu button would need a second spacer.
+
 ## Global search
 
 `searchData(data, query, columns)` filters rows before `processData` runs — it matches any column's string value (using `col.format` when defined) case-insensitively against the query. Every adapter exposes `table.search.query`/`setQuery`; `clearAll` resets it. Solid's `SearchBox` reuses the same `<input>` across updates, so focus persists with no restore step. `ColumnDefBase.searchable?: boolean` (default `true`) excludes a column from this match entirely — for a column whose underlying value isn't user-facing text (e.g. an image URL rendered via `render`), matching against it would surface rows on an accidental substring hit the user has no way to anticipate. Independent of `filterable`/`sortable`/`groupable`, which gate unrelated concerns.

@@ -3619,6 +3619,8 @@ export function DataTableView<TRow extends object>({
                       }}
                     >
                       <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        {/* Takes the free space before the label, since the menu's auto margin defeats justifyContent */}
+                        {col.align === 'end' && <span data-th-spacer style={{ flex: 1 }} />}
                         {/* A button so keyboard users can sort; its click bubbles to the <th>'s handler */}
                         {col.sortable === false ? (
                           labelAndIcon
@@ -3753,7 +3755,7 @@ export function DataTableView<TRow extends object>({
                     {activeColumns.map((col) => {
                       const v = computeAggregate(col, rows)
                       return (
-                        <td key={col.key} style={S.aggTd}>
+                        <td key={col.key} style={{ ...S.aggTd, textAlign: col.align }}>
                           {v !== undefined && v !== null
                             ? col.format
                               ? col.format(v, sampleRow!)
@@ -3822,7 +3824,10 @@ export function DataTableView<TRow extends object>({
                       )}
                       {gkey !== null && <td style={{ ...S.td, width: 28 }} />}
                       {activeColumns.map((col) => (
-                        <td key={col.key} style={{ ...S.td, width: col.width }}>
+                        <td
+                          key={col.key}
+                          style={{ ...S.td, width: col.width, textAlign: col.align }}
+                        >
                           {cellValue(row, col)}
                         </td>
                       ))}

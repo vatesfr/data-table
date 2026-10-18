@@ -16,7 +16,7 @@ interface Row {
 const COLS: ColumnDef<Row>[] = [
   { key: 'name', label: 'Name' },
   { key: 'dept', label: 'Dept', groupable: true },
-  { key: 'score', label: 'Score', type: 'number', aggregate: 'avg' },
+  { key: 'score', label: 'Score', type: 'number', aggregate: 'avg', align: 'end' },
 ]
 const ROWS: Row[] = [
   { id: 1, name: 'Alice', dept: 'Eng', score: 90 },
@@ -310,6 +310,26 @@ describe('TableBody — grouping and aggregation', () => {
     groupRow.click()
     expect(container.querySelectorAll('tbody tr.dt-tr')).toHaveLength(1) // only HR's row left visible
     expect(container.querySelector('.dt-agg-row')).not.toBeNull()
+    dispose()
+  })
+
+  it("aligns a column's header, cells and aggregate cells with `align`", () => {
+    const { container, table, dispose } = mount({ defaultGroupsCollapsed: false })
+    const th = container.querySelector<HTMLElement>('th[data-col-key="score"]')!
+    expect(th.querySelector('.dt-th-inner')!.firstElementChild!.classList).toContain('dt-th-spacer')
+    expect(container.querySelector('th[data-col-key="name"] .dt-th-spacer')).toBeNull()
+    const lastCells = () =>
+      [...container.querySelectorAll<HTMLElement>('tbody tr')].map(
+        (tr) => tr.lastElementChild as HTMLElement,
+      )
+    expect(lastCells().map((td) => td.style.textAlign)).toEqual(['end', 'end', 'end'])
+    table.group.toggle('dept')
+    const aggCells = [...container.querySelectorAll<HTMLElement>('.dt-agg-row td:last-child')]
+    expect(aggCells.map((td) => td.style.textAlign)).toEqual(['end', 'end'])
+    const nameCell = container.querySelector<HTMLElement>(
+      'tbody tr:not(.dt-agg-row) td:nth-last-child(2)',
+    )!
+    expect(nameCell.style.textAlign).toBe('')
     dispose()
   })
 

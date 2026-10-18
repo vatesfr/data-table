@@ -2004,6 +2004,8 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
               @click="onHeaderSortClick(col, $event)"
             >
               <span class="dt__th-inner">
+                <!-- Takes the free space before the label, since the menu's auto margin defeats justify-content -->
+                <span v-if="col.align === 'end'" class="dt__th-spacer" />
                 <!-- A button so keyboard users can sort; its click bubbles to the <th>'s handler -->
                 <component
                   :is="col.sortable === false ? 'span' : 'button'"
@@ -2118,7 +2120,12 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
             <tr v-if="group.key !== null && hasAggregates" class="dt__agg-row">
               <td v-if="selectable" class="dt__agg-td" style="width: 36px" />
               <td class="dt__agg-td" style="width: 28px" />
-              <td v-for="col in activeColumns" :key="col.key" class="dt__agg-td">
+              <td
+                v-for="col in activeColumns"
+                :key="col.key"
+                class="dt__agg-td"
+                :style="{ textAlign: col.align }"
+              >
                 {{
                   (() => {
                     const v = computeAggregate(col, group.rows)
@@ -2169,7 +2176,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                   v-for="col in activeColumns"
                   :key="col.key"
                   class="dt__td"
-                  :style="{ width: col.width ? `${col.width}px` : undefined }"
+                  :style="{ width: col.width ? `${col.width}px` : undefined, textAlign: col.align }"
                 >
                   <!--
                     Slot #cell-{key} — custom cell rendering.
@@ -2986,6 +2993,9 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
   display: flex;
   align-items: center;
   gap: 4px;
+}
+.dt__th-spacer {
+  flex: 1;
 }
 /* An unsorted column's ↕ shows only on hover or keyboard focus */
 .dt__th-sort-icon {
