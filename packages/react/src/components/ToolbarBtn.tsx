@@ -9,6 +9,8 @@ export interface ToolbarBtnProps {
   grouped?: boolean
 }
 
+const BORDER = '0.5px solid var(--color-border-secondary)'
+
 export function ToolbarBtn({ active, children, grouped }: ToolbarBtnProps) {
   return (
     <button
@@ -18,9 +20,10 @@ export function ToolbarBtn({ active, children, grouped }: ToolbarBtnProps) {
         gap: 5,
         padding: '5px 10px',
         background: active ? 'var(--color-background-secondary)' : 'transparent',
-        border: '0.5px solid var(--color-border-secondary)',
+        border: BORDER,
         borderRadius: grouped ? '6px 0 0 6px' : 6,
-        borderRight: grouped ? 'none' : undefined,
+        // Never undefined: React writes it as '', clearing the edge `border` set (U11)
+        borderRight: grouped ? 'none' : BORDER,
         fontSize: 'var(--font-size-md, 13px)',
         cursor: 'pointer',
         color: 'var(--color-text-primary)',

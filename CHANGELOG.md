@@ -18,6 +18,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Fixed
 
+- **Toolbar button edges** (React): the Columns, Group, Sort and Filter buttons no longer show a dark, thick right edge.
 - **The phone Filter pane names its column** (Solid, React, Vue, vanilla): its back button reads "‹ Columns · Tenure (yrs)" instead of "‹ Columns", so the pane says which column it filters.
 - **No empty section headings in the Columns search** (Solid, React, Vue, vanilla): searching the Columns dropdown hides the "Visible columns" or "Available columns" heading when none of its columns match.
 - **Open-ended range chips** (Solid, React, Vue, vanilla): a range filter with only a minimum or a maximum reads `Played (h): ≥ 5.0` or `≤ 20.0` instead of the cut-off-looking `5.0–`.

@@ -10,7 +10,6 @@ Seeded 2026-10-04 from issues reported by a consumer app, each reproduced on the
 
 - [Active bar](#active-bar)
 - [Empty and cleared states](#empty-and-cleared-states)
-- [Adapter-specific](#adapter-specific)
 
 ## Active bar
 
@@ -19,7 +18,3 @@ Seeded 2026-10-04 from issues reported by a consumer app, each reproduced on the
 ## Empty and cleared states
 
 - **U8 · polish · UC01** — Clear all drops every sort, group and filter at once with no undo. Consider an Undo next to the stats line for a few seconds.
-
-## Adapter-specific
-
-- **U11 · polish · UC01 · React** — the Columns and Filter toolbar buttons render a darker, thicker right edge than the other buttons; Vue's and Solid's don't.
