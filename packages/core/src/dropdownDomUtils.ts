@@ -104,12 +104,14 @@ export function keepDropdownClamped(
     // Not laid out (jsdom, hidden): the rect ignores the translateX, so each write would grow it
     if (!rect.width) return
     const current = getDx()
+    // The rect shows the rendered offset, which lags the requested one while a transition runs
+    const rendered = new DOMMatrixReadOnly(getComputedStyle(panel).transform).m41
     const { dx } = computeDropdownClampOffset(
       {
         top: rect.top,
         bottom: rect.bottom,
-        left: rect.left - current,
-        right: rect.right - current,
+        left: rect.left - rendered,
+        right: rect.right - rendered,
       },
       viewportWidth(),
       window.innerHeight,

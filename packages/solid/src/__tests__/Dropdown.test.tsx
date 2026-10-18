@@ -4,16 +4,28 @@ import { Dropdown } from '../components/Dropdown'
 
 // jsdom has no layout: the panel (the [data-body] parent) sits at `naturalLeft` plus its translateX
 let naturalLeft = 900
-const stubLayout = () =>
+const translateX = (transform: string) =>
+  Number(/translateX\((-?[\d.]+)px\)/.exec(transform)?.[1] ?? 0)
+const stubLayout = () => {
   vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
     this: HTMLElement,
   ) {
     if (!this.querySelector(':scope > [data-body]'))
       return { top: 0, bottom: 0, left: 0, right: 0 } as DOMRect
-    const dx = Number(/translateX\((-?[\d.]+)px\)/.exec(this.style.transform)?.[1] ?? 0)
-    const left = naturalLeft + dx
+    const left = naturalLeft + translateX(this.style.transform)
     return { top: 40, bottom: 140, left, right: left + 300, width: 300 } as DOMRect
   })
+  // Absent from jsdom; its computed `transform` is the inline one, rendered without transition
+  vi.stubGlobal(
+    'DOMMatrixReadOnly',
+    class {
+      m41: number
+      constructor(transform: string) {
+        this.m41 = translateX(transform)
+      }
+    },
+  )
+}
 
 describe('Dropdown viewport clamping', () => {
   let dispose: (() => void) | undefined
@@ -21,6 +33,7 @@ describe('Dropdown viewport clamping', () => {
     dispose?.()
     document.body.innerHTML = ''
     vi.restoreAllMocks()
+    vi.unstubAllGlobals()
     naturalLeft = 900
   })
 
