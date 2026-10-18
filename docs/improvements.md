@@ -7,9 +7,3 @@ Next free ID: **U27** (IDs are never reused, including ones dropped before commi
 Severity: **blocker** (goal unreachable) · **major** (reached with confusion or a workaround) · **minor** (friction) · **polish**.
 
 Seeded 2026-10-04 from issues reported by a consumer app, each reproduced on the demos (Solid, spot-checked on React and Vue).
-
-- [Empty and cleared states](#empty-and-cleared-states)
-
-## Empty and cleared states
-
-- **U8 · polish · UC01** — Clear all drops every sort, group and filter at once with no undo. Consider an Undo next to the stats line for a few seconds.
