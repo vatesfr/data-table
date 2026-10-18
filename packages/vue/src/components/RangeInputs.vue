@@ -93,13 +93,13 @@ const emit = defineEmits<{
   align-items: center;
 }
 .dt__range-sep {
-  font-size: 12px;
+  font-size: var(--font-size-sm, 12px);
   color: var(--color-text-tertiary);
 }
 .dt__range-input {
   width: 80px;
   padding: 3px 6px;
-  font-size: 12px;
+  font-size: var(--font-size-sm, 12px);
   border: 0.5px solid var(--color-border-secondary);
   border-radius: 4px;
   font-family: inherit;

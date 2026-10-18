@@ -102,7 +102,7 @@ const S = {
   },
   wrap: {
     fontFamily: 'inherit',
-    fontSize: 14,
+    fontSize: 'var(--font-size-lg, 14px)',
     color: 'var(--color-text-primary)',
   } as CSSProperties,
   toolbar: {
@@ -137,7 +137,7 @@ const S = {
     background: 'none',
     border: '0.5px solid var(--color-border-secondary)',
     borderRadius: 6,
-    fontSize: 12,
+    fontSize: 'var(--font-size-sm, 12px)',
     cursor: 'pointer',
     color: 'var(--color-text-secondary)',
     fontFamily: 'inherit',
@@ -154,7 +154,7 @@ const S = {
   } as CSSProperties,
   stats: {
     marginLeft: 'auto',
-    fontSize: 12,
+    fontSize: 'var(--font-size-sm, 12px)',
     color: 'var(--color-text-secondary)',
     whiteSpace: 'nowrap',
   } as CSSProperties,
@@ -164,12 +164,16 @@ const S = {
     borderRadius: 8,
     marginTop: 12,
   } as CSSProperties,
-  table: { width: '100%', borderCollapse: 'collapse', fontSize: 13 } as CSSProperties,
+  table: {
+    width: '100%',
+    borderCollapse: 'collapse',
+    fontSize: 'var(--font-size-md, 13px)',
+  } as CSSProperties,
   th: {
     padding: '8px 12px',
     textAlign: 'left',
-    fontWeight: 500,
-    fontSize: 12,
+    fontWeight: 'var(--font-weight-medium, 500)',
+    fontSize: 'var(--font-size-sm, 12px)',
     background: 'var(--color-background-tertiary)',
     color: 'var(--color-text-secondary)',
     borderBottom: '1px solid var(--color-border-secondary)',
@@ -189,24 +193,24 @@ const S = {
     gap: 8,
     padding: '7px 14px',
     cursor: 'pointer',
-    fontSize: 13,
+    fontSize: 'var(--font-size-md, 13px)',
     color: 'var(--color-text-primary)',
   } as CSSProperties,
   ddSection: {
     padding: '6px 14px 2px',
-    fontSize: 11,
+    fontSize: 'var(--font-size-xs, 11px)',
     color: 'var(--color-text-tertiary)',
-    fontWeight: 500,
+    fontWeight: 'var(--font-weight-medium, 500)',
     letterSpacing: '0.05em',
     textTransform: 'uppercase',
   } as CSSProperties,
   ddHint: {
     padding: '0 14px 6px',
-    fontSize: 11,
+    fontSize: 'var(--font-size-xs, 11px)',
     color: 'var(--color-text-tertiary)',
   } as CSSProperties,
   filterCount: {
-    fontSize: 12,
+    fontSize: 'var(--font-size-sm, 12px)',
     color: 'var(--color-text-tertiary)',
   } as CSSProperties,
   // A multi-value checklist row whose value is excluded (its ≠ button pressed)
@@ -232,7 +236,7 @@ const S = {
     borderRadius: 4,
     background: 'none',
     font: 'inherit',
-    fontSize: 14,
+    fontSize: 'var(--font-size-lg, 14px)',
     lineHeight: 1,
     color: 'var(--color-text-tertiary)',
     cursor: 'pointer',
@@ -259,7 +263,7 @@ const S = {
   chip: {
     display: 'inline-flex',
     alignItems: 'center',
-    fontSize: 12,
+    fontSize: 'var(--font-size-sm, 12px)',
   } as CSSProperties,
   chipBody: {
     display: 'inline-flex',
@@ -270,7 +274,7 @@ const S = {
     borderRight: 'none',
     borderRadius: '12px 0 0 12px',
     padding: '2px 4px 2px 8px',
-    fontSize: 12,
+    fontSize: 'var(--font-size-sm, 12px)',
     color: 'var(--color-text-secondary)',
     fontFamily: 'inherit',
     cursor: 'pointer',
@@ -283,7 +287,7 @@ const S = {
     border: '0.5px solid var(--color-border-secondary)',
     borderRadius: '0 12px 12px 0',
     padding: '2px 8px 2px 2px',
-    fontSize: 12,
+    fontSize: 'var(--font-size-sm, 12px)',
     color: 'var(--color-text-secondary)',
     fontFamily: 'inherit',
     lineHeight: 1.4,
@@ -323,7 +327,7 @@ const S = {
     borderRight: 'none',
     borderRadius: 0,
     padding: '2px 5px',
-    fontSize: 12,
+    fontSize: 'var(--font-size-sm, 12px)',
     color: 'var(--color-text-tertiary)',
     fontFamily: 'inherit',
     lineHeight: 1.4,
@@ -333,8 +337,8 @@ const S = {
   groupRow: {
     background: 'var(--color-background-secondary)',
     borderLeft: '3px solid var(--color-border-secondary)',
-    fontWeight: 600,
-    fontSize: 12,
+    fontWeight: 'var(--font-weight-semibold, 600)',
+    fontSize: 'var(--font-size-sm, 12px)',
     color: 'var(--color-text-primary)',
     cursor: 'pointer',
   } as CSSProperties,
@@ -356,7 +360,7 @@ const S = {
     background: 'none',
     border: '0.5px solid var(--color-border-secondary)',
     borderRadius: '0 6px 6px 0',
-    fontSize: 14,
+    fontSize: 'var(--font-size-lg, 14px)',
     lineHeight: 1,
     cursor: 'pointer',
     color: 'var(--color-text-tertiary)',
@@ -365,7 +369,7 @@ const S = {
   rangeInput: {
     width: 80,
     padding: '3px 6px',
-    fontSize: 12,
+    fontSize: 'var(--font-size-sm, 12px)',
     border: '0.5px solid var(--color-border-secondary)',
     borderRadius: 4,
     fontFamily: 'inherit',
@@ -386,7 +390,7 @@ const S = {
     border: '0.5px solid var(--color-border-secondary)',
     borderRadius: 4,
     cursor: 'pointer',
-    fontSize: 13,
+    fontSize: 'var(--font-size-md, 13px)',
     color: 'var(--color-text-primary)',
     fontFamily: 'inherit',
     lineHeight: 1,
@@ -397,7 +401,7 @@ const S = {
     border: 'none',
     cursor: 'pointer',
     padding: '2px 4px',
-    fontSize: 13,
+    fontSize: 'var(--font-size-md, 13px)',
     color: 'var(--color-text-tertiary)',
     lineHeight: 1,
   } as CSSProperties,
@@ -407,14 +411,14 @@ const S = {
   ddDragHandle: {
     flexShrink: 0,
     color: 'var(--color-text-tertiary)',
-    fontSize: 13,
+    fontSize: 'var(--font-size-md, 13px)',
     lineHeight: 1,
   } as CSSProperties,
   // Shown next to a column's label when a search term flattens it out of its own category's
   // CategorySubmenu into a plain row (see the Columns/Sort/Group add-lists below) — with no
   // submenu heading to supply that context anymore, the category would otherwise be invisible.
   ddItemCategory: {
-    fontSize: 11,
+    fontSize: 'var(--font-size-xs, 11px)',
     color: 'var(--color-text-tertiary)',
     flexShrink: 0,
     whiteSpace: 'nowrap',
@@ -431,7 +435,7 @@ const S = {
     boxSizing: 'border-box',
   } as CSSProperties,
   pageInfo: {
-    fontSize: 12,
+    fontSize: 'var(--font-size-sm, 12px)',
     color: 'var(--color-text-secondary)',
     padding: '0 6px',
   } as CSSProperties,
@@ -442,12 +446,12 @@ const S = {
     marginLeft: 10,
   } as CSSProperties,
   rowsPerPageLabel: {
-    fontSize: 12,
+    fontSize: 'var(--font-size-sm, 12px)',
     color: 'var(--color-text-secondary)',
   } as CSSProperties,
   pageSelect: {
     padding: '4px 6px',
-    fontSize: 12,
+    fontSize: 'var(--font-size-sm, 12px)',
     border: '0.5px solid var(--color-border-secondary)',
     borderRadius: 4,
     background: 'transparent',
@@ -464,7 +468,7 @@ const S = {
   } as CSSProperties,
   searchInput: {
     padding: '4px 24px 4px 8px',
-    fontSize: 13,
+    fontSize: 'var(--font-size-md, 13px)',
     border: '0.5px solid var(--color-border-secondary)',
     borderRadius: 6,
     background: 'transparent',
@@ -481,14 +485,14 @@ const S = {
     border: 'none',
     cursor: 'pointer',
     padding: '2px 4px',
-    fontSize: 14,
+    fontSize: 'var(--font-size-lg, 14px)',
     lineHeight: 1,
     color: 'var(--color-text-tertiary)',
     fontFamily: 'inherit',
   } as CSSProperties,
   aggRow: {
-    fontSize: 12,
-    fontWeight: 500,
+    fontSize: 'var(--font-size-sm, 12px)',
+    fontWeight: 'var(--font-weight-medium, 500)',
     color: 'var(--color-text-secondary)',
     background: 'var(--color-background-secondary)',
   } as CSSProperties,
@@ -514,7 +518,7 @@ const S = {
   filterColsNarrow: { width: 'auto', maxWidth: 'none', borderRight: 'none' } as CSSProperties,
   filterBack: {
     flexShrink: 0,
-    fontWeight: 500,
+    fontWeight: 'var(--font-weight-medium, 500)',
     borderBottom: '0.5px solid var(--color-border-tertiary)',
   } as CSSProperties,
   filterCols: {
@@ -537,7 +541,7 @@ const S = {
     justifyContent: 'space-between',
     gap: 6,
     padding: '7px 10px',
-    fontSize: 13,
+    fontSize: 'var(--font-size-md, 13px)',
     cursor: 'pointer',
     color: 'var(--color-text-primary)',
     flex: '1 1 auto',
@@ -545,7 +549,7 @@ const S = {
     overflow: 'hidden',
     boxSizing: 'border-box',
   } as CSSProperties,
-  filterColItemActive: { fontWeight: 500 } as CSSProperties,
+  filterColItemActive: { fontWeight: 'var(--font-weight-medium, 500)' } as CSSProperties,
   filterColLabel: {
     overflow: 'hidden',
     textOverflow: 'ellipsis',
@@ -561,7 +565,7 @@ const S = {
     display: 'flex',
     alignItems: 'center',
     padding: '0 10px',
-    fontSize: 13,
+    fontSize: 'var(--font-size-md, 13px)',
     lineHeight: 1,
     cursor: 'pointer',
     color: 'var(--color-text-tertiary)',
@@ -578,8 +582,8 @@ const S = {
     gap: 6,
     width: '100%',
     padding: '7px 10px',
-    fontSize: 13,
-    fontWeight: 500,
+    fontSize: 'var(--font-size-md, 13px)',
+    fontWeight: 'var(--font-weight-medium, 500)',
     cursor: 'pointer',
     color: 'var(--color-text-secondary)',
     border: 'none',
@@ -591,7 +595,7 @@ const S = {
   } as CSSProperties,
   filterCategoryToggle: {
     flexShrink: 0,
-    fontSize: 10,
+    fontSize: 'var(--font-size-2xs, 10px)',
     color: 'var(--color-text-tertiary)',
   } as CSSProperties,
   // Spread onto a categorized row's own filterColItem to indent it under its category header.
@@ -641,7 +645,7 @@ const S = {
     display: 'block',
     flex: 1,
     padding: '5px 20px 5px 8px',
-    fontSize: 12,
+    fontSize: 'var(--font-size-sm, 12px)',
     border: '0.5px solid var(--color-border-secondary)',
     borderRadius: 6,
     background: 'transparent',
@@ -669,7 +673,7 @@ const S = {
     border: 'none',
     cursor: 'pointer',
     padding: '2px 4px',
-    fontSize: 13,
+    fontSize: 'var(--font-size-md, 13px)',
     lineHeight: 1,
     color: 'var(--color-text-tertiary)',
     fontFamily: 'inherit',
@@ -702,7 +706,7 @@ const S = {
   valueSortBtn: {
     flexShrink: 0,
     padding: '4px 7px',
-    fontSize: 11,
+    fontSize: 'var(--font-size-xs, 11px)',
     background: 'none',
     border: '0.5px solid var(--color-border-secondary)',
     borderRadius: 6,
@@ -738,13 +742,13 @@ const S = {
   filterMatchModeActive: {
     background: 'var(--color-background-secondary)',
     color: 'var(--color-text-primary)',
-    fontWeight: 500,
+    fontWeight: 'var(--font-weight-medium, 500)',
   } as CSSProperties,
   dateTreeToggle: {
     width: 14,
     flexShrink: 0,
     textAlign: 'center',
-    fontSize: 10,
+    fontSize: 'var(--font-size-2xs, 10px)',
     color: 'var(--color-text-tertiary)',
   } as CSSProperties,
 }
@@ -1098,7 +1102,11 @@ function FilterPane<TRow extends object>({
             onChange={(e) => setRangeFilter(col.key, 'min', e.target.value)}
             style={inputStyle}
           />
-          <span style={{ color: 'var(--color-text-tertiary)', fontSize: 12 }}>–</span>
+          <span
+            style={{ color: 'var(--color-text-tertiary)', fontSize: 'var(--font-size-sm, 12px)' }}
+          >
+            –
+          </span>
           <input
             type={isDate ? 'date' : 'number'}
             placeholder={max.placeholder}
@@ -2716,9 +2724,9 @@ export function DataTableView<TRow extends object>({
                         <span
                           style={{
                             width: 18,
-                            fontSize: 11,
+                            fontSize: 'var(--font-size-xs, 11px)',
                             color: 'var(--color-text-tertiary)',
-                            fontWeight: 500,
+                            fontWeight: 'var(--font-weight-medium, 500)',
                           }}
                         >
                           {i + 1}
@@ -2892,15 +2900,20 @@ export function DataTableView<TRow extends object>({
                         <span
                           style={{
                             width: 18,
-                            fontSize: 11,
+                            fontSize: 'var(--font-size-xs, 11px)',
                             color: 'var(--color-text-tertiary)',
-                            fontWeight: 500,
+                            fontWeight: 'var(--font-weight-medium, 500)',
                           }}
                         >
                           {i + 1}
                         </span>
                         <span style={{ flex: 1 }}>{col?.label ?? entry.key}</span>
-                        <span style={{ fontSize: 15, color: 'var(--color-text-primary)' }}>
+                        <span
+                          style={{
+                            fontSize: 'var(--font-size-xl, 15px)',
+                            color: 'var(--color-text-primary)',
+                          }}
+                        >
                           {getSortIcon(entry.key)}
                         </span>
                         <button
@@ -2989,15 +3002,20 @@ export function DataTableView<TRow extends object>({
                         <span
                           style={{
                             width: 18,
-                            fontSize: 11,
+                            fontSize: 'var(--font-size-xs, 11px)',
                             color: 'var(--color-text-tertiary)',
-                            fontWeight: 500,
+                            fontWeight: 'var(--font-weight-medium, 500)',
                           }}
                         >
                           {i + 1}
                         </span>
                         <span style={{ flex: 1 }}>{col?.label ?? entry.key}</span>
-                        <span style={{ fontSize: 15, color: 'var(--color-text-primary)' }}>
+                        <span
+                          style={{
+                            fontSize: 'var(--font-size-xl, 15px)',
+                            color: 'var(--color-text-primary)',
+                          }}
+                        >
                           {getSortIcon(entry.key)}
                         </span>
                         <button
@@ -3562,7 +3580,7 @@ export function DataTableView<TRow extends object>({
                         <span
                           aria-hidden="true"
                           style={{
-                            fontSize: 10,
+                            fontSize: 'var(--font-size-2xs, 10px)',
                             color: isSorted
                               ? 'var(--color-text-primary)'
                               : 'var(--color-border-secondary)',
@@ -3738,11 +3756,23 @@ export function DataTableView<TRow extends object>({
                         )
                       })}
                       {continued && (
-                        <span style={{ marginLeft: 8, fontWeight: 400, opacity: 0.6 }}>
+                        <span
+                          style={{
+                            marginLeft: 8,
+                            fontWeight: 'var(--font-weight-normal, 400)',
+                            opacity: 0.6,
+                          }}
+                        >
                           {L.groupContinued}
                         </span>
                       )}
-                      <span style={{ marginLeft: 10, fontWeight: 400, opacity: 0.6 }}>
+                      <span
+                        style={{
+                          marginLeft: 10,
+                          fontWeight: 'var(--font-weight-normal, 400)',
+                          opacity: 0.6,
+                        }}
+                      >
                         {L.rowsInGroup(rows.length)}
                       </span>
                     </td>

@@ -64,7 +64,7 @@
         "dist/data-table-vue.css"
       ],
       "gzip": true,
-      "limit": "25.73 KB"
+      "limit": "25.85 KB"
     }
   ],
   "dependencies": {

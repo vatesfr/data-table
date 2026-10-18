@@ -21,7 +21,7 @@ export function ToolbarBtn({ active, children, grouped }: ToolbarBtnProps) {
         border: '0.5px solid var(--color-border-secondary)',
         borderRadius: grouped ? '6px 0 0 6px' : 6,
         borderRight: grouped ? 'none' : undefined,
-        fontSize: 13,
+        fontSize: 'var(--font-size-md, 13px)',
         cursor: 'pointer',
         color: 'var(--color-text-primary)',
         fontFamily: 'inherit',

@@ -78,7 +78,7 @@ function label(node: DateTreeNode): string {
   align-items: center;
   gap: 8px;
   padding: 5px 14px;
-  font-size: 13px;
+  font-size: var(--font-size-md, 13px);
   color: var(--color-text-primary);
   cursor: pointer;
 }
@@ -86,7 +86,7 @@ function label(node: DateTreeNode): string {
   width: 14px;
   flex-shrink: 0;
   text-align: center;
-  font-size: 10px;
+  font-size: var(--font-size-2xs, 10px);
   color: var(--color-text-tertiary);
 }
 .dt__date-tree-toggle--branch {
@@ -96,7 +96,7 @@ function label(node: DateTreeNode): string {
   flex: 1;
 }
 .dt__filter-count {
-  font-size: 12px;
+  font-size: var(--font-size-sm, 12px);
   color: var(--color-text-tertiary);
   flex-shrink: 0;
 }

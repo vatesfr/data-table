@@ -69,7 +69,7 @@ const panelStyle: CSSProperties = {
   maxHeight: 320,
   overflowY: 'auto',
   padding: '4px 0',
-  fontWeight: 400,
+  fontWeight: 'var(--font-weight-normal, 400)',
 }
 // Holds the filter pane itself, which scrolls its own list
 const drilledPanelStyle: CSSProperties = {
@@ -80,12 +80,12 @@ const drilledPanelStyle: CSSProperties = {
 }
 const backStyle: CSSProperties = {
   flexShrink: 0,
-  fontWeight: 500,
+  fontWeight: 'var(--font-weight-medium, 500)',
   borderBottom: '0.5px solid var(--color-border-tertiary)',
 }
 const arrowStyle: CSSProperties = {
   flexShrink: 0,
-  fontSize: 10,
+  fontSize: 'var(--font-size-2xs, 10px)',
   color: 'var(--color-text-tertiary)',
 }
 const itemStyle: CSSProperties = {
@@ -94,7 +94,7 @@ const itemStyle: CSSProperties = {
   gap: 8,
   padding: '7px 14px',
   cursor: 'pointer',
-  fontSize: 13,
+  fontSize: 'var(--font-size-md, 13px)',
   color: 'var(--color-text-primary)',
   border: 'none',
   background: 'none',
@@ -260,7 +260,9 @@ export function HeaderMenu({
         style={{
           ...triggerStyle,
           ...(open || lit === -1 ? { background: hoverBg } : null),
-          ...(filtered ? { color: 'var(--color-text-info)', fontWeight: 700 } : null),
+          ...(filtered
+            ? { color: 'var(--color-text-info)', fontWeight: 'var(--font-weight-bold, 700)' }
+            : null),
         }}
       >
         {/* A funnel, not just a color, tells a filtered column apart */}

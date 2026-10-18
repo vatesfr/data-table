@@ -202,6 +202,17 @@ You can also pass a `Partial<DataTableLabels>` to override individual strings �
 
 All colors are CSS custom properties (`--color-background-primary`, `--color-text-primary`, etc.). Dark mode activates automatically via `prefers-color-scheme: dark` and can be forced with `data-theme="dark"` or `data-theme="light"` on any ancestor element.
 
+Font sizes and weights are optional custom properties too, in every adapter; each defaults to the value below, so an app defines only the ones its own type scale changes:
+
+| Token             | Default | Token                    | Default |
+| ----------------- | ------- | ------------------------ | ------- |
+| `--font-size-2xs` | `10px`  | `--font-weight-normal`   | `400`   |
+| `--font-size-xs`  | `11px`  | `--font-weight-medium`   | `500`   |
+| `--font-size-sm`  | `12px`  | `--font-weight-semibold` | `600`   |
+| `--font-size-md`  | `13px`  | `--font-weight-bold`     | `700`   |
+| `--font-size-lg`  | `14px`  |                          |         |
+| `--font-size-xl`  | `15px`  |                          |         |
+
 **Vanilla** — tokens and dark-mode rules are injected automatically. No setup required.
 
 **React / Vue** — define the tokens in your own global stylesheet. See the [vanilla README](./packages/vanilla/README.md#theming) for the full token list and default values.
