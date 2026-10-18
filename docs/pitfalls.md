@@ -100,6 +100,12 @@ Symptom first, then cause and fix. Delete entries once obsolete.
 - Cause: a demo dev server left running (E2E reuses the one on 58983) whose Vite dependency cache predates an `npm ci` (or a lockfile change).
 - Fix: restart that dev server (`npm run dev:<demo>`, as the error names).
 
+## A demo renders a blank page: "does not provide an export named …"
+
+- Symptom: a `scripts/ux-step.mjs` script times out finding the table; the page's console shows "The requested module '/@fs/…/packages/core/src/locales.ts?t=…' does not provide an export named 'LABELS_EN'", though the file exports it.
+- Cause: a demo dev server left running while core sources were edited serves a stale module graph (seen on React after editing `locales.ts` and `types.ts`; exact Vite trigger not pinned down).
+- Fix: restart that dev server.
+
 ## E2E geometry check passes locally, fails in CI
 
 - Symptom: a phone E2E check like `expect(box.x + box.width).toBeLessThanOrEqual(width)` fails only in CI ("Received: 390.625"), on retry too.
