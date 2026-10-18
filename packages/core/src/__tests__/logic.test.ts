@@ -10,7 +10,7 @@ import {
   paginateVisibleGroups,
   paginateVisibleItems,
   getCrossPageFocusTarget,
-  mergePageSizeOptions,
+  pageSizeOptions,
   showsPager,
   isSameVisibleItem,
   indexOfVisibleItem,
@@ -1480,17 +1480,17 @@ describe('getCrossPageFocusTarget', () => {
   })
 })
 
-// ─── mergePageSizeOptions ─────────────────────────────────────────────────────
+// ─── pageSizeOptions ─────────────────────────────────────────────────────────
 
-describe('mergePageSizeOptions', () => {
-  it('returns the base list unchanged when pageSize is already an option', () => {
-    expect(mergePageSizeOptions([10, 20, 50, 100], 20)).toEqual([10, 20, 50, 100])
+describe('pageSizeOptions', () => {
+  it('returns the default choices when pageSize is already one of them', () => {
+    expect(pageSizeOptions(20)).toEqual([10, 20, 50, 100])
   })
 
-  it('inserts a custom pageSize in sorted order when absent from the base list', () => {
-    expect(mergePageSizeOptions([10, 20, 50, 100], 5)).toEqual([5, 10, 20, 50, 100])
-    expect(mergePageSizeOptions([10, 20, 50, 100], 30)).toEqual([10, 20, 30, 50, 100])
-    expect(mergePageSizeOptions([10, 20, 50, 100], 200)).toEqual([10, 20, 50, 100, 200])
+  it('inserts a custom pageSize in sorted order when absent from the defaults', () => {
+    expect(pageSizeOptions(5)).toEqual([5, 10, 20, 50, 100])
+    expect(pageSizeOptions(30)).toEqual([10, 20, 30, 50, 100])
+    expect(pageSizeOptions(200)).toEqual([10, 20, 50, 100, 200])
   })
 })
 

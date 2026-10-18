@@ -41,7 +41,7 @@ import {
   isSameVisibleItem,
   indexOfVisibleItem,
   paginateVisibleItems,
-  mergePageSizeOptions,
+  pageSizeOptions,
   showsPager,
   checklistBulkState,
   clickChecklistValue,
@@ -1980,7 +1980,7 @@ export function DataTableView<TRow extends object>({
   // group is already a click away regardless of selectable/onRowClick.
   const rowNavEnabled = selectable || !!onRowClick
   const pageVisibleItems = paginateVisibleItems(visibleItems, page, pageSize)
-  const pageSizeOptions = mergePageSizeOptions([10, 20, 50, 100], pageSize)
+  const pageSizes = pageSizeOptions(pageSize)
   const navigableItems = pageVisibleItems.filter((item) => item.kind === 'group' || rowNavEnabled)
   const effectiveFocusTarget =
     focusTarget && indexOfVisibleItem(navigableItems, focusTarget) !== -1
@@ -3854,7 +3854,7 @@ export function DataTableView<TRow extends object>({
       </div>
 
       {/* Pagination */}
-      {pageSize > 0 && showsPager(visibleItems.length, pageSizeOptions) && (
+      {pageSize > 0 && showsPager(visibleItems.length, pageSizes) && (
         <div style={S.pagination}>
           {numPages > 1 && (
             <>
@@ -3900,7 +3900,7 @@ export function DataTableView<TRow extends object>({
               onChange={(e) => setPageSize(Number(e.target.value))}
               style={S.pageSelect}
             >
-              {pageSizeOptions.map((n) => (
+              {pageSizes.map((n) => (
                 <option key={n} value={n}>
                   {n}
                 </option>

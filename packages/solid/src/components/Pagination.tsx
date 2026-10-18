@@ -1,5 +1,5 @@
 import { For, Show } from 'solid-js'
-import { mergePageSizeOptions, showsPager } from '@vates/data-table-core/internal'
+import { pageSizeOptions, showsPager } from '@vates/data-table-core/internal'
 import type { TableState } from '../createTableState'
 
 interface PaginationProps<TRow extends object> {
@@ -8,14 +8,11 @@ interface PaginationProps<TRow extends object> {
 
 export function Pagination<TRow extends object>(props: PaginationProps<TRow>) {
   const { table } = props
-  const pageSizeOptions = () => mergePageSizeOptions([10, 20, 50, 100], table.pagination.pageSize())
+  const pageSizes = () => pageSizeOptions(table.pagination.pageSize())
 
   return (
     <Show
-      when={
-        table.pagination.pageSize() > 0 &&
-        showsPager(table.visibleItems().length, pageSizeOptions())
-      }
+      when={table.pagination.pageSize() > 0 && showsPager(table.visibleItems().length, pageSizes())}
     >
       <div class="dt-pagination">
         <Show when={table.pagination.numPages() > 1}>
@@ -66,7 +63,7 @@ export function Pagination<TRow extends object>(props: PaginationProps<TRow>) {
             value={table.pagination.pageSize()}
             onChange={(e) => table.pagination.setPageSize(Number(e.currentTarget.value))}
           >
-            <For each={pageSizeOptions()}>{(n) => <option value={n}>{n}</option>}</For>
+            <For each={pageSizes()}>{(n) => <option value={n}>{n}</option>}</For>
           </select>
         </label>
       </div>

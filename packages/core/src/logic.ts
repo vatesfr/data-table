@@ -2250,12 +2250,13 @@ export function getCrossPageFocusTarget<TRow extends object>(
 /**
  * The "Rows per page" dropdown's option list, guaranteed to include `pageSize` itself — a plain
  * `<select>` bound to a value absent from its own `<option>`s (e.g. `initialViewState: { pageSize:
- * 5 }` against the default `[10, 20, 50, 100]` choices) silently shows the wrong option as
+ * 5 }` against the default choices) silently shows the wrong option as
  * selected, since the browser falls back to the first one rather than leaving nothing selected.
  * Inserting the current value keeps the dropdown honest for any custom
  * `initialViewState.pageSize`/`setPageSize` call, not just the four defaults.
  */
-export function mergePageSizeOptions(options: number[], pageSize: number): number[] {
+export function pageSizeOptions(pageSize: number): number[] {
+  const options = [10, 20, 50, 100]
   if (options.includes(pageSize)) return options
   return [...options, pageSize].sort((a, b) => a - b)
 }

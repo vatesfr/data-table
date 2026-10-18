@@ -10,7 +10,7 @@ import {
   isSameVisibleItem,
   indexOfVisibleItem,
   paginateVisibleItems,
-  mergePageSizeOptions,
+  pageSizeOptions,
   showsPager,
   getCrossPageFocusTarget,
   getSortIndex as getHeaderSortIndex,
@@ -192,10 +192,7 @@ function groupCollapsed(key: string): boolean {
 // page boundary contributes a second ("continued") chunk that shouldn't be double-counted.
 const pageGroupCount = computed(() => new Set(groupedData.value.map((g) => g.key)).size)
 
-// A plain <select> bound to a value absent from its own options (e.g. a custom initialViewState
-// pageSize not in the four defaults) silently shows the wrong option as selected — merge the current
-// pageSize in so the dropdown always reflects it.
-const pageSizeOptions = computed(() => mergePageSizeOptions([10, 20, 50, 100], pageSize.value))
+const pageSizes = computed(() => pageSizeOptions(pageSize.value))
 
 function setItemRef(key: TRow | string, el: Element | null): void {
   if (el) rowRefs.set(key, el as HTMLTableRowElement)
@@ -2199,10 +2196,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
     </div>
 
     <!-- ── Pagination ── -->
-    <div
-      v-if="pageSize > 0 && showsPager(visibleItems.length, pageSizeOptions)"
-      class="dt__pagination"
-    >
+    <div v-if="pageSize > 0 && showsPager(visibleItems.length, pageSizes)" class="dt__pagination">
       <template v-if="numPages > 1">
         <button
           class="dt__page-btn"
@@ -2245,7 +2239,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
           :value="pageSize"
           @change="setPageSize(Number(($event.target as HTMLSelectElement).value))"
         >
-          <option v-for="n in pageSizeOptions" :key="n" :value="n">{{ n }}</option>
+          <option v-for="n in pageSizes" :key="n" :value="n">{{ n }}</option>
         </select>
       </label>
     </div>
