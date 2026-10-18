@@ -138,7 +138,9 @@ export function ColumnsDropdown<TRow extends object>(props: ColumnsDropdownProps
         placeholder={table.labels().filterSearchPlaceholder}
         clearLabel={table.labels().clearSearch}
       />
-      <div class="dt-dd-section">{table.labels().columnsSection}</div>
+      <Show when={searchedVisible().length > 0}>
+        <div class="dt-dd-section">{table.labels().columnsSection}</div>
+      </Show>
       <div ref={setContainer} onDragOver={handleDragOver} onDrop={handleDrop}>
         <For each={searchedVisible()}>
           {(col) => (
@@ -203,7 +205,7 @@ export function ColumnsDropdown<TRow extends object>(props: ColumnsDropdownProps
           )}
         </For>
       </div>
-      <Show when={availableColumns().length > 0}>
+      <Show when={searchedAvailable().length > 0}>
         <div class="dt-dd-section">{table.labels().availableColumnsSection}</div>
         <Show
           when={!isSearching()}

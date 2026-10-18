@@ -2479,7 +2479,9 @@ export function DataTableView<TRow extends object>({
                   clearLabel={L.clearSearch}
                 />
               </div>
-              <div style={S.ddSection}>{L.columnsSection}</div>
+              {searchedVisibleColumns.length > 0 && (
+                <div style={S.ddSection}>{L.columnsSection}</div>
+              )}
               {searchedVisibleColumns.map((col) => (
                 // Draggable (+ Alt+↑/↓) reorders columnOrder, skipping hidden columns (moveVisibleBy)
                 // — same treatment as the Sort/Group active rows. dragover/drop are handled at the
@@ -2554,7 +2556,7 @@ export function DataTableView<TRow extends object>({
                   </button>
                 </div>
               ))}
-              {availableColumns.length > 0 && (
+              {searchedAvailableColumns.length > 0 && (
                 <>
                   <div style={S.ddSection}>{L.availableColumnsSection}</div>
                   {isColsSearching

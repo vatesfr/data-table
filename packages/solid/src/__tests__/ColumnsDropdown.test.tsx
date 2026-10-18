@@ -409,6 +409,21 @@ describe('ColumnsDropdown — Available section', () => {
     expect(visibleLabels(container)).toEqual([])
     dispose()
   })
+
+  it('a search hides each section heading with no matching column', () => {
+    const { container, dispose } = mount()
+    container.querySelector<HTMLButtonElement>('[data-col-row-key="id"] .dt-item-remove')!.click()
+    const search = container.querySelector<HTMLInputElement>('.dt-dd-search')!
+    const sections = () =>
+      [...container.querySelectorAll('.dt-dd-section')].map((el) => el.textContent)
+    search.value = 'id'
+    search.dispatchEvent(new Event('input', { bubbles: true }))
+    expect(sections()).toEqual(['Available columns'])
+    search.value = 'name'
+    search.dispatchEvent(new Event('input', { bubbles: true }))
+    expect(sections()).toEqual(['Visible columns'])
+    dispose()
+  })
 })
 
 describe('ColumnsDropdown — reordering while searching', () => {

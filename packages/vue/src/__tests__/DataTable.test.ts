@@ -3970,6 +3970,18 @@ describe('DataTable — Columns dropdown Visible/Available split', () => {
     expect(visibleLabels(wrapper)).toEqual([])
   })
 
+  it('a search hides each section heading with no matching column', async () => {
+    const wrapper = mount(DataTable, { props: { data: VROWS, columns: VCOLS, rowKey: 'id' } })
+    await openDdByLabel(wrapper, 'Columns')
+    await wrapper.find('[data-col-row-key="id"] .dt__item-remove').trigger('click')
+    const search = wrapper.find('input[data-dd-search]')
+    const sections = () => wrapper.findAll('.dt__dd-section').map((el) => el.text())
+    await search.setValue('id')
+    expect(sections()).toEqual(['Available columns'])
+    await search.setValue('name')
+    expect(sections()).toEqual(['Visible columns'])
+  })
+
   it("Alt+ArrowDown only swaps with the next search-matching row, leaving a filtered-out column's own position untouched", async () => {
     const cols: ColumnDef<VRow>[] = [
       { key: 'id', label: 'Foo1' },

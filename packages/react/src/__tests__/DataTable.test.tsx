@@ -2074,6 +2074,23 @@ describe('DataTable — Columns dropdown Visible/Available split', () => {
     expect(visibleLabels(container)).toEqual([])
   })
 
+  it('a search hides each section heading with no matching column', () => {
+    const { getByText, queryByText, container } = render(
+      <DataTable data={VROWS} columns={VCOLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Columns'))
+    fireEvent.click(
+      container.querySelector('[data-col-row-key="id"] button[aria-label="Hide column"]')!,
+    )
+    const search = container.querySelector<HTMLInputElement>('input[data-dd-search]')!
+    fireEvent.change(search, { target: { value: 'id' } })
+    expect(queryByText('Visible columns')).toBeNull()
+    expect(queryByText('Available columns')).not.toBeNull()
+    fireEvent.change(search, { target: { value: 'name' } })
+    expect(queryByText('Visible columns')).not.toBeNull()
+    expect(queryByText('Available columns')).toBeNull()
+  })
+
   it('categorized hidden columns collapse into a submenu trigger instead of plain rows', () => {
     const categorized: ColumnDef<VRow>[] = [
       { key: 'id', label: 'ID' },

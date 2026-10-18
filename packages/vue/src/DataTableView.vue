@@ -1118,7 +1118,9 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
               </button>
             </span>
           </div>
-          <div class="dt__dd-section">{{ L.columnsSection }}</div>
+          <div v-if="searchedVisibleOrderedColumns.length > 0" class="dt__dd-section">
+            {{ L.columnsSection }}
+          </div>
           <!--
             @dragover/@drop are handled at the Dropdown panel level (see above), not per-row —
             that's what lets a drop past the last row still resolve to a valid target.
@@ -1153,7 +1155,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
               ×
             </button>
           </div>
-          <template v-if="availableColumns.length > 0">
+          <template v-if="searchedFlatAvailableCols.length > 0">
             <div class="dt__dd-section">{{ L.availableColumnsSection }}</div>
             <template v-if="isColsSearching">
               <button
