@@ -1,4 +1,4 @@
-./scripts/check-changelog.sh
+node scripts/check-changelog.mjs
 # --hide-all: the checks see the commit, not unstaged edits or untracked files.
 npx lint-staged --quiet --hide-all
 git diff --cached --check

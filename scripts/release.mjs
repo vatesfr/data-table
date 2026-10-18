@@ -8,6 +8,7 @@ import { execFileSync } from 'node:child_process'
 import { readFileSync, writeFileSync } from 'node:fs'
 import process from 'node:process'
 import console from 'node:console'
+import { UNRELEASED } from './check-changelog.mjs'
 
 const PACKAGES = ['core', 'react', 'vue', 'solid', 'vanilla']
 const DEP_FIELDS = ['dependencies', 'devDependencies', 'peerDependencies']
@@ -51,7 +52,7 @@ for (let grew = true; grew;) {
 if (!Object.keys(reasons).length) throw new Error(`nothing changed since ${lastTag}`)
 
 const changelog = readFileSync('CHANGELOG.md', 'utf8')
-const unreleased = changelog.match(/^## \[Unreleased\]\n([\s\S]*?)(?=^## \[)/m)
+const unreleased = changelog.match(UNRELEASED)
 if (!unreleased?.[1].trim()) throw new Error('CHANGELOG.md has no entries under ## [Unreleased]')
 
 for (const [p, why] of Object.entries(reasons))
