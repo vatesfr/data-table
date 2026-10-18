@@ -460,7 +460,7 @@ describe('DataTable — filter dropdown', () => {
     const row = scoreItem.closest('[data-filter-row-key]')!
     expect(row.querySelectorAll('button')).toHaveLength(2)
     const chip = [...container.querySelectorAll('span')].find((el) =>
-      el.textContent?.includes('Score: 80'),
+      el.textContent?.includes('Score: ≥ 80'),
     )
     expect(chip).toBeTruthy()
   })
@@ -478,7 +478,7 @@ describe('DataTable — filter dropdown', () => {
     // it — a <button> can't contain another interactive element) — see "Active-bar chip click
     // actions".
     const chipX = [...container.querySelectorAll('span')]
-      .find((el) => el.textContent?.trim().startsWith('Score: 80'))!
+      .find((el) => el.textContent?.trim().startsWith('Score: ≥ 80'))!
       .querySelector('button:last-child')!
     fireEvent.click(chipX)
     expect((screen.getByRole('spinbutton', { name: / Min$/ }) as HTMLInputElement).value).toBe('')
@@ -1250,7 +1250,7 @@ describe('DataTable — date filter tree', () => {
     const row = releasedItem.closest('[data-filter-row-key]')!
     expect(row.querySelectorAll('button')).toHaveLength(2)
     const chip = [...container.querySelectorAll('span')].find((el) =>
-      el.textContent?.includes('Released: 2022-01-01'),
+      el.textContent?.includes('Released: ≥ 2022-01-01'),
     )
     expect(chip).toBeTruthy()
   })
@@ -1267,7 +1267,7 @@ describe('DataTable — date filter tree', () => {
     // The × is now a real <button>, a sibling of the chip's own body button — see
     // "Active-bar chip click actions".
     const chipX = [...container.querySelectorAll('span')]
-      .find((el) => el.textContent?.trim().startsWith('Released: 2022-01-01'))!
+      .find((el) => el.textContent?.trim().startsWith('Released: ≥ 2022-01-01'))!
       .querySelector('button:last-child')!
     fireEvent.click(chipX)
     expect(getByText('2021')).toBeTruthy()
@@ -3001,7 +3001,7 @@ describe('DataTable — filter values through the column format', () => {
     )
     const texts = [...container.querySelectorAll('button')].map((b) => b.textContent)
     expect(texts).toContain('Code: AB')
-    expect(texts).toContain('Price: $1,000–')
+    expect(texts).toContain('Price: ≥ $1,000')
     fireEvent.click(getByText('Filter'))
     fireEvent.click(container.querySelector('[data-filter-col-key="code"]')!)
     const labels = [...container.querySelectorAll('input[data-dd-value-row]')].map((i) =>

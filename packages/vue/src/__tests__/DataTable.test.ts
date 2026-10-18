@@ -4294,7 +4294,7 @@ describe('DataTable — filter values through the column format', () => {
     })
     const chips = wrapper.findAll('.dt__chip-body').map((b) => b.text().replace(/\s+/g, ' '))
     expect(chips).toContain('Code: AB')
-    expect(chips).toContain('Price: $1,000–')
+    expect(chips).toContain('Price: ≥ $1,000')
     await openDdByLabel(wrapper, 'Filter')
     await wrapper.find('[data-filter-col-key="code"]').trigger('click')
     const labels = wrapper.findAll('input[data-dd-value-row]').map((i) =>

@@ -442,7 +442,7 @@ describe('createDataTable', () => {
     setInput(rangeMin, '70')
     openDropdown(container, 'Filter') // close
 
-    const chipBody = findByText(container, 'Score: 70–', '.dt-active-bar .dt-chip-body')
+    const chipBody = findByText(container, 'Score: ≥ 70', '.dt-active-bar .dt-chip-body')
     click(chipBody)
     expect(container.querySelector('.dt-dd')).not.toBeNull()
     // Simplified vs. the fuller documented behavior: opening via the chip does not additionally

@@ -3762,4 +3762,9 @@ describe('range presets', () => {
     expect(rangeChipText(played, { min: '', max: '0' }, '(none)')).toBe('never played')
     expect(rangeChipText(played, { min: '1', max: '5' }, '(none)')).toBe('1 h–5 h')
   })
+
+  it('words an open-ended range as a single bound', () => {
+    expect(rangeChipText(played, { min: '5', max: '' }, '(none)')).toBe('≥ 5 h')
+    expect(rangeChipText(played, { min: '', max: '20' }, '(none)')).toBe('≤ 20 h')
+  })
 })

@@ -1042,16 +1042,22 @@ export function rangePresetFilter(preset: RangePreset): RangeFilter {
   }
 }
 
-/** A range filter's active-bar chip value: its preset's label, else its bounds through `format` */
+/**
+ * A range filter's active-bar chip value: its preset's label, else its bounds through `format`,
+ * an open-ended range as "≥ min" or "≤ max"
+ */
 export function rangeChipText<TRow extends object>(
   col: ColumnDefBase<TRow> | undefined,
   rangeFilter: RangeFilter,
   emptyLabel: string,
 ): string {
-  return (
-    matchingRangePreset(col, rangeFilter)?.label ??
-    `${formatFilterValue(col, rangeFilter.min, emptyLabel)}–${formatFilterValue(col, rangeFilter.max, emptyLabel)}`
-  )
+  const preset = matchingRangePreset(col, rangeFilter)
+  if (preset) return preset.label
+  const min = formatFilterValue(col, rangeFilter.min, emptyLabel)
+  const max = formatFilterValue(col, rangeFilter.max, emptyLabel)
+  if (min === '') return `≤ ${max}`
+  if (max === '') return `≥ ${min}`
+  return `${min}–${max}`
 }
 
 /**

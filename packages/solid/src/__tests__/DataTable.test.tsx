@@ -388,7 +388,7 @@ describe('DataTable — filter values through the column format', () => {
     })
     const chips = [...container.querySelectorAll('.dt-chip-body')].map((b) => b.textContent)
     expect(chips).toContain('Code: AB')
-    expect(chips).toContain('Price: $1,000–')
+    expect(chips).toContain('Price: ≥ $1,000')
     const filterBtn = [...container.querySelectorAll('button')].find(
       (b) => b.textContent === 'Filter',
     )!
