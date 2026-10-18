@@ -253,6 +253,32 @@ describe('DataTable — aggregate row', () => {
   })
 })
 
+describe('DataTable — column align', () => {
+  it("aligns a column's header, cells and aggregate cells with `align`", () => {
+    const cols: ColumnDef<Row>[] = [
+      { key: 'name', label: 'Name', groupable: true },
+      { key: 'score', label: 'Score', type: 'number', aggregate: 'sum', align: 'end' },
+    ]
+    const wrapper = mount(DataTable, {
+      props: {
+        data: ROWS,
+        columns: cols,
+        rowKey: 'id',
+        defaultGroupsCollapsed: false,
+        initialViewState: { groupBy: ['name'] },
+      },
+    })
+    const ths = wrapper.findAll('th')
+    expect(ths[ths.length - 1].find('.dt__th-spacer').exists()).toBe(true)
+    expect(wrapper.findAll('.dt__th-spacer')).toHaveLength(1)
+    const lastCells = wrapper
+      .findAll('tbody tr')
+      .filter((tr) => !tr.classes('dt__group-row'))
+      .map((tr) => (tr.element.lastElementChild as HTMLElement).style.textAlign)
+    expect(lastCells).toEqual(['end', 'end', 'end', 'end'])
+  })
+})
+
 describe('DataTable — bucketed grouping (groupValue/groupFormat)', () => {
   it("renders the bucket label from groupFormat instead of a sample row's raw value", async () => {
     const cols: ColumnDef<Row>[] = [
@@ -4182,7 +4208,7 @@ describe('DataTable — filter dropdown on a narrow screen (U16)', () => {
     expect(wrapper.find('.dt__filter-cols').exists()).toBe(false)
     expect(wrapper.find('.dt__filter-detail').exists()).toBe(true)
     const back = wrapper.find('.dt__filter-back')
-    expect(back.text()).toContain('Columns')
+    expect(back.text()).toBe('‹ Columns · Name')
     await back.trigger('click')
     await tick()
     expect(wrapper.find('.dt__filter-detail').exists()).toBe(false)

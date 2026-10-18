@@ -87,6 +87,8 @@ export interface ColumnDefBase<TRow extends object = Record<string, unknown>> {
    */
   rangePresets?: { label: string; min?: number; max?: number }[]
   width?: number
+  /** `'end'` right-aligns (in left-to-right text) the column's header, cells and aggregate cells, e.g. so a number column's digits line up. Default: `'start'`. */
+  align?: 'start' | 'end'
   /**
    * How to read this column's cell value from a row. Omitted: reads `row[key]`. Function:
    * computes the value from the whole row — covers property aliasing (`(row) => row.name`),

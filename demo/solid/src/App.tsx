@@ -324,6 +324,7 @@ const COLUMNS: ColumnDef<Employee>[] = [
     key: 'salary',
     label: 'Salary',
     type: 'number',
+    align: 'end',
     width: 110,
     rangePresets: [
       { label: 'Under $60k', max: 59999 },
@@ -376,6 +377,7 @@ const COLUMNS: ColumnDef<Employee>[] = [
     key: 'tenure',
     label: 'Tenure (yrs)',
     type: 'number',
+    align: 'end',
     width: 100,
     value: (row) => new Date().getFullYear() - new Date(row.joined).getFullYear(),
     aggregate: 'avg',
@@ -400,6 +402,7 @@ const COLUMNS: ColumnDef<Employee>[] = [
     key: 'score',
     label: 'Score',
     type: 'number',
+    align: 'end',
     width: 80,
     category: 'Performance',
     compare: compareMissingLast(),

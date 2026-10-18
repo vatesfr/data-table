@@ -401,7 +401,7 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
                 focusActiveColumn()
               }}
             >
-              ‹ {table.labels().columns}
+              ‹ {table.labels().columns} · {activeCol()?.label}
             </button>
           </Show>
           <Show when={activeCol()} keyed>

@@ -3044,3 +3044,30 @@ describe('DataTable — filter values through the column format', () => {
     expect(labels).toEqual(['AB', 'CD'])
   })
 })
+
+describe('DataTable — column align', () => {
+  it("aligns a column's header, cells and aggregate cells with `align`", () => {
+    const cols: ColumnDef<Row>[] = [
+      { key: 'name', label: 'Name', groupable: true },
+      { key: 'score', label: 'Score', type: 'number', aggregate: 'sum', align: 'end' },
+    ]
+    const { container, getByRole } = render(
+      <DataTable
+        data={ROWS}
+        columns={cols}
+        rowKey="id"
+        defaultGroupsCollapsed={false}
+        initialViewState={{ groupBy: ['name'] }}
+      />,
+    )
+    expect(
+      getByRole('columnheader', { name: /Score/ }).querySelector('[data-th-spacer]'),
+    ).not.toBeNull()
+    expect(container.querySelectorAll('[data-th-spacer]')).toHaveLength(1)
+    // Skips the group header rows, marked by their collapse arrow
+    const lastCells = [...container.querySelectorAll('tbody tr')]
+      .filter((tr) => !tr.textContent?.includes('▼'))
+      .map((tr) => (tr.lastElementChild as HTMLElement).style.textAlign)
+    expect(lastCells).toEqual(['end', 'end', 'end', 'end'])
+  })
+})

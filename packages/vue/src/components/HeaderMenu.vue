@@ -308,7 +308,7 @@ function onMenuKeydown(e: KeyboardEvent): void {
 }
 .dt__th-menu--filtered {
   color: var(--color-text-info);
-  font-weight: 700;
+  font-weight: var(--font-weight-bold, 700);
 }
 .dt__dd-submenu {
   z-index: 101;
@@ -320,14 +320,14 @@ function onMenuKeydown(e: KeyboardEvent): void {
   max-height: 320px;
   overflow-y: auto;
   padding: 4px 0;
-  font-weight: 400;
+  font-weight: var(--font-weight-normal, 400);
 }
 .dt__dd-item {
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 7px 14px;
-  font-size: 13px;
+  font-size: var(--font-size-md, 13px);
   color: var(--color-text-primary);
   border: none;
   background: none;
@@ -363,7 +363,7 @@ function onMenuKeydown(e: KeyboardEvent): void {
 }
 .dt__th-menu-back {
   flex-shrink: 0;
-  font-weight: 500;
+  font-weight: var(--font-weight-medium, 500);
   border-bottom: 0.5px solid var(--color-border-tertiary);
 }
 .dt__th-menu-label {
@@ -371,7 +371,7 @@ function onMenuKeydown(e: KeyboardEvent): void {
 }
 .dt__th-menu-arrow {
   flex-shrink: 0;
-  font-size: 10px;
+  font-size: var(--font-size-2xs, 10px);
   color: var(--color-text-tertiary);
 }
 .dt__th-filter-flyout,

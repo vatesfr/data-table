@@ -26,7 +26,7 @@ defineProps<{
   background: transparent;
   border: 0.5px solid var(--color-border-secondary);
   border-radius: 6px;
-  font-size: 13px;
+  font-size: var(--font-size-md, 13px);
   cursor: pointer;
   color: var(--color-text-primary);
   font-family: inherit;

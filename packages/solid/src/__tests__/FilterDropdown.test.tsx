@@ -1106,7 +1106,7 @@ describe('FilterDropdown — narrow screen (U16)', () => {
     expect(container.querySelector('.dt-filter-cols')).toBeNull()
     expect(container.querySelector('.dt-filter-detail')).not.toBeNull()
     const back = container.querySelector<HTMLButtonElement>('.dt-filter-back')!
-    expect(back.textContent).toContain('Columns')
+    expect(back.textContent).toBe('‹ Columns · Dept')
     back.click()
     expect(container.querySelector('.dt-filter-detail')).toBeNull()
     expect(document.activeElement?.textContent).toContain('Dept')

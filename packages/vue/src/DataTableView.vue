@@ -1756,7 +1756,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
               data-filter-back
               @click="showFilterColumns"
             >
-              ‹ {{ L.columns }}
+              ‹ {{ L.columns }} · {{ filterDetailCol?.label }}
             </button>
             <FilterPane
               v-if="filterDetailCol && (!narrowFilter || filterShowValues)"
@@ -2004,6 +2004,8 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
               @click="onHeaderSortClick(col, $event)"
             >
               <span class="dt__th-inner">
+                <!-- Takes the free space before the label, since the menu's auto margin defeats justify-content -->
+                <span v-if="col.align === 'end'" class="dt__th-spacer" />
                 <!-- A button so keyboard users can sort; its click bubbles to the <th>'s handler -->
                 <component
                   :is="col.sortable === false ? 'span' : 'button'"
@@ -2017,7 +2019,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                     :class="{ 'dt__th-sort-icon--sorted': isHeaderSorted(col.key) }"
                     aria-hidden="true"
                     :style="{
-                      fontSize: '10px',
+                      fontSize: 'var(--font-size-2xs, 10px)',
                       color: isHeaderSorted(col.key)
                         ? 'var(--color-text-primary)'
                         : 'var(--color-border-secondary)',
@@ -2118,7 +2120,12 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
             <tr v-if="group.key !== null && hasAggregates" class="dt__agg-row">
               <td v-if="selectable" class="dt__agg-td" style="width: 36px" />
               <td class="dt__agg-td" style="width: 28px" />
-              <td v-for="col in activeColumns" :key="col.key" class="dt__agg-td">
+              <td
+                v-for="col in activeColumns"
+                :key="col.key"
+                class="dt__agg-td"
+                :style="{ textAlign: col.align }"
+              >
                 {{
                   (() => {
                     const v = computeAggregate(col, group.rows)
@@ -2169,7 +2176,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                   v-for="col in activeColumns"
                   :key="col.key"
                   class="dt__td"
-                  :style="{ width: col.width ? `${col.width}px` : undefined }"
+                  :style="{ width: col.width ? `${col.width}px` : undefined, textAlign: col.align }"
                 >
                   <!--
                     Slot #cell-{key} — custom cell rendering.
@@ -2262,7 +2269,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
 <style scoped>
 .dt {
   font-family: inherit;
-  font-size: 14px;
+  font-size: var(--font-size-lg, 14px);
   color: var(--color-text-primary);
 }
 
@@ -2298,7 +2305,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
 }
 .dt__stats {
   margin-left: auto;
-  font-size: 12px;
+  font-size: var(--font-size-sm, 12px);
   color: var(--color-text-secondary);
   white-space: nowrap;
 }
@@ -2311,7 +2318,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
 }
 .dt__search-input {
   padding: 4px 24px 4px 8px;
-  font-size: 13px;
+  font-size: var(--font-size-md, 13px);
   border: 0.5px solid var(--color-border-secondary);
   border-radius: 6px;
   background: transparent;
@@ -2328,7 +2335,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
   border: none;
   cursor: pointer;
   padding: 2px 4px;
-  font-size: 14px;
+  font-size: var(--font-size-lg, 14px);
   line-height: 1;
   color: var(--color-text-tertiary);
   font-family: inherit;
@@ -2347,7 +2354,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
   background: none;
   border: 0.5px solid var(--color-border-secondary);
   border-radius: 0 6px 6px 0;
-  font-size: 14px;
+  font-size: var(--font-size-lg, 14px);
   line-height: 1;
   cursor: pointer;
   color: var(--color-text-tertiary);
@@ -2362,7 +2369,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
   background: none;
   border: 0.5px solid var(--color-border-secondary);
   border-radius: 6px;
-  font-size: 12px;
+  font-size: var(--font-size-sm, 12px);
   cursor: pointer;
   color: var(--color-text-secondary);
   font-family: inherit;
@@ -2380,15 +2387,15 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
 /* Dropdown internals */
 .dt__dd-section {
   padding: 6px 14px 2px;
-  font-size: 11px;
+  font-size: var(--font-size-xs, 11px);
   color: var(--color-text-tertiary);
-  font-weight: 500;
+  font-weight: var(--font-weight-medium, 500);
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
 .dt__dd-hint {
   padding: 0 14px 6px;
-  font-size: 11px;
+  font-size: var(--font-size-xs, 11px);
   color: var(--color-text-tertiary);
 }
 :deep(.dt__dd-item) {
@@ -2396,7 +2403,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
   align-items: center;
   gap: 8px;
   padding: 7px 14px;
-  font-size: 13px;
+  font-size: var(--font-size-md, 13px);
   color: var(--color-text-primary);
   /* Button reset — some dd-items render as <button> (add-lists) instead of <div>, for Tab
      reachability + free Enter/Space activation. A no-op for the existing div/label usages. */
@@ -2465,7 +2472,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
   border: none;
   cursor: pointer;
   padding: 2px 4px;
-  font-size: 13px;
+  font-size: var(--font-size-md, 13px);
   color: var(--color-text-tertiary);
   line-height: 1;
 }
@@ -2473,7 +2480,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
   color: var(--color-text-primary);
 }
 .dt__sort-icon {
-  font-size: 15px;
+  font-size: var(--font-size-xl, 15px);
   color: var(--color-border-secondary);
 }
 .dt__sort-icon--active {
@@ -2500,7 +2507,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
 }
 .dt__filter-back {
   flex-shrink: 0;
-  font-weight: 500;
+  font-weight: var(--font-weight-medium, 500);
   border-bottom: 0.5px solid var(--color-border-tertiary);
 }
 .dt__filter-cols {
@@ -2532,7 +2539,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
   justify-content: space-between;
   gap: 6px;
   padding: 7px 10px;
-  font-size: 13px;
+  font-size: var(--font-size-md, 13px);
   cursor: pointer;
   color: var(--color-text-primary);
   border: none;
@@ -2546,7 +2553,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
   box-sizing: border-box;
 }
 .dt__filter-col-item--active {
-  font-weight: 500;
+  font-weight: var(--font-weight-medium, 500);
 }
 .dt__filter-col-label {
   overflow: hidden;
@@ -2559,7 +2566,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
   display: flex;
   align-items: center;
   padding: 0 10px;
-  font-size: 13px;
+  font-size: var(--font-size-md, 13px);
   line-height: 1;
   cursor: pointer;
   color: var(--color-text-tertiary);
@@ -2578,8 +2585,8 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
   gap: 6px;
   width: 100%;
   padding: 7px 10px;
-  font-size: 13px;
-  font-weight: 500;
+  font-size: var(--font-size-md, 13px);
+  font-weight: var(--font-weight-medium, 500);
   cursor: pointer;
   color: var(--color-text-secondary);
   border: none;
@@ -2594,7 +2601,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
 }
 .dt__filter-category-toggle {
   flex-shrink: 0;
-  font-size: 10px;
+  font-size: var(--font-size-2xs, 10px);
   color: var(--color-text-tertiary);
 }
 .dt__filter-category-cols .dt__filter-col-item {
@@ -2648,7 +2655,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
   /* Right padding always reserved (whether or not the clear button is currently shown) so it
      never overlaps the text, and so the box doesn't reflow when the button appears/disappears. */
   padding: 5px 20px 5px 8px;
-  font-size: 12px;
+  font-size: var(--font-size-sm, 12px);
   border: 0.5px solid var(--color-border-secondary);
   border-radius: 6px;
   background: transparent;
@@ -2674,7 +2681,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
   border: none;
   cursor: pointer;
   padding: 2px 4px;
-  font-size: 13px;
+  font-size: var(--font-size-md, 13px);
   line-height: 1;
   color: var(--color-text-tertiary);
   font-family: inherit;
@@ -2715,7 +2722,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
 :deep(.dt__value-sort-btn) {
   flex-shrink: 0;
   padding: 4px 7px;
-  font-size: 11px;
+  font-size: var(--font-size-xs, 11px);
   background: none;
   border: 0.5px solid var(--color-border-secondary);
   border-radius: 6px;
@@ -2738,13 +2745,13 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
 :deep(.dt__filter-match-mode--active) {
   background: var(--color-background-secondary);
   color: var(--color-text-primary);
-  font-weight: 500;
+  font-weight: var(--font-weight-medium, 500);
 }
 .dt__sort-idx {
   width: 18px;
-  font-size: 11px;
+  font-size: var(--font-size-xs, 11px);
   color: var(--color-text-tertiary);
-  font-weight: 500;
+  font-weight: var(--font-weight-medium, 500);
 }
 :deep(.dt__flex1) {
   flex: 1;
@@ -2754,20 +2761,20 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
 .dt__dd-drag-handle {
   flex-shrink: 0;
   color: var(--color-text-tertiary);
-  font-size: 13px;
+  font-size: var(--font-size-md, 13px);
   line-height: 1;
 }
 /* Category tag on a flattened addable/available row while searching (see isColsSearching/
    isSortSearching/isGroupSearching) — the row's own category context, since it's no longer
    nested inside a CategorySubmenu trigger to convey that. */
 .dt__dd-item-category {
-  font-size: 11px;
+  font-size: var(--font-size-xs, 11px);
   color: var(--color-text-tertiary);
   flex-shrink: 0;
   white-space: nowrap;
 }
 :deep(.dt__filter-count) {
-  font-size: 12px;
+  font-size: var(--font-size-sm, 12px);
   color: var(--color-text-tertiary);
   flex-shrink: 0;
 }
@@ -2797,7 +2804,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
   border-radius: 4px;
   background: none;
   font: inherit;
-  font-size: 14px;
+  font-size: var(--font-size-lg, 14px);
   line-height: 1;
   color: var(--color-text-tertiary);
   cursor: pointer;
@@ -2827,7 +2834,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
 .dt__chip {
   display: inline-flex;
   align-items: center;
-  font-size: 12px;
+  font-size: var(--font-size-sm, 12px);
 }
 .dt__chip-body {
   background: var(--color-background-secondary);
@@ -2835,7 +2842,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
   border-right: none;
   border-radius: 12px 0 0 12px;
   padding: 2px 4px 2px 8px;
-  font-size: 12px;
+  font-size: var(--font-size-sm, 12px);
   color: var(--color-text-secondary);
   font-family: inherit;
   cursor: pointer;
@@ -2865,7 +2872,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
   border: 0.5px solid var(--color-border-secondary);
   border-radius: 0 12px 12px 0;
   padding: 2px 8px 2px 2px;
-  font-size: 12px;
+  font-size: var(--font-size-sm, 12px);
   color: var(--color-text-secondary);
   font-family: inherit;
   line-height: 1.4;
@@ -2896,7 +2903,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
   border-right: none;
   border-radius: 0;
   padding: 2px 5px;
-  font-size: 12px;
+  font-size: var(--font-size-sm, 12px);
   color: var(--color-text-tertiary);
   font-family: inherit;
   line-height: 1.4;
@@ -2923,7 +2930,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
   border: 0.5px solid var(--color-border-secondary);
   border-radius: 4px;
   cursor: pointer;
-  font-size: 13px;
+  font-size: var(--font-size-md, 13px);
   color: var(--color-text-primary);
   font-family: inherit;
   line-height: 1;
@@ -2933,7 +2940,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
   cursor: default;
 }
 .dt__page-info {
-  font-size: 12px;
+  font-size: var(--font-size-sm, 12px);
   color: var(--color-text-secondary);
   padding: 0 6px;
 }
@@ -2944,12 +2951,12 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
   margin-left: 10px;
 }
 .dt__rows-per-page-label {
-  font-size: 12px;
+  font-size: var(--font-size-sm, 12px);
   color: var(--color-text-secondary);
 }
 .dt__page-select {
   padding: 4px 6px;
-  font-size: 12px;
+  font-size: var(--font-size-sm, 12px);
   border: 0.5px solid var(--color-border-secondary);
   border-radius: 4px;
   background: transparent;
@@ -2968,13 +2975,13 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
 .dt__table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: var(--font-size-md, 13px);
 }
 .dt__th {
   padding: 8px 12px;
   text-align: left;
-  font-weight: 500;
-  font-size: 12px;
+  font-weight: var(--font-weight-medium, 500);
+  font-size: var(--font-size-sm, 12px);
   background: var(--color-background-tertiary);
   color: var(--color-text-secondary);
   border-bottom: 1px solid var(--color-border-secondary);
@@ -2986,6 +2993,9 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
   display: flex;
   align-items: center;
   gap: 4px;
+}
+.dt__th-spacer {
+  flex: 1;
 }
 /* An unsorted column's ↕ shows only on hover or keyboard focus */
 .dt__th-sort-icon {
@@ -3042,8 +3052,8 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
 .dt__group-row {
   background: var(--color-background-secondary);
   border-left: 3px solid var(--color-border-secondary);
-  font-weight: 600;
-  font-size: 12px;
+  font-weight: var(--font-weight-semibold, 600);
+  font-size: var(--font-size-sm, 12px);
   color: var(--color-text-primary);
   cursor: pointer;
 }
@@ -3065,17 +3075,17 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
 }
 .dt__group-count {
   margin-left: 10px;
-  font-weight: 400;
+  font-weight: var(--font-weight-normal, 400);
   opacity: 0.6;
 }
 .dt__group-continued {
   margin-left: 8px;
-  font-weight: 400;
+  font-weight: var(--font-weight-normal, 400);
   opacity: 0.6;
 }
 .dt__agg-row {
-  font-size: 12px;
-  font-weight: 500;
+  font-size: var(--font-size-sm, 12px);
+  font-weight: var(--font-weight-medium, 500);
   color: var(--color-text-secondary);
   background: var(--color-background-secondary);
 }

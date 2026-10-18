@@ -7,12 +7,18 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Added
+
+- **Column alignment** (Solid, React, Vue, vanilla): `align: 'end'` on a column right-aligns its header, cells and aggregate cells, so a number column's digits line up. The demos right-align their number columns.
+- **Font tokens** (Solid, React, Vue, vanilla): font sizes and weights go through `--font-size-2xs`…`--font-size-xl` and `--font-weight-normal`…`--font-weight-bold`, defaulting to today's values, so an app can bring the table onto its own type scale. See the README's Theming section.
+
 ### Changed
 
 - **A pager only when it helps** (Solid, React, Vue, vanilla): the page buttons and "Page 1 of 1" hide when every row fits on one page, and the whole pager hides when even the smallest rows-per-page choice would fit them all (#41).
 
 ### Fixed
 
+- **The phone Filter pane names its column** (Solid, React, Vue, vanilla): its back button reads "‹ Columns · Tenure (yrs)" instead of "‹ Columns", so the pane says which column it filters.
 - **No empty section headings in the Columns search** (Solid, React, Vue, vanilla): searching the Columns dropdown hides the "Visible columns" or "Available columns" heading when none of its columns match.
 - **Open-ended range chips** (Solid, React, Vue, vanilla): a range filter with only a minimum or a maximum reads `Played (h): ≥ 5.0` or `≤ 20.0` instead of the cut-off-looking `5.0–`.
 - **No unasked keyboard on a phone** (Solid, React, Vue, vanilla): on a touch screen, opening the Columns, Sort, Group or Filter dropdown focuses its first row instead of its search box, so the on-screen keyboard only appears when you tap the search box.

@@ -44,7 +44,7 @@ const triggerStyle: CSSProperties = {
   gap: 8,
   padding: '7px 14px',
   cursor: 'pointer',
-  fontSize: 13,
+  fontSize: 'var(--font-size-md, 13px)',
   color: 'var(--color-text-primary)',
   border: 'none',
   background: 'none',
@@ -56,7 +56,7 @@ const triggerStyle: CSSProperties = {
 }
 const arrowStyle: CSSProperties = {
   flexShrink: 0,
-  fontSize: 10,
+  fontSize: 'var(--font-size-2xs, 10px)',
   color: 'var(--color-text-tertiary)',
 }
 const submenuStyle: CSSProperties = {

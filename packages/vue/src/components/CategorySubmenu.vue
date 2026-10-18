@@ -241,7 +241,7 @@ defineExpose({ triggerRef })
   align-items: center;
   gap: 8px;
   padding: 7px 14px;
-  font-size: 13px;
+  font-size: var(--font-size-md, 13px);
   color: var(--color-text-primary);
   border: none;
   background: none;
@@ -266,7 +266,7 @@ defineExpose({ triggerRef })
 }
 .dt__dd-category-arrow {
   flex-shrink: 0;
-  font-size: 10px;
+  font-size: var(--font-size-2xs, 10px);
   color: var(--color-text-tertiary);
 }
 .dt__dd-submenu {
