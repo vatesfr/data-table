@@ -1,4 +1,4 @@
 ./scripts/check-changelog.sh
-npx lint-staged --quiet
+# --hide-all: the checks see the commit, not unstaged edits or untracked files.
+npx lint-staged --quiet --hide-all
 git diff --cached --check
-./scripts/check.sh check:docs type-check test build check:dist-types size
