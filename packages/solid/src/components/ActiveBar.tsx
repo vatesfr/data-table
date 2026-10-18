@@ -53,87 +53,32 @@ export function ActiveBar<TRow extends object>(props: ActiveBarProps<TRow>) {
 
   const pageGroupCount = createMemo(() => new Set(table.groupedData().map((g) => g.key)).size)
 
-  // A grouped column always carries its own sort entry now (see insertGroupSort/issue #17), so
-  // rendering the sort loop and the group loop independently would show two identically-labeled
-  // chips for the same column with no visual link between them — confusing rather than
-  // informative. Instead: a sort entry whose key is also a groupBy key is skipped here and
-  // rendered paired with its group chip below; every other sort entry renders standalone as
-  // before.
-  const nonGroupSorts = createMemo(() => {
-    const groupBy = table.group.by()
-    return table.sort.entries().filter((s) => !groupBy.includes(s.key))
-  })
-
   return (
     <div class="dt-active-bar">
       {/* Group chips render before the plain (non-group) sort chips — matches the Sort dropdown's
           own "Group order" section coming before "Active sorts" (see SortDropdown.tsx), since
           grouping is the structural, primary concern and tie-break sorting is secondary. */}
       <For each={table.group.by()}>
-        {(key) => {
-          const col = () => props.groupableCols.find((c) => c.key === key)
-          const sortEntry = () => table.sort.entries().find((s) => s.key === key)
-          return (
-            <Show
-              when={sortEntry()}
-              fallback={
-                <span class="dt-chip">
-                  <button type="button" class="dt-chip-body" onClick={() => props.onOpenGroup(key)}>
-                    {col()?.label ?? key}
-                  </button>
-                  <button
-                    type="button"
-                    class="dt-chip-x"
-                    title={table.labels().removeGroup}
-                    aria-label={table.labels().removeGroup}
-                    onClick={() => table.group.remove(key)}
-                  >
-                    ×
-                  </button>
-                </span>
-              }
+        {(key) => (
+          <span class="dt-chip">
+            {/* ⊞ tells it apart from the same column's sort chip (U6) */}
+            <button type="button" class="dt-chip-body" onClick={() => props.onOpenGroup(key)}>
+              <span aria-hidden="true">⊞</span>{' '}
+              {props.groupableCols.find((c) => c.key === key)?.label ?? key}
+            </button>
+            <button
+              type="button"
+              class="dt-chip-x"
+              title={table.labels().removeGroup}
+              aria-label={table.labels().removeGroup}
+              onClick={() => table.group.remove(key)}
             >
-              <span class="dt-chip dt-chip--grouped-sort">
-                <button
-                  type="button"
-                  class="dt-chip-body"
-                  onClick={() => table.sort.toggleDir(key)}
-                >
-                  {getSortIcon(table.sort.entries(), key)} {col()?.label ?? key}
-                </button>
-                <button
-                  type="button"
-                  class="dt-chip-x"
-                  title={table.labels().removeSort}
-                  aria-label={table.labels().removeSort}
-                  onClick={() => table.sort.remove(key)}
-                >
-                  ×
-                </button>
-                <button
-                  type="button"
-                  class="dt-chip-group-mark"
-                  title={table.labels().openGroupDropdown}
-                  aria-label={table.labels().openGroupDropdown}
-                  onClick={() => props.onOpenGroup(key)}
-                >
-                  ⊞
-                </button>
-                <button
-                  type="button"
-                  class="dt-chip-x"
-                  title={table.labels().removeGroup}
-                  aria-label={table.labels().removeGroup}
-                  onClick={() => table.group.remove(key)}
-                >
-                  ×
-                </button>
-              </span>
-            </Show>
-          )
-        }}
+              ×
+            </button>
+          </span>
+        )}
       </For>
-      <For each={nonGroupSorts()}>
+      <For each={table.sort.entries()}>
         {(entry) => {
           const col = () => props.columns.find((c) => c.key === entry.key)
           return (

@@ -4064,7 +4064,8 @@ describe('DataTable — active-bar chip click actions', () => {
       .trigger('click')
   }
 
-  it("every chip-remove button has a title/aria-label, and the merged chip's group-mark uses its own dedicated label", async () => {
+  // U6: one merged chip showed two identical × removing different things
+  it('a sorted and grouped column gets a ⊞ group chip and a separate sort chip, each removing only its own', async () => {
     const wrapper = mount(DataTable, {
       props: { data: ROWS, columns: THREE_COLS, rowKey: 'id' },
     })
@@ -4072,16 +4073,16 @@ describe('DataTable — active-bar chip click actions', () => {
     await wrapper
       .findAll('button.dt__dd-item--clickable')
       .find((el) => el.text() === 'Name')!
-      .trigger('click') // auto-inserts a matching sort entry (insertGroupSort) -> merged chip
+      .trigger('click') // auto-inserts a matching sort entry (insertGroupSort)
     await openDd(wrapper, 'Group') // close
 
-    const chip = wrapper.find('.dt__chip--grouped-sort')
-    const removeBtns = chip.findAll('.dt__chip-remove')
-    expect(removeBtns[0].attributes('title')).toBe('Remove sort')
-    expect(removeBtns[1].attributes('title')).toBe('Remove group')
-    const groupMark = chip.find('.dt__chip-group-mark')
-    expect(groupMark.attributes('title')).toBe('Open in Group dropdown')
-    expect(groupMark.attributes('aria-label')).toBe('Open in Group dropdown')
+    const bodies = () => wrapper.findAll('.dt__chip-body').map((b) => b.text())
+    expect(bodies()).toEqual(['⊞ Name', '↑ Name'])
+    const removeBtns = wrapper.findAll('.dt__chip-remove')
+    expect(removeBtns[0].attributes('aria-label')).toBe('Remove group')
+    expect(removeBtns[1].attributes('aria-label')).toBe('Remove sort')
+    await removeBtns[1].trigger('click')
+    expect(bodies()).toEqual(['⊞ Name'])
   })
 
   it("clicking a sort chip body toggles that column's direction and keeps focus on it", async () => {
@@ -4117,12 +4118,7 @@ describe('DataTable — active-bar chip click actions', () => {
     await openDd(wrapper, 'Group') // close
 
     expect(wrapper.find('.dropdown__menu').exists()).toBe(false)
-    // Grouping also auto-inserts a matching sort entry (issue #17) — rather than two
-    // identically-labeled chips, this merges into one dt__chip--grouped-sort chip; its own
-    // group-mark button (not the body, which now toggles sort direction) opens the dropdown.
-    const groupMark = wrapper.find('[data-chip-group-mark="name"]')
-    expect(groupMark.exists()).toBe(true)
-    await groupMark.trigger('click')
+    await wrapper.find('.dt__chip-body').trigger('click')
     expect(wrapper.find('.dropdown__menu').exists()).toBe(true)
     expect(document.activeElement).toBe(wrapper.find('.dt__dd-item--grouprow').element)
   })

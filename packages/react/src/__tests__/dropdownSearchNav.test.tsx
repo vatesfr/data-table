@@ -512,29 +512,28 @@ describe('DataTable — active-bar chip click actions', () => {
     fireEvent.click(ddCopyOf(getAllByText, 'Dept'))
     fireEvent.click(getByText('Group')) // close the dropdown
     expect(container.querySelector('[data-group-key="dept"]')).toBeNull()
-    // Grouping Dept also auto-inserts a matching sort entry (issue #17), so this renders as one
-    // merged sort+group chip (its body now toggles sort direction) — the dedicated group-mark
-    // button is what opens the Group dropdown here.
-    const groupMark = container.querySelector('[data-chip-group-mark="dept"]')!
-    fireEvent.click(groupMark)
+    const groupChip = [...container.querySelectorAll('button')].find(
+      (b) => b.textContent === '⊞ Dept',
+    )!
+    fireEvent.click(groupChip)
     expect(document.activeElement).toBe(container.querySelector('[data-group-key="dept"]'))
   })
 
-  it('the merged grouped-sort chip labels its sort ×, its ⊞ open-Group mark, and its group × distinctly', () => {
-    const { getByText, getAllByText, container } = render(
+  // U6: one merged chip showed two identical × removing different things
+  it('a sorted and grouped column gets a ⊞ group chip and a separate sort chip, each removing only its own', () => {
+    const { getByText, getAllByText, getAllByRole } = render(
       <DataTable data={ROWS} columns={COLS} rowKey="id" />,
     )
     fireEvent.click(getByText('Group'))
     fireEvent.click(ddCopyOf(getAllByText, 'Dept')) // auto-inserts a matching sort entry too
-    const chip = container
-      .querySelector('[data-chip-group-mark="dept"]')!
-      .closest('span') as HTMLElement
-    // Button order: chip body (toggles sort dir, no label needed) → sort ×  → group mark → group ×.
-    const [, removeSortBtn, groupMark, removeGroupBtn] = [...chip.querySelectorAll('button')]
-    expect(removeSortBtn.title).toBeTruthy()
-    expect(groupMark.getAttribute('aria-label')).not.toBe('Group') // no longer the generic label
-    expect(groupMark.getAttribute('aria-label')).toBeTruthy()
-    expect(removeGroupBtn.title).toBeTruthy()
+    fireEvent.click(getByText('Group')) // close
+    const chipTexts = () =>
+      getAllByRole('button')
+        .map((b) => b.textContent)
+        .filter((t) => t === '⊞ Dept' || t === '↑ Dept')
+    expect(chipTexts()).toEqual(['⊞ Dept', '↑ Dept'])
+    fireEvent.click(getAllByRole('button', { name: 'Remove sort' })[0])
+    expect(chipTexts()).toEqual(['⊞ Dept'])
   })
 
   it('a plain filter chip’s clear button is labeled', () => {

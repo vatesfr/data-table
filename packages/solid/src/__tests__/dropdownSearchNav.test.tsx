@@ -262,11 +262,7 @@ describe('DataTable — active-bar chip click actions', () => {
     clickButtonByText(container, 'Group')
     expect(container.querySelector('.dt-dd')).toBeNull()
 
-    // Grouping a column auto-inserts a matching sort entry (see "Auto-syncing group order with
-    // sort"), so the chip is the merged grouped-sort pill: its body toggles sort direction, and
-    // the separate ⊞ group-mark button is what opens the Group dropdown.
-    const groupMark = container.querySelector<HTMLButtonElement>('.dt-chip-group-mark')!
-    groupMark.click()
+    container.querySelector<HTMLButtonElement>('.dt-active-bar .dt-chip-body')!.click()
     expect(container.querySelector('.dt-dd')).not.toBeNull()
     // The chip's own focus override is queued in a microtask *after* Dropdown's own already-
     // scheduled focus-on-open, specifically so it runs last and wins the race — see

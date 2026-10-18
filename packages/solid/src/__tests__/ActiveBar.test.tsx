@@ -48,7 +48,7 @@ function mount() {
 
 // Every ".dt-chip-x" removes something, and (until now) none of them had an accessible name
 // beyond the literal "×" glyph — see docs/toolbar.md. These tests cover each
-// chip kind's own remove button, plus the merged grouped-sort chip's "⊞" open-Group-dropdown mark.
+// chip kind's own remove button.
 describe('ActiveBar — chip button labels', () => {
   it('a plain sort chip’s remove button uses removeSort', () => {
     const { container, table, dispose } = mount()
@@ -61,27 +61,29 @@ describe('ActiveBar — chip button labels', () => {
 
   it('a plain group chip’s remove button uses removeGroup', () => {
     const { container, table, dispose } = mount()
-    // group.toggle auto-inserts a matching sort entry (insertGroupSort) — remove it so this
-    // renders the plain (non-merged) group chip, not the merged grouped-sort one.
     table.group.toggle('dept')
-    table.sort.remove('dept')
     const btn = container.querySelector<HTMLButtonElement>('.dt-chip .dt-chip-x')!
     expect(btn.title).toBe(table.labels().removeGroup)
     expect(btn.getAttribute('aria-label')).toBe(table.labels().removeGroup)
     dispose()
   })
 
-  it('the merged grouped-sort chip labels its sort ×, its ⊕ open-Group mark, and its group × distinctly', () => {
+  // U6: one merged chip showed two identical × removing different things
+  it('a sorted and grouped column gets a ⊞ group chip and a separate sort chip, each removing only its own', () => {
     const { container, table, dispose } = mount()
     table.group.toggle('dept') // auto-inserts a matching sort entry (see insertGroupSort)
-    const chip = container.querySelector('.dt-chip--grouped-sort')!
-    const [removeSortBtn, groupMark, removeGroupBtn] = [
-      ...chip.querySelectorAll<HTMLButtonElement>('.dt-chip-x, .dt-chip-group-mark'),
+    const bodies = () => [...container.querySelectorAll('.dt-chip-body')].map((b) => b.textContent)
+    expect(bodies()).toEqual(['⊞ Dept', '↑ Dept'])
+    const [removeGroupBtn, removeSortBtn] = [
+      ...container.querySelectorAll<HTMLButtonElement>('.dt-chip-x'),
     ]
-    expect(removeSortBtn.title).toBe(table.labels().removeSort)
-    expect(groupMark.title).toBe(table.labels().openGroupDropdown)
-    expect(groupMark.getAttribute('aria-label')).toBe(table.labels().openGroupDropdown)
-    expect(removeGroupBtn.title).toBe(table.labels().removeGroup)
+    expect(removeGroupBtn.getAttribute('aria-label')).toBe(table.labels().removeGroup)
+    expect(removeSortBtn.getAttribute('aria-label')).toBe(table.labels().removeSort)
+    removeSortBtn.click()
+    expect(bodies()).toEqual(['⊞ Dept'])
+    table.sort.toggle('dept')
+    container.querySelector<HTMLButtonElement>('.dt-chip-x')!.click()
+    expect(bodies()).toEqual(['↑ Dept'])
     dispose()
   })
 

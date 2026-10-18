@@ -244,10 +244,6 @@ export interface DataTableLabels {
   clearGroups: string
   /** Title/aria-label for a Group dropdown active-entry row's own "×" (remove) button */
   removeGroup: string
-  /** Title/aria-label for the active bar's merged grouped-sort chip's own "⊞" button, which opens
-   * the Group dropdown focused on this entry — distinct from that chip's body, which toggles sort
-   * direction instead (see ActiveBar.tsx's "Auto-syncing group order with sort" merged-chip case) */
-  openGroupDropdown: string
   clearAll: string
   /** Title/aria-label for the button that clears the search input */
   clearSearch: string

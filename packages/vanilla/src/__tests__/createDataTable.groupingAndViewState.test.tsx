@@ -192,22 +192,13 @@ describe('createDataTable (grouping, group dropdown, pagination+grouping, search
     groupByDept(container)
     const groupBtn = findButtonByText(container, 'Group')
     expect(groupBtn.textContent).toBe('Group')
-    // Grouping also auto-inserts a matching sort entry (issue #17) — rather than two identically
-    // labeled chips, the active bar merges them into one dt-chip--grouped-sort chip with two ×
-    // buttons (remove sort / remove group).
-    const chips = [...container.querySelectorAll<HTMLElement>('.dt-active-bar .dt-chip')]
-    expect(chips).toHaveLength(1)
-    const groupChip = chips[0]
-    expect(groupChip.classList.contains('dt-chip--grouped-sort')).toBe(true)
-    expect(groupChip.textContent).toContain('Dept')
-    const removeButtons = [...groupChip.querySelectorAll<HTMLElement>('.dt-chip-x')]
-    expect(removeButtons).toHaveLength(2)
-    click(removeButtons[1]) // the group-removal ×, not the sort-removal one
-    // Removing the group doesn't remove the auto-inserted sort — it's now an ordinary sort entry
-    // (plain, unmerged chip) the user can separately reverse/remove (see insertGroupSort note).
-    const remaining = [...container.querySelectorAll<HTMLElement>('.dt-active-bar .dt-chip')]
-    expect(remaining).toHaveLength(1)
-    expect(remaining[0].classList.contains('dt-chip--grouped-sort')).toBe(false)
+    // Grouping also auto-inserts a matching sort entry (issue #17): a ⊞ group chip, then its sort chip
+    const bodies = () =>
+      [...container.querySelectorAll('.dt-active-bar .dt-chip-body')].map((b) => b.textContent)
+    expect(bodies()).toEqual(['⊞ Dept', '↑ Dept'])
+    click(container.querySelector<HTMLElement>('.dt-active-bar .dt-chip-x')!)
+    // Removing the group leaves the auto-inserted sort (see insertGroupSort note)
+    expect(bodies()).toEqual(['↑ Dept'])
   })
 
   it('removing an active group entry clears the group and moves the column back to the add section', () => {

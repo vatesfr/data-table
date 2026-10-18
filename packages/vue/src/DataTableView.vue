@@ -1812,70 +1812,25 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
       has an equally obvious single inline toggle the way direction is for sort.
     -->
     <div class="dt__active-bar">
-      <!-- A grouped column always carries its own sort entry now (insertGroupSort, issue #17),
-           so rendering the sort loop and the group loop independently would show two
-           identically-labeled chips for the same column with nothing visually linking them —
-           nonGroupSortEntries below skips a sort entry when its key is also a groupBy key; it's
-           rendered merged with its group chip here instead. Group chips render before plain sort
-           chips — matches the Sort dropdown's own "Group order" section coming before "Active
-           sorts", since grouping is the structural, primary concern and tie-break sorting is
-           secondary. -->
-      <template v-for="key in groupBy" :key="key">
-        <span v-if="sorts.find((s) => s.key === key)" class="dt__chip dt__chip--grouped-sort">
-          <button type="button" class="dt__chip-body" @click="toggleSortDir(key)">
-            {{ getSortIcon(key) }} {{ findCol(key)?.label ?? key }}
-          </button>
-          <button
-            type="button"
-            class="dt__chip-remove"
-            :title="L.removeSort"
-            :aria-label="L.removeSort"
-            @click="removeSort(key)"
-          >
-            ×
-          </button>
-          <!--
-            Opens the Group dropdown focused on this entry — distinct from the chip body right
-            before it, which toggles sort direction instead. Its own dedicated label
-            (openGroupDropdown), not the generic L.group — a screen reader announcing plain
-            "Group" on this button gave no indication what it actually does.
-          -->
-          <button
-            type="button"
-            class="dt__chip-group-mark"
-            :title="L.openGroupDropdown"
-            :aria-label="L.openGroupDropdown"
-            :data-chip-group-mark="key"
-            @click="onOpenGroupEntry(key)"
-          >
-            ⊞
-          </button>
-          <button
-            type="button"
-            class="dt__chip-remove"
-            :title="L.removeGroup"
-            :aria-label="L.removeGroup"
-            @click="removeGroup(key)"
-          >
-            ×
-          </button>
-        </span>
-        <span v-else class="dt__chip">
-          <button type="button" class="dt__chip-body" @click="onOpenGroupEntry(key)">
-            {{ findCol(key)?.label ?? key }}
-          </button>
-          <button
-            type="button"
-            class="dt__chip-remove"
-            :title="L.removeGroup"
-            :aria-label="L.removeGroup"
-            @click="removeGroup(key)"
-          >
-            ×
-          </button>
-        </span>
-      </template>
-      <span v-for="entry in nonGroupSortEntries" :key="entry.key" class="dt__chip">
+      <!-- Group chips render before sort chips — matches the Sort dropdown's own "Group order"
+           section coming before "Active sorts", since grouping is the structural, primary
+           concern and tie-break sorting is secondary. -->
+      <span v-for="key in groupBy" :key="key" class="dt__chip">
+        <!-- ⊞ tells it apart from the same column's sort chip (U6) -->
+        <button type="button" class="dt__chip-body" @click="onOpenGroupEntry(key)">
+          <span aria-hidden="true">⊞</span> {{ findCol(key)?.label ?? key }}
+        </button>
+        <button
+          type="button"
+          class="dt__chip-remove"
+          :title="L.removeGroup"
+          :aria-label="L.removeGroup"
+          @click="removeGroup(key)"
+        >
+          ×
+        </button>
+      </span>
+      <span v-for="entry in sorts" :key="entry.key" class="dt__chip">
         <button type="button" class="dt__chip-body" @click="toggleSortDir(entry.key)">
           {{ getSortIcon(entry.key) }} {{ findCol(entry.key)?.label ?? entry.key }}
         </button>
@@ -2881,37 +2836,6 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
   min-width: 24px;
 }
 .dt__chip-remove:hover {
-  color: var(--color-text-primary);
-}
-/* A grouped column's chip merges its sort chip and group chip into one pill (issue #17's
-   follow-up) instead of showing two identically-labeled chips. dt__chip--grouped-sort's sort-
-   remove × squares off its right edge — it's no longer the pill's last segment — so it butts
-   cleanly against dt__chip-group-mark next to it; the trailing group-remove × stays a plain
-   .dt__chip-remove (the pill's actual right end). Selected via the adjacent-sibling combinator
-   (.dt__chip-body + .dt__chip-remove), not :first-of-type — :first-of-type counts by tag name,
-   and .dt__chip-body is itself a <button> and the pill's actual first child, so a :first-of-type
-   selector on .dt__chip-remove never matched anything. font-size matches the other segments' 12px
-   so the middle segment isn't visibly shorter (line-height is relative to font-size). */
-.dt__chip--grouped-sort .dt__chip-body + .dt__chip-remove {
-  border-radius: 0;
-  border-right: none;
-}
-.dt__chip-group-mark {
-  cursor: pointer;
-  background: var(--color-background-secondary);
-  border: 0.5px solid var(--color-border-secondary);
-  border-right: none;
-  border-radius: 0;
-  padding: 2px 5px;
-  font-size: var(--font-size-sm, 12px);
-  color: var(--color-text-tertiary);
-  font-family: inherit;
-  line-height: 1.4;
-  min-height: 24px;
-  min-width: 24px;
-}
-.dt__chip-group-mark:hover {
-  background: var(--color-background-tertiary);
   color: var(--color-text-primary);
 }
 

@@ -311,29 +311,6 @@ const S = {
     color: 'var(--color-text-danger)',
     border: '0.5px solid var(--color-border-danger)',
   } as CSSProperties,
-  // A grouped column's own chip merges its sort chip and group chip into one pill (see
-  // "Active-bar chip click actions" / issue #17's follow-up in docs/toolbar.md) instead of showing two
-  // identically-labeled chips — chipXMiddle squares off the sort-remove ×'s right edge (it's no
-  // longer the pill's last segment) so it butts cleanly against chipGroupMark next to it; the
-  // trailing group-remove × stays plain chipX (still the pill's actual right end).
-  chipXMiddle: {
-    borderRadius: 0,
-    borderRight: 'none',
-  } as CSSProperties,
-  chipGroupMark: {
-    cursor: 'pointer',
-    background: 'var(--color-background-secondary)',
-    border: '0.5px solid var(--color-border-secondary)',
-    borderRight: 'none',
-    borderRadius: 0,
-    padding: '2px 5px',
-    fontSize: 'var(--font-size-sm, 12px)',
-    color: 'var(--color-text-tertiary)',
-    fontFamily: 'inherit',
-    lineHeight: 1.4,
-    minHeight: 24,
-    minWidth: 24,
-  } as CSSProperties,
   groupRow: {
     background: 'var(--color-background-secondary)',
     borderLeft: '3px solid var(--color-border-secondary)',
@@ -3301,73 +3278,28 @@ export function DataTableView<TRow extends object>({
             grouped clear buttons above) that does something specific to that chip's own kind of
             active state, so tweaking an already-active sort/group/filter no longer requires
             reopening its dropdown and re-navigating to the same entry. */}
-        {/* A grouped column always carries its own sort entry now (insertGroupSort, issue #17),
-            so rendering the sort loop and the group loop independently would show two
-            identically-labeled chips for the same column with nothing visually linking them —
-            skip a sort entry below when its key is also a groupBy key; it's rendered merged with
-            its group chip here instead. Group chips render before plain sort chips — matches the
-            Sort dropdown's own "Group order" section coming before "Active sorts" (see below),
-            since grouping is the structural, primary concern and tie-break sorting is
-            secondary. */}
+        {/* Group chips render before sort chips — matches the Sort dropdown's own "Group order"
+            section coming before "Active sorts", since grouping is the structural, primary
+            concern and tie-break sorting is secondary. */}
         {groupBy.map((key) => {
           const col = groupableCols.find((c) => c.key === key)
-          const sortEntry = sorts.find((s) => s.key === key)
-          if (!sortEntry) {
-            return (
-              <span key={key} style={S.chip}>
-                {/* Opens the Group dropdown focused on this entry's row — there's no single
+          return (
+            <span key={key} style={S.chip}>
+              {/* Opens the Group dropdown focused on this entry's row — there's no single
                     obvious inline toggle for a group entry the way direction is for sort, so
                     getting straight to it (ready to reorder/remove) is the most useful available
                     action. Reuses pendingGroupFocusKey (see above) since it already matches on
                     the same data-group-key the dropdown's own active row carries. */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    pendingGroupFocusKey.current = key
-                    setOpenGroupDD(true)
-                  }}
-                  style={S.chipBody}
-                >
-                  {col?.label ?? key}
-                </button>
-                <button
-                  type="button"
-                  title={L.removeGroup}
-                  aria-label={L.removeGroup}
-                  onClick={() => removeGroup(key)}
-                  style={S.chipX}
-                >
-                  ×
-                </button>
-              </span>
-            )
-          }
-          return (
-            <span key={key} style={S.chip}>
-              <button type="button" onClick={() => toggleSortDir(key)} style={S.chipBody}>
-                {getSortIcon(key)} {col?.label ?? key}
-              </button>
               <button
                 type="button"
-                title={L.removeSort}
-                aria-label={L.removeSort}
-                onClick={() => removeSort(key)}
-                style={{ ...S.chipX, ...S.chipXMiddle }}
-              >
-                ×
-              </button>
-              <button
-                type="button"
-                data-chip-group-mark={key}
                 onClick={() => {
                   pendingGroupFocusKey.current = key
                   setOpenGroupDD(true)
                 }}
-                style={S.chipGroupMark}
-                title={L.openGroupDropdown}
-                aria-label={L.openGroupDropdown}
+                style={S.chipBody}
               >
-                ⊞
+                {/* ⊞ tells it apart from the same column's sort chip (U6) */}
+                <span aria-hidden="true">⊞</span> {col?.label ?? key}
               </button>
               <button
                 type="button"
@@ -3381,33 +3313,31 @@ export function DataTableView<TRow extends object>({
             </span>
           )
         })}
-        {sorts
-          .filter((entry) => !groupBy.includes(entry.key))
-          .map((entry) => {
-            const col = columns.find((c) => c.key === entry.key)
-            return (
-              <span key={entry.key} style={S.chip}>
-                {/* Toggles direction in place — the same action the Sort dropdown's own
+        {sorts.map((entry) => {
+          const col = columns.find((c) => c.key === entry.key)
+          return (
+            <span key={entry.key} style={S.chip}>
+              {/* Toggles direction in place — the same action the Sort dropdown's own
                     active-sort row already uses — no dropdown needed for the single most common
                     tweak. `entry.key` keeps this button's identity (and DOM node) stable across
                     the toggle, so it stays focused for free with no explicit refocus needed,
                     unlike Group/Filter above (whose click opens a not-yet-mounted dropdown
                     panel). */}
-                <button type="button" onClick={() => toggleSortDir(entry.key)} style={S.chipBody}>
-                  {getSortIcon(entry.key)} {col?.label ?? entry.key}
-                </button>
-                <button
-                  type="button"
-                  title={L.removeSort}
-                  aria-label={L.removeSort}
-                  onClick={() => removeSort(entry.key)}
-                  style={S.chipX}
-                >
-                  ×
-                </button>
-              </span>
-            )
-          })}
+              <button type="button" onClick={() => toggleSortDir(entry.key)} style={S.chipBody}>
+                {getSortIcon(entry.key)} {col?.label ?? entry.key}
+              </button>
+              <button
+                type="button"
+                title={L.removeSort}
+                aria-label={L.removeSort}
+                onClick={() => removeSort(entry.key)}
+                style={S.chipX}
+              >
+                ×
+              </button>
+            </span>
+          )
+        })}
         {activeFilterCount > 0 &&
           Object.entries(filters)
             .filter(([, v]) => v.size > 0)
