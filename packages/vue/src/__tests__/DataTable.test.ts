@@ -4182,7 +4182,7 @@ describe('DataTable — filter dropdown on a narrow screen (U16)', () => {
     expect(wrapper.find('.dt__filter-cols').exists()).toBe(false)
     expect(wrapper.find('.dt__filter-detail').exists()).toBe(true)
     const back = wrapper.find('.dt__filter-back')
-    expect(back.text()).toContain('Columns')
+    expect(back.text()).toBe('‹ Columns · Name')
     await back.trigger('click')
     await tick()
     expect(wrapper.find('.dt__filter-detail').exists()).toBe(false)

@@ -3232,7 +3232,7 @@ export function DataTableView<TRow extends object>({
                     }}
                     style={{ ...S.ddItemButton, ...S.filterBack }}
                   >
-                    ‹ {L.columns}
+                    ‹ {L.columns} · {filterDetailCol?.label}
                   </button>
                 )}
                 {filterDetailCol && (!narrowFilter || filterShowValues) && (

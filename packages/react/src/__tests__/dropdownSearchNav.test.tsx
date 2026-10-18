@@ -1056,7 +1056,7 @@ describe('DataTable — filter dropdown on a narrow screen (U16)', () => {
     expect(container.querySelector('[data-filter-cols]')).toBeNull()
     expect(container.querySelector('[data-filter-detail]')).not.toBeNull()
     const back = container.querySelector<HTMLButtonElement>('[data-filter-back]')!
-    expect(back.textContent).toContain('Columns')
+    expect(back.textContent).toBe('‹ Columns · Name')
     fireEvent.click(back)
     expect(container.querySelector('[data-filter-detail]')).toBeNull()
     expect(document.activeElement).toBe(container.querySelector('[data-filter-col-key="name"]'))

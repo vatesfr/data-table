@@ -1756,7 +1756,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
               data-filter-back
               @click="showFilterColumns"
             >
-              ‹ {{ L.columns }}
+              ‹ {{ L.columns }} · {{ filterDetailCol?.label }}
             </button>
             <FilterPane
               v-if="filterDetailCol && (!narrowFilter || filterShowValues)"
