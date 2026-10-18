@@ -1,4 +1,4 @@
-import { For, Show } from 'solid-js'
+import { For, Show, untrack } from 'solid-js'
 import { pageSizeOptions, showsPager } from '@vates/data-table-core/internal'
 import type { TableState } from '../createTableState'
 
@@ -8,7 +8,8 @@ interface PaginationProps<TRow extends object> {
 
 export function Pagination<TRow extends object>(props: PaginationProps<TRow>) {
   const { table } = props
-  const pageSizes = () => pageSizeOptions(table.pagination.pageSize())
+  const initialPageSize = untrack(table.pagination.pageSize)
+  const pageSizes = () => pageSizeOptions(table.pagination.pageSize(), initialPageSize)
 
   return (
     <Show

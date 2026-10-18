@@ -8,12 +8,7 @@ Severity: **blocker** (goal unreachable) · **major** (reached with confusion or
 
 Seeded 2026-10-04 from issues reported by a consumer app, each reproduced on the demos (Solid, spot-checked on React and Vue).
 
-- [Pagination](#pagination)
 - [Active bar](#active-bar)
-
-## Pagination
-
-- **U27 · major · UC01, UC04, UC07** — with fewer rows than the next page size (search "lead": 7 rows at 5 per page), picking 10 in "Rows per page" hides the whole pager: the select vanishes under the pointer, focus drops to the page, and 5 is no longer offered, so the starting page size can't be picked again. Keep the table's initial page size among the choices, so the pager stays while it can still split the rows.
 
 ## Active bar
 

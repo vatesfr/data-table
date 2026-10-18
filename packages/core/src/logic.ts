@@ -2253,12 +2253,12 @@ export function getCrossPageFocusTarget<TRow extends object>(
  * 5 }` against the default choices) silently shows the wrong option as
  * selected, since the browser falls back to the first one rather than leaving nothing selected.
  * Inserting the current value keeps the dropdown honest for any custom
- * `initialViewState.pageSize`/`setPageSize` call, not just the four defaults.
+ * `initialViewState.pageSize`/`setPageSize` call, not just the four defaults. The table's
+ * starting size stays too, or picking a larger one could leave every choice fitting the rows and
+ * hide the pager under the pointer (U27).
  */
-export function pageSizeOptions(pageSize: number): number[] {
-  const options = [10, 20, 50, 100]
-  if (options.includes(pageSize)) return options
-  return [...options, pageSize].sort((a, b) => a - b)
+export function pageSizeOptions(pageSize: number, initialPageSize: number): number[] {
+  return [...new Set([10, 20, 50, 100, pageSize, initialPageSize])].sort((a, b) => a - b)
 }
 
 /** Whether the pager is worth showing: the smallest of the (sorted) page sizes splits the items into pages */

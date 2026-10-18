@@ -19,7 +19,7 @@ The pager shows only when it can change something: `showsPager` (core) hides it 
 
 The «, ‹, › and » buttons are named by the `firstPage`/`previousPage`/`nextPage`/`lastPage` labels (`aria-label`), since the glyph alone reads as nothing useful.
 
-The "Rows per page" `<select>` offers 10, 20, 50 and 100, but a consumer's `initialViewState.pageSize`/`setPageSize` isn't restricted to those four — a plain `<select>` bound to a value absent from its own `<option>`s can't select anything, so the browser falls back to displaying the first option, silently showing the wrong number while the actual `pageSize` (and the row count on screen) stays correct. `pageSizeOptions(pageSize)` (core) holds the default choices once and inserts `pageSize` (sorted) when it's missing, so the dropdown always has a matching option.
+The "Rows per page" `<select>` offers 10, 20, 50 and 100, but a consumer's `initialViewState.pageSize`/`setPageSize` isn't restricted to those four — a plain `<select>` bound to a value absent from its own `<option>`s can't select anything, so the browser falls back to displaying the first option, silently showing the wrong number while the actual `pageSize` (and the row count on screen) stays correct. `pageSizeOptions(pageSize, initialPageSize)` (core) holds the default choices once and adds `pageSize` and the table's starting size (sorted) when they're missing, so the dropdown always has a matching option. Each pager reads its starting size once, on mount: without it, picking 10 with 7 rows at a starting 5 left every choice fitting the rows, and `showsPager` hid the select under the pointer (U27).
 
 ---
 

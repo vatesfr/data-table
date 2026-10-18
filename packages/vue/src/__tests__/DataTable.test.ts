@@ -2585,6 +2585,23 @@ describe('DataTable — keyboard navigation across pages', () => {
     expect(wrapper.find('button[aria-label="Next page"]').exists()).toBe(false)
   })
 
+  // U27: picking a larger size hid the whole pager, and the starting size with it
+  it('keeps the pager and the starting page size after picking a larger one', async () => {
+    const rows = [...ROWS6, ROWS6[0]].map((r, i) => ({ ...r, id: i + 1 }))
+    const wrapper = mount(DataTable, {
+      props: { data: rows, columns: COLS, rowKey: 'id', initialViewState: { pageSize: 5 } },
+    })
+    await wrapper.find('select').setValue('10')
+    expect(wrapper.find('select').exists()).toBe(true)
+    expect(wrapper.findAll('select option').map((o) => o.text())).toEqual([
+      '5',
+      '10',
+      '20',
+      '50',
+      '100',
+    ])
+  })
+
   it('names the rows-per-page select after its visible label', () => {
     const wrapper = mount(DataTable, {
       props: { data: ROWS6, columns: COLS, rowKey: 'id', initialViewState: { pageSize: 2 } },

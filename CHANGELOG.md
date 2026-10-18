@@ -17,7 +17,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 - **Separate group and sort chips** (Solid, React, Vue, vanilla): a column both grouped and sorted shows a `⊞ Department ×` group chip and a `↑ Department ×` sort chip, instead of one chip with two identical × removing different things.
 - **BREAKING (all four adapters):** the `openGroupDropdown` label is removed, along with the merged chip's ⊞ button it named.
-- **A pager only when it helps** (Solid, React, Vue, vanilla): the page buttons and "Page 1 of 1" hide when every row fits on one page, and the whole pager hides when even the smallest rows-per-page choice would fit them all (#41).
+- **A pager only when it helps** (Solid, React, Vue, vanilla): the page buttons and "Page 1 of 1" hide when every row fits on one page, and the whole pager hides when even the smallest rows-per-page choice would fit them all (#41). The table's starting page size stays among the choices.
 
 ### Fixed
 

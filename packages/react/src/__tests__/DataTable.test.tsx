@@ -2560,6 +2560,17 @@ describe('DataTable — keyboard navigation across pages', () => {
     expect(queryByRole('button', { name: 'Next page' })).toBeNull()
   })
 
+  // U27: picking a larger size hid the whole pager, and the starting size with it
+  it('keeps the pager and the starting page size after picking a larger one', () => {
+    const rows = [...ROWS6, ROWS6[0]].map((r, i) => ({ ...r, id: i + 1 }))
+    const { getByRole } = render(
+      <DataTable data={rows} columns={COLS} rowKey="id" initialViewState={{ pageSize: 5 }} />,
+    )
+    fireEvent.change(getByRole('combobox', { name: 'Rows per page:' }), { target: { value: '10' } })
+    const select = getByRole('combobox', { name: 'Rows per page:' }) as HTMLSelectElement
+    expect([...select.options].map((o) => o.value)).toEqual(['5', '10', '20', '50', '100'])
+  })
+
   it('names the rows-per-page select after its visible label', () => {
     const { getByRole } = render(
       <DataTable data={ROWS6} columns={COLS} rowKey="id" initialViewState={{ pageSize: 2 }} />,

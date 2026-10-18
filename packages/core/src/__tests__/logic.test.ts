@@ -1484,13 +1484,20 @@ describe('getCrossPageFocusTarget', () => {
 
 describe('pageSizeOptions', () => {
   it('returns the default choices when pageSize is already one of them', () => {
-    expect(pageSizeOptions(20)).toEqual([10, 20, 50, 100])
+    expect(pageSizeOptions(20, 20)).toEqual([10, 20, 50, 100])
   })
 
   it('inserts a custom pageSize in sorted order when absent from the defaults', () => {
-    expect(pageSizeOptions(5)).toEqual([5, 10, 20, 50, 100])
-    expect(pageSizeOptions(30)).toEqual([10, 20, 30, 50, 100])
-    expect(pageSizeOptions(200)).toEqual([10, 20, 50, 100, 200])
+    expect(pageSizeOptions(5, 5)).toEqual([5, 10, 20, 50, 100])
+    expect(pageSizeOptions(30, 30)).toEqual([10, 20, 30, 50, 100])
+    expect(pageSizeOptions(200, 200)).toEqual([10, 20, 50, 100, 200])
+  })
+
+  // U27: dropping the starting size once another was picked could hide the whole pager
+  it('keeps the starting page size among the choices', () => {
+    expect(pageSizeOptions(10, 5)).toEqual([5, 10, 20, 50, 100])
+    expect(pageSizeOptions(30, 5)).toEqual([5, 10, 20, 30, 50, 100])
+    expect(pageSizeOptions(5, 5)).toEqual([5, 10, 20, 50, 100])
   })
 })
 

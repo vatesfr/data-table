@@ -1980,7 +1980,8 @@ export function DataTableView<TRow extends object>({
   // group is already a click away regardless of selectable/onRowClick.
   const rowNavEnabled = selectable || !!onRowClick
   const pageVisibleItems = paginateVisibleItems(visibleItems, page, pageSize)
-  const pageSizes = pageSizeOptions(pageSize)
+  const [initialPageSize] = useState(pageSize)
+  const pageSizes = pageSizeOptions(pageSize, initialPageSize)
   const navigableItems = pageVisibleItems.filter((item) => item.kind === 'group' || rowNavEnabled)
   const effectiveFocusTarget =
     focusTarget && indexOfVisibleItem(navigableItems, focusTarget) !== -1

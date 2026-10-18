@@ -169,6 +169,28 @@ describe('DataTable', () => {
     dispose()
   })
 
+  // U27: picking a larger size hid the whole pager, and the starting size with it
+  it('keeps the pager and the starting page size after picking a larger one', () => {
+    const rows = Array.from({ length: 7 }, (_, i) => ({ id: i + 1, name: `Row ${i + 1}` }))
+    const container = document.createElement('div')
+    const dispose = createRoot((d) => {
+      render(
+        () => (
+          <DataTable data={rows} columns={COLS} rowKey="id" initialViewState={{ pageSize: 5 }} />
+        ),
+        container,
+      )
+      return d
+    })
+    const select = container.querySelector<HTMLSelectElement>('.dt-pagination select')!
+    select.value = '10'
+    select.dispatchEvent(new Event('change', { bubbles: true }))
+    const after = container.querySelector<HTMLSelectElement>('.dt-pagination select')
+    expect(after).not.toBeNull()
+    expect([...after!.options].map((o) => o.value)).toEqual(['5', '10', '20', '50', '100'])
+    dispose()
+  })
+
   it('names the rows-per-page select after its visible label', () => {
     const container = document.createElement('div')
     const dispose = createRoot((d) => {

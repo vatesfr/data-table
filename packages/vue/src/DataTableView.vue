@@ -192,7 +192,9 @@ function groupCollapsed(key: string): boolean {
 // page boundary contributes a second ("continued") chunk that shouldn't be double-counted.
 const pageGroupCount = computed(() => new Set(groupedData.value.map((g) => g.key)).size)
 
-const pageSizes = computed(() => pageSizeOptions(pageSize.value))
+// Read once on purpose: the starting size, kept among the choices (U27)
+const initialPageSize = pageSize.value
+const pageSizes = computed(() => pageSizeOptions(pageSize.value, initialPageSize))
 
 function setItemRef(key: TRow | string, el: Element | null): void {
   if (el) rowRefs.set(key, el as HTMLTableRowElement)
