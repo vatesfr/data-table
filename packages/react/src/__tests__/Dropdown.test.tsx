@@ -4,6 +4,7 @@ import { Dropdown } from '../components/Dropdown'
 
 // jsdom has no layout: the panel (the [data-body] parent) sits at `naturalLeft` plus its translateX
 let naturalLeft = 900
+let naturalTop = 40
 const translateX = (transform: string) =>
   Number(/translateX\((-?[\d.]+)px\)/.exec(transform)?.[1] ?? 0)
 const stubLayout = () => {
@@ -13,7 +14,13 @@ const stubLayout = () => {
     if (!this.querySelector(':scope > [data-body]'))
       return { top: 0, bottom: 0, left: 0, right: 0 } as DOMRect
     const left = naturalLeft + translateX(this.style.transform)
-    return { top: 40, bottom: 140, left, right: left + 300, width: 300 } as DOMRect
+    return {
+      top: naturalTop,
+      bottom: naturalTop + 100,
+      left,
+      right: left + 300,
+      width: 300,
+    } as DOMRect
   })
   // Absent from jsdom; its computed `transform` is the inline one, rendered without transition
   vi.stubGlobal(
@@ -33,6 +40,25 @@ describe('Dropdown viewport clamping', () => {
     vi.restoreAllMocks()
     vi.unstubAllGlobals()
     naturalLeft = 900
+    naturalTop = 40
+  })
+
+  it('opens upward with dt-dd--up when the panel would overflow the viewport bottom', () => {
+    stubLayout()
+    // jsdom's innerHeight is 768
+    naturalTop = 700
+    const dropdown = (open: boolean) => (
+      <Dropdown trigger={<button>Open</button>} open={open} setOpen={() => {}}>
+        <div data-body>Items</div>
+      </Dropdown>
+    )
+    const { container, rerender } = render(dropdown(true))
+    const panel = () => container.querySelector('[data-body]')!.parentElement!
+    expect(panel().classList.contains('dt-dd--up')).toBe(true)
+    rerender(dropdown(false))
+    naturalTop = 40
+    rerender(dropdown(true))
+    expect(panel().classList.contains('dt-dd--up')).toBe(false)
   })
 
   it('gives the panel the dt-dd class shared with the other adapters', () => {
