@@ -77,7 +77,7 @@ describe('createDataTable', () => {
 
   it('injects a <style> tag with light and dark mode CSS variables', () => {
     createDataTable(container, { data: ROWS, columns: COLS })
-    const style = document.querySelector('style[data-dt-styles]')
+    const style = document.querySelector('style[data-dt-theme]')
     expect(style).not.toBeNull()
     expect(style!.textContent).toContain('prefers-color-scheme:dark')
     expect(style!.textContent).toContain('[data-theme=dark]')

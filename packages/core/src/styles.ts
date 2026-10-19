@@ -173,13 +173,20 @@ export const DT_STYLES = `
 .dt-agg-td{padding:4px 12px;border-bottom:0.5px solid var(--color-border-tertiary,#eeedea)}
 `
 
-// Injects the rules into <head> at most once per page. Checks the DOM rather than a module flag so
-// two copies of core (duplicate installs) don't inject twice. Inserted first so app stylesheets
-// win the cascade.
+// Injects the rules, and the theme tokens when given, into <head> at most once per page each, so a
+// Solid table still gets its tokens after a React/Vue table injected the rules alone. Checks the
+// DOM rather than a module flag so two copies of core (duplicate installs) don't inject twice.
+// Inserted first so app stylesheets win the cascade.
 export function injectStyles(themeCss = ''): void {
-  if (typeof document === 'undefined' || document.querySelector('style[data-dt-styles]')) return
+  if (typeof document === 'undefined') return
+  injectOnce('data-dt-styles', DT_STYLES)
+  if (themeCss) injectOnce('data-dt-theme', themeCss)
+}
+
+function injectOnce(attr: string, css: string): void {
+  if (document.querySelector(`style[${attr}]`)) return
   const s = document.createElement('style')
-  s.dataset.dtStyles = ''
-  s.textContent = themeCss + DT_STYLES
+  s.setAttribute(attr, '')
+  s.textContent = css
   document.head.insertBefore(s, document.head.firstChild)
 }
