@@ -14,7 +14,7 @@ interface RangeSliderProps<TRow extends object> {
 
 // "2 inputs + a slider" range control (see docs/filter-dropdown.md's "type: 'number'/'type: 'date' range
 // filters get a slider") — two overlapping native <input type="range"> thumbs sharing one visual
-// track (styles.ts makes only the thumb itself a hit target). Both thumbs share one onInput:
+// track (core's DT_STYLES makes only the thumb itself a hit target). Both thumbs share one onInput:
 // the actual applied min/max is always Math.min/Math.max of both thumbs' live values, so dragging
 // one thumb past the other just swaps their visual roles instead of needing cross-clamping.
 //

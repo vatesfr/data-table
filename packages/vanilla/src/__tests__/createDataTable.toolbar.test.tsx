@@ -89,11 +89,9 @@ describe('createDataTable', () => {
     userStyle.textContent = ':root { --color-background-primary: #1b2838; }'
     document.head.appendChild(userStyle)
 
-    // `stylesInjected` is a module-level flag set by earlier tests, so re-import a fresh module
-    // instance to exercise injectStyles() for real.
-    vi.resetModules()
-    const { createDataTable: freshCreateDataTable } = await import('../index')
-    freshCreateDataTable(container, { data: ROWS, columns: COLS })
+    // Earlier tests already injected the tag; drop it so this mount injects it for real
+    document.querySelector('style[data-dt-styles]')?.remove()
+    createDataTable(container, { data: ROWS, columns: COLS })
     const dtStyle = document.querySelector('style[data-dt-styles]')
 
     expect(dtStyle).not.toBeNull()

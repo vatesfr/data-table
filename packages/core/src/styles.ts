@@ -1,7 +1,28 @@
-import { renderThemeCss } from '@vates/data-table-core/theme'
-
-export const STYLES = `
-${renderThemeCss()}
+// The table's style rules, shared by every adapter. Theme tokens (`renderThemeCss()`) stay out:
+// Solid/vanilla inject them alongside these rules, React/Vue apps define their own; every `var()`
+// here has a fallback so the rules render without them. CSS comments would ship in the bundle, so
+// the non-obvious rules are explained here instead:
+//
+// .dt-filter-cols-search-wrap is also a .dt-dd-search-wrap (see FilterDropdown.tsx) — declared
+// after it so this rule's own position:sticky wins the cascade over the shared class's
+// position:relative (same specificity, so declaration order decides); sticky still works fine as
+// the containing block its own clear button needs, same as relative would.
+//
+// Sort/Group/Columns' active rows only ever got the browser's native focus outline, no background
+// — unlike the Filter dropdown's own left-pane column row, which tints its background on selection
+// (see .dt-filter-col-row--active further down) as well as outlining the focused button inside it.
+// Matches that here for the same reason: an outline alone is a much fainter "this is the currently
+// focused row" cue than a filled background, and these three should read the same way Filter's own
+// selected-row treatment already does. Kept alongside (not replacing) the native outline, not
+// instead of it — this is additive polish, not an a11y regression. --grouprow/--colrow had no
+// hover feedback at all before this either (grab-cursor rows, no --click), gaining both.
+//
+// A "Group order" row (see SortDropdown.tsx) is still clickable to toggle direction, just not
+// draggable/Alt+Arrow-reorderable — its own section heading + hint text already explain why, so
+// this only needs to cancel --sortrow's hover highlight (a cue that dragging would do something
+// here, which it wouldn't), not restyle the row into looking disabled. Must come after
+// .dt-dd-item--sortrow:hover above to win the cascade on the shared hover background.
+export const DT_STYLES = `
 .dt{font-family:inherit;font-size:var(--font-size-lg,14px);color:var(--color-text-primary,#1a1916)}
 .dt-toolbar{padding:12px 0;border-bottom:0.5px solid var(--color-border-tertiary,#eeedea)}
 .dt-toolbar-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
@@ -20,10 +41,6 @@ ${renderThemeCss()}
 .dt-dd--up{top:auto;bottom:calc(100% + 4px)}
 .dt-dd-search-row{position:sticky;top:0;display:flex;background:var(--color-background-primary,#fff);padding:6px 12px;z-index:1}
 .dt-dd-search-wrap{position:relative;display:flex;flex:1;min-width:0}
-/* .dt-filter-cols-search-wrap is also a .dt-dd-search-wrap (see FilterDropdown.tsx) — declared
-   after it so this rule's own position:sticky wins the cascade over the shared class's
-   position:relative (same specificity, so declaration order decides); sticky still works fine as
-   the containing block its own clear button needs, same as relative would. */
 .dt-filter-cols-search-wrap{position:sticky;top:0;width:100%;box-sizing:border-box;margin-bottom:4px;background:var(--color-background-primary,#fff);z-index:1}
 .dt-dd-search-clear{position:absolute;right:4px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;padding:2px 4px;font-size:var(--font-size-md,13px);line-height:1;color:var(--color-text-tertiary,#9b9a96);font-family:inherit}
 .dt-dd-search-clear:hover{color:var(--color-text-primary,#1a1916)}
@@ -38,20 +55,7 @@ ${renderThemeCss()}
 .dt-dd-item--grouprow{cursor:grab}
 .dt-dd-item--colrow{cursor:grab}
 .dt-dd-drag-handle{flex-shrink:0;color:var(--color-text-tertiary,#9b9a96);font-size:var(--font-size-md,13px);line-height:1}
-/* Sort/Group/Columns' active rows only ever got the browser's native focus outline, no
-   background — unlike the Filter dropdown's own left-pane column row, which tints its background
-   on selection (see .dt-filter-col-row--active further down) as well as outlining the focused
-   button inside it. Matches that here for the same reason: an outline alone is a much fainter "this is
-   the currently focused row" cue than a filled background, and these three should read the same
-   way Filter's own selected-row treatment already does. Kept alongside (not replacing) the native
-   outline, not instead of it — this is additive polish, not an a11y regression. --grouprow/--colrow
-   had no hover feedback at all before this either (grab-cursor rows, no --click), gaining both. */
 .dt-dd-item--grouprow:hover,.dt-dd-item--grouprow:focus,.dt-dd-item--colrow:hover,.dt-dd-item--colrow:focus{background:var(--color-background-secondary,#f7f6f3)}
-/* A "Group order" row (see SortDropdown.tsx) is still clickable to toggle direction, just not
-   draggable/Alt+Arrow-reorderable — its own section heading + hint text already explain why, so
-   this only needs to cancel --sortrow's hover highlight (a cue that dragging would do something
-   here, which it wouldn't), not restyle the row into looking disabled. Must come after
-   .dt-dd-item--sortrow:hover above to win the cascade on the shared hover background. */
 .dt-dd-item--locked:hover{background:none}
 .dt-dd-item--drag-over{box-shadow:inset 0 2px 0 var(--color-text-primary,#1a1916)}
 .dt-dd-item--drag-over-after{box-shadow:inset 0 -2px 0 var(--color-text-primary,#1a1916)}
@@ -169,18 +173,13 @@ ${renderThemeCss()}
 .dt-agg-td{padding:4px 12px;border-bottom:0.5px solid var(--color-border-tertiary,#eeedea)}
 `
 
-// Injects the stylesheet into <head> at most once per page, regardless of how many tables are
-// mounted or which entry point (createTableState/DataTableView directly, or a wrapper like
-// @vates/data-table-vanilla's createDataTable) triggers the first one. Called from
-// `DataTableView` itself (not left to each caller) so a consumer using the raw Solid components
-// gets a styled table with no separate CSS import to remember, the same "just works" guarantee
-// createDataTable already gave vanilla consumers.
-let stylesInjected = false
-export function injectStyles(): void {
-  if (stylesInjected || typeof document === 'undefined') return
-  stylesInjected = true
+// Injects the rules into <head> at most once per page. Checks the DOM rather than a module flag so
+// two copies of core (duplicate installs) don't inject twice. Inserted first so app stylesheets
+// win the cascade.
+export function injectStyles(themeCss = ''): void {
+  if (typeof document === 'undefined' || document.querySelector('style[data-dt-styles]')) return
   const s = document.createElement('style')
   s.dataset.dtStyles = ''
-  s.textContent = STYLES
+  s.textContent = themeCss + DT_STYLES
   document.head.insertBefore(s, document.head.firstChild)
 }
