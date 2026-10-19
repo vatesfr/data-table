@@ -26,7 +26,7 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <div class="dt-range">
+  <div style="padding: 4px 14px 8px">
     <div v-if="!isDate && presets?.length" class="dt-range-presets">
       <button
         v-for="preset in presets"
@@ -45,14 +45,14 @@ const emit = defineEmits<{
         {{ preset.label }}
       </button>
     </div>
-    <div class="dt-range-inputs">
+    <div style="display: flex; gap: 6px; align-items: center">
       <input
         :type="isDate ? 'date' : 'number'"
         :placeholder="min.placeholder"
         :aria-label="min.ariaLabel"
         :value="min.value"
         @input="emit('update:min', ($event.target as HTMLInputElement).value)"
-        :class="['dt-range-input', { 'dt-range-input--date': isDate }]"
+        class="dt-range-input"
       />
       <span class="dt-range-sep">–</span>
       <input
@@ -61,7 +61,7 @@ const emit = defineEmits<{
         :aria-label="max.ariaLabel"
         :value="max.value"
         @input="emit('update:max', ($event.target as HTMLInputElement).value)"
-        :class="['dt-range-input', { 'dt-range-input--date': isDate }]"
+        class="dt-range-input"
       />
     </div>
     <RangeSlider
@@ -73,40 +73,3 @@ const emit = defineEmits<{
     />
   </div>
 </template>
-
-<style scoped>
-.dt-range {
-  padding: 4px 14px 8px;
-}
-.dt-range-presets {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 8px;
-}
-.dt-range-preset {
-  min-height: 24px;
-}
-.dt-range-inputs {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-}
-.dt-range-sep {
-  font-size: var(--font-size-sm, 12px);
-  color: var(--color-text-tertiary);
-}
-.dt-range-input {
-  width: 80px;
-  padding: 3px 6px;
-  font-size: var(--font-size-sm, 12px);
-  border: 0.5px solid var(--color-border-secondary);
-  border-radius: 4px;
-  font-family: inherit;
-  background: transparent;
-  color: inherit;
-}
-.dt-range-input--date {
-  width: 118px;
-}
-</style>

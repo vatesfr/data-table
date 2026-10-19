@@ -16,12 +16,6 @@ import {
 const OPEN_DELAY = 100
 const CLOSE_DELAY = 250
 
-// Vue's dropdown markup uses class-based row selectors, not the `data-dd-row` attribute React/
-// Solid render (see DD_NAV_SELECTOR's own doc comment, core) — mirrors Dropdown.vue's own
-// `DEFAULT_ROW_SELECTOR` (only the `button.dt-dd-item--clickable` part is reachable from inside
-// a category submenu; the other row kinds it also matches never appear here).
-const SUBMENU_ROW_SELECTOR = 'button.dt-dd-item--clickable'
-
 // Positioned with `position: fixed` at viewport coordinates computed from the trigger's own rect
 // (`computeSubmenuPosition`, core), but rendered as a plain sibling of the trigger — NOT
 // teleported to `document.body`, and NOT `position: absolute` either. Solid's own first version
@@ -87,7 +81,7 @@ function focusFirstRow(): void {
     if (!el) return
     // A flyout without rows (the header menu's filter pane) starts on its first text field
     ;(
-      ddNavFocusables(el, SUBMENU_ROW_SELECTOR)[0] ??
+      ddNavFocusables(el)[0] ??
       el.querySelector<HTMLElement>('input[type=text]') ??
       el.querySelector<HTMLElement>('input, button')
     )?.focus()
@@ -164,7 +158,7 @@ function onSubmenuKeydown(e: KeyboardEvent): void {
   }
   if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Home' && e.key !== 'End') return
   if (!submenuRef.value) return
-  const focusables = ddNavFocusables(submenuRef.value, SUBMENU_ROW_SELECTOR)
+  const focusables = ddNavFocusables(submenuRef.value)
   const active = document.activeElement as HTMLElement | null
   const idx = active ? focusables.indexOf(active) : -1
   if (idx === -1) return
@@ -188,7 +182,7 @@ defineExpose({ triggerRef })
     <button
       ref="triggerRef"
       type="button"
-      class="dt-dd-item dt-dd-item--clickable dt-dd-category-trigger"
+      class="dt-dd-item dt-dd-item--click dt-dd-category-trigger"
       data-dd-row
       :data-category-name="props.name"
       :aria-expanded="props.isOpen"
@@ -205,7 +199,7 @@ defineExpose({ triggerRef })
       "
     >
       <slot name="icon" />
-      <span class="dt-dd-category-label">{{ props.name }}</span>
+      <span class="dt-flex1">{{ props.name }}</span>
       <span class="dt-dd-category-arrow">▸</span>
     </button>
     <div
@@ -224,60 +218,3 @@ defineExpose({ triggerRef })
     </div>
   </div>
 </template>
-
-<style scoped>
-/* Vue's scoped CSS only stamps a component's own `data-v-*` scope id onto elements literally
-   written in *its own* template — the trigger button/submenu div below are this component's own
-   template (unlike the addable-column buttons rendered through `<slot />`, which stay stamped
-   with DataTableView.vue's scope id and pick up its `.dt-dd-item`/`.dt-dd-item--clickable`
-   rules there for free). So the base item look needs its own copy here too, mirroring
-   ToolbarBtn.vue's same self-contained-styling convention for a child component that needs a
-   shared `dt-`-prefixed look. */
-.dt-dd-category {
-  position: relative;
-}
-.dt-dd-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 7px 14px;
-  font-size: var(--font-size-md, 13px);
-  color: var(--color-text-primary);
-  border: none;
-  background: none;
-  font-family: inherit;
-  text-align: left;
-  margin: 0;
-  width: 100%;
-  box-sizing: border-box;
-}
-.dt-dd-item--clickable {
-  cursor: pointer;
-}
-.dt-dd-item--clickable:hover,
-.dt-dd-item--clickable:focus {
-  background: var(--color-background-secondary);
-}
-.dt-dd-category-trigger {
-  justify-content: space-between;
-}
-.dt-dd-category-label {
-  flex: 1;
-}
-.dt-dd-category-arrow {
-  flex-shrink: 0;
-  font-size: var(--font-size-2xs, 10px);
-  color: var(--color-text-tertiary);
-}
-.dt-dd-submenu {
-  z-index: 101;
-  background: var(--color-background-primary);
-  border: 0.5px solid var(--color-border-secondary);
-  border-radius: 8px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-  min-width: 160px;
-  max-height: 320px;
-  overflow-y: auto;
-  padding: 4px 0;
-}
-</style>

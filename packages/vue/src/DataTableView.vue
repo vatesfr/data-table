@@ -34,6 +34,7 @@ import {
   FILTER_NARROW_QUERY,
   exclusionChip,
   isExcludeOnlyColumn,
+  injectStyles,
 } from '@vates/data-table-core/internal'
 import { type SortEntry } from '@vates/data-table-core'
 import type { ColumnDef, DataTableViewInternalProps } from './types'
@@ -54,6 +55,9 @@ const props = withDefaults(defineProps<DataTableViewInternalProps<TRow>>(), {
   showSearch: true,
   showColumns: true,
 })
+
+// The shared stylesheet, without tokens: Vue apps define the --color-* tokens themselves
+injectStyles()
 
 const emit = defineEmits<{
   selectionChange: [rows: TRow[]]
@@ -814,7 +818,6 @@ function onOpenGroupEntry(key: string): Promise<void> {
 // state (rather than reusing dragColKey/dragOverColKey above), mirroring how each dropdown gets
 // its own drag state instead of a shared one.
 const {
-  dragKey: dragSortKey,
   dragOverKey: dragOverSortKey,
   dragOverAfter: dragOverSortAfter,
   onRowDragStart: onSortDragStart,
@@ -855,7 +858,6 @@ function onSortRowKeyDown(event: KeyboardEvent, key: string): void {
 // Same as above, for the Group dropdown's active entries — a group entry has nothing to toggle
 // on click (no direction), so only Alt+↑/↓ reorder applies.
 const {
-  dragKey: dragGroupKey,
   dragOverKey: dragOverGroupKey,
   dragOverAfter: dragOverGroupAfter,
   onRowDragStart: onGroupDragStart,
@@ -884,7 +886,6 @@ function onGroupRowKeyDown(event: KeyboardEvent, key: string): void {
 
 // Drag-and-drop reordering for the Columns dropdown's Visible rows — replaces the old ▲▼ buttons.
 const {
-  dragKey: dragColRowKey,
   dragOverKey: dragOverColRowKey,
   dragOverAfter: dragOverColRowAfter,
   onRowDragStart: onColRowDragStart,
@@ -978,7 +979,7 @@ function clearSearchAndFilters(): void {
 // ── Dropdown column search + keyboard navigation ──
 // Escape (clear a non-empty column-search term first, then close on a second press) and the
 // roving Up/Down/Home/End row-list nav are both now owned by Dropdown.vue itself (see its own
-// `onEscapeClearable`/`rowSelector`/`navRoot` props) — this file only supplies each dropdown's own
+// `onEscapeClearable` prop and `data-dd-row` markers) — this file only supplies each dropdown's own
 // escape-clear callback (colsEscapeClearable/sortEscapeClearable/groupEscapeClearable above,
 // filterEscapeClearable below) and, for the Filter dropdown only, the extra pane-crossing nav
 // that Dropdown's own generic base nav doesn't cover (see onFilterDropdownKeydown below).
@@ -1006,9 +1007,9 @@ function filterEscapeClearable(): boolean {
  * Filter dropdown only: Left/Right crosses between the left column pane and the right detail
  * pane, and the right pane's own rows (value checklist / date tree) get the same Up/Down/Home/End
  * nav as every other dropdown's row list. This is layered on top of Dropdown.vue's own generic
- * Escape/base-nav handling (wired via its `on-escape-clearable`/`nav-root` props on the Filter
- * `<Dropdown>` below), not a replacement for it — the generic nav is scoped to `.dt-filter-cols`
- * (the left pane only, via `nav-root`), so it never conflicts with the right-pane handling here.
+ * Escape/base-nav handling (wired via its `on-escape-clearable` prop on the Filter
+ * `<Dropdown>` below), not a replacement for it — the generic nav only reaches `data-dd-row`
+ * rows (the left pane only), so it never conflicts with the right-pane handling here.
  */
 async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
   if (event.altKey) return
@@ -1084,8 +1085,8 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
           @drop="onColRowsDrop"
           :on-escape-clearable="colsEscapeClearable"
         >
-          <template #trigger="{ open }">
-            <ToolbarBtn :active="open">{{ L.columns }}</ToolbarBtn>
+          <template #trigger>
+            <ToolbarBtn>{{ L.columns }}</ToolbarBtn>
           </template>
           <!--
             Pinned at the top and always mounted (never conditionally rendered based on match
@@ -1129,8 +1130,8 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
             :ref="(el) => setColRowRef(col.key, el as Element | null)"
             :data-col-row-key="col.key"
             class="dt-dd-item dt-dd-item--col dt-dd-item--colrow"
+            data-dd-row
             :class="{
-              'dt-dd-item--dragging': dragColRowKey === col.key,
               'dt-dd-item--drag-over': dragOverColRowKey === col.key && !dragOverColRowAfter,
               'dt-dd-item--drag-over-after': dragOverColRowKey === col.key && dragOverColRowAfter,
             }"
@@ -1171,7 +1172,8 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                 :key="col.key"
                 :ref="(el) => setAddableColRef(col.key, el as Element | null)"
                 type="button"
-                class="dt-dd-item dt-dd-item--clickable"
+                class="dt-dd-item dt-dd-item--click"
+                data-dd-row
                 @click="showColumn(col.key)"
               >
                 <span class="dt-flex1">{{ col.label }}</span>
@@ -1184,7 +1186,8 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                 :key="col.key"
                 :ref="(el) => setAddableColRef(col.key, el as Element | null)"
                 type="button"
-                class="dt-dd-item dt-dd-item--clickable"
+                class="dt-dd-item dt-dd-item--click"
+                data-dd-row
                 @click="showColumn(col.key)"
               >
                 <span class="dt-flex1">{{ col.label }}</span>
@@ -1205,7 +1208,8 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                   :key="col.key"
                   :ref="(el) => setAddableColRef(col.key, el as Element | null)"
                   type="button"
-                  class="dt-dd-item dt-dd-item--clickable"
+                  class="dt-dd-item dt-dd-item--click"
+                  data-dd-row
                   @click="showColumn(col.key)"
                 >
                   <span class="dt-flex1">{{ col.label }}</span>
@@ -1227,8 +1231,8 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
           @drop="onGroupRowsDrop"
           :on-escape-clearable="groupEscapeClearable"
         >
-          <template #trigger="{ open }">
-            <ToolbarBtn :active="open || groupBy.length > 0" :grouped="groupBy.length > 0">
+          <template #trigger>
+            <ToolbarBtn :active="groupBy.length > 0">
               {{ L.group }}
             </ToolbarBtn>
           </template>
@@ -1259,8 +1263,8 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
               :ref="(el) => setGroupRowRef(key, el as Element | null)"
               :data-group-key="key"
               class="dt-dd-item dt-dd-item--col dt-dd-item--grouprow"
+              data-dd-row
               :class="{
-                'dt-dd-item--dragging': dragGroupKey === key,
                 'dt-dd-item--drag-over': dragOverGroupKey === key && !dragOverGroupAfter,
                 'dt-dd-item--drag-over-after': dragOverGroupKey === key && dragOverGroupAfter,
               }"
@@ -1323,7 +1327,8 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                 :key="col.key"
                 :ref="(el) => setAddableGroupRef(col.key, el as Element | null)"
                 type="button"
-                class="dt-dd-item dt-dd-item--clickable"
+                class="dt-dd-item dt-dd-item--click"
+                data-dd-row
                 @click="onAddGroup(col.key)"
               >
                 <span class="dt-flex1">{{ col.label }}</span>
@@ -1336,7 +1341,8 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                 :key="col.key"
                 :ref="(el) => setAddableGroupRef(col.key, el as Element | null)"
                 type="button"
-                class="dt-dd-item dt-dd-item--clickable"
+                class="dt-dd-item dt-dd-item--click"
+                data-dd-row
                 @click="onAddGroup(col.key)"
               >
                 <span class="dt-flex1">{{ col.label }}</span>
@@ -1356,7 +1362,8 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                   :key="col.key"
                   :ref="(el) => setAddableGroupRef(col.key, el as Element | null)"
                   type="button"
-                  class="dt-dd-item dt-dd-item--clickable"
+                  class="dt-dd-item dt-dd-item--click"
+                  data-dd-row
                   @click="onAddGroup(col.key)"
                 >
                   <span class="dt-flex1">{{ col.label }}</span>
@@ -1373,8 +1380,8 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
           @drop="onSortRowsDrop"
           :on-escape-clearable="sortEscapeClearable"
         >
-          <template #trigger="{ open }">
-            <ToolbarBtn :active="open || sorts.length > 0" :grouped="sorts.length > 0">
+          <template #trigger>
+            <ToolbarBtn :active="sorts.length > 0">
               {{ L.sort }}
             </ToolbarBtn>
           </template>
@@ -1407,6 +1414,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
               v-for="(entry, i) in groupSortEntries"
               :key="entry.key"
               class="dt-dd-item dt-dd-item--col dt-dd-item--sortrow dt-dd-item--locked"
+              data-dd-row
               tabindex="0"
               @click="toggleSortDir(entry.key)"
               @keydown="
@@ -1458,8 +1466,8 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
               :ref="(el) => setSortRowRef(entry.key, el as Element | null)"
               :data-sort-key="entry.key"
               class="dt-dd-item dt-dd-item--col dt-dd-item--sortrow"
+              data-dd-row
               :class="{
-                'dt-dd-item--dragging': dragSortKey === entry.key,
                 'dt-dd-item--drag-over': dragOverSortKey === entry.key && !dragOverSortAfter,
                 'dt-dd-item--drag-over-after': dragOverSortKey === entry.key && dragOverSortAfter,
               }"
@@ -1534,7 +1542,8 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                 :key="col.key"
                 :ref="(el) => setAddableSortRef(col.key, el as Element | null)"
                 type="button"
-                class="dt-dd-item dt-dd-item--clickable"
+                class="dt-dd-item dt-dd-item--click"
+                data-dd-row
                 @click="onAddSort(col.key)"
               >
                 <span class="dt-flex1">{{ col.label }}</span>
@@ -1547,7 +1556,8 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                 :key="col.key"
                 :ref="(el) => setAddableSortRef(col.key, el as Element | null)"
                 type="button"
-                class="dt-dd-item dt-dd-item--clickable"
+                class="dt-dd-item dt-dd-item--click"
+                data-dd-row
                 @click="onAddSort(col.key)"
               >
                 <span class="dt-flex1">{{ col.label }}</span>
@@ -1567,7 +1577,8 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                   :key="col.key"
                   :ref="(el) => setAddableSortRef(col.key, el as Element | null)"
                   type="button"
-                  class="dt-dd-item dt-dd-item--clickable"
+                  class="dt-dd-item dt-dd-item--click"
+                  data-dd-row
                   @click="onAddSort(col.key)"
                 >
                   <span class="dt-flex1">{{ col.label }}</span>
@@ -1611,10 +1622,9 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
           ref="filterDropdownRef"
           @keydown="onFilterDropdownKeydown"
           :on-escape-clearable="filterEscapeClearable"
-          nav-root=".dt-filter-cols"
         >
-          <template #trigger="{ open }">
-            <ToolbarBtn :active="open || activeFilterCount > 0" :grouped="activeFilterCount > 0">
+          <template #trigger>
+            <ToolbarBtn :active="activeFilterCount > 0">
               {{ L.filter }}
             </ToolbarBtn>
           </template>
@@ -1693,11 +1703,12 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                     type="button"
                     :data-filter-col-key="col.key"
                     class="dt-filter-col-item"
+                    data-dd-row
                     :class="{ 'dt-filter-col-item--active': col.key === filterActiveKey }"
                     @focus="onFilterColFocus(col.key)"
                     @click="selectFilterCol(col.key)"
                   >
-                    <span class="dt-filter-col-label">{{ col.label }}</span>
+                    <span>{{ col.label }}</span>
                   </button>
                   <!--
                     Replaces the plain active-filter dot: a one-click way to drop this column's
@@ -1723,7 +1734,11 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                 category with an active filter at the moment the panel opens (see
                 collapsedCategories' own comment above).
               -->
-              <template v-for="category in categorizedFilterCols.categories" :key="category.name">
+              <div
+                v-for="category in categorizedFilterCols.categories"
+                :key="category.name"
+                class="dt-filter-category"
+              >
                 <!--
                   A collapsed category force-expands whenever it currently has a search match —
                   always safe, since a category only ever appears here at all when it has one (see
@@ -1733,14 +1748,15 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                 <button
                   type="button"
                   class="dt-filter-category-header"
+                  data-dd-row
                   :data-filter-category-header="category.name"
                   :aria-expanded="isFilterSearching || !collapsedCategories.has(category.name)"
                   @click="toggleCategoryCollapsed(category.name)"
                 >
-                  <span class="dt-flex1">{{ category.name }}</span>
                   <span class="dt-filter-category-toggle">
-                    {{ !isFilterSearching && collapsedCategories.has(category.name) ? '▸' : '▾' }}
+                    {{ !isFilterSearching && collapsedCategories.has(category.name) ? '▶' : '▼' }}
                   </span>
+                  <span class="dt-flex1">{{ category.name }}</span>
                 </button>
                 <div
                   v-if="isFilterSearching || !collapsedCategories.has(category.name)"
@@ -1757,11 +1773,12 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                       type="button"
                       :data-filter-col-key="col.key"
                       class="dt-filter-col-item"
+                      data-dd-row
                       :class="{ 'dt-filter-col-item--active': col.key === filterActiveKey }"
                       @focus="onFilterColFocus(col.key)"
                       @click="selectFilterCol(col.key)"
                     >
-                      <span class="dt-filter-col-label">{{ col.label }}</span>
+                      <span>{{ col.label }}</span>
                     </button>
                     <button
                       v-if="hasActiveColFilter(col)"
@@ -1775,12 +1792,12 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                     </button>
                   </div>
                 </div>
-              </template>
+              </div>
             </div>
             <button
               v-if="narrowFilter && filterShowValues"
               type="button"
-              class="dt-dd-item dt-dd-item--clickable dt-filter-back"
+              class="dt-dd-item dt-dd-item--click dt-filter-back"
               data-filter-back
               @click="showFilterColumns"
             >
@@ -1806,7 +1823,12 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
         <!-- "Clear all" sits alone at the far right of the actions row (margin-left: auto, see
              .dt-clear-all) — nothing else in the row needs to reflow when it mounts/unmounts,
              unlike the old layout where it sat between search and the stats text. -->
-        <button v-if="hasActiveState" class="dt-clear-all" @click="clearAllAndFocus">
+        <button
+          v-if="hasActiveState"
+          type="button"
+          class="dt-btn dt-clear-all"
+          @click="clearAllAndFocus"
+        >
           {{ L.clearAll }}
         </button>
         <div v-if="hasSlot('toolbar-end') && !endFirst()" class="dt-toolbar-end">
@@ -1824,7 +1846,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
       sort/group chips were previously only visible as a bare count on their toolbar button (see
       above); giving them the same at-a-glance chip treatment filters already had removes that
       asymmetry. Sort/group chips reuse the plain neutral `.dt-chip` look (the same one the
-      removed count badges used) — filter chips keep their existing blue `.dt-chip--info` tint,
+      removed count badges used) — filter chips keep their existing blue `.dt-chip--filter` tint,
       the one deliberate color accent in this bar, since filters already carried that "this is
       narrowing your view" meaning before this change.
     -->
@@ -1855,7 +1877,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
         </button>
         <button
           type="button"
-          class="dt-chip-remove"
+          class="dt-chip-x"
           :title="L.removeGroup(findCol(key)?.label ?? key)"
           :aria-label="L.removeGroup(findCol(key)?.label ?? key)"
           @click="removeGroup(key)"
@@ -1869,7 +1891,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
         </button>
         <button
           type="button"
-          class="dt-chip-remove"
+          class="dt-chip-x"
           :title="L.removeSort(findCol(entry.key)?.label ?? entry.key)"
           :aria-label="L.removeSort(findCol(entry.key)?.label ?? entry.key)"
           @click="removeSort(entry.key)"
@@ -1879,7 +1901,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
       </span>
       <template v-if="activeFilterCount > 0">
         <template v-for="[key, vals] in Object.entries(filters)" :key="key">
-          <span v-if="vals.size > 0" class="dt-chip dt-chip--info">
+          <span v-if="vals.size > 0" class="dt-chip dt-chip--filter">
             <button type="button" class="dt-chip-body" @click="onOpenFilterCol(key)">
               {{ columns.find((c) => c.key === key)?.label }}:
               {{
@@ -1893,7 +1915,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
             </button>
             <button
               type="button"
-              class="dt-chip-remove"
+              class="dt-chip-x"
               :title="L.clearColumnFilter"
               :aria-label="L.clearColumnFilter"
               @click="clearColumnFilter(key, 'include')"
@@ -1905,10 +1927,10 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
         <!-- Exclude filters (see cycleFilterValue in the docs) get their own chip, distinguished
              by a "≠" prefix instead of a translated word — same reasoning the sort/value-sort
              icons already use symbols (↑/↓, ABC/#) rather than growing every locale file.
-             dt-chip--danger tints it apart from a plain include chip so the two read as opposite
+             dt-chip--exclude tints it apart from a plain include chip so the two read as opposite
              actions at a glance, not just different text. -->
         <template v-for="chip in exclusionChips" :key="`exclude-${chip.key}`">
-          <span class="dt-chip" :class="chip.kept ? 'dt-chip--info' : 'dt-chip--danger'">
+          <span class="dt-chip dt-chip--filter" :class="{ 'dt-chip--exclude': !chip.kept }">
             <button type="button" class="dt-chip-body" @click="onOpenFilterCol(chip.key)">
               {{ chip.label }}: {{ chip.kept ? '' : '≠' }}
               {{
@@ -1919,7 +1941,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
             </button>
             <button
               type="button"
-              class="dt-chip-remove"
+              class="dt-chip-x"
               :title="L.clearColumnFilter"
               :aria-label="L.clearColumnFilter"
               @click="clearColumnFilter(chip.key, 'exclude')"
@@ -1932,14 +1954,14 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
              active filter from the checklist above, so it needs its own (a date column can have
              both active at once). -->
         <template v-for="[key, rf] in Object.entries(rangeFilters)" :key="`range-${key}`">
-          <span v-if="rf.min !== '' || rf.max !== ''" class="dt-chip dt-chip--info">
+          <span v-if="rf.min !== '' || rf.max !== ''" class="dt-chip dt-chip--filter">
             <button type="button" class="dt-chip-body" @click="onOpenFilterCol(key)">
               {{ columns.find((c) => c.key === key)?.label }}:
               {{ rangeChipText(findCol(key), rf, L.emptyValue) }}
             </button>
             <button
               type="button"
-              class="dt-chip-remove"
+              class="dt-chip-x"
               :title="L.clearColumnFilter"
               :aria-label="L.clearColumnFilter"
               @click="clearColumnFilter(key, 'range')"
@@ -1962,7 +1984,8 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
           <tr>
             <th
               v-if="selectable"
-              class="dt-th dt-th--cb dt-check-cell"
+              class="dt-th dt-check-cell"
+              style="width: 36px"
               @click.stop.self="toggleSelectAll(processedData)"
             >
               <input
@@ -1973,15 +1996,14 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                 @change="toggleSelectAll(processedData)"
               />
             </th>
-            <th v-if="groupBy.length > 0" class="dt-th" style="width: 28px" />
+            <th v-if="groupBy.length > 0" class="dt-th dt-th--no-sort" style="width: 28px" />
             <th
               v-for="col in activeColumns"
               :key="col.key"
               class="dt-th"
               :aria-sort="headerAriaSort(col.key)"
               :class="{
-                'dt-th--dragging': dragColKey === col.key,
-                'dt-th--drag-over': dragOverColKey === col.key,
+                'dt-dd-item--drag-over': dragOverColKey === col.key,
               }"
               :style="{ width: col.width ? `${col.width}px` : undefined }"
               :draggable="menuColKey === col.key ? 'false' : 'true'"
@@ -2003,15 +2025,9 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                   {{ col.label }}
                   <span
                     v-if="col.sortable !== false"
-                    class="dt-th-sort-icon"
-                    :class="{ 'dt-th-sort-icon--sorted': isHeaderSorted(col.key) }"
+                    class="dt-sort-icon"
+                    :class="{ 'dt-sort-icon--active': isHeaderSorted(col.key) }"
                     aria-hidden="true"
-                    :style="{
-                      fontSize: 'var(--font-size-2xs, 10px)',
-                      color: isHeaderSorted(col.key)
-                        ? 'var(--color-text-primary)'
-                        : 'var(--color-border-secondary)',
-                    }"
                   >
                     {{ headerSortLabel(col.key) }}
                   </span>
@@ -2063,13 +2079,13 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                   @change="toggleSelectAll(group.rows)"
                 />
               </td>
-              <td class="dt-group-td">
+              <td class="dt-group-td" style="width: 28px">
                 {{ groupCollapsed(group.key!) ? '▶' : '▼' }}
               </td>
               <td :colspan="activeColumns.length" class="dt-group-td">
                 <template v-for="(g, i) in groupBy" :key="g">
                   <span v-if="i > 0" class="dt-group-sep">›</span>
-                  <span class="dt-group-key-label">{{ findCol(g)?.label }}:</span>
+                  <span class="dt-group-colname">{{ findCol(g)?.label }}:</span>
                   <!--
                     A bucketed column (col.groupValue) has no single raw value the #group-{key}
                     slot's scope could meaningfully carry — same reasoning the date filter tree
@@ -2135,8 +2151,9 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                 "
                 :aria-selected="selectable ? selection.has(row) : undefined"
                 :aria-current="isCurrent(row) ? 'true' : undefined"
+                class="dt-tr"
                 :class="{
-                  'dt-tr--stripe': ri % 2 !== 0,
+                  'dt-tr--odd': ri % 2 !== 0 && !(selectable && selection.has(row)),
                   'dt-tr--selected': selectable && selection.has(row),
                   'dt-tr--clickable': isRowClickable,
                   'dt-tr--current': isCurrent(row),
@@ -2190,7 +2207,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
               <template v-if="data.length === 0">{{ L.noRows }}</template>
               <template v-else>
                 {{ L.noMatchingRows }}
-                <button class="dt-clear-all" @click="clearSearchAndFilters">
+                <button type="button" class="dt-btn" @click="clearSearchAndFilters">
                   {{ L.clearSearchAndFilters }}
                 </button>
               </template>
@@ -2238,7 +2255,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
         </button>
       </template>
       <label class="dt-rows-per-page-group">
-        <span class="dt-rows-per-page-label">{{ L.rowsPerPage }}:</span>
+        <span class="dt-rows-per-page">{{ L.rowsPerPage }}:</span>
         <select
           class="dt-page-select"
           :value="pageSize"
@@ -2250,806 +2267,3 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
     </div>
   </div>
 </template>
-
-<style scoped>
-.dt {
-  font-family: inherit;
-  font-size: var(--font-size-lg, 14px);
-  color: var(--color-text-primary);
-}
-
-/* Toolbar */
-.dt-toolbar {
-  padding: 12px 0;
-  border-bottom: 0.5px solid var(--color-border-tertiary);
-}
-.dt-toolbar-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-/* Separates the "shape" controls (Columns/Sort/Group — what's shown and in what order) from
-   the "find" controls (Search/Filter — which rows are shown at all). */
-.dt-toolbar-divider {
-  width: 1px;
-  height: 22px;
-  background: var(--color-border-secondary);
-  flex-shrink: 0;
-  margin: 0 2px;
-}
-/* Always rendered below the toolbar — see the "Active state bar" comment in the template — so
-   the stats text has one stable home instead of bouncing between "end of the toolbar row" and
-   nowhere, and toggling a sort/filter/group never changes the toolbar's height. */
-.dt-active-bar {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-  padding: 10px 0;
-}
-.dt-stats {
-  margin-left: auto;
-  font-size: var(--font-size-sm, 12px);
-  color: var(--color-text-secondary);
-  white-space: nowrap;
-}
-.dt-search-wrap {
-  position: relative;
-  display: inline-flex;
-  flex: 1;
-  min-width: 160px;
-  max-width: 280px;
-}
-.dt-search-input {
-  padding: 4px 24px 4px 8px;
-  font-size: var(--font-size-md, 13px);
-  border: 0.5px solid var(--color-border-secondary);
-  border-radius: 6px;
-  background: transparent;
-  color: inherit;
-  font-family: inherit;
-  width: 100%;
-}
-.dt-search-clear {
-  position: absolute;
-  right: 4px;
-  top: 50%;
-  transform: translateY(-50%);
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 2px 4px;
-  font-size: var(--font-size-lg, 14px);
-  line-height: 1;
-  color: var(--color-text-tertiary);
-  font-family: inherit;
-}
-.dt-search-clear:hover {
-  color: var(--color-text-primary);
-}
-/* Adjoining × button for the Sort/Group/Filter toolbar buttons — see Dropdown's
-   `extra-trigger` slot and ToolbarBtn's `grouped` prop. Replaces the old in-panel "Clear
-   sorts"/etc. footer rows with a one-click affordance that doesn't require opening the
-   dropdown first. */
-.dt-btn-clear {
-  display: inline-flex;
-  align-items: center;
-  padding: 5px 8px;
-  background: none;
-  border: 0.5px solid var(--color-border-secondary);
-  border-radius: 0 6px 6px 0;
-  font-size: var(--font-size-lg, 14px);
-  line-height: 1;
-  cursor: pointer;
-  color: var(--color-text-tertiary);
-  font-family: inherit;
-}
-.dt-btn-clear:hover {
-  color: var(--color-text-primary);
-}
-.dt-clear-all {
-  margin-left: auto;
-  padding: 5px 10px;
-  background: none;
-  border: 0.5px solid var(--color-border-secondary);
-  border-radius: 6px;
-  font-size: var(--font-size-sm, 12px);
-  cursor: pointer;
-  color: var(--color-text-secondary);
-  font-family: inherit;
-}
-.dt-toolbar-end {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-left: auto;
-}
-.dt-clear-all ~ .dt-toolbar-end {
-  margin-left: 0;
-}
-
-/* Dropdown internals */
-.dt-dd-section {
-  padding: 6px 14px 2px;
-  font-size: var(--font-size-xs, 11px);
-  color: var(--color-text-tertiary);
-  font-weight: var(--font-weight-medium, 500);
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-}
-.dt-dd-no-match {
-  padding: 6px 14px;
-  font-size: var(--font-size-sm, 12px);
-  color: var(--color-text-tertiary);
-}
-.dt-dd-hint {
-  padding: 0 14px 6px;
-  font-size: var(--font-size-xs, 11px);
-  color: var(--color-text-tertiary);
-}
-:deep(.dt-dd-item) {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 7px 14px;
-  font-size: var(--font-size-md, 13px);
-  color: var(--color-text-primary);
-  /* Button reset — some dd-items render as <button> (add-lists) instead of <div>, for Tab
-     reachability + free Enter/Space activation. A no-op for the existing div/label usages. */
-  border: none;
-  background: none;
-  font-family: inherit;
-  text-align: left;
-  margin: 0;
-  width: 100%;
-  box-sizing: border-box;
-}
-:deep(.dt-dd-item--clickable) {
-  cursor: pointer;
-}
-:deep(.dt-dd-item--clickable:hover),
-:deep(.dt-dd-item--clickable:focus) {
-  background: var(--color-background-secondary);
-}
-.dt-dd-item--col {
-  justify-content: space-between;
-}
-.dt-dd-item--sortrow {
-  cursor: pointer;
-}
-.dt-dd-item--sortrow:hover,
-.dt-dd-item--sortrow:focus {
-  background: var(--color-background-secondary);
-}
-.dt-dd-item--grouprow,
-.dt-dd-item--colrow {
-  cursor: grab;
-}
-/* Sort/Group/Columns' active rows only ever got the browser's native focus outline, no
-   background — unlike the Filter dropdown's own left-pane column row, which tints its background
-   on selection (see .dt-filter-col-row--active further down) as well as outlining the focused
-   button inside it. Matched here for the same reason: an outline alone is a much fainter "this is
-   the currently focused row" cue than a filled background. --grouprow/--colrow had no hover
-   feedback at all before this either (grab-cursor rows, no --clickable), gaining both. */
-.dt-dd-item--grouprow:hover,
-.dt-dd-item--grouprow:focus,
-.dt-dd-item--colrow:hover,
-.dt-dd-item--colrow:focus {
-  background: var(--color-background-secondary);
-}
-/* A "Group order" row (see the Sort dropdown template above) is still clickable to toggle
-   direction, just not draggable/Alt+Arrow-reorderable — its own section heading + hint text
-   already explain why, so this only needs to cancel --sortrow's hover highlight (a cue that
-   dragging would do something here, which it wouldn't), not restyle the row into looking
-   disabled. Must come after .dt-dd-item--sortrow:hover above to win the cascade on the shared
-   hover background; :focus is deliberately left alone (the row is still keyboard-toggleable, so
-   focus stays a meaningful cue there). */
-.dt-dd-item--locked:hover {
-  background: none;
-}
-.dt-dd-item--dragging {
-  opacity: 0.4;
-}
-.dt-dd-item--drag-over {
-  box-shadow: inset 0 2px 0 var(--color-text-primary);
-}
-.dt-dd-item--drag-over-after {
-  box-shadow: inset 0 -2px 0 var(--color-text-primary);
-}
-.dt-item-remove {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 2px 4px;
-  font-size: var(--font-size-md, 13px);
-  color: var(--color-text-tertiary);
-  line-height: 1;
-}
-.dt-item-remove:hover {
-  color: var(--color-text-primary);
-}
-.dt-sort-icon {
-  font-size: var(--font-size-xl, 15px);
-  color: var(--color-border-secondary);
-}
-.dt-sort-icon--active {
-  color: var(--color-text-primary);
-}
-.dt-filter-panel {
-  display: flex;
-  min-width: 460px;
-  max-height: 380px;
-  /* Safety net for the date tree (see .dt-date-tree-wrap below) — without it, content that
-     outgrows max-height would bleed past the panel onto the page instead of being clipped. */
-  overflow: hidden;
-}
-.dt-filter-panel--narrow {
-  flex-direction: column;
-  min-width: 0;
-  /* 100vw counts a classic scrollbar too, hence more than twice the 8 px viewport margin */
-  width: calc(100vw - 40px);
-}
-.dt-filter-panel--narrow .dt-filter-cols {
-  width: auto;
-  max-width: none;
-  border-right: none;
-}
-.dt-filter-back {
-  flex-shrink: 0;
-  font-weight: var(--font-weight-medium, 500);
-  border-bottom: 0.5px solid var(--color-border-tertiary);
-}
-.dt-filter-cols {
-  /* Sized to the column names; the search box fills it without widening it */
-  width: max-content;
-  min-width: 150px;
-  max-width: 240px;
-  flex-shrink: 0;
-  overflow-y: auto;
-  border-right: 0.5px solid var(--color-border-tertiary);
-  padding: 4px 0;
-}
-.dt-filter-col-row {
-  display: flex;
-  align-items: stretch;
-}
-/* Hover/active highlight lives on the row (not the item button alone) so it spans the clear
-   button too, instead of stopping short of it and leaving a gap that reads like a rendering
-   glitch. */
-.dt-filter-col-row:hover,
-.dt-filter-col-row--active {
-  background: var(--color-background-secondary);
-}
-/* flex/min-width/overflow here (not width: 100%) is what makes this button share its row with
-   the clear button instead of claiming the whole row's width — see .dt-filter-col-clear. */
-.dt-filter-col-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 6px;
-  padding: 7px 10px;
-  font-size: var(--font-size-md, 13px);
-  cursor: pointer;
-  color: var(--color-text-primary);
-  border: none;
-  background: none;
-  font-family: inherit;
-  text-align: left;
-  margin: 0;
-  flex: 1 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  box-sizing: border-box;
-}
-.dt-filter-col-item--active {
-  font-weight: var(--font-weight-medium, 500);
-}
-.dt-filter-col-label {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-/* Replaces the old plain active-filter dot — see the template's own comment. */
-.dt-filter-col-clear {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  padding: 0 10px;
-  font-size: var(--font-size-md, 13px);
-  line-height: 1;
-  cursor: pointer;
-  color: var(--color-text-tertiary);
-  border: none;
-  background: none;
-  font-family: inherit;
-}
-.dt-filter-col-clear:hover {
-  color: var(--color-text-primary);
-}
-/* A category collapses its columns into a section instead of a flyout submenu (unlike
-   Columns/Sort/Group) — ArrowRight is already taken here for left-pane→detail-pane crossing. */
-.dt-filter-category-header {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  width: 100%;
-  padding: 7px 10px;
-  font-size: var(--font-size-md, 13px);
-  font-weight: var(--font-weight-medium, 500);
-  cursor: pointer;
-  color: var(--color-text-secondary);
-  border: none;
-  background: none;
-  font-family: inherit;
-  text-align: left;
-  margin: 0;
-  box-sizing: border-box;
-}
-.dt-filter-category-header:hover {
-  background: var(--color-background-secondary);
-}
-.dt-filter-category-toggle {
-  flex-shrink: 0;
-  font-size: var(--font-size-2xs, 10px);
-  color: var(--color-text-tertiary);
-}
-.dt-filter-category-cols .dt-filter-col-item {
-  padding-left: 22px;
-}
-/* A flex column (not just flex: 1) so the checklist/date-tree child below can flex: 1 to fill
-   whatever height .dt-filter-cols (the column list) ends up stretching this to via the row's
-   cross-axis stretch, instead of a hardcoded height leaving dead space below it once
-   .dt-filter-cols renders taller than that default (see .dt-filter-list/.dt-date-tree-wrap). */
-:deep(.dt-filter-detail) {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  padding: 6px 0;
-  min-width: 220px;
-}
-/* flex: 1 (not a hardcoded height) lets this fill whatever room .dt-filter-detail actually has —
-   FILTER_LIST_VIEWPORT_HEIGHT remains only the *assumed* viewport height fed to
-   computeVirtualRange's windowing math, not this element's real rendered height. That's safe
-   even when they diverge: .dt-filter-panel's own max-height: 380px bounds how much taller this
-   can ever grow past the 260px default (~60-80px, given the search row/padding above it), well
-   inside the 5-row (160px) overscan on each side — so the virtualized window always has enough
-   pre-rendered rows to cover the actual visible box. min-height: 0 is required for a flex column
-   child to actually shrink/scroll instead of overflowing its container (the default flex
-   min-height: auto would let its content push .dt-filter-detail taller instead). The search row
-   above stays outside this element (in normal flow, flex-shrink: 0 below), so it never scrolls
-   away. */
-:deep(.dt-filter-list) {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-}
-/* Same reasoning as .dt-filter-list above, applied to the date tree — which has no
-   virtualization of its own, so this wrapper alone is what turns "overflow past the panel onto
-   the page" (no wrapper at all previously) into "fills available space, scrolls the rest". */
-:deep(.dt-date-tree-wrap) {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-}
-:deep(.dt-filter-search-row) {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin: 2px 12px 6px;
-  flex-shrink: 0;
-}
-:deep(.dt-dd-search) {
-  display: block;
-  flex: 1;
-  /* Right padding always reserved (whether or not the clear button is currently shown) so it
-     never overlaps the text, and so the box doesn't reflow when the button appears/disappears. */
-  padding: 5px 20px 5px 8px;
-  font-size: var(--font-size-sm, 12px);
-  border: 0.5px solid var(--color-border-secondary);
-  border-radius: 6px;
-  background: transparent;
-  color: inherit;
-  font-family: inherit;
-  box-sizing: border-box;
-}
-/* Wraps a .dt-dd-search input + its optional clear button — same idea as .dt-search-wrap for
-   the toolbar's own search box, just reused here since every dropdown search box gained the same
-   clear affordance (previously Escape-only). */
-:deep(.dt-dd-search-wrap) {
-  position: relative;
-  display: flex;
-  flex: 1;
-  min-width: 0;
-}
-:deep(.dt-dd-search-clear) {
-  position: absolute;
-  right: 4px;
-  top: 50%;
-  transform: translateY(-50%);
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 2px 4px;
-  font-size: var(--font-size-md, 13px);
-  line-height: 1;
-  color: var(--color-text-tertiary);
-  font-family: inherit;
-}
-:deep(.dt-dd-search-clear:hover) {
-  color: var(--color-text-primary);
-}
-/* Wraps the Columns/Sort/Group dropdowns' own column-search box — sticky within the dropdown
-   panel's own scroll (see .dt-dd's max-height/overflow-y in Dropdown.vue) so it stays
-   pinned at the top instead of scrolling away with the rest of the list. */
-.dt-dd-search-row {
-  position: sticky;
-  top: 0;
-  display: flex;
-  background: var(--color-background-primary);
-  padding: 6px 12px;
-  z-index: 1;
-}
-/* Same idea as .dt-dd-search-row above, but sticky within .dt-filter-cols's own scroll instead
-   (the Filter dropdown's left pane doesn't have a dedicated wrapper row the way the others do).
-   A distinct class from .dt-dd-search-wrap's own position:relative (applied to the same element,
-   see the Filter dropdown's template) so there's no cascade-order conflict between the two. */
-.dt-filter-cols-search {
-  width: 0;
-}
-.dt-filter-cols-search-wrap {
-  position: sticky;
-  top: 0;
-  width: 100%;
-  box-sizing: border-box;
-  margin-bottom: 4px;
-  background: var(--color-background-primary);
-}
-:deep(.dt-filter-select-all) {
-  flex-shrink: 0;
-  margin: 0;
-}
-:deep(.dt-value-sort-btn) {
-  flex-shrink: 0;
-  padding: 4px 7px;
-  font-size: var(--font-size-xs, 11px);
-  background: none;
-  border: 0.5px solid var(--color-border-secondary);
-  border-radius: 6px;
-  cursor: pointer;
-  color: var(--color-text-secondary);
-  font-family: inherit;
-  white-space: nowrap;
-}
-:deep(.dt-filter-match-mode-group) {
-  display: inline-flex;
-  flex-shrink: 0;
-}
-:deep(.dt-filter-match-mode--left) {
-  border-radius: 6px 0 0 6px;
-  border-right: none;
-}
-:deep(.dt-filter-match-mode--right) {
-  border-radius: 0 6px 6px 0;
-}
-:deep(.dt-filter-match-mode--active) {
-  background: var(--color-background-secondary);
-  color: var(--color-text-primary);
-  font-weight: var(--font-weight-medium, 500);
-}
-.dt-sort-idx {
-  width: 18px;
-  font-size: var(--font-size-xs, 11px);
-  color: var(--color-text-tertiary);
-  font-weight: var(--font-weight-medium, 500);
-}
-:deep(.dt-flex1) {
-  flex: 1;
-}
-/* Drag-handle glyph on Columns' Visible rows and Sort/Group's active rows (not Sort's
-   non-draggable "Group order" rows) — purely visual, the whole row is still the drag surface. */
-.dt-dd-drag-handle {
-  flex-shrink: 0;
-  color: var(--color-text-tertiary);
-  font-size: var(--font-size-md, 13px);
-  line-height: 1;
-}
-/* Category tag on a flattened addable/available row while searching (see isColsSearching/
-   isSortSearching/isGroupSearching) — the row's own category context, since it's no longer
-   nested inside a CategorySubmenu trigger to convey that. */
-.dt-dd-item-category {
-  font-size: var(--font-size-xs, 11px);
-  color: var(--color-text-tertiary);
-  flex-shrink: 0;
-  white-space: nowrap;
-}
-:deep(.dt-filter-count) {
-  font-size: var(--font-size-sm, 12px);
-  color: var(--color-text-tertiary);
-  flex-shrink: 0;
-}
-/* A multi-value checklist value excluded by its ≠ button */
-:deep(.dt-dd-item--exclude) {
-  color: var(--color-text-danger);
-}
-:deep(.dt-dd-item--exclude .dt-flex1) {
-  text-decoration: line-through;
-}
-:deep(.dt-filter-value) {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex: 1;
-  min-width: 0;
-  align-self: stretch;
-  cursor: pointer;
-}
-:deep(.dt-filter-exclude) {
-  flex-shrink: 0;
-  width: 24px;
-  height: 24px;
-  margin: -3px -8px -3px 0;
-  padding: 0;
-  border: 0.5px solid transparent;
-  border-radius: 4px;
-  background: none;
-  font: inherit;
-  font-size: var(--font-size-lg, 14px);
-  line-height: 1;
-  color: var(--color-text-tertiary);
-  cursor: pointer;
-}
-:deep(.dt-filter-exclude:hover) {
-  color: var(--color-text-danger);
-}
-:deep(.dt-filter-exclude[aria-pressed='true']) {
-  background: var(--color-background-danger);
-  border-color: var(--color-border-danger);
-  color: var(--color-text-danger);
-}
-/* The "Others" checklist row (see docs/filter-dropdown.md's "Filter dropdown") — shaded/italic/bordered so it
-   reads as a distinct bulk control, not just another value blending into the results below it. */
-:deep(.dt-filter-others) {
-  background: var(--color-background-secondary);
-  border-top: 0.5px solid var(--color-border-tertiary);
-  border-bottom: 0.5px solid var(--color-border-secondary);
-  font-style: italic;
-  color: var(--color-text-secondary);
-}
-
-/* Chips — .dt-chip is just a flex wrapper now; the actual padding/background/border live on
-   .dt-chip-body/.dt-chip-remove individually (each keeping only its own outer corner rounded,
-   sharing a border between them — mirroring .dt-btn-clear's grouped-button seam) so the pair
-   still reads as one pill while both halves are independently clickable/focusable buttons. */
-.dt-chip {
-  display: inline-flex;
-  align-items: center;
-  font-size: var(--font-size-sm, 12px);
-}
-.dt-chip-body {
-  background: var(--color-background-secondary);
-  border: 0.5px solid var(--color-border-secondary);
-  border-right: none;
-  border-radius: 12px 0 0 12px;
-  padding: 2px 4px 2px 8px;
-  font-size: var(--font-size-sm, 12px);
-  color: var(--color-text-secondary);
-  font-family: inherit;
-  cursor: pointer;
-  line-height: 1.4;
-  min-height: 24px;
-}
-.dt-chip-body:hover {
-  background: var(--color-background-tertiary);
-}
-.dt-chip--info .dt-chip-body,
-.dt-chip--info .dt-chip-remove {
-  background: var(--color-background-info);
-  color: var(--color-text-info);
-  border-color: var(--color-border-info);
-}
-/* Exclude filters (see cycleFilterValue in the docs) get their own tint, distinct from the plain
-   include .dt-chip--info above, so the two read as opposite actions at a glance. */
-.dt-chip--danger .dt-chip-body,
-.dt-chip--danger .dt-chip-remove {
-  background: var(--color-background-danger);
-  color: var(--color-text-danger);
-  border-color: var(--color-border-danger);
-}
-.dt-chip-remove {
-  cursor: pointer;
-  background: var(--color-background-secondary);
-  border: 0.5px solid var(--color-border-secondary);
-  border-radius: 0 12px 12px 0;
-  padding: 2px 8px 2px 2px;
-  font-size: var(--font-size-sm, 12px);
-  color: var(--color-text-secondary);
-  font-family: inherit;
-  line-height: 1.4;
-  /* 24 px touch target (docs/ui-guidelines.md) */
-  min-height: 24px;
-  min-width: 24px;
-}
-.dt-chip-remove:hover {
-  color: var(--color-text-primary);
-}
-
-/* Pagination */
-.dt-pagination {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 10px 2px;
-  justify-content: flex-end;
-  flex-wrap: wrap;
-}
-.dt-page-btn {
-  padding: 5px 9px;
-  background: none;
-  border: 0.5px solid var(--color-border-secondary);
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: var(--font-size-md, 13px);
-  color: var(--color-text-primary);
-  font-family: inherit;
-  line-height: 1;
-}
-.dt-page-btn:disabled {
-  opacity: 0.35;
-  cursor: default;
-}
-.dt-page-info {
-  font-size: var(--font-size-sm, 12px);
-  color: var(--color-text-secondary);
-  padding: 0 6px;
-}
-.dt-rows-per-page-group {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin-left: 10px;
-}
-.dt-rows-per-page-label {
-  font-size: var(--font-size-sm, 12px);
-  color: var(--color-text-secondary);
-}
-.dt-page-select {
-  padding: 4px 6px;
-  font-size: var(--font-size-sm, 12px);
-  border: 0.5px solid var(--color-border-secondary);
-  border-radius: 4px;
-  background: transparent;
-  color: inherit;
-  font-family: inherit;
-  cursor: pointer;
-}
-
-/* Table */
-.dt-table-wrap {
-  overflow-x: auto;
-  border: 0.5px solid var(--color-border-tertiary);
-  border-radius: 8px;
-  margin-top: 12px;
-}
-.dt-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: var(--font-size-md, 13px);
-}
-.dt-th {
-  padding: 8px 12px;
-  text-align: left;
-  font-weight: var(--font-weight-medium, 500);
-  font-size: var(--font-size-sm, 12px);
-  background: var(--color-background-tertiary);
-  color: var(--color-text-secondary);
-  border-bottom: 1px solid var(--color-border-secondary);
-  white-space: nowrap;
-  user-select: none;
-  cursor: pointer;
-}
-.dt-th-inner {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-.dt-th-spacer {
-  flex: 1;
-}
-/* An unsorted column's ↕ shows only on hover or keyboard focus */
-.dt-th-sort-icon {
-  opacity: 0;
-}
-.dt-th-sort-icon--sorted,
-.dt-th:hover .dt-th-sort-icon,
-.dt-th-sort:focus-visible .dt-th-sort-icon {
-  opacity: 1;
-}
-.dt-th-sort {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 0;
-  border: none;
-  background: none;
-  font: inherit;
-  color: inherit;
-  cursor: inherit;
-}
-.dt-td {
-  padding: 8px 12px;
-  border-bottom: 0.5px solid var(--color-border-tertiary);
-  color: var(--color-text-primary);
-  vertical-align: middle;
-}
-.dt-tr--stripe {
-  background: color-mix(in srgb, var(--color-background-secondary) 45%, transparent);
-}
-.dt-tr--selected {
-  background: var(--color-background-info) !important;
-}
-.dt-tr--clickable {
-  cursor: pointer;
-}
-.dt-tr--clickable:hover {
-  background: var(--color-background-secondary);
-}
-.dt-check-cell {
-  cursor: pointer;
-}
-.dt-th--cb {
-  width: 36px;
-}
-.dt-th--dragging {
-  opacity: 0.4;
-}
-.dt-th--drag-over {
-  box-shadow: inset 2px 0 0 var(--color-text-primary);
-}
-
-/* Group rows */
-.dt-group-row {
-  background: var(--color-background-secondary);
-  border-left: 3px solid var(--color-border-secondary);
-  font-weight: var(--font-weight-semibold, 600);
-  font-size: var(--font-size-sm, 12px);
-  color: var(--color-text-primary);
-  cursor: pointer;
-}
-.dt-empty {
-  padding: 24px 12px;
-  color: var(--color-text-secondary);
-}
-.dt-group-td {
-  padding: 6px 12px;
-  border-bottom: 1px solid var(--color-border-secondary);
-}
-.dt-group-sep {
-  margin: 0 4px;
-  opacity: 0.4;
-}
-.dt-group-key-label {
-  margin-right: 4px;
-  opacity: 0.6;
-}
-.dt-group-count {
-  margin-left: 10px;
-  font-weight: var(--font-weight-normal, 400);
-  opacity: 0.6;
-}
-.dt-group-continued {
-  margin-left: 8px;
-  font-weight: var(--font-weight-normal, 400);
-  opacity: 0.6;
-}
-.dt-agg-row {
-  font-size: var(--font-size-sm, 12px);
-  font-weight: var(--font-weight-medium, 500);
-  color: var(--color-text-secondary);
-  background: var(--color-background-secondary);
-}
-.dt-agg-td {
-  padding: 4px 12px;
-  border-bottom: 0.5px solid var(--color-border-tertiary);
-}
-</style>

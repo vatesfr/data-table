@@ -15,11 +15,7 @@ npm install @vates/data-table-vue
 
 Requires Vue ≥ 3.3.
 
-Import the stylesheet once, e.g. in your app's entry point:
-
-```ts
-import '@vates/data-table-vue/style.css'
-```
+The table injects its own stylesheet; your app defines the color tokens (see [Theming](#theming)).
 
 ## Usage
 

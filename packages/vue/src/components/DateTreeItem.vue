@@ -71,33 +71,3 @@ function label(node: DateTreeNode): string {
     />
   </div>
 </template>
-
-<style scoped>
-.dt-date-tree-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 5px 14px;
-  font-size: var(--font-size-md, 13px);
-  color: var(--color-text-primary);
-  cursor: pointer;
-}
-.dt-date-tree-toggle {
-  width: 14px;
-  flex-shrink: 0;
-  text-align: center;
-  font-size: var(--font-size-2xs, 10px);
-  color: var(--color-text-tertiary);
-}
-.dt-date-tree-toggle--branch {
-  cursor: pointer;
-}
-.dt-flex1 {
-  flex: 1;
-}
-.dt-filter-count {
-  font-size: var(--font-size-sm, 12px);
-  color: var(--color-text-tertiary);
-  flex-shrink: 0;
-}
-</style>

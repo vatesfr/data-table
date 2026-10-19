@@ -58,6 +58,15 @@ describe('DataTableView', () => {
     expect(wrapper.text()).toContain('Bob')
   })
 
+  it("injects core's shared stylesheet once, without theme tokens", () => {
+    mountView()
+    mountView()
+    const styles = document.querySelectorAll('style[data-dt-styles]')
+    expect(styles).toHaveLength(1)
+    expect(styles[0].textContent).toContain('.dt-dd{')
+    expect(styles[0].textContent).not.toContain('--color-background-primary:')
+  })
+
   it('reflects external mutations to the table object (e.g. from a persistence helper)', async () => {
     const { table, wrapper } = mountView()
     // Acts on the table object directly, exactly as usePersistedView/useUrlView would after

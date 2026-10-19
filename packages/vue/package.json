@@ -40,8 +40,7 @@
       "import": "./dist/theme.js",
       "require": "./dist/theme.cjs",
       "types": "./dist/theme.d.ts"
-    },
-    "./style.css": "./dist/style.css"
+    }
   },
   "files": [
     "dist",
@@ -58,13 +57,10 @@
   },
   "size-limit": [
     {
-      "name": "ESM bundle + CSS (gzip)",
-      "path": [
-        "dist/data-table-vue.js",
-        "dist/data-table-vue.css"
-      ],
+      "name": "ESM bundle (gzip)",
+      "path": "dist/data-table-vue.js",
       "gzip": true,
-      "limit": "25.85 KB"
+      "limit": "21.98 KB"
     }
   ],
   "dependencies": {

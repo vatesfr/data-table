@@ -5,6 +5,7 @@ import Dropdown from '../components/Dropdown.vue'
 
 // jsdom has no layout: the panel (the [data-body] parent) sits at `naturalLeft` plus its translateX
 let naturalLeft = 900
+let naturalTop = 40
 const translateX = (transform: string) =>
   Number(/translateX\((-?[\d.]+)px\)/.exec(transform)?.[1] ?? 0)
 const stubLayout = () => {
@@ -14,7 +15,13 @@ const stubLayout = () => {
     if (!this.querySelector(':scope > [data-body]'))
       return { top: 0, bottom: 0, left: 0, right: 0 } as DOMRect
     const left = naturalLeft + translateX(this.style.transform)
-    return { top: 40, bottom: 140, left, right: left + 300, width: 300 } as DOMRect
+    return {
+      top: naturalTop,
+      bottom: naturalTop + 100,
+      left,
+      right: left + 300,
+      width: 300,
+    } as DOMRect
   })
   // Absent from jsdom; its computed `transform` is the inline one, rendered without transition
   vi.stubGlobal(
@@ -33,6 +40,29 @@ describe('Dropdown viewport clamping', () => {
     vi.restoreAllMocks()
     vi.unstubAllGlobals()
     naturalLeft = 900
+    naturalTop = 40
+  })
+
+  it('opens upward with dt-dd--up when the panel would overflow the viewport bottom', async () => {
+    stubLayout()
+    // jsdom's innerHeight is 768
+    naturalTop = 700
+    const wrapper = mount(Dropdown, {
+      slots: { trigger: '<button>Open</button>', default: '<div data-body>Items</div>' },
+      attachTo: document.body,
+    })
+    await wrapper.find('button').trigger('click')
+    await nextTick()
+    const panel = wrapper.find('[data-body]').element.parentElement!
+    expect(panel.classList.contains('dt-dd--up')).toBe(true)
+    await wrapper.find('button').trigger('click')
+    naturalTop = 40
+    await wrapper.find('button').trigger('click')
+    await nextTick()
+    expect(wrapper.find('[data-body]').element.parentElement!.classList.contains('dt-dd--up')).toBe(
+      false,
+    )
+    wrapper.unmount()
   })
 
   it('re-clamps an open panel whose trigger moves', async () => {

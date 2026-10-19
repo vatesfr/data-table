@@ -402,7 +402,6 @@ async function onKeydown(event: KeyboardEvent): Promise<void> {
           v-if="values.length > 0"
           v-indeterminate="allState.indeterminate"
           type="checkbox"
-          class="dt-filter-select-all"
           :checked="allState.checked"
           :title="L.selectAll"
           :aria-label="L.selectAll"
@@ -496,7 +495,7 @@ async function onKeydown(event: KeyboardEvent): Promise<void> {
               <div
                 v-for="v in values.slice(virtualRange.startIndex, virtualRange.endIndex)"
                 :key="v"
-                class="dt-dd-item dt-dd-item--clickable"
+                class="dt-dd-item"
                 :class="{ 'dt-dd-item--exclude': isValueExcluded(v) }"
                 :style="{ height: FILTER_LIST_ITEM_HEIGHT + 'px', boxSizing: 'border-box' }"
               >

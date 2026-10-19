@@ -220,12 +220,10 @@ export function computeMenuPosition(
 /**
  * The roving Up/Down/Home/End nav shared by every Columns/Sort/Group dropdown panel (and the
  * Filter dropdown's left column pane) needs an ordered list of that panel's own focusable
- * row/search elements. `DD_NAV_SELECTOR` is the default selector for the `data-*`-attribute-based
- * markup React/Solid render (`data-dd-search` on a dropdown's own column-search input,
- * `data-dd-row` on every other row this nav should reach) — deliberately generic, since neither
- * knows which concrete dropdown it's rendering, only that its children may carry these two
- * markers. Vue's own dropdown markup uses class-based row selectors instead (`.dt__dd-item--*`),
- * so it passes its own selector string through rather than using the default.
+ * row/search elements. `DD_NAV_SELECTOR` matches the `data-*` markers every adapter renders
+ * (`data-dd-search` on a dropdown's own column-search input, `data-dd-row` on every other row this
+ * nav should reach) — deliberately generic, since no adapter's dropdown knows which concrete
+ * dropdown it's rendering, only that its children may carry these two markers.
  */
 export const DD_NAV_SELECTOR = 'input[data-dd-search], [data-dd-row]'
 
@@ -241,14 +239,11 @@ export function ddFocusableFor(el: HTMLElement): HTMLElement | null {
 }
 
 /**
- * Queries `panel` for every element matched by `selector` (default `DD_NAV_SELECTOR`), in DOM
- * order, resolved down to each one's actual focusable target via `ddFocusableFor`.
+ * Queries `panel` for every element matched by `DD_NAV_SELECTOR`, in DOM order, resolved down to
+ * each one's actual focusable target via `ddFocusableFor`.
  */
-export function ddNavFocusables(
-  panel: HTMLElement,
-  selector: string = DD_NAV_SELECTOR,
-): HTMLElement[] {
-  return Array.from(panel.querySelectorAll<HTMLElement>(selector))
+export function ddNavFocusables(panel: HTMLElement): HTMLElement[] {
+  return Array.from(panel.querySelectorAll<HTMLElement>(DD_NAV_SELECTOR))
     .map(ddFocusableFor)
     .filter((el): el is HTMLElement => el !== null)
 }
@@ -258,12 +253,9 @@ export function ddNavFocusables(
  * first row. On a touch screen (`pointer: coarse`) the first row even when there's a search box:
  * focusing a text field there raises the on-screen keyboard before the user asked to type.
  */
-export function ddOpenFocusTarget(
-  panel: HTMLElement,
-  selector: string = DD_NAV_SELECTOR,
-): HTMLElement | undefined {
+export function ddOpenFocusTarget(panel: HTMLElement): HTMLElement | undefined {
   const touch = typeof window !== 'undefined' && !!window.matchMedia?.('(pointer: coarse)').matches
   const search = panel.querySelector<HTMLElement>('input[data-dd-search]')
   if (search && !touch) return search
-  return ddNavFocusables(panel, selector).find((el) => !el.matches('input[data-dd-search]'))
+  return ddNavFocusables(panel).find((el) => !el.matches('input[data-dd-search]'))
 }

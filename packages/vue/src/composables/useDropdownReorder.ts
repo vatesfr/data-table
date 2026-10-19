@@ -67,5 +67,5 @@ export function useDropdownReorder(
     dragOverKey.value = null
   }
 
-  return { dragKey, dragOverKey, dragOverAfter, onRowDragStart, onRowDragEnd, onDragOver, onDrop }
+  return { dragOverKey, dragOverAfter, onRowDragStart, onRowDragEnd, onDragOver, onDrop }
 }
