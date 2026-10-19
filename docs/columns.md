@@ -9,7 +9,7 @@ Each adapter's own cell/group-header rendering (React `cellValue()`, Vue `cellTe
 ## Alignment
 
 - `align: 'end'` sets `text-align` on the column's cells and aggregate cells.
-- Its header puts a flex spacer (`.dt-th-spacer`, React's `data-th-spacer`) before the label: the menu button's `margin-left: auto` would absorb a `justify-content`.
+- Its header puts a flex spacer (`.dt-th-spacer`) before the label: the menu button's `margin-left: auto` would absorb a `justify-content`.
 - No `'center'`: nothing needs it yet, and centering beside the menu button would need a second spacer.
 
 ## Global search

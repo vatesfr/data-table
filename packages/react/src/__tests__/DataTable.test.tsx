@@ -109,7 +109,7 @@ describe('DataTable — onRowClick', () => {
   it('does not set a pointer cursor when onRowClick is not passed', () => {
     const { container } = render(<DataTable data={ROWS} columns={COLS} rowKey="id" />)
     const row = container.querySelector<HTMLElement>('tbody tr')!
-    expect(row.style.cursor).not.toBe('pointer')
+    expect(row.classList.contains('dt-tr--clickable')).toBe(false)
   })
 
   it('clicking the selection checkbox does not trigger onRowClick', () => {
@@ -122,23 +122,23 @@ describe('DataTable — onRowClick', () => {
     expect(onRowClick).not.toHaveBeenCalled()
   })
 
-  it('highlights the row on hover and clears it on mouse leave', () => {
+  // jsdom matches no :hover, so these check the row classes and the injected hover rule
+  const hoverRule = '.dt-tr--clickable:not(.dt-tr--selected):hover .dt-td{background:'
+  const injectedRules = () => document.querySelector('style[data-dt-styles]')?.textContent ?? ''
+
+  it('highlights a clickable row on hover', () => {
     const { container } = render(
       <DataTable data={ROWS} columns={COLS} rowKey="id" onRowClick={vi.fn()} />,
     )
     const row = container.querySelector<HTMLElement>('tbody tr')!
-    expect(row.style.background).not.toBe('var(--color-background-secondary)')
-    fireEvent.mouseEnter(row)
-    expect(row.style.background).toBe('var(--color-background-secondary)')
-    fireEvent.mouseLeave(row)
-    expect(row.style.background).not.toBe('var(--color-background-secondary)')
+    expect(row.classList.contains('dt-tr--clickable')).toBe(true)
+    expect(injectedRules()).toContain(hoverRule)
   })
 
   it('does not highlight on hover when onRowClick is not passed', () => {
     const { container } = render(<DataTable data={ROWS} columns={COLS} rowKey="id" />)
     const row = container.querySelector<HTMLElement>('tbody tr')!
-    fireEvent.mouseEnter(row)
-    expect(row.style.background).not.toBe('var(--color-background-secondary)')
+    expect(row.classList.contains('dt-tr--clickable')).toBe(false)
   })
 
   it('keeps the selected background on hover instead of the hover color', () => {
@@ -148,8 +148,8 @@ describe('DataTable — onRowClick', () => {
     const checkbox = container.querySelector<HTMLInputElement>('tbody tr input[type="checkbox"]')!
     fireEvent.click(checkbox)
     const row = container.querySelector<HTMLElement>('tbody tr')!
-    fireEvent.mouseEnter(row)
-    expect(row.style.background).toBe('var(--color-background-info)')
+    expect(row.classList.contains('dt-tr--selected')).toBe(true)
+    expect(injectedRules()).toContain(hoverRule)
   })
 })
 
@@ -3072,9 +3072,9 @@ describe('DataTable — column align', () => {
       />,
     )
     expect(
-      getByRole('columnheader', { name: /Score/ }).querySelector('[data-th-spacer]'),
+      getByRole('columnheader', { name: /Score/ }).querySelector('.dt-th-spacer'),
     ).not.toBeNull()
-    expect(container.querySelectorAll('[data-th-spacer]')).toHaveLength(1)
+    expect(container.querySelectorAll('.dt-th-spacer')).toHaveLength(1)
     // Skips the group header rows, marked by their collapse arrow
     const lastCells = [...container.querySelectorAll('tbody tr')]
       .filter((tr) => !tr.textContent?.includes('▼'))

@@ -114,7 +114,7 @@ export const DT_STYLES = `
 .dt-td{padding:8px 12px;border-bottom:0.5px solid var(--color-border-tertiary,#eeedea);color:var(--color-text-primary,#1a1916);vertical-align:middle}
 .dt-tr--odd .dt-td{background:color-mix(in srgb,var(--color-background-secondary,#f7f6f3) 45%,transparent)}
 .dt-tr--clickable{cursor:pointer}
-.dt-tr--clickable:hover .dt-td{background:var(--color-background-secondary,#f7f6f3)}
+.dt-tr--clickable:not(.dt-tr--selected):hover .dt-td{background:var(--color-background-secondary,#f7f6f3)}
 .dt-tr--selected .dt-td{background:var(--color-background-info,#e6f1fb)}
 .dt-group-row{background:var(--color-background-secondary,#f7f6f3);border-left:3px solid var(--color-border-secondary,#dddcd8);font-weight:var(--font-weight-semibold,600);font-size:var(--font-size-sm,12px);color:var(--color-text-primary,#1a1916);cursor:pointer}
 .dt-dd-no-match{padding:6px 12px;font-size:var(--font-size-sm,12px);color:var(--color-text-tertiary,#9b9a96)}

@@ -91,28 +91,6 @@ const FILTER_LIST_ITEM_HEIGHT = 32
 const FILTER_LIST_VIEWPORT_HEIGHT = 260
 
 const S = {
-  thSort: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: 4,
-    padding: 0,
-    border: 'none',
-    background: 'none',
-    font: 'inherit',
-    color: 'inherit',
-    cursor: 'inherit',
-  },
-  clearAll: {
-    marginLeft: 'auto',
-    padding: '5px 10px',
-    background: 'none',
-    border: '0.5px solid var(--color-border-secondary)',
-    borderRadius: 6,
-    fontSize: 'var(--font-size-sm, 12px)',
-    cursor: 'pointer',
-    color: 'var(--color-text-secondary)',
-    fontFamily: 'inherit',
-  } as CSSProperties,
   // Always rendered below the toolbar — see "Active state bar" at the render call site — so the
   // stats text has one stable home instead of bouncing between "end of the toolbar row" and
   // nowhere, and toggling a sort/filter/group never changes the toolbar's height.
@@ -128,35 +106,6 @@ const S = {
     fontSize: 'var(--font-size-sm, 12px)',
     color: 'var(--color-text-secondary)',
     whiteSpace: 'nowrap',
-  } as CSSProperties,
-  tableWrap: {
-    overflowX: 'auto',
-    border: '0.5px solid var(--color-border-tertiary)',
-    borderRadius: 8,
-    marginTop: 12,
-  } as CSSProperties,
-  table: {
-    width: '100%',
-    borderCollapse: 'collapse',
-    fontSize: 'var(--font-size-md, 13px)',
-  } as CSSProperties,
-  th: {
-    padding: '8px 12px',
-    textAlign: 'left',
-    fontWeight: 'var(--font-weight-medium, 500)',
-    fontSize: 'var(--font-size-sm, 12px)',
-    background: 'var(--color-background-tertiary)',
-    color: 'var(--color-text-secondary)',
-    borderBottom: '1px solid var(--color-border-secondary)',
-    whiteSpace: 'nowrap',
-    userSelect: 'none',
-    cursor: 'pointer',
-  } as CSSProperties,
-  td: {
-    padding: '8px 12px',
-    borderBottom: '0.5px solid var(--color-border-tertiary)',
-    color: 'var(--color-text-primary)',
-    verticalAlign: 'middle',
   } as CSSProperties,
   ddItem: {
     display: 'flex',
@@ -269,22 +218,6 @@ const S = {
     color: 'var(--color-text-danger)',
     border: '0.5px solid var(--color-border-danger)',
   } as CSSProperties,
-  groupRow: {
-    background: 'var(--color-background-secondary)',
-    borderLeft: '3px solid var(--color-border-secondary)',
-    fontWeight: 'var(--font-weight-semibold, 600)',
-    fontSize: 'var(--font-size-sm, 12px)',
-    color: 'var(--color-text-primary)',
-    cursor: 'pointer',
-  } as CSSProperties,
-  empty: {
-    padding: '24px 12px',
-    color: 'var(--color-text-secondary)',
-  } as CSSProperties,
-  groupTd: {
-    padding: '6px 12px',
-    borderBottom: '1px solid var(--color-border-secondary)',
-  } as CSSProperties,
   rangeInput: {
     width: 80,
     padding: '3px 6px',
@@ -339,16 +272,6 @@ const S = {
     color: 'inherit',
     fontFamily: 'inherit',
     cursor: 'pointer',
-  } as CSSProperties,
-  aggRow: {
-    fontSize: 'var(--font-size-sm, 12px)',
-    fontWeight: 'var(--font-weight-medium, 500)',
-    color: 'var(--color-text-secondary)',
-    background: 'var(--color-background-secondary)',
-  } as CSSProperties,
-  aggTd: {
-    padding: '4px 12px',
-    borderBottom: '0.5px solid var(--color-border-tertiary)',
   } as CSSProperties,
   // A flex column (not just `flex: 1`) so the checklist/date-tree child below can `flex: 1` to
   // fill whatever height `.filterCols` (the column list) ends up stretching this to via the
@@ -1438,6 +1361,11 @@ function FilterPane<TRow extends object>({
  * return <DataTableView table={table} data={data} columns={columns} />
  * ```
  */
+// A data row's `dt-tr` modifiers; a selected row isn't striped
+function rowClass(selected: boolean, odd: boolean, clickable: boolean, current: boolean): string {
+  return `dt-tr${selected ? ' dt-tr--selected' : odd ? ' dt-tr--odd' : ''}${clickable ? ' dt-tr--clickable' : ''}${current ? ' dt-tr--current' : ''}`
+}
+
 // `.dt-dd-item--drag-over`/`--drag-over-after`: a dropdown row's drop-position line
 function dragOverClass(over: boolean, after: boolean): string {
   return over ? (after ? ' dt-dd-item--drag-over-after' : ' dt-dd-item--drag-over') : ''
@@ -1461,8 +1389,6 @@ export function DataTableView<TRow extends object>({
   const [openColsDD, setOpenColsDD] = useState(false)
   const [openSortDD, setOpenSortDD] = useState(false)
   const [openFilterDD, setOpenFilterDD] = useState(false)
-  // Header under the pointer or with focus: only then does an unsorted column show its ↕
-  const [litHeader, setLitHeader] = useState<string | null>(null)
   // Narrow screen (U16): the Filter dropdown shows one pane at a time — columns, or values
   const [narrowFilter, setNarrowFilter] = useState(false)
   useEffect(() => watchMedia(FILTER_NARROW_QUERY, setNarrowFilter), [])
@@ -1472,7 +1398,6 @@ export function DataTableView<TRow extends object>({
   const [filterShowValues, setFilterShowValues] = useState(false)
   const pendingFilterValuesFocus = useRef(false)
   const [openGroupDD, setOpenGroupDD] = useState(false)
-  const [hoveredRow, setHoveredRow] = useState<TRow | null>(null)
   const rowRefs = useRef(new Map<TRow | string, HTMLTableRowElement>())
   const [dragColKey, setDragColKey] = useState<string | null>(null)
   const [dragOverColKey, setDragOverColKey] = useState<string | null>(null)
@@ -3099,13 +3024,14 @@ export function DataTableView<TRow extends object>({
       </div>
 
       {/* Table */}
-      <div style={S.tableWrap}>
-        <table style={S.table}>
+      <div className="dt-table-wrap">
+        <table className="dt-table">
           <thead>
             <tr>
               {selectable && (
                 <th
-                  style={{ ...S.th, width: 36, cursor: 'pointer' }}
+                  className="dt-th dt-check-cell"
+                  style={{ width: 36 }}
                   onClick={(e) => {
                     e.stopPropagation()
                     if (e.target === e.currentTarget) toggleSelectAll(processedData)
@@ -3117,11 +3043,10 @@ export function DataTableView<TRow extends object>({
                     checked={allSelected}
                     aria-label={L.selectAll}
                     onChange={() => toggleSelectAll(processedData)}
-                    style={{ margin: 0 }}
                   />
                 </th>
               )}
-              {groupBy.length > 0 && <th style={{ ...S.th, width: 28, cursor: 'default' }} />}
+              {groupBy.length > 0 && <th className="dt-th dt-th--no-sort" style={{ width: 28 }} />}
               {/* Only sorts entries for a currently-rendered header count toward numbering — a
                   groupBy column can have its own sort entry (sortWithinGroups uses it to order
                   the groups themselves), but it has no header of its own to attach a number to,
@@ -3143,14 +3068,8 @@ export function DataTableView<TRow extends object>({
                       {col.label}
                       {col.sortable !== false && (
                         <span
+                          className={`dt-sort-icon${isSorted ? ' dt-sort-icon--active' : ''}`}
                           aria-hidden="true"
-                          style={{
-                            fontSize: 'var(--font-size-2xs, 10px)',
-                            color: isSorted
-                              ? 'var(--color-text-primary)'
-                              : 'var(--color-border-secondary)',
-                            opacity: isSorted || litHeader === col.key ? 1 : 0,
-                          }}
                         >
                           {sortIdx ? `${sortIdx}${icon}` : icon}
                         </span>
@@ -3163,9 +3082,8 @@ export function DataTableView<TRow extends object>({
                       aria-sort={
                         sortDir ? (sortDir === 'asc' ? 'ascending' : 'descending') : undefined
                       }
+                      className={`dt-th${dragOverColKey === col.key ? ' dt-dd-item--drag-over' : ''}`}
                       draggable
-                      onMouseEnter={() => setLitHeader(col.key)}
-                      onMouseLeave={() => setLitHeader(null)}
                       onDragStart={() => setDragColKey(col.key)}
                       onDragOver={(e) => {
                         e.preventDefault()
@@ -3181,15 +3099,7 @@ export function DataTableView<TRow extends object>({
                         setDragColKey(null)
                         setDragOverColKey(null)
                       }}
-                      style={{
-                        ...S.th,
-                        width: col.width,
-                        opacity: dragColKey === col.key ? 0.4 : 1,
-                        boxShadow:
-                          dragOverColKey === col.key
-                            ? 'inset 2px 0 0 var(--color-text-primary)'
-                            : undefined,
-                      }}
+                      style={{ width: col.width }}
                       // Plain click: sort by this column alone, discarding other active sorts.
                       // Shift-click: add this column to the multi-sort (or flip its direction if
                       // it's already in it) — never removes, so it can't surprise-clear a sort or
@@ -3201,19 +3111,14 @@ export function DataTableView<TRow extends object>({
                         else replaceSort(col.key)
                       }}
                     >
-                      <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <span className="dt-th-inner">
                         {/* Takes the free space before the label, since the menu's auto margin defeats justifyContent */}
-                        {col.align === 'end' && <span data-th-spacer style={{ flex: 1 }} />}
+                        {col.align === 'end' && <span className="dt-th-spacer" />}
                         {/* A button so keyboard users can sort; its click bubbles to the <th>'s handler */}
                         {col.sortable === false ? (
                           labelAndIcon
                         ) : (
-                          <button
-                            type="button"
-                            style={S.thSort}
-                            onFocus={() => setLitHeader(col.key)}
-                            onBlur={() => setLitHeader(null)}
-                          >
+                          <button type="button" className="dt-th-sort">
                             {labelAndIcon}
                           </button>
                         )}
@@ -3271,12 +3176,13 @@ export function DataTableView<TRow extends object>({
                     aria-expanded={!isCollapsed}
                     onKeyDown={(e) => handleKeyDown(e, { kind: 'group', key: gkey })}
                     onFocus={() => setFocusTarget({ kind: 'group', key: gkey })}
-                    style={S.groupRow}
+                    className="dt-group-row"
                     onClick={() => toggleGroupCollapse(gkey)}
                   >
                     {selectable && (
                       <td
-                        style={{ ...S.groupTd, width: 36, cursor: 'pointer' }}
+                        className="dt-group-td dt-check-cell"
+                        style={{ width: 36 }}
                         onClick={(e) => {
                           e.stopPropagation()
                           if (e.target === e.currentTarget) toggleSelectAll(rows)
@@ -3292,12 +3198,13 @@ export function DataTableView<TRow extends object>({
                             groupText(columns, groupBy, keyParts, sampleRow!),
                           )}
                           onChange={() => toggleSelectAll(rows)}
-                          style={{ margin: 0 }}
                         />
                       </td>
                     )}
-                    <td style={{ ...S.groupTd, width: 28 }}>{isCollapsed ? '▶' : '▼'}</td>
-                    <td colSpan={activeColumns.length} style={S.groupTd}>
+                    <td className="dt-group-td" style={{ width: 28 }}>
+                      {isCollapsed ? '▶' : '▼'}
+                    </td>
+                    <td colSpan={activeColumns.length} className="dt-group-td">
                       {groupBy.map((g, i) => {
                         const col = columns.find((c) => c.key === g)
                         // A bucketed group (see groupValue/groupFormat) has no single row whose
@@ -3314,43 +3221,29 @@ export function DataTableView<TRow extends object>({
                             })()
                         return (
                           <span key={g}>
-                            {i > 0 && <span style={{ margin: '0 4px', opacity: 0.4 }}>›</span>}
-                            <span style={{ marginRight: 4, opacity: 0.6 }}>{col?.label}:</span>
-                            {label}
+                            {i > 0 && <span className="dt-group-sep"> › </span>}
+                            <span className="dt-group-colname">{col?.label ?? g}:</span> {label}
                           </span>
                         )
                       })}
                       {continued && (
-                        <span
-                          style={{
-                            marginLeft: 8,
-                            fontWeight: 'var(--font-weight-normal, 400)',
-                            opacity: 0.6,
-                          }}
-                        >
-                          {L.groupContinued}
-                        </span>
-                      )}
-                      <span
-                        style={{
-                          marginLeft: 10,
-                          fontWeight: 'var(--font-weight-normal, 400)',
-                          opacity: 0.6,
-                        }}
-                      >
-                        {L.rowsInGroup(rows.length)}
-                      </span>
+                        <>
+                          {' '}
+                          <span className="dt-group-continued">{L.groupContinued}</span>
+                        </>
+                      )}{' '}
+                      <span className="dt-group-count">{L.rowsInGroup(rows.length)}</span>
                     </td>
                   </tr>
                 ),
                 gkey !== null && hasAggregates && (
-                  <tr key={`agg-${gkey}`} style={S.aggRow}>
-                    {selectable && <td style={{ ...S.aggTd, width: 36 }} />}
-                    <td style={{ ...S.aggTd, width: 28 }} />
+                  <tr key={`agg-${gkey}`} className="dt-agg-row">
+                    {selectable && <td className="dt-agg-td" style={{ width: 36 }} />}
+                    <td className="dt-agg-td" style={{ width: 28 }} />
                     {activeColumns.map((col) => {
                       const v = computeAggregate(col, rows)
                       return (
-                        <td key={col.key} style={{ ...S.aggTd, textAlign: col.align }}>
+                        <td key={col.key} className="dt-agg-td" style={{ textAlign: col.align }}>
                           {v !== undefined && v !== null
                             ? col.format
                               ? col.format(v, sampleRow!)
@@ -3376,7 +3269,12 @@ export function DataTableView<TRow extends object>({
                       }
                       aria-selected={selectable ? selection.has(row) : undefined}
                       aria-current={row === currentRow ? 'true' : undefined}
-                      className={row === currentRow ? 'dt-tr--current' : undefined}
+                      className={rowClass(
+                        !!selectable && selection.has(row),
+                        ri % 2 !== 0,
+                        !!onRowClick,
+                        row === currentRow,
+                      )}
                       onKeyDown={
                         rowNavEnabled ? (e) => handleKeyDown(e, { kind: 'row', row }) : undefined
                       }
@@ -3384,23 +3282,11 @@ export function DataTableView<TRow extends object>({
                         rowNavEnabled ? () => setFocusTarget({ kind: 'row', row }) : undefined
                       }
                       onClick={onRowClick ? (e) => onRowClick(row, e) : undefined}
-                      onMouseEnter={onRowClick ? () => setHoveredRow(row) : undefined}
-                      onMouseLeave={onRowClick ? () => setHoveredRow(null) : undefined}
-                      style={{
-                        background:
-                          selectable && selection.has(row)
-                            ? 'var(--color-background-info)'
-                            : onRowClick && hoveredRow === row
-                              ? 'var(--color-background-secondary)'
-                              : ri % 2 === 0
-                                ? 'transparent'
-                                : 'color-mix(in srgb, var(--color-background-secondary) 45%, transparent)',
-                        cursor: onRowClick ? 'pointer' : undefined,
-                      }}
                     >
                       {selectable && (
                         <td
-                          style={{ ...S.td, width: 36, cursor: 'pointer' }}
+                          className="dt-td dt-check-cell"
+                          style={{ width: 36 }}
                           onClick={(e) => {
                             e.stopPropagation()
                             if (e.target === e.currentTarget) toggleRowSelection(row, e.shiftKey)
@@ -3413,16 +3299,12 @@ export function DataTableView<TRow extends object>({
                             aria-label={L.selectRow(rowText(activeColumns, row))}
                             tabIndex={-1}
                             onClick={(e) => toggleRowSelection(row, e.shiftKey)}
-                            style={{ margin: 0 }}
                           />
                         </td>
                       )}
-                      {gkey !== null && <td style={{ ...S.td, width: 28 }} />}
+                      {gkey !== null && <td className="dt-td" style={{ width: 28 }} />}
                       {activeColumns.map((col) => (
-                        <td
-                          key={col.key}
-                          style={{ ...S.td, width: col.width, textAlign: col.align }}
-                        >
+                        <td key={col.key} className="dt-td" style={{ textAlign: col.align }}>
                           {cellValue(row, col)}
                         </td>
                       ))}
@@ -3436,7 +3318,7 @@ export function DataTableView<TRow extends object>({
                   colSpan={
                     activeColumns.length + (selectable ? 1 : 0) + (groupBy.length > 0 ? 1 : 0)
                   }
-                  style={{ ...S.td, ...S.empty }}
+                  className="dt-td dt-empty"
                 >
                   {data.length === 0 ? (
                     L.noRows
@@ -3444,12 +3326,13 @@ export function DataTableView<TRow extends object>({
                     <>
                       {L.noMatchingRows}{' '}
                       <button
+                        type="button"
+                        className="dt-btn"
                         onClick={() => {
                           clearFilters()
                           setSearchQuery('')
                           focusSearch()
                         }}
-                        style={S.clearAll}
                       >
                         {L.clearSearchAndFilters}
                       </button>
