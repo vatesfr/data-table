@@ -4,6 +4,12 @@ Symptom first, then cause and fix. Delete entries once obsolete.
 
 <!-- check-docs-ignore: exceeded journalctl memory Killed chromium-browse Failed oom-kill _vts invoker -->
 
+## `git merge -F -` fails
+
+- Symptom: `error: could not read file '-'`; nothing is merged.
+- Cause: unlike `git commit`, `git merge -F` doesn't read the message from stdin.
+- Fix: write the message to a file and pass its path to `-F`.
+
 ## Empty `dist/index.d.ts` after a dependency bump
 
 - Symptom: `packages/{react,vue,solid,vanilla}/dist/index.d.ts` is empty; `build` still exits 0; `check:dist-types` catches it.
