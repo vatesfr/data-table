@@ -606,6 +606,8 @@ delete document.documentElement.dataset.theme
 
 See the [vanilla README](../vanilla/README.md#theming) for the full token reference table.
 
+The table's rules are injected into `<head>` the first time it mounts (a `<style data-dt-styles>` tag, inserted first so your stylesheets win; under a Content Security Policy it needs `style-src-elem 'unsafe-inline'`). It is injected on the client only, so a server-rendered page shows the table unstyled until hydration. Its elements carry the same `dt-…` classes as the other adapters (`.dt`, `.dt-toolbar`, `.dt-dd`, `.dt-th`, `.dt-td`, …), so your CSS can target them.
+
 ## License
 
 MIT
