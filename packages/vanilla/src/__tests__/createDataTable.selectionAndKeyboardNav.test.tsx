@@ -382,10 +382,10 @@ describe('createDataTable — row click', () => {
     expect(container.querySelector('.dt-tr--clickable')).not.toBeNull()
   })
 
-  it('injects a hover rule for clickable rows', () => {
+  it('injects a hover rule for clickable rows that leaves a selected row tinted', () => {
     mount({ onRowClick: vi.fn() })
     const style = document.querySelector('style[data-dt-styles]')!
-    expect(style.textContent).toContain('.dt-tr--clickable:hover')
+    expect(style.textContent).toContain('.dt-tr--clickable:not(.dt-tr--selected):hover')
   })
 
   it('clicking the selection checkbox does not trigger onRowClick', () => {

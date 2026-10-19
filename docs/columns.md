@@ -9,7 +9,7 @@ Each adapter's own cell/group-header rendering (React `cellValue()`, Vue `cellTe
 ## Alignment
 
 - `align: 'end'` sets `text-align` on the column's cells and aggregate cells.
-- Its header puts a flex spacer (`.dt-th-spacer`, `.dt__th-spacer`, React's `data-th-spacer`) before the label: the menu button's `margin-left: auto` would absorb a `justify-content`.
+- Its header puts a flex spacer (`.dt-th-spacer`) before the label: the menu button's `margin-left: auto` would absorb a `justify-content`.
 - No `'center'`: nothing needs it yet, and centering beside the menu button would need a second spacer.
 
 ## Global search
@@ -32,7 +32,7 @@ The **Columns dropdown** was redesigned from a single flat all-columns-with-a-ch
 
 Sort/Group's search box narrows only what's being _added_ — never the already-active section — matching the existing "active state keeps its own order, search only helps you find something new" convention.
 
-**Delete/Backspace** on a focused active row (a Sort active-sort/"Group order" row, a Group active row, a Columns Visible row) removes/hides it, the keyboard equivalent of clicking that row's own `×` button — matching the Filter dropdown's own pre-existing Delete/Backspace-clears-this-column's-filter shortcut. A focused/hovered active row also gets a background tint, not just the browser's native focus outline (Solid/Vue: a `:hover`/`:focus` CSS rule, same tokens the Filter dropdown's own selected-column row already used; React has no per-element CSS at all, so this is instead a pair of `hoveredDdRowKey`/`focusedDdRowKey` state values shared across Sort/Group/Columns, since only one dropdown is ever open at a time). Sort's own non-draggable "Group order" rows cancel just the _hover_ cue (a signal that dragging would do something there, which it wouldn't — the row's own section heading/hint text already explain why) while keeping the _focus_ one, since the row is still keyboard-toggleable.
+**Delete/Backspace** on a focused active row (a Sort active-sort/"Group order" row, a Group active row, a Columns Visible row) removes/hides it, the keyboard equivalent of clicking that row's own `×` button — matching the Filter dropdown's own pre-existing Delete/Backspace-clears-this-column's-filter shortcut. A focused/hovered active row also gets a background tint, not just the browser's native focus outline (a `:hover`/`:focus` CSS rule, same tokens the Filter dropdown's own selected-column row already used). Sort's own non-draggable "Group order" rows cancel just the _hover_ cue (a signal that dragging would do something there, which it wouldn't — the row's own section heading/hint text already explain why) while keeping the _focus_ one, since the row is still keyboard-toggleable.
 
 <!-- check-docs-ignore: address openXxxCategory -->
 

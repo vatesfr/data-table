@@ -304,6 +304,24 @@ export function useTableState<TRow extends object>(
     [processedData, selection, getRowId],
   )
 
+  // An empty columnOrder means "declaration order"
+  const fullOrder = (prev: string[]) => (prev.length ? prev : columnKeys)
+  const setExclude = (update: (prev: Record<string, Set<string>>) => Record<string, Set<string>>) =>
+    setFilterState((prev) => ({ ...prev, excludeFilters: update(prev.excludeFilters) }))
+  const clearFilters = () => {
+    setFilterState({ filters: {}, excludeFilters: {} })
+    setFilterModes({})
+    setRangeFilters({})
+    setPageState(1)
+  }
+  // Group nesting order drives the group sorts' order
+  const reorderGroups = (update: (prev: string[]) => string[]) =>
+    setGroupBy((prev) => {
+      const next = update(prev)
+      setSorts((prevSorts) => reorderGroupSorts(prevSorts, next))
+      return next
+    })
+
   return {
     // Top-level: the pipeline's actual output, not a "concern" of its own
     processedData,
@@ -325,13 +343,9 @@ export function useTableState<TRow extends object>(
           return next
         }),
       move: (dragKey: string, targetKey: string, after = false) =>
-        setColumnOrder((prev) =>
-          _reorderColumn(prev.length ? prev : columns.map((c) => c.key), dragKey, targetKey, after),
-        ),
+        setColumnOrder((prev) => _reorderColumn(fullOrder(prev), dragKey, targetKey, after)),
       moveBy: (key: string, delta: number) =>
-        setColumnOrder((prev) =>
-          _moveColumnBy(prev.length ? prev : columns.map((c) => c.key), key, delta),
-        ),
+        setColumnOrder((prev) => _moveColumnBy(fullOrder(prev), key, delta)),
       // See moveVisibleColumnBy's own doc comment (core) — the Columns dropdown's "Visible
       // columns" section's own Alt+↑/↓, which must skip over hidden columns rather than swap with
       // whichever key is textually adjacent in columnOrder. The optional 3rd `eligible` param lets
@@ -341,12 +355,7 @@ export function useTableState<TRow extends object>(
       // hidden by the filter (or by real column visibility) pinned at its own position.
       moveVisibleBy: (key: string, delta: number, eligible?: ReadonlySet<string>) =>
         setColumnOrder((prev) =>
-          _moveVisibleColumnBy(
-            prev.length ? prev : columns.map((c) => c.key),
-            eligible ?? visibleCols,
-            key,
-            delta,
-          ),
+          _moveVisibleColumnBy(fullOrder(prev), eligible ?? visibleCols, key, delta),
         ),
     },
 
@@ -408,26 +417,17 @@ export function useTableState<TRow extends object>(
         setPageState(1)
       },
       clearExcludeValues: (key: string, values: string[]) => {
-        setFilterState((prev) => ({
-          ...prev,
-          excludeFilters: _clearExcludeValues(prev.excludeFilters, key, values),
-        }))
+        setExclude((prev) => _clearExcludeValues(prev, key, values))
       },
       // Checked-by-default, exclude-only checklist model for a non-multi-value column (see
       // docs/filter-dropdown.md's "Filter dropdown") — `filters` is never touched for such a column, so these
       // two go straight to `excludeFilters` instead of routing through `cycleValue`/`toggleAll`.
       setExcludeValues: (key: string, values: string[], excluded: boolean) => {
-        setFilterState((prev) => ({
-          ...prev,
-          excludeFilters: _setExcludeValues(prev.excludeFilters, key, values, excluded),
-        }))
+        setExclude((prev) => _setExcludeValues(prev, key, values, excluded))
         setPageState(1)
       },
       toggleExcludeAll: (key: string, values: string[]) => {
-        setFilterState((prev) => ({
-          ...prev,
-          excludeFilters: _toggleExcludeAll(prev.excludeFilters, key, values),
-        }))
+        setExclude((prev) => _toggleExcludeAll(prev, key, values))
         setPageState(1)
       },
       setRange: (key: string, field: 'min' | 'max', value: string) => {
@@ -446,22 +446,13 @@ export function useTableState<TRow extends object>(
       // states a column can hold at once, that stopped reading as a reset and started reading as
       // a bug: removing one active-bar chip silently cleared a sibling chip on the same column too.
       clearColumn: (key: string, kind: 'include' | 'exclude' | 'range' = 'include') => {
-        if (kind === 'exclude')
-          setFilterState((prev) => ({
-            ...prev,
-            excludeFilters: { ...prev.excludeFilters, [key]: new Set() },
-          }))
+        if (kind === 'exclude') setExclude((prev) => ({ ...prev, [key]: new Set() }))
         else if (kind === 'range')
           setRangeFilters((prev) => ({ ...prev, [key]: { min: '', max: '' } }))
         else setFilterState((prev) => ({ ...prev, filters: { ...prev.filters, [key]: new Set() } }))
         setPageState(1)
       },
-      clear: () => {
-        setFilterState({ filters: {}, excludeFilters: {} })
-        setFilterModes({})
-        setRangeFilters({})
-        setPageState(1)
-      },
+      clear: clearFilters,
     },
 
     group: {
@@ -477,17 +468,9 @@ export function useTableState<TRow extends object>(
         }),
       remove: (key: string) => setGroupBy((prev) => prev.filter((k) => k !== key)),
       moveBy: (key: string, delta: number) =>
-        setGroupBy((prev) => {
-          const next = _moveColumnBy(prev, key, delta)
-          setSorts((prevSorts) => reorderGroupSorts(prevSorts, next))
-          return next
-        }),
+        reorderGroups((prev) => _moveColumnBy(prev, key, delta)),
       move: (dragKey: string, targetKey: string, after = false) =>
-        setGroupBy((prev) => {
-          const next = _reorderColumn(prev, dragKey, targetKey, after)
-          setSorts((prevSorts) => reorderGroupSorts(prevSorts, next))
-          return next
-        }),
+        reorderGroups((prev) => _reorderColumn(prev, dragKey, targetKey, after)),
       toggleCollapse: (key: string) => setCollapsedGroups((prev) => toggleCollapse(prev, key)),
       clear: () => {
         setGroupBy([])
@@ -574,12 +557,9 @@ export function useTableState<TRow extends object>(
 
     clearAll: () => {
       setSorts([])
-      setFilterState({ filters: {}, excludeFilters: {} })
-      setFilterModes({})
-      setRangeFilters({})
+      clearFilters()
       setGroupBy([])
       setCollapsedGroups(new Set())
-      setPageState(1)
       setSearchQueryState('')
     },
 

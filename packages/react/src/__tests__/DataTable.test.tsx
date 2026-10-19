@@ -109,7 +109,7 @@ describe('DataTable — onRowClick', () => {
   it('does not set a pointer cursor when onRowClick is not passed', () => {
     const { container } = render(<DataTable data={ROWS} columns={COLS} rowKey="id" />)
     const row = container.querySelector<HTMLElement>('tbody tr')!
-    expect(row.style.cursor).not.toBe('pointer')
+    expect(row.classList.contains('dt-tr--clickable')).toBe(false)
   })
 
   it('clicking the selection checkbox does not trigger onRowClick', () => {
@@ -122,23 +122,23 @@ describe('DataTable — onRowClick', () => {
     expect(onRowClick).not.toHaveBeenCalled()
   })
 
-  it('highlights the row on hover and clears it on mouse leave', () => {
+  // jsdom matches no :hover, so these check the row classes and the injected hover rule
+  const hoverRule = '.dt-tr--clickable:not(.dt-tr--selected):hover .dt-td{background:'
+  const injectedRules = () => document.querySelector('style[data-dt-styles]')?.textContent ?? ''
+
+  it('highlights a clickable row on hover', () => {
     const { container } = render(
       <DataTable data={ROWS} columns={COLS} rowKey="id" onRowClick={vi.fn()} />,
     )
     const row = container.querySelector<HTMLElement>('tbody tr')!
-    expect(row.style.background).not.toBe('var(--color-background-secondary)')
-    fireEvent.mouseEnter(row)
-    expect(row.style.background).toBe('var(--color-background-secondary)')
-    fireEvent.mouseLeave(row)
-    expect(row.style.background).not.toBe('var(--color-background-secondary)')
+    expect(row.classList.contains('dt-tr--clickable')).toBe(true)
+    expect(injectedRules()).toContain(hoverRule)
   })
 
   it('does not highlight on hover when onRowClick is not passed', () => {
     const { container } = render(<DataTable data={ROWS} columns={COLS} rowKey="id" />)
     const row = container.querySelector<HTMLElement>('tbody tr')!
-    fireEvent.mouseEnter(row)
-    expect(row.style.background).not.toBe('var(--color-background-secondary)')
+    expect(row.classList.contains('dt-tr--clickable')).toBe(false)
   })
 
   it('keeps the selected background on hover instead of the hover color', () => {
@@ -148,8 +148,8 @@ describe('DataTable — onRowClick', () => {
     const checkbox = container.querySelector<HTMLInputElement>('tbody tr input[type="checkbox"]')!
     fireEvent.click(checkbox)
     const row = container.querySelector<HTMLElement>('tbody tr')!
-    fireEvent.mouseEnter(row)
-    expect(row.style.background).toBe('var(--color-background-info)')
+    expect(row.classList.contains('dt-tr--selected')).toBe(true)
+    expect(injectedRules()).toContain(hoverRule)
   })
 })
 
@@ -725,7 +725,9 @@ describe('DataTable — exclude filters (multi-value checklist)', () => {
     const action = getByLabelText('Action', { exact: false, selector: 'input' }) as HTMLInputElement
     expect(action.title).toBe('')
     fireEvent.click(getByRole('button', { name: 'Exclude Action' }))
-    expect(getByText('Action', { selector: 'span' }).style.textDecoration).toBe('line-through')
+    expect(getComputedStyle(getByText('Action', { selector: 'span' })).textDecoration).toBe(
+      'line-through',
+    )
   })
 
   it('bulk-(de)selects hidden values via the include set for a multi-value column', () => {
@@ -845,15 +847,11 @@ describe('DataTable — virtualized filter checklist', () => {
   }))
 
   function scrollableList(container: HTMLElement): HTMLElement {
-    // The checklist fills its available height via `flex: 1` (see filterList in
-    // DataTableView.tsx) rather than a fixed inline height, so `.style.flex` alone can't
-    // disambiguate it from `.filterCols` (also `overflowY: 'auto'` — and jsdom's CSSOM reports a
-    // non-empty `.style.flex` for it too, derived from its own `flexShrink: 0`). Its structural
-    // signature is more reliable: the checklist's only child is the totalHeight spacer
-    // (`position: relative`) used by the windowing math, which `.filterCols` has no equivalent of.
+    // The checklist scrolls like `.dt-filter-cols` (both overflow-y: auto); unlike it, its only
+    // child is the totalHeight spacer (`position: relative`) used by the windowing math.
     const el = [...container.querySelectorAll<HTMLElement>('div')].find(
       (d) =>
-        d.style.overflowY === 'auto' &&
+        getComputedStyle(d).overflowY === 'auto' &&
         d.firstElementChild instanceof HTMLElement &&
         d.firstElementChild.style.position === 'relative',
     )
@@ -1071,7 +1069,7 @@ describe('DataTable — date filter tree', () => {
 
   // Regression guard: the tree used to render with no wrapper at all — no height bound, no
   // overflow — so an expanded tree could bleed past the filter panel onto the page instead of
-  // scrolling. It must now sit inside its own bounded, scrollable container (filterDateTreeWrap).
+  // scrolling. It must now sit inside its own bounded, scrollable container (`.dt-date-tree-wrap`).
   it('bounds the date tree in a scrollable, flex-filling container', () => {
     const { getByText, container } = render(
       <DataTable data={DATE_ROWS} columns={DATE_COLS} rowKey="id" />,
@@ -1079,7 +1077,7 @@ describe('DataTable — date filter tree', () => {
     fireEvent.click(getByText('Filter'))
     const yearNode = getByText('2023')
     const wrap = [...container.querySelectorAll<HTMLElement>('div')].find(
-      (d) => d.style.overflowY === 'auto' && d.contains(yearNode),
+      (d) => getComputedStyle(d).overflowY === 'auto' && d.contains(yearNode),
     )
     expect(wrap).toBeTruthy()
   })
@@ -1353,7 +1351,7 @@ describe('DataTable — toolbarEnd', () => {
     const end = container.querySelector<HTMLElement>('.dt-toolbar-end')!
     expect(end.contains(getByText('Share'))).toBe(true)
     expect(end.parentElement!.lastElementChild).toBe(end)
-    expect(end.style.marginLeft).toBe('auto')
+    expect(getComputedStyle(end).marginLeft).toBe('auto')
   })
 
   it('sits right after "Clear all" when that is shown', () => {
@@ -1363,7 +1361,7 @@ describe('DataTable — toolbarEnd', () => {
     fireEvent.change(getAllByPlaceholderText('Search…')[0], { target: { value: 'ali' } })
     const end = container.querySelector<HTMLElement>('.dt-toolbar-end')!
     expect(end.previousElementSibling?.textContent).toContain('Clear all')
-    expect(end.style.marginLeft).toBe('0px')
+    expect(getComputedStyle(end).marginLeft).toBe('0px')
   })
 
   it('renders no toolbar-end wrapper when toolbarEnd is absent or false', () => {
@@ -1383,7 +1381,7 @@ describe('DataTable — toolbarEnd', () => {
       const end = container.querySelector<HTMLElement>('.dt-toolbar-end')!
       const search = getAllByPlaceholderText('Search…')[0]
       expect(end.compareDocumentPosition(search) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-      expect(end.style.marginLeft).toBe('auto')
+      expect(getComputedStyle(end).marginLeft).toBe('auto')
     } finally {
       restore()
     }
@@ -3072,9 +3070,9 @@ describe('DataTable — column align', () => {
       />,
     )
     expect(
-      getByRole('columnheader', { name: /Score/ }).querySelector('[data-th-spacer]'),
+      getByRole('columnheader', { name: /Score/ }).querySelector('.dt-th-spacer'),
     ).not.toBeNull()
-    expect(container.querySelectorAll('[data-th-spacer]')).toHaveLength(1)
+    expect(container.querySelectorAll('.dt-th-spacer')).toHaveLength(1)
     // Skips the group header rows, marked by their collapse arrow
     const lastCells = [...container.querySelectorAll('tbody tr')]
       .filter((tr) => !tr.textContent?.includes('▼'))

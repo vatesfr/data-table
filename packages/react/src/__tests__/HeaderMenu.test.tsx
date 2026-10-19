@@ -63,7 +63,7 @@ function mount(cols = COLS, initialViewState?: TableViewState) {
   return { container, table: () => table, trigger, items, item, menu, click }
 }
 
-const isFiltered = (el: HTMLElement) => el.style.color === 'var(--color-text-info)'
+const isFiltered = (el: HTMLElement) => el.classList.contains('dt-th-menu--filtered')
 
 describe('HeaderMenu', () => {
   it('offers only the actions a column supports', async () => {

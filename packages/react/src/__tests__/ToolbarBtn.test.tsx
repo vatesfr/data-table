@@ -4,13 +4,13 @@ import { ToolbarBtn } from '../components/ToolbarBtn'
 
 describe('ToolbarBtn', () => {
   // U11: a cleared right border fell back to the browser's 2px outset one
-  it('keeps its own right border unless grouped, across re-renders', () => {
+  it('drops its right border only while active, across re-renders', () => {
     const { container, rerender } = render(<ToolbarBtn>Sort</ToolbarBtn>)
     const btn = container.querySelector('button')!
-    expect(btn.style.borderRight).toBe('0.5px solid var(--color-border-secondary)')
-    rerender(<ToolbarBtn grouped>Sort</ToolbarBtn>)
-    expect(btn.style.borderRightStyle).toBe('none')
+    expect(btn.className).toBe('dt-btn')
+    rerender(<ToolbarBtn active>Sort</ToolbarBtn>)
+    expect(btn.classList.contains('dt-btn--grouped')).toBe(true)
     rerender(<ToolbarBtn>Sort</ToolbarBtn>)
-    expect(btn.style.borderRight).toBe('0.5px solid var(--color-border-secondary)')
+    expect(btn.className).toBe('dt-btn')
   })
 })

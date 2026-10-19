@@ -60,7 +60,7 @@ Symptom first, then cause and fix. Delete entries once obsolete.
 ## Vue boolean prop silently `false` when omitted
 
 - Cause: Vue casts an absent boolean prop with no `withDefaults` default to `false`, not `undefined`.
-- Fix: spell out the default in `withDefaults` in both `DataTable.vue` and `DataTableView.vue` (e.g. `showSearch: true`, `defaultGroupsCollapsed`).
+- Fix: spell out the default in `withDefaults` in both `DataTable.vue` and `DataTableView.vue` (e.g. `showSearch: true`, `defaultGroupsCollapsed`); `undefined` keeps a tri-state prop absent (`rowClickable`).
 
 ## Vue demo: "Property … was accessed during render but is not defined on instance"
 

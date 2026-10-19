@@ -50,7 +50,7 @@ function mountView(cols = COLS, initialViewState?: TableViewState) {
   // The panel's own items, not the filter flyout's controls
   const menuItems = () =>
     [...(menu()?.querySelectorAll<HTMLButtonElement>('button') ?? [])].filter(
-      (b) => !b.closest('.dt__th-filter-flyout'),
+      (b) => !b.closest('.dt-th-filter-flyout'),
     )
   const items = () => menuItems().map((b) => b.textContent!.trim())
   const item = (name: string) => menuItems().find((b) => b.textContent!.includes(name))!
@@ -93,7 +93,7 @@ describe('HeaderMenu', () => {
   it('sorts from the header label button, adding with Shift, but not from ▾', async () => {
     const { el, table, trigger, unmount } = mountView()
     const sortButton = (label: string) =>
-      [...el.querySelectorAll<HTMLButtonElement>('button.dt__th-sort')].find((b) =>
+      [...el.querySelectorAll<HTMLButtonElement>('button.dt-th-sort')].find((b) =>
         b.textContent!.trim().startsWith(label),
       )
     trigger('Name')!.click()
@@ -152,12 +152,12 @@ describe('HeaderMenu', () => {
     await tick()
     item('Filter').click()
     await tick()
-    const flyout = el.querySelector<HTMLElement>('.dt__th-filter-flyout')!
-    expect(document.activeElement).toBe(flyout.querySelector('input.dt__dd-search'))
+    const flyout = el.querySelector<HTMLElement>('.dt-th-filter-flyout')!
+    expect(document.activeElement).toBe(flyout.querySelector('input.dt-dd-search'))
     flyout.querySelector<HTMLInputElement>('input[data-value="HR"]')!.click()
     await tick()
     expect([...(table.filter.exclude.value.dept ?? [])]).toEqual(['HR'])
-    expect(trigger('Dept')!.classList.contains('dt__th-menu--filtered')).toBe(true)
+    expect(trigger('Dept')!.classList.contains('dt-th-menu--filtered')).toBe(true)
     unmount()
   })
 
@@ -197,13 +197,13 @@ describe('HeaderMenu', () => {
     await tick()
     key('ArrowLeft')
     await tick()
-    expect(el.querySelector('.dt__th-filter-flyout')).not.toBeNull()
+    expect(el.querySelector('.dt-th-filter-flyout')).not.toBeNull()
     key('Escape')
     await tick()
     expect(search.value).toBe('')
     key('Escape')
     await tick()
-    expect(el.querySelector('.dt__th-filter-flyout')).toBeNull()
+    expect(el.querySelector('.dt-th-filter-flyout')).toBeNull()
     expect(document.activeElement).toBe(item('Filter'))
     key('Escape')
     await tick()
@@ -220,7 +220,7 @@ describe('HeaderMenu', () => {
     expect(menu()!.getAttribute('aria-label')).toBe('Dept options')
     item('Filter').click()
     await tick()
-    const flyout = el.querySelector<HTMLElement>('.dt__th-filter-flyout')!
+    const flyout = el.querySelector<HTMLElement>('.dt-th-filter-flyout')!
     expect(flyout.getAttribute('role')).toBe('group')
     expect(flyout.getAttribute('aria-label')).toBe('Filter')
     unmount()
@@ -295,8 +295,8 @@ describe('HeaderMenu', () => {
 
   it('marks the button of a filtered column', () => {
     const { trigger, unmount } = mountView(COLS, { filters: { dept: ['Eng'] } })
-    expect(trigger('Dept')!.classList.contains('dt__th-menu--filtered')).toBe(true)
-    expect(trigger('Name')!.classList.contains('dt__th-menu--filtered')).toBe(false)
+    expect(trigger('Dept')!.classList.contains('dt-th-menu--filtered')).toBe(true)
+    expect(trigger('Name')!.classList.contains('dt-th-menu--filtered')).toBe(false)
     // Named and shaped as filtered, not only colored (U19)
     expect(trigger('Dept')!.getAttribute('aria-label')).toBe('Dept options, filtered')
     expect(trigger('Dept')!.querySelector('svg')).not.toBeNull()

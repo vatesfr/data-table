@@ -45,8 +45,7 @@ import { vIndeterminate } from '../directives/vIndeterminate'
 // One column's filter controls — checklist (string, virtualized), range + slider (number), or a
 // Year›Month›Day tree + range + slider (date). Shown by the Filter dropdown's right pane and the
 // header menu's Filter flyout; its view state (value search, value order, shift-click anchor,
-// expanded date nodes) lives here, so render it keyed by column. Styled by DataTableView.vue's
-// `:deep()` rules, like the rest of the Filter dropdown.
+// expanded date nodes) lives here, so render it keyed by column. Styled by core's `DT_STYLES`.
 const props = defineProps<{
   table: TableState<TRow>
   col: ColumnDef<TRow>
@@ -285,13 +284,13 @@ async function onKeydown(event: KeyboardEvent): Promise<void> {
     // Clearing can remove the focused element (the "Others" row): keep focus on the search box
     const pane = event.currentTarget as HTMLElement
     await nextTick()
-    pane.querySelector<HTMLElement>('input.dt__dd-search')?.focus()
+    pane.querySelector<HTMLElement>('input.dt-dd-search')?.focus()
     return
   }
   // ←/→ cross between a value's checkbox and its ≠ button; ← from the checkbox leaves the pane
   const target = event.target as HTMLElement
   const partner = (selector: string) =>
-    target.closest('.dt__dd-item')?.querySelector<HTMLElement>(selector)
+    target.closest('.dt-dd-item')?.querySelector<HTMLElement>(selector)
   if (event.key === 'ArrowRight' && target.matches('input[data-dd-value-row]')) {
     const button = partner('[data-dd-value-exclude]')
     if (button) {
@@ -309,10 +308,10 @@ async function onKeydown(event: KeyboardEvent): Promise<void> {
   if (event.altKey || !['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return
   const pane = event.currentTarget as HTMLElement
   // Only the value search joins the vertical chain; select-all and the sort button sit beside it
-  const headerControls = Array.from(pane.querySelectorAll<HTMLElement>('input.dt__dd-search'))
+  const headerControls = Array.from(pane.querySelectorAll<HTMLElement>('input.dt-dd-search'))
   const rowInputs = Array.from(
     pane.querySelectorAll<HTMLInputElement>(
-      '.dt__dd-item input[type="checkbox"], .dt__date-tree-item input[type="checkbox"]',
+      '.dt-dd-item input[type="checkbox"], .dt-date-tree-item input[type="checkbox"]',
     ),
   )
   const focusables = [...headerControls, ...rowInputs]
@@ -323,7 +322,7 @@ async function onKeydown(event: KeyboardEvent): Promise<void> {
 
   // The flat checklist is virtualized: reaching a logical row outside the mounted window (or
   // Home/End) scrolls first, then focuses once Vue re-renders the window.
-  const checklistEl = pane.querySelector<HTMLElement>('.dt__filter-list')
+  const checklistEl = pane.querySelector<HTMLElement>('.dt-filter-list')
   if (checklistEl) {
     const vals = values.value
     const activeValue =
@@ -377,7 +376,7 @@ async function onKeydown(event: KeyboardEvent): Promise<void> {
 </script>
 
 <template>
-  <div class="dt__filter-detail" data-filter-detail @keydown="onKeydown">
+  <div class="dt-filter-detail" data-filter-detail @keydown="onKeydown">
     <RangeInputs
       v-if="col.type === 'number' || col.type === 'date'"
       :is-date="col.type === 'date'"
@@ -397,29 +396,28 @@ async function onKeydown(event: KeyboardEvent): Promise<void> {
       "
     />
     <template v-if="col.type !== 'number'">
-      <div class="dt__filter-search-row">
+      <div class="dt-filter-search-row">
         <input
           v-if="values.length > 0"
           v-indeterminate="allState.indeterminate"
           type="checkbox"
-          class="dt__filter-select-all"
           :checked="allState.checked"
           :title="L.selectAll"
           :aria-label="L.selectAll"
           @change="toggleAllOf(values)"
         />
-        <span class="dt__dd-search-wrap">
+        <span class="dt-dd-search-wrap">
           <input
             v-model="searchTerm"
             type="text"
-            class="dt__dd-search"
+            class="dt-dd-search"
             data-dd-value-search
             :placeholder="L.filterSearchPlaceholder"
           />
           <button
             v-if="searchTerm"
             type="button"
-            class="dt__dd-search-clear"
+            class="dt-dd-search-clear"
             :title="L.clearSearch"
             :aria-label="L.clearSearch"
             @click="searchTerm = ''"
@@ -429,18 +427,18 @@ async function onKeydown(event: KeyboardEvent): Promise<void> {
         </span>
         <button
           type="button"
-          class="dt__value-sort-btn"
+          class="dt-value-sort-btn"
           :title="L.sortValues"
           :aria-label="L.sortValues"
           @click="cycleSort"
         >
           {{ col.type === 'date' ? getDateSortIcon(valueSort.dir) : getValueSortIcon(valueSort) }}
         </button>
-        <div v-if="isMultiValue" class="dt__filter-match-mode-group" role="group">
+        <div v-if="isMultiValue" class="dt-filter-match-mode-group" role="group">
           <button
             type="button"
-            class="dt__value-sort-btn dt__filter-match-mode dt__filter-match-mode--left"
-            :class="{ 'dt__filter-match-mode--active': matchMode === 'or' }"
+            class="dt-value-sort-btn dt-filter-match-mode dt-filter-match-mode--left"
+            :class="{ 'dt-filter-match-mode--active': matchMode === 'or' }"
             :title="L.filterMatchAny"
             :aria-label="L.filterMatchAny"
             :aria-pressed="matchMode === 'or'"
@@ -450,8 +448,8 @@ async function onKeydown(event: KeyboardEvent): Promise<void> {
           </button>
           <button
             type="button"
-            class="dt__value-sort-btn dt__filter-match-mode dt__filter-match-mode--right"
-            :class="{ 'dt__filter-match-mode--active': matchMode === 'and' }"
+            class="dt-value-sort-btn dt-filter-match-mode dt-filter-match-mode--right"
+            :class="{ 'dt-filter-match-mode--active': matchMode === 'and' }"
             :title="L.filterMatchAll"
             :aria-label="L.filterMatchAll"
             :aria-pressed="matchMode === 'and'"
@@ -461,7 +459,7 @@ async function onKeydown(event: KeyboardEvent): Promise<void> {
           </button>
         </div>
       </div>
-      <div v-if="col.type === 'date'" class="dt__date-tree-wrap">
+      <div v-if="col.type === 'date'" class="dt-date-tree-wrap">
         <DateTreeItem
           :nodes="dateTree"
           :depth="0"
@@ -475,7 +473,7 @@ async function onKeydown(event: KeyboardEvent): Promise<void> {
       </div>
       <template v-else>
         <!-- Bulk (de)select what the value search is hiding; only shown while it hides something -->
-        <label v-if="otherValues.length > 0" class="dt__dd-item dt__filter-others">
+        <label v-if="otherValues.length > 0" class="dt-dd-item dt-filter-others">
           <input
             v-indeterminate="othersState.indeterminate"
             type="checkbox"
@@ -484,11 +482,11 @@ async function onKeydown(event: KeyboardEvent): Promise<void> {
             :checked="othersState.checked"
             @click="onOthersClick"
           />
-          <span class="dt__flex1">{{ L.filterOthers }}</span>
-          <span class="dt__filter-count">{{ otherValues.length }}</span>
+          <span class="dt-flex1">{{ L.filterOthers }}</span>
+          <span class="dt-filter-count">{{ otherValues.length }}</span>
         </label>
         <!-- Virtualized: only rows scrolled into view (+ overscan) are mounted -->
-        <div ref="listRef" class="dt__filter-list" @scroll="onListScroll">
+        <div ref="listRef" class="dt-filter-list" @scroll="onListScroll">
           <div :style="{ height: virtualRange.totalHeight + 'px', position: 'relative' }">
             <div
               :style="{ position: 'absolute', top: virtualRange.offsetY + 'px', left: 0, right: 0 }"
@@ -496,12 +494,12 @@ async function onKeydown(event: KeyboardEvent): Promise<void> {
               <div
                 v-for="v in values.slice(virtualRange.startIndex, virtualRange.endIndex)"
                 :key="v"
-                class="dt__dd-item dt__dd-item--clickable"
-                :class="{ 'dt__dd-item--exclude': isValueExcluded(v) }"
+                class="dt-dd-item"
+                :class="{ 'dt-dd-item--exclude': isValueExcluded(v) }"
                 :style="{ height: FILTER_LIST_ITEM_HEIGHT + 'px', boxSizing: 'border-box' }"
               >
                 <!-- Multi-value column: the checkbox includes, the ≠ button excludes -->
-                <label class="dt__filter-value">
+                <label class="dt-filter-value">
                   <input
                     type="checkbox"
                     data-dd-value-row
@@ -510,17 +508,17 @@ async function onKeydown(event: KeyboardEvent): Promise<void> {
                     :title="valueTitle(v)"
                     @click="onValueClick(v, $event)"
                   />
-                  <span class="dt__flex1">
+                  <span class="dt-flex1">
                     <slot name="value" :value="v" :label="formatFilterValue(col, v, L.emptyValue)">
                       {{ formatFilterValue(col, v, L.emptyValue) }}
                     </slot>
                   </span>
-                  <span class="dt__filter-count">{{ valueCounts.get(v) ?? 0 }}</span>
+                  <span class="dt-filter-count">{{ valueCounts.get(v) ?? 0 }}</span>
                 </label>
                 <button
                   v-if="!usesExcludeOnly"
                   type="button"
-                  class="dt__filter-exclude"
+                  class="dt-filter-exclude"
                   data-dd-value-exclude
                   :data-value="v"
                   :aria-pressed="isValueExcluded(v)"

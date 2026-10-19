@@ -20,39 +20,18 @@ import {
 // element), so a caller doesn't lose the base nav/Escape handling by supplying its own on top.
 defineOptions({ inheritAttrs: false })
 
-// The row-list selector shared by the Columns/Sort/Group dropdowns and the Filter dropdown's own
-// left column pane (see each dropdown's own template in DataTableView.vue for what these classes
-// mark: a column checkbox row, a Sort/Group active or addable entry, a Filter column-selector
-// button, a Filter category header). `button.dt__dd-item--clickable` (not just
-// `.dt__dd-item--clickable`) is deliberately tag-scoped — that class is also used by the Columns
-// row's inner <label> and by the Filter value-checklist's row <label>s, both of which must NOT be
-// swept up here: the checklist has its own separate, differently-scoped nav (see
-// onFilterDropdownKeydown in DataTableView.vue).
-const DEFAULT_ROW_SELECTOR =
-  '.dt__dd-item--colrow, .dt__dd-item--sortrow, .dt__dd-item--grouprow, button.dt__dd-item--clickable, .dt__filter-col-item, .dt__filter-category-header'
-
-const props = withDefaults(
-  defineProps<{
-    // Selector for this panel's own "rows" (search input is always matched separately via
-    // `input[data-dd-search]`, see below) — defaults to the shared selector above, which already
-    // covers every Columns/Sort/Group row plus the Filter dropdown's left-pane column buttons.
-    rowSelector?: string
-    // Scopes the roving-nav row query to a descendant of the panel instead of the whole panel —
-    // needed by the Filter dropdown, whose panel also contains a right-hand detail pane with its
-    // own separate nav (ArrowLeft/Right pane-crossing, its own Up/Down/Home/End over the
-    // checklist/date-tree — see onFilterDropdownKeydown in DataTableView.vue) that this base nav
-    // must not sweep up. Omitted for every other dropdown, whose whole panel is one row list.
-    navRoot?: string
-    // Escape clears a non-empty search term first (focus stays put), only closing the dropdown on
-    // a second press or when there was nothing to clear — each consumer wires its own search-clear
-    // action here (it may own more than one search box, e.g. the Filter dropdown's column search
-    // and its per-column value search; the callback itself decides which applies). Returns whether
-    // it actually cleared something. Omitted for a panel with no search box at all (there's always
-    // one here today, but the prop stays optional for a future dropdown that might not have one).
-    onEscapeClearable?: () => boolean
-  }>(),
-  { rowSelector: DEFAULT_ROW_SELECTOR },
-)
+// Rows reached by the roving nav carry `data-dd-row`, the dropdown's own search box
+// `data-dd-search` (core's DD_NAV_SELECTOR). The Filter dropdown's detail pane uses its own
+// `data-dd-value-*` markers and nav (see FilterPane.vue), so this nav never sweeps it up.
+const props = defineProps<{
+  // Escape clears a non-empty search term first (focus stays put), only closing the dropdown on
+  // a second press or when there was nothing to clear — each consumer wires its own search-clear
+  // action here (it may own more than one search box, e.g. the Filter dropdown's column search
+  // and its per-column value search; the callback itself decides which applies). Returns whether
+  // it actually cleared something. Omitted for a panel with no search box at all (there's always
+  // one here today, but the prop stays optional for a future dropdown that might not have one).
+  onEscapeClearable?: () => boolean
+}>()
 
 const containerRef = ref<HTMLElement | null>(null)
 const menuRef = ref<HTMLElement | null>(null)
@@ -60,6 +39,7 @@ const menuRef = ref<HTMLElement | null>(null)
 // `focusTrigger` (see defineExpose below) something to query into after Escape closes the menu.
 const triggerWrapRef = ref<HTMLElement | null>(null)
 const isOpen = ref(false)
+const flipUp = ref(false)
 
 function toggle() {
   isOpen.value = !isOpen.value
@@ -97,24 +77,21 @@ onUnmounted(() => document.removeEventListener('mousedown', onMousedown))
 
 // The menu is destroyed/recreated by v-if on every open (see template), so each open starts
 // from a fresh, unclamped node — `flush: 'post'` runs this after that node is actually in the
-// DOM. Mutates the node's style directly rather than through reactive state, mirroring the
-// vanilla/React clamp fix. A translateX offset is used for the horizontal case instead of
+// DOM. Flip-up is the `flipUp` ref (the `dt-dd--up` class); the translateX nudge is written to the
+// node's style directly, mirroring the React clamp. A translateX offset is used for the horizontal case instead of
 // flipping left:0 -> right:0, since the overflow is relative to the viewport, not to the
 // trigger.
 watch(
   isOpen,
   (open, _, onCleanup) => {
-    if (!open) return
+    if (!open) {
+      flipUp.value = false
+      return
+    }
     const menu = menuRef.value
     if (!menu) return
     const rect = menu.getBoundingClientRect()
-    const { flipUp } = computeDropdownClampOffset(rect, viewportWidth(), window.innerHeight)
-    if (flipUp) {
-      menu.style.top = 'auto'
-      menu.style.marginTop = '0'
-      menu.style.bottom = '100%'
-      menu.style.marginBottom = '4px'
-    }
+    flipUp.value = computeDropdownClampOffset(rect, viewportWidth(), window.innerHeight).flipUp
     let dx = 0
     onCleanup(
       keepDropdownClamped(
@@ -135,13 +112,12 @@ watch(
     // descendant covers a dropdown with no search box at all (e.g. Sort when every column is
     // already sorted, so there's no addable section to search). On a touch screen, the first row
     // regardless, so the keyboard doesn't pop up (see ddOpenFocusTarget).
-    ddOpenFocusTarget(menu, `input[data-dd-search], ${props.rowSelector}`)?.focus()
+    ddOpenFocusTarget(menu)?.focus()
   },
   { flush: 'post' },
 )
 
-// Roving Up/Down/Home/End nav across the panel's own search box + rows (`rowSelector`, optionally
-// scoped to `navRoot` — see the props above), plus Escape. A distinct concern from any Alt+↑/↓
+// Roving Up/Down/Home/End nav across the panel's own search box + rows, plus Escape. A distinct concern from any Alt+↑/↓
 // reorder or Enter/Space toggle a row itself implements (see DataTableView.vue's
 // onSortRowKeyDown/onGroupRowKeyDown/onColRowKeyDown) — those don't stopPropagation, so this still
 // runs after them via bubbling, but its own `e.altKey` guard keeps it from ever acting on their
@@ -162,15 +138,12 @@ function onPanelKeydown(e: KeyboardEvent): void {
   if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Home' && e.key !== 'End') return
   const menu = menuRef.value
   if (!menu) return
-  const root = props.navRoot ? (menu.querySelector<HTMLElement>(props.navRoot) ?? menu) : menu
   // A CategorySubmenu (see that file) renders as a real descendant of this panel and implements
   // its own independent Up/Down/Home/End nav, scoped to its own rows and stopping propagation —
   // excluding its rows here keeps this panel-wide nav exactly as if the submenu weren't open,
   // rather than letting it wander into a floating submenu whose rows aren't visually part of
   // this list.
-  const all = ddNavFocusables(root, `input[data-dd-search], ${props.rowSelector}`).filter(
-    (el) => !el.closest('[data-category-submenu]'),
-  )
+  const all = ddNavFocusables(menu).filter((el) => !el.closest('[data-category-submenu]'))
   const rows = all.filter((el) => !el.hasAttribute('data-dd-search'))
   const active = document.activeElement as HTMLElement | null
   if (!active || all.indexOf(active) === -1) return
@@ -189,46 +162,29 @@ function onPanelKeydown(e: KeyboardEvent): void {
 </script>
 
 <template>
-  <div ref="containerRef" class="dropdown">
-    <div ref="triggerWrapRef" @click="toggle">
-      <!-- Pass open state to trigger so it can style itself -->
-      <slot name="trigger" :open="isOpen" />
-    </div>
-    <!--
-      Rendered as a sibling of the trigger — inside the same outside-click boundary as the
-      trigger and panel (so clicking it doesn't spuriously close the dropdown via onMousedown
-      above), but outside the trigger's own @click toggle (so it never opens/closes the dropdown
-      itself). Used for the Sort/Group/Filter toolbar's adjoining × clear button (see
-      DataTableView.vue), visually merged into one pill with the trigger via shared CSS.
-    -->
-    <slot name="extra-trigger" />
-    <div v-if="isOpen" ref="menuRef" class="dt-dd" v-bind="$attrs" @keydown="onPanelKeydown">
+  <div ref="containerRef" class="dt-dd-wrap">
+    <span style="display: inline-flex">
+      <span ref="triggerWrapRef" style="display: contents" @click="toggle">
+        <slot name="trigger" />
+      </span>
+      <!--
+        Rendered as a sibling of the trigger — inside the same outside-click boundary as the
+        trigger and panel (so clicking it doesn't spuriously close the dropdown via onMousedown
+        above), but outside the trigger's own @click toggle (so it never opens/closes the dropdown
+        itself). Used for the Sort/Group/Filter toolbar's adjoining × clear button (see
+        DataTableView.vue), visually merged into one pill with the trigger via shared CSS.
+      -->
+      <slot name="extra-trigger" />
+    </span>
+    <div
+      v-if="isOpen"
+      ref="menuRef"
+      class="dt-dd"
+      :class="{ 'dt-dd--up': flipUp }"
+      v-bind="$attrs"
+      @keydown="onPanelKeydown"
+    >
       <slot />
     </div>
   </div>
 </template>
-
-<style scoped>
-.dropdown {
-  position: relative;
-  display: inline-flex;
-}
-.dt-dd {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  z-index: 100;
-  margin-top: 4px;
-  background: var(--color-background-primary);
-  border: 0.5px solid var(--color-border-secondary);
-  border-radius: 8px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-  min-width: 220px;
-  padding: 4px 0;
-  /* Previously unbounded — a table with many columns could render a dropdown taller than the
-     viewport with no way to scroll it. .dt__filter-panel's own max-height: 380px stays comfortably
-     under this, so it never needs this outer scrollbar too. */
-  max-height: 420px;
-  overflow-y: auto;
-}
-</style>

@@ -17,6 +17,7 @@ export * from './dropdownDomUtils'
 export * from './headerMenu'
 export * from './filterChecklist'
 export * from './checkboxSync'
+export * from './styles'
 // `DateTreeNode` (types.ts) isn't produced by any exported `types.ts` re-export elsewhere — the
 // date-tree filter (computeDateTree/getDateTreeNodeState/etc., all internal) is the only thing
 // that needs it, and every adapter's own date-tree component types against it.

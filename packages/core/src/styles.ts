@@ -1,29 +1,46 @@
-import { renderThemeCss } from '@vates/data-table-core/theme'
-
-export const STYLES = `
-${renderThemeCss()}
+// The table's style rules, shared by every adapter. Theme tokens (`renderThemeCss()`) stay out:
+// Solid/vanilla inject them alongside these rules, React/Vue apps define their own; every `var()`
+// here has a fallback so the rules render without them. CSS comments would ship in the bundle, so
+// the non-obvious rules are explained here instead:
+//
+// .dt-filter-cols-search-wrap is also a .dt-dd-search-wrap (see FilterDropdown.tsx) — declared
+// after it so this rule's own position:sticky wins the cascade over the shared class's
+// position:relative (same specificity, so declaration order decides); sticky still works fine as
+// the containing block its own clear button needs, same as relative would.
+//
+// Sort/Group/Columns' active rows only ever got the browser's native focus outline, no background
+// — unlike the Filter dropdown's own left-pane column row, which tints its background on selection
+// (see .dt-filter-col-row--active further down) as well as outlining the focused button inside it.
+// Matches that here for the same reason: an outline alone is a much fainter "this is the currently
+// focused row" cue than a filled background, and these three should read the same way Filter's own
+// selected-row treatment already does. Kept alongside (not replacing) the native outline, not
+// instead of it — this is additive polish, not an a11y regression. --grouprow/--colrow had no
+// hover feedback at all before this either (grab-cursor rows, no --click), gaining both.
+//
+// A "Group order" row (see SortDropdown.tsx) is still clickable to toggle direction, just not
+// draggable/Alt+Arrow-reorderable — its own section heading + hint text already explain why, so
+// this only needs to cancel --sortrow's hover highlight (a cue that dragging would do something
+// here, which it wouldn't), not restyle the row into looking disabled. Must come after
+// .dt-dd-item--sortrow:hover above to win the cascade on the shared hover background.
+export const DT_STYLES = `
 .dt{font-family:inherit;font-size:var(--font-size-lg,14px);color:var(--color-text-primary,#1a1916)}
-.dt-toolbar{padding:12px 0;border-bottom:0.5px solid var(--color-border-tertiary,#eeedea)}
+.dt-toolbar{padding:12px 0;border-bottom:.5px solid var(--color-border-tertiary,#eeedea)}
 .dt-toolbar-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .dt-toolbar-divider{width:1px;height:22px;background:var(--color-border-secondary,#dddcd8);flex-shrink:0;margin:0 2px}
 .dt-clear-all{margin-left:auto}
 .dt-toolbar-end{display:flex;align-items:center;gap:8px;margin-left:auto}
 .dt-clear-all~.dt-toolbar-end{margin-left:0}
 .dt-stats{margin-left:auto;font-size:var(--font-size-sm,12px);color:var(--color-text-secondary,#666561);white-space:nowrap}
-.dt-btn{display:inline-flex;align-items:center;gap:4px;padding:5px 10px;background:none;border:0.5px solid var(--color-border-secondary,#dddcd8);border-radius:6px;font-size:var(--font-size-md,13px);cursor:pointer;color:var(--color-text-primary,#1a1916);font-family:inherit;line-height:1}
+.dt-btn{display:inline-flex;align-items:center;gap:4px;padding:5px 10px;background:none;border:.5px solid var(--color-border-secondary,#dddcd8);border-radius:6px;font-size:var(--font-size-md,13px);cursor:pointer;color:var(--color-text-primary,#1a1916);font-family:inherit;line-height:1}
 .dt-btn--active{background:var(--color-background-secondary,#f7f6f3)}
 .dt-btn--grouped{border-radius:6px 0 0 6px;border-right:none}
-.dt-btn-clear{display:inline-flex;align-items:center;padding:5px 8px;background:none;border:0.5px solid var(--color-border-secondary,#dddcd8);border-radius:0 6px 6px 0;font-size:var(--font-size-lg,14px);line-height:1;cursor:pointer;color:var(--color-text-tertiary,#9b9a96);font-family:inherit}
+.dt-btn-clear{display:inline-flex;align-items:center;padding:5px 8px;background:none;border:.5px solid var(--color-border-secondary,#dddcd8);border-radius:0 6px 6px 0;font-size:var(--font-size-lg,14px);line-height:1;cursor:pointer;color:var(--color-text-tertiary,#9b9a96);font-family:inherit}
 .dt-btn-clear:hover{color:var(--color-text-primary,#1a1916)}
 .dt-dd-wrap{position:relative}
-.dt-dd{position:absolute;top:calc(100% + 4px);left:0;z-index:100;background:var(--color-background-primary,#fff);border:0.5px solid var(--color-border-secondary,#dddcd8);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.1);min-width:220px;max-height:420px;overflow-y:auto;padding:4px 0}
+.dt-dd{position:absolute;top:calc(100% + 4px);left:0;z-index:100;background:var(--color-background-primary,#fff);border:.5px solid var(--color-border-secondary,#dddcd8);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.1);min-width:220px;max-height:420px;overflow-y:auto;padding:4px 0}
 .dt-dd--up{top:auto;bottom:calc(100% + 4px)}
 .dt-dd-search-row{position:sticky;top:0;display:flex;background:var(--color-background-primary,#fff);padding:6px 12px;z-index:1}
 .dt-dd-search-wrap{position:relative;display:flex;flex:1;min-width:0}
-/* .dt-filter-cols-search-wrap is also a .dt-dd-search-wrap (see FilterDropdown.tsx) — declared
-   after it so this rule's own position:sticky wins the cascade over the shared class's
-   position:relative (same specificity, so declaration order decides); sticky still works fine as
-   the containing block its own clear button needs, same as relative would. */
 .dt-filter-cols-search-wrap{position:sticky;top:0;width:100%;box-sizing:border-box;margin-bottom:4px;background:var(--color-background-primary,#fff);z-index:1}
 .dt-dd-search-clear{position:absolute;right:4px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;padding:2px 4px;font-size:var(--font-size-md,13px);line-height:1;color:var(--color-text-tertiary,#9b9a96);font-family:inherit}
 .dt-dd-search-clear:hover{color:var(--color-text-primary,#1a1916)}
@@ -38,32 +55,19 @@ ${renderThemeCss()}
 .dt-dd-item--grouprow{cursor:grab}
 .dt-dd-item--colrow{cursor:grab}
 .dt-dd-drag-handle{flex-shrink:0;color:var(--color-text-tertiary,#9b9a96);font-size:var(--font-size-md,13px);line-height:1}
-/* Sort/Group/Columns' active rows only ever got the browser's native focus outline, no
-   background — unlike the Filter dropdown's own left-pane column row, which tints its background
-   on selection (see .dt-filter-col-row--active further down) as well as outlining the focused
-   button inside it. Matches that here for the same reason: an outline alone is a much fainter "this is
-   the currently focused row" cue than a filled background, and these three should read the same
-   way Filter's own selected-row treatment already does. Kept alongside (not replacing) the native
-   outline, not instead of it — this is additive polish, not an a11y regression. --grouprow/--colrow
-   had no hover feedback at all before this either (grab-cursor rows, no --click), gaining both. */
 .dt-dd-item--grouprow:hover,.dt-dd-item--grouprow:focus,.dt-dd-item--colrow:hover,.dt-dd-item--colrow:focus{background:var(--color-background-secondary,#f7f6f3)}
-/* A "Group order" row (see SortDropdown.tsx) is still clickable to toggle direction, just not
-   draggable/Alt+Arrow-reorderable — its own section heading + hint text already explain why, so
-   this only needs to cancel --sortrow's hover highlight (a cue that dragging would do something
-   here, which it wouldn't), not restyle the row into looking disabled. Must come after
-   .dt-dd-item--sortrow:hover above to win the cascade on the shared hover background. */
 .dt-dd-item--locked:hover{background:none}
 .dt-dd-item--drag-over{box-shadow:inset 0 2px 0 var(--color-text-primary,#1a1916)}
 .dt-dd-item--drag-over-after{box-shadow:inset 0 -2px 0 var(--color-text-primary,#1a1916)}
 .dt-dd-item--exclude{color:var(--color-text-danger,#a5182f)}
 .dt-dd-item--exclude .dt-flex1{text-decoration:line-through}
 .dt-filter-value{display:flex;align-items:center;gap:8px;flex:1;min-width:0;align-self:stretch}
-.dt-filter-exclude{flex-shrink:0;width:24px;height:24px;margin:-3px -8px -3px 0;padding:0;border:0.5px solid transparent;border-radius:4px;background:none;font:inherit;font-size:var(--font-size-lg,14px);line-height:1;color:var(--color-text-tertiary,#9b9a96);cursor:pointer}
+.dt-filter-exclude{flex-shrink:0;width:24px;height:24px;margin:-3px -8px -3px 0;padding:0;border:.5px solid transparent;border-radius:4px;background:none;font:inherit;font-size:var(--font-size-lg,14px);line-height:1;color:var(--color-text-tertiary,#9b9a96);cursor:pointer}
 .dt-filter-exclude:hover{color:var(--color-text-danger,#a5182f)}
 .dt-filter-exclude[aria-pressed=true]{background:var(--color-background-danger,#fbe9e9);border-color:var(--color-border-danger,#f2c2c2);color:var(--color-text-danger,#a5182f)}
 .dt-dd-category-trigger{justify-content:space-between}
 .dt-dd-category-arrow{flex-shrink:0;font-size:var(--font-size-2xs,10px);color:var(--color-text-tertiary,#9b9a96)}
-.dt-dd-submenu{z-index:101;background:var(--color-background-primary,#fff);border:0.5px solid var(--color-border-secondary,#dddcd8);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.1);min-width:160px;max-height:320px;overflow-y:auto}
+.dt-dd-submenu{z-index:101;background:var(--color-background-primary,#fff);border:.5px solid var(--color-border-secondary,#dddcd8);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.1);min-width:160px;max-height:320px;overflow-y:auto}
 .dt-flex1{flex:1}
 .dt-check-cell{cursor:pointer}
 .dt-dd-item-category{font-size:var(--font-size-xs,11px);color:var(--color-text-tertiary,#9b9a96);flex-shrink:0;white-space:nowrap}
@@ -74,7 +78,7 @@ ${renderThemeCss()}
 .dt-sort-icon{font-size:var(--font-size-xl,15px);color:var(--color-border-secondary,#dddcd8);opacity:0}
 .dt-sort-icon--active{color:var(--color-text-primary,#1a1916);opacity:1}
 .dt-th:hover .dt-sort-icon,:focus-visible>.dt-sort-icon{opacity:1}
-.dt-range-input{width:80px;padding:3px 6px;font-size:var(--font-size-sm,12px);border:0.5px solid var(--color-border-secondary,#dddcd8);border-radius:4px;font-family:inherit;background:transparent;color:inherit}
+.dt-range-input{width:80px;padding:3px 6px;font-size:var(--font-size-sm,12px);border:.5px solid var(--color-border-secondary,#dddcd8);border-radius:4px;font-family:inherit;background:transparent;color:inherit}
 .dt-range-input[type=date]{width:118px}
 .dt-range-sep{color:var(--color-text-tertiary,#9b9a96);font-size:var(--font-size-sm,12px)}
 .dt-range-slider{position:relative;height:22px;margin:8px 2px 2px}
@@ -87,13 +91,13 @@ ${renderThemeCss()}
 .dt-range-slider-thumb::-moz-range-thumb{pointer-events:auto;width:14px;height:14px;border-radius:50%;background:var(--color-text-info,#185fa5);border:2px solid var(--color-background-primary,#fff);box-shadow:0 0 0 1px var(--color-border-info,#b8d6f5);cursor:pointer}
 .dt-active-bar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:10px 0}
 .dt-chip{display:inline-flex;align-items:center;font-size:var(--font-size-sm,12px)}
-.dt-chip-body{background:var(--color-background-secondary,#f7f6f3);border:0.5px solid var(--color-border-secondary,#dddcd8);border-right:none;border-radius:12px 0 0 12px;padding:2px 4px 2px 8px;font-size:var(--font-size-sm,12px);color:var(--color-text-secondary,#666561);font-family:inherit;cursor:pointer;line-height:1.4;min-height:24px}
-.dt-chip-body:hover{background:var(--color-background-tertiary,#f1efe9)}
-.dt-chip-x{cursor:pointer;background:var(--color-background-secondary,#f7f6f3);border:0.5px solid var(--color-border-secondary,#dddcd8);border-radius:0 12px 12px 0;padding:2px 8px 2px 2px;font-size:var(--font-size-sm,12px);color:var(--color-text-secondary,#666561);font-family:inherit;line-height:1.4;min-height:24px;min-width:24px}
+.dt-chip-body{background:var(--color-background-secondary,#f7f6f3);border:.5px solid var(--color-border-secondary,#dddcd8);border-right:none;border-radius:12px 0 0 12px;padding:2px 4px 2px 8px;font-size:var(--font-size-sm,12px);color:var(--color-text-secondary,#666561);font-family:inherit;cursor:pointer;line-height:1.4;min-height:24px}
+.dt-chip-body:hover{background:var(--color-background-tertiary,#eae9e5)}
+.dt-chip-x{cursor:pointer;background:var(--color-background-secondary,#f7f6f3);border:.5px solid var(--color-border-secondary,#dddcd8);border-radius:0 12px 12px 0;padding:2px 8px 2px 2px;font-size:var(--font-size-sm,12px);color:var(--color-text-secondary,#666561);font-family:inherit;line-height:1.4;min-height:24px;min-width:24px}
 .dt-chip-x:hover{color:var(--color-text-primary,#1a1916)}
 .dt-chip--filter .dt-chip-body,.dt-chip--filter .dt-chip-x{background:var(--color-background-info,#e6f1fb);color:var(--color-text-info,#185fa5);border-color:var(--color-border-info,#b8d6f5)}
 .dt-chip--exclude .dt-chip-body,.dt-chip--exclude .dt-chip-x{background:var(--color-background-danger,#fbe9e9);color:var(--color-text-danger,#a5182f);border-color:var(--color-border-danger,#f2c2c2)}
-.dt-table-wrap{overflow-x:auto;border:0.5px solid var(--color-border-tertiary,#eeedea);border-radius:8px;margin-top:12px}
+.dt-table-wrap{overflow-x:auto;border:.5px solid var(--color-border-tertiary,#eeedea);border-radius:8px;margin-top:12px}
 .dt-table{width:100%;border-collapse:collapse;font-size:var(--font-size-md,13px)}
 .dt-th{padding:8px 12px;text-align:left;font-weight:var(--font-weight-medium,500);font-size:var(--font-size-sm,12px);background:var(--color-background-tertiary,#eae9e5);color:var(--color-text-secondary,#666561);border-bottom:1px solid var(--color-border-secondary,#dddcd8);white-space:nowrap;user-select:none;cursor:pointer}
 .dt-th--no-sort{cursor:default}
@@ -107,10 +111,10 @@ ${renderThemeCss()}
 .dt-th-menu-panel{padding:4px 0;max-width:calc(100vw - 40px)}
 .dt-th-menu-panel--drilled{max-height:none;padding:0;overflow:hidden}
 .dt-th-filter-flyout{display:flex;flex-direction:column;max-height:380px;overflow:hidden;font-weight:var(--font-weight-normal,400)}
-.dt-td{padding:8px 12px;border-bottom:0.5px solid var(--color-border-tertiary,#eeedea);color:var(--color-text-primary,#1a1916);vertical-align:middle}
+.dt-td{padding:8px 12px;border-bottom:.5px solid var(--color-border-tertiary,#eeedea);color:var(--color-text-primary,#1a1916);vertical-align:middle}
 .dt-tr--odd .dt-td{background:color-mix(in srgb,var(--color-background-secondary,#f7f6f3) 45%,transparent)}
 .dt-tr--clickable{cursor:pointer}
-.dt-tr--clickable:hover .dt-td{background:var(--color-background-secondary,#f7f6f3)}
+.dt-tr--clickable:not(.dt-tr--selected):hover .dt-td{background:var(--color-background-secondary,#f7f6f3)}
 .dt-tr--selected .dt-td{background:var(--color-background-info,#e6f1fb)}
 .dt-group-row{background:var(--color-background-secondary,#f7f6f3);border-left:3px solid var(--color-border-secondary,#dddcd8);font-weight:var(--font-weight-semibold,600);font-size:var(--font-size-sm,12px);color:var(--color-text-primary,#1a1916);cursor:pointer}
 .dt-dd-no-match{padding:6px 12px;font-size:var(--font-size-sm,12px);color:var(--color-text-tertiary,#9b9a96)}
@@ -121,22 +125,22 @@ ${renderThemeCss()}
 .dt-group-count{margin-left:10px;font-weight:var(--font-weight-normal,400);opacity:.6}
 .dt-group-continued{margin-left:8px;font-weight:var(--font-weight-normal,400);opacity:.6}
 .dt-pagination{display:flex;align-items:center;gap:6px;padding:10px 2px;justify-content:flex-end;flex-wrap:wrap}
-.dt-page-btn{padding:5px 9px;background:none;border:0.5px solid var(--color-border-secondary,#dddcd8);border-radius:4px;cursor:pointer;font-size:var(--font-size-md,13px);color:var(--color-text-primary,#1a1916);font-family:inherit;line-height:1}
+.dt-page-btn{padding:5px 9px;background:none;border:.5px solid var(--color-border-secondary,#dddcd8);border-radius:4px;cursor:pointer;font-size:var(--font-size-md,13px);color:var(--color-text-primary,#1a1916);font-family:inherit;line-height:1}
 .dt-page-btn:disabled{opacity:.35;cursor:default}
 .dt-page-info{font-size:var(--font-size-sm,12px);color:var(--color-text-secondary,#666561);padding:0 6px}
-.dt-page-select{padding:4px 6px;font-size:var(--font-size-sm,12px);border:0.5px solid var(--color-border-secondary,#dddcd8);border-radius:4px;background:transparent;color:inherit;font-family:inherit;cursor:pointer}
+.dt-page-select{padding:4px 6px;font-size:var(--font-size-sm,12px);border:.5px solid var(--color-border-secondary,#dddcd8);border-radius:4px;background:transparent;color:inherit;font-family:inherit;cursor:pointer}
 .dt-rows-per-page-group{display:inline-flex;align-items:center;gap:6px;margin-left:10px}
 .dt-rows-per-page{font-size:var(--font-size-sm,12px);color:var(--color-text-secondary,#666561)}
 .dt-search-wrap{position:relative;display:inline-flex;flex:1;min-width:160px;max-width:280px}
-.dt-search-input{padding:4px 24px 4px 8px;font-size:var(--font-size-md,13px);border:0.5px solid var(--color-border-secondary,#dddcd8);border-radius:6px;background:transparent;color:inherit;font-family:inherit;width:100%}
+.dt-search-input{padding:4px 24px 4px 8px;font-size:var(--font-size-md,13px);border:.5px solid var(--color-border-secondary,#dddcd8);border-radius:6px;background:transparent;color:inherit;font-family:inherit;width:100%}
 .dt-search-clear{position:absolute;right:4px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;padding:2px 4px;font-size:var(--font-size-lg,14px);line-height:1;color:var(--color-text-tertiary,#9b9a96);font-family:inherit}
 .dt-search-clear:hover{color:var(--color-text-primary,#1a1916)}
 .dt-filter-cols .dt-dd-search{width:0}
 .dt-filter-panel{display:flex;min-width:460px;max-height:380px;overflow:hidden}
 .dt-filter-panel--narrow{flex-direction:column;min-width:0;width:calc(100vw - 40px)}
 .dt-filter-panel--narrow .dt-filter-cols{width:auto;max-width:none;border-right:none}
-.dt-filter-back{flex-shrink:0;font-weight:var(--font-weight-medium,500);border-bottom:0.5px solid var(--color-border-tertiary,#eeedea)}
-.dt-filter-cols{width:max-content;min-width:150px;max-width:240px;flex-shrink:0;overflow-y:auto;border-right:0.5px solid var(--color-border-tertiary,#eeedea);padding:4px 0}
+.dt-filter-back{flex-shrink:0;font-weight:var(--font-weight-medium,500);border-bottom:.5px solid var(--color-border-tertiary,#eeedea)}
+.dt-filter-cols{width:max-content;min-width:150px;max-width:240px;flex-shrink:0;overflow-y:auto;border-right:.5px solid var(--color-border-tertiary,#eeedea);padding:4px 0}
 .dt-filter-col-row{display:flex;align-items:stretch}
 .dt-filter-col-row:hover,.dt-filter-col-row--active{background:var(--color-background-secondary,#f7f6f3)}
 .dt-filter-col-item{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:7px 10px;font-size:var(--font-size-md,13px);cursor:pointer;color:var(--color-text-primary,#1a1916);border:none;background:none;font-family:inherit;text-align:left;margin:0;flex:1 1 auto;min-width:0;overflow:hidden;box-sizing:border-box}
@@ -152,35 +156,37 @@ ${renderThemeCss()}
 .dt-filter-list{overflow-y:auto;flex:1;min-height:0}
 .dt-date-tree-wrap{overflow-y:auto;flex:1;min-height:0}
 .dt-filter-search-row{display:flex;align-items:center;gap:6px;margin:2px 12px 6px}
-.dt-dd-search{flex:1;padding:5px 20px 5px 8px;font-size:var(--font-size-sm,12px);border:0.5px solid var(--color-border-secondary,#dddcd8);border-radius:6px;background:transparent;color:inherit;font-family:inherit;box-sizing:border-box}
-.dt-value-sort-btn{flex-shrink:0;padding:4px 7px;font-size:var(--font-size-xs,11px);background:none;border:0.5px solid var(--color-border-secondary,#dddcd8);border-radius:6px;cursor:pointer;color:var(--color-text-secondary,#666561);font-family:inherit;white-space:nowrap}
+.dt-dd-search{flex:1;padding:5px 20px 5px 8px;font-size:var(--font-size-sm,12px);border:.5px solid var(--color-border-secondary,#dddcd8);border-radius:6px;background:transparent;color:inherit;font-family:inherit;box-sizing:border-box}
+.dt-value-sort-btn{flex-shrink:0;padding:4px 7px;font-size:var(--font-size-xs,11px);background:none;border:.5px solid var(--color-border-secondary,#dddcd8);border-radius:6px;cursor:pointer;color:var(--color-text-secondary,#666561);font-family:inherit;white-space:nowrap}
 .dt-filter-match-mode-group{display:inline-flex;flex-shrink:0}
 .dt-filter-match-mode--left{border-radius:6px 0 0 6px;border-right:none}
 .dt-filter-match-mode--right{border-radius:0 6px 6px 0}
 .dt-range-presets{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
 .dt-range-preset{min-height:24px}
 .dt-filter-match-mode--active{background:var(--color-background-secondary,#f7f6f3);color:var(--color-text-primary,#1a1916);font-weight:var(--font-weight-medium,500)}
-.dt-filter-others{background:var(--color-background-secondary,#f7f6f3);border-top:0.5px solid var(--color-border-tertiary,#eeedea);border-bottom:0.5px solid var(--color-border-secondary,#dddcd8);font-style:italic;color:var(--color-text-secondary,#666561)}
+.dt-filter-others{background:var(--color-background-secondary,#f7f6f3);border-top:.5px solid var(--color-border-tertiary,#eeedea);border-bottom:.5px solid var(--color-border-secondary,#dddcd8);font-style:italic;color:var(--color-text-secondary,#666561)}
 .dt-filter-others:hover,.dt-filter-others:focus-within{background:color-mix(in srgb,var(--color-background-secondary,#f7f6f3) 70%,var(--color-border-secondary,#dddcd8))}
 .dt-date-tree-item{display:flex;align-items:center;gap:8px;padding:5px 14px;font-size:var(--font-size-md,13px);color:var(--color-text-primary,#1a1916);cursor:pointer}
 .dt-date-tree-toggle{width:14px;flex-shrink:0;text-align:center;font-size:var(--font-size-2xs,10px);color:var(--color-text-tertiary,#9b9a96)}
 .dt-date-tree-toggle--branch{cursor:pointer}
 .dt-agg-row{font-size:var(--font-size-sm,12px);font-weight:var(--font-weight-medium,500);color:var(--color-text-secondary,#666561);background:var(--color-background-secondary,#f7f6f3)}
-.dt-agg-td{padding:4px 12px;border-bottom:0.5px solid var(--color-border-tertiary,#eeedea)}
+.dt-agg-td{padding:4px 12px;border-bottom:.5px solid var(--color-border-tertiary,#eeedea)}
 `
 
-// Injects the stylesheet into <head> at most once per page, regardless of how many tables are
-// mounted or which entry point (createTableState/DataTableView directly, or a wrapper like
-// @vates/data-table-vanilla's createDataTable) triggers the first one. Called from
-// `DataTableView` itself (not left to each caller) so a consumer using the raw Solid components
-// gets a styled table with no separate CSS import to remember, the same "just works" guarantee
-// createDataTable already gave vanilla consumers.
-let stylesInjected = false
-export function injectStyles(): void {
-  if (stylesInjected || typeof document === 'undefined') return
-  stylesInjected = true
+// Injects the rules, and the theme tokens when given, into <head> at most once per page each, so a
+// Solid table still gets its tokens after a React/Vue table injected the rules alone. Checks the
+// DOM rather than a module flag so two copies of core (duplicate installs) don't inject twice.
+// Inserted first so app stylesheets win the cascade.
+export function injectStyles(themeCss = ''): void {
+  if (typeof document === 'undefined') return
+  injectOnce('data-dt-styles', DT_STYLES)
+  if (themeCss) injectOnce('data-dt-theme', themeCss)
+}
+
+function injectOnce(attr: string, css: string): void {
+  if (document.querySelector(`style[${attr}]`)) return
   const s = document.createElement('style')
-  s.dataset.dtStyles = ''
-  s.textContent = STYLES
+  s.setAttribute(attr, '')
+  s.textContent = css
   document.head.insertBefore(s, document.head.firstChild)
 }

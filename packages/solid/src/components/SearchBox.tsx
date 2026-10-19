@@ -10,7 +10,7 @@ interface SearchBoxProps<TRow extends object> {
 // an actual component before building the larger dropdown/table-body pieces.
 //
 // Markup/classes match the existing string-built toolbar exactly (dt-search-wrap/dt-search-input/
-// dt-search-clear) so styles.ts's CSS applies unchanged. Unlike the old render(), there is no
+// dt-search-clear) so core's DT_STYLES applies unchanged. Unlike the old render(), there is no
 // data-focus-key/selection-range restore here at all — Solid reuses this same <input> DOM node
 // across every re-render (it's the direct fix for the numeric-range caret bug from earlier: the
 // same class of issue can no longer occur here, by construction).

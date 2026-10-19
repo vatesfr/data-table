@@ -43,7 +43,6 @@ export function useDropdownReorder(
   const [dragOverAfter, setDragOverAfter] = useState(false)
 
   return {
-    dragKey,
     dragOverKey,
     dragOverAfter,
     onRowDragStart: (key: string) => setDragKey(key),

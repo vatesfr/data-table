@@ -3,7 +3,6 @@ import {
   useLayoutEffect,
   useRef,
   useState,
-  type CSSProperties,
   type KeyboardEvent,
   type ReactNode,
 } from 'react'
@@ -39,80 +38,6 @@ interface HeaderMenuProps {
   onHide: () => void
 }
 
-const triggerStyle: CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  flexShrink: 0,
-  width: 24,
-  height: 24,
-  margin: '-4px 0 -4px auto',
-  padding: 0,
-  border: 'none',
-  borderRadius: 4,
-  background: 'none',
-  color: 'var(--color-text-secondary)',
-  fontFamily: 'inherit',
-  fontSize: 'inherit',
-  cursor: 'pointer',
-}
-const panelStyle: CSSProperties = {
-  position: 'fixed',
-  zIndex: 101,
-  background: 'var(--color-background-primary)',
-  border: '0.5px solid var(--color-border-secondary)',
-  borderRadius: 8,
-  boxShadow: '0 4px 16px rgba(0,0,0,0.10)',
-  minWidth: 160,
-  // 100vw counts a classic scrollbar too, hence more than twice the 8 px viewport margin
-  maxWidth: 'calc(100vw - 40px)',
-  maxHeight: 320,
-  overflowY: 'auto',
-  padding: '4px 0',
-  fontWeight: 'var(--font-weight-normal, 400)',
-}
-// Holds the filter pane itself, which scrolls its own list
-const drilledPanelStyle: CSSProperties = {
-  ...panelStyle,
-  maxHeight: 'none',
-  overflow: 'hidden',
-  padding: 0,
-}
-const backStyle: CSSProperties = {
-  flexShrink: 0,
-  fontWeight: 'var(--font-weight-medium, 500)',
-  borderBottom: '0.5px solid var(--color-border-tertiary)',
-}
-const arrowStyle: CSSProperties = {
-  flexShrink: 0,
-  fontSize: 'var(--font-size-2xs, 10px)',
-  color: 'var(--color-text-tertiary)',
-}
-const itemStyle: CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: 8,
-  padding: '7px 14px',
-  cursor: 'pointer',
-  fontSize: 'var(--font-size-md, 13px)',
-  color: 'var(--color-text-primary)',
-  border: 'none',
-  background: 'none',
-  fontFamily: 'inherit',
-  textAlign: 'left',
-  margin: 0,
-  width: '100%',
-  boxSizing: 'border-box',
-}
-const flyoutStyle: CSSProperties = {
-  display: 'flex',
-  flexDirection: 'column',
-  maxHeight: 380,
-  overflow: 'hidden',
-  padding: 0,
-}
-const hoverBg = 'var(--color-background-secondary)'
-
 function Icon({ item }: { item: HeaderMenuItem }) {
   return (
     <svg
@@ -122,7 +47,7 @@ function Icon({ item }: { item: HeaderMenuItem }) {
       strokeWidth="1.5"
       strokeLinejoin="round"
       aria-hidden="true"
-      style={{ width: 14, height: 14, flexShrink: 0 }}
+      className="dt-th-menu-icon"
     >
       <path d={HEADER_MENU_ITEMS[item].icon} />
     </svg>
@@ -147,8 +72,6 @@ export function HeaderMenu({
   const [open, setOpen] = useState(false)
   const [filterOpen, setFilterOpen] = useState(false)
   const [pos, setPos] = useState({ left: 0, top: 0 })
-  // Hovered/focused item (inline styles have no :hover/:focus); -1 is the trigger
-  const [lit, setLit] = useState<number | null>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   // No room for a flyout beside the menu: Filter swaps the panel's items for its pane instead
@@ -244,6 +167,7 @@ export function HeaderMenu({
     <>
       <button
         type="button"
+        className={`dt-th-menu${filtered ? ' dt-th-menu--filtered' : ''}`}
         data-col-menu
         ref={triggerRef}
         aria-label={label}
@@ -255,15 +179,6 @@ export function HeaderMenu({
           if (open) close(false)
           else setOpen(true)
         }}
-        onMouseEnter={() => setLit(-1)}
-        onMouseLeave={() => setLit(null)}
-        style={{
-          ...triggerStyle,
-          ...(open || lit === -1 ? { background: hoverBg } : null),
-          ...(filtered
-            ? { color: 'var(--color-text-info)', fontWeight: 'var(--font-weight-bold, 700)' }
-            : null),
-        }}
       >
         {/* A funnel, not just a color, tells a filtered column apart */}
         {filtered ? <Icon item="filter" /> : '▾'}
@@ -271,6 +186,7 @@ export function HeaderMenu({
       {open && (
         <div
           ref={menuRef}
+          className={`dt-dd-submenu dt-th-menu-panel${drilled ? ' dt-th-menu-panel--drilled' : ''}`}
           role="dialog"
           aria-label={menuLabel}
           onClick={(e) => e.stopPropagation()}
@@ -280,10 +196,11 @@ export function HeaderMenu({
             const to = e.relatedTarget
             if (to && !e.currentTarget.contains(to) && to !== triggerRef.current) close(false)
           }}
-          style={{ ...(drilled ? drilledPanelStyle : panelStyle), left: pos.left, top: pos.top }}
+          style={{ position: 'fixed', left: pos.left, top: pos.top }}
         >
           {drilled ? (
             <div
+              className="dt-th-filter-flyout"
               data-menu-pane
               role="group"
               aria-label={L.filter}
@@ -295,45 +212,32 @@ export function HeaderMenu({
                 e.stopPropagation()
                 drill(false)
               }}
-              style={flyoutStyle}
             >
               <button
                 type="button"
+                className="dt-dd-item dt-dd-item--click dt-filter-back"
                 data-menu-back
                 onClick={() => drill(false)}
-                onMouseEnter={() => setLit(-2)}
-                onMouseLeave={() => setLit(null)}
-                onFocus={() => setLit(-2)}
-                onBlur={() => setLit(null)}
-                style={{
-                  ...itemStyle,
-                  ...backStyle,
-                  ...(lit === -2 ? { background: hoverBg } : null),
-                }}
               >
                 ‹ {column}
               </button>
               {filterPane}
             </div>
           ) : (
-            items.map((item, i) =>
+            items.map((item) =>
               item === 'filter' && narrow ? (
                 <button
                   key={item}
                   type="button"
+                  className="dt-dd-item dt-dd-item--click"
                   data-dd-row
                   data-menu-filter
                   onClick={() => drill(true)}
                   onKeyDown={(e) => e.key === 'ArrowRight' && drill(true)}
-                  onMouseEnter={() => setLit(i)}
-                  onMouseLeave={() => setLit(null)}
-                  onFocus={() => setLit(i)}
-                  onBlur={() => setLit(null)}
-                  style={lit === i ? { ...itemStyle, background: hoverBg } : itemStyle}
                 >
                   <Icon item={item} />
-                  <span style={{ flex: 1 }}>{L[HEADER_MENU_ITEMS[item].label]}</span>
-                  <span style={arrowStyle}>▸</span>
+                  <span className="dt-flex1">{L[HEADER_MENU_ITEMS[item].label]}</span>
+                  <span className="dt-dd-category-arrow">▸</span>
                 </button>
               ) : item === 'filter' ? (
                 <CategorySubmenu
@@ -341,7 +245,7 @@ export function HeaderMenu({
                   name={L[HEADER_MENU_ITEMS[item].label]}
                   icon={<Icon item={item} />}
                   groupLabel={L[HEADER_MENU_ITEMS[item].label]}
-                  panelStyle={flyoutStyle}
+                  className="dt-th-filter-flyout"
                   isOpen={filterOpen}
                   onOpen={() => setFilterOpen(true)}
                   onClose={() => setFilterOpen(false)}
@@ -352,13 +256,9 @@ export function HeaderMenu({
                 <button
                   key={item}
                   type="button"
+                  className="dt-dd-item dt-dd-item--click"
                   data-dd-row
                   onClick={() => act(item)}
-                  onMouseEnter={() => setLit(i)}
-                  onMouseLeave={() => setLit(null)}
-                  onFocus={() => setLit(i)}
-                  onBlur={() => setLit(null)}
-                  style={lit === i ? { ...itemStyle, background: hoverBg } : itemStyle}
                 >
                   <Icon item={item} />
                   {L[HEADER_MENU_ITEMS[item].label]}

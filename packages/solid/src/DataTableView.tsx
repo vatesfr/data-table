@@ -1,7 +1,7 @@
 import { Show, children, createSignal, onCleanup, type JSXElement } from 'solid-js'
-import { FILTER_NARROW_QUERY, watchMedia } from '@vates/data-table-core/internal'
+import { FILTER_NARROW_QUERY, injectStyles, watchMedia } from '@vates/data-table-core/internal'
+import { renderThemeCss } from '@vates/data-table-core/theme'
 import type { TableState } from './createTableState'
-import { injectStyles } from './styles'
 import { SearchBox, focusSearch } from './components/SearchBox'
 import { ColumnsDropdown } from './components/ColumnsDropdown'
 import { SortDropdown } from './components/SortDropdown'
@@ -62,7 +62,7 @@ type DropdownId = 'cols' | 'sort' | 'group' | 'filter'
 // with imperative needs (usePersistedView-equivalent, etc.) can build a table and pass it in
 // directly instead of only ever going through the createDataTable(container, options) wrapper.
 export function DataTableView<TRow extends object>(props: DataTableViewProps<TRow>) {
-  injectStyles()
+  injectStyles(renderThemeCss())
   const { table } = props
   const [openDropdown, setOpenDropdown] = createSignal<DropdownId | null>(null)
   let filterDropdown: FilterDropdownHandle | undefined

@@ -63,9 +63,9 @@ export function Dropdown({
   }, [setOpen])
 
   // The panel unmounts entirely when closed, so each open is a fresh DOM node at its natural
-  // (unclamped) position — this mutates that node's style directly rather than going through
-  // React state (which would need a setState-in-effect, flagged as a cascading-render risk by
-  // this project's eslint-plugin-react-hooks config). A translateX offset is used for the
+  // (unclamped) position — this mutates that node's class and style directly rather than going
+  // through React state (which would need a setState-in-effect, flagged as a cascading-render risk
+  // by this project's eslint-plugin-react-hooks config). A translateX offset is used for the
   // horizontal case instead of flipping left:0 -> right:0, since the overflow is relative to
   // the viewport, not to the trigger (see vanilla's Dropdown clamp for the reasoning).
   useLayoutEffect(() => {
@@ -74,12 +74,7 @@ export function Dropdown({
     if (!panel) return
     const rect = panel.getBoundingClientRect()
     const { flipUp } = computeDropdownClampOffset(rect, viewportWidth(), window.innerHeight)
-    if (flipUp) {
-      panel.style.top = 'auto'
-      panel.style.marginTop = '0'
-      panel.style.bottom = '100%'
-      panel.style.marginBottom = '4px'
-    }
+    if (flipUp) panel.classList.add('dt-dd--up')
     let dx = 0
     const stopClamping = keepDropdownClamped(
       panel,
@@ -142,9 +137,11 @@ export function Dropdown({
   }
 
   return (
-    <div ref={ref} style={{ position: 'relative', display: 'inline-flex' }}>
-      <div onClick={() => setOpen(!open)}>{trigger}</div>
-      {extraTrigger}
+    <div ref={ref} className="dt-dd-wrap">
+      <span style={{ display: 'inline-flex' }}>
+        <span onClick={() => setOpen(!open)}>{trigger}</span>
+        {extraTrigger}
+      </span>
       {open && (
         <div
           ref={panelRef}
@@ -152,21 +149,6 @@ export function Dropdown({
           onDragOver={onDragOver}
           onDrop={onDrop}
           onKeyDown={handlePanelKeyDown}
-          style={{
-            position: 'absolute',
-            top: '100%',
-            left: 0,
-            zIndex: 100,
-            marginTop: 4,
-            background: 'var(--color-background-primary)',
-            border: '0.5px solid var(--color-border-secondary)',
-            borderRadius: 8,
-            boxShadow: '0 4px 16px rgba(0,0,0,0.10)',
-            minWidth: 220,
-            maxHeight: 420,
-            overflowY: 'auto',
-            padding: '4px 0',
-          }}
         >
           {children}
         </div>

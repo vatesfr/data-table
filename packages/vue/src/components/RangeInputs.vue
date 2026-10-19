@@ -26,14 +26,14 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <div class="dt__range">
-    <div v-if="!isDate && presets?.length" class="dt__range-presets">
+  <div style="padding: 4px 14px 8px">
+    <div v-if="!isDate && presets?.length" class="dt-range-presets">
       <button
         v-for="preset in presets"
         :key="preset.label"
         type="button"
-        class="dt__value-sort-btn dt__range-preset"
-        :class="{ 'dt__filter-match-mode--active': preset === activePreset }"
+        class="dt-value-sort-btn dt-range-preset"
+        :class="{ 'dt-filter-match-mode--active': preset === activePreset }"
         :aria-pressed="preset === activePreset"
         @click="
           emit(
@@ -45,23 +45,23 @@ const emit = defineEmits<{
         {{ preset.label }}
       </button>
     </div>
-    <div class="dt__range-inputs">
+    <div style="display: flex; gap: 6px; align-items: center">
       <input
         :type="isDate ? 'date' : 'number'"
         :placeholder="min.placeholder"
         :aria-label="min.ariaLabel"
         :value="min.value"
         @input="emit('update:min', ($event.target as HTMLInputElement).value)"
-        :class="['dt__range-input', { 'dt__range-input--date': isDate }]"
+        class="dt-range-input"
       />
-      <span class="dt__range-sep">–</span>
+      <span class="dt-range-sep">–</span>
       <input
         :type="isDate ? 'date' : 'number'"
         :placeholder="max.placeholder"
         :aria-label="max.ariaLabel"
         :value="max.value"
         @input="emit('update:max', ($event.target as HTMLInputElement).value)"
-        :class="['dt__range-input', { 'dt__range-input--date': isDate }]"
+        class="dt-range-input"
       />
     </div>
     <RangeSlider
@@ -73,40 +73,3 @@ const emit = defineEmits<{
     />
   </div>
 </template>
-
-<style scoped>
-.dt__range {
-  padding: 4px 14px 8px;
-}
-.dt__range-presets {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 8px;
-}
-.dt__range-preset {
-  min-height: 24px;
-}
-.dt__range-inputs {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-}
-.dt__range-sep {
-  font-size: var(--font-size-sm, 12px);
-  color: var(--color-text-tertiary);
-}
-.dt__range-input {
-  width: 80px;
-  padding: 3px 6px;
-  font-size: var(--font-size-sm, 12px);
-  border: 0.5px solid var(--color-border-secondary);
-  border-radius: 4px;
-  font-family: inherit;
-  background: transparent;
-  color: inherit;
-}
-.dt__range-input--date {
-  width: 118px;
-}
-</style>
