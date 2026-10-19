@@ -4,7 +4,6 @@ import {
   useEffect,
   useLayoutEffect,
   useInsertionEffect,
-  type CSSProperties,
   type KeyboardEvent,
   type ReactNode,
 } from 'react'
@@ -81,329 +80,13 @@ import type { TableState } from './useTableState'
 
 // Fixed row height for the filter dropdown's virtualized checklist (see computeVirtualRange) —
 // must match the actual rendered height of a checklist row exactly, which is why each row gets
-// an explicit inline height below instead of relying on ddItem's padding + line-height.
+// an explicit inline height below instead of relying on .dt-dd-item's padding + line-height.
 const FILTER_LIST_ITEM_HEIGHT = 32
-// The checklist itself no longer has a fixed height (see filterList below, which flex-fills
-// filterDetail instead) — this is now only the *assumed* viewport height fed to
-// computeVirtualRange's windowing math. Safe to leave un-measured: filterPanel's own
-// maxHeight:380 bounds how much taller the checklist can actually grow past this default, well
-// within computeVirtualRange's own overscan margin (see filterList's comment for the full math).
+// Only the *assumed* viewport height fed to computeVirtualRange's windowing math: `.dt-filter-list`
+// flex-fills `.dt-filter-detail` instead of having a fixed height. Safe to leave un-measured:
+// `.dt-filter-panel`'s max-height of 380px bounds how much taller the list can grow past this
+// (~60-80px, given the search row above it), well inside the 5-row (160px) overscan on each side.
 const FILTER_LIST_VIEWPORT_HEIGHT = 260
-
-const S = {
-  // Always rendered below the toolbar — see "Active state bar" at the render call site — so the
-  // stats text has one stable home instead of bouncing between "end of the toolbar row" and
-  // nowhere, and toggling a sort/filter/group never changes the toolbar's height.
-  activeBar: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 6,
-    flexWrap: 'wrap',
-    padding: '10px 0',
-  } as CSSProperties,
-  stats: {
-    marginLeft: 'auto',
-    fontSize: 'var(--font-size-sm, 12px)',
-    color: 'var(--color-text-secondary)',
-    whiteSpace: 'nowrap',
-  } as CSSProperties,
-  ddItem: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-    padding: '7px 14px',
-    cursor: 'pointer',
-    fontSize: 'var(--font-size-md, 13px)',
-    color: 'var(--color-text-primary)',
-  } as CSSProperties,
-  filterCount: {
-    fontSize: 'var(--font-size-sm, 12px)',
-    color: 'var(--color-text-tertiary)',
-  } as CSSProperties,
-  // A multi-value checklist row whose value is excluded (its ≠ button pressed)
-  filterValueExcluded: {
-    color: 'var(--color-text-danger)',
-  } as CSSProperties,
-  filterValue: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-    flex: 1,
-    minWidth: 0,
-    alignSelf: 'stretch',
-    cursor: 'pointer',
-  } as CSSProperties,
-  filterExclude: {
-    flexShrink: 0,
-    width: 24,
-    height: 24,
-    margin: '-3px -8px -3px 0',
-    padding: 0,
-    border: '0.5px solid transparent',
-    borderRadius: 4,
-    background: 'none',
-    font: 'inherit',
-    fontSize: 'var(--font-size-lg, 14px)',
-    lineHeight: 1,
-    color: 'var(--color-text-tertiary)',
-    cursor: 'pointer',
-  } as CSSProperties,
-  filterExcludePressed: {
-    background: 'var(--color-background-danger)',
-    borderColor: 'var(--color-border-danger)',
-    color: 'var(--color-text-danger)',
-  } as CSSProperties,
-  // The "Others" checklist row (see docs/filter-dropdown.md's "Filter dropdown") — shaded/italic/bordered so it
-  // reads as a distinct bulk control, not just another value blending into the results below it.
-  filterOthers: {
-    background: 'var(--color-background-secondary)',
-    borderTop: '0.5px solid var(--color-border-tertiary)',
-    borderBottom: '0.5px solid var(--color-border-secondary)',
-    fontStyle: 'italic',
-    color: 'var(--color-text-secondary)',
-  } as CSSProperties,
-  // A chip is two sibling <button>s (chipBody + chipX below), not one inert <span> — a <button>
-  // can't contain another interactive element, same reasoning already used for the toolbar's
-  // grouped clear buttons (btnClear). `chip` itself carries no padding/background/border anymore;
-  // that moved onto chipBody/chipX individually, each keeping only its own outer corner rounded
-  // and sharing a border between them so the pair still reads as one pill.
-  chip: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    fontSize: 'var(--font-size-sm, 12px)',
-  } as CSSProperties,
-  chipBody: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: 4,
-    background: 'var(--color-background-secondary)',
-    border: '0.5px solid var(--color-border-secondary)',
-    borderRight: 'none',
-    borderRadius: '12px 0 0 12px',
-    padding: '2px 4px 2px 8px',
-    fontSize: 'var(--font-size-sm, 12px)',
-    color: 'var(--color-text-secondary)',
-    fontFamily: 'inherit',
-    cursor: 'pointer',
-    lineHeight: 1.4,
-    minHeight: 24,
-  } as CSSProperties,
-  chipX: {
-    cursor: 'pointer',
-    background: 'var(--color-background-secondary)',
-    border: '0.5px solid var(--color-border-secondary)',
-    borderRadius: '0 12px 12px 0',
-    padding: '2px 8px 2px 2px',
-    fontSize: 'var(--font-size-sm, 12px)',
-    color: 'var(--color-text-secondary)',
-    fontFamily: 'inherit',
-    lineHeight: 1.4,
-    // 24 px touch target (docs/ui-guidelines.md)
-    minHeight: 24,
-    minWidth: 24,
-  } as CSSProperties,
-  // The one deliberate color accent in the active bar — filters already carried this "narrowing
-  // your view" meaning before sort/group chips existed, so they keep it; sort/group chips reuse
-  // the plain neutral `chipBody`/`chipX` above. Applied to both halves of the pill, same as
-  // vanilla's `.dt-chip--filter .dt-chip-body, .dt-chip--filter .dt-chip-x`.
-  chipFilter: {
-    background: 'var(--color-background-info)',
-    color: 'var(--color-text-info)',
-    border: '0.5px solid var(--color-border-info)',
-  } as CSSProperties,
-  // Exclude filters get their own tint, distinct from the plain include chipFilter above — same
-  // "≠" prefix + danger-tinted convention as vanilla's `.dt-chip--exclude`.
-  chipExclude: {
-    background: 'var(--color-background-danger)',
-    color: 'var(--color-text-danger)',
-    border: '0.5px solid var(--color-border-danger)',
-  } as CSSProperties,
-  rangeInput: {
-    width: 80,
-    padding: '3px 6px',
-    fontSize: 'var(--font-size-sm, 12px)',
-    border: '0.5px solid var(--color-border-secondary)',
-    borderRadius: 4,
-    fontFamily: 'inherit',
-    background: 'transparent',
-    color: 'inherit',
-  } as CSSProperties,
-  pagination: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 6,
-    padding: '10px 2px',
-    justifyContent: 'flex-end',
-    flexWrap: 'wrap',
-  } as CSSProperties,
-  pageBtn: {
-    padding: '5px 9px',
-    background: 'none',
-    border: '0.5px solid var(--color-border-secondary)',
-    borderRadius: 4,
-    cursor: 'pointer',
-    fontSize: 'var(--font-size-md, 13px)',
-    color: 'var(--color-text-primary)',
-    fontFamily: 'inherit',
-    lineHeight: 1,
-  } as CSSProperties,
-  pageBtnDisabled: { opacity: 0.35, cursor: 'default' } as CSSProperties,
-  pageInfo: {
-    fontSize: 'var(--font-size-sm, 12px)',
-    color: 'var(--color-text-secondary)',
-    padding: '0 6px',
-  } as CSSProperties,
-  rowsPerPageGroup: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: 6,
-    marginLeft: 10,
-  } as CSSProperties,
-  rowsPerPageLabel: {
-    fontSize: 'var(--font-size-sm, 12px)',
-    color: 'var(--color-text-secondary)',
-  } as CSSProperties,
-  pageSelect: {
-    padding: '4px 6px',
-    fontSize: 'var(--font-size-sm, 12px)',
-    border: '0.5px solid var(--color-border-secondary)',
-    borderRadius: 4,
-    background: 'transparent',
-    color: 'inherit',
-    fontFamily: 'inherit',
-    cursor: 'pointer',
-  } as CSSProperties,
-  // A flex column (not just `flex: 1`) so the checklist/date-tree child below can `flex: 1` to
-  // fill whatever height `.filterCols` (the column list) ends up stretching this to via the
-  // row's cross-axis stretch, instead of a hardcoded height leaving dead space below it once
-  // `.filterCols` renders taller than that default (see filterList/filterDateTreeWrap).
-  filterDetail: {
-    display: 'flex',
-    flexDirection: 'column',
-    flex: 1,
-    padding: '6px 0',
-    minWidth: 220,
-  } as CSSProperties,
-  filterSearchRow: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 6,
-    margin: '2px 12px 6px',
-    flexShrink: 0,
-  } as CSSProperties,
-  // `flex: 1` (not a hardcoded height) lets this fill whatever room filterDetail actually has —
-  // `FILTER_LIST_VIEWPORT_HEIGHT` remains only the *assumed* viewport height fed to
-  // computeVirtualRange's windowing math, not this element's real rendered height. That's safe
-  // even when they diverge: filterPanel's own `maxHeight: 380` bounds how much taller this can
-  // ever grow past the 260px default (~60-80px, given the search row/padding above it), which is
-  // well inside the 5-row (160px) overscan on each side — so the virtualized window always has
-  // enough pre-rendered rows to cover the actual visible box, unlike an unbounded panel would.
-  // `minHeight: 0` is required for a flex column child to actually shrink/scroll instead of
-  // overflowing its container (the default flex `min-height: auto` would let its content push
-  // filterDetail taller instead).
-  filterList: {
-    flex: 1,
-    minHeight: 0,
-    overflowY: 'auto',
-  } as CSSProperties,
-  // Same reasoning as filterList above, applied to the date tree — which has no virtualization
-  // of its own, so this wrapper alone is what turns "overflow past the panel onto the page" (no
-  // wrapper at all previously) into "fills available space, scrolls the rest".
-  filterDateTreeWrap: {
-    flex: 1,
-    minHeight: 0,
-    overflowY: 'auto',
-  } as CSSProperties,
-  ddSearch: {
-    display: 'block',
-    flex: 1,
-    padding: '5px 20px 5px 8px',
-    fontSize: 'var(--font-size-sm, 12px)',
-    border: '0.5px solid var(--color-border-secondary)',
-    borderRadius: 6,
-    background: 'transparent',
-    color: 'inherit',
-    fontFamily: 'inherit',
-    boxSizing: 'border-box',
-  } as CSSProperties,
-  // Wraps a dropdown search <input> + its own × clear button (see DdSearchInput/the Filter
-  // dropdown's own value-search input) — position:relative anchors the clear button's own
-  // position:absolute. Merged with `filterColsSearch` below for the Filter dropdown's left pane
-  // (that one needs position:sticky instead, applied after this in the object so it wins the
-  // merge — see filterColsSearch's own comment).
-  ddSearchWrap: {
-    position: 'relative',
-    display: 'flex',
-    flex: 1,
-    minWidth: 0,
-  } as CSSProperties,
-  ddSearchClear: {
-    position: 'absolute',
-    right: 4,
-    top: '50%',
-    transform: 'translateY(-50%)',
-    background: 'none',
-    border: 'none',
-    cursor: 'pointer',
-    padding: '2px 4px',
-    fontSize: 'var(--font-size-md, 13px)',
-    lineHeight: 1,
-    color: 'var(--color-text-tertiary)',
-    fontFamily: 'inherit',
-  } as CSSProperties,
-  filterSelectAll: {
-    flexShrink: 0,
-    margin: 0,
-  } as CSSProperties,
-  valueSortBtn: {
-    flexShrink: 0,
-    padding: '4px 7px',
-    fontSize: 'var(--font-size-xs, 11px)',
-    background: 'none',
-    border: '0.5px solid var(--color-border-secondary)',
-    borderRadius: 6,
-    cursor: 'pointer',
-    color: 'var(--color-text-secondary)',
-    fontFamily: 'inherit',
-    whiteSpace: 'nowrap',
-  } as CSSProperties,
-  // Any/all match-mode segmented control — two buttons sharing valueSortBtn's base look (spread
-  // in at the JSX call site, same composition pattern as e.g. renderRangeInputsFor's `inputStyle`
-  // above, since a plain object literal can't reference its own other properties). `--left`/
-  // `--right` only override the corner radii (and drop the shared middle border on the left one)
-  // so the pair reads as one merged pill; `--active` mirrors filterColItemActive's own "engaged"
-  // treatment so whichever of Any/All is currently in effect looks consistent with the rest of
-  // the UI's existing active-state convention.
-  rangePresets: {
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: 6,
-    marginBottom: 8,
-  } as CSSProperties,
-  filterMatchModeGroup: {
-    display: 'inline-flex',
-    flexShrink: 0,
-  } as CSSProperties,
-  filterMatchModeLeft: {
-    borderRadius: '6px 0 0 6px',
-    borderRight: 'none',
-  } as CSSProperties,
-  filterMatchModeRight: {
-    borderRadius: '0 6px 6px 0',
-  } as CSSProperties,
-  filterMatchModeActive: {
-    background: 'var(--color-background-secondary)',
-    color: 'var(--color-text-primary)',
-    fontWeight: 'var(--font-weight-medium, 500)',
-  } as CSSProperties,
-  dateTreeToggle: {
-    width: 14,
-    flexShrink: 0,
-    textAlign: 'center',
-    fontSize: 'var(--font-size-2xs, 10px)',
-    color: 'var(--color-text-tertiary)',
-  } as CSSProperties,
-}
 
 function asRecord(row: object): Record<string, unknown> {
   return row as Record<string, unknown>
@@ -442,41 +125,10 @@ function NoMatchingColumns({ label }: { label: string }) {
   )
 }
 
-const RANGE_SLIDER_STYLE_ATTR = 'data-dt-range-slider-styles'
-let rangeSliderStylesInjected = false
-
-/**
- * Injects the CSS the range slider below needs — specifically `::-webkit-slider-thumb`/
- * `::-moz-range-thumb`, which style pseudo-elements no inline `style` prop can reach. The rest
- * of this package is styled entirely via inline styles (no stylesheet at all), so this is a
- * deliberate, minimal exception scoped to just one class name — the same "inject once into
- * <head>" precedent the vanilla adapter already uses for its whole stylesheet. Idempotent
- * (checks for an existing tag first, guards a module-level flag against StrictMode's double
- * effect-invoke) and a no-op outside a browser, so it's safe to call from an effect that also
- * runs during SSR hydration.
- */
-function ensureRangeSliderStyles(): void {
-  if (rangeSliderStylesInjected || typeof document === 'undefined') return
-  if (document.querySelector(`style[${RANGE_SLIDER_STYLE_ATTR}]`)) {
-    rangeSliderStylesInjected = true
-    return
-  }
-  const style = document.createElement('style')
-  style.setAttribute(RANGE_SLIDER_STYLE_ATTR, '')
-  style.textContent =
-    '.dt-react-range-thumb{-webkit-appearance:none;-moz-appearance:none;appearance:none;pointer-events:none}' +
-    '.dt-react-range-thumb::-webkit-slider-runnable-track{background:transparent}' +
-    '.dt-react-range-thumb::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;pointer-events:auto;width:14px;height:14px;margin-top:4px;border-radius:50%;background:var(--color-text-info);border:2px solid var(--color-background-primary);box-shadow:0 0 0 1px var(--color-border-info);cursor:pointer}' +
-    '.dt-react-range-thumb::-moz-range-track{background:transparent;border:none}' +
-    '.dt-react-range-thumb::-moz-range-thumb{pointer-events:auto;width:14px;height:14px;border-radius:50%;background:var(--color-text-info);border:2px solid var(--color-background-primary);box-shadow:0 0 0 1px var(--color-border-info);cursor:pointer}'
-  document.head.appendChild(style)
-  rangeSliderStylesInjected = true
-}
-
 /**
  * The "2 inputs + a slider" range control's slider half — two overlapping native
  * <input type="range"> thumbs sharing one visual track (only the thumb itself is a hit target,
- * via ensureRangeSliderStyles above, so grabbing either one works regardless of z-order) plus a
+ * via `.dt-range-slider-thumb`, so grabbing either one works regardless of z-order) plus a
  * colored fill between them. `onChange` always receives already-sorted (low, high) — dragging
  * one thumb past the other just swaps their visual roles on the next render rather than needing
  * cross-clamping, the standard behavior for this two-native-inputs trick. Unlike the vanilla
@@ -506,68 +158,34 @@ function RangeSlider({
   maxLabel: string
   onChange: (low: number, high: number) => void
 }) {
-  useEffect(() => {
-    ensureRangeSliderStyles()
-  }, [])
   const handleThumb = (raw: number, other: number) =>
     onChange(Math.min(raw, other), Math.max(raw, other))
-  const thumbStyle: CSSProperties = {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    width: '100%',
-    height: 22,
-    margin: 0,
-    background: 'none',
-  }
   return (
-    <div style={{ position: 'relative', height: 22, margin: '8px 2px 2px' }}>
+    <div className="dt-range-slider">
+      <div className="dt-range-slider-track" />
       <div
-        style={{
-          position: 'absolute',
-          top: '50%',
-          left: 7,
-          right: 7,
-          height: 4,
-          marginTop: -2,
-          borderRadius: 2,
-          background: 'var(--color-border-secondary)',
-        }}
-      />
-      <div
-        style={{
-          position: 'absolute',
-          top: '50%',
-          height: 4,
-          marginTop: -2,
-          borderRadius: 2,
-          background: 'var(--color-text-info)',
-          left: `${pctLo}%`,
-          right: `${100 - pctHi}%`,
-        }}
+        className="dt-range-slider-fill"
+        style={{ left: `${pctLo}%`, right: `${100 - pctHi}%` }}
       />
       <input
         type="range"
-        className="dt-react-range-thumb"
+        className="dt-range-slider-thumb"
         min={bounds.min}
         max={bounds.max}
         step={step}
         value={low}
         aria-label={minLabel}
         onChange={(e) => handleThumb(Number(e.target.value), high)}
-        style={thumbStyle}
       />
       <input
         type="range"
-        className="dt-react-range-thumb"
+        className="dt-range-slider-thumb"
         min={bounds.min}
         max={bounds.max}
         step={step}
         value={high}
         aria-label={maxLabel}
         onChange={(e) => handleThumb(Number(e.target.value), low)}
-        style={thumbStyle}
       />
     </div>
   )
@@ -718,30 +336,25 @@ function FilterPane<TRow extends object>({
     bounds: { min: number; max: number } | null,
   ) => {
     const isDate = col.type === 'date'
-    const inputStyle = isDate ? { ...S.rangeInput, width: 118 } : S.rangeInput
     const min = rangeInputProps(col, 'min', rangeFilters[col.key], bounds, L.min)
     const max = rangeInputProps(col, 'max', rangeFilters[col.key], bounds, L.max)
     const activePreset = matchingRangePreset(col, rangeFilters[col.key])
     return (
       <div style={{ padding: '4px 14px 8px' }}>
         {!isDate && !!col.rangePresets?.length && (
-          <div style={S.rangePresets}>
+          <div className="dt-range-presets">
             {col.rangePresets.map((preset) => {
               const pressed = preset === activePreset
               return (
                 <button
                   key={preset.label}
                   type="button"
+                  className={`dt-value-sort-btn dt-range-preset${pressed ? ' dt-filter-match-mode--active' : ''}`}
                   aria-pressed={pressed}
                   onClick={() => {
                     const range = pressed ? { min: '', max: '' } : rangePresetFilter(preset)
                     setRangeFilter(col.key, 'min', range.min)
                     setRangeFilter(col.key, 'max', range.max)
-                  }}
-                  style={{
-                    ...S.valueSortBtn,
-                    minHeight: 24,
-                    ...(pressed ? S.filterMatchModeActive : {}),
                   }}
                 >
                   {preset.label}
@@ -753,24 +366,20 @@ function FilterPane<TRow extends object>({
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
           <input
             type={isDate ? 'date' : 'number'}
+            className="dt-range-input"
             placeholder={min.placeholder}
             aria-label={min.ariaLabel}
             value={min.value}
             onChange={(e) => setRangeFilter(col.key, 'min', e.target.value)}
-            style={inputStyle}
           />
-          <span
-            style={{ color: 'var(--color-text-tertiary)', fontSize: 'var(--font-size-sm, 12px)' }}
-          >
-            –
-          </span>
+          <span className="dt-range-sep">–</span>
           <input
             type={isDate ? 'date' : 'number'}
+            className="dt-range-input"
             placeholder={max.placeholder}
             aria-label={max.ariaLabel}
             value={max.value}
             onChange={(e) => setRangeFilter(col.key, 'max', e.target.value)}
-            style={inputStyle}
           />
         </div>
         {renderRangeSliderFor(col, bounds, min.ariaLabel, max.ariaLabel)}
@@ -1039,12 +648,12 @@ function FilterPane<TRow extends object>({
       const label = formatDateTreeLabel(node.key, depth)
       return (
         <div key={node.path}>
-          <label style={{ ...S.ddItem, paddingLeft: 14 + depth * 16 }}>
+          <label className="dt-date-tree-item" style={{ paddingLeft: 14 + depth * 16 }}>
             {isLeaf ? (
-              <span style={S.dateTreeToggle} />
+              <span className="dt-date-tree-toggle" />
             ) : (
               <span
-                style={{ ...S.dateTreeToggle, cursor: 'pointer' }}
+                className="dt-date-tree-toggle dt-date-tree-toggle--branch"
                 onClick={(e) => {
                   e.preventDefault()
                   toggleDateNodeExpand(node.path)
@@ -1071,10 +680,9 @@ function FilterPane<TRow extends object>({
                 })
                 setAnchor(node.path)
               }}
-              style={{ margin: 0 }}
             />
-            <span style={{ flex: 1 }}>{label}</span>
-            <span style={S.filterCount} aria-hidden="true">
+            <span className="dt-flex1">{label}</span>
+            <span className="dt-filter-count" aria-hidden="true">
               {sumDateTreeNodeCount(node, stringValueCounts[colKey] ?? new Map())}
             </span>
           </label>
@@ -1085,13 +693,13 @@ function FilterPane<TRow extends object>({
   }
 
   return (
-    <div style={S.filterDetail} data-filter-detail onKeyDown={handleKeyDown}>
+    <div className="dt-filter-detail" data-filter-detail onKeyDown={handleKeyDown}>
       {col.type === 'number' ? (
         renderRangeInputsFor(col, filterDetailBounds)
       ) : (
         <>
           {col.type === 'date' && renderRangeInputsFor(col, filterDetailBounds)}
-          <div style={S.filterSearchRow}>
+          <div className="dt-filter-search-row">
             {filterDetailValues.length > 0 && (
               <input
                 ref={filterSelectAllRef}
@@ -1102,12 +710,12 @@ function FilterPane<TRow extends object>({
                 }
                 title={L.selectAll}
                 aria-label={L.selectAll}
-                style={S.filterSelectAll}
               />
             )}
-            <span style={S.ddSearchWrap}>
+            <span className="dt-dd-search-wrap">
               <input
                 type="text"
+                className="dt-dd-search"
                 data-dd-value-search
                 placeholder={L.filterSearchPlaceholder}
                 value={searchTerm}
@@ -1119,15 +727,14 @@ function FilterPane<TRow extends object>({
                     setSearchTerm('')
                   }
                 }}
-                style={S.ddSearch}
               />
               {searchTerm !== '' && (
                 <button
                   type="button"
+                  className="dt-dd-search-clear"
                   title={L.clearSearch}
                   aria-label={L.clearSearch}
                   onClick={() => setSearchTerm('')}
-                  style={S.ddSearchClear}
                 >
                   ×
                 </button>
@@ -1135,26 +742,22 @@ function FilterPane<TRow extends object>({
             </span>
             <button
               type="button"
+              className="dt-value-sort-btn"
               onClick={cycleFilterValueSort}
               title={L.sortValues}
               aria-label={L.sortValues}
-              style={S.valueSortBtn}
             >
               {col.type === 'date' ? getDateSortIcon(valueSort.dir) : getValueSortIcon(valueSort)}
             </button>
             {isMultiValueFilterCol && (
-              <div style={S.filterMatchModeGroup} role="group">
+              <div className="dt-filter-match-mode-group" role="group">
                 <button
                   type="button"
                   onClick={() => setFilterMode(col.key, 'or')}
                   title={L.filterMatchAny}
                   aria-label={L.filterMatchAny}
                   aria-pressed={matchMode === 'or'}
-                  style={{
-                    ...S.valueSortBtn,
-                    ...S.filterMatchModeLeft,
-                    ...(matchMode === 'or' ? S.filterMatchModeActive : {}),
-                  }}
+                  className={`dt-value-sort-btn dt-filter-match-mode dt-filter-match-mode--left${matchMode === 'or' ? ' dt-filter-match-mode--active' : ''}`}
                 >
                   {L.filterMatchAny}
                 </button>
@@ -1164,11 +767,7 @@ function FilterPane<TRow extends object>({
                   title={L.filterMatchAll}
                   aria-label={L.filterMatchAll}
                   aria-pressed={matchMode === 'and'}
-                  style={{
-                    ...S.valueSortBtn,
-                    ...S.filterMatchModeRight,
-                    ...(matchMode === 'and' ? S.filterMatchModeActive : {}),
-                  }}
+                  className={`dt-value-sort-btn dt-filter-match-mode dt-filter-match-mode--right${matchMode === 'and' ? ' dt-filter-match-mode--active' : ''}`}
                 >
                   {L.filterMatchAll}
                 </button>
@@ -1176,7 +775,7 @@ function FilterPane<TRow extends object>({
             )}
           </div>
           {col.type === 'date' ? (
-            <div style={S.filterDateTreeWrap}>
+            <div className="dt-date-tree-wrap">
               {renderDateTreeNodes(filterDetailTree, col.key, 0, col.parseDate)}
             </div>
           ) : (
@@ -1194,7 +793,7 @@ function FilterPane<TRow extends object>({
                                     rendered once a search term actually narrows the list. Not
                                     extended to the date tree, which has its own branch above. */}
                   {filterOtherValues.length > 0 && (
-                    <label style={{ ...S.ddItem, ...S.filterOthers }}>
+                    <label className="dt-dd-item dt-filter-others">
                       <input
                         ref={filterOthersRef}
                         type="checkbox"
@@ -1213,15 +812,15 @@ function FilterPane<TRow extends object>({
                           )
                         }}
                       />
-                      <span style={{ flex: 1 }}>{L.filterOthers}</span>
-                      <span style={S.filterCount} aria-hidden="true">
+                      <span className="dt-flex1">{L.filterOthers}</span>
+                      <span className="dt-filter-count" aria-hidden="true">
                         {filterOtherValues.length}
                       </span>
                     </label>
                   )}
                   <div
                     ref={filterListRef}
-                    style={S.filterList}
+                    className="dt-filter-list"
                     onScroll={() => {
                       if (!filterListRafPending.current) {
                         filterListRafPending.current = true
@@ -1267,14 +866,10 @@ function FilterPane<TRow extends object>({
                           return (
                             <div
                               key={v}
-                              style={{
-                                ...S.ddItem,
-                                height: FILTER_LIST_ITEM_HEIGHT,
-                                boxSizing: 'border-box',
-                                ...(excluded ? S.filterValueExcluded : null),
-                              }}
+                              className={`dt-dd-item${excluded ? ' dt-dd-item--exclude' : ''}`}
+                              style={{ height: FILTER_LIST_ITEM_HEIGHT, boxSizing: 'border-box' }}
                             >
-                              <label style={S.filterValue}>
+                              <label className="dt-filter-value">
                                 <input
                                   type="checkbox"
                                   data-dd-value-row
@@ -1292,25 +887,20 @@ function FilterPane<TRow extends object>({
                                     setAnchor(v)
                                   }}
                                   title={itemTitle}
-                                  style={{ margin: 0 }}
                                 />
-                                <span
-                                  style={{
-                                    flex: 1,
-                                    textDecoration: excluded ? 'line-through' : undefined,
-                                  }}
-                                >
+                                <span className="dt-flex1">
                                   {col.renderFilterLabel
                                     ? col.renderFilterLabel(v)
                                     : formatFilterValue(col, v, L.emptyValue)}
                                 </span>
-                                <span style={S.filterCount} aria-hidden="true">
+                                <span className="dt-filter-count" aria-hidden="true">
                                   {stringValueCounts[col.key]?.get(v) ?? 0}
                                 </span>
                               </label>
                               {!usesExcludeOnly && (
                                 <button
                                   type="button"
+                                  className="dt-filter-exclude"
                                   data-dd-value-exclude
                                   data-value={v}
                                   aria-pressed={excluded}
@@ -1323,11 +913,6 @@ function FilterPane<TRow extends object>({
                                       v,
                                       excludeFilters[col.key],
                                     )
-                                  }
-                                  style={
-                                    excluded
-                                      ? { ...S.filterExclude, ...S.filterExcludePressed }
-                                      : S.filterExclude
                                   }
                                 >
                                   ≠
@@ -2827,11 +2412,11 @@ export function DataTableView<TRow extends object>({
           entry, group column, and filter column — sort/group chips were previously only visible
           as a bare count on their toolbar button (see above); giving them the same at-a-glance
           chip treatment filters already had removes that asymmetry. Sort/group chips reuse the
-          plain neutral `S.chip` look (the same one the removed count badges used) — filter
-          chips keep their existing blue `S.chipFilter` tint, the one deliberate color accent in
+          plain neutral `.dt-chip` look (the same one the removed count badges used) — filter
+          chips keep their existing blue `.dt-chip--filter` tint, the one deliberate color accent in
           this bar, since filters already carried that "this is narrowing your view" meaning
           before this change. */}
-      <div style={S.activeBar}>
+      <div className="dt-active-bar">
         {/* Each chip's body is a real <button> (a sibling of the × button, not nested inside it —
             a <button> can't contain another interactive element, same reasoning as the toolbar's
             grouped clear buttons above) that does something specific to that chip's own kind of
@@ -2843,7 +2428,7 @@ export function DataTableView<TRow extends object>({
         {groupBy.map((key) => {
           const col = groupableCols.find((c) => c.key === key)
           return (
-            <span key={key} style={S.chip}>
+            <span key={key} className="dt-chip">
               {/* Opens the Group dropdown focused on this entry's row — there's no single
                     obvious inline toggle for a group entry the way direction is for sort, so
                     getting straight to it (ready to reorder/remove) is the most useful available
@@ -2855,7 +2440,7 @@ export function DataTableView<TRow extends object>({
                   pendingGroupFocusKey.current = key
                   setOpenGroupDD(true)
                 }}
-                style={S.chipBody}
+                className="dt-chip-body"
                 aria-label={L.groupedBy(col?.label ?? key)}
               >
                 {/* ⊞ tells it apart from the same column's sort chip (U6), groupedBy for screen readers (U28) */}
@@ -2866,7 +2451,7 @@ export function DataTableView<TRow extends object>({
                 title={L.removeGroup(col?.label ?? key)}
                 aria-label={L.removeGroup(col?.label ?? key)}
                 onClick={() => removeGroup(key)}
-                style={S.chipX}
+                className="dt-chip-x"
               >
                 ×
               </button>
@@ -2876,14 +2461,18 @@ export function DataTableView<TRow extends object>({
         {sorts.map((entry) => {
           const col = columns.find((c) => c.key === entry.key)
           return (
-            <span key={entry.key} style={S.chip}>
+            <span key={entry.key} className="dt-chip">
               {/* Toggles direction in place — the same action the Sort dropdown's own
                     active-sort row already uses — no dropdown needed for the single most common
                     tweak. `entry.key` keeps this button's identity (and DOM node) stable across
                     the toggle, so it stays focused for free with no explicit refocus needed,
                     unlike Group/Filter above (whose click opens a not-yet-mounted dropdown
                     panel). */}
-              <button type="button" onClick={() => toggleSortDir(entry.key)} style={S.chipBody}>
+              <button
+                type="button"
+                className="dt-chip-body"
+                onClick={() => toggleSortDir(entry.key)}
+              >
                 {getSortIcon(entry.key)} {col?.label ?? entry.key}
               </button>
               <button
@@ -2891,7 +2480,7 @@ export function DataTableView<TRow extends object>({
                 title={L.removeSort(col?.label ?? entry.key)}
                 aria-label={L.removeSort(col?.label ?? entry.key)}
                 onClick={() => removeSort(entry.key)}
-                style={S.chipX}
+                className="dt-chip-x"
               >
                 ×
               </button>
@@ -2902,7 +2491,7 @@ export function DataTableView<TRow extends object>({
           Object.entries(filters)
             .filter(([, v]) => v.size > 0)
             .map(([key, vals]) => (
-              <span key={key} style={S.chip}>
+              <span key={key} className="dt-chip dt-chip--filter">
                 {/* Opens the Filter dropdown straight to this column's detail pane, instead of
                     making you reopen the dropdown and re-find the column in the left list to
                     tweak a filter you already have active. Setting filterActiveCol here (rather
@@ -2910,11 +2499,7 @@ export function DataTableView<TRow extends object>({
                     selection") means the right pane is already correct on the very first render,
                     before focus even lands on the button — both state updates are batched into
                     the same commit. */}
-                <button
-                  type="button"
-                  onClick={openFilterColumn(key)}
-                  style={{ ...S.chipBody, ...S.chipFilter }}
-                >
+                <button type="button" className="dt-chip-body" onClick={openFilterColumn(key)}>
                   {columns.find((c) => c.key === key)?.label}:{' '}
                   {summarizeFilterValues(
                     vals,
@@ -2938,8 +2523,8 @@ export function DataTableView<TRow extends object>({
                   type="button"
                   title={L.clearColumnFilter}
                   aria-label={L.clearColumnFilter}
+                  className="dt-chip-x"
                   onClick={() => clearColumnFilter(key, 'include')}
-                  style={{ ...S.chipX, ...S.chipFilter }}
                 >
                   ×
                 </button>
@@ -2961,14 +2546,12 @@ export function DataTableView<TRow extends object>({
                 table.filter.valueMap[key],
                 !!col && isExcludeOnlyColumn(data, col),
               )
-              const tint = chip.kept ? S.chipFilter : S.chipExclude
               return (
-                <span key={`exclude-${key}`} style={S.chip}>
-                  <button
-                    type="button"
-                    onClick={openFilterColumn(key)}
-                    style={{ ...S.chipBody, ...tint }}
-                  >
+                <span
+                  key={`exclude-${key}`}
+                  className={`dt-chip dt-chip--filter${chip.kept ? '' : ' dt-chip--exclude'}`}
+                >
+                  <button type="button" className="dt-chip-body" onClick={openFilterColumn(key)}>
                     {col?.label}: {chip.kept ? '' : '≠ '}
                     {summarizeFilterValues(chip.values, L.moreValues, (v) =>
                       formatFilterValue(col, v, L.emptyValue),
@@ -2978,8 +2561,8 @@ export function DataTableView<TRow extends object>({
                     type="button"
                     title={L.clearColumnFilter}
                     aria-label={L.clearColumnFilter}
+                    className="dt-chip-x"
                     onClick={() => clearColumnFilter(key, 'exclude')}
-                    style={{ ...S.chipX, ...tint }}
                   >
                     ×
                   </button>
@@ -2993,12 +2576,8 @@ export function DataTableView<TRow extends object>({
           Object.entries(rangeFilters)
             .filter(([, rf]) => rf.min !== '' || rf.max !== '')
             .map(([key, rf]) => (
-              <span key={`range-${key}`} style={S.chip}>
-                <button
-                  type="button"
-                  onClick={openFilterColumn(key)}
-                  style={{ ...S.chipBody, ...S.chipFilter }}
-                >
+              <span key={`range-${key}`} className="dt-chip dt-chip--filter">
+                <button type="button" className="dt-chip-body" onClick={openFilterColumn(key)}>
                   {columns.find((c) => c.key === key)?.label}:{' '}
                   {rangeChipText(
                     columns.find((c) => c.key === key),
@@ -3010,14 +2589,14 @@ export function DataTableView<TRow extends object>({
                   type="button"
                   title={L.clearColumnFilter}
                   aria-label={L.clearColumnFilter}
+                  className="dt-chip-x"
                   onClick={() => clearColumnFilter(key, 'range')}
-                  style={{ ...S.chipX, ...S.chipFilter }}
                 >
                   ×
                 </button>
               </span>
             ))}
-        <span style={S.stats}>
+        <span className="dt-stats">
           {L.rowCount(processedData.length, data.length)}
           {groupBy.length > 0 && L.groupCount(new Set(groupedData.map((g) => g.key)).size)}
         </span>
@@ -3347,50 +2926,54 @@ export function DataTableView<TRow extends object>({
 
       {/* Pagination */}
       {pageSize > 0 && showsPager(visibleItems.length, pageSizes) && (
-        <div style={S.pagination}>
+        <div className="dt-pagination">
           {numPages > 1 && (
             <>
               <button
+                type="button"
+                className="dt-page-btn"
                 onClick={() => setPage(1)}
                 aria-label={L.firstPage}
                 disabled={page === 1}
-                style={{ ...S.pageBtn, ...(page === 1 ? S.pageBtnDisabled : {}) }}
               >
                 «
               </button>
               <button
+                type="button"
+                className="dt-page-btn"
                 onClick={() => setPage(page - 1)}
                 aria-label={L.previousPage}
                 disabled={page === 1}
-                style={{ ...S.pageBtn, ...(page === 1 ? S.pageBtnDisabled : {}) }}
               >
                 ‹
               </button>
-              <span style={S.pageInfo}>{L.pageOf(page, numPages)}</span>
+              <span className="dt-page-info">{L.pageOf(page, numPages)}</span>
               <button
+                type="button"
+                className="dt-page-btn"
                 onClick={() => setPage(page + 1)}
                 aria-label={L.nextPage}
                 disabled={page >= numPages}
-                style={{ ...S.pageBtn, ...(page >= numPages ? S.pageBtnDisabled : {}) }}
               >
                 ›
               </button>
               <button
+                type="button"
+                className="dt-page-btn"
                 onClick={() => setPage(numPages)}
                 aria-label={L.lastPage}
                 disabled={page >= numPages}
-                style={{ ...S.pageBtn, ...(page >= numPages ? S.pageBtnDisabled : {}) }}
               >
                 »
               </button>
             </>
           )}
-          <label style={S.rowsPerPageGroup}>
-            <span style={S.rowsPerPageLabel}>{L.rowsPerPage}:</span>
+          <label className="dt-rows-per-page-group">
+            <span className="dt-rows-per-page">{L.rowsPerPage}:</span>
             <select
+              className="dt-page-select"
               value={pageSize}
               onChange={(e) => setPageSize(Number(e.target.value))}
-              style={S.pageSelect}
             >
               {pageSizes.map((n) => (
                 <option key={n} value={n}>

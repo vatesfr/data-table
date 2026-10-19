@@ -725,7 +725,9 @@ describe('DataTable — exclude filters (multi-value checklist)', () => {
     const action = getByLabelText('Action', { exact: false, selector: 'input' }) as HTMLInputElement
     expect(action.title).toBe('')
     fireEvent.click(getByRole('button', { name: 'Exclude Action' }))
-    expect(getByText('Action', { selector: 'span' }).style.textDecoration).toBe('line-through')
+    expect(getComputedStyle(getByText('Action', { selector: 'span' })).textDecoration).toBe(
+      'line-through',
+    )
   })
 
   it('bulk-(de)selects hidden values via the include set for a multi-value column', () => {
@@ -845,15 +847,11 @@ describe('DataTable — virtualized filter checklist', () => {
   }))
 
   function scrollableList(container: HTMLElement): HTMLElement {
-    // The checklist fills its available height via `flex: 1` (see filterList in
-    // DataTableView.tsx) rather than a fixed inline height, so `.style.flex` alone can't
-    // disambiguate it from `.filterCols` (also `overflowY: 'auto'` — and jsdom's CSSOM reports a
-    // non-empty `.style.flex` for it too, derived from its own `flexShrink: 0`). Its structural
-    // signature is more reliable: the checklist's only child is the totalHeight spacer
-    // (`position: relative`) used by the windowing math, which `.filterCols` has no equivalent of.
+    // The checklist scrolls like `.dt-filter-cols` (both overflow-y: auto); unlike it, its only
+    // child is the totalHeight spacer (`position: relative`) used by the windowing math.
     const el = [...container.querySelectorAll<HTMLElement>('div')].find(
       (d) =>
-        d.style.overflowY === 'auto' &&
+        getComputedStyle(d).overflowY === 'auto' &&
         d.firstElementChild instanceof HTMLElement &&
         d.firstElementChild.style.position === 'relative',
     )
@@ -1071,7 +1069,7 @@ describe('DataTable — date filter tree', () => {
 
   // Regression guard: the tree used to render with no wrapper at all — no height bound, no
   // overflow — so an expanded tree could bleed past the filter panel onto the page instead of
-  // scrolling. It must now sit inside its own bounded, scrollable container (filterDateTreeWrap).
+  // scrolling. It must now sit inside its own bounded, scrollable container (`.dt-date-tree-wrap`).
   it('bounds the date tree in a scrollable, flex-filling container', () => {
     const { getByText, container } = render(
       <DataTable data={DATE_ROWS} columns={DATE_COLS} rowKey="id" />,
@@ -1079,7 +1077,7 @@ describe('DataTable — date filter tree', () => {
     fireEvent.click(getByText('Filter'))
     const yearNode = getByText('2023')
     const wrap = [...container.querySelectorAll<HTMLElement>('div')].find(
-      (d) => d.style.overflowY === 'auto' && d.contains(yearNode),
+      (d) => getComputedStyle(d).overflowY === 'auto' && d.contains(yearNode),
     )
     expect(wrap).toBeTruthy()
   })
