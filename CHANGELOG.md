@@ -7,6 +7,8 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.18.0] - 2026-10-19
+
 ### Added
 
 - **"No matching columns"** (Solid, React, Vue, vanilla): a Columns, Group, Sort or Filter column search that matches nothing says so instead of leaving the list blank. New `noMatchingColumns` label in every locale.
