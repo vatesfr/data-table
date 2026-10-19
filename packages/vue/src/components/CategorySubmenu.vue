@@ -18,14 +18,14 @@ const CLOSE_DELAY = 250
 
 // Vue's dropdown markup uses class-based row selectors, not the `data-dd-row` attribute React/
 // Solid render (see DD_NAV_SELECTOR's own doc comment, core) — mirrors Dropdown.vue's own
-// `DEFAULT_ROW_SELECTOR` (only the `button.dt__dd-item--clickable` part is reachable from inside
+// `DEFAULT_ROW_SELECTOR` (only the `button.dt-dd-item--clickable` part is reachable from inside
 // a category submenu; the other row kinds it also matches never appear here).
-const SUBMENU_ROW_SELECTOR = 'button.dt__dd-item--clickable'
+const SUBMENU_ROW_SELECTOR = 'button.dt-dd-item--clickable'
 
 // Positioned with `position: fixed` at viewport coordinates computed from the trigger's own rect
 // (`computeSubmenuPosition`, core), but rendered as a plain sibling of the trigger — NOT
 // teleported to `document.body`, and NOT `position: absolute` either. Solid's own first version
-// used `position: absolute` and hit a real bug: `.dt__dd`'s `overflow-y: auto` (see Dropdown.vue's
+// used `position: absolute` and hit a real bug: `.dt-dd`'s `overflow-y: auto` (see Dropdown.vue's
 // panel style) means an absolutely positioned descendant that overflows a scrollable ancestor
 // horizontally still grows that ancestor's own scrollable region even though it's out of normal
 // flow — clipping the flyout and adding a spurious horizontal scrollbar to the whole panel. A
@@ -36,8 +36,8 @@ const SUBMENU_ROW_SELECTOR = 'button.dt__dd-item--clickable'
 // (GitHub issue #23). `position: fixed` alone turns out to solve the original overflow problem on
 // its own, with no teleport needed: a fixed element's containing block is the *viewport*, not any
 // scrolling ancestor, unless that ancestor sets `transform`/`filter`/`perspective`/
-// `will-change: transform` (none of `.dt__dd`'s chrome does) — so a fixed submenu never
-// contributes to `.dt__dd`'s scrollable area in the first place, teleport or not.
+// `will-change: transform` (none of `.dt-dd`'s chrome does) — so a fixed submenu never
+// contributes to `.dt-dd`'s scrollable area in the first place, teleport or not.
 //
 // Because the submenu is a real DOM descendant of the panel again, its rows *are* reachable by
 // Dropdown.vue's own generic panel-wide roving nav — which is exactly why that nav explicitly
@@ -184,11 +184,11 @@ defineExpose({ triggerRef })
 </script>
 
 <template>
-  <div class="dt__dd-category">
+  <div class="dt-dd-category">
     <button
       ref="triggerRef"
       type="button"
-      class="dt__dd-item dt__dd-item--clickable dt__dd-category-trigger"
+      class="dt-dd-item dt-dd-item--clickable dt-dd-category-trigger"
       data-dd-row
       :data-category-name="props.name"
       :aria-expanded="props.isOpen"
@@ -205,13 +205,13 @@ defineExpose({ triggerRef })
       "
     >
       <slot name="icon" />
-      <span class="dt__dd-category-label">{{ props.name }}</span>
-      <span class="dt__dd-category-arrow">▸</span>
+      <span class="dt-dd-category-label">{{ props.name }}</span>
+      <span class="dt-dd-category-arrow">▸</span>
     </button>
     <div
       v-if="props.isOpen"
       :ref="(el) => onSubmenuMounted(el as Element | null)"
-      :class="['dt__dd-submenu', props.submenuClass]"
+      :class="['dt-dd-submenu', props.submenuClass]"
       data-category-submenu
       :role="props.groupLabel ? 'group' : undefined"
       :aria-label="props.groupLabel"
@@ -229,14 +229,14 @@ defineExpose({ triggerRef })
 /* Vue's scoped CSS only stamps a component's own `data-v-*` scope id onto elements literally
    written in *its own* template — the trigger button/submenu div below are this component's own
    template (unlike the addable-column buttons rendered through `<slot />`, which stay stamped
-   with DataTableView.vue's scope id and pick up its `.dt__dd-item`/`.dt__dd-item--clickable`
+   with DataTableView.vue's scope id and pick up its `.dt-dd-item`/`.dt-dd-item--clickable`
    rules there for free). So the base item look needs its own copy here too, mirroring
    ToolbarBtn.vue's same self-contained-styling convention for a child component that needs a
-   shared `dt__`-prefixed look. */
-.dt__dd-category {
+   shared `dt-`-prefixed look. */
+.dt-dd-category {
   position: relative;
 }
-.dt__dd-item {
+.dt-dd-item {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -251,25 +251,25 @@ defineExpose({ triggerRef })
   width: 100%;
   box-sizing: border-box;
 }
-.dt__dd-item--clickable {
+.dt-dd-item--clickable {
   cursor: pointer;
 }
-.dt__dd-item--clickable:hover,
-.dt__dd-item--clickable:focus {
+.dt-dd-item--clickable:hover,
+.dt-dd-item--clickable:focus {
   background: var(--color-background-secondary);
 }
-.dt__dd-category-trigger {
+.dt-dd-category-trigger {
   justify-content: space-between;
 }
-.dt__dd-category-label {
+.dt-dd-category-label {
   flex: 1;
 }
-.dt__dd-category-arrow {
+.dt-dd-category-arrow {
   flex-shrink: 0;
   font-size: var(--font-size-2xs, 10px);
   color: var(--color-text-tertiary);
 }
-.dt__dd-submenu {
+.dt-dd-submenu {
   z-index: 101;
   background: var(--color-background-primary);
   border: 0.5px solid var(--color-border-secondary);

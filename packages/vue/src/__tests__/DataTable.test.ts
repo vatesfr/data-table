@@ -54,14 +54,14 @@ describe('DataTable — rowClick', () => {
     const wrapper = mount(DataTable, {
       props: { data: ROWS, columns: COLS, rowKey: 'id' },
     })
-    expect(wrapper.find('tbody tr').classes()).not.toContain('dt__tr--clickable')
+    expect(wrapper.find('tbody tr').classes()).not.toContain('dt-tr--clickable')
   })
 
   it('adds the clickable class when a rowClick listener is attached', () => {
     const wrapper = mount(DataTable, {
       props: { data: ROWS, columns: COLS, rowKey: 'id', onRowClick: vi.fn() },
     })
-    expect(wrapper.find('tbody tr').classes()).toContain('dt__tr--clickable')
+    expect(wrapper.find('tbody tr').classes()).toContain('dt-tr--clickable')
   })
 
   it('clicking the selection checkbox does not emit rowClick', async () => {
@@ -80,9 +80,9 @@ describe('DataTable — rowClick', () => {
     const wrapper = mount(DataTable, {
       props: { data: ROWS, columns: COLS, rowKey: 'id' },
     })
-    expect(wrapper.find('tbody tr').classes()).not.toContain('dt__tr--clickable')
+    expect(wrapper.find('tbody tr').classes()).not.toContain('dt-tr--clickable')
     await wrapper.setProps({ onRowClick: vi.fn() })
-    expect(wrapper.find('tbody tr').classes()).toContain('dt__tr--clickable')
+    expect(wrapper.find('tbody tr').classes()).toContain('dt-tr--clickable')
   })
 })
 
@@ -97,13 +97,13 @@ describe('DataTable — v-model:page / v-model:search-query', () => {
 
   it('says no rows match, with a way out clearing search and filters', async () => {
     const wrapper = mount(DataTable, { props: { data: ROWS, columns: COLS, rowKey: 'id' } })
-    await wrapper.find('input.dt__search-input').setValue('zzz')
+    await wrapper.find('input.dt-search-input').setValue('zzz')
     expect(wrapper.find('tbody').text()).toContain('No matching rows')
     const btn = wrapper
       .findAll('tbody button')
       .find((b) => b.text() === 'Clear search and filters')!
     await btn.trigger('click')
-    expect((wrapper.find('input.dt__search-input').element as HTMLInputElement).value).toBe('')
+    expect((wrapper.find('input.dt-search-input').element as HTMLInputElement).value).toBe('')
     expect(wrapper.findAll('tbody tr')).toHaveLength(ROWS.length)
   })
 
@@ -118,7 +118,7 @@ describe('DataTable — v-model:page / v-model:search-query', () => {
       props: { data: ROWS, columns: COLS, rowKey: 'id' },
       attachTo: document.body,
     })
-    const search = wrapper.find('input.dt__search-input')
+    const search = wrapper.find('input.dt-search-input')
     for (const name of ['× Clear all', 'Clear search', 'Clear search and filters']) {
       await search.setValue('zzz')
       const btn = wrapper
@@ -153,7 +153,7 @@ describe('DataTable — v-model:page / v-model:search-query', () => {
     const wrapper = mount(DataTable, {
       props: { data: ROWS, columns: COLS, rowKey: 'id', initialViewState: { pageSize: 1 } },
     })
-    expect(wrapper.findAll('.dt__page-btn').map((b) => b.attributes('aria-label'))).toEqual([
+    expect(wrapper.findAll('.dt-page-btn').map((b) => b.attributes('aria-label'))).toEqual([
       'First page',
       'Previous page',
       'Next page',
@@ -170,7 +170,7 @@ describe('DataTable — v-model:page / v-model:search-query', () => {
     const wrapper = mount(DataTable, {
       props: { data: manyRows, columns: COLS, rowKey: 'id', initialViewState: { pageSize: 10 } },
     })
-    const nextBtn = wrapper.findAll('.dt__page-btn').find((b) => b.text() === '›')!
+    const nextBtn = wrapper.findAll('.dt-page-btn').find((b) => b.text() === '›')!
     await nextBtn.trigger('click')
     const pageEmits = wrapper.emitted('update:page')!
     expect(pageEmits[pageEmits.length - 1]).toEqual([2])
@@ -178,7 +178,7 @@ describe('DataTable — v-model:page / v-model:search-query', () => {
 
   it('emits update:searchQuery when typing in the search box', async () => {
     const wrapper = mount(DataTable, { props: { data: ROWS, columns: COLS, rowKey: 'id' } })
-    await wrapper.find('input.dt__search-input').setValue('ali')
+    await wrapper.find('input.dt-search-input').setValue('ali')
     const queryEmits = wrapper.emitted('update:searchQuery')!
     expect(queryEmits[queryEmits.length - 1]).toEqual(['ali'])
   })
@@ -198,7 +198,7 @@ describe('DataTable — v-model:page / v-model:search-query', () => {
         page: 3,
       },
     })
-    expect(wrapper.find('.dt__page-info').text()).toBe('Page 3 of 3')
+    expect(wrapper.find('.dt-page-info').text()).toBe('Page 3 of 3')
   })
 
   it('binding :search-query pre-filters rows at mount', () => {
@@ -225,7 +225,7 @@ describe('DataTable — v-model:page / v-model:search-query', () => {
       },
     })
     await wrapper.setProps({ page: 2 })
-    expect(wrapper.find('.dt__page-info').text()).toContain('2')
+    expect(wrapper.find('.dt-page-info').text()).toContain('2')
   })
 })
 
@@ -236,7 +236,7 @@ describe('DataTable — aggregate row', () => {
       { key: 'score', label: 'Score', type: 'number', aggregate: 'sum' },
     ]
     const wrapper = mount(DataTable, { props: { data: ROWS, columns: cols, rowKey: 'id' } })
-    expect(wrapper.find('.dt__agg-row').exists()).toBe(false)
+    expect(wrapper.find('.dt-agg-row').exists()).toBe(false)
   })
 
   it('renders an aggregate row per group when grouping is active', async () => {
@@ -247,9 +247,9 @@ describe('DataTable — aggregate row', () => {
     const wrapper = mount(DataTable, { props: { data: ROWS, columns: cols, rowKey: 'id' } })
     const groupBtn = wrapper.findAll('button').find((b) => b.text() === 'Group')!
     await groupBtn.trigger('click')
-    const nameItem = wrapper.findAll('.dt__dd-item').find((el) => el.text().includes('Name'))!
+    const nameItem = wrapper.findAll('.dt-dd-item').find((el) => el.text().includes('Name'))!
     await nameItem.trigger('click')
-    expect(wrapper.find('.dt__agg-row').exists()).toBe(true)
+    expect(wrapper.find('.dt-agg-row').exists()).toBe(true)
   })
 })
 
@@ -269,11 +269,11 @@ describe('DataTable — column align', () => {
       },
     })
     const ths = wrapper.findAll('th')
-    expect(ths[ths.length - 1].find('.dt__th-spacer').exists()).toBe(true)
-    expect(wrapper.findAll('.dt__th-spacer')).toHaveLength(1)
+    expect(ths[ths.length - 1].find('.dt-th-spacer').exists()).toBe(true)
+    expect(wrapper.findAll('.dt-th-spacer')).toHaveLength(1)
     const lastCells = wrapper
       .findAll('tbody tr')
-      .filter((tr) => !tr.classes('dt__group-row'))
+      .filter((tr) => !tr.classes('dt-group-row'))
       .map((tr) => (tr.element.lastElementChild as HTMLElement).style.textAlign)
     expect(lastCells).toEqual(['end', 'end', 'end', 'end'])
   })
@@ -295,7 +295,7 @@ describe('DataTable — bucketed grouping (groupValue/groupFormat)', () => {
     const wrapper = mount(DataTable, { props: { data: ROWS, columns: cols, rowKey: 'id' } })
     const groupBtn = wrapper.findAll('button').find((b) => b.text() === 'Group')!
     await groupBtn.trigger('click')
-    const scoreItem = wrapper.findAll('.dt__dd-item').find((el) => el.text().includes('Score'))!
+    const scoreItem = wrapper.findAll('.dt-dd-item').find((el) => el.text().includes('Score'))!
     await scoreItem.trigger('click')
     // scores 90 and 60 bucket to 80 and 60 -> "80–100" and "60–80"
     expect(wrapper.text()).toContain('80–100')
@@ -315,11 +315,11 @@ describe('DataTable — filter dropdown', () => {
     await filterBtn.trigger('click')
     expect(
       wrapper
-        .findAll('.dt__filter-col-item')
+        .findAll('.dt-filter-col-item')
         .find((el) => el.text().includes('Name'))!
         .classes(),
-    ).toContain('dt__filter-col-item--active')
-    expect(wrapper.findAll('.dt__dd-item').some((el) => el.text().includes('Alice'))).toBe(true)
+    ).toContain('dt-filter-col-item--active')
+    expect(wrapper.findAll('.dt-dd-item').some((el) => el.text().includes('Alice'))).toBe(true)
     expect(wrapper.find('input[type="number"]').exists()).toBe(false)
   })
 
@@ -328,11 +328,11 @@ describe('DataTable — filter dropdown', () => {
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
     const scoreItem = wrapper
-      .findAll('.dt__filter-col-item')
+      .findAll('.dt-filter-col-item')
       .find((el) => el.text().includes('Score'))!
     await scoreItem.trigger('click')
     expect(wrapper.find('input[type="number"]').exists()).toBe(true)
-    expect(wrapper.findAll('.dt__dd-item')).toHaveLength(0)
+    expect(wrapper.findAll('.dt-dd-item')).toHaveLength(0)
   })
 
   // Regression: filterEscapeClearable used to check only the active column's own search term,
@@ -345,7 +345,7 @@ describe('DataTable — filter dropdown', () => {
     })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
-    const valueSearch = wrapper.find('.dt__filter-detail input.dt__dd-search')
+    const valueSearch = wrapper.find('.dt-filter-detail input.dt-dd-search')
     await valueSearch.setValue('9')
     ;(valueSearch.element as HTMLElement).focus()
     await valueSearch.trigger('keydown', { key: 'Escape' })
@@ -357,27 +357,27 @@ describe('DataTable — filter dropdown', () => {
     const wrapper = mount(DataTable, { props: { data: ROWS, columns: FILTER_COLS, rowKey: 'id' } })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
-    const search = wrapper.find('.dt__filter-cols-search')
-    expect(wrapper.find('.dt__filter-cols-search-wrap .dt__dd-search-clear').exists()).toBe(false)
+    const search = wrapper.find('.dt-filter-cols-search')
+    expect(wrapper.find('.dt-filter-cols-search-wrap .dt-dd-search-clear').exists()).toBe(false)
     await search.setValue('sco')
-    const clearBtn = wrapper.find('.dt__filter-cols-search-wrap .dt__dd-search-clear')
+    const clearBtn = wrapper.find('.dt-filter-cols-search-wrap .dt-dd-search-clear')
     expect(clearBtn.exists()).toBe(true)
     await clearBtn.trigger('click')
-    expect((wrapper.find('.dt__filter-cols-search').element as HTMLInputElement).value).toBe('')
+    expect((wrapper.find('.dt-filter-cols-search').element as HTMLInputElement).value).toBe('')
   })
 
   it('the value search has a labeled clear button, shown only once it has a value', async () => {
     const wrapper = mount(DataTable, { props: { data: ROWS, columns: FILTER_COLS, rowKey: 'id' } })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
-    const valueSearch = wrapper.find('.dt__filter-detail input.dt__dd-search')
-    expect(wrapper.find('.dt__filter-detail .dt__dd-search-clear').exists()).toBe(false)
+    const valueSearch = wrapper.find('.dt-filter-detail input.dt-dd-search')
+    expect(wrapper.find('.dt-filter-detail .dt-dd-search-clear').exists()).toBe(false)
     await valueSearch.setValue('ali')
-    const clearBtn = wrapper.find('.dt__filter-detail .dt__dd-search-clear')
+    const clearBtn = wrapper.find('.dt-filter-detail .dt-dd-search-clear')
     expect(clearBtn.exists()).toBe(true)
     await clearBtn.trigger('click')
     expect(
-      (wrapper.find('.dt__filter-detail input.dt__dd-search').element as HTMLInputElement).value,
+      (wrapper.find('.dt-filter-detail input.dt-dd-search').element as HTMLInputElement).value,
     ).toBe('')
   })
 
@@ -388,10 +388,10 @@ describe('DataTable — filter dropdown', () => {
     })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
-    const valueSearch = wrapper.find('.dt__filter-detail input.dt__dd-search')
+    const valueSearch = wrapper.find('.dt-filter-detail input.dt-dd-search')
     await valueSearch.setValue('9')
     const nameColBtn = wrapper
-      .findAll('.dt__filter-col-item')
+      .findAll('.dt-filter-col-item')
       .find((el) => el.text().includes('Name'))!
     ;(nameColBtn.element as HTMLElement).focus()
     await nameColBtn.trigger('keydown', { key: 'Escape' })
@@ -418,13 +418,13 @@ describe('DataTable — filter dropdown', () => {
     await filterBtn.trigger('click')
     // Narrow to Alice only: `name` is checked-by-default (see docs/filter-dropdown.md's "Filter dropdown"), so
     // exclude everyone via select-all, then re-check just Alice.
-    await wrapper.find('.dt__filter-select-all').trigger('change')
+    await wrapper.find('.dt-filter-select-all').trigger('change')
     await checklistCheckbox(wrapper, 'Alice').trigger('click')
     const deptItem = wrapper
-      .findAll('.dt__filter-col-item')
+      .findAll('.dt-filter-col-item')
       .find((el) => el.text().includes('Dept'))!
     await deptItem.trigger('click')
-    const labels = wrapper.findAll('.dt__dd-item').map((el) => el.text())
+    const labels = wrapper.findAll('.dt-dd-item').map((el) => el.text())
     expect(labels.some((t) => t.startsWith('Eng'))).toBe(true)
     expect(labels.some((t) => t.startsWith('HR'))).toBe(false)
   })
@@ -449,14 +449,14 @@ describe('DataTable — filter dropdown', () => {
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
     const deptItem = wrapper
-      .findAll('.dt__filter-col-item')
+      .findAll('.dt-filter-col-item')
       .find((el) => el.text().includes('Dept'))!
     await deptItem.trigger('click')
     // Exclude (uncheck) dept=HR (Bob) while it's still visible to click — this is what makes it
     // "already touched" (see filterValuesByCount's exclude-model counterpart).
     await checklistCheckbox(wrapper, 'HR').trigger('click')
     const scoreItem = wrapper
-      .findAll('.dt__filter-col-item')
+      .findAll('.dt-filter-col-item')
       .find((el) => el.text().includes('Score'))!
     await scoreItem.trigger('click')
     // A min-score range filter that excludes Bob (score 60) zeroes HR's live facet count —
@@ -471,23 +471,23 @@ describe('DataTable — filter dropdown', () => {
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
     await valueSearchInput(wrapper).setValue('ali')
-    const labels = wrapper.findAll('.dt__dd-item').map((el) => el.text())
+    const labels = wrapper.findAll('.dt-dd-item').map((el) => el.text())
     expect(labels.some((t) => t.includes('Alice'))).toBe(true)
     expect(labels.some((t) => t.includes('Bob'))).toBe(false)
   })
 
   function checklistCheckbox(wrapper: ReturnType<typeof mount>, value: string) {
     return wrapper
-      .findAll('.dt__dd-item')
+      .findAll('.dt-dd-item')
       .find((el) => el.text().startsWith(value))!
       .find('input[type="checkbox"]')
   }
 
-  // The Filter dropdown's own value-search box shares the `.dt__dd-search` class with the left
+  // The Filter dropdown's own value-search box shares the `.dt-dd-search` class with the left
   // column pane's newer column-search box (see "Dropdown column search and keyboard navigation")
   // — the column-search box renders first in DOM order, so grab the *last* match, not the first.
   function valueSearchInput(wrapper: ReturnType<typeof mount>) {
-    const all = wrapper.findAll('.dt__dd-search')
+    const all = wrapper.findAll('.dt-dd-search')
     return all[all.length - 1]
   }
 
@@ -497,7 +497,7 @@ describe('DataTable — filter dropdown', () => {
     const wrapper = mount(DataTable, { props: { data: ROWS, columns: FILTER_COLS, rowKey: 'id' } })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
-    await wrapper.find('.dt__filter-select-all').trigger('change')
+    await wrapper.find('.dt-filter-select-all').trigger('change')
     expect((checklistCheckbox(wrapper, 'Alice').element as HTMLInputElement).checked).toBe(false)
     expect((checklistCheckbox(wrapper, 'Bob').element as HTMLInputElement).checked).toBe(false)
   })
@@ -506,7 +506,7 @@ describe('DataTable — filter dropdown', () => {
     const wrapper = mount(DataTable, { props: { data: ROWS, columns: FILTER_COLS, rowKey: 'id' } })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
-    const selectAll = wrapper.find('.dt__filter-select-all')
+    const selectAll = wrapper.find('.dt-filter-select-all')
     await selectAll.trigger('change')
     await selectAll.trigger('change')
     expect((checklistCheckbox(wrapper, 'Alice').element as HTMLInputElement).checked).toBe(true)
@@ -535,7 +535,7 @@ describe('DataTable — filter dropdown', () => {
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
     await valueSearchInput(wrapper).setValue('ali')
-    await wrapper.find('.dt__filter-select-all').trigger('change')
+    await wrapper.find('.dt-filter-select-all').trigger('change')
     expect((checklistCheckbox(wrapper, 'Alice').element as HTMLInputElement).checked).toBe(false)
     await valueSearchInput(wrapper).setValue('')
     expect((checklistCheckbox(wrapper, 'Bob').element as HTMLInputElement).checked).toBe(true)
@@ -571,7 +571,7 @@ describe('DataTable — filter dropdown', () => {
     const wrapper = mount(DataTable, { props: { data: ROWS4, columns: FILTER_COLS, rowKey: 'id' } })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
-    await wrapper.find('.dt__filter-select-all').trigger('change') // exclude everyone
+    await wrapper.find('.dt-filter-select-all').trigger('change') // exclude everyone
     await checklistCheckbox(wrapper, 'Alice').trigger('click') // re-check Alice
     await checklistCheckbox(wrapper, 'Alice').trigger('click') // re-exclude Alice, becomes anchor
     // Clara is still excluded (from select-all), so this shift-click's target-based direction
@@ -588,8 +588,8 @@ describe('DataTable — filter dropdown', () => {
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
     await valueSearchInput(wrapper).setValue('zzz')
-    expect(wrapper.find('.dt__filter-select-all').exists()).toBe(false)
-    expect(wrapper.find('.dt__dd-search').exists()).toBe(true)
+    expect(wrapper.find('.dt-filter-select-all').exists()).toBe(false)
+    expect(wrapper.find('.dt-dd-search').exists()).toBe(true)
   })
 
   it("renders a range slider with bounds matching the numeric column's actual min/max", async () => {
@@ -597,10 +597,10 @@ describe('DataTable — filter dropdown', () => {
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
     const scoreItem = wrapper
-      .findAll('.dt__filter-col-item')
+      .findAll('.dt-filter-col-item')
       .find((el) => el.text().includes('Score'))!
     await scoreItem.trigger('click')
-    const thumbs = wrapper.findAll('.dt__range-slider-thumb')
+    const thumbs = wrapper.findAll('.dt-range-slider-thumb')
     expect(thumbs).toHaveLength(2)
     expect((thumbs[0].element as HTMLInputElement).min).toBe('60')
     expect((thumbs[0].element as HTMLInputElement).max).toBe('90')
@@ -616,7 +616,7 @@ describe('DataTable — filter dropdown', () => {
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
     const scoreItem = wrapper
-      .findAll('.dt__filter-col-item')
+      .findAll('.dt-filter-col-item')
       .find((el) => el.text().includes('Score'))!
     await scoreItem.trigger('click')
     const min = wrapper.find('input[type="number"][aria-label="Score Min"]')
@@ -631,7 +631,7 @@ describe('DataTable — filter dropdown', () => {
     ])
     // Bounds are a display-only default — no filter is actually active yet.
     expect(wrapper.findAll('tbody tr')).toHaveLength(2)
-    expect(scoreItem.find('.dt__filter-col-dot').exists()).toBe(false)
+    expect(scoreItem.find('.dt-filter-col-dot').exists()).toBe(false)
   })
 
   it('dragging a slider thumb updates the plain min/max inputs and filters rows', async () => {
@@ -639,10 +639,10 @@ describe('DataTable — filter dropdown', () => {
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
     const scoreItem = wrapper
-      .findAll('.dt__filter-col-item')
+      .findAll('.dt-filter-col-item')
       .find((el) => el.text().includes('Score'))!
     await scoreItem.trigger('click')
-    const low = wrapper.findAll('.dt__range-slider-thumb')[0]
+    const low = wrapper.findAll('.dt-range-slider-thumb')[0]
     await low.setValue('75')
     expect(
       (wrapper.find('input[type="number"][aria-label$=" Min"]').element as HTMLInputElement).value,
@@ -655,15 +655,15 @@ describe('DataTable — filter dropdown', () => {
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
     const scoreItem = wrapper
-      .findAll('.dt__filter-col-item')
+      .findAll('.dt-filter-col-item')
       .find((el) => el.text().includes('Score'))!
     await scoreItem.trigger('click')
     await wrapper.find('input[type="number"][aria-label$=" Min"]').setValue('80')
     const scoreRow = wrapper
-      .findAll('.dt__filter-col-row')
+      .findAll('.dt-filter-col-row')
       .find((el) => el.text().includes('Score'))!
-    expect(scoreRow.find('.dt__filter-col-clear').exists()).toBe(true)
-    const chip = wrapper.findAll('.dt__chip--info').find((el) => el.text().includes('Score'))
+    expect(scoreRow.find('.dt-filter-col-clear').exists()).toBe(true)
+    const chip = wrapper.findAll('.dt-chip--info').find((el) => el.text().includes('Score'))
     expect(chip?.text()).toContain('80')
   })
 
@@ -672,13 +672,13 @@ describe('DataTable — filter dropdown', () => {
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
     const scoreItem = wrapper
-      .findAll('.dt__filter-col-item')
+      .findAll('.dt-filter-col-item')
       .find((el) => el.text().includes('Score'))!
     await scoreItem.trigger('click')
     await wrapper.find('input[type="number"][aria-label$=" Min"]').setValue('80')
     expect(wrapper.findAll('tbody tr')).toHaveLength(1) // only Alice (90) remains
-    const chip = wrapper.findAll('.dt__chip--info').find((el) => el.text().includes('Score'))!
-    await chip.find('.dt__chip-remove').trigger('click')
+    const chip = wrapper.findAll('.dt-chip--info').find((el) => el.text().includes('Score'))!
+    await chip.find('.dt-chip-remove').trigger('click')
     expect(
       (wrapper.find('input[type="number"][aria-label$=" Min"]').element as HTMLInputElement).value,
     ).toBe('')
@@ -705,11 +705,11 @@ describe('DataTable — filter dropdown', () => {
       .find((b) => b.text() === 'Filter')!
       .trigger('click')
     await valueSearchInput(wrapper).setValue('ali')
-    const others = wrapper.find('.dt__filter-others input[type="checkbox"]')
+    const others = wrapper.find('.dt-filter-others input[type="checkbox"]')
     ;(others.element as HTMLElement).focus()
     await others.trigger('keydown', { key: 'Escape' })
     await new Promise((r) => setTimeout(r))
-    expect(wrapper.find('.dt__filter-others').exists()).toBe(false)
+    expect(wrapper.find('.dt-filter-others').exists()).toBe(false)
     expect(document.activeElement).toBe(valueSearchInput(wrapper).element)
     wrapper.unmount()
   })
@@ -718,9 +718,9 @@ describe('DataTable — filter dropdown', () => {
     const wrapper = mount(DataTable, { props: { data: ROWS, columns: FILTER_COLS, rowKey: 'id' } })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
-    expect(wrapper.find('.dt__filter-others').exists()).toBe(false)
+    expect(wrapper.find('.dt-filter-others').exists()).toBe(false)
     await valueSearchInput(wrapper).setValue('ali')
-    const others = wrapper.find('.dt__filter-others input[type="checkbox"]')
+    const others = wrapper.find('.dt-filter-others input[type="checkbox"]')
     // Nothing excluded yet — Others (Bob) starts checked.
     expect((others.element as HTMLInputElement).checked).toBe(true)
     await others.trigger('click')
@@ -766,7 +766,7 @@ describe('DataTable — filter dropdown', () => {
     await filterBtn.trigger('click')
     const selectCol = async (label: string) => {
       await wrapper
-        .findAll('.dt__filter-col-item')
+        .findAll('.dt-filter-col-item')
         .find((el) => el.text().includes(label))!
         .trigger('click')
     }
@@ -796,7 +796,7 @@ describe('DataTable — exclude filters (multi-value checklist)', () => {
 
   function tagCheckbox(wrapper: ReturnType<typeof mount>, value: string) {
     return wrapper
-      .findAll('.dt__dd-item')
+      .findAll('.dt-dd-item')
       .find((el) => el.text().startsWith(value))!
       .find('input[type="checkbox"]')
   }
@@ -809,11 +809,11 @@ describe('DataTable — exclude filters (multi-value checklist)', () => {
     return wrapper.findAll('tbody tr td:first-child').map((td) => td.text())
   }
 
-  // The Filter dropdown's own value-search box shares the `.dt__dd-search` class with the left
+  // The Filter dropdown's own value-search box shares the `.dt-dd-search` class with the left
   // column pane's column-search box — grab the *last* match, not the first (see the identical
   // helper in the "filter dropdown" describe block above).
   function valueSearchInput(wrapper: ReturnType<typeof mount>) {
-    const all = wrapper.findAll('.dt__dd-search')
+    const all = wrapper.findAll('.dt-dd-search')
     return all[all.length - 1]
   }
 
@@ -866,7 +866,7 @@ describe('DataTable — exclude filters (multi-value checklist)', () => {
     await filterBtn.trigger('click')
     await excludeButton(wrapper, 'RPG').trigger('click')
 
-    const chip = wrapper.findAll('.dt__chip--danger').find((el) => el.text().includes('RPG'))
+    const chip = wrapper.findAll('.dt-chip--danger').find((el) => el.text().includes('RPG'))
     expect(chip).toBeTruthy()
     expect(chip!.text()).toContain('≠')
   })
@@ -879,19 +879,15 @@ describe('DataTable — exclude filters (multi-value checklist)', () => {
     await excludeButton(wrapper, 'RPG').trigger('click')
 
     const includeChip = wrapper
-      .findAll('.dt__chip--info')
+      .findAll('.dt-chip--info')
       .find((el) => el.text().includes('Action'))!
-    await includeChip.find('.dt__chip-remove').trigger('click')
+    await includeChip.find('.dt-chip-remove').trigger('click')
 
-    expect(wrapper.findAll('.dt__chip--info').some((el) => el.text().includes('Action'))).toBe(
-      false,
-    )
+    expect(wrapper.findAll('.dt-chip--info').some((el) => el.text().includes('Action'))).toBe(false)
     expect(excludeButton(wrapper, 'RPG').attributes('aria-pressed')).toBe('true')
 
-    const excludeChip = wrapper
-      .findAll('.dt__chip--danger')
-      .find((el) => el.text().includes('RPG'))!
-    await excludeChip.find('.dt__chip-remove').trigger('click')
+    const excludeChip = wrapper.findAll('.dt-chip--danger').find((el) => el.text().includes('RPG'))!
+    await excludeChip.find('.dt-chip-remove').trigger('click')
     expect((tagCheckbox(wrapper, 'Action').element as HTMLInputElement).checked).toBe(false)
   })
 
@@ -901,7 +897,7 @@ describe('DataTable — exclude filters (multi-value checklist)', () => {
     await filterBtn.trigger('click')
     await excludeButton(wrapper, 'RPG').trigger('click')
 
-    await wrapper.find('.dt__filter-select-all').trigger('change')
+    await wrapper.find('.dt-filter-select-all').trigger('change')
     expect((tagCheckbox(wrapper, 'RPG').element as HTMLInputElement).checked).toBe(true)
     expect(excludeButton(wrapper, 'RPG').attributes('aria-pressed')).toBe('false')
   })
@@ -913,7 +909,7 @@ describe('DataTable — exclude filters (multi-value checklist)', () => {
     await tagCheckbox(wrapper, 'Action').trigger('click') // include Action
     await excludeButton(wrapper, 'RPG').trigger('click')
 
-    const selectAll = wrapper.find('.dt__filter-select-all')
+    const selectAll = wrapper.find('.dt-filter-select-all')
     expect((selectAll.element as HTMLInputElement).indeterminate).toBe(true)
     await selectAll.trigger('change')
 
@@ -929,8 +925,8 @@ describe('DataTable — exclude filters (multi-value checklist)', () => {
     await filterBtn.trigger('click')
     expect(tagCheckbox(wrapper, 'Action').attributes('title')).toBeUndefined()
     await excludeButton(wrapper, 'Action').trigger('click')
-    const row = wrapper.findAll('.dt__dd-item').find((el) => el.text().startsWith('Action'))!
-    expect(row.classes()).toContain('dt__dd-item--exclude')
+    const row = wrapper.findAll('.dt-dd-item').find((el) => el.text().startsWith('Action'))!
+    expect(row.classes()).toContain('dt-dd-item--exclude')
   })
 
   it('bulk-(de)selects hidden values via the include set for a multi-value column', async () => {
@@ -938,7 +934,7 @@ describe('DataTable — exclude filters (multi-value checklist)', () => {
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
     await valueSearchInput(wrapper).setValue('action')
-    const others = wrapper.find('.dt__filter-others input[type="checkbox"]')
+    const others = wrapper.find('.dt-filter-others input[type="checkbox"]')
     // None of the non-matching values (RPG, Adventure) are included yet.
     expect((others.element as HTMLInputElement).checked).toBe(false)
     await others.trigger('click')
@@ -966,7 +962,7 @@ describe('DataTable — any/all filter match mode', () => {
 
   function tagCheckbox(wrapper: ReturnType<typeof mount>, value: string) {
     return wrapper
-      .findAll('.dt__dd-item')
+      .findAll('.dt-dd-item')
       .find((el) => el.text().startsWith(value))!
       .find('input[type="checkbox"]')
   }
@@ -976,12 +972,12 @@ describe('DataTable — any/all filter match mode', () => {
   }
 
   function matchModeBtn(wrapper: ReturnType<typeof mount>, label: 'Any' | 'All') {
-    return wrapper.findAll('.dt__filter-match-mode').find((el) => el.text() === label)!
+    return wrapper.findAll('.dt-filter-match-mode').find((el) => el.text() === label)!
   }
 
   function selectFilterCol(wrapper: ReturnType<typeof mount>, label: string) {
     return wrapper
-      .findAll('.dt__filter-col-item')
+      .findAll('.dt-filter-col-item')
       .find((el) => el.text() === label)!
       .trigger('click')
   }
@@ -1017,7 +1013,7 @@ describe('DataTable — any/all filter match mode', () => {
     const wrapper = mount(DataTable, { props: { data: GAMES, columns: cols, rowKey: 'id' } })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
-    expect(wrapper.findAll('.dt__filter-match-mode')).toHaveLength(0)
+    expect(wrapper.findAll('.dt-filter-match-mode')).toHaveLength(0)
   })
 
   it("flipping one column's match mode updates another column's facet counts", async () => {
@@ -1036,12 +1032,12 @@ describe('DataTable — any/all filter match mode', () => {
     await selectFilterCol(wrapper, 'Name')
     // Only Game A has both Action and RPG, so Game B/C never match the "all" narrowing and
     // drop out of Name's faceted checklist entirely.
-    expect(wrapper.findAll('.dt__dd-item').some((el) => el.text().startsWith('Game B'))).toBe(false)
+    expect(wrapper.findAll('.dt-dd-item').some((el) => el.text().startsWith('Game B'))).toBe(false)
 
     await selectFilterCol(wrapper, 'Tags')
     await matchModeBtn(wrapper, 'Any').trigger('click')
     await selectFilterCol(wrapper, 'Name')
-    expect(wrapper.findAll('.dt__dd-item').some((el) => el.text().startsWith('Game B'))).toBe(true)
+    expect(wrapper.findAll('.dt-dd-item').some((el) => el.text().startsWith('Game B'))).toBe(true)
   })
 })
 
@@ -1059,7 +1055,7 @@ describe('DataTable — virtualized filter checklist', () => {
     })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
-    const items = wrapper.findAll('.dt__dd-item.dt__dd-item--clickable')
+    const items = wrapper.findAll('.dt-dd-item.dt-dd-item--clickable')
     expect(items.length).toBeGreaterThan(0)
     expect(items.length).toBeLessThan(50)
   })
@@ -1075,7 +1071,7 @@ describe('DataTable — virtualized filter checklist', () => {
     })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
-    const list = wrapper.find('.dt__filter-list')
+    const list = wrapper.find('.dt-filter-list')
     expect(list.text()).toContain('Value 0000')
 
     Object.defineProperty(list.element, 'scrollTop', { value: 32 * 200, writable: true })
@@ -1085,7 +1081,7 @@ describe('DataTable — virtualized filter checklist', () => {
     await new Promise((resolve) => requestAnimationFrame(resolve))
     await wrapper.vm.$nextTick()
 
-    const listAfter = wrapper.find('.dt__filter-list')
+    const listAfter = wrapper.find('.dt-filter-list')
     expect(listAfter.text()).not.toContain('Value 0000')
     expect(listAfter.text()).toContain('Value 0200')
   })
@@ -1097,7 +1093,7 @@ describe('DataTable — virtualized filter checklist', () => {
     })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
-    await wrapper.find('.dt__filter-select-all').trigger('change')
+    await wrapper.find('.dt-filter-select-all').trigger('change')
     expect(wrapper.text()).toContain('0 / 500 rows')
   })
 })
@@ -1120,7 +1116,7 @@ describe('DataTable — filter value sort', () => {
 
   function checklistValueOrder(wrapper: ReturnType<typeof mount>): string[] {
     return wrapper
-      .findAll('.dt__dd-item')
+      .findAll('.dt-dd-item')
       .map((el) => el.text().match(/^[A-Za-z]+/)?.[0])
       .filter((v): v is string => !!v)
   }
@@ -1139,34 +1135,34 @@ describe('DataTable — filter value sort', () => {
   it('cycles to alphabetical descending on the first click', async () => {
     const wrapper = mount(DataTable, { props: { data: TAG_ROWS, columns: TAG_COLS, rowKey: 'id' } })
     await openTagsFilter(wrapper)
-    await wrapper.find('.dt__value-sort-btn').trigger('click')
+    await wrapper.find('.dt-value-sort-btn').trigger('click')
     expect(checklistValueOrder(wrapper)).toEqual(['RPG', 'Adventure', 'Action'])
   })
 
   it('cycles to count descending (tie-broken alphabetically) on the second click', async () => {
     const wrapper = mount(DataTable, { props: { data: TAG_ROWS, columns: TAG_COLS, rowKey: 'id' } })
     await openTagsFilter(wrapper)
-    await wrapper.find('.dt__value-sort-btn').trigger('click')
-    await wrapper.find('.dt__value-sort-btn').trigger('click')
+    await wrapper.find('.dt-value-sort-btn').trigger('click')
+    await wrapper.find('.dt-value-sort-btn').trigger('click')
     expect(checklistValueOrder(wrapper)).toEqual(['Action', 'Adventure', 'RPG'])
   })
 
   it('cycles to count ascending (tie-broken alphabetically) on the third click', async () => {
     const wrapper = mount(DataTable, { props: { data: TAG_ROWS, columns: TAG_COLS, rowKey: 'id' } })
     await openTagsFilter(wrapper)
-    await wrapper.find('.dt__value-sort-btn').trigger('click')
-    await wrapper.find('.dt__value-sort-btn').trigger('click')
-    await wrapper.find('.dt__value-sort-btn').trigger('click')
+    await wrapper.find('.dt-value-sort-btn').trigger('click')
+    await wrapper.find('.dt-value-sort-btn').trigger('click')
+    await wrapper.find('.dt-value-sort-btn').trigger('click')
     expect(checklistValueOrder(wrapper)).toEqual(['Adventure', 'RPG', 'Action'])
   })
 
   it('cycles back to alphabetical ascending on the fourth click', async () => {
     const wrapper = mount(DataTable, { props: { data: TAG_ROWS, columns: TAG_COLS, rowKey: 'id' } })
     await openTagsFilter(wrapper)
-    await wrapper.find('.dt__value-sort-btn').trigger('click')
-    await wrapper.find('.dt__value-sort-btn').trigger('click')
-    await wrapper.find('.dt__value-sort-btn').trigger('click')
-    await wrapper.find('.dt__value-sort-btn').trigger('click')
+    await wrapper.find('.dt-value-sort-btn').trigger('click')
+    await wrapper.find('.dt-value-sort-btn').trigger('click')
+    await wrapper.find('.dt-value-sort-btn').trigger('click')
+    await wrapper.find('.dt-value-sort-btn').trigger('click')
     expect(checklistValueOrder(wrapper)).toEqual(['Action', 'Adventure', 'RPG'])
   })
 
@@ -1184,7 +1180,7 @@ describe('DataTable — filter value sort', () => {
     expect(checklistValueOrder(wrapper)).toEqual(['RPG', 'Adventure', 'Action'])
     // The cycle still advances through all 4 states from that starting point — alpha-desc's next
     // state is count-desc.
-    await wrapper.find('.dt__value-sort-btn').trigger('click')
+    await wrapper.find('.dt-value-sort-btn').trigger('click')
     expect(checklistValueOrder(wrapper)).toEqual(['Action', 'Adventure', 'RPG'])
   })
 
@@ -1204,7 +1200,7 @@ describe('DataTable — filter value sort', () => {
     ]
     function yearOrder(wrapper: ReturnType<typeof mount>): string[] {
       return wrapper
-        .findAll('.dt__date-tree-item')
+        .findAll('.dt-date-tree-item')
         .map((el) => el.text().match(/\d{4}/)?.[0])
         .filter((v): v is string => !!v)
     }
@@ -1213,7 +1209,7 @@ describe('DataTable — filter value sort', () => {
     })
     await openTagsFilter(wrapper)
     expect(yearOrder(wrapper)).toEqual(['2021', '2023'])
-    await wrapper.find('.dt__value-sort-btn').trigger('click')
+    await wrapper.find('.dt-value-sort-btn').trigger('click')
     expect(yearOrder(wrapper)).toEqual(['2023', '2021'])
   })
 })
@@ -1235,19 +1231,17 @@ describe('DataTable — date filter tree', () => {
   ]
 
   function treeItem(wrapper: ReturnType<typeof mount>, text: string) {
-    return wrapper.findAll('.dt__date-tree-item').find((el) => el.text().includes(text))!
+    return wrapper.findAll('.dt-date-tree-item').find((el) => el.text().includes(text))!
   }
 
-  // Day leaves have no `.dt__date-tree-toggle--branch` span (only year/month branches do), and
+  // Day leaves have no `.dt-date-tree-toggle--branch` span (only year/month branches do), and
   // their rendered text has the hidden facet count glued on with no separator (e.g. day "20"
   // renders as "201"), so a plain substring match on a year like "2024" would also match "20" —
   // filtering to leaf rows first disambiguates cleanly.
   function dayTreeItem(wrapper: ReturnType<typeof mount>, day: string) {
     return wrapper
-      .findAll('.dt__date-tree-item')
-      .find(
-        (el) => !el.find('.dt__date-tree-toggle--branch').exists() && el.text().startsWith(day),
-      )!
+      .findAll('.dt-date-tree-item')
+      .find((el) => !el.find('.dt-date-tree-toggle--branch').exists() && el.text().startsWith(day))!
   }
 
   it('renders year nodes collapsed by default, with months hidden until expanded', async () => {
@@ -1270,7 +1264,7 @@ describe('DataTable — date filter tree', () => {
     })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
-    const wrap = wrapper.find('.dt__date-tree-wrap')
+    const wrap = wrapper.find('.dt-date-tree-wrap')
     expect(wrap.exists()).toBe(true)
     expect(wrap.text()).toContain('2023')
   })
@@ -1281,9 +1275,9 @@ describe('DataTable — date filter tree', () => {
     })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
-    await treeItem(wrapper, '2023').find('.dt__date-tree-toggle--branch').trigger('click')
+    await treeItem(wrapper, '2023').find('.dt-date-tree-toggle--branch').trigger('click')
     expect(wrapper.text()).toContain('May')
-    await treeItem(wrapper, 'May').find('.dt__date-tree-toggle--branch').trigger('click')
+    await treeItem(wrapper, 'May').find('.dt-date-tree-toggle--branch').trigger('click')
     expect(treeItem(wrapper, '14').exists()).toBe(true)
     expect(treeItem(wrapper, '20').exists()).toBe(true)
   })
@@ -1318,8 +1312,8 @@ describe('DataTable — date filter tree', () => {
     })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
-    await treeItem(wrapper, '2023').find('.dt__date-tree-toggle--branch').trigger('click')
-    await treeItem(wrapper, 'May').find('.dt__date-tree-toggle--branch').trigger('click')
+    await treeItem(wrapper, '2023').find('.dt-date-tree-toggle--branch').trigger('click')
+    await treeItem(wrapper, 'May').find('.dt-date-tree-toggle--branch').trigger('click')
     await treeItem(wrapper, '14').find('input[type="checkbox"]').trigger('click')
     const monthCheckbox = treeItem(wrapper, 'May').find('input[type="checkbox"]')
       .element as HTMLInputElement
@@ -1337,7 +1331,7 @@ describe('DataTable — date filter tree', () => {
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
     await treeItem(wrapper, '2023').find('input[type="checkbox"]').trigger('click')
-    expect(wrapper.find('.dt__chip--info').text()).toContain(
+    expect(wrapper.find('.dt-chip--info').text()).toContain(
       '2023-01-01, 2023-02-01, 2023-03-01, +1 more',
     )
   })
@@ -1352,8 +1346,8 @@ describe('DataTable — date filter tree', () => {
     const wrapper = mount(DataTable, { props: { data: rows, columns: DATE_COLS, rowKey: 'id' } })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
-    await treeItem(wrapper, '2023').find('.dt__date-tree-toggle--branch').trigger('click')
-    await treeItem(wrapper, 'May').find('.dt__date-tree-toggle--branch').trigger('click')
+    await treeItem(wrapper, '2023').find('.dt-date-tree-toggle--branch').trigger('click')
+    await treeItem(wrapper, 'May').find('.dt-date-tree-toggle--branch').trigger('click')
     await dayTreeItem(wrapper, '14').find('input[type="checkbox"]').trigger('click')
     await dayTreeItem(wrapper, '20')
       .find('input[type="checkbox"]')
@@ -1374,8 +1368,8 @@ describe('DataTable — date filter tree', () => {
     const wrapper = mount(DataTable, { props: { data: rows, columns: DATE_COLS, rowKey: 'id' } })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
-    await treeItem(wrapper, '2023').find('.dt__date-tree-toggle--branch').trigger('click')
-    await treeItem(wrapper, 'May').find('.dt__date-tree-toggle--branch').trigger('click')
+    await treeItem(wrapper, '2023').find('.dt-date-tree-toggle--branch').trigger('click')
+    await treeItem(wrapper, 'May').find('.dt-date-tree-toggle--branch').trigger('click')
     await treeItem(wrapper, '2021').find('input[type="checkbox"]').trigger('click')
     await dayTreeItem(wrapper, '14')
       .find('input[type="checkbox"]')
@@ -1419,7 +1413,7 @@ describe('DataTable — date filter tree', () => {
     await wrapper.findAll('input[type="date"]')[0].setValue('2022-01-01')
     // The 2021 year (Game C) drops out of the tree entirely — narrowed like a search term, not
     // merely ANDed onto the final result once a checkbox is ticked.
-    expect(wrapper.findAll('.dt__date-tree-item').some((el) => el.text().includes('2021'))).toBe(
+    expect(wrapper.findAll('.dt-date-tree-item').some((el) => el.text().includes('2021'))).toBe(
       false,
     )
     expect(wrapper.text()).toContain('2023')
@@ -1432,7 +1426,7 @@ describe('DataTable — date filter tree', () => {
     })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
-    const thumbs = wrapper.findAll('.dt__range-slider-thumb')
+    const thumbs = wrapper.findAll('.dt-range-slider-thumb')
     expect(thumbs).toHaveLength(2)
     expect(Number((thumbs[0].element as HTMLInputElement).min)).toBe(
       new Date('2021-01-02').getTime(),
@@ -1450,10 +1444,10 @@ describe('DataTable — date filter tree', () => {
     await filterBtn.trigger('click')
     await wrapper.findAll('input[type="date"]')[0].setValue('2022-01-01')
     const releasedRow = wrapper
-      .findAll('.dt__filter-col-row')
+      .findAll('.dt-filter-col-row')
       .find((el) => el.text().includes('Released'))!
-    expect(releasedRow.find('.dt__filter-col-clear').exists()).toBe(true)
-    const chip = wrapper.findAll('.dt__chip--info').find((el) => el.text().includes('Released'))
+    expect(releasedRow.find('.dt-filter-col-clear').exists()).toBe(true)
+    const chip = wrapper.findAll('.dt-chip--info').find((el) => el.text().includes('Released'))
     expect(chip?.text()).toContain('2022-01-01')
   })
 
@@ -1464,12 +1458,12 @@ describe('DataTable — date filter tree', () => {
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
     await wrapper.findAll('input[type="date"]')[0].setValue('2022-01-01')
-    expect(wrapper.findAll('.dt__date-tree-item').some((el) => el.text().includes('2021'))).toBe(
+    expect(wrapper.findAll('.dt-date-tree-item').some((el) => el.text().includes('2021'))).toBe(
       false,
     )
-    const chip = wrapper.findAll('.dt__chip--info').find((el) => el.text().includes('Released'))!
-    await chip.find('.dt__chip-remove').trigger('click')
-    expect(wrapper.findAll('.dt__date-tree-item').some((el) => el.text().includes('2021'))).toBe(
+    const chip = wrapper.findAll('.dt-chip--info').find((el) => el.text().includes('Released'))!
+    await chip.find('.dt-chip-remove').trigger('click')
+    expect(wrapper.findAll('.dt-date-tree-item').some((el) => el.text().includes('2021'))).toBe(
       true,
     )
     expect(wrapper.findAll('tbody tr')).toHaveLength(3)
@@ -1479,7 +1473,7 @@ describe('DataTable — date filter tree', () => {
 describe('DataTable — search clear button', () => {
   it('does not render a clear button when the search query is empty', () => {
     const wrapper = mount(DataTable, { props: { data: ROWS, columns: COLS, rowKey: 'id' } })
-    expect(wrapper.find('.dt__search-clear').exists()).toBe(false)
+    expect(wrapper.find('.dt-search-clear').exists()).toBe(false)
   })
 
   it('renders and wires up a clear button once the search query is non-empty', async () => {
@@ -1487,12 +1481,12 @@ describe('DataTable — search clear button', () => {
       props: { data: ROWS, columns: COLS, rowKey: 'id' },
       attachTo: document.body,
     })
-    const input = wrapper.find('input.dt__search-input')
+    const input = wrapper.find('input.dt-search-input')
     await input.setValue('ali')
     expect((input.element as HTMLInputElement).value).toBe('ali')
-    await wrapper.find('.dt__search-clear').trigger('click')
+    await wrapper.find('.dt-search-clear').trigger('click')
     expect((input.element as HTMLInputElement).value).toBe('')
-    expect(wrapper.find('.dt__search-clear').exists()).toBe(false)
+    expect(wrapper.find('.dt-search-clear').exists()).toBe(false)
     expect(document.activeElement).toBe(input.element)
     wrapper.unmount()
   })
@@ -1503,12 +1497,12 @@ describe('DataTable — showSearch', () => {
     const wrapper = mount(DataTable, {
       props: { data: ROWS, columns: COLS, rowKey: 'id', showSearch: false },
     })
-    expect(wrapper.find('input.dt__search-input').exists()).toBe(false)
+    expect(wrapper.find('input.dt-search-input').exists()).toBe(false)
   })
 
   it('shows the search box by default', () => {
     const wrapper = mount(DataTable, { props: { data: ROWS, columns: COLS, rowKey: 'id' } })
-    expect(wrapper.find('input.dt__search-input').exists()).toBe(true)
+    expect(wrapper.find('input.dt-search-input').exists()).toBe(true)
   })
 })
 
@@ -1524,14 +1518,14 @@ describe('DataTable — range presets', () => {
       .find((b) => b.text() === 'Filter')!
       .trigger('click')
     await wrapper
-      .findAll('.dt__filter-col-item')
+      .findAll('.dt-filter-col-item')
       .find((el) => el.text().includes('Score'))!
       .trigger('click')
-    const top = () => wrapper.findAll('.dt__range-presets button').find((b) => b.text() === 'top')!
+    const top = () => wrapper.findAll('.dt-range-presets button').find((b) => b.text() === 'top')!
     await top().trigger('click')
     expect(wrapper.findAll('tbody tr')).toHaveLength(1) // Alice (90)
     expect(top().attributes('aria-pressed')).toBe('true')
-    expect(wrapper.find('.dt__chip--info .dt__chip-body').text()).toBe('Score: top')
+    expect(wrapper.find('.dt-chip--info .dt-chip-body').text()).toBe('Score: top')
     await top().trigger('click')
     expect(wrapper.findAll('tbody tr')).toHaveLength(2)
     expect(top().attributes('aria-pressed')).toBe('false')
@@ -1590,17 +1584,17 @@ describe('DataTable — checkbox cells as hit areas', () => {
 })
 
 describe('DataTable — currentRow', () => {
-  it('marks the current row with aria-current and dt__tr--current, following the prop', async () => {
+  it('marks the current row with aria-current and dt-tr--current, following the prop', async () => {
     const wrapper = mount(DataTable, {
       props: { data: ROWS, columns: COLS, rowKey: 'id', currentRow: ROWS[1] },
     })
     const marked = () => wrapper.findAll('tbody tr[aria-current="true"]')
     expect(marked()).toHaveLength(1)
     expect(marked()[0].text()).toContain(ROWS[1].name)
-    expect(marked()[0].classes()).toContain('dt__tr--current')
+    expect(marked()[0].classes()).toContain('dt-tr--current')
     await wrapper.setProps({ currentRow: null })
     expect(marked()).toHaveLength(0)
-    expect(wrapper.find('.dt__tr--current').exists()).toBe(false)
+    expect(wrapper.find('.dt-tr--current').exists()).toBe(false)
   })
 })
 
@@ -1610,13 +1604,13 @@ describe('DataTable — toolbar-end slot', () => {
       props: { data: ROWS, columns: COLS, rowKey: 'id' },
       slots: { 'toolbar-end': '<button class="share">Share</button>' },
     })
-    const end = wrapper.find('.dt__toolbar-actions > .dt__toolbar-end:last-child')
+    const end = wrapper.find('.dt-toolbar-actions > .dt-toolbar-end:last-child')
     expect(end.find('.share').exists()).toBe(true)
   })
 
   it('renders no toolbar-end wrapper when the slot is absent', () => {
     const wrapper = mount(DataTable, { props: { data: ROWS, columns: COLS, rowKey: 'id' } })
-    expect(wrapper.find('.dt__toolbar-end').exists()).toBe(false)
+    expect(wrapper.find('.dt-toolbar-end').exists()).toBe(false)
   })
 
   it('moves the slot before the search box on a phone, so it ends the first line', async () => {
@@ -1627,10 +1621,10 @@ describe('DataTable — toolbar-end slot', () => {
         slots: { 'toolbar-end': '<button class="share">Share</button>' },
       })
       await wrapper.vm.$nextTick()
-      const end = wrapper.find('.dt__toolbar-end').element
-      const search = wrapper.find('.dt__search-wrap').element
+      const end = wrapper.find('.dt-toolbar-end').element
+      const search = wrapper.find('.dt-search-wrap').element
       expect(end.compareDocumentPosition(search) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-      expect(wrapper.find('.dt__toolbar-divider').exists()).toBe(false)
+      expect(wrapper.find('.dt-toolbar-divider').exists()).toBe(false)
     } finally {
       restore()
     }
@@ -1653,12 +1647,8 @@ describe('DataTable — sort dropdown', () => {
       .findAll('button')
       .find((b) => b.text() === 'Sort')!
       .trigger('click')
-    expect(wrapper.findAll('.dt__dd-item--clickable').some((el) => el.text() === 'Name')).toBe(
-      false,
-    )
-    expect(wrapper.findAll('.dt__dd-item--clickable').some((el) => el.text() === 'Score')).toBe(
-      true,
-    )
+    expect(wrapper.findAll('.dt-dd-item--clickable').some((el) => el.text() === 'Name')).toBe(false)
+    expect(wrapper.findAll('.dt-dd-item--clickable').some((el) => el.text() === 'Score')).toBe(true)
   })
 
   it('lists a not-yet-sorted column under the add section as a real button', async () => {
@@ -1667,9 +1657,7 @@ describe('DataTable — sort dropdown', () => {
       .findAll('button')
       .find((b) => b.text() === 'Sort')!
       .trigger('click')
-    const scoreItem = wrapper
-      .findAll('.dt__dd-item--clickable')
-      .find((el) => el.text() === 'Score')!
+    const scoreItem = wrapper.findAll('.dt-dd-item--clickable').find((el) => el.text() === 'Score')!
     expect(scoreItem.element.tagName).toBe('BUTTON')
   })
 
@@ -1680,13 +1668,13 @@ describe('DataTable — sort dropdown', () => {
       .find((b) => b.text() === 'Sort')!
       .trigger('click')
     await wrapper
-      .findAll('.dt__dd-item--clickable')
+      .findAll('.dt-dd-item--clickable')
       .find((el) => el.text() === 'Score')!
       .trigger('click')
     let names = wrapper.findAll('tbody tr td:first-child').map((td) => td.text())
     expect(names).toEqual(['Bob', 'Alice']) // 60, 90 — ascending
 
-    await wrapper.find('.dt__dd-item--sortrow').trigger('click')
+    await wrapper.find('.dt-dd-item--sortrow').trigger('click')
     names = wrapper.findAll('tbody tr td:first-child').map((td) => td.text())
     expect(names).toEqual(['Alice', 'Bob']) // 90, 60 — descending
   })
@@ -1698,11 +1686,11 @@ describe('DataTable — sort dropdown', () => {
       .find((b) => b.text() === 'Sort')!
       .trigger('click')
     await wrapper
-      .findAll('.dt__dd-item--clickable')
+      .findAll('.dt-dd-item--clickable')
       .find((el) => el.text() === 'Score')!
       .trigger('click')
-    await wrapper.find('.dt__dd-item--sortrow .dt__item-remove').trigger('click')
-    expect(wrapper.find('.dt__dd-item--sortrow').exists()).toBe(false)
+    await wrapper.find('.dt-dd-item--sortrow .dt-item-remove').trigger('click')
+    expect(wrapper.find('.dt-dd-item--sortrow').exists()).toBe(false)
     const names = wrapper.findAll('tbody tr td:first-child').map((td) => td.text())
     expect(names).toEqual(['Alice', 'Bob']) // original order, no longer sorted
   })
@@ -1714,12 +1702,12 @@ describe('DataTable — sort dropdown', () => {
       .find((b) => b.text() === 'Sort')!
       .trigger('click')
     await wrapper
-      .findAll('.dt__dd-item--clickable')
+      .findAll('.dt-dd-item--clickable')
       .find((el) => el.text() === 'Score')!
       .trigger('click')
-    const row = wrapper.find('.dt__dd-item--sortrow')
-    expect(row.find('.dt__dd-drag-handle').exists()).toBe(true)
-    const removeBtn = row.find('.dt__item-remove')
+    const row = wrapper.find('.dt-dd-item--sortrow')
+    expect(row.find('.dt-dd-drag-handle').exists()).toBe(true)
+    const removeBtn = row.find('.dt-item-remove')
     expect(removeBtn.attributes('title')).toBe('Remove sort: Score')
     expect(removeBtn.attributes('aria-label')).toBe('Remove sort: Score')
   })
@@ -1734,13 +1722,13 @@ describe('DataTable — sort dropdown', () => {
     const sortToggle = () => wrapper.findAll('button').find((b) => b.text().startsWith('Sort'))!
     await sortToggle().trigger('click')
     await wrapper
-      .findAll('.dt__dd-item--clickable')
+      .findAll('.dt-dd-item--clickable')
       .find((el) => el.text() === 'Score')!
       .trigger('click')
     await sortToggle().trigger('click') // close it
 
     await wrapper.find('[title="Clear sorts"]').trigger('click')
-    expect(wrapper.find('.dt__dd-item--sortrow').exists()).toBe(false)
+    expect(wrapper.find('.dt-dd-item--sortrow').exists()).toBe(false)
     expect(wrapper.find('.dt-dd').exists()).toBe(false) // still closed, not reopened
     const names = wrapper.findAll('tbody tr td:first-child').map((td) => td.text())
     expect(names).toEqual(['Alice', 'Bob']) // original order, no longer sorted
@@ -1753,19 +1741,19 @@ describe('DataTable — sort dropdown', () => {
       .find((b) => b.text() === 'Sort')!
       .trigger('click')
     await wrapper
-      .findAll('.dt__dd-item--clickable')
+      .findAll('.dt-dd-item--clickable')
       .find((el) => el.text() === 'Name')!
       .trigger('click')
     await wrapper
-      .findAll('.dt__dd-item--clickable')
+      .findAll('.dt-dd-item--clickable')
       .find((el) => el.text() === 'Score')!
       .trigger('click')
 
-    const rows = wrapper.findAll('.dt__dd-item--sortrow')
+    const rows = wrapper.findAll('.dt-dd-item--sortrow')
     await rows[1].trigger('dragstart')
     await rows[0].trigger('dragover')
     await rows[0].trigger('drop')
-    const after = wrapper.findAll('.dt__dd-item--sortrow')
+    const after = wrapper.findAll('.dt-dd-item--sortrow')
     expect(after[0].text()).toContain('Score')
     expect(after[1].text()).toContain('Name')
   })
@@ -1778,19 +1766,19 @@ describe('DataTable — sort dropdown', () => {
       .find((b) => b.text() === 'Sort')!
       .trigger('click')
     await wrapper
-      .findAll('.dt__dd-item--clickable')
+      .findAll('.dt-dd-item--clickable')
       .find((el) => el.text() === 'Name')!
       .trigger('click')
     await wrapper
-      .findAll('.dt__dd-item--clickable')
+      .findAll('.dt-dd-item--clickable')
       .find((el) => el.text() === 'Score')!
       .trigger('click')
     await wrapper
-      .findAll('.dt__dd-item--clickable')
+      .findAll('.dt-dd-item--clickable')
       .find((el) => el.text() === 'Id')!
       .trigger('click')
 
-    const rows = wrapper.findAll('.dt__dd-item--sortrow')
+    const rows = wrapper.findAll('.dt-dd-item--sortrow')
     // jsdom has no layout engine — getBoundingClientRect() returns all zeros unless stubbed.
     rows[2].element.getBoundingClientRect = () => ({ top: 20, bottom: 40, height: 20 }) as DOMRect
     const panel = wrapper.find('.dt-dd')
@@ -1802,7 +1790,7 @@ describe('DataTable — sort dropdown', () => {
     await panel.trigger('dragover', { clientY: 100 })
     await panel.trigger('drop', { clientY: 100 })
 
-    const after = wrapper.findAll('.dt__dd-item--sortrow')
+    const after = wrapper.findAll('.dt-dd-item--sortrow')
     expect(after.map((r) => r.text())).toEqual([
       expect.stringContaining('Score'),
       expect.stringContaining('Id'),
@@ -1817,15 +1805,15 @@ describe('DataTable — sort dropdown', () => {
       .find((b) => b.text() === 'Sort')!
       .trigger('click')
     await wrapper
-      .findAll('.dt__dd-item--clickable')
+      .findAll('.dt-dd-item--clickable')
       .find((el) => el.text() === 'Name')!
       .trigger('click')
     await wrapper
-      .findAll('.dt__dd-item--clickable')
+      .findAll('.dt-dd-item--clickable')
       .find((el) => el.text() === 'Score')!
       .trigger('click')
 
-    const rows = wrapper.findAll('.dt__dd-item--sortrow')
+    const rows = wrapper.findAll('.dt-dd-item--sortrow')
     rows[1].element.getBoundingClientRect = () => ({ top: 20, bottom: 40, height: 20 }) as DOMRect
 
     await rows[0].trigger('dragstart')
@@ -1834,7 +1822,7 @@ describe('DataTable — sort dropdown', () => {
     await rows[1].trigger('dragover', { clientY: 35 })
     await rows[1].trigger('drop', { clientY: 35 })
 
-    const after = wrapper.findAll('.dt__dd-item--sortrow')
+    const after = wrapper.findAll('.dt-dd-item--sortrow')
     expect(after[0].text()).toContain('Score')
     expect(after[1].text()).toContain('Name')
   })
@@ -1846,17 +1834,17 @@ describe('DataTable — sort dropdown', () => {
       .find((b) => b.text() === 'Sort')!
       .trigger('click')
     await wrapper
-      .findAll('.dt__dd-item--clickable')
+      .findAll('.dt-dd-item--clickable')
       .find((el) => el.text() === 'Name')!
       .trigger('click')
     await wrapper
-      .findAll('.dt__dd-item--clickable')
+      .findAll('.dt-dd-item--clickable')
       .find((el) => el.text() === 'Score')!
       .trigger('click')
 
-    const rows = wrapper.findAll('.dt__dd-item--sortrow')
+    const rows = wrapper.findAll('.dt-dd-item--sortrow')
     await rows[1].trigger('keydown', { key: 'ArrowUp', altKey: true })
-    const after = wrapper.findAll('.dt__dd-item--sortrow')
+    const after = wrapper.findAll('.dt-dd-item--sortrow')
     expect(after[0].text()).toContain('Score')
     expect(after[1].text()).toContain('Name')
   })
@@ -1992,7 +1980,7 @@ describe('DataTable — header click sort', () => {
       .find((b) => b.text() === 'Group')!
       .trigger('click')
     await wrapper
-      .findAll('.dt__dd-item--clickable')
+      .findAll('.dt-dd-item--clickable')
       .find((el) => el.text() === 'Dept')!
       .trigger('click')
     await headerOf(wrapper, 'Score').trigger('click', { shiftKey: true })
@@ -2015,9 +2003,7 @@ describe('DataTable — group dropdown', () => {
       .findAll('button')
       .find((b) => b.text() === 'Group')!
       .trigger('click')
-    const scoreItem = wrapper
-      .findAll('.dt__dd-item--clickable')
-      .find((el) => el.text() === 'Score')!
+    const scoreItem = wrapper.findAll('.dt-dd-item--clickable').find((el) => el.text() === 'Score')!
     expect(scoreItem.element.tagName).toBe('BUTTON')
   })
 
@@ -2028,12 +2014,12 @@ describe('DataTable — group dropdown', () => {
       .find((b) => b.text() === 'Group')!
       .trigger('click')
     await wrapper
-      .findAll('.dt__dd-item--clickable')
+      .findAll('.dt-dd-item--clickable')
       .find((el) => el.text() === 'Score')!
       .trigger('click')
-    expect(wrapper.find('.dt__dd-item--grouprow').exists()).toBe(true)
-    await wrapper.find('.dt__dd-item--grouprow .dt__item-remove').trigger('click')
-    expect(wrapper.find('.dt__dd-item--grouprow').exists()).toBe(false)
+    expect(wrapper.find('.dt-dd-item--grouprow').exists()).toBe(true)
+    await wrapper.find('.dt-dd-item--grouprow .dt-item-remove').trigger('click')
+    expect(wrapper.find('.dt-dd-item--grouprow').exists()).toBe(false)
   })
 
   it('the Group toolbar button has no clear-groups button until a group is active', async () => {
@@ -2046,13 +2032,13 @@ describe('DataTable — group dropdown', () => {
     const groupToggle = () => wrapper.findAll('button').find((b) => b.text().startsWith('Group'))!
     await groupToggle().trigger('click')
     await wrapper
-      .findAll('.dt__dd-item--clickable')
+      .findAll('.dt-dd-item--clickable')
       .find((el) => el.text() === 'Score')!
       .trigger('click')
     await groupToggle().trigger('click') // close it
 
     await wrapper.find('[title="Clear groups"]').trigger('click')
-    expect(wrapper.find('.dt__dd-item--grouprow').exists()).toBe(false)
+    expect(wrapper.find('.dt-dd-item--grouprow').exists()).toBe(false)
     expect(wrapper.find('.dt-dd').exists()).toBe(false) // still closed, not reopened
   })
 
@@ -2063,19 +2049,19 @@ describe('DataTable — group dropdown', () => {
       .find((b) => b.text() === 'Group')!
       .trigger('click')
     await wrapper
-      .findAll('.dt__dd-item--clickable')
+      .findAll('.dt-dd-item--clickable')
       .find((el) => el.text() === 'Name')!
       .trigger('click')
     await wrapper
-      .findAll('.dt__dd-item--clickable')
+      .findAll('.dt-dd-item--clickable')
       .find((el) => el.text() === 'Score')!
       .trigger('click')
 
-    const rows = wrapper.findAll('.dt__dd-item--grouprow')
+    const rows = wrapper.findAll('.dt-dd-item--grouprow')
     await rows[1].trigger('dragstart')
     await rows[0].trigger('dragover')
     await rows[0].trigger('drop')
-    const after = wrapper.findAll('.dt__dd-item--grouprow')
+    const after = wrapper.findAll('.dt-dd-item--grouprow')
     expect(after[0].text()).toContain('Score')
     expect(after[1].text()).toContain('Name')
   })
@@ -2091,19 +2077,19 @@ describe('DataTable — group dropdown', () => {
       .find((b) => b.text() === 'Group')!
       .trigger('click')
     await wrapper
-      .findAll('.dt__dd-item--clickable')
+      .findAll('.dt-dd-item--clickable')
       .find((el) => el.text() === 'Name')!
       .trigger('click')
     await wrapper
-      .findAll('.dt__dd-item--clickable')
+      .findAll('.dt-dd-item--clickable')
       .find((el) => el.text() === 'Score')!
       .trigger('click')
     await wrapper
-      .findAll('.dt__dd-item--clickable')
+      .findAll('.dt-dd-item--clickable')
       .find((el) => el.text() === 'Id')!
       .trigger('click')
 
-    const rows = wrapper.findAll('.dt__dd-item--grouprow')
+    const rows = wrapper.findAll('.dt-dd-item--grouprow')
     // jsdom has no layout engine — getBoundingClientRect() returns all zeros unless stubbed.
     rows[2].element.getBoundingClientRect = () => ({ top: 20, bottom: 40, height: 20 }) as DOMRect
     const panel = wrapper.find('.dt-dd')
@@ -2115,7 +2101,7 @@ describe('DataTable — group dropdown', () => {
     await panel.trigger('dragover', { clientY: 100 })
     await panel.trigger('drop', { clientY: 100 })
 
-    const after = wrapper.findAll('.dt__dd-item--grouprow')
+    const after = wrapper.findAll('.dt-dd-item--grouprow')
     expect(after.map((r) => r.text())).toEqual([
       expect.stringContaining('Score'),
       expect.stringContaining('Id'),
@@ -2134,19 +2120,19 @@ describe('DataTable — group dropdown', () => {
       .find((b) => b.text() === 'Group')!
       .trigger('click')
     await wrapper
-      .findAll('.dt__dd-item--clickable')
+      .findAll('.dt-dd-item--clickable')
       .find((el) => el.text() === 'Name')!
       .trigger('click')
     await wrapper
-      .findAll('.dt__dd-item--clickable')
+      .findAll('.dt-dd-item--clickable')
       .find((el) => el.text() === 'Score')!
       .trigger('click')
     await wrapper
-      .findAll('.dt__dd-item--clickable')
+      .findAll('.dt-dd-item--clickable')
       .find((el) => el.text() === 'Id')!
       .trigger('click')
 
-    const rows = wrapper.findAll('.dt__dd-item--grouprow')
+    const rows = wrapper.findAll('.dt-dd-item--grouprow')
     rows[2].element.getBoundingClientRect = () => ({ top: 20, bottom: 40, height: 20 }) as DOMRect
 
     await rows[0].trigger('dragstart')
@@ -2155,7 +2141,7 @@ describe('DataTable — group dropdown', () => {
     await rows[2].trigger('dragover', { clientY: 35 })
     await rows[2].trigger('drop', { clientY: 35 })
 
-    const after = wrapper.findAll('.dt__dd-item--grouprow')
+    const after = wrapper.findAll('.dt-dd-item--grouprow')
     expect(after.map((r) => r.text())).toEqual([
       expect.stringContaining('Score'),
       expect.stringContaining('Id'),
@@ -2171,7 +2157,7 @@ describe('DataTable — columns dropdown', () => {
       .findAll('button')
       .find((b) => b.text() === 'Columns')!
       .trigger('click')
-    const rows = wrapper.findAll('.dt__dd-item--colrow')
+    const rows = wrapper.findAll('.dt-dd-item--colrow')
     expect(rows).toHaveLength(COLS.length)
     expect(wrapper.findAll('button').some((b) => b.text() === '▲')).toBe(false)
 
@@ -2189,12 +2175,12 @@ describe('DataTable — columns dropdown', () => {
       .findAll('button')
       .find((b) => b.text() === 'Columns')!
       .trigger('click')
-    const rows = wrapper.findAll('.dt__dd-item--colrow')
+    const rows = wrapper.findAll('.dt-dd-item--colrow')
     await rows[1].trigger('keydown', { key: 'ArrowUp', altKey: true })
     let headers = wrapper.findAll('th').map((th) => th.text())
     expect(headers[0]).toContain('Score')
 
-    await wrapper.findAll('.dt__dd-item--colrow')[0].find('.dt__item-remove').trigger('click')
+    await wrapper.findAll('.dt-dd-item--colrow')[0].find('.dt-item-remove').trigger('click')
     headers = wrapper.findAll('th').map((th) => th.text())
     expect(headers.some((h) => h.includes('Score'))).toBe(false)
   })
@@ -2206,7 +2192,7 @@ describe('DataTable — columns dropdown', () => {
       .findAll('button')
       .find((b) => b.text() === 'Columns')!
       .trigger('click')
-    const rows = wrapper.findAll('.dt__dd-item--colrow')
+    const rows = wrapper.findAll('.dt-dd-item--colrow')
     // jsdom has no layout engine — getBoundingClientRect() returns all zeros unless stubbed.
     rows[2].element.getBoundingClientRect = () => ({ top: 20, bottom: 40, height: 20 }) as DOMRect
     const panel = wrapper.find('.dt-dd')
@@ -2228,7 +2214,7 @@ describe('DataTable — columns dropdown', () => {
       .findAll('button')
       .find((b) => b.text() === 'Columns')!
       .trigger('click')
-    const rows = wrapper.findAll('.dt__dd-item--colrow')
+    const rows = wrapper.findAll('.dt-dd-item--colrow')
     rows[2].element.getBoundingClientRect = () => ({ top: 20, bottom: 40, height: 20 }) as DOMRect
 
     await rows[0].trigger('dragstart')
@@ -2257,7 +2243,7 @@ describe('DataTable — filter column selector keyboard access', () => {
       .find((b) => b.text() === 'Filter')!
       .trigger('click')
     const nameItem = wrapper
-      .findAll('.dt__filter-col-item')
+      .findAll('.dt-filter-col-item')
       .find((el) => el.text().includes('Name'))!
     expect(nameItem.element.tagName).toBe('BUTTON')
   })
@@ -2284,12 +2270,12 @@ describe('DataTable — filter column ordering & clear button', () => {
 
   function filterColLabels(wrapper: ReturnType<typeof mount>): string[] {
     return wrapper
-      .findAll('.dt__filter-col-row')
-      .map((row) => row.find('.dt__filter-col-item').text())
+      .findAll('.dt-filter-col-row')
+      .map((row) => row.find('.dt-filter-col-item').text())
   }
 
   function rowFor(wrapper: ReturnType<typeof mount>, label: string) {
-    return wrapper.findAll('.dt__filter-col-row').find((row) => row.text().includes(label))!
+    return wrapper.findAll('.dt-filter-col-row').find((row) => row.text().includes(label))!
   }
 
   async function openFilter(wrapper: ReturnType<typeof mount>) {
@@ -2312,7 +2298,7 @@ describe('DataTable — filter column ordering & clear button', () => {
       props: { data: ORDER_ROWS, columns: ORDER_COLS, rowKey: 'id' },
     })
     await openFilter(wrapper)
-    await rowFor(wrapper, 'Score').find('.dt__filter-col-item').trigger('click')
+    await rowFor(wrapper, 'Score').find('.dt-filter-col-item').trigger('click')
     await wrapper.find('input[type="number"][aria-label$=" Min"]').setValue('80')
     expect(filterColLabels(wrapper)).toEqual(['Dept', 'Joined', 'Name', 'Score'])
   })
@@ -2322,7 +2308,7 @@ describe('DataTable — filter column ordering & clear button', () => {
       props: { data: ORDER_ROWS, columns: ORDER_COLS, rowKey: 'id' },
     })
     await openFilter(wrapper)
-    await rowFor(wrapper, 'Score').find('.dt__filter-col-item').trigger('click')
+    await rowFor(wrapper, 'Score').find('.dt-filter-col-item').trigger('click')
     await wrapper.find('input[type="number"][aria-label$=" Min"]').setValue('80')
     await openFilter(wrapper) // close
     await openFilter(wrapper) // reopen — snapshot re-taken
@@ -2334,10 +2320,10 @@ describe('DataTable — filter column ordering & clear button', () => {
       props: { data: ORDER_ROWS, columns: ORDER_COLS, rowKey: 'id' },
     })
     await openFilter(wrapper)
-    expect(rowFor(wrapper, 'Score').find('.dt__filter-col-clear').exists()).toBe(false)
-    await rowFor(wrapper, 'Score').find('.dt__filter-col-item').trigger('click')
+    expect(rowFor(wrapper, 'Score').find('.dt-filter-col-clear').exists()).toBe(false)
+    await rowFor(wrapper, 'Score').find('.dt-filter-col-item').trigger('click')
     await wrapper.find('input[type="number"][aria-label$=" Min"]').setValue('80')
-    expect(rowFor(wrapper, 'Score').find('.dt__filter-col-clear').exists()).toBe(true)
+    expect(rowFor(wrapper, 'Score').find('.dt-filter-col-clear').exists()).toBe(true)
   })
 
   it('clear button removes the filter without opening that column', async () => {
@@ -2345,11 +2331,11 @@ describe('DataTable — filter column ordering & clear button', () => {
       props: { data: ORDER_ROWS, columns: ORDER_COLS, rowKey: 'id' },
     })
     await openFilter(wrapper)
-    await rowFor(wrapper, 'Score').find('.dt__filter-col-item').trigger('click')
+    await rowFor(wrapper, 'Score').find('.dt-filter-col-item').trigger('click')
     await wrapper.find('input[type="number"][aria-label$=" Min"]').setValue('80')
-    await rowFor(wrapper, 'Name').find('.dt__filter-col-item').trigger('click') // switch away
-    await rowFor(wrapper, 'Score').find('.dt__filter-col-clear').trigger('click')
-    expect(rowFor(wrapper, 'Score').find('.dt__filter-col-clear').exists()).toBe(false)
+    await rowFor(wrapper, 'Name').find('.dt-filter-col-item').trigger('click') // switch away
+    await rowFor(wrapper, 'Score').find('.dt-filter-col-clear').trigger('click')
+    expect(rowFor(wrapper, 'Score').find('.dt-filter-col-clear').exists()).toBe(false)
     // Still showing Name's pane (a checklist, no Min/Max inputs), not reopened onto Score's.
     expect(wrapper.find('input[type="number"][aria-label$=" Min"]').exists()).toBe(false)
   })
@@ -2359,11 +2345,11 @@ describe('DataTable — filter column ordering & clear button', () => {
       props: { data: ORDER_ROWS, columns: ORDER_COLS, rowKey: 'id' },
     })
     await openFilter(wrapper)
-    const scoreBtn = rowFor(wrapper, 'Score').find('.dt__filter-col-item')
+    const scoreBtn = rowFor(wrapper, 'Score').find('.dt-filter-col-item')
     await scoreBtn.trigger('click')
     await wrapper.find('input[type="number"][aria-label$=" Min"]').setValue('80')
     await scoreBtn.trigger('keydown', { key: 'Delete' })
-    expect(rowFor(wrapper, 'Score').find('.dt__filter-col-clear').exists()).toBe(false)
+    expect(rowFor(wrapper, 'Score').find('.dt-filter-col-clear').exists()).toBe(false)
   })
 
   it('Backspace on a focused, inactive column row is a no-op', async () => {
@@ -2371,18 +2357,18 @@ describe('DataTable — filter column ordering & clear button', () => {
       props: { data: ORDER_ROWS, columns: ORDER_COLS, rowKey: 'id' },
     })
     await openFilter(wrapper)
-    const deptBtn = rowFor(wrapper, 'Dept').find('.dt__filter-col-item')
+    const deptBtn = rowFor(wrapper, 'Dept').find('.dt-filter-col-item')
     await deptBtn.trigger('keydown', { key: 'Backspace' })
-    expect(rowFor(wrapper, 'Dept').find('.dt__filter-col-clear').exists()).toBe(false)
+    expect(rowFor(wrapper, 'Dept').find('.dt-filter-col-clear').exists()).toBe(false)
   })
 })
 
 describe('DataTable — active state bar', () => {
   it('renders with just the row-count stats when nothing is active', () => {
     const wrapper = mount(DataTable, { props: { data: ROWS, columns: COLS, rowKey: 'id' } })
-    expect(wrapper.find('.dt__active-bar').exists()).toBe(true)
-    expect(wrapper.find('.dt__active-bar .dt__chip').exists()).toBe(false)
-    expect(wrapper.find('.dt__stats').text()).toContain('2 / 2 rows')
+    expect(wrapper.find('.dt-active-bar').exists()).toBe(true)
+    expect(wrapper.find('.dt-active-bar .dt-chip').exists()).toBe(false)
+    expect(wrapper.find('.dt-stats').text()).toContain('2 / 2 rows')
   })
 
   it('shows sort, group, and filter chips together, each removable on its own', async () => {
@@ -2396,7 +2382,7 @@ describe('DataTable — active state bar', () => {
       .find((b) => b.text() === 'Sort')!
       .trigger('click')
     await wrapper
-      .findAll('.dt__dd-item--clickable')
+      .findAll('.dt-dd-item--clickable')
       .find((el) => el.text() === 'Score')!
       .trigger('click')
     await wrapper
@@ -2404,7 +2390,7 @@ describe('DataTable — active state bar', () => {
       .find((b) => b.text().startsWith('Group'))!
       .trigger('click')
     await wrapper
-      .findAll('.dt__dd-item--clickable')
+      .findAll('.dt-dd-item--clickable')
       .find((el) => el.text() === 'Name')!
       .trigger('click')
     await wrapper
@@ -2413,21 +2399,21 @@ describe('DataTable — active state bar', () => {
       .trigger('click')
     await wrapper
       .findAll('input[type="checkbox"]')
-      .find((el) => el.element.closest('.dt__dd-item')?.textContent?.includes('Alice'))!
+      .find((el) => el.element.closest('.dt-dd-item')?.textContent?.includes('Alice'))!
       .trigger('click')
 
     // Sort/group chips now get the same at-a-glance treatment the filter chip always had — no
     // more bare count badge on the toolbar button itself.
     expect(wrapper.findAll('button').find((b) => b.text() === 'Sort')).toBeTruthy()
-    const bar = wrapper.find('.dt__active-bar')
+    const bar = wrapper.find('.dt-active-bar')
     expect(bar.text()).toContain('Score')
     // `name` is checked-by-default (see docs/filter-dropdown.md's "Filter dropdown"): clicking Alice's
     // checkbox excludes her, rendering as the exclude chip rather than an include one.
     expect(bar.text()).toContain('Name: ≠ Alice')
 
-    const scoreChip = bar.findAll('.dt__chip').find((c) => c.text().includes('Score'))!
-    await scoreChip.find('.dt__chip-remove').trigger('click')
-    expect(wrapper.find('.dt__active-bar').text()).not.toContain('Score')
+    const scoreChip = bar.findAll('.dt-chip').find((c) => c.text().includes('Score'))!
+    await scoreChip.find('.dt-chip-remove').trigger('click')
+    expect(wrapper.find('.dt-active-bar').text()).not.toContain('Score')
   })
 })
 
@@ -2753,11 +2739,11 @@ describe('DataTable — keyboard navigation with grouping', () => {
   ]
 
   function groupHeaderRows(wrapper: ReturnType<typeof mount>) {
-    return wrapper.findAll('.dt__group-row')
+    return wrapper.findAll('.dt-group-row')
   }
 
   function dataRows(wrapper: ReturnType<typeof mount>) {
-    return wrapper.findAll('tbody tr:not(.dt__group-row):not(.dt__agg-row)')
+    return wrapper.findAll('tbody tr:not(.dt-group-row):not(.dt-agg-row)')
   }
 
   // Finds the wrapper for whichever row/header currently has DOM focus, since a keydown can move
@@ -2771,7 +2757,7 @@ describe('DataTable — keyboard navigation with grouping', () => {
   async function groupByDept(wrapper: ReturnType<typeof mount>): Promise<void> {
     const groupBtn = wrapper.findAll('button').find((b) => b.text() === 'Group')!
     await groupBtn.trigger('click')
-    const deptItem = wrapper.findAll('.dt__dd-item').find((el) => el.text().includes('Department'))!
+    const deptItem = wrapper.findAll('.dt-dd-item').find((el) => el.text().includes('Department'))!
     await deptItem.trigger('click')
   }
 
@@ -2939,17 +2925,17 @@ describe('DataTable — pagination with grouping', () => {
   ]
 
   function groupHeaderRows(wrapper: ReturnType<typeof mount>) {
-    return wrapper.findAll('.dt__group-row')
+    return wrapper.findAll('.dt-group-row')
   }
 
   function tableRows(wrapper: ReturnType<typeof mount>) {
-    return wrapper.findAll('tbody tr:not(.dt__agg-row)')
+    return wrapper.findAll('tbody tr:not(.dt-agg-row)')
   }
 
   async function groupByDept(wrapper: ReturnType<typeof mount>): Promise<void> {
     const groupBtn = wrapper.findAll('button').find((b) => b.text() === 'Group')!
     await groupBtn.trigger('click')
-    const deptItem = wrapper.findAll('.dt__dd-item').find((el) => el.text().includes('Department'))!
+    const deptItem = wrapper.findAll('.dt-dd-item').find((el) => el.text().includes('Department'))!
     await deptItem.trigger('click')
   }
 
@@ -3027,7 +3013,7 @@ describe('DataTable — dropdown column search and keyboard navigation', () => {
       .trigger('click')
   }
   function ddSearchInput(wrapper: ReturnType<typeof mount>) {
-    return wrapper.find('.dt-dd input.dt__dd-search')
+    return wrapper.find('.dt-dd input.dt-dd-search')
   }
 
   it('the columns dropdown search box narrows both Visible and Available (unlike Sort/Group)', async () => {
@@ -3044,12 +3030,12 @@ describe('DataTable — dropdown column search and keyboard navigation', () => {
     // "Id" (hidden) doesn't match "sc", so Available narrows to nothing.
     expect(
       wrapper
-        .findAll('button.dt__dd-item--clickable:not([data-category-name])')
+        .findAll('button.dt-dd-item--clickable:not([data-category-name])')
         .map((r) => r.text()),
     ).toEqual([])
     // Visible narrows too now (unlike Sort/Group, which never filter their own active section) —
     // "Name" drops out, "Score" (matching) stays.
-    const visibleRows = wrapper.findAll('.dt__dd-item--colrow')
+    const visibleRows = wrapper.findAll('.dt-dd-item--colrow')
     expect(visibleRows).toHaveLength(1)
     expect(visibleRows[0].text()).toContain('Score')
   })
@@ -3058,34 +3044,34 @@ describe('DataTable — dropdown column search and keyboard navigation', () => {
     const wrapper = mount(DataTable, { props: { data: ROWS, columns: THREE_COLS, rowKey: 'id' } })
     await openDd(wrapper, 'Sort')
     await wrapper
-      .findAll('button.dt__dd-item--clickable')
+      .findAll('button.dt-dd-item--clickable')
       .find((el) => el.text() === 'Id')!
       .trigger('click')
-    const addable = wrapper.findAll('button.dt__dd-item--clickable').map((el) => el.text())
+    const addable = wrapper.findAll('button.dt-dd-item--clickable').map((el) => el.text())
     expect(addable).toEqual(['Name', 'Score']) // alphabetized, Id excluded (already active)
     await ddSearchInput(wrapper).setValue('sco')
-    expect(wrapper.findAll('button.dt__dd-item--clickable').map((el) => el.text())).toEqual([
+    expect(wrapper.findAll('button.dt-dd-item--clickable').map((el) => el.text())).toEqual([
       'Score',
     ])
     // The active-sorts section (Id) stays visible regardless of the search term.
-    expect(wrapper.find('.dt__dd-item--sortrow').exists()).toBe(true)
+    expect(wrapper.find('.dt-dd-item--sortrow').exists()).toBe(true)
   })
 
   it('the group dropdown search box narrows the addable list', async () => {
     const wrapper = mount(DataTable, { props: { data: ROWS, columns: THREE_COLS, rowKey: 'id' } })
     await openDd(wrapper, 'Group')
     await ddSearchInput(wrapper).setValue('xyz')
-    expect(wrapper.findAll('button.dt__dd-item--clickable')).toHaveLength(0)
+    expect(wrapper.findAll('button.dt-dd-item--clickable')).toHaveLength(0)
   })
 
   it('the filter dropdown search box narrows the left column pane, alphabetized', async () => {
     const wrapper = mount(DataTable, { props: { data: ROWS, columns: THREE_COLS, rowKey: 'id' } })
     await openDd(wrapper, 'Filter')
-    expect(wrapper.findAll('.dt__filter-col-item span:first-child').map((s) => s.text())).toEqual(
+    expect(wrapper.findAll('.dt-filter-col-item span:first-child').map((s) => s.text())).toEqual(
       ['Id', 'Name', 'Score'], // filterable defaults to true, so Id is included, alphabetized
     )
     await ddSearchInput(wrapper).setValue('sc')
-    expect(wrapper.findAll('.dt__filter-col-item span:first-child').map((s) => s.text())).toEqual([
+    expect(wrapper.findAll('.dt-filter-col-item span:first-child').map((s) => s.text())).toEqual([
       'Score',
     ])
   })
@@ -3135,13 +3121,13 @@ describe('DataTable — dropdown column search and keyboard navigation', () => {
     await openDd(wrapper, 'Sort')
     for (const label of ['Name', 'Score', 'Id']) {
       await wrapper
-        .findAll('button.dt__dd-item--clickable')
+        .findAll('button.dt-dd-item--clickable')
         .find((el) => el.text() === label)!
         .trigger('click')
     }
     await openDd(wrapper, 'Sort') // close
     await openDd(wrapper, 'Sort') // reopen
-    expect(document.activeElement).toBe(wrapper.find('.dt__dd-item--sortrow').element)
+    expect(document.activeElement).toBe(wrapper.find('.dt-dd-item--sortrow').element)
   })
 
   it('ArrowDown moves through Sort dropdown rows in visible order: active row, then search box, then addable rows', async () => {
@@ -3151,16 +3137,16 @@ describe('DataTable — dropdown column search and keyboard navigation', () => {
     })
     await openDd(wrapper, 'Sort')
     await wrapper
-      .findAll('button.dt__dd-item--clickable')
+      .findAll('button.dt-dd-item--clickable')
       .find((el) => el.text() === 'Id')!
       .trigger('click')
-    const idRow = wrapper.find('.dt__dd-item--sortrow')
+    const idRow = wrapper.find('.dt-dd-item--sortrow')
     ;(idRow.element as HTMLElement).focus()
     await idRow.trigger('keydown', { key: 'ArrowDown' })
     expect(document.activeElement).toBe(ddSearchInput(wrapper).element)
     await ddSearchInput(wrapper).trigger('keydown', { key: 'ArrowDown' })
     expect(document.activeElement).toBe(
-      wrapper.findAll('button.dt__dd-item--clickable').find((el) => el.text() === 'Name')!.element,
+      wrapper.findAll('button.dt-dd-item--clickable').find((el) => el.text() === 'Name')!.element,
     )
   })
 
@@ -3181,7 +3167,7 @@ describe('DataTable — dropdown column search and keyboard navigation', () => {
     await openDd(wrapper, 'Columns')
     const search = ddSearchInput(wrapper)
     await search.trigger('keydown', { key: 'ArrowDown' })
-    const firstRow = wrapper.find('.dt__dd-item--colrow')
+    const firstRow = wrapper.find('.dt-dd-item--colrow')
     expect(document.activeElement).toBe(firstRow.element)
     await firstRow.trigger('keydown', { key: 'ArrowUp' })
     expect(document.activeElement).toBe(search.element)
@@ -3200,9 +3186,7 @@ describe('DataTable — dropdown column search and keyboard navigation', () => {
     })
     await openDd(wrapper, 'Columns')
     const rows = () =>
-      wrapper.findAll(
-        '.dt__dd-item--colrow, button.dt__dd-item--clickable:not([data-category-name])',
-      )
+      wrapper.findAll('.dt-dd-item--colrow, button.dt-dd-item--clickable:not([data-category-name])')
     ;(rows()[0].element as HTMLElement).focus()
     await rows()[0].trigger('keydown', { key: 'End' })
     expect(document.activeElement).toBe(rows()[rows().length - 1].element)
@@ -3241,10 +3225,10 @@ describe('DataTable — dropdown column search and keyboard navigation', () => {
     })
     await openDd(wrapper, 'Sort')
     const nameBtn = wrapper
-      .findAll('button.dt__dd-item--clickable')
+      .findAll('button.dt-dd-item--clickable')
       .find((el) => el.text() === 'Name')!
     await nameBtn.trigger('click')
-    expect(document.activeElement).toBe(wrapper.find('.dt__dd-item--sortrow').element)
+    expect(document.activeElement).toBe(wrapper.find('.dt-dd-item--sortrow').element)
   })
 
   it('removing an active Sort column returns focus to its addable button', async () => {
@@ -3254,12 +3238,12 @@ describe('DataTable — dropdown column search and keyboard navigation', () => {
     })
     await openDd(wrapper, 'Sort')
     await wrapper
-      .findAll('button.dt__dd-item--clickable')
+      .findAll('button.dt-dd-item--clickable')
       .find((el) => el.text() === 'Name')!
       .trigger('click')
-    await wrapper.find('.dt__item-remove').trigger('click')
+    await wrapper.find('.dt-item-remove').trigger('click')
     expect(document.activeElement).toBe(
-      wrapper.findAll('button.dt__dd-item--clickable').find((el) => el.text() === 'Name')!.element,
+      wrapper.findAll('button.dt-dd-item--clickable').find((el) => el.text() === 'Name')!.element,
     )
   })
 
@@ -3269,12 +3253,12 @@ describe('DataTable — dropdown column search and keyboard navigation', () => {
       attachTo: document.body,
     })
     await openDd(wrapper, 'Group')
-    const idBtn = wrapper.findAll('button.dt__dd-item--clickable').find((el) => el.text() === 'Id')!
+    const idBtn = wrapper.findAll('button.dt-dd-item--clickable').find((el) => el.text() === 'Id')!
     await idBtn.trigger('click')
-    expect(document.activeElement).toBe(wrapper.find('.dt__dd-item--grouprow').element)
-    await wrapper.find('.dt__item-remove').trigger('click')
+    expect(document.activeElement).toBe(wrapper.find('.dt-dd-item--grouprow').element)
+    await wrapper.find('.dt-item-remove').trigger('click')
     expect(document.activeElement).toBe(
-      wrapper.findAll('button.dt__dd-item--clickable').find((el) => el.text() === 'Id')!.element,
+      wrapper.findAll('button.dt-dd-item--clickable').find((el) => el.text() === 'Id')!.element,
     )
   })
 
@@ -3289,17 +3273,17 @@ describe('DataTable — dropdown column search and keyboard navigation', () => {
     })
     await openDd(wrapper, 'Sort')
     await wrapper
-      .findAll('button.dt__dd-item--clickable')
+      .findAll('button.dt-dd-item--clickable')
       .find((el) => el.text() === 'Name')!
       .trigger('click')
     await wrapper
-      .findAll('button.dt__dd-item--clickable')
+      .findAll('button.dt-dd-item--clickable')
       .find((el) => el.text() === 'Score')!
       .trigger('click')
-    const rows = wrapper.findAll('.dt__dd-item--sortrow')
+    const rows = wrapper.findAll('.dt-dd-item--sortrow')
     ;(rows[1].element as HTMLElement).focus()
     await rows[1].trigger('keydown', { key: 'ArrowUp', altKey: true })
-    const after = wrapper.findAll('.dt__dd-item--sortrow')
+    const after = wrapper.findAll('.dt-dd-item--sortrow')
     expect(after[0].text()).toContain('Score')
     expect(document.activeElement).toBe(after[0].element)
   })
@@ -3311,17 +3295,17 @@ describe('DataTable — dropdown column search and keyboard navigation', () => {
     })
     await openDd(wrapper, 'Group')
     await wrapper
-      .findAll('button.dt__dd-item--clickable')
+      .findAll('button.dt-dd-item--clickable')
       .find((el) => el.text() === 'Name')!
       .trigger('click')
     await wrapper
-      .findAll('button.dt__dd-item--clickable')
+      .findAll('button.dt-dd-item--clickable')
       .find((el) => el.text() === 'Score')!
       .trigger('click')
-    const rows = wrapper.findAll('.dt__dd-item--grouprow')
+    const rows = wrapper.findAll('.dt-dd-item--grouprow')
     ;(rows[1].element as HTMLElement).focus()
     await rows[1].trigger('keydown', { key: 'ArrowUp', altKey: true })
-    const after = wrapper.findAll('.dt__dd-item--grouprow')
+    const after = wrapper.findAll('.dt-dd-item--grouprow')
     expect(after[0].text()).toContain('Score')
     expect(document.activeElement).toBe(after[0].element)
   })
@@ -3332,10 +3316,10 @@ describe('DataTable — dropdown column search and keyboard navigation', () => {
       attachTo: document.body,
     })
     await openDd(wrapper, 'Columns')
-    const rows = wrapper.findAll('.dt__dd-item--colrow')
+    const rows = wrapper.findAll('.dt-dd-item--colrow')
     ;(rows[0].element as HTMLElement).focus()
     await rows[0].trigger('keydown', { key: 'ArrowDown', altKey: true })
-    const after = wrapper.findAll('.dt__dd-item--colrow')
+    const after = wrapper.findAll('.dt-dd-item--colrow')
     expect(document.activeElement).toBe(after[1].element)
     wrapper.unmount()
   })
@@ -3347,11 +3331,11 @@ describe('DataTable — dropdown column search and keyboard navigation', () => {
     })
     await openDd(wrapper, 'Filter')
     const nameBtn = wrapper
-      .findAll('.dt__filter-col-item')
+      .findAll('.dt-filter-col-item')
       .find((el) => el.text().startsWith('Name'))!
     ;(nameBtn.element as HTMLElement).focus()
     await nameBtn.trigger('keydown', { key: 'ArrowRight' })
-    expect(wrapper.find('.dt__filter-detail').element.contains(document.activeElement)).toBe(true)
+    expect(wrapper.find('.dt-filter-detail').element.contains(document.activeElement)).toBe(true)
   })
 
   it('ArrowLeft from a checklist row returns focus to the active column button', async () => {
@@ -3360,10 +3344,10 @@ describe('DataTable — dropdown column search and keyboard navigation', () => {
       attachTo: document.body,
     })
     await openDd(wrapper, 'Filter')
-    const row = wrapper.find('.dt__filter-list input[type="checkbox"]')
+    const row = wrapper.find('.dt-filter-list input[type="checkbox"]')
     ;(row.element as HTMLElement).focus()
     await row.trigger('keydown', { key: 'ArrowLeft' })
-    expect(document.activeElement).toBe(wrapper.find('.dt__filter-col-item--active').element)
+    expect(document.activeElement).toBe(wrapper.find('.dt-filter-col-item--active').element)
   })
 
   it('ArrowLeft does not hijack cursor movement in the value-search text box', async () => {
@@ -3372,7 +3356,7 @@ describe('DataTable — dropdown column search and keyboard navigation', () => {
       attachTo: document.body,
     })
     await openDd(wrapper, 'Filter')
-    const search = wrapper.find('.dt__filter-detail input.dt__dd-search')
+    const search = wrapper.find('.dt-filter-detail input.dt-dd-search')
     ;(search.element as HTMLElement).focus()
     await search.trigger('keydown', { key: 'ArrowLeft' })
     expect(document.activeElement).toBe(search.element)
@@ -3384,10 +3368,10 @@ describe('DataTable — dropdown column search and keyboard navigation', () => {
       attachTo: document.body,
     })
     await openDd(wrapper, 'Filter')
-    const search = wrapper.find('.dt__filter-detail input.dt__dd-search')
+    const search = wrapper.find('.dt-filter-detail input.dt-dd-search')
     ;(search.element as HTMLElement).focus()
     await search.trigger('keydown', { key: 'ArrowDown' })
-    const firstRow = wrapper.find('.dt__filter-list input[type="checkbox"]')
+    const firstRow = wrapper.find('.dt-filter-list input[type="checkbox"]')
     expect(document.activeElement).toBe(firstRow.element)
     await firstRow.trigger('keydown', { key: 'ArrowUp' })
     expect(document.activeElement).toBe(search.element)
@@ -3399,13 +3383,13 @@ describe('DataTable — dropdown column search and keyboard navigation', () => {
       attachTo: document.body,
     })
     await openDd(wrapper, 'Filter')
-    expect(wrapper.find('.dt__range-input').exists()).toBe(false) // 'Name' (string) starts active
+    expect(wrapper.find('.dt-range-input').exists()).toBe(false) // 'Name' (string) starts active
     const scoreBtn = wrapper
-      .findAll('.dt__filter-col-item')
+      .findAll('.dt-filter-col-item')
       .find((el) => el.text().startsWith('Score'))!
     ;(scoreBtn.element as HTMLElement).focus() // simulates Tab arrival, not a click/Enter/Space
     await wrapper.vm.$nextTick()
-    expect(wrapper.find('.dt__range-input').exists()).toBe(true) // 'Score' (number) now active
+    expect(wrapper.find('.dt-range-input').exists()).toBe(true) // 'Score' (number) now active
   })
 })
 
@@ -3425,11 +3409,11 @@ function triggerFor(wrapper: ReturnType<typeof mount>, name: string) {
   return wrapper.findAll('[data-category-name]').find((el) => el.text().includes(name))!
 }
 
-// Category triggers also carry `.dt__dd-item--clickable` (for styling/Dropdown.vue's own
+// Category triggers also carry `.dt-dd-item--clickable` (for styling/Dropdown.vue's own
 // row-selector nav) — this excludes them, isolating the flat addable buttons the trigger itself
 // isn't one of.
 function plainAddableButtons(wrapper: ReturnType<typeof mount>) {
-  return wrapper.findAll('button.dt__dd-item--clickable:not([data-category-name])')
+  return wrapper.findAll('button.dt-dd-item--clickable:not([data-category-name])')
 }
 
 describe('DataTable — Sort dropdown column categories', () => {
@@ -3577,11 +3561,11 @@ describe('DataTable — Sort dropdown column categories', () => {
       props: { data: ROWS, columns: CATEGORIZED_COLS, rowKey: 'id' },
     })
     await openDdByLabel(wrapper, 'Sort')
-    const search = wrapper.find('.dt-dd input.dt__dd-search')
+    const search = wrapper.find('.dt-dd input.dt-dd-search')
     await search.setValue('Score')
     expect(wrapper.find('[data-category-name]').exists()).toBe(false) // no submenu while searching
     const row = wrapper
-      .findAll('button.dt__dd-item--clickable')
+      .findAll('button.dt-dd-item--clickable')
       .find((b) => b.text().startsWith('Score'))!
     expect(row.text()).toContain('Numbers') // category shown as a tag instead
 
@@ -3629,11 +3613,11 @@ describe('DataTable — Group dropdown column categories', () => {
       props: { data: ROWS, columns: CATEGORIZED_COLS, rowKey: 'id' },
     })
     await openDdByLabel(wrapper, 'Group')
-    const search = wrapper.find('.dt-dd input.dt__dd-search')
+    const search = wrapper.find('.dt-dd input.dt-dd-search')
     await search.setValue('Name')
     expect(wrapper.find('[data-category-name]').exists()).toBe(false)
     const row = wrapper
-      .findAll('button.dt__dd-item--clickable')
+      .findAll('button.dt-dd-item--clickable')
       .find((b) => b.text().startsWith('Name'))!
     expect(row.text()).toContain('Info')
   })
@@ -3644,12 +3628,12 @@ describe('DataTable — Group dropdown column categories', () => {
     })
     await openDdByLabel(wrapper, 'Group')
     await wrapper
-      .findAll('button.dt__dd-item--clickable')
+      .findAll('button.dt-dd-item--clickable')
       .find((b) => b.text() === 'Id')!
       .trigger('click')
     const row = wrapper.find('[data-group-key="id"]')
-    expect(row.find('.dt__dd-drag-handle').exists()).toBe(true)
-    const removeBtn = row.find('.dt__item-remove')
+    expect(row.find('.dt-dd-drag-handle').exists()).toBe(true)
+    const removeBtn = row.find('.dt-item-remove')
     expect(removeBtn.attributes('title')).toBe('Remove group: Id')
     expect(removeBtn.attributes('aria-label')).toBe('Remove group: Id')
   })
@@ -3660,7 +3644,7 @@ describe('DataTable — Group dropdown column categories', () => {
     })
     await openDdByLabel(wrapper, 'Group')
     await wrapper
-      .findAll('button.dt__dd-item--clickable')
+      .findAll('button.dt-dd-item--clickable')
       .find((b) => b.text() === 'Id')!
       .trigger('click')
     const row = wrapper.find('[data-group-key="id"]')
@@ -3724,7 +3708,7 @@ describe('DataTable — Filter dropdown column categories', () => {
       props: { data: ROWS, columns: categorizedCols, rowKey: 'id' },
     })
     await openDdByLabel(wrapper, 'Filter')
-    const search = wrapper.find('.dt-dd input.dt__dd-search')
+    const search = wrapper.find('.dt-dd input.dt-dd-search')
     await search.setValue('Org')
     // The category header itself surfaces — neither Id nor Score's own label contains "Org",
     // only the category does. It's collapsed by default (no active filter), but a search match
@@ -3746,7 +3730,7 @@ describe('DataTable — Filter dropdown column categories', () => {
     const header = () => wrapper.find('[data-filter-category-header="Org"]')
     expect(header().attributes('aria-expanded')).toBe('false') // collapsed by default, no active filter
 
-    const search = wrapper.find('.dt-dd input.dt__dd-search')
+    const search = wrapper.find('.dt-dd input.dt-dd-search')
     await search.setValue('Score') // matches only "Score", inside the still-collapsed "Org" category
     expect(header().attributes('aria-expanded')).toBe('true')
     expect(
@@ -3774,7 +3758,7 @@ describe('DataTable — Columns dropdown Visible/Available split', () => {
   const VROWS: VRow[] = [{ id: 1, name: 'Alice', score: 90 }]
 
   function visibleLabels(wrapper: ReturnType<typeof mount>): string[] {
-    return wrapper.findAll('.dt__dd-item--colrow .dt__flex1').map((el) => el.text())
+    return wrapper.findAll('.dt-dd-item--colrow .dt-flex1').map((el) => el.text())
   }
 
   it('lists every visible column in table order, not alphabetized', async () => {
@@ -3786,11 +3770,11 @@ describe('DataTable — Columns dropdown Visible/Available split', () => {
   it('the × button hides a column, moving it into Available', async () => {
     const wrapper = mount(DataTable, { props: { data: VROWS, columns: VCOLS, rowKey: 'id' } })
     await openDdByLabel(wrapper, 'Columns')
-    await wrapper.find('[data-col-row-key="id"] .dt__item-remove').trigger('click')
+    await wrapper.find('[data-col-row-key="id"] .dt-item-remove').trigger('click')
     expect(visibleLabels(wrapper)).toEqual(['Name', 'Score'])
     expect(wrapper.find('[data-category-name]').exists()).toBe(false)
     expect(
-      wrapper.findAll('button.dt__dd-item--clickable').find((b) => b.text() === 'ID'),
+      wrapper.findAll('button.dt-dd-item--clickable').find((b) => b.text() === 'ID'),
     ).toBeTruthy()
   })
 
@@ -3804,10 +3788,10 @@ describe('DataTable — Columns dropdown Visible/Available split', () => {
   it('hiding the last visible column is a no-op (stays >= 1 visible)', async () => {
     const wrapper = mount(DataTable, { props: { data: VROWS, columns: VCOLS, rowKey: 'id' } })
     await openDdByLabel(wrapper, 'Columns')
-    await wrapper.find('[data-col-row-key="id"] .dt__item-remove').trigger('click')
-    await wrapper.find('[data-col-row-key="name"] .dt__item-remove').trigger('click')
+    await wrapper.find('[data-col-row-key="id"] .dt-item-remove').trigger('click')
+    await wrapper.find('[data-col-row-key="name"] .dt-item-remove').trigger('click')
     expect(visibleLabels(wrapper)).toEqual(['Score'])
-    await wrapper.find('[data-col-row-key="score"] .dt__item-remove').trigger('click')
+    await wrapper.find('[data-col-row-key="score"] .dt-item-remove').trigger('click')
     expect(visibleLabels(wrapper)).toEqual(['Score']) // unchanged
   })
 
@@ -3823,7 +3807,7 @@ describe('DataTable — Columns dropdown Visible/Available split', () => {
   it('Alt+ArrowDown skips a hidden column, reordering against the next visible one', async () => {
     const wrapper = mount(DataTable, { props: { data: VROWS, columns: VCOLS, rowKey: 'id' } })
     await openDdByLabel(wrapper, 'Columns')
-    await wrapper.find('[data-col-row-key="name"] .dt__item-remove').trigger('click') // hide the one in between id/score
+    await wrapper.find('[data-col-row-key="name"] .dt-item-remove').trigger('click') // hide the one in between id/score
     expect(visibleLabels(wrapper)).toEqual(['ID', 'Score'])
     await wrapper
       .find('[data-col-row-key="id"]')
@@ -3835,8 +3819,8 @@ describe('DataTable — Columns dropdown Visible/Available split', () => {
     const wrapper = mount(DataTable, { props: { data: VROWS, columns: VCOLS, rowKey: 'id' } })
     await openDdByLabel(wrapper, 'Columns')
     const row = wrapper.find('[data-col-row-key="id"]')
-    expect(row.find('.dt__dd-drag-handle').exists()).toBe(true)
-    const removeBtn = row.find('.dt__item-remove')
+    expect(row.find('.dt-dd-drag-handle').exists()).toBe(true)
+    const removeBtn = row.find('.dt-item-remove')
     expect(removeBtn.attributes('title')).toBe('Hide column')
     expect(removeBtn.attributes('aria-label')).toBe('Hide column')
   })
@@ -3879,24 +3863,24 @@ describe('DataTable — Columns dropdown Visible/Available split', () => {
     const wrapper = mount(DataTable, { props: { data: VROWS, columns: VCOLS, rowKey: 'id' } })
     await openDdByLabel(wrapper, 'Columns')
     const search = wrapper.find('input[data-dd-search]')
-    expect(wrapper.find('.dt__dd-search-clear').exists()).toBe(false)
+    expect(wrapper.find('.dt-dd-search-clear').exists()).toBe(false)
     await search.setValue('sco')
-    const clearBtn = wrapper.find('.dt__dd-search-clear')
+    const clearBtn = wrapper.find('.dt-dd-search-clear')
     expect(clearBtn.exists()).toBe(true)
     expect(clearBtn.attributes('title')).toBe('Clear search')
     await clearBtn.trigger('click')
     expect((wrapper.find('input[data-dd-search]').element as HTMLInputElement).value).toBe('')
-    expect(wrapper.find('.dt__dd-search-clear').exists()).toBe(false)
+    expect(wrapper.find('.dt-dd-search-clear').exists()).toBe(false)
   })
 
   it('lists hidden columns as plain addable rows, in table order', async () => {
     const wrapper = mount(DataTable, { props: { data: VROWS, columns: VCOLS, rowKey: 'id' } })
     await openDdByLabel(wrapper, 'Columns')
-    await wrapper.find('[data-col-row-key="id"] .dt__item-remove').trigger('click')
-    await wrapper.find('[data-col-row-key="score"] .dt__item-remove').trigger('click')
+    await wrapper.find('[data-col-row-key="id"] .dt-item-remove').trigger('click')
+    await wrapper.find('[data-col-row-key="score"] .dt-item-remove').trigger('click')
     expect(
       wrapper
-        .findAll('button.dt__dd-item--clickable:not([data-category-name])')
+        .findAll('button.dt-dd-item--clickable:not([data-category-name])')
         .map((b) => b.text()),
     ).toEqual(['ID', 'Score'])
   })
@@ -3907,9 +3891,9 @@ describe('DataTable — Columns dropdown Visible/Available split', () => {
       attachTo: document.body,
     })
     await openDdByLabel(wrapper, 'Columns')
-    await wrapper.find('[data-col-row-key="id"] .dt__item-remove').trigger('click')
+    await wrapper.find('[data-col-row-key="id"] .dt-item-remove').trigger('click')
     await wrapper
-      .findAll('button.dt__dd-item--clickable')
+      .findAll('button.dt-dd-item--clickable')
       .find((b) => b.text() === 'ID')!
       .trigger('click')
     expect(visibleLabels(wrapper)).toEqual(['ID', 'Name', 'Score']) // reappears at its original position, not appended
@@ -3921,7 +3905,7 @@ describe('DataTable — Columns dropdown Visible/Available split', () => {
     const wrapper = mount(DataTable, { props: { data: VROWS, columns: VCOLS, rowKey: 'id' } })
     await openDdByLabel(wrapper, 'Columns')
     expect(wrapper.find('input[data-dd-search]').exists()).toBe(true)
-    expect(wrapper.findAll('.dt__dd-section').map((el) => el.text())).not.toContain(
+    expect(wrapper.findAll('.dt-dd-section').map((el) => el.text())).not.toContain(
       'Available columns',
     )
   })
@@ -3934,9 +3918,9 @@ describe('DataTable — Columns dropdown Visible/Available split', () => {
     ]
     const wrapper = mount(DataTable, { props: { data: VROWS, columns: categorized, rowKey: 'id' } })
     await openDdByLabel(wrapper, 'Columns')
-    await wrapper.find('[data-col-row-key="name"] .dt__item-remove').trigger('click')
-    await wrapper.find('[data-col-row-key="score"] .dt__item-remove').trigger('click')
-    expect(wrapper.findAll('button.dt__dd-item--clickable:not([data-category-name])')).toHaveLength(
+    await wrapper.find('[data-col-row-key="name"] .dt-item-remove').trigger('click')
+    await wrapper.find('[data-col-row-key="score"] .dt-item-remove').trigger('click')
+    expect(wrapper.findAll('button.dt-dd-item--clickable:not([data-category-name])')).toHaveLength(
       0,
     ) // no flat addable rows
     expect(wrapper.find('[data-category-name]').text()).toContain('Info')
@@ -3953,7 +3937,7 @@ describe('DataTable — Columns dropdown Visible/Available split', () => {
       attachTo: document.body,
     })
     await openDdByLabel(wrapper, 'Columns')
-    await wrapper.find('[data-col-row-key="name"] .dt__item-remove').trigger('click')
+    await wrapper.find('[data-col-row-key="name"] .dt-item-remove').trigger('click')
     const trigger = triggerFor(wrapper, 'Info')
     await trigger.trigger('click')
     const submenu = document.querySelector<HTMLElement>('[data-category-submenu]')!
@@ -3977,7 +3961,7 @@ describe('DataTable — Columns dropdown Visible/Available split', () => {
       attachTo: document.body,
     })
     await openDdByLabel(wrapper, 'Columns')
-    await wrapper.find('[data-col-row-key="name"] .dt__item-remove').trigger('click')
+    await wrapper.find('[data-col-row-key="name"] .dt-item-remove').trigger('click')
     expect(document.activeElement).toBe(triggerFor(wrapper, 'Info').element)
     wrapper.unmount()
   })
@@ -3990,7 +3974,7 @@ describe('DataTable — Columns dropdown Visible/Available split', () => {
     ]
     const wrapper = mount(DataTable, { props: { data: VROWS, columns: categorized, rowKey: 'id' } })
     await openDdByLabel(wrapper, 'Columns')
-    await wrapper.find('[data-col-row-key="name"] .dt__item-remove').trigger('click')
+    await wrapper.find('[data-col-row-key="name"] .dt-item-remove').trigger('click')
     expect(visibleLabels(wrapper)).toEqual(['ID', 'Score'])
 
     await wrapper.find('input[data-dd-search]').setValue('Score')
@@ -4005,13 +3989,13 @@ describe('DataTable — Columns dropdown Visible/Available split', () => {
     ]
     const wrapper = mount(DataTable, { props: { data: VROWS, columns: categorized, rowKey: 'id' } })
     await openDdByLabel(wrapper, 'Columns')
-    await wrapper.find('[data-col-row-key="name"] .dt__item-remove').trigger('click')
+    await wrapper.find('[data-col-row-key="name"] .dt-item-remove').trigger('click')
 
     const search = wrapper.find('input[data-dd-search]')
     await search.setValue('Name')
     expect(wrapper.find('[data-category-name]').exists()).toBe(false) // no submenu while searching
     const row = wrapper
-      .findAll('button.dt__dd-item--clickable')
+      .findAll('button.dt-dd-item--clickable')
       .find((b) => b.text().startsWith('Name'))!
     expect(row.text()).toContain('Name')
     expect(row.text()).toContain('Info') // category shown as a tag instead
@@ -4033,9 +4017,9 @@ describe('DataTable — Columns dropdown Visible/Available split', () => {
   it('a search hides each section heading with no matching column', async () => {
     const wrapper = mount(DataTable, { props: { data: VROWS, columns: VCOLS, rowKey: 'id' } })
     await openDdByLabel(wrapper, 'Columns')
-    await wrapper.find('[data-col-row-key="id"] .dt__item-remove').trigger('click')
+    await wrapper.find('[data-col-row-key="id"] .dt-item-remove').trigger('click')
     const search = wrapper.find('input[data-dd-search]')
-    const sections = () => wrapper.findAll('.dt__dd-section').map((el) => el.text())
+    const sections = () => wrapper.findAll('.dt-dd-section').map((el) => el.text())
     await search.setValue('id')
     expect(sections()).toEqual(['Available columns'])
     await search.setValue('name')
@@ -4051,7 +4035,7 @@ describe('DataTable — Columns dropdown Visible/Available split', () => {
     const wrapper = mount(DataTable, { props: { data: VROWS, columns: cols, rowKey: 'id' } })
     await openDdByLabel(wrapper, 'Columns')
     await wrapper.find('input[data-dd-search]').setValue('Foo') // matches Foo1/Foo2, not Bar
-    expect(wrapper.findAll('.dt__dd-item--colrow').map((r) => r.text())).toEqual([
+    expect(wrapper.findAll('.dt-dd-item--colrow').map((r) => r.text())).toEqual([
       expect.stringContaining('Foo1'),
       expect.stringContaining('Foo2'),
     ])
@@ -4061,7 +4045,7 @@ describe('DataTable — Columns dropdown Visible/Available split', () => {
       .trigger('keydown', { key: 'ArrowDown', altKey: true })
     // Foo1 swaps with Foo2 (the next search-matching row) — Bar, hidden by the filter, keeps its
     // exact position in between rather than being swapped with either.
-    expect(wrapper.findAll('.dt__dd-item--colrow').map((r) => r.text())).toEqual([
+    expect(wrapper.findAll('.dt-dd-item--colrow').map((r) => r.text())).toEqual([
       expect.stringContaining('Foo2'),
       expect.stringContaining('Foo1'),
     ])
@@ -4088,18 +4072,18 @@ describe('DataTable — active-bar chip click actions', () => {
     })
     await openDd(wrapper, 'Group')
     await wrapper
-      .findAll('button.dt__dd-item--clickable')
+      .findAll('button.dt-dd-item--clickable')
       .find((el) => el.text() === 'Name')!
       .trigger('click') // auto-inserts a matching sort entry (insertGroupSort)
     await openDd(wrapper, 'Group') // close
 
-    const bodies = () => wrapper.findAll('.dt__chip-body').map((b) => b.text())
+    const bodies = () => wrapper.findAll('.dt-chip-body').map((b) => b.text())
     expect(bodies()).toEqual(['⊞ Name', '↑ Name'])
-    const removeBtns = wrapper.findAll('.dt__chip-remove')
+    const removeBtns = wrapper.findAll('.dt-chip-remove')
     // U28: each × and the group chip say which column they act on
     expect(removeBtns[0].attributes('aria-label')).toBe('Remove group: Name')
     expect(removeBtns[1].attributes('aria-label')).toBe('Remove sort: Name')
-    expect(wrapper.find('.dt__chip-body').attributes('aria-label')).toBe('Grouped by Name')
+    expect(wrapper.find('.dt-chip-body').attributes('aria-label')).toBe('Grouped by Name')
     await removeBtns[1].trigger('click')
     expect(bodies()).toEqual(['⊞ Name'])
   })
@@ -4111,17 +4095,17 @@ describe('DataTable — active-bar chip click actions', () => {
     })
     await openDd(wrapper, 'Sort')
     await wrapper
-      .findAll('button.dt__dd-item--clickable')
+      .findAll('button.dt-dd-item--clickable')
       .find((el) => el.text() === 'Name')!
       .trigger('click')
     await openDd(wrapper, 'Sort') // close
 
-    const chipBody = wrapper.find('.dt__chip .dt__chip-body')
+    const chipBody = wrapper.find('.dt-chip .dt-chip-body')
     expect(chipBody.text()).toContain('↑')
     ;(chipBody.element as HTMLElement).focus()
     await chipBody.trigger('click')
-    expect(wrapper.find('.dt__chip .dt__chip-body').text()).toContain('↓')
-    expect(document.activeElement).toBe(wrapper.find('.dt__chip .dt__chip-body').element)
+    expect(wrapper.find('.dt-chip .dt-chip-body').text()).toContain('↓')
+    expect(document.activeElement).toBe(wrapper.find('.dt-chip .dt-chip-body').element)
   })
 
   it('clicking a group chip body opens the Group dropdown focused on that entry', async () => {
@@ -4131,15 +4115,15 @@ describe('DataTable — active-bar chip click actions', () => {
     })
     await openDd(wrapper, 'Group')
     await wrapper
-      .findAll('button.dt__dd-item--clickable')
+      .findAll('button.dt-dd-item--clickable')
       .find((el) => el.text() === 'Name')!
       .trigger('click')
     await openDd(wrapper, 'Group') // close
 
     expect(wrapper.find('.dt-dd').exists()).toBe(false)
-    await wrapper.find('.dt__chip-body').trigger('click')
+    await wrapper.find('.dt-chip-body').trigger('click')
     expect(wrapper.find('.dt-dd').exists()).toBe(true)
-    expect(document.activeElement).toBe(wrapper.find('.dt__dd-item--grouprow').element)
+    expect(document.activeElement).toBe(wrapper.find('.dt-dd-item--grouprow').element)
   })
 
   it("clicking a filter chip body opens the Filter dropdown focused on that column's detail pane", async () => {
@@ -4148,22 +4132,22 @@ describe('DataTable — active-bar chip click actions', () => {
       attachTo: document.body,
     })
     await openDd(wrapper, 'Filter')
-    const nameRow = wrapper.findAll('.dt__dd-item').find((el) => el.text().startsWith('Alice'))!
+    const nameRow = wrapper.findAll('.dt-dd-item').find((el) => el.text().startsWith('Alice'))!
     await nameRow.find('input[type="checkbox"]').trigger('click')
     await openDd(wrapper, 'Filter') // close
 
     expect(wrapper.find('.dt-dd').exists()).toBe(false)
     // `name` is checked-by-default (see docs/filter-dropdown.md's "Filter dropdown"): clicking Alice's
     // checkbox excludes her, rendering the danger-tinted exclude chip, not the info one.
-    const chipBody = wrapper.find('.dt__chip--danger .dt__chip-body')
+    const chipBody = wrapper.find('.dt-chip--danger .dt-chip-body')
     expect(chipBody.text()).toContain('Alice')
     await chipBody.trigger('click')
     expect(wrapper.find('.dt-dd').exists()).toBe(true)
     // Detail pane already shows Name's checklist (not Score's range inputs) on the very first
     // render, and the Name column button in the left pane is focused.
-    expect(wrapper.find('.dt__range-input').exists()).toBe(false)
+    expect(wrapper.find('.dt-range-input').exists()).toBe(false)
     expect(document.activeElement).toBe(
-      wrapper.findAll('.dt__filter-col-item').find((el) => el.text().startsWith('Name'))!.element,
+      wrapper.findAll('.dt-filter-col-item').find((el) => el.text().startsWith('Name'))!.element,
     )
   })
 
@@ -4183,11 +4167,11 @@ describe('DataTable — active-bar chip click actions', () => {
     await wrapper.find('[data-filter-col-key="score"]').trigger('click')
     expect(wrapper.find('[data-filter-col-key="name"]').exists()).toBe(false)
 
-    const chipBody = wrapper.findAll('.dt__chip-body').find((el) => el.text().startsWith('Name:'))!
+    const chipBody = wrapper.findAll('.dt-chip-body').find((el) => el.text().startsWith('Name:'))!
     await chipBody.trigger('click')
     expect((wrapper.find('[data-filter-cols] input').element as HTMLInputElement).value).toBe('')
     expect(document.activeElement).toBe(wrapper.find('[data-filter-col-key="name"]').element)
-    expect(wrapper.find('.dt__range-input').exists()).toBe(false) // name's checklist, not Score's range
+    expect(wrapper.find('.dt-range-input').exists()).toBe(false) // name's checklist, not Score's range
     wrapper.unmount()
   })
 })
@@ -4212,21 +4196,21 @@ describe('DataTable — filter dropdown on a narrow screen (U16)', () => {
     return wrapper
   }
   const nameBtn = (wrapper: ReturnType<typeof mount>) =>
-    wrapper.findAll('.dt__filter-col-item').find((el) => el.text().startsWith('Name'))
+    wrapper.findAll('.dt-filter-col-item').find((el) => el.text().startsWith('Name'))
 
   it('shows the column list, then one column at a time with a way back', async () => {
     const wrapper = await open(true)
-    expect(wrapper.find('.dt__filter-cols').exists()).toBe(true)
-    expect(wrapper.find('.dt__filter-detail').exists()).toBe(false)
+    expect(wrapper.find('.dt-filter-cols').exists()).toBe(true)
+    expect(wrapper.find('.dt-filter-detail').exists()).toBe(false)
     await nameBtn(wrapper)!.trigger('click')
     await tick()
-    expect(wrapper.find('.dt__filter-cols').exists()).toBe(false)
-    expect(wrapper.find('.dt__filter-detail').exists()).toBe(true)
-    const back = wrapper.find('.dt__filter-back')
+    expect(wrapper.find('.dt-filter-cols').exists()).toBe(false)
+    expect(wrapper.find('.dt-filter-detail').exists()).toBe(true)
+    const back = wrapper.find('.dt-filter-back')
     expect(back.text()).toBe('‹ Columns · Name')
     await back.trigger('click')
     await tick()
-    expect(wrapper.find('.dt__filter-detail').exists()).toBe(false)
+    expect(wrapper.find('.dt-filter-detail').exists()).toBe(false)
     expect(document.activeElement).toBe(nameBtn(wrapper)!.element)
     wrapper.unmount()
     restore()
@@ -4237,12 +4221,12 @@ describe('DataTable — filter dropdown on a narrow screen (U16)', () => {
     ;(nameBtn(wrapper)!.element as HTMLElement).focus()
     await nameBtn(wrapper)!.trigger('keydown', { key: 'ArrowRight' })
     await tick()
-    expect(wrapper.find('.dt__filter-detail').element.contains(document.activeElement)).toBe(true)
-    const row = wrapper.find('.dt__filter-detail input[data-value]')
+    expect(wrapper.find('.dt-filter-detail').element.contains(document.activeElement)).toBe(true)
+    const row = wrapper.find('.dt-filter-detail input[data-value]')
     ;(row.element as HTMLElement).focus()
     await row.trigger('keydown', { key: 'ArrowLeft' })
     await tick()
-    expect(wrapper.find('.dt__filter-detail').exists()).toBe(false)
+    expect(wrapper.find('.dt-filter-detail').exists()).toBe(false)
     expect(document.activeElement).toBe(nameBtn(wrapper)!.element)
     wrapper.unmount()
     restore()
@@ -4250,9 +4234,9 @@ describe('DataTable — filter dropdown on a narrow screen (U16)', () => {
 
   it('keeps both panes on a wide screen', async () => {
     const wrapper = await open(false)
-    expect(wrapper.find('.dt__filter-cols').exists()).toBe(true)
-    expect(wrapper.find('.dt__filter-detail').exists()).toBe(true)
-    expect(wrapper.find('.dt__filter-back').exists()).toBe(false)
+    expect(wrapper.find('.dt-filter-cols').exists()).toBe(true)
+    expect(wrapper.find('.dt-filter-detail').exists()).toBe(true)
+    expect(wrapper.find('.dt-filter-back').exists()).toBe(false)
     wrapper.unmount()
     restore()
   })
@@ -4274,7 +4258,7 @@ describe('DataTable — exclusion chip wording (U18)', () => {
         initialViewState: { excludeFilters: { dept: excluded } },
       },
     })
-    const body = wrapper.findAll('.dt__chip-body').find((b) => b.text().startsWith('Dept:'))!
+    const body = wrapper.findAll('.dt-chip-body').find((b) => b.text().startsWith('Dept:'))!
     return {
       text: body.text().replace(/\s+/g, ' '),
       classes: body.element.parentElement!.className,
@@ -4284,13 +4268,13 @@ describe('DataTable — exclusion chip wording (U18)', () => {
   it('names the one value kept rather than the three hidden', () => {
     const { text, classes } = chip(['HR', 'Ops', 'Sales'])
     expect(text).toBe('Dept: Eng')
-    expect(classes).not.toContain('dt__chip--danger')
+    expect(classes).not.toContain('dt-chip--danger')
   })
 
   it('names the hidden value when fewer are hidden', () => {
     const { text, classes } = chip(['HR'])
     expect(text).toBe('Dept: ≠ HR')
-    expect(classes).toContain('dt__chip--danger')
+    expect(classes).toContain('dt-chip--danger')
   })
 })
 
@@ -4318,7 +4302,7 @@ describe('DataTable — checklist chip in All mode', () => {
       },
     })
     return wrapper
-      .findAll('.dt__chip-body')
+      .findAll('.dt-chip-body')
       .find((b) => b.text().startsWith('Tags:'))!
       .text()
       .replace(/\s+/g, ' ')
@@ -4362,7 +4346,7 @@ describe('DataTable — filter values through the column format', () => {
         },
       },
     })
-    const chips = wrapper.findAll('.dt__chip-body').map((b) => b.text().replace(/\s+/g, ' '))
+    const chips = wrapper.findAll('.dt-chip-body').map((b) => b.text().replace(/\s+/g, ' '))
     expect(chips).toContain('Code: AB')
     expect(chips).toContain('Price: ≥ $1,000')
     await openDdByLabel(wrapper, 'Filter')

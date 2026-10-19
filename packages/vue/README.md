@@ -78,7 +78,7 @@ Use named scoped slots to customize how cells, filter labels, and group headers 
 
 Slot naming: `#cell-{key}`, `#filter-{key}`, `#group-{key}` where `{key}` matches the column's `key`.
 
-`#toolbar-end` (no scope) renders your own controls at the right end of the toolbar's action row, in a `.dt__toolbar-end` wrapper — e.g. "Share view"/"Reset view" buttons. No wrapper is rendered without it.
+`#toolbar-end` (no scope) renders your own controls at the right end of the toolbar's action row, in a `.dt-toolbar-end` wrapper — e.g. "Share view"/"Reset view" buttons. No wrapper is rendered without it.
 
 `#group-{key}` applies to group header rows when that column is used for grouping, so values display with the same visual as table cells.
 
@@ -342,21 +342,21 @@ Drag a column header to reorder it, or drag a row (or press Alt+ArrowUp/Alt+Arro
 
 ## `DataTable` props
 
-| Prop                     | Type                              | Default | Description                                                                                                                                     |
-| ------------------------ | --------------------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| `data`                   | `TRow[]`                          | —       | Row data                                                                                                                                        |
-| `columns`                | `ColumnDef<TRow>[]`               | —       | Column definitions                                                                                                                              |
-| `rowKey`                 | `string`                          | —       | Vue `:key` only — not selection identity                                                                                                        |
-| `labels`                 | `Partial<DataTableLabels>`        | English | UI string overrides                                                                                                                             |
-| `defaultGroupsCollapsed` | `boolean`                         | `true`  | Whether newly-grouped groups start collapsed                                                                                                    |
-| `initialViewState`       | `TableViewState`                  | `{}`    | Construction-time defaults for columns/sort/filters/grouping/page/search — also what `resetView` restores                                       |
-| `getRowId`               | `(row: TRow) => string \| number` | —       | Opt-in id-based selection identity (see "Row selection" above)                                                                                  |
-| `selectable`             | `boolean`                         | `false` | Show checkbox column for row selection                                                                                                          |
-| `currentRow`             | `TRow \| null`                    | —       | Row to mark as current (e.g. open in a side panel): `aria-current="true"` and the `dt__tr--current` class, unstyled. Matched by object identity |
-| `page`                   | `number`                          | —       | `v-model:page` — the table's current page                                                                                                       |
-| `searchQuery`            | `string`                          | —       | `v-model:search-query` — the global search box's value                                                                                          |
-| `showSearch`             | `boolean`                         | `true`  | Shows/hides the toolbar's search box (Sort/Group/Filter already auto-hide when no column qualifies)                                             |
-| `showColumns`            | `boolean`                         | `true`  | Shows/hides the Columns toolbar button; also auto-hides when `columns.length < 2`                                                               |
+| Prop                     | Type                              | Default | Description                                                                                                                                    |
+| ------------------------ | --------------------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `data`                   | `TRow[]`                          | —       | Row data                                                                                                                                       |
+| `columns`                | `ColumnDef<TRow>[]`               | —       | Column definitions                                                                                                                             |
+| `rowKey`                 | `string`                          | —       | Vue `:key` only — not selection identity                                                                                                       |
+| `labels`                 | `Partial<DataTableLabels>`        | English | UI string overrides                                                                                                                            |
+| `defaultGroupsCollapsed` | `boolean`                         | `true`  | Whether newly-grouped groups start collapsed                                                                                                   |
+| `initialViewState`       | `TableViewState`                  | `{}`    | Construction-time defaults for columns/sort/filters/grouping/page/search — also what `resetView` restores                                      |
+| `getRowId`               | `(row: TRow) => string \| number` | —       | Opt-in id-based selection identity (see "Row selection" above)                                                                                 |
+| `selectable`             | `boolean`                         | `false` | Show checkbox column for row selection                                                                                                         |
+| `currentRow`             | `TRow \| null`                    | —       | Row to mark as current (e.g. open in a side panel): `aria-current="true"` and the `dt-tr--current` class, unstyled. Matched by object identity |
+| `page`                   | `number`                          | —       | `v-model:page` — the table's current page                                                                                                      |
+| `searchQuery`            | `string`                          | —       | `v-model:search-query` — the global search box's value                                                                                         |
+| `showSearch`             | `boolean`                         | `true`  | Shows/hides the toolbar's search box (Sort/Group/Filter already auto-hide when no column qualifies)                                            |
+| `showColumns`            | `boolean`                         | `true`  | Shows/hides the Columns toolbar button; also auto-hides when `columns.length < 2`                                                              |
 
 All props accept `MaybeRefOrGetter` — you can pass refs, computed values, or plain values.
 

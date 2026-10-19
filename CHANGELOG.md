@@ -19,6 +19,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - **Separate group and sort chips** (Solid, React, Vue, vanilla): a column both grouped and sorted shows a `⊞ Department ×` group chip and a `↑ Department ×` sort chip, instead of one chip with two identical × removing different things.
 - **BREAKING (all four adapters):** the `openGroupDropdown` label is removed, along with the merged chip's ⊞ button it named.
 - **One dropdown panel class** (Solid, React, Vue, vanilla): every Columns, Sort, Group and Filter panel carries `dt-dd`, so app CSS can target it in any adapter; Vue's panel loses its `dropdown__menu` class. Solid's panels take the 220 px minimum width and 4 px top and bottom padding React and Vue already had, so their search box no longer touches the panel's top border.
+- **BREAKING (Vue):** class names take Solid's `dt-` prefix instead of `dt__` (`dt__td` → `dt-td`, `dt__tr--current` → `dt-tr--current`, …), so app CSS targets the same classes in every adapter.
 - **A pager only when it helps** (Solid, React, Vue, vanilla): the page buttons and "Page 1 of 1" hide when every row fits on one page, and the whole pager hides when even the smallest rows-per-page choice would fit them all (#41). The table's starting page size stays among the choices.
 
 ### Fixed

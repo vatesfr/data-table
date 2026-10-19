@@ -31,7 +31,7 @@ const emit = defineEmits<{ openChange: [open: boolean] }>()
 // `label`: the value through the column's `format`, the default content
 defineSlots<{ value?: (props: { value: string; label: string }) => unknown }>()
 
-const ROW_SELECTOR = 'button.dt__dd-item--clickable'
+const ROW_SELECTOR = 'button.dt-dd-item--clickable'
 
 const open = ref(false)
 const filterOpen = ref(false)
@@ -127,7 +127,7 @@ function onMenuFocusout(e: FocusEvent): void {
 
 function onMenuKeydown(e: KeyboardEvent): void {
   // Keys inside the filter flyout are the flyout's
-  if ((e.target as Element).closest('.dt__th-filter-flyout')) return
+  if ((e.target as Element).closest('.dt-th-filter-flyout')) return
   if (e.key === 'Escape') {
     e.preventDefault()
     close(true)
@@ -151,8 +151,8 @@ function onMenuKeydown(e: KeyboardEvent): void {
     <button
       ref="triggerRef"
       type="button"
-      class="dt__th-menu"
-      :class="{ 'dt__th-menu--filtered': isFiltered }"
+      class="dt-th-menu"
+      :class="{ 'dt-th-menu--filtered': isFiltered }"
       data-col-menu
       :aria-label="L.columnMenu(col.label, isFiltered)"
       aria-haspopup="dialog"
@@ -163,7 +163,7 @@ function onMenuKeydown(e: KeyboardEvent): void {
       <!-- A funnel, not just a color, tells a filtered column apart -->
       <svg
         v-if="isFiltered"
-        class="dt__th-menu-icon"
+        class="dt-th-menu-icon"
         viewBox="0 0 16 16"
         fill="none"
         stroke="currentColor"
@@ -178,8 +178,8 @@ function onMenuKeydown(e: KeyboardEvent): void {
     <div
       v-if="open"
       ref="menuRef"
-      class="dt__dd-submenu dt__th-menu-panel"
-      :class="{ 'dt__th-menu-panel--drilled': drilled }"
+      class="dt-dd-submenu dt-th-menu-panel"
+      :class="{ 'dt-th-menu-panel--drilled': drilled }"
       role="dialog"
       :aria-label="L.columnMenu(col.label, false)"
       :style="{ position: 'fixed', left: `${pos.left}px`, top: `${pos.top}px` }"
@@ -189,14 +189,14 @@ function onMenuKeydown(e: KeyboardEvent): void {
     >
       <div
         v-if="drilled"
-        class="dt__th-filter-flyout"
+        class="dt-th-filter-flyout"
         role="group"
         :aria-label="L.filter"
         @keydown="onPaneKeydown"
       >
         <button
           type="button"
-          class="dt__dd-item dt__dd-item--clickable dt__th-menu-back"
+          class="dt-dd-item dt-dd-item--clickable dt-th-menu-back"
           data-menu-back
           @click="drill(false)"
         >
@@ -213,13 +213,13 @@ function onMenuKeydown(e: KeyboardEvent): void {
           <button
             v-if="item === 'filter' && narrow"
             type="button"
-            class="dt__dd-item dt__dd-item--clickable"
+            class="dt-dd-item dt-dd-item--clickable"
             data-menu-filter
             @click="drill(true)"
             @keydown.right="drill(true)"
           >
             <svg
-              class="dt__th-menu-icon"
+              class="dt-th-menu-icon"
               viewBox="0 0 16 16"
               fill="none"
               stroke="currentColor"
@@ -229,21 +229,21 @@ function onMenuKeydown(e: KeyboardEvent): void {
             >
               <path :d="HEADER_MENU_ITEMS[item].icon" />
             </svg>
-            <span class="dt__th-menu-label">{{ L[HEADER_MENU_ITEMS[item].label] }}</span>
-            <span class="dt__th-menu-arrow">▸</span>
+            <span class="dt-th-menu-label">{{ L[HEADER_MENU_ITEMS[item].label] }}</span>
+            <span class="dt-th-menu-arrow">▸</span>
           </button>
           <CategorySubmenu
             v-else-if="item === 'filter'"
             :name="L[HEADER_MENU_ITEMS[item].label]"
             :group-label="L[HEADER_MENU_ITEMS[item].label]"
-            submenu-class="dt__th-filter-flyout"
+            submenu-class="dt-th-filter-flyout"
             :is-open="filterOpen"
             @open="filterOpen = true"
             @close="filterOpen = false"
           >
             <template #icon>
               <svg
-                class="dt__th-menu-icon"
+                class="dt-th-menu-icon"
                 viewBox="0 0 16 16"
                 fill="none"
                 stroke="currentColor"
@@ -260,14 +260,9 @@ function onMenuKeydown(e: KeyboardEvent): void {
               /></template>
             </FilterPane>
           </CategorySubmenu>
-          <button
-            v-else
-            type="button"
-            class="dt__dd-item dt__dd-item--clickable"
-            @click="act(item)"
-          >
+          <button v-else type="button" class="dt-dd-item dt-dd-item--clickable" @click="act(item)">
             <svg
-              class="dt__th-menu-icon"
+              class="dt-th-menu-icon"
               viewBox="0 0 16 16"
               fill="none"
               stroke="currentColor"
@@ -286,7 +281,7 @@ function onMenuKeydown(e: KeyboardEvent): void {
 </template>
 
 <style scoped>
-.dt__th-menu {
+.dt-th-menu {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -302,15 +297,15 @@ function onMenuKeydown(e: KeyboardEvent): void {
   font: inherit;
   cursor: pointer;
 }
-.dt__th-menu:hover,
-.dt__th-menu[aria-expanded='true'] {
+.dt-th-menu:hover,
+.dt-th-menu[aria-expanded='true'] {
   background: var(--color-background-secondary);
 }
-.dt__th-menu--filtered {
+.dt-th-menu--filtered {
   color: var(--color-text-info);
   font-weight: var(--font-weight-bold, 700);
 }
-.dt__dd-submenu {
+.dt-dd-submenu {
   z-index: 101;
   background: var(--color-background-primary);
   border: 0.5px solid var(--color-border-secondary);
@@ -322,7 +317,7 @@ function onMenuKeydown(e: KeyboardEvent): void {
   padding: 4px 0;
   font-weight: var(--font-weight-normal, 400);
 }
-.dt__dd-item {
+.dt-dd-item {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -337,45 +332,45 @@ function onMenuKeydown(e: KeyboardEvent): void {
   width: 100%;
   box-sizing: border-box;
 }
-.dt__dd-item--clickable {
+.dt-dd-item--clickable {
   cursor: pointer;
 }
-.dt__dd-item--clickable:hover,
-.dt__dd-item--clickable:focus {
+.dt-dd-item--clickable:hover,
+.dt-dd-item--clickable:focus {
   background: var(--color-background-secondary);
 }
 /* The icon in the Filter item sits in CategorySubmenu's trigger, the flyout in its template */
-:deep(.dt__th-menu-icon),
-.dt__th-menu-icon {
+:deep(.dt-th-menu-icon),
+.dt-th-menu-icon {
   width: 14px;
   height: 14px;
   flex-shrink: 0;
 }
-.dt__th-menu-panel {
+.dt-th-menu-panel {
   /* 100vw counts a classic scrollbar too, hence more than twice the 8 px viewport margin */
   max-width: calc(100vw - 40px);
 }
 /* Holds the filter pane itself, which scrolls its own list */
-.dt__th-menu-panel--drilled {
+.dt-th-menu-panel--drilled {
   max-height: none;
   overflow: hidden;
   padding: 0;
 }
-.dt__th-menu-back {
+.dt-th-menu-back {
   flex-shrink: 0;
   font-weight: var(--font-weight-medium, 500);
   border-bottom: 0.5px solid var(--color-border-tertiary);
 }
-.dt__th-menu-label {
+.dt-th-menu-label {
   flex: 1;
 }
-.dt__th-menu-arrow {
+.dt-th-menu-arrow {
   flex-shrink: 0;
   font-size: var(--font-size-2xs, 10px);
   color: var(--color-text-tertiary);
 }
-.dt__th-filter-flyout,
-:deep(.dt__dd-submenu.dt__th-filter-flyout) {
+.dt-th-filter-flyout,
+:deep(.dt-dd-submenu.dt-th-filter-flyout) {
   display: flex;
   flex-direction: column;
   max-height: 380px;

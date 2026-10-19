@@ -29,7 +29,7 @@ export interface DataTableViewProps<TRow extends object = Record<string, unknown
   selectable?: boolean
   /**
    * The row to mark as current (e.g. the one open in a side panel): it gets `aria-current="true"`
-   * and the `dt__tr--current` class, with no default styling. Matched by object identity.
+   * and the `dt-tr--current` class, with no default styling. Matched by object identity.
    */
   currentRow?: TRow | null
   /**

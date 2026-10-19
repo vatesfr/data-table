@@ -40,23 +40,23 @@ function label(node: DateTreeNode): string {
 
 <template>
   <div v-for="node in nodes" :key="node.path">
-    <label class="dt__date-tree-item" :style="{ paddingLeft: `${14 + depth * 16}px` }">
+    <label class="dt-date-tree-item" :style="{ paddingLeft: `${14 + depth * 16}px` }">
       <span
         v-if="!isLeaf(node)"
-        class="dt__date-tree-toggle dt__date-tree-toggle--branch"
+        class="dt-date-tree-toggle dt-date-tree-toggle--branch"
         @click.prevent="emit('toggleExpand', node.path)"
       >
         {{ isExpanded(node) ? '▼' : '▶' }}
       </span>
-      <span v-else class="dt__date-tree-toggle" />
+      <span v-else class="dt-date-tree-toggle" />
       <input
         type="checkbox"
         v-indeterminate="getDateTreeNodeState(node, selected) === 'indeterminate'"
         :checked="getDateTreeNodeState(node, selected) === 'checked'"
         @click="emit('toggleNode', node, $event)"
       />
-      <span class="dt__flex1">{{ label(node) }}</span>
-      <span class="dt__filter-count">{{ sumDateTreeNodeCount(node, counts) }}</span>
+      <span class="dt-flex1">{{ label(node) }}</span>
+      <span class="dt-filter-count">{{ sumDateTreeNodeCount(node, counts) }}</span>
     </label>
     <DateTreeItem
       v-if="!isLeaf(node) && isExpanded(node)"
@@ -73,7 +73,7 @@ function label(node: DateTreeNode): string {
 </template>
 
 <style scoped>
-.dt__date-tree-item {
+.dt-date-tree-item {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -82,20 +82,20 @@ function label(node: DateTreeNode): string {
   color: var(--color-text-primary);
   cursor: pointer;
 }
-.dt__date-tree-toggle {
+.dt-date-tree-toggle {
   width: 14px;
   flex-shrink: 0;
   text-align: center;
   font-size: var(--font-size-2xs, 10px);
   color: var(--color-text-tertiary);
 }
-.dt__date-tree-toggle--branch {
+.dt-date-tree-toggle--branch {
   cursor: pointer;
 }
-.dt__flex1 {
+.dt-flex1 {
   flex: 1;
 }
-.dt__filter-count {
+.dt-filter-count {
   font-size: var(--font-size-sm, 12px);
   color: var(--color-text-tertiary);
   flex-shrink: 0;
