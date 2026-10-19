@@ -341,7 +341,7 @@ export function HeaderMenu({
                   name={L[HEADER_MENU_ITEMS[item].label]}
                   icon={<Icon item={item} />}
                   groupLabel={L[HEADER_MENU_ITEMS[item].label]}
-                  panelStyle={flyoutStyle}
+                  className="dt-th-filter-flyout"
                   isOpen={filterOpen}
                   onOpen={() => setFilterOpen(true)}
                   onClose={() => setFilterOpen(false)}

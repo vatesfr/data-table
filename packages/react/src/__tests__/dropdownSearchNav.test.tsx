@@ -692,6 +692,10 @@ describe('DataTable — Delete/Backspace on a focused active row (Sort/Group/Col
   })
 })
 
+// jsdom matches neither :hover nor var() backgrounds, so these check the row classes and the
+// injected rules that give them the hover/focus background
+const injectedRules = () => document.querySelector('style[data-dt-styles]')?.textContent ?? ''
+
 describe('DataTable — Sort/Group/Columns active-row hover/focus background', () => {
   it('a Sort active row gets a background tint on hover and on focus, not just the native outline', () => {
     const { getByText, getAllByText, container } = render(
@@ -699,18 +703,12 @@ describe('DataTable — Sort/Group/Columns active-row hover/focus background', (
     )
     fireEvent.click(getByText('Sort'))
     fireEvent.click(ddCopyOf(getAllByText, 'Name'))
-    // Activating a column refocuses its new active row (see the activate/remove focus-retention
-    // block above), so it already carries the focus background at this point.
     const row = container.querySelector<HTMLElement>('[data-sort-key="name"]')!
-    expect(row.style.background).toBe('var(--color-background-secondary)')
-    fireEvent.blur(row)
-    expect(row.style.background).toBe('')
-    fireEvent.mouseEnter(row)
-    expect(row.style.background).toBe('var(--color-background-secondary)')
-    fireEvent.mouseLeave(row)
-    expect(row.style.background).toBe('')
-    fireEvent.focus(row)
-    expect(row.style.background).toBe('var(--color-background-secondary)')
+    expect(row.classList.contains('dt-dd-item--sortrow')).toBe(true)
+    expect(row.classList.contains('dt-dd-item--locked')).toBe(false)
+    expect(injectedRules()).toContain(
+      '.dt-dd-item--sortrow:hover,.dt-dd-item--sortrow:focus{background:',
+    )
   })
 
   it('a Group active row and a Columns visible row get the same hover/focus background', () => {
@@ -720,13 +718,14 @@ describe('DataTable — Sort/Group/Columns active-row hover/focus background', (
     fireEvent.click(getByText('Group'))
     fireEvent.click(ddCopyOf(getAllByText, 'Dept'))
     const groupRow = container.querySelector<HTMLElement>('[data-group-key="dept"]')!
-    fireEvent.mouseEnter(groupRow)
-    expect(groupRow.style.background).toBe('var(--color-background-secondary)')
+    expect(groupRow.classList.contains('dt-dd-item--grouprow')).toBe(true)
 
     fireEvent.click(getByText('Columns'))
     const colRow = container.querySelector<HTMLElement>('[data-col-row-key="name"]')!
-    fireEvent.focus(colRow)
-    expect(colRow.style.background).toBe('var(--color-background-secondary)')
+    expect(colRow.classList.contains('dt-dd-item--colrow')).toBe(true)
+    expect(injectedRules()).toContain(
+      '.dt-dd-item--grouprow:hover,.dt-dd-item--grouprow:focus,.dt-dd-item--colrow:hover,.dt-dd-item--colrow:focus{background:',
+    )
   })
 
   // A "Group order" row is still clickable to toggle direction, just not draggable/Alt+Arrow-
@@ -744,11 +743,9 @@ describe('DataTable — Sort/Group/Columns active-row hover/focus background', (
     const groupOrderRow = [...container.querySelectorAll<HTMLElement>('[tabindex="0"]')].find(
       (el) => el.textContent?.includes('Dept') && !el.hasAttribute('data-sort-key'),
     )!
-    fireEvent.mouseEnter(groupOrderRow)
-    expect(groupOrderRow.style.background).toBe('')
-    fireEvent.mouseLeave(groupOrderRow)
-    fireEvent.focus(groupOrderRow)
-    expect(groupOrderRow.style.background).toBe('var(--color-background-secondary)')
+    expect(groupOrderRow.classList.contains('dt-dd-item--sortrow')).toBe(true)
+    expect(groupOrderRow.classList.contains('dt-dd-item--locked')).toBe(true)
+    expect(injectedRules()).toContain('.dt-dd-item--locked:hover{background:none}')
   })
 })
 

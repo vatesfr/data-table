@@ -1,11 +1,4 @@
-import {
-  useLayoutEffect,
-  useRef,
-  useState,
-  type CSSProperties,
-  type KeyboardEvent,
-  type ReactNode,
-} from 'react'
+import { useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import {
   computeSubmenuPosition,
   ddNavFocusables,
@@ -34,42 +27,8 @@ export interface CategorySubmenuProps {
   icon?: ReactNode
   /** Names the flyout as a group (the header menu's filter controls) */
   groupLabel?: string
-  /** Extra style on the flyout */
-  panelStyle?: CSSProperties
-}
-
-const triggerStyle: CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: 8,
-  padding: '7px 14px',
-  cursor: 'pointer',
-  fontSize: 'var(--font-size-md, 13px)',
-  color: 'var(--color-text-primary)',
-  border: 'none',
-  background: 'none',
-  fontFamily: 'inherit',
-  textAlign: 'left',
-  margin: 0,
-  width: '100%',
-  boxSizing: 'border-box',
-}
-const arrowStyle: CSSProperties = {
-  flexShrink: 0,
-  fontSize: 'var(--font-size-2xs, 10px)',
-  color: 'var(--color-text-tertiary)',
-}
-const submenuStyle: CSSProperties = {
-  position: 'fixed',
-  zIndex: 101,
-  background: 'var(--color-background-primary)',
-  border: '0.5px solid var(--color-border-secondary)',
-  borderRadius: 8,
-  boxShadow: '0 4px 16px rgba(0,0,0,0.10)',
-  minWidth: 160,
-  maxHeight: 320,
-  overflowY: 'auto',
-  padding: '4px 0',
+  /** Extra class on the flyout */
+  className?: string
 }
 
 // A category row in the Sort/Group dropdowns' addable-column lists (see docs/columns.md's "Column
@@ -82,8 +41,8 @@ const submenuStyle: CSSProperties = {
 // Positioned with `position: fixed` at viewport coordinates computed from the trigger's own rect
 // (`computeSubmenuPosition`, core), but rendered as a plain sibling of the trigger — NOT portaled
 // to `document.body`, and NOT `position: absolute` either. Solid's own first version used
-// `position: absolute` and hit a real bug: `.dt-dd`'s `overflow-y: auto` (see `Dropdown.tsx`'s
-// panel style) means an absolutely positioned descendant that overflows a scrollable ancestor
+// `position: absolute` and hit a real bug: `.dt-dd`'s `overflow-y: auto` (see core's `DT_STYLES`)
+// means an absolutely positioned descendant that overflows a scrollable ancestor
 // horizontally still grows that ancestor's own scrollable region even though it's out of normal
 // flow — clipping the flyout and adding a spurious horizontal scrollbar to the whole panel. A
 // `createPortal` to `document.body` was tried next and does dodge that, but comes with a real
@@ -223,9 +182,10 @@ export function CategorySubmenu(props: CategorySubmenuProps) {
   }
 
   return (
-    <div style={{ position: 'relative' }}>
+    <div className="dt-dd-category">
       <button
         type="button"
+        className="dt-dd-item dt-dd-item--click dt-dd-category-trigger"
         data-dd-row
         data-category-header={props.name}
         ref={triggerRef}
@@ -239,22 +199,22 @@ export function CategorySubmenu(props: CategorySubmenuProps) {
             openNow(true)
           }
         }}
-        style={triggerStyle}
       >
         {props.icon}
-        <span style={{ flex: 1 }}>{props.name}</span>
-        <span style={arrowStyle}>▸</span>
+        <span className="dt-flex1">{props.name}</span>
+        <span className="dt-dd-category-arrow">▸</span>
       </button>
       {props.isOpen && (
         <div
           ref={submenuRef}
+          className={`dt-dd-submenu${props.className ? ` ${props.className}` : ''}`}
           data-category-submenu
           role={props.groupLabel ? 'group' : undefined}
           aria-label={props.groupLabel}
           onMouseEnter={cancelClose}
           onMouseLeave={scheduleClose}
           onKeyDown={handleSubmenuKeyDown}
-          style={{ ...submenuStyle, ...props.panelStyle, left, top }}
+          style={{ position: 'fixed', left, top }}
         >
           {props.children}
         </div>

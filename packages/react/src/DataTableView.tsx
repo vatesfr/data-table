@@ -3,6 +3,7 @@ import {
   useRef,
   useEffect,
   useLayoutEffect,
+  useInsertionEffect,
   type CSSProperties,
   type KeyboardEvent,
   type ReactNode,
@@ -65,6 +66,7 @@ import {
   getHeaderMenuItems,
   watchMedia,
   FILTER_NARROW_QUERY,
+  injectStyles,
   type VisibleItem,
   type DateTreeNode,
 } from '@vates/data-table-core/internal'
@@ -100,37 +102,6 @@ const S = {
     color: 'inherit',
     cursor: 'inherit',
   },
-  wrap: {
-    fontFamily: 'inherit',
-    fontSize: 'var(--font-size-lg, 14px)',
-    color: 'var(--color-text-primary)',
-  } as CSSProperties,
-  toolbar: {
-    padding: '12px 0',
-    borderBottom: '0.5px solid var(--color-border-tertiary)',
-  } as CSSProperties,
-  toolbarActions: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-    flexWrap: 'wrap',
-  } as CSSProperties,
-  // Separates the "shape" controls (Columns/Sort/Group — what's shown and in what order) from
-  // the "find" controls (Search/Filter — which rows are shown at all).
-  toolbarDivider: {
-    width: 1,
-    height: 22,
-    background: 'var(--color-border-secondary)',
-    flexShrink: 0,
-    margin: '0 2px',
-  } as CSSProperties,
-  // Right-aligned on its own, or right after "Clear all" when that's already taken the free space.
-  toolbarEnd: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-    marginLeft: 'auto',
-  } as CSSProperties,
   clearAll: {
     marginLeft: 'auto',
     padding: '5px 10px',
@@ -195,24 +166,6 @@ const S = {
     cursor: 'pointer',
     fontSize: 'var(--font-size-md, 13px)',
     color: 'var(--color-text-primary)',
-  } as CSSProperties,
-  ddSection: {
-    padding: '6px 14px 2px',
-    fontSize: 'var(--font-size-xs, 11px)',
-    color: 'var(--color-text-tertiary)',
-    fontWeight: 'var(--font-weight-medium, 500)',
-    letterSpacing: '0.05em',
-    textTransform: 'uppercase',
-  } as CSSProperties,
-  ddNoMatch: {
-    padding: '6px 14px',
-    fontSize: 'var(--font-size-sm, 12px)',
-    color: 'var(--color-text-tertiary)',
-  } as CSSProperties,
-  ddHint: {
-    padding: '0 14px 6px',
-    fontSize: 'var(--font-size-xs, 11px)',
-    color: 'var(--color-text-tertiary)',
   } as CSSProperties,
   filterCount: {
     fontSize: 'var(--font-size-sm, 12px)',
@@ -332,22 +285,6 @@ const S = {
     padding: '6px 12px',
     borderBottom: '1px solid var(--color-border-secondary)',
   } as CSSProperties,
-  // Adjoining × button for the Sort/Group/Filter toolbar buttons — see Dropdown's `extraTrigger`
-  // and ToolbarBtn's `grouped` prop. Replaces the old in-panel "Clear sorts"/etc. footer rows
-  // with a one-click affordance that doesn't require opening the dropdown first.
-  btnClear: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    padding: '5px 8px',
-    background: 'none',
-    border: '0.5px solid var(--color-border-secondary)',
-    borderRadius: '0 6px 6px 0',
-    fontSize: 'var(--font-size-lg, 14px)',
-    lineHeight: 1,
-    cursor: 'pointer',
-    color: 'var(--color-text-tertiary)',
-    fontFamily: 'inherit',
-  } as CSSProperties,
   rangeInput: {
     width: 80,
     padding: '3px 6px',
@@ -378,44 +315,6 @@ const S = {
     lineHeight: 1,
   } as CSSProperties,
   pageBtnDisabled: { opacity: 0.35, cursor: 'default' } as CSSProperties,
-  itemRemove: {
-    background: 'none',
-    border: 'none',
-    cursor: 'pointer',
-    padding: '2px 4px',
-    fontSize: 'var(--font-size-md, 13px)',
-    color: 'var(--color-text-tertiary)',
-    lineHeight: 1,
-  } as CSSProperties,
-  // Purely visual drag-reorder affordance on the Columns "Visible columns" rows and Sort/Group's
-  // own active rows (not Sort's non-draggable "Group order" rows) — the whole row is already the
-  // drag surface, this just hints that it's there.
-  ddDragHandle: {
-    flexShrink: 0,
-    color: 'var(--color-text-tertiary)',
-    fontSize: 'var(--font-size-md, 13px)',
-    lineHeight: 1,
-  } as CSSProperties,
-  // Shown next to a column's label when a search term flattens it out of its own category's
-  // CategorySubmenu into a plain row (see the Columns/Sort/Group add-lists below) — with no
-  // submenu heading to supply that context anymore, the category would otherwise be invisible.
-  ddItemCategory: {
-    fontSize: 'var(--font-size-xs, 11px)',
-    color: 'var(--color-text-tertiary)',
-    flexShrink: 0,
-    whiteSpace: 'nowrap',
-  } as CSSProperties,
-  // Button reset merged onto ddItem for rows rendered as <button> (add-lists, filter column
-  // selector) instead of <div> — needed for keyboard reachability (see those call sites).
-  ddItemButton: {
-    border: 'none',
-    background: 'none',
-    fontFamily: 'inherit',
-    textAlign: 'left',
-    margin: 0,
-    width: '100%',
-    boxSizing: 'border-box',
-  } as CSSProperties,
   pageInfo: {
     fontSize: 'var(--font-size-sm, 12px)',
     color: 'var(--color-text-secondary)',
@@ -441,37 +340,6 @@ const S = {
     fontFamily: 'inherit',
     cursor: 'pointer',
   } as CSSProperties,
-  searchWrap: {
-    position: 'relative',
-    display: 'inline-flex',
-    flex: 1,
-    minWidth: 160,
-    maxWidth: 280,
-  } as CSSProperties,
-  searchInput: {
-    padding: '4px 24px 4px 8px',
-    fontSize: 'var(--font-size-md, 13px)',
-    border: '0.5px solid var(--color-border-secondary)',
-    borderRadius: 6,
-    background: 'transparent',
-    color: 'inherit',
-    fontFamily: 'inherit',
-    width: '100%',
-  } as CSSProperties,
-  searchClear: {
-    position: 'absolute',
-    right: 4,
-    top: '50%',
-    transform: 'translateY(-50%)',
-    background: 'none',
-    border: 'none',
-    cursor: 'pointer',
-    padding: '2px 4px',
-    fontSize: 'var(--font-size-lg, 14px)',
-    lineHeight: 1,
-    color: 'var(--color-text-tertiary)',
-    fontFamily: 'inherit',
-  } as CSSProperties,
   aggRow: {
     fontSize: 'var(--font-size-sm, 12px)',
     fontWeight: 'var(--font-weight-medium, 500)',
@@ -482,106 +350,6 @@ const S = {
     padding: '4px 12px',
     borderBottom: '0.5px solid var(--color-border-tertiary)',
   } as CSSProperties,
-  // overflow:hidden is a safety net for the date tree (see filterDateTreeWrap below) — without
-  // it, content that outgrows maxHeight would bleed past the panel onto the page instead of
-  // being clipped/scrolled, since maxHeight alone doesn't clip.
-  filterPanel: {
-    display: 'flex',
-    minWidth: 460,
-    maxHeight: 380,
-    overflow: 'hidden',
-  } as CSSProperties,
-  filterPanelNarrow: {
-    flexDirection: 'column',
-    minWidth: 0,
-    // 100vw counts a classic scrollbar too, hence more than twice the 8 px viewport margin
-    width: 'calc(100vw - 40px)',
-  } as CSSProperties,
-  filterColsNarrow: { width: 'auto', maxWidth: 'none', borderRight: 'none' } as CSSProperties,
-  filterBack: {
-    flexShrink: 0,
-    fontWeight: 'var(--font-weight-medium, 500)',
-    borderBottom: '0.5px solid var(--color-border-tertiary)',
-  } as CSSProperties,
-  filterCols: {
-    // Sized to the column names; the search box fills it (filterColsSearch) without widening it
-    width: 'max-content',
-    minWidth: 150,
-    maxWidth: 240,
-    flexShrink: 0,
-    overflowY: 'auto',
-    borderRight: '0.5px solid var(--color-border-tertiary)',
-    padding: '4px 0',
-  } as CSSProperties,
-  // flex/minWidth/overflow here (not ddItemButton's own width: '100%') is what makes this button
-  // share its row with the clear button below instead of claiming the whole row's width — see
-  // filterColRow/filterColClear. Spread *after* ddItemButton at the call site so these win over
-  // ddItemButton's width: '100%'.
-  filterColItem: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 6,
-    padding: '7px 10px',
-    fontSize: 'var(--font-size-md, 13px)',
-    cursor: 'pointer',
-    color: 'var(--color-text-primary)',
-    flex: '1 1 auto',
-    minWidth: 0,
-    overflow: 'hidden',
-    boxSizing: 'border-box',
-  } as CSSProperties,
-  filterColItemActive: { fontWeight: 'var(--font-weight-medium, 500)' } as CSSProperties,
-  filterColLabel: {
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
-  } as CSSProperties,
-  // The row (not the item button alone) carries the selected-column background — see the render
-  // site's own comment for why: it needs to span the clear button too, not stop short of it.
-  filterColRow: { display: 'flex', alignItems: 'stretch' } as CSSProperties,
-  filterColRowActive: { background: 'var(--color-background-secondary)' } as CSSProperties,
-  // Replaces the old plain active-filter dot — see the render site's own comment.
-  filterColClear: {
-    flexShrink: 0,
-    display: 'flex',
-    alignItems: 'center',
-    padding: '0 10px',
-    fontSize: 'var(--font-size-md, 13px)',
-    lineHeight: 1,
-    cursor: 'pointer',
-    color: 'var(--color-text-tertiary)',
-    border: 'none',
-    background: 'none',
-    fontFamily: 'inherit',
-  } as CSSProperties,
-  // A category groups columns sharing ColumnDefBase.category into a collapsible section instead
-  // of a flyout submenu (unlike Sort/Group/Columns) — a submenu would need ArrowRight, already
-  // taken here for left-pane→detail-pane crossing (see handleFilterPanelKeyDown).
-  filterCategoryHeader: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 6,
-    width: '100%',
-    padding: '7px 10px',
-    fontSize: 'var(--font-size-md, 13px)',
-    fontWeight: 'var(--font-weight-medium, 500)',
-    cursor: 'pointer',
-    color: 'var(--color-text-secondary)',
-    border: 'none',
-    background: 'none',
-    fontFamily: 'inherit',
-    textAlign: 'left',
-    margin: 0,
-    boxSizing: 'border-box',
-  } as CSSProperties,
-  filterCategoryToggle: {
-    flexShrink: 0,
-    fontSize: 'var(--font-size-2xs, 10px)',
-    color: 'var(--color-text-tertiary)',
-  } as CSSProperties,
-  // Spread onto a categorized row's own filterColItem to indent it under its category header.
-  filterCategoryColItem: { paddingLeft: 22 } as CSSProperties,
   // A flex column (not just `flex: 1`) so the checklist/date-tree child below can `flex: 1` to
   // fill whatever height `.filterCols` (the column list) ends up stretching this to via the
   // row's cross-axis stretch, instead of a hardcoded height leaving dead space below it once
@@ -659,27 +427,6 @@ const S = {
     lineHeight: 1,
     color: 'var(--color-text-tertiary)',
     fontFamily: 'inherit',
-  } as CSSProperties,
-  // Wraps the Columns/Sort/Group dropdowns' own column-search box — sticky so it stays put while
-  // a long list scrolls underneath it (the panel itself scrolls, see Dropdown.tsx's maxHeight).
-  ddSearchRow: {
-    position: 'sticky',
-    top: 0,
-    display: 'flex',
-    background: 'var(--color-background-primary)',
-    padding: '6px 12px',
-    zIndex: 1,
-  } as CSSProperties,
-  // Same idea, scoped to the Filter dropdown's left column pane (its own scrollable box) — merged
-  // onto DdSearchInput's outer wrap (see ddSearchWrap above) as `extraStyle`, not the input itself,
-  // so `position: sticky` applies to the whole input+clear-button pair.
-  filterColsSearch: {
-    position: 'sticky',
-    top: 0,
-    width: '100%',
-    boxSizing: 'border-box',
-    marginBottom: 4,
-    background: 'var(--color-background-primary)',
   } as CSSProperties,
   filterSelectAll: {
     flexShrink: 0,
@@ -766,7 +513,7 @@ function focusPendingKey(
 /** Stands in for a column list that a search narrowed to nothing (U26) */
 function NoMatchingColumns({ label }: { label: string }) {
   return (
-    <div data-dd-no-match style={S.ddNoMatch}>
+    <div className="dt-dd-no-match" data-dd-no-match>
       {label}
     </div>
   )
@@ -906,35 +653,32 @@ function RangeSlider({
 /**
  * The Columns/Sort/Group/Filter dropdowns' own column-search box — narrows that dropdown's
  * column list by label, with Escape clearing the term (stopping propagation so it doesn't also
- * close the dropdown itself). `extraStyle` covers the one difference between call sites: the
- * Filter dropdown's left pane merges in `S.filterColsSearch` (on the outer wrapper, not the input
- * itself — see that style's own comment) instead of wrapping the input in `S.ddSearchRow` the way
- * Columns/Sort/Group do.
+ * close the dropdown itself). Columns/Sort/Group wrap it in a `.dt-dd-search-row`; the Filter
+ * dropdown's left pane passes `filterCols` instead, making the input+clear-button pair itself
+ * sticky (`.dt-filter-cols-search-wrap`).
  *
  * Also carries its own × clear button (shown only once `value` is non-empty) — previously Escape
  * was the only way to clear it, with no click target for a mouse-only user, unlike the toolbar's
- * own global search box (see SearchBox's `S.searchClear` below, same idea, reusing the same
- * `clearSearch` label).
+ * own global search box (same idea, reusing the same `clearSearch` label).
  */
 function DdSearchInput({
   value,
   onChange,
   placeholder,
   clearLabel,
-  extraStyle,
-  inputStyle,
+  filterCols,
 }: {
   value: string
   onChange: (value: string) => void
   placeholder: string
   clearLabel: string
-  extraStyle?: CSSProperties
-  inputStyle?: CSSProperties
+  filterCols?: boolean
 }) {
   return (
-    <span style={{ ...S.ddSearchWrap, ...extraStyle }}>
+    <span className={`dt-dd-search-wrap${filterCols ? ' dt-filter-cols-search-wrap' : ''}`}>
       <input
         type="text"
+        className={`dt-dd-search${filterCols ? ' dt-filter-cols-search' : ''}`}
         data-dd-search
         placeholder={placeholder}
         value={value}
@@ -946,15 +690,14 @@ function DdSearchInput({
             onChange('')
           }
         }}
-        style={{ ...S.ddSearch, ...inputStyle }}
       />
       {value !== '' && (
         <button
           type="button"
+          className="dt-dd-search-clear"
           title={clearLabel}
           aria-label={clearLabel}
           onClick={() => onChange('')}
-          style={S.ddSearchClear}
         >
           ×
         </button>
@@ -1695,6 +1438,11 @@ function FilterPane<TRow extends object>({
  * return <DataTableView table={table} data={data} columns={columns} />
  * ```
  */
+// `.dt-dd-item--drag-over`/`--drag-over-after`: a dropdown row's drop-position line
+function dragOverClass(over: boolean, after: boolean): string {
+  return over ? (after ? ' dt-dd-item--drag-over-after' : ' dt-dd-item--drag-over') : ''
+}
+
 export function DataTableView<TRow extends object>({
   table,
   data,
@@ -1708,6 +1456,8 @@ export function DataTableView<TRow extends object>({
   showColumns,
   toolbarEnd,
 }: DataTableViewProps<TRow>) {
+  // No theme tokens: React apps define their own (see the README's Theming)
+  useInsertionEffect(injectStyles, [])
   const [openColsDD, setOpenColsDD] = useState(false)
   const [openSortDD, setOpenSortDD] = useState(false)
   const [openFilterDD, setOpenFilterDD] = useState(false)
@@ -1801,54 +1551,6 @@ export function DataTableView<TRow extends object>({
   const [openSortCategory, setOpenSortCategory] = useState<string | null>(null)
   const [openGroupCategory, setOpenGroupCategory] = useState<string | null>(null)
   const [openColsCategory, setOpenColsCategory] = useState<string | null>(null)
-  // Sort/Group/Columns' active rows only ever got the browser's native focus outline, no
-  // background — unlike the Filter dropdown's own left-pane column row, which tints its
-  // background on selection (see filterColRowActive) as well as outlining the focused button
-  // inside it. Matched here for the same reason: an outline alone is a much fainter "this is the
-  // currently focused/hovered row" cue than a filled background. Unlike Filter's own persistent
-  // "selected column" state, this is purely transient hover/focus feedback — since these rows'
-  // styling is plain inline CSSProperties (no stylesheet to hold a :hover/:focus rule the way
-  // Solid's CSS classes do), it's tracked as plain state instead, the same
-  // onMouseEnter/onMouseLeave pattern already used for the table body's own hoveredRow. Only one
-  // dropdown is ever open at a time, so a single pair of keys (not one per dropdown) is enough.
-  const [hoveredDdRowKey, setHoveredDdRowKey] = useState<string | null>(null)
-  const [focusedDdRowKey, setFocusedDdRowKey] = useState<string | null>(null)
-  // A closed dropdown panel unmounts entirely (see Dropdown.tsx), but that doesn't reliably fire a
-  // blur event on whatever row was focused inside it — so without this, closing a dropdown while
-  // one of its rows is focused/hovered can leave a stale key here, which then wrongly matches a
-  // same-keyed row in a *different* dropdown opened right after (e.g. grouping "dept" then
-  // immediately opening Sort, whose "Group order" row shares that same key). Resetting whenever
-  // which dropdown is open changes keeps this scoped to whichever one is actually open right now
-  // — the same "adjust state when a prop changes" render-time pattern as `sameKeySet`'s
-  // `prevColumns` comparison above, rather than an effect (avoiding both an extra render and the
-  // react-hooks/set-state-in-effect lint error this project's config treats as one).
-  const openDdTriple = `${openColsDD}:${openSortDD}:${openGroupDD}`
-  const [prevOpenDdTriple, setPrevOpenDdTriple] = useState(openDdTriple)
-  if (openDdTriple !== prevOpenDdTriple) {
-    setPrevOpenDdTriple(openDdTriple)
-    setHoveredDdRowKey(null)
-    setFocusedDdRowKey(null)
-  }
-  // `hoverable = false` is for Sort's non-draggable "Group order" rows: a hover highlight would
-  // read as "dragging would do something here," which it wouldn't — its own section heading +
-  // hint text already explain why, so this only cancels the hover cue, not the focus one (the row
-  // is still clickable/keyboard-toggleable, so focus stays a meaningful cue).
-  function ddRowHighlighted(key: string, { hoverable = true } = {}): boolean {
-    return (hoverable && hoveredDdRowKey === key) || focusedDdRowKey === key
-  }
-  function ddRowHoverFocusHandlers(key: string, { hoverable = true } = {}) {
-    return {
-      ...(hoverable
-        ? {
-            onMouseEnter: () => setHoveredDdRowKey(key),
-            onMouseLeave: () => setHoveredDdRowKey((k) => (k === key ? null : k)),
-          }
-        : {}),
-      onFocus: () => setFocusedDdRowKey(key),
-      onBlur: () => setFocusedDdRowKey((k) => (k === key ? null : k)),
-    }
-  }
-
   // `table`'s own fields are namespaced by concern (see docs/table-state.md's "Namespaced TableState") —
   // destructured here into the same bare local names this component's ~2600 lines already use
   // throughout, so nothing below this block needed to change when the namespacing landed.
@@ -1915,7 +1617,6 @@ export function DataTableView<TRow extends object>({
   // though both ultimately reorder columnOrder — mirrors vanilla giving each dropdown its own
   // drag state instead of a shared one.
   const {
-    dragKey: dragColRowKey,
     dragOverKey: dragOverColRowKey,
     dragOverAfter: dragOverColRowAfter,
     onRowDragStart: onColRowDragStart,
@@ -1924,7 +1625,6 @@ export function DataTableView<TRow extends object>({
     onDrop: onColRowsDrop,
   } = useDropdownReorder('data-col-row-key', moveColumn)
   const {
-    dragKey: dragSortKey,
     dragOverKey: dragOverSortKey,
     dragOverAfter: dragOverSortAfter,
     onRowDragStart: onSortRowDragStart,
@@ -1933,7 +1633,6 @@ export function DataTableView<TRow extends object>({
     onDrop: onSortRowsDrop,
   } = useDropdownReorder('data-sort-key', moveSort)
   const {
-    dragKey: dragGroupKey,
     dragOverKey: dragOverGroupKey,
     dragOverAfter: dragOverGroupAfter,
     onRowDragStart: onGroupRowDragStart,
@@ -2275,21 +1974,18 @@ export function DataTableView<TRow extends object>({
       : (filterableCols[0]?.key ?? null)
   const filterDetailCol = filterableCols.find((c) => c.key === filterActiveKey) ?? null
   // One left-pane column row — shared by the flat uncategorized list and each category section
-  // below, so the two render identically apart from indentation (`indented`).
-  const renderFilterColRow = (col: ColumnDef<TRow>, indented: boolean) => {
+  // below (`.dt-filter-category-cols` indents the latter).
+  const renderFilterColRow = (col: ColumnDef<TRow>) => {
     const hasActive = columnHasActiveFilter(col.key, filters, excludeFilters, rangeFilters)
+    const isActive = col.key === filterActiveKey
     return (
       // The row (not the item button alone) carries the selected-column highlight, so it spans
-      // the clear button too instead of stopping short of it (see S.filterColRowActive) — a
-      // <button> can't contain another interactive element, so the clear button below is a
-      // sibling, not nested.
+      // the clear button too instead of stopping short of it — a <button> can't contain another
+      // interactive element, so the clear button below is a sibling, not nested.
       <div
         key={col.key}
         data-filter-row-key={col.key}
-        style={{
-          ...S.filterColRow,
-          ...(col.key === filterActiveKey ? S.filterColRowActive : {}),
-        }}
+        className={`dt-filter-col-row${isActive ? ' dt-filter-col-row--active' : ''}`}
       >
         {/* A real <button> (not a div) so it's a native Tab stop and Enter/Space "click" it for
             free — same fix as the Sort/Group add-lists above; this had the identical gap.
@@ -2314,14 +2010,9 @@ export function DataTableView<TRow extends object>({
             setFilterShowValues(true)
             pendingFilterValuesFocus.current = true
           }}
-          style={{
-            ...S.ddItemButton,
-            ...S.filterColItem,
-            ...(indented ? S.filterCategoryColItem : {}),
-            ...(col.key === filterActiveKey ? S.filterColItemActive : {}),
-          }}
+          className={`dt-filter-col-item${isActive ? ' dt-filter-col-item--active' : ''}`}
         >
-          <span style={S.filterColLabel}>{col.label}</span>
+          <span>{col.label}</span>
         </button>
         {/* Replaces the plain active-filter dot: a one-click way to drop this column's filter
             without opening it first, matching the toolbar's own per-dropdown × buttons (see
@@ -2329,6 +2020,7 @@ export function DataTableView<TRow extends object>({
         {hasActive && (
           <button
             type="button"
+            className="dt-filter-col-clear"
             title={L.clearColumnFilter}
             aria-label={L.clearColumnFilter}
             onClick={(e) => {
@@ -2339,7 +2031,6 @@ export function DataTableView<TRow extends object>({
               clearColumnFilter(col.key, 'exclude')
               clearColumnFilter(col.key, 'range')
             }}
-            style={S.filterColClear}
           >
             ×
           </button>
@@ -2428,15 +2119,7 @@ export function DataTableView<TRow extends object>({
   const hasActiveState =
     sorts.length > 0 || activeFilterCount > 0 || groupBy.length > 0 || searchQuery !== ''
   const hasAggregates = activeColumns.some((c) => c.aggregate !== undefined)
-  // After "Clear all", which takes the free space itself; not when moved before it
-  const toolbarEndEl = hasToolbarEnd && (
-    <div
-      className="dt-toolbar-end"
-      style={hasActiveState && !endFirst ? { ...S.toolbarEnd, marginLeft: 0 } : S.toolbarEnd}
-    >
-      {toolbarEnd}
-    </div>
-  )
+  const toolbarEndEl = hasToolbarEnd && <div className="dt-toolbar-end">{toolbarEnd}</div>
 
   const formatValue = (v: unknown, row: TRow, col: ColumnDef<TRow>) => {
     if (col.render) return col.render(v, row)
@@ -2449,9 +2132,9 @@ export function DataTableView<TRow extends object>({
     formatValue(getColumnValue(col, row), row, col)
 
   return (
-    <div style={S.wrap} ref={rootRef}>
-      <div style={S.toolbar}>
-        <div style={S.toolbarActions}>
+    <div className="dt" ref={rootRef}>
+      <div className="dt-toolbar">
+        <div className="dt-toolbar-actions">
           {/* Columns — "Visible columns" (every shown column, draggable/Alt+↑↓-reorderable, in
               real table order) above "Available columns" (hidden columns, click to show; a
               categorized one collapses into a CategorySubmenu). Mirrors the Sort/Group
@@ -2464,7 +2147,7 @@ export function DataTableView<TRow extends object>({
             <Dropdown
               open={openColsDD}
               setOpen={setOpenColsDD}
-              trigger={<ToolbarBtn active={openColsDD}>{L.columns}</ToolbarBtn>}
+              trigger={<ToolbarBtn>{L.columns}</ToolbarBtn>}
               onDragOver={onColRowsDragOver}
               onDrop={onColRowsDrop}
             >
@@ -2473,7 +2156,7 @@ export function DataTableView<TRow extends object>({
                 unconditionally is what fixes a real bug the old Available-only, gated-on-results
                 version had: a search term matching nothing used to unmount the box itself,
                 dropping focus with no way back short of Escape. */}
-              <div style={S.ddSearchRow}>
+              <div className="dt-dd-search-row">
                 <DdSearchInput
                   value={ddSearchTerms.cols ?? ''}
                   onChange={(v) => setDdSearchTerms({ ...ddSearchTerms, cols: v })}
@@ -2482,7 +2165,7 @@ export function DataTableView<TRow extends object>({
                 />
               </div>
               {searchedVisibleColumns.length > 0 && (
-                <div style={S.ddSection}>{L.columnsSection}</div>
+                <div className="dt-dd-section">{L.columnsSection}</div>
               )}
               {searchedVisibleColumns.map((col) => (
                 // Draggable (+ Alt+↑/↓) reorders columnOrder, skipping hidden columns (moveVisibleBy)
@@ -2524,25 +2207,12 @@ export function DataTableView<TRow extends object>({
                       e.preventDefault()
                     }
                   }}
-                  {...ddRowHoverFocusHandlers(col.key)}
-                  style={{
-                    ...S.ddItem,
-                    justifyContent: 'space-between',
-                    cursor: 'grab',
-                    opacity: dragColRowKey === col.key ? 0.4 : 1,
-                    background: ddRowHighlighted(col.key)
-                      ? 'var(--color-background-secondary)'
-                      : undefined,
-                    boxShadow:
-                      dragOverColRowKey === col.key
-                        ? `inset 0 ${dragOverColRowAfter ? '-2px' : '2px'} 0 var(--color-text-primary)`
-                        : undefined,
-                  }}
+                  className={`dt-dd-item dt-dd-item--col dt-dd-item--colrow${dragOverClass(dragOverColRowKey === col.key, dragOverColRowAfter)}`}
                 >
-                  <span aria-hidden="true" style={S.ddDragHandle}>
+                  <span aria-hidden="true" className="dt-dd-drag-handle">
                     ⠿
                   </span>
-                  <span style={{ flex: 1 }}>{col.label}</span>
+                  <span className="dt-flex1">{col.label}</span>
                   <button
                     type="button"
                     draggable={false}
@@ -2552,7 +2222,7 @@ export function DataTableView<TRow extends object>({
                       e.stopPropagation()
                       hideColumn(col)
                     }}
-                    style={S.itemRemove}
+                    className="dt-item-remove"
                   >
                     ×
                   </button>
@@ -2563,7 +2233,7 @@ export function DataTableView<TRow extends object>({
               )}
               {searchedAvailableColumns.length > 0 && (
                 <>
-                  <div style={S.ddSection}>{L.availableColumnsSection}</div>
+                  <div className="dt-dd-section">{L.availableColumnsSection}</div>
                   {isColsSearching
                     ? searchedAvailableColumns.map((col) => (
                         <button
@@ -2575,10 +2245,12 @@ export function DataTableView<TRow extends object>({
                             pendingColFocusKey.current = col.key
                             toggleColVisibility(col.key)
                           }}
-                          style={{ ...S.ddItem, ...S.ddItemButton }}
+                          className="dt-dd-item dt-dd-item--click"
                         >
-                          <span style={{ flex: 1 }}>{col.label}</span>
-                          {col.category && <span style={S.ddItemCategory}>{col.category}</span>}
+                          <span className="dt-flex1">{col.label}</span>
+                          {col.category && (
+                            <span className="dt-dd-item-category">{col.category}</span>
+                          )}
                         </button>
                       ))
                     : [
@@ -2592,9 +2264,9 @@ export function DataTableView<TRow extends object>({
                               pendingColFocusKey.current = col.key
                               toggleColVisibility(col.key)
                             }}
-                            style={{ ...S.ddItem, ...S.ddItemButton }}
+                            className="dt-dd-item dt-dd-item--click"
                           >
-                            <span style={{ flex: 1 }}>{col.label}</span>
+                            <span className="dt-flex1">{col.label}</span>
                           </button>
                         )),
                         ...categorizedAvailableCols.categories.map((category) => (
@@ -2617,9 +2289,9 @@ export function DataTableView<TRow extends object>({
                                   pendingColFocusKey.current = col.key
                                   toggleColVisibility(col.key)
                                 }}
-                                style={{ ...S.ddItem, ...S.ddItemButton }}
+                                className="dt-dd-item dt-dd-item--click"
                               >
-                                <span style={{ flex: 1 }}>{col.label}</span>
+                                <span className="dt-flex1">{col.label}</span>
                               </button>
                             ))}
                           </CategorySubmenu>
@@ -2651,7 +2323,7 @@ export function DataTableView<TRow extends object>({
                     onClick={clearGroups}
                     title={L.clearGroups}
                     aria-label={L.clearGroups}
-                    style={S.btnClear}
+                    className="dt-btn-clear"
                   >
                     ×
                   </button>
@@ -2662,7 +2334,7 @@ export function DataTableView<TRow extends object>({
             >
               {groupBy.length > 0 && (
                 <>
-                  <div style={S.ddSection}>{L.activeGroupsSection}</div>
+                  <div className="dt-dd-section">{L.activeGroupsSection}</div>
                   {groupBy.map((key, i) => {
                     const col = groupableCols.find((c) => c.key === key)
                     return (
@@ -2701,35 +2373,13 @@ export function DataTableView<TRow extends object>({
                             e.preventDefault()
                           }
                         }}
-                        {...ddRowHoverFocusHandlers(key)}
-                        style={{
-                          ...S.ddItem,
-                          justifyContent: 'space-between',
-                          cursor: 'grab',
-                          opacity: dragGroupKey === key ? 0.4 : 1,
-                          background: ddRowHighlighted(key)
-                            ? 'var(--color-background-secondary)'
-                            : undefined,
-                          boxShadow:
-                            dragOverGroupKey === key
-                              ? `inset 0 ${dragOverGroupAfter ? '-2px' : '2px'} 0 var(--color-text-primary)`
-                              : undefined,
-                        }}
+                        className={`dt-dd-item dt-dd-item--col dt-dd-item--grouprow${dragOverClass(dragOverGroupKey === key, dragOverGroupAfter)}`}
                       >
-                        <span
-                          style={{
-                            width: 18,
-                            fontSize: 'var(--font-size-xs, 11px)',
-                            color: 'var(--color-text-tertiary)',
-                            fontWeight: 'var(--font-weight-medium, 500)',
-                          }}
-                        >
-                          {i + 1}
-                        </span>
-                        <span aria-hidden="true" style={S.ddDragHandle}>
+                        <span aria-hidden="true" className="dt-dd-drag-handle">
                           ⠿
                         </span>
-                        <span style={{ flex: 1 }}>{col?.label ?? key}</span>
+                        <span className="dt-sort-idx">{i + 1}</span>
+                        <span className="dt-flex1">{col?.label ?? key}</span>
                         <button
                           type="button"
                           draggable={false}
@@ -2740,7 +2390,7 @@ export function DataTableView<TRow extends object>({
                             pendingGroupFocusKey.current = key
                             removeGroup(key)
                           }}
-                          style={S.itemRemove}
+                          className="dt-item-remove"
                         >
                           ×
                         </button>
@@ -2753,7 +2403,7 @@ export function DataTableView<TRow extends object>({
                 <>
                   {/* Same search + alphabetize treatment as Sort's add list above, for the same
                       reason. */}
-                  <div style={S.ddSearchRow}>
+                  <div className="dt-dd-search-row">
                     <DdSearchInput
                       value={ddSearchTerms.group ?? ''}
                       onChange={(v) => setDdSearchTerms({ ...ddSearchTerms, group: v })}
@@ -2761,7 +2411,7 @@ export function DataTableView<TRow extends object>({
                       clearLabel={L.clearSearch}
                     />
                   </div>
-                  <div style={S.ddSection}>{L.groupSection}</div>
+                  <div className="dt-dd-section">{L.groupSection}</div>
                   {isGroupSearching && searchedFlatAddableGroupCols.length === 0 && (
                     <NoMatchingColumns label={L.noMatchingColumns} />
                   )}
@@ -2776,10 +2426,12 @@ export function DataTableView<TRow extends object>({
                             pendingGroupFocusKey.current = col.key
                             toggleGroup(col.key)
                           }}
-                          style={{ ...S.ddItem, ...S.ddItemButton }}
+                          className="dt-dd-item dt-dd-item--click"
                         >
-                          <span style={{ flex: 1 }}>{col.label}</span>
-                          {col.category && <span style={S.ddItemCategory}>{col.category}</span>}
+                          <span className="dt-flex1">{col.label}</span>
+                          {col.category && (
+                            <span className="dt-dd-item-category">{col.category}</span>
+                          )}
                         </button>
                       ))
                     : [
@@ -2794,9 +2446,9 @@ export function DataTableView<TRow extends object>({
                               pendingGroupFocusKey.current = col.key
                               toggleGroup(col.key)
                             }}
-                            style={{ ...S.ddItem, ...S.ddItemButton }}
+                            className="dt-dd-item dt-dd-item--click"
                           >
-                            <span style={{ flex: 1 }}>{col.label}</span>
+                            <span className="dt-flex1">{col.label}</span>
                           </button>
                         )),
                         ...categorizedAddableGroupCols.categories.map((category) => (
@@ -2819,9 +2471,9 @@ export function DataTableView<TRow extends object>({
                                   pendingGroupFocusKey.current = col.key
                                   toggleGroup(col.key)
                                 }}
-                                style={{ ...S.ddItem, ...S.ddItemButton }}
+                                className="dt-dd-item dt-dd-item--click"
                               >
-                                <span style={{ flex: 1 }}>{col.label}</span>
+                                <span className="dt-flex1">{col.label}</span>
                               </button>
                             ))}
                           </CategorySubmenu>
@@ -2849,7 +2501,7 @@ export function DataTableView<TRow extends object>({
                     onClick={clearSorts}
                     title={L.clearSorts}
                     aria-label={L.clearSorts}
-                    style={S.btnClear}
+                    className="dt-btn-clear"
                   >
                     ×
                   </button>
@@ -2860,8 +2512,8 @@ export function DataTableView<TRow extends object>({
             >
               {groupSortEntries.length > 0 && (
                 <>
-                  <div style={S.ddSection}>{L.groupOrderSection}</div>
-                  <div style={S.ddHint}>{L.groupOrderHint}</div>
+                  <div className="dt-dd-section">{L.groupOrderSection}</div>
+                  <div className="dt-dd-hint">{L.groupOrderHint}</div>
                   {groupSortEntries.map((entry, i) => {
                     const col = columns.find((c) => c.key === entry.key)
                     // Not draggable, no Alt+↑/↓ reorder — nesting order always follows groupBy's
@@ -2886,32 +2538,11 @@ export function DataTableView<TRow extends object>({
                             removeSort(entry.key)
                           }
                         }}
-                        {...ddRowHoverFocusHandlers(entry.key, { hoverable: false })}
-                        style={{
-                          ...S.ddItem,
-                          justifyContent: 'space-between',
-                          background: ddRowHighlighted(entry.key, { hoverable: false })
-                            ? 'var(--color-background-secondary)'
-                            : undefined,
-                        }}
+                        className="dt-dd-item dt-dd-item--col dt-dd-item--sortrow dt-dd-item--locked"
                       >
-                        <span
-                          style={{
-                            width: 18,
-                            fontSize: 'var(--font-size-xs, 11px)',
-                            color: 'var(--color-text-tertiary)',
-                            fontWeight: 'var(--font-weight-medium, 500)',
-                          }}
-                        >
-                          {i + 1}
-                        </span>
-                        <span style={{ flex: 1 }}>{col?.label ?? entry.key}</span>
-                        <span
-                          style={{
-                            fontSize: 'var(--font-size-xl, 15px)',
-                            color: 'var(--color-text-primary)',
-                          }}
-                        >
+                        <span className="dt-sort-idx">{i + 1}</span>
+                        <span className="dt-flex1">{col?.label ?? entry.key}</span>
+                        <span className="dt-sort-icon dt-sort-icon--active">
                           {getSortIcon(entry.key)}
                         </span>
                         <button
@@ -2924,7 +2555,7 @@ export function DataTableView<TRow extends object>({
                             pendingSortFocusKey.current = entry.key
                             removeSort(entry.key)
                           }}
-                          style={S.itemRemove}
+                          className="dt-item-remove"
                         >
                           ×
                         </button>
@@ -2935,7 +2566,7 @@ export function DataTableView<TRow extends object>({
               )}
               {nonGroupSortEntries.length > 0 && (
                 <>
-                  <div style={S.ddSection}>{L.activeSortsSection}</div>
+                  <div className="dt-dd-section">{L.activeSortsSection}</div>
                   {nonGroupSortEntries.map((entry, i) => {
                     const col = columns.find((c) => c.key === entry.key)
                     return (
@@ -2980,40 +2611,14 @@ export function DataTableView<TRow extends object>({
                             removeSort(entry.key)
                           }
                         }}
-                        {...ddRowHoverFocusHandlers(entry.key)}
-                        style={{
-                          ...S.ddItem,
-                          justifyContent: 'space-between',
-                          opacity: dragSortKey === entry.key ? 0.4 : 1,
-                          background: ddRowHighlighted(entry.key)
-                            ? 'var(--color-background-secondary)'
-                            : undefined,
-                          boxShadow:
-                            dragOverSortKey === entry.key
-                              ? `inset 0 ${dragOverSortAfter ? '-2px' : '2px'} 0 var(--color-text-primary)`
-                              : undefined,
-                        }}
+                        className={`dt-dd-item dt-dd-item--col dt-dd-item--sortrow${dragOverClass(dragOverSortKey === entry.key, dragOverSortAfter)}`}
                       >
-                        <span aria-hidden="true" style={S.ddDragHandle}>
+                        <span aria-hidden="true" className="dt-dd-drag-handle">
                           ⠿
                         </span>
-                        <span
-                          style={{
-                            width: 18,
-                            fontSize: 'var(--font-size-xs, 11px)',
-                            color: 'var(--color-text-tertiary)',
-                            fontWeight: 'var(--font-weight-medium, 500)',
-                          }}
-                        >
-                          {i + 1}
-                        </span>
-                        <span style={{ flex: 1 }}>{col?.label ?? entry.key}</span>
-                        <span
-                          style={{
-                            fontSize: 'var(--font-size-xl, 15px)',
-                            color: 'var(--color-text-primary)',
-                          }}
-                        >
+                        <span className="dt-sort-idx">{i + 1}</span>
+                        <span className="dt-flex1">{col?.label ?? entry.key}</span>
+                        <span className="dt-sort-icon dt-sort-icon--active">
                           {getSortIcon(entry.key)}
                         </span>
                         <button
@@ -3029,7 +2634,7 @@ export function DataTableView<TRow extends object>({
                             pendingSortFocusKey.current = entry.key
                             removeSort(entry.key)
                           }}
-                          style={S.itemRemove}
+                          className="dt-item-remove"
                         >
                           ×
                         </button>
@@ -3043,7 +2648,7 @@ export function DataTableView<TRow extends object>({
                   {/* Search box narrows this "add" list only — the active-sorts section above
                     keeps its own priority order and is never hidden by it, since it's a short,
                     already-visible list with its own remove/reorder controls. */}
-                  <div style={S.ddSearchRow}>
+                  <div className="dt-dd-search-row">
                     <DdSearchInput
                       value={ddSearchTerms.sort ?? ''}
                       onChange={(v) => setDdSearchTerms({ ...ddSearchTerms, sort: v })}
@@ -3051,7 +2656,7 @@ export function DataTableView<TRow extends object>({
                       clearLabel={L.clearSearch}
                     />
                   </div>
-                  <div style={S.ddSection}>{L.sortSection}</div>
+                  <div className="dt-dd-section">{L.sortSection}</div>
                   {isSortSearching && searchedFlatAddableSortCols.length === 0 && (
                     <NoMatchingColumns label={L.noMatchingColumns} />
                   )}
@@ -3066,10 +2671,12 @@ export function DataTableView<TRow extends object>({
                             pendingSortFocusKey.current = col.key
                             toggleSort(col.key)
                           }}
-                          style={{ ...S.ddItem, ...S.ddItemButton }}
+                          className="dt-dd-item dt-dd-item--click"
                         >
-                          <span style={{ flex: 1 }}>{col.label}</span>
-                          {col.category && <span style={S.ddItemCategory}>{col.category}</span>}
+                          <span className="dt-flex1">{col.label}</span>
+                          {col.category && (
+                            <span className="dt-dd-item-category">{col.category}</span>
+                          )}
                         </button>
                       ))
                     : [
@@ -3090,9 +2697,9 @@ export function DataTableView<TRow extends object>({
                               pendingSortFocusKey.current = col.key
                               toggleSort(col.key)
                             }}
-                            style={{ ...S.ddItem, ...S.ddItemButton }}
+                            className="dt-dd-item dt-dd-item--click"
                           >
-                            <span style={{ flex: 1 }}>{col.label}</span>
+                            <span className="dt-flex1">{col.label}</span>
                           </button>
                         )),
                         ...categorizedAddableSortCols.categories.map((category) => (
@@ -3115,9 +2722,9 @@ export function DataTableView<TRow extends object>({
                                   pendingSortFocusKey.current = col.key
                                   toggleSort(col.key)
                                 }}
-                                style={{ ...S.ddItem, ...S.ddItemButton }}
+                                className="dt-dd-item dt-dd-item--click"
                               >
-                                <span style={{ flex: 1 }}>{col.label}</span>
+                                <span className="dt-flex1">{col.label}</span>
                               </button>
                             ))}
                           </CategorySubmenu>
@@ -3131,28 +2738,28 @@ export function DataTableView<TRow extends object>({
           {endFirst && toolbarEndEl}
           {/* Divider between the "shape" controls above (Columns/Sort/Group) and the "find"
               controls below (Search/Filter). */}
-          {!endFirst && <span style={S.toolbarDivider} />}
+          {!endFirst && <span className="dt-toolbar-divider" />}
 
           {showSearch !== false && (
-            <span style={S.searchWrap}>
+            <span className="dt-search-wrap">
               <input
                 ref={searchInputRef}
                 type="text"
+                className="dt-search-input"
                 placeholder={L.search}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                style={S.searchInput}
               />
               {searchQuery !== '' && (
                 <button
                   type="button"
+                  className="dt-search-clear"
                   onClick={() => {
                     setSearchQuery('')
                     focusSearch()
                   }}
                   title={L.clearSearch}
                   aria-label={L.clearSearch}
-                  style={S.searchClear}
                 >
                   ×
                 </button>
@@ -3177,7 +2784,7 @@ export function DataTableView<TRow extends object>({
                     onClick={clearFilters}
                     title={L.clearFilters}
                     aria-label={L.clearFilters}
-                    style={S.btnClear}
+                    className="dt-btn-clear"
                   >
                     ×
                   </button>
@@ -3185,14 +2792,11 @@ export function DataTableView<TRow extends object>({
               }
             >
               <div
-                style={narrowFilter ? { ...S.filterPanel, ...S.filterPanelNarrow } : S.filterPanel}
+                className={`dt-filter-panel${narrowFilter ? ' dt-filter-panel--narrow' : ''}`}
                 onKeyDown={handleFilterPanelKeyDown}
               >
                 {(!narrowFilter || !filterShowValues) && (
-                  <div
-                    style={narrowFilter ? { ...S.filterCols, ...S.filterColsNarrow } : S.filterCols}
-                    data-filter-cols
-                  >
+                  <div className="dt-filter-cols" data-filter-cols>
                     {/* Narrows the column list itself — separate from filterSearchTerms, which
                       narrows the *values* shown in the right-hand detail pane for whichever
                       column is currently selected. Order follows filterColOrderKeys (a snapshot
@@ -3205,15 +2809,12 @@ export function DataTableView<TRow extends object>({
                       onChange={(v) => setDdSearchTerms({ ...ddSearchTerms, filter: v })}
                       placeholder={L.filterSearchPlaceholder}
                       clearLabel={L.clearSearch}
-                      extraStyle={S.filterColsSearch}
-                      inputStyle={{ width: 0 }}
+                      filterCols
                     />
                     {searchedFilterableCols.length === 0 && (
                       <NoMatchingColumns label={L.noMatchingColumns} />
                     )}
-                    {categorizedFilterCols.uncategorized.map((col) =>
-                      renderFilterColRow(col, false),
-                    )}
+                    {categorizedFilterCols.uncategorized.map(renderFilterColRow)}
                     {categorizedFilterCols.categories.map((category) => {
                       // While searching, a category only ever renders here at all when it has a
                       // matching column (categorizedFilterCols buckets the already-searched list)
@@ -3225,20 +2826,25 @@ export function DataTableView<TRow extends object>({
                       const isCollapsed =
                         !isFilterColSearching && collapsedCategories.has(category.name)
                       return (
-                        <div key={category.name}>
+                        <div key={category.name} className="dt-filter-category">
                           <button
                             type="button"
+                            className="dt-filter-category-header"
                             data-dd-row
                             data-filter-category-header={category.name}
                             aria-expanded={!isCollapsed}
                             onClick={() => toggleCategoryCollapsed(category.name)}
-                            style={S.filterCategoryHeader}
                           >
-                            <span style={S.filterCategoryToggle}>{isCollapsed ? '▶' : '▼'}</span>
-                            <span style={{ flex: 1 }}>{category.name}</span>
+                            <span className="dt-filter-category-toggle">
+                              {isCollapsed ? '▶' : '▼'}
+                            </span>
+                            <span className="dt-flex1">{category.name}</span>
                           </button>
-                          {!isCollapsed &&
-                            category.columns.map((col) => renderFilterColRow(col, true))}
+                          {!isCollapsed && (
+                            <div className="dt-filter-category-cols">
+                              {category.columns.map(renderFilterColRow)}
+                            </div>
+                          )}
                         </div>
                       )
                     })}
@@ -3247,12 +2853,12 @@ export function DataTableView<TRow extends object>({
                 {narrowFilter && filterShowValues && (
                   <button
                     type="button"
+                    className="dt-dd-item dt-dd-item--click dt-filter-back"
                     data-filter-back
                     onClick={() => {
                       setFilterShowValues(false)
                       pendingFilterColFocusKey.current = filterActiveKey
                     }}
-                    style={{ ...S.ddItemButton, ...S.filterBack }}
                   >
                     ‹ {L.columns} · {filterDetailCol?.label}
                   </button>
@@ -3270,16 +2876,17 @@ export function DataTableView<TRow extends object>({
             </Dropdown>
           )}
 
-          {/* "Clear all" sits alone at the far right of the actions row (marginLeft: 'auto', see
-              S.clearAll) — nothing else in the row needs to reflow when it mounts/unmounts,
+          {/* "Clear all" sits alone at the far right of the actions row (`.dt-clear-all`'s
+              margin-left: auto) — nothing else in the row needs to reflow when it mounts/unmounts,
               unlike the old layout where it sat between search and the stats text. */}
           {hasActiveState && (
             <button
+              type="button"
+              className="dt-btn dt-clear-all"
               onClick={() => {
                 clearAll()
                 focusSearch()
               }}
-              style={S.clearAll}
             >
               {L.clearAll}
             </button>

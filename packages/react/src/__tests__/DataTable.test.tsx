@@ -1353,7 +1353,7 @@ describe('DataTable — toolbarEnd', () => {
     const end = container.querySelector<HTMLElement>('.dt-toolbar-end')!
     expect(end.contains(getByText('Share'))).toBe(true)
     expect(end.parentElement!.lastElementChild).toBe(end)
-    expect(end.style.marginLeft).toBe('auto')
+    expect(getComputedStyle(end).marginLeft).toBe('auto')
   })
 
   it('sits right after "Clear all" when that is shown', () => {
@@ -1363,7 +1363,7 @@ describe('DataTable — toolbarEnd', () => {
     fireEvent.change(getAllByPlaceholderText('Search…')[0], { target: { value: 'ali' } })
     const end = container.querySelector<HTMLElement>('.dt-toolbar-end')!
     expect(end.previousElementSibling?.textContent).toContain('Clear all')
-    expect(end.style.marginLeft).toBe('0px')
+    expect(getComputedStyle(end).marginLeft).toBe('0px')
   })
 
   it('renders no toolbar-end wrapper when toolbarEnd is absent or false', () => {
@@ -1383,7 +1383,7 @@ describe('DataTable — toolbarEnd', () => {
       const end = container.querySelector<HTMLElement>('.dt-toolbar-end')!
       const search = getAllByPlaceholderText('Search…')[0]
       expect(end.compareDocumentPosition(search) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-      expect(end.style.marginLeft).toBe('auto')
+      expect(getComputedStyle(end).marginLeft).toBe('auto')
     } finally {
       restore()
     }
