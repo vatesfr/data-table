@@ -26,6 +26,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ### Fixed
 
 - **Vue styles without a broken import** (Vue): the documented `@vates/data-table-vue/style.css` import pointed at a file the build never emitted. The table now injects its own styles, and the `./style.css` export is gone; drop the import.
+- **Clickable rows in a bare `DataTableView`** (Vue): a `<DataTableView>` given `@row-click` directly shows its rows as clickable (pointer cursor, hover) and lets Enter click them, as `<DataTable>` already did.
 - **Toolbar button edges** (React): the Columns, Group, Sort and Filter buttons no longer show a dark, thick right edge.
 - **The phone Filter pane names its column** (Solid, React, Vue, vanilla): its back button reads "‹ Columns · Tenure (yrs)" instead of "‹ Columns", so the pane says which column it filters.
 - **No empty section headings in the Columns search** (Solid, React, Vue, vanilla): searching the Columns dropdown hides the "Visible columns" or "Available columns" heading when none of its columns match.

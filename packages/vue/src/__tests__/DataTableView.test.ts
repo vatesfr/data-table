@@ -58,6 +58,24 @@ describe('DataTableView', () => {
     expect(wrapper.text()).toContain('Bob')
   })
 
+  it('marks rows clickable when given a @row-click listener directly', () => {
+    const Comp = defineComponent({
+      setup() {
+        const table = useTableState(ROWS, COLS)
+        return () =>
+          h(DataTableView, {
+            table,
+            data: ROWS,
+            columns: COLS,
+            rowKey: 'id',
+            onRowClick: () => {},
+          } as Record<string, unknown>)
+      },
+    })
+    const wrapper = mount(Comp)
+    expect(wrapper.find('tbody tr').classes()).toContain('dt-tr--clickable')
+  })
+
   it("injects core's shared stylesheet once, without theme tokens", () => {
     mountView()
     mountView()

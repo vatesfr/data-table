@@ -54,6 +54,8 @@ const props = withDefaults(defineProps<DataTableViewInternalProps<TRow>>(), {
   rowKey: 'id',
   showSearch: true,
   showColumns: true,
+  // Absent must stay undefined, not cast to false, so a direct @row-click listener is detected
+  rowClickable: undefined,
 })
 
 // The shared stylesheet, without tokens: Vue apps define the --color-* tokens themselves
