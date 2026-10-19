@@ -77,8 +77,8 @@ onUnmounted(() => document.removeEventListener('mousedown', onMousedown))
 
 // The menu is destroyed/recreated by v-if on every open (see template), so each open starts
 // from a fresh, unclamped node — `flush: 'post'` runs this after that node is actually in the
-// DOM. Mutates the node's style directly rather than through reactive state, mirroring the
-// vanilla/React clamp fix. A translateX offset is used for the horizontal case instead of
+// DOM. Flip-up is the `flipUp` ref (the `dt-dd--up` class); the translateX nudge is written to the
+// node's style directly, mirroring the React clamp. A translateX offset is used for the horizontal case instead of
 // flipping left:0 -> right:0, since the overflow is relative to the viewport, not to the
 // trigger.
 watch(
@@ -165,8 +165,7 @@ function onPanelKeydown(e: KeyboardEvent): void {
   <div ref="containerRef" class="dt-dd-wrap">
     <span style="display: inline-flex">
       <span ref="triggerWrapRef" style="display: contents" @click="toggle">
-        <!-- Pass open state to trigger so it can style itself -->
-        <slot name="trigger" :open="isOpen" />
+        <slot name="trigger" />
       </span>
       <!--
         Rendered as a sibling of the trigger — inside the same outside-click boundary as the

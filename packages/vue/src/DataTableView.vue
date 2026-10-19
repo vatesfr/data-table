@@ -1645,7 +1645,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
           <div class="dt-filter-panel" :class="{ 'dt-filter-panel--narrow': narrowFilter }">
             <div v-if="!narrowFilter || !filterShowValues" class="dt-filter-cols" data-filter-cols>
               <!--
-                Search box (sticky within this scrollable pane, see styles below) narrows the
+                Search box (sticky within this scrollable pane, `.dt-filter-cols-search-wrap`) narrows the
                 column list itself — separate from FilterPane's value search, which narrows the
                 *values* shown in the right-hand detail pane. No inherent order to preserve here
                 (unlike the Columns dropdown, this list isn't reorderable), so it's alphabetized

@@ -45,8 +45,7 @@ import { vIndeterminate } from '../directives/vIndeterminate'
 // One column's filter controls — checklist (string, virtualized), range + slider (number), or a
 // Year›Month›Day tree + range + slider (date). Shown by the Filter dropdown's right pane and the
 // header menu's Filter flyout; its view state (value search, value order, shift-click anchor,
-// expanded date nodes) lives here, so render it keyed by column. Styled by DataTableView.vue's
-// `:deep()` rules, like the rest of the Filter dropdown.
+// expanded date nodes) lives here, so render it keyed by column. Styled by core's `DT_STYLES`.
 const props = defineProps<{
   table: TableState<TRow>
   col: ColumnDef<TRow>
