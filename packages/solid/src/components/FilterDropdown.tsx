@@ -9,7 +9,7 @@ import {
 } from 'solid-js'
 import {
   columnHasActiveFilter,
-  orderFilterColumnsByActive,
+  filterOpenState,
   applyColumnOrderSnapshot,
   groupColumnsByCategory,
   columnMatchesSearch,
@@ -24,6 +24,7 @@ import { FilterPane, detailFocusables } from './FilterPane'
 
 export interface FilterDropdownHandle {
   selectColumn: (key: string) => void
+  focusColumn: (key: string) => void
 }
 
 interface FilterDropdownProps<TRow extends object> {
@@ -116,26 +117,17 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
       // because a filter changes while the panel is open — only `props.isOpen`'s own transition
       // to `true` should ever produce a new snapshot.
       untrack(() => {
-        setOrderKeys(
-          orderFilterColumnsByActive(
-            filterableCols(),
-            table.filter.include(),
-            table.filter.exclude(),
-            table.filter.ranges(),
-          ),
+        const state = filterOpenState(
+          filterableCols(),
+          table.filter.include(),
+          table.filter.exclude(),
+          table.filter.ranges(),
+          activeKey(),
         )
-        // Same snapshot-on-open idea as orderKeys above, for the opposite reason: a category
-        // starts collapsed by default (matching Columns/Sort/Group's own CategorySubmenu, which
-        // always starts closed), except one containing an active filter at the moment the panel
-        // opens starts expanded instead — so opening the dropdown never hides the very filter
-        // you're currently using behind a collapsed section with no visual sign why. A snapshot,
-        // not a live recomputation, so toggling a category by hand mid-session isn't overridden
-        // the moment some unrelated filter elsewhere changes (see collapsedCategories' own note).
-        const startCollapsed = new Set<string>()
-        for (const category of groupColumnsByCategory(filterableCols()).categories) {
-          if (!category.columns.some(hasActiveFilter)) startCollapsed.add(category.name)
-        }
-        setCollapsedCategories(startCollapsed)
+        setOrderKeys(state.orderKeys)
+        setCollapsedCategories(state.collapsed)
+        setActiveKey(state.shownKey)
+        setColSearchTerm('')
       })
     }
     wasOpen = open
@@ -181,7 +173,7 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
   let panelEl: HTMLDivElement | undefined
 
   // Selects by state, so neither the column search nor a collapsed category can hide the column
-  // (U25); called by a chip right after opening the panel.
+  // (U25); called by a chip before opening the panel, so the open-time state starts from it.
   function selectColumn(key: string): void {
     setActiveKey(key)
     setColSearchTerm('')
@@ -192,12 +184,14 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
         next.delete(category)
         return next
       })
-    // Queued after Dropdown's own focus-on-open microtask (see Dropdown.tsx), so this one wins
+  }
+  // Called after opening: queued after Dropdown's own focus-on-open microtask, so this one wins
+  function focusColumn(key: string): void {
     queueMicrotask(() =>
       panelEl?.querySelector<HTMLElement>(`[data-filter-col-key="${key}"]`)?.focus(),
     )
   }
-  props.ref?.({ selectColumn })
+  props.ref?.({ selectColumn, focusColumn })
   function isEditableTarget(el: Element | null): boolean {
     return el instanceof HTMLInputElement && ['text', 'number', 'date', 'range'].includes(el.type)
   }
@@ -249,6 +243,7 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
           class={`dt-filter-col-item${isSelected() ? ' dt-filter-col-item--active' : ''}`}
           data-dd-row
           data-filter-col-key={col.key}
+          aria-current={isSelected() || undefined}
           onClick={() => {
             setActiveKey(col.key)
             if (!narrow()) return

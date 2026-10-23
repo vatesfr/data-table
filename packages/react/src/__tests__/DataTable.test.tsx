@@ -2220,6 +2220,69 @@ describe('DataTable — filter column selector keyboard access', () => {
   })
 })
 
+// U36: the pane's column must be named by a visible row
+describe('DataTable — the column the Filter pane opens on', () => {
+  interface CatRow {
+    id: number
+    name: string
+    dept: string
+    score: number
+  }
+  const CAT_COLS: ColumnDef<CatRow>[] = [
+    { key: 'name', label: 'Name' },
+    { key: 'dept', label: 'Dept', category: 'Org' },
+    { key: 'score', label: 'Score', type: 'number', category: 'Org' },
+  ]
+  const CAT_ROWS: CatRow[] = [
+    { id: 1, name: 'Alice', dept: 'Eng', score: 90 },
+    { id: 2, name: 'Bob', dept: 'HR', score: 60 },
+  ]
+  const activeRow = (container: HTMLElement) =>
+    container.querySelector('.dt-filter-col-row--active .dt-filter-col-item')
+  const colItem = (container: HTMLElement, key: string) =>
+    container.querySelector<HTMLElement>(`[data-filter-col-key="${key}"]`)!
+
+  it('reopens on the picked column with its category expanded', () => {
+    const { getByText, container } = render(
+      <DataTable data={CAT_ROWS} columns={CAT_COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Filter'))
+    fireEvent.click(container.querySelector('.dt-filter-category-header')!)
+    fireEvent.click(colItem(container, 'score'))
+    fireEvent.click(getByText('Filter'))
+    fireEvent.click(getByText('Filter'))
+    expect(activeRow(container)?.textContent).toBe('Score')
+    expect(activeRow(container)?.getAttribute('aria-current')).toBe('true')
+    expect(container.querySelector('.dt-range-input')).not.toBeNull()
+  })
+
+  it('opens on a filtered column inside a category, not on an uncategorized one', () => {
+    const { getByText, container } = render(
+      <DataTable
+        data={CAT_ROWS}
+        columns={CAT_COLS}
+        rowKey="id"
+        initialViewState={{ filters: { dept: ['Eng'] } }}
+      />,
+    )
+    fireEvent.click(getByText('Filter'))
+    expect(activeRow(container)?.textContent).toBe('Dept')
+  })
+
+  it('clears the column search on reopen, so it never hides the shown column', () => {
+    const { getByText, container } = render(
+      <DataTable data={CAT_ROWS} columns={CAT_COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Filter'))
+    const search = () => container.querySelector<HTMLInputElement>('.dt-filter-cols-search')!
+    fireEvent.change(search(), { target: { value: 'zzz' } })
+    fireEvent.click(getByText('Filter'))
+    fireEvent.click(getByText('Filter'))
+    expect(search().value).toBe('')
+    expect(activeRow(container)?.textContent).toBe('Name')
+  })
+})
+
 describe('DataTable — filter column ordering & clear button', () => {
   interface OrderRow {
     id: number

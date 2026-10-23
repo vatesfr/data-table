@@ -130,13 +130,16 @@ const CATEGORIZED_COLS: ColumnDef<Row>[] = [
   { key: 'joined', label: 'Joined', filterable: true, type: 'date' },
 ]
 
-function mountCategorized() {
+function mountCategorized(setup?: (table: ReturnType<typeof createTableState<Row>>) => void) {
   const container = document.createElement('div')
   document.body.appendChild(container)
   let table!: ReturnType<typeof createTableState<Row>>
+  let setIsOpen!: (open: boolean) => void
   const dispose = createRoot((d) => {
     table = createTableState(ROWS, CATEGORIZED_COLS)
-    const [isOpen] = createSignal(true)
+    setup?.(table)
+    const [isOpen, setIsOpenSignal] = createSignal(true)
+    setIsOpen = setIsOpenSignal
     render(
       () => (
         <FilterDropdown
@@ -151,7 +154,7 @@ function mountCategorized() {
     )
     return d
   })
-  return { container, table, dispose }
+  return { container, table, dispose, setIsOpen }
 }
 
 describe('FilterDropdown — column categories', () => {
@@ -214,6 +217,44 @@ describe('FilterDropdown — column categories', () => {
     expect(
       [...container.querySelectorAll('.dt-filter-col-item span')].map((s) => s.textContent),
     ).toEqual(['Joined', 'Name', 'Score', 'Dept'])
+    dispose()
+  })
+})
+
+// U36: the pane's column must be named by a visible row
+describe('FilterDropdown — the column the pane opens on', () => {
+  const activeRow = (container: HTMLElement) =>
+    container.querySelector('.dt-filter-col-row--active .dt-filter-col-item')
+  const reopen = (setIsOpen: (open: boolean) => void) => {
+    setIsOpen(false)
+    setIsOpen(true)
+  }
+
+  it('reopens on the picked column with its category expanded', () => {
+    const { container, dispose, setIsOpen } = mountCategorized()
+    container.querySelector<HTMLButtonElement>('.dt-filter-category-header')!.click()
+    selectCol(container, 'Score')
+    reopen(setIsOpen)
+    expect(activeRow(container)?.textContent).toBe('Score')
+    expect(activeRow(container)?.getAttribute('aria-current')).toBe('true')
+    expect(container.querySelector('input[type="text"].dt-range-input')).not.toBeNull()
+    dispose()
+  })
+
+  it('opens on a filtered column inside a category, not on an uncategorized one', () => {
+    const { container, dispose } = mountCategorized((t) => t.filter.cycleValue('dept', 'Eng'))
+    expect(activeRow(container)?.textContent).toBe('Dept')
+    dispose()
+  })
+
+  it('clears the column search on reopen, so it never hides the shown column', () => {
+    const { container, dispose, setIsOpen } = mountCategorized()
+    const search = () => container.querySelector<HTMLInputElement>('.dt-filter-cols input')!
+    search().value = 'zzz'
+    search().dispatchEvent(new Event('input', { bubbles: true }))
+    reopen(setIsOpen)
+    expect(search().value).toBe('')
+    expect(activeRow(container)?.textContent).toBe('Name')
     dispose()
   })
 })

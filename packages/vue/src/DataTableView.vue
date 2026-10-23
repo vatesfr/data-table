@@ -22,7 +22,7 @@ import {
   formatFilterValue,
   rangeChipText,
   columnHasActiveFilter,
-  orderFilterColumnsByActive,
+  filterOpenState,
   applyColumnOrderSnapshot,
   alphabetizedByLabel,
   columnMatchesSearch,
@@ -465,20 +465,17 @@ watch(
   (open, prevOpen) => {
     if (open && !prevOpen) {
       filterShowValues.value = false
-      filterColOrderKeys.value = orderFilterColumnsByActive(
+      const state = filterOpenState(
         filterableCols.value,
         filters.value,
         excludeFilters.value,
         rangeFilters.value,
+        filterActiveCol.value,
       )
-      const startCollapsed = new Set<string>()
-      for (const category of groupColumnsByCategory(filterableCols.value).categories) {
-        const hasActiveInCategory = category.columns.some((c) =>
-          columnHasActiveFilter(c.key, filters.value, excludeFilters.value, rangeFilters.value),
-        )
-        if (!hasActiveInCategory) startCollapsed.add(category.name)
-      }
-      collapsedCategories.value = startCollapsed
+      filterColOrderKeys.value = state.orderKeys
+      collapsedCategories.value = state.collapsed
+      filterActiveCol.value = state.shownKey
+      setDdSearchTerm('filter', '')
     }
   },
 )
@@ -1708,6 +1705,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                     class="dt-filter-col-item"
                     data-dd-row
                     :class="{ 'dt-filter-col-item--active': col.key === filterActiveKey }"
+                    :aria-current="col.key === filterActiveKey || undefined"
                     @focus="onFilterColFocus(col.key)"
                     @click="selectFilterCol(col.key)"
                   >
@@ -1778,6 +1776,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                       class="dt-filter-col-item"
                       data-dd-row
                       :class="{ 'dt-filter-col-item--active': col.key === filterActiveKey }"
+                      :aria-current="col.key === filterActiveKey || undefined"
                       @focus="onFilterColFocus(col.key)"
                       @click="selectFilterCol(col.key)"
                     >

@@ -60,7 +60,7 @@ import {
   chipSeparator,
   formatFilterValue,
   columnHasActiveFilter,
-  orderFilterColumnsByActive,
+  filterOpenState,
   applyColumnOrderSnapshot,
   columnMatchesSearch,
   groupColumnsByCategory,
@@ -1485,17 +1485,17 @@ export function DataTableView<TRow extends object>({
     setPrevOpenFilterDD(openFilterDD)
     if (openFilterDD) {
       setFilterShowValues(false)
-      setFilterColOrderKeys(
-        orderFilterColumnsByActive(filterableCols, filters, excludeFilters, rangeFilters),
+      const state = filterOpenState(
+        filterableCols,
+        filters,
+        excludeFilters,
+        rangeFilters,
+        filterActiveCol,
       )
-      const startCollapsed = new Set<string>()
-      for (const category of groupColumnsByCategory(filterableCols).categories) {
-        const hasActiveInCategory = category.columns.some((c) =>
-          columnHasActiveFilter(c.key, filters, excludeFilters, rangeFilters),
-        )
-        if (!hasActiveInCategory) startCollapsed.add(category.name)
-      }
-      setCollapsedCategories(startCollapsed)
+      setFilterColOrderKeys(state.orderKeys)
+      setCollapsedCategories(state.collapsed)
+      setFilterActiveCol(state.shownKey)
+      setDdSearchTerms((prev) => ({ ...prev, filter: '' }))
     }
   }
   const isFilterColSearching = (ddSearchTerms.filter ?? '').trim() !== ''
@@ -1552,6 +1552,7 @@ export function DataTableView<TRow extends object>({
             pendingFilterValuesFocus.current = true
           }}
           className={`dt-filter-col-item${isActive ? ' dt-filter-col-item--active' : ''}`}
+          aria-current={isActive || undefined}
         >
           <span>{col.label}</span>
         </button>

@@ -250,12 +250,14 @@ export function ddNavFocusables(panel: HTMLElement): HTMLElement[] {
 
 /**
  * Where focus lands when a dropdown opens: its search box (`input[data-dd-search]`), else its
- * first row. On a touch screen (`pointer: coarse`) the first row even when there's a search box:
- * focusing a text field there raises the on-screen keyboard before the user asked to type.
+ * current row (`aria-current`, e.g. the column the Filter pane shows), else its first row. On a
+ * touch screen (`pointer: coarse`) a row even when there's a search box: focusing a text field
+ * there raises the on-screen keyboard before the user asked to type.
  */
 export function ddOpenFocusTarget(panel: HTMLElement): HTMLElement | undefined {
   const touch = typeof window !== 'undefined' && !!window.matchMedia?.('(pointer: coarse)').matches
   const search = panel.querySelector<HTMLElement>('input[data-dd-search]')
   if (search && !touch) return search
-  return ddNavFocusables(panel).find((el) => !el.matches('input[data-dd-search]'))
+  const rows = ddNavFocusables(panel).filter((el) => !el.matches('input[data-dd-search]'))
+  return rows.find((el) => el.matches('[aria-current]')) ?? rows[0]
 }

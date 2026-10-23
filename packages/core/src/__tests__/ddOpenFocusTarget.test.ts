@@ -32,6 +32,14 @@ describe('ddOpenFocusTarget', () => {
     expect(ddOpenFocusTarget(withSearch())?.id).toBe('a')
   })
 
+  it('focuses the current row rather than the first one on a touch screen', () => {
+    coarse(true)
+    const p = panel(
+      '<input data-dd-search><button data-dd-row id="a"></button><button data-dd-row aria-current="true" id="b"></button>',
+    )
+    expect(ddOpenFocusTarget(p)?.id).toBe('b')
+  })
+
   it('focuses the first row without a search box, and nothing on a touch screen with only one', () => {
     coarse(false)
     expect(ddOpenFocusTarget(panel('<button data-dd-row id="a"></button>'))?.id).toBe('a')

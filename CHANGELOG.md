@@ -15,6 +15,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 - **BREAKING (all four adapters):** number columns right-align by default: `type: 'number'` defaults to `align: 'end'`. Set `align: 'start'` to keep one left-aligned (e.g. a number column whose cells render text).
 
+### Fixed
+
+- **The Filter pane names its column** (Solid, React, Vue, vanilla): on open, the shown column's category is expanded and the column search cleared, so a visible row always says which column the pane filters; with nothing picked, a column with an active filter is shown first.
+
 ## [0.19.0] - 2026-10-23
 
 ### Added

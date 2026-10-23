@@ -179,8 +179,9 @@ export function DataTableView<TRow extends object>(props: DataTableViewProps<TRo
           })
         }}
         onOpenFilter={(key) => {
-          setOpenDropdown('filter')
           filterDropdown?.selectColumn(key)
+          setOpenDropdown('filter')
+          filterDropdown?.focusColumn(key)
         }}
       />
       <TableBody

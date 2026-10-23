@@ -1691,6 +1691,32 @@ export function applyColumnOrderSnapshot<TRow extends object>(
 }
 
 /**
+ * The Filter dropdown's state when it opens: its column order snapshot, the column its pane shows
+ * (`pickedKey` while still filterable, else the first column with an active filter, else the
+ * first column) and the categories that start collapsed — those with no active filter, except
+ * the shown column's, so a visible row always names the pane's column (U36).
+ */
+export function filterOpenState<TRow extends object>(
+  columns: ColumnDefBase<TRow>[],
+  filters: Record<string, Set<string>>,
+  excludeFilters: Record<string, Set<string>>,
+  rangeFilters: Record<string, RangeFilter>,
+  pickedKey: string | null,
+): { orderKeys: string[]; shownKey: string | null; collapsed: Set<string> } {
+  const isActive = (c: ColumnDefBase<TRow>) =>
+    columnHasActiveFilter(c.key, filters, excludeFilters, rangeFilters)
+  const orderKeys = orderFilterColumnsByActive(columns, filters, excludeFilters, rangeFilters)
+  const ordered = applyColumnOrderSnapshot(columns, orderKeys)
+  const shown = columns.find((c) => c.key === pickedKey) ?? ordered.find(isActive) ?? columns[0]
+  const collapsed = new Set(
+    groupColumnsByCategory(columns)
+      .categories.filter((cat) => cat.name !== shown?.category && !cat.columns.some(isActive))
+      .map((cat) => cat.name),
+  )
+  return { orderKeys, shownKey: shown?.key ?? null, collapsed }
+}
+
+/**
  * Detects whether a column's values are array-shaped in at least one row of `data` — the same
  * "is this a multi-value column" question `multiValues`/`col.multiMode` answer implicitly at
  * filter/group time, exposed here so a UI can decide whether an any/all toggle is meaningful to

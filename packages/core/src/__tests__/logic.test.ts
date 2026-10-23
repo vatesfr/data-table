@@ -46,6 +46,7 @@ import {
   setFilterMode,
   columnHasActiveFilter,
   orderFilterColumnsByActive,
+  filterOpenState,
   applyColumnOrderSnapshot,
   isMultiValueColumn,
   selectRange,
@@ -2874,6 +2875,42 @@ describe('columnHasActiveFilter', () => {
 
   it('does not confuse one column with another', () => {
     expect(columnHasActiveFilter('score', { dept: new Set(['Eng']) }, {}, {})).toBe(false)
+  })
+})
+
+// ─── filterOpenState (U36) ──────────────────────────────────────────────────
+
+describe('filterOpenState', () => {
+  const COLS = [
+    { key: 'name', label: 'Name' },
+    { key: 'salary', label: 'Salary', category: 'Work' },
+    { key: 'dept', label: 'Dept', category: 'Work' },
+    { key: 'city', label: 'City', category: 'Contact' },
+  ]
+  const open = (pickedKey: string | null, include: Record<string, Set<string>> = {}) =>
+    filterOpenState(COLS, include, {}, {}, pickedKey)
+
+  it('shows the picked column and expands its category', () => {
+    const s = open('salary')
+    expect(s.shownKey).toBe('salary')
+    expect([...s.collapsed]).toEqual(['Contact'])
+  })
+
+  it('shows the first active column, not an uncategorized one listed before it', () => {
+    const s = open(null, { city: new Set(['Paris']) })
+    expect(s.shownKey).toBe('city')
+    expect([...s.collapsed]).toEqual(['Work'])
+  })
+
+  it("falls back once the picked column isn't filterable any more", () => {
+    expect(open('gone').shownKey).toBe('name')
+  })
+
+  it('shows the first column when nothing is picked or active, its category expanded', () => {
+    expect(open(null).shownKey).toBe('name')
+    const categorized = filterOpenState(COLS.slice(1), {}, {}, {}, null)
+    expect(categorized.shownKey).toBe('salary')
+    expect([...categorized.collapsed]).toEqual(['Contact'])
   })
 })
 

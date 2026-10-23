@@ -3800,6 +3800,56 @@ describe('DataTable — Filter dropdown column categories', () => {
   })
 })
 
+// U36: the pane's column must be named by a visible row
+describe('DataTable — the column the Filter pane opens on', () => {
+  const categorizedCols: ColumnDef<Row>[] = [
+    { key: 'name', label: 'Name', filterable: true },
+    { key: 'score', label: 'Score', type: 'number', filterable: true, category: 'Org' },
+    { key: 'id', label: 'Id', type: 'number', filterable: true, category: 'Org' },
+  ]
+  const activeRow = (wrapper: ReturnType<typeof mount>) =>
+    wrapper.find('.dt-filter-col-row--active .dt-filter-col-item')
+
+  it('reopens on the picked column with its category expanded', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS, columns: categorizedCols, rowKey: 'id' },
+    })
+    await openDdByLabel(wrapper, 'Filter')
+    await wrapper.find('[data-filter-category-header="Org"]').trigger('click')
+    await wrapper.find('[data-filter-col-key="score"]').trigger('click')
+    await openDdByLabel(wrapper, 'Filter')
+    await openDdByLabel(wrapper, 'Filter')
+    expect(activeRow(wrapper).text()).toBe('Score')
+    expect(activeRow(wrapper).attributes('aria-current')).toBe('true')
+    expect(wrapper.find('.dt-range-input').exists()).toBe(true)
+  })
+
+  it('opens on a filtered column inside a category, not on an uncategorized one', async () => {
+    const wrapper = mount(DataTable, {
+      props: {
+        data: ROWS,
+        columns: categorizedCols,
+        rowKey: 'id',
+        initialViewState: { rangeFilters: { score: { min: '70', max: '' } } },
+      },
+    })
+    await openDdByLabel(wrapper, 'Filter')
+    expect(activeRow(wrapper).text()).toBe('Score')
+  })
+
+  it('clears the column search on reopen, so it never hides the shown column', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS, columns: categorizedCols, rowKey: 'id' },
+    })
+    await openDdByLabel(wrapper, 'Filter')
+    await wrapper.find('.dt-dd input.dt-dd-search').setValue('zzz')
+    await openDdByLabel(wrapper, 'Filter')
+    await openDdByLabel(wrapper, 'Filter')
+    expect((wrapper.find('.dt-dd input.dt-dd-search').element as HTMLInputElement).value).toBe('')
+    expect(activeRow(wrapper).text()).toBe('Name')
+  })
+})
+
 describe('DataTable — Columns dropdown Visible/Available split', () => {
   interface VRow {
     id: number
