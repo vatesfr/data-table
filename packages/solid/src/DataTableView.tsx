@@ -76,6 +76,17 @@ export function DataTableView<TRow extends object>(props: DataTableViewProps<TRo
   onCleanup(watchMedia(FILTER_NARROW_QUERY, setNarrow))
   // On a phone the toolbar wraps: toolbarEnd ends the first line instead of taking a line of its own.
   const endFirst = () => narrow() && hasToolbarEnd()
+  const showColumns = () => props.showColumns !== false && table.columns.list().length >= 2
+  const hasActiveState = () =>
+    table.sort.entries().length > 0 ||
+    table.filter.activeCount() > 0 ||
+    table.group.by().length > 0 ||
+    table.search.query() !== ''
+  // The divider separates the shape controls from the find ones: only drawn with both sides
+  const hasShapeControls = () =>
+    showColumns() || groupableCols().length > 0 || sortableCols().length > 0
+  const hasFindControls = () =>
+    props.showSearch !== false || filterableCols().length > 0 || hasActiveState()
 
   function toggleDd(id: DropdownId): void {
     setOpenDropdown((cur) => (cur === id ? null : id))
@@ -83,82 +94,77 @@ export function DataTableView<TRow extends object>(props: DataTableViewProps<TRo
 
   return (
     <div class="dt">
-      <div class="dt-toolbar">
-        <div class="dt-toolbar-actions">
-          <Show when={props.showColumns !== false && table.columns.list().length >= 2}>
-            <ColumnsDropdown
-              table={table}
-              columns={table.columns.list()}
-              isOpen={openDropdown() === 'cols'}
-              onToggle={() => toggleDd('cols')}
-              onClose={() => setOpenDropdown(null)}
-            />
-          </Show>
-          {/* Group before Sort — data is grouped first, then ordered (groups themselves, then
+      <Show when={hasShapeControls() || hasFindControls() || hasToolbarEnd()}>
+        <div class="dt-toolbar">
+          <div class="dt-toolbar-actions">
+            <Show when={showColumns()}>
+              <ColumnsDropdown
+                table={table}
+                columns={table.columns.list()}
+                isOpen={openDropdown() === 'cols'}
+                onToggle={() => toggleDd('cols')}
+                onClose={() => setOpenDropdown(null)}
+              />
+            </Show>
+            {/* Group before Sort — data is grouped first, then ordered (groups themselves, then
               rows within them), matching the Sort dropdown's own "Group order" section coming
               before "Active sorts" and the active bar's group-chips-before-sort-chips order. */}
-          <Show when={groupableCols().length > 0}>
-            <GroupDropdown
-              table={table}
-              groupableCols={groupableCols()}
-              isOpen={openDropdown() === 'group'}
-              onToggle={() => toggleDd('group')}
-              onClose={() => setOpenDropdown(null)}
-            />
-          </Show>
-          <Show when={sortableCols().length > 0}>
-            <SortDropdown
-              table={table}
-              columns={table.columns.list()}
-              isOpen={openDropdown() === 'sort'}
-              onToggle={() => toggleDd('sort')}
-              onClose={() => setOpenDropdown(null)}
-            />
-          </Show>
-          <Show when={endFirst()}>
-            <div class="dt-toolbar-end">{toolbarEnd()}</div>
-          </Show>
-          <Show when={!endFirst()}>
-            <span class="dt-toolbar-divider" />
-          </Show>
-          <Show when={props.showSearch !== false}>
-            <SearchBox table={table} />
-          </Show>
-          <Show when={filterableCols().length > 0}>
-            <FilterDropdown
-              ref={(handle) => (filterDropdown = handle)}
-              table={table}
-              columns={table.columns.list()}
-              isOpen={openDropdown() === 'filter'}
-              onToggle={() => toggleDd('filter')}
-              onClose={() => setOpenDropdown(null)}
-            />
-          </Show>
-          <Show
-            when={
-              table.sort.entries().length > 0 ||
-              table.filter.activeCount() > 0 ||
-              table.group.by().length > 0 ||
-              table.search.query() !== ''
-            }
-          >
-            <button
-              type="button"
-              class="dt-btn dt-clear-all"
-              onClick={(e) => {
-                const root = e.currentTarget.closest('.dt')
-                table.clearAll()
-                focusSearch(root)
-              }}
-            >
-              {table.labels().clearAll}
-            </button>
-          </Show>
-          <Show when={hasToolbarEnd() && !endFirst()}>
-            <div class="dt-toolbar-end">{toolbarEnd()}</div>
-          </Show>
+            <Show when={groupableCols().length > 0}>
+              <GroupDropdown
+                table={table}
+                groupableCols={groupableCols()}
+                isOpen={openDropdown() === 'group'}
+                onToggle={() => toggleDd('group')}
+                onClose={() => setOpenDropdown(null)}
+              />
+            </Show>
+            <Show when={sortableCols().length > 0}>
+              <SortDropdown
+                table={table}
+                columns={table.columns.list()}
+                isOpen={openDropdown() === 'sort'}
+                onToggle={() => toggleDd('sort')}
+                onClose={() => setOpenDropdown(null)}
+              />
+            </Show>
+            <Show when={endFirst()}>
+              <div class="dt-toolbar-end">{toolbarEnd()}</div>
+            </Show>
+            <Show when={!endFirst() && hasShapeControls() && hasFindControls()}>
+              <span class="dt-toolbar-divider" />
+            </Show>
+            <Show when={props.showSearch !== false}>
+              <SearchBox table={table} />
+            </Show>
+            <Show when={filterableCols().length > 0}>
+              <FilterDropdown
+                ref={(handle) => (filterDropdown = handle)}
+                table={table}
+                columns={table.columns.list()}
+                isOpen={openDropdown() === 'filter'}
+                onToggle={() => toggleDd('filter')}
+                onClose={() => setOpenDropdown(null)}
+              />
+            </Show>
+            <Show when={hasActiveState()}>
+              <button
+                type="button"
+                class="dt-btn dt-clear-all"
+                onClick={(e) => {
+                  const root = e.currentTarget.closest('.dt')
+                  table.clearAll()
+                  focusSearch(root)
+                }}
+              >
+                {table.labels().clearAll}
+              </button>
+            </Show>
+            <Show when={hasToolbarEnd() && !endFirst()}>
+              <div class="dt-toolbar-end">{toolbarEnd()}</div>
+            </Show>
+          </div>
         </div>
-      </div>
+      </Show>
       <ActiveBar
         table={table}
         columns={table.columns.list()}

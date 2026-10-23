@@ -1662,6 +1662,12 @@ export function DataTableView<TRow extends object>({
     sorts.length > 0 || activeFilterCount > 0 || groupBy.length > 0 || searchQuery !== ''
   const hasAggregates = activeColumns.some((c) => c.aggregate !== undefined)
   const toolbarEndEl = hasToolbarEnd && <div className="dt-toolbar-end">{toolbarEnd}</div>
+  // The divider separates the shape controls from the find ones: only drawn with both sides
+  const hasShapeControls =
+    (showColumns !== false && columns.length >= 2) ||
+    groupableCols.length > 0 ||
+    sortableCols.length > 0
+  const hasFindControls = showSearch !== false || filterableCols.length > 0 || hasActiveState
 
   const formatValue = (v: unknown, row: TRow, col: ColumnDef<TRow>) => {
     if (col.render) return col.render(v, row)
@@ -1791,9 +1797,10 @@ export function DataTableView<TRow extends object>({
 
   return (
     <div className="dt" ref={rootRef}>
-      <div className="dt-toolbar">
-        <div className="dt-toolbar-actions">
-          {/* Columns — "Visible columns" (every shown column, draggable/Alt+↑↓-reorderable, in
+      {(hasShapeControls || hasFindControls || hasToolbarEnd) && (
+        <div className="dt-toolbar">
+          <div className="dt-toolbar-actions">
+            {/* Columns — "Visible columns" (every shown column, draggable/Alt+↑↓-reorderable, in
               real table order) above "Available columns" (hidden columns, click to show; a
               categorized one collapses into a CategorySubmenu). Mirrors the Sort/Group
               active/addable split above — a checkbox no longer fit once "shown" and "hidden"
@@ -1801,451 +1808,454 @@ export function DataTableView<TRow extends object>({
               reason Sort/Group never used one either. Reordering only ever happens within
               Visible — Available is click-only, so nesting it into category submenus (impossible
               for Visible, since submenu rows can't also be a drag surface) creates no conflict. */}
-          {showColumns !== false && columns.length >= 2 && (
-            <Dropdown
-              open={openColsDD}
-              setOpen={setOpenColsDD}
-              trigger={<ToolbarBtn>{L.columns}</ToolbarBtn>}
-              onDragOver={onColRowsDragOver}
-              onDrop={onColRowsDrop}
-            >
-              {/* Pinned at the very top and always mounted (never conditionally rendered based on
+            {showColumns !== false && columns.length >= 2 && (
+              <Dropdown
+                open={openColsDD}
+                setOpen={setOpenColsDD}
+                trigger={<ToolbarBtn>{L.columns}</ToolbarBtn>}
+                onDragOver={onColRowsDragOver}
+                onDrop={onColRowsDrop}
+              >
+                {/* Pinned at the very top and always mounted (never conditionally rendered based on
                 match count) — narrows both this section and Available below. Mounting it
                 unconditionally is what fixes a real bug the old Available-only, gated-on-results
                 version had: a search term matching nothing used to unmount the box itself,
                 dropping focus with no way back short of Escape. */}
-              {searchRow('cols')}
-              {searchedVisibleColumns.length > 0 && (
-                <div className="dt-dd-section">{L.columnsSection}</div>
-              )}
-              {searchedVisibleColumns.map((col) => (
-                // Draggable (+ Alt+↑/↓) reorders columnOrder, skipping hidden columns (moveVisibleBy)
-                // — same treatment as the Sort/Group active rows. dragover/drop are handled at the
-                // Dropdown panel level (see above), not per-row — that's what lets a drop past the
-                // last row still resolve to a valid target. Alt+↑/↓'s own neighbor lookup is scoped
-                // to colsReorderEligible while searching, so it only ever swaps two currently-shown
-                // rows, leaving anything hidden by the filter untouched at its own position.
-                <div
-                  key={col.key}
-                  data-col-row-key={col.key}
-                  data-dd-row
-                  tabIndex={0}
-                  draggable
-                  onDragStart={() => onColRowDragStart(col.key)}
-                  onDragEnd={onColRowDragEnd}
-                  onKeyDown={(e) =>
-                    activeRowKeyDown(
-                      e,
-                      (delta) => {
-                        // Focus drops to <body> after this reorder without an explicit refocus
-                        pendingColFocusKey.current = col.key
-                        moveVisibleColumnBy(col.key, delta, colsReorderEligible)
-                      },
-                      () => hideColumn(col),
-                    )
-                  }
-                  className={`dt-dd-item dt-dd-item--col dt-dd-item--colrow${dragOverClass(dragOverColRowKey === col.key, dragOverColRowAfter)}`}
-                >
-                  {dragHandle}
-                  <span className="dt-flex1">{col.label}</span>
-                  <RemoveButton
-                    label={L.hideColumn}
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      hideColumn(col)
-                    }}
-                  />
-                </div>
-              ))}
-              {searchedVisibleColumns.length === 0 && searchedAvailableColumns.length === 0 && (
-                <NoMatchingColumns label={L.noMatchingColumns} />
-              )}
-              {searchedAvailableColumns.length > 0 && (
-                <>
-                  <div className="dt-dd-section">{L.availableColumnsSection}</div>
-                  {isColsSearching
-                    ? searchedAvailableColumns.map((col) => addColRow(col, true))
-                    : categorizedList(
-                        categorizedAvailableCols,
-                        openColsCategory,
-                        setOpenColsCategory,
-                        addColRow,
-                      )}
-                </>
-              )}
-            </Dropdown>
-          )}
+                {searchRow('cols')}
+                {searchedVisibleColumns.length > 0 && (
+                  <div className="dt-dd-section">{L.columnsSection}</div>
+                )}
+                {searchedVisibleColumns.map((col) => (
+                  // Draggable (+ Alt+↑/↓) reorders columnOrder, skipping hidden columns (moveVisibleBy)
+                  // — same treatment as the Sort/Group active rows. dragover/drop are handled at the
+                  // Dropdown panel level (see above), not per-row — that's what lets a drop past the
+                  // last row still resolve to a valid target. Alt+↑/↓'s own neighbor lookup is scoped
+                  // to colsReorderEligible while searching, so it only ever swaps two currently-shown
+                  // rows, leaving anything hidden by the filter untouched at its own position.
+                  <div
+                    key={col.key}
+                    data-col-row-key={col.key}
+                    data-dd-row
+                    tabIndex={0}
+                    draggable
+                    onDragStart={() => onColRowDragStart(col.key)}
+                    onDragEnd={onColRowDragEnd}
+                    onKeyDown={(e) =>
+                      activeRowKeyDown(
+                        e,
+                        (delta) => {
+                          // Focus drops to <body> after this reorder without an explicit refocus
+                          pendingColFocusKey.current = col.key
+                          moveVisibleColumnBy(col.key, delta, colsReorderEligible)
+                        },
+                        () => hideColumn(col),
+                      )
+                    }
+                    className={`dt-dd-item dt-dd-item--col dt-dd-item--colrow${dragOverClass(dragOverColRowKey === col.key, dragOverColRowAfter)}`}
+                  >
+                    {dragHandle}
+                    <span className="dt-flex1">{col.label}</span>
+                    <RemoveButton
+                      label={L.hideColumn}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        hideColumn(col)
+                      }}
+                    />
+                  </div>
+                ))}
+                {searchedVisibleColumns.length === 0 && searchedAvailableColumns.length === 0 && (
+                  <NoMatchingColumns label={L.noMatchingColumns} />
+                )}
+                {searchedAvailableColumns.length > 0 && (
+                  <>
+                    <div className="dt-dd-section">{L.availableColumnsSection}</div>
+                    {isColsSearching
+                      ? searchedAvailableColumns.map((col) => addColRow(col, true))
+                      : categorizedList(
+                          categorizedAvailableCols,
+                          openColsCategory,
+                          setOpenColsCategory,
+                          addColRow,
+                        )}
+                  </>
+                )}
+              </Dropdown>
+            )}
 
-          {/* Group before Sort — data is grouped first, then ordered (groups themselves, then
+            {/* Group before Sort — data is grouped first, then ordered (groups themselves, then
               rows within them), matching the Sort dropdown's own "Group order" section coming
               before "Active sorts" and the active bar's group-chips-before-sort-chips order.
               Both still "shape" the view (vs. Search/Filter narrowing it below) — see the
               divider below. */}
-          {groupableCols.length > 0 && (
-            <Dropdown
-              open={openGroupDD}
-              setOpen={setOpenGroupDD}
-              trigger={<ToolbarBtn active={groupBy.length > 0}>{L.group}</ToolbarBtn>}
-              extraTrigger={clearButton(groupBy.length > 0, L.clearGroups, clearGroups)}
-              onDragOver={onGroupRowsDragOver}
-              onDrop={onGroupRowsDrop}
-            >
-              {groupBy.length > 0 && (
-                <>
-                  <div className="dt-dd-section">{L.activeGroupsSection}</div>
-                  {groupBy.map((key, i) => {
-                    const col = groupableCols.find((c) => c.key === key)
-                    return (
-                      // Same treatment as the Sort active rows, minus a click action — a group
-                      // entry has nothing to toggle (no direction), so the row is
-                      // draggable/focusable purely for reordering (drag, or Alt+↑/↓ when
-                      // focused); `×` remove is the only button. dragover/drop are handled at
-                      // the Dropdown panel level (see above), not per-row — that's what lets a
-                      // drop past the last row still resolve to a valid target.
-                      <div
-                        key={key}
-                        data-group-key={key}
-                        data-dd-row
-                        draggable
-                        tabIndex={0}
-                        onDragStart={() => onGroupRowDragStart(key)}
-                        onDragEnd={onGroupRowDragEnd}
-                        onKeyDown={(e) =>
-                          activeRowKeyDown(
-                            e,
-                            (delta) => moveGroupBy(key, delta),
-                            () => {
+            {groupableCols.length > 0 && (
+              <Dropdown
+                open={openGroupDD}
+                setOpen={setOpenGroupDD}
+                trigger={<ToolbarBtn active={groupBy.length > 0}>{L.group}</ToolbarBtn>}
+                extraTrigger={clearButton(groupBy.length > 0, L.clearGroups, clearGroups)}
+                onDragOver={onGroupRowsDragOver}
+                onDrop={onGroupRowsDrop}
+              >
+                {groupBy.length > 0 && (
+                  <>
+                    <div className="dt-dd-section">{L.activeGroupsSection}</div>
+                    {groupBy.map((key, i) => {
+                      const col = groupableCols.find((c) => c.key === key)
+                      return (
+                        // Same treatment as the Sort active rows, minus a click action — a group
+                        // entry has nothing to toggle (no direction), so the row is
+                        // draggable/focusable purely for reordering (drag, or Alt+↑/↓ when
+                        // focused); `×` remove is the only button. dragover/drop are handled at
+                        // the Dropdown panel level (see above), not per-row — that's what lets a
+                        // drop past the last row still resolve to a valid target.
+                        <div
+                          key={key}
+                          data-group-key={key}
+                          data-dd-row
+                          draggable
+                          tabIndex={0}
+                          onDragStart={() => onGroupRowDragStart(key)}
+                          onDragEnd={onGroupRowDragEnd}
+                          onKeyDown={(e) =>
+                            activeRowKeyDown(
+                              e,
+                              (delta) => moveGroupBy(key, delta),
+                              () => {
+                                pendingGroupFocusKey.current = key
+                                removeGroup(key)
+                              },
+                            )
+                          }
+                          className={`dt-dd-item dt-dd-item--col dt-dd-item--grouprow${dragOverClass(dragOverGroupKey === key, dragOverGroupAfter)}`}
+                        >
+                          {dragHandle}
+                          <span className="dt-sort-idx">{i + 1}</span>
+                          <span className="dt-flex1">{col?.label ?? key}</span>
+                          <RemoveButton
+                            label={L.removeGroup(col?.label ?? key)}
+                            onClick={() => {
+                              // Same reasoning as Sort's remove-focus hand-off above.
                               pendingGroupFocusKey.current = key
                               removeGroup(key)
-                            },
-                          )
-                        }
-                        className={`dt-dd-item dt-dd-item--col dt-dd-item--grouprow${dragOverClass(dragOverGroupKey === key, dragOverGroupAfter)}`}
-                      >
-                        {dragHandle}
-                        <span className="dt-sort-idx">{i + 1}</span>
-                        <span className="dt-flex1">{col?.label ?? key}</span>
-                        <RemoveButton
-                          label={L.removeGroup(col?.label ?? key)}
-                          onClick={() => {
-                            // Same reasoning as Sort's remove-focus hand-off above.
-                            pendingGroupFocusKey.current = key
-                            removeGroup(key)
-                          }}
-                        />
-                      </div>
-                    )
-                  })}
-                </>
-              )}
-              {addableGroupCols.length > 0 && (
-                <>
-                  {/* Same search + alphabetize treatment as Sort's add list above, for the same
+                            }}
+                          />
+                        </div>
+                      )
+                    })}
+                  </>
+                )}
+                {addableGroupCols.length > 0 && (
+                  <>
+                    {/* Same search + alphabetize treatment as Sort's add list above, for the same
                       reason. */}
-                  {searchRow('group')}
-                  <div className="dt-dd-section">{L.groupSection}</div>
-                  {isGroupSearching && searchedFlatAddableGroupCols.length === 0 && (
-                    <NoMatchingColumns label={L.noMatchingColumns} />
-                  )}
-                  {isGroupSearching
-                    ? searchedFlatAddableGroupCols.map((col) => addGroupRow(col, true))
-                    : categorizedList(
-                        categorizedAddableGroupCols,
-                        openGroupCategory,
-                        setOpenGroupCategory,
-                        addGroupRow,
-                      )}
-                </>
-              )}
-            </Dropdown>
-          )}
+                    {searchRow('group')}
+                    <div className="dt-dd-section">{L.groupSection}</div>
+                    {isGroupSearching && searchedFlatAddableGroupCols.length === 0 && (
+                      <NoMatchingColumns label={L.noMatchingColumns} />
+                    )}
+                    {isGroupSearching
+                      ? searchedFlatAddableGroupCols.map((col) => addGroupRow(col, true))
+                      : categorizedList(
+                          categorizedAddableGroupCols,
+                          openGroupCategory,
+                          setOpenGroupCategory,
+                          addGroupRow,
+                        )}
+                  </>
+                )}
+              </Dropdown>
+            )}
 
-          {/* Sort */}
-          {sortableCols.length > 0 && (
-            <Dropdown
-              open={openSortDD}
-              setOpen={setOpenSortDD}
-              trigger={<ToolbarBtn active={sorts.length > 0}>{L.sort}</ToolbarBtn>}
-              extraTrigger={clearButton(sorts.length > 0, L.clearSorts, clearSorts)}
-              onDragOver={onSortRowsDragOver}
-              onDrop={onSortRowsDrop}
-            >
-              {groupSortEntries.length > 0 && (
-                <>
-                  <div className="dt-dd-section">{L.groupOrderSection}</div>
-                  <div className="dt-dd-hint">{L.groupOrderHint}</div>
-                  {groupSortEntries.map((entry, i) => {
-                    const col = columns.find((c) => c.key === entry.key)
-                    // Not draggable, no Alt+↑/↓ reorder — nesting order always follows groupBy's
-                    // own order (see the Group dropdown), so reordering here would be a no-op;
-                    // direction is still toggleable/removable in place, same as any other entry.
-                    return (
-                      <div
-                        key={entry.key}
-                        tabIndex={0}
-                        onClick={() => toggleSortDir(entry.key)}
-                        onKeyDown={(e) =>
-                          activeRowKeyDown(
-                            e,
-                            undefined,
-                            () => {
+            {/* Sort */}
+            {sortableCols.length > 0 && (
+              <Dropdown
+                open={openSortDD}
+                setOpen={setOpenSortDD}
+                trigger={<ToolbarBtn active={sorts.length > 0}>{L.sort}</ToolbarBtn>}
+                extraTrigger={clearButton(sorts.length > 0, L.clearSorts, clearSorts)}
+                onDragOver={onSortRowsDragOver}
+                onDrop={onSortRowsDrop}
+              >
+                {groupSortEntries.length > 0 && (
+                  <>
+                    <div className="dt-dd-section">{L.groupOrderSection}</div>
+                    <div className="dt-dd-hint">{L.groupOrderHint}</div>
+                    {groupSortEntries.map((entry, i) => {
+                      const col = columns.find((c) => c.key === entry.key)
+                      // Not draggable, no Alt+↑/↓ reorder — nesting order always follows groupBy's
+                      // own order (see the Group dropdown), so reordering here would be a no-op;
+                      // direction is still toggleable/removable in place, same as any other entry.
+                      return (
+                        <div
+                          key={entry.key}
+                          tabIndex={0}
+                          onClick={() => toggleSortDir(entry.key)}
+                          onKeyDown={(e) =>
+                            activeRowKeyDown(
+                              e,
+                              undefined,
+                              () => {
+                                pendingSortFocusKey.current = entry.key
+                                removeSort(entry.key)
+                              },
+                              () => toggleSortDir(entry.key),
+                            )
+                          }
+                          className="dt-dd-item dt-dd-item--col dt-dd-item--sortrow dt-dd-item--locked"
+                        >
+                          <span className="dt-sort-idx">{i + 1}</span>
+                          <span className="dt-flex1">{col?.label ?? entry.key}</span>
+                          <span className="dt-sort-icon dt-sort-icon--active">
+                            {getSortIcon(entry.key)}
+                          </span>
+                          <RemoveButton
+                            label={L.removeSort(col?.label ?? entry.key)}
+                            onClick={(e) => {
+                              e.stopPropagation()
                               pendingSortFocusKey.current = entry.key
                               removeSort(entry.key)
-                            },
-                            () => toggleSortDir(entry.key),
-                          )
-                        }
-                        className="dt-dd-item dt-dd-item--col dt-dd-item--sortrow dt-dd-item--locked"
-                      >
-                        <span className="dt-sort-idx">{i + 1}</span>
-                        <span className="dt-flex1">{col?.label ?? entry.key}</span>
-                        <span className="dt-sort-icon dt-sort-icon--active">
-                          {getSortIcon(entry.key)}
-                        </span>
-                        <RemoveButton
-                          label={L.removeSort(col?.label ?? entry.key)}
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            pendingSortFocusKey.current = entry.key
-                            removeSort(entry.key)
-                          }}
-                        />
-                      </div>
-                    )
-                  })}
-                </>
-              )}
-              {nonGroupSortEntries.length > 0 && (
-                <>
-                  <div className="dt-dd-section">{L.activeSortsSection}</div>
-                  {nonGroupSortEntries.map((entry, i) => {
-                    const col = columns.find((c) => c.key === entry.key)
-                    return (
-                      // The whole row is the click target (toggles direction) and the drag source
-                      // (reorder priority); `×` stays a separate <button> (draggable=false so
-                      // starting a drag from it doesn't also drag the row) since removing isn't
-                      // something a row click/drag should ever trigger. tabIndex + onKeyDown give
-                      // it Alt+↑/↓ reorder and Enter/Space-to-toggle from the keyboard — a plain
-                      // div gets no free keyboard activation the way a real <button> would (unlike
-                      // the add-list below, which doesn't need custom keyboard handling).
-                      // dragover/drop are handled at the Dropdown panel level (see above), not
-                      // per-row — that's what lets a drop past the last row still resolve to a
-                      // valid target.
-                      <div
-                        key={entry.key}
-                        data-sort-key={entry.key}
-                        data-dd-row
-                        draggable
-                        tabIndex={0}
-                        onDragStart={() => onSortRowDragStart(entry.key)}
-                        onDragEnd={onSortRowDragEnd}
-                        onClick={() => toggleSortDir(entry.key)}
-                        onKeyDown={(e) =>
-                          activeRowKeyDown(
-                            e,
-                            (delta) => {
-                              // Swap within this non-group subset (by key), not the raw sorts
-                              // array, where a group entry can sit between two non-group ones
-                              const neighbor = nonGroupSortEntries[i + delta]
-                              if (neighbor) moveSort(entry.key, neighbor.key, delta > 0)
-                            },
-                            () => {
+                            }}
+                          />
+                        </div>
+                      )
+                    })}
+                  </>
+                )}
+                {nonGroupSortEntries.length > 0 && (
+                  <>
+                    <div className="dt-dd-section">{L.activeSortsSection}</div>
+                    {nonGroupSortEntries.map((entry, i) => {
+                      const col = columns.find((c) => c.key === entry.key)
+                      return (
+                        // The whole row is the click target (toggles direction) and the drag source
+                        // (reorder priority); `×` stays a separate <button> (draggable=false so
+                        // starting a drag from it doesn't also drag the row) since removing isn't
+                        // something a row click/drag should ever trigger. tabIndex + onKeyDown give
+                        // it Alt+↑/↓ reorder and Enter/Space-to-toggle from the keyboard — a plain
+                        // div gets no free keyboard activation the way a real <button> would (unlike
+                        // the add-list below, which doesn't need custom keyboard handling).
+                        // dragover/drop are handled at the Dropdown panel level (see above), not
+                        // per-row — that's what lets a drop past the last row still resolve to a
+                        // valid target.
+                        <div
+                          key={entry.key}
+                          data-sort-key={entry.key}
+                          data-dd-row
+                          draggable
+                          tabIndex={0}
+                          onDragStart={() => onSortRowDragStart(entry.key)}
+                          onDragEnd={onSortRowDragEnd}
+                          onClick={() => toggleSortDir(entry.key)}
+                          onKeyDown={(e) =>
+                            activeRowKeyDown(
+                              e,
+                              (delta) => {
+                                // Swap within this non-group subset (by key), not the raw sorts
+                                // array, where a group entry can sit between two non-group ones
+                                const neighbor = nonGroupSortEntries[i + delta]
+                                if (neighbor) moveSort(entry.key, neighbor.key, delta > 0)
+                              },
+                              () => {
+                                pendingSortFocusKey.current = entry.key
+                                removeSort(entry.key)
+                              },
+                              () => toggleSortDir(entry.key),
+                            )
+                          }
+                          className={`dt-dd-item dt-dd-item--col dt-dd-item--sortrow${dragOverClass(dragOverSortKey === entry.key, dragOverSortAfter)}`}
+                        >
+                          {dragHandle}
+                          <span className="dt-sort-idx">{i + 1}</span>
+                          <span className="dt-flex1">{col?.label ?? entry.key}</span>
+                          <span className="dt-sort-icon dt-sort-icon--active">
+                            {getSortIcon(entry.key)}
+                          </span>
+                          <RemoveButton
+                            label={L.removeSort(col?.label ?? entry.key)}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              // Removing this entry unmounts this whole row (a different JSX subtree
+                              // than the addable button it's about to become again — see
+                              // pendingSortFocusKey above), so focus needs an explicit hand-off.
                               pendingSortFocusKey.current = entry.key
                               removeSort(entry.key)
-                            },
-                            () => toggleSortDir(entry.key),
-                          )
-                        }
-                        className={`dt-dd-item dt-dd-item--col dt-dd-item--sortrow${dragOverClass(dragOverSortKey === entry.key, dragOverSortAfter)}`}
-                      >
-                        {dragHandle}
-                        <span className="dt-sort-idx">{i + 1}</span>
-                        <span className="dt-flex1">{col?.label ?? entry.key}</span>
-                        <span className="dt-sort-icon dt-sort-icon--active">
-                          {getSortIcon(entry.key)}
-                        </span>
-                        <RemoveButton
-                          label={L.removeSort(col?.label ?? entry.key)}
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            // Removing this entry unmounts this whole row (a different JSX subtree
-                            // than the addable button it's about to become again — see
-                            // pendingSortFocusKey above), so focus needs an explicit hand-off.
-                            pendingSortFocusKey.current = entry.key
-                            removeSort(entry.key)
-                          }}
-                        />
-                      </div>
-                    )
-                  })}
-                </>
-              )}
-              {addableSortCols.length > 0 && (
-                <>
-                  {/* Search box narrows this "add" list only — the active-sorts section above
+                            }}
+                          />
+                        </div>
+                      )
+                    })}
+                  </>
+                )}
+                {addableSortCols.length > 0 && (
+                  <>
+                    {/* Search box narrows this "add" list only — the active-sorts section above
                     keeps its own priority order and is never hidden by it, since it's a short,
                     already-visible list with its own remove/reorder controls. */}
-                  {searchRow('sort')}
-                  <div className="dt-dd-section">{L.sortSection}</div>
-                  {isSortSearching && searchedFlatAddableSortCols.length === 0 && (
-                    <NoMatchingColumns label={L.noMatchingColumns} />
-                  )}
-                  {isSortSearching
-                    ? searchedFlatAddableSortCols.map((col) => addSortRow(col, true))
-                    : categorizedList(
-                        categorizedAddableSortCols,
-                        openSortCategory,
-                        setOpenSortCategory,
-                        addSortRow,
-                      )}
-                </>
-              )}
-            </Dropdown>
-          )}
+                    {searchRow('sort')}
+                    <div className="dt-dd-section">{L.sortSection}</div>
+                    {isSortSearching && searchedFlatAddableSortCols.length === 0 && (
+                      <NoMatchingColumns label={L.noMatchingColumns} />
+                    )}
+                    {isSortSearching
+                      ? searchedFlatAddableSortCols.map((col) => addSortRow(col, true))
+                      : categorizedList(
+                          categorizedAddableSortCols,
+                          openSortCategory,
+                          setOpenSortCategory,
+                          addSortRow,
+                        )}
+                  </>
+                )}
+              </Dropdown>
+            )}
 
-          {endFirst && toolbarEndEl}
-          {/* Divider between the "shape" controls above (Columns/Sort/Group) and the "find"
+            {endFirst && toolbarEndEl}
+            {/* Divider between the "shape" controls above (Columns/Sort/Group) and the "find"
               controls below (Search/Filter). */}
-          {!endFirst && <span className="dt-toolbar-divider" />}
+            {!endFirst && hasShapeControls && hasFindControls && (
+              <span className="dt-toolbar-divider" />
+            )}
 
-          {showSearch !== false && (
-            <span className="dt-search-wrap">
-              <input
-                ref={searchInputRef}
-                type="text"
-                className="dt-search-input"
-                placeholder={L.search}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-              {searchQuery !== '' && (
-                <button
-                  type="button"
-                  className="dt-search-clear"
-                  onClick={() => {
-                    setSearchQuery('')
-                    focusSearch()
-                  }}
-                  title={L.clearSearch}
-                  aria-label={L.clearSearch}
-                >
-                  ×
-                </button>
-              )}
-            </span>
-          )}
+            {showSearch !== false && (
+              <span className="dt-search-wrap">
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  className="dt-search-input"
+                  placeholder={L.search}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+                {searchQuery !== '' && (
+                  <button
+                    type="button"
+                    className="dt-search-clear"
+                    onClick={() => {
+                      setSearchQuery('')
+                      focusSearch()
+                    }}
+                    title={L.clearSearch}
+                    aria-label={L.clearSearch}
+                  >
+                    ×
+                  </button>
+                )}
+              </span>
+            )}
 
-          {/* Filter */}
-          {filterableCols.length > 0 && (
-            <Dropdown
-              open={openFilterDD}
-              setOpen={setOpenFilterDD}
-              trigger={<ToolbarBtn active={activeFilterCount > 0}>{L.filter}</ToolbarBtn>}
-              extraTrigger={clearButton(activeFilterCount > 0, L.clearFilters, clearFilters)}
-            >
-              <div
-                className={`dt-filter-panel${narrowFilter ? ' dt-filter-panel--narrow' : ''}`}
-                onKeyDown={handleFilterPanelKeyDown}
+            {/* Filter */}
+            {filterableCols.length > 0 && (
+              <Dropdown
+                open={openFilterDD}
+                setOpen={setOpenFilterDD}
+                trigger={<ToolbarBtn active={activeFilterCount > 0}>{L.filter}</ToolbarBtn>}
+                extraTrigger={clearButton(activeFilterCount > 0, L.clearFilters, clearFilters)}
               >
-                {(!narrowFilter || !filterShowValues) && (
-                  <div className="dt-filter-cols" data-filter-cols>
-                    {/* Narrows the column list itself — separate from filterSearchTerms, which
+                <div
+                  className={`dt-filter-panel${narrowFilter ? ' dt-filter-panel--narrow' : ''}`}
+                  onKeyDown={handleFilterPanelKeyDown}
+                >
+                  {(!narrowFilter || !filterShowValues) && (
+                    <div className="dt-filter-cols" data-filter-cols>
+                      {/* Narrows the column list itself — separate from filterSearchTerms, which
                       narrows the *values* shown in the right-hand detail pane for whichever
                       column is currently selected. Order follows filterColOrderKeys (a snapshot
                       taken when the dropdown opens — active-filter columns first, then the rest,
                       alphabetized within each group) instead of a plain alphabetize, since
                       active-filter columns are the ones most worth finding at a glance in a long
                       list. */}
-                    <DdSearchInput
-                      value={ddSearchTerms.filter ?? ''}
-                      onChange={(v) => setDdSearchTerms({ ...ddSearchTerms, filter: v })}
-                      placeholder={L.filterSearchPlaceholder}
-                      clearLabel={L.clearSearch}
-                      filterCols
+                      <DdSearchInput
+                        value={ddSearchTerms.filter ?? ''}
+                        onChange={(v) => setDdSearchTerms({ ...ddSearchTerms, filter: v })}
+                        placeholder={L.filterSearchPlaceholder}
+                        clearLabel={L.clearSearch}
+                        filterCols
+                      />
+                      {searchedFilterableCols.length === 0 && (
+                        <NoMatchingColumns label={L.noMatchingColumns} />
+                      )}
+                      {categorizedFilterCols.uncategorized.map(renderFilterColRow)}
+                      {categorizedFilterCols.categories.map((category) => {
+                        // While searching, a category only ever renders here at all when it has a
+                        // matching column (categorizedFilterCols buckets the already-searched list)
+                        // — so force it open rather than let a stale collapsed snapshot hide the very
+                        // match the search just surfaced, with no visible sign it's there.
+                        // collapsedCategories itself is left untouched: clearing the search reverts
+                        // to whatever collapse state the user had (manually toggled, or the open-time
+                        // snapshot), exactly as before this fix.
+                        const isCollapsed =
+                          !isFilterColSearching && collapsedCategories.has(category.name)
+                        return (
+                          <div key={category.name} className="dt-filter-category">
+                            <button
+                              type="button"
+                              className="dt-filter-category-header"
+                              data-dd-row
+                              data-filter-category-header={category.name}
+                              aria-expanded={!isCollapsed}
+                              onClick={() => toggleCategoryCollapsed(category.name)}
+                            >
+                              <span className="dt-filter-category-toggle">
+                                {isCollapsed ? '▶' : '▼'}
+                              </span>
+                              <span className="dt-flex1">{category.name}</span>
+                            </button>
+                            {!isCollapsed && (
+                              <div className="dt-filter-category-cols">
+                                {category.columns.map(renderFilterColRow)}
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                  {narrowFilter && filterShowValues && (
+                    <button
+                      type="button"
+                      className="dt-dd-item dt-dd-item--click dt-filter-back"
+                      data-filter-back
+                      onClick={() => {
+                        setFilterShowValues(false)
+                        pendingFilterColFocusKey.current = filterActiveKey
+                      }}
+                    >
+                      ‹ {L.columns} · {filterDetailCol?.label}
+                    </button>
+                  )}
+                  {filterDetailCol && (!narrowFilter || filterShowValues) && (
+                    <FilterPane
+                      key={filterDetailCol.key}
+                      table={table}
+                      data={data}
+                      columns={columns}
+                      col={filterDetailCol}
                     />
-                    {searchedFilterableCols.length === 0 && (
-                      <NoMatchingColumns label={L.noMatchingColumns} />
-                    )}
-                    {categorizedFilterCols.uncategorized.map(renderFilterColRow)}
-                    {categorizedFilterCols.categories.map((category) => {
-                      // While searching, a category only ever renders here at all when it has a
-                      // matching column (categorizedFilterCols buckets the already-searched list)
-                      // — so force it open rather than let a stale collapsed snapshot hide the very
-                      // match the search just surfaced, with no visible sign it's there.
-                      // collapsedCategories itself is left untouched: clearing the search reverts
-                      // to whatever collapse state the user had (manually toggled, or the open-time
-                      // snapshot), exactly as before this fix.
-                      const isCollapsed =
-                        !isFilterColSearching && collapsedCategories.has(category.name)
-                      return (
-                        <div key={category.name} className="dt-filter-category">
-                          <button
-                            type="button"
-                            className="dt-filter-category-header"
-                            data-dd-row
-                            data-filter-category-header={category.name}
-                            aria-expanded={!isCollapsed}
-                            onClick={() => toggleCategoryCollapsed(category.name)}
-                          >
-                            <span className="dt-filter-category-toggle">
-                              {isCollapsed ? '▶' : '▼'}
-                            </span>
-                            <span className="dt-flex1">{category.name}</span>
-                          </button>
-                          {!isCollapsed && (
-                            <div className="dt-filter-category-cols">
-                              {category.columns.map(renderFilterColRow)}
-                            </div>
-                          )}
-                        </div>
-                      )
-                    })}
-                  </div>
-                )}
-                {narrowFilter && filterShowValues && (
-                  <button
-                    type="button"
-                    className="dt-dd-item dt-dd-item--click dt-filter-back"
-                    data-filter-back
-                    onClick={() => {
-                      setFilterShowValues(false)
-                      pendingFilterColFocusKey.current = filterActiveKey
-                    }}
-                  >
-                    ‹ {L.columns} · {filterDetailCol?.label}
-                  </button>
-                )}
-                {filterDetailCol && (!narrowFilter || filterShowValues) && (
-                  <FilterPane
-                    key={filterDetailCol.key}
-                    table={table}
-                    data={data}
-                    columns={columns}
-                    col={filterDetailCol}
-                  />
-                )}
-              </div>
-            </Dropdown>
-          )}
+                  )}
+                </div>
+              </Dropdown>
+            )}
 
-          {/* "Clear all" sits alone at the far right of the actions row (`.dt-clear-all`'s
+            {/* "Clear all" sits alone at the far right of the actions row (`.dt-clear-all`'s
               margin-left: auto) — nothing else in the row needs to reflow when it mounts/unmounts,
               unlike the old layout where it sat between search and the stats text. */}
-          {hasActiveState && (
-            <button
-              type="button"
-              className="dt-btn dt-clear-all"
-              onClick={() => {
-                clearAll()
-                focusSearch()
-              }}
-            >
-              {L.clearAll}
-            </button>
-          )}
-          {!endFirst && toolbarEndEl}
+            {hasActiveState && (
+              <button
+                type="button"
+                className="dt-btn dt-clear-all"
+                onClick={() => {
+                  clearAll()
+                  focusSearch()
+                }}
+              >
+                {L.clearAll}
+              </button>
+            )}
+            {!endFirst && toolbarEndEl}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Active state bar — always rendered (even with nothing active) rather than only
           appearing once a filter is set — this gives the row-count stats a single stable home

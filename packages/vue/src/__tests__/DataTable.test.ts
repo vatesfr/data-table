@@ -1660,6 +1660,48 @@ describe('DataTable — currentRow', () => {
   })
 })
 
+describe('DataTable — empty toolbar', () => {
+  const BARE: ColumnDef<Row>[] = [
+    { key: 'name', label: 'Name', sortable: false, filterable: false },
+  ]
+  const SORT_ONLY: ColumnDef<Row>[] = [{ key: 'name', label: 'Name', filterable: false }]
+
+  it('renders no toolbar when no control applies', () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS, columns: BARE, rowKey: 'id', showSearch: false },
+    })
+    expect(wrapper.find('.dt-toolbar').exists()).toBe(false)
+    expect(wrapper.find('.dt-active-bar').exists()).toBe(true)
+  })
+
+  it('renders it for the toolbar-end slot or a restored state to clear, without a lone divider', () => {
+    const withEnd = mount(DataTable, {
+      props: { data: ROWS, columns: BARE, rowKey: 'id', showSearch: false },
+      slots: { 'toolbar-end': '<button class="share">Share</button>' },
+    })
+    expect(withEnd.find('.dt-toolbar-end').exists()).toBe(true)
+    expect(withEnd.find('.dt-toolbar-divider').exists()).toBe(false)
+    const restored = mount(DataTable, {
+      props: {
+        data: ROWS,
+        columns: BARE,
+        rowKey: 'id',
+        showSearch: false,
+        initialViewState: { searchQuery: 'a' },
+      },
+    })
+    expect(restored.find('.dt-clear-all').exists()).toBe(true)
+  })
+
+  it('draws the divider only with controls on both sides', () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS, columns: SORT_ONLY, rowKey: 'id', showSearch: false },
+    })
+    expect(wrapper.find('.dt-toolbar').exists()).toBe(true)
+    expect(wrapper.find('.dt-toolbar-divider').exists()).toBe(false)
+  })
+})
+
 describe('DataTable — toolbar-end slot', () => {
   it('renders the slot as the last child of the toolbar actions row', () => {
     const wrapper = mount(DataTable, {

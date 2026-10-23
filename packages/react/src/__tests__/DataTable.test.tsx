@@ -1343,6 +1343,53 @@ describe('DataTable — currentRow', () => {
   })
 })
 
+describe('DataTable — empty toolbar', () => {
+  const BARE: ColumnDef<Row>[] = [
+    { key: 'name', label: 'Name', sortable: false, filterable: false },
+  ]
+  const SORT_ONLY: ColumnDef<Row>[] = [{ key: 'name', label: 'Name', filterable: false }]
+
+  it('renders no toolbar when no control applies', () => {
+    const { container } = render(
+      <DataTable data={ROWS} columns={BARE} rowKey="id" showSearch={false} />,
+    )
+    expect(container.querySelector('.dt-toolbar')).toBeNull()
+    expect(container.querySelector('.dt-active-bar')).not.toBeNull()
+  })
+
+  it('renders it for toolbarEnd or a restored state to clear, without a lone divider', () => {
+    const withEnd = render(
+      <DataTable
+        data={ROWS}
+        columns={BARE}
+        rowKey="id"
+        showSearch={false}
+        toolbarEnd={<button>Share</button>}
+      />,
+    )
+    expect(withEnd.container.querySelector('.dt-toolbar-end')).not.toBeNull()
+    expect(withEnd.container.querySelector('.dt-toolbar-divider')).toBeNull()
+    const restored = render(
+      <DataTable
+        data={ROWS}
+        columns={BARE}
+        rowKey="id"
+        showSearch={false}
+        initialViewState={{ searchQuery: 'a' }}
+      />,
+    )
+    expect(restored.container.querySelector('.dt-clear-all')).not.toBeNull()
+  })
+
+  it('draws the divider only with controls on both sides', () => {
+    const { container } = render(
+      <DataTable data={ROWS} columns={SORT_ONLY} rowKey="id" showSearch={false} />,
+    )
+    expect(container.querySelector('.dt-toolbar')).not.toBeNull()
+    expect(container.querySelector('.dt-toolbar-divider')).toBeNull()
+  })
+})
+
 describe('DataTable — toolbarEnd', () => {
   it('renders toolbarEnd as the last child of the toolbar actions row', () => {
     const { container, getByText } = render(

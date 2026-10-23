@@ -18,6 +18,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Fixed
 
+- **No empty toolbar** (Solid, React, Vue, vanilla): a table with no toolbar control to show (no sortable, filterable or groupable column, one column, `showSearch: false`) renders no toolbar strip instead of an empty one with a lone divider; the divider only shows between controls on both sides.
 - **The Filter pane names its column** (Solid, React, Vue, vanilla): on open, the shown column's category is expanded and the column search cleared, so a visible row always says which column the pane filters; with nothing picked, a column with an active filter is shown first.
 
 ## [0.19.0] - 2026-10-23

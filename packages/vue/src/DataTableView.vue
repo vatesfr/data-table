@@ -615,6 +615,16 @@ const hasActiveState = computed(
     searchQuery.value !== '',
 )
 const hasAggregates = computed(() => activeColumns.value.some((c) => c.aggregate !== undefined))
+// The divider separates the shape controls from the find ones: only drawn with both sides
+const hasShapeControls = computed(
+  () =>
+    (props.showColumns && props.columns.length >= 2) ||
+    groupableCols.value.length > 0 ||
+    sortableCols.value.length > 0,
+)
+const hasFindControls = computed(
+  () => props.showSearch || filterableCols.value.length > 0 || hasActiveState.value,
+)
 
 function asRecord(row: object): Record<string, unknown> {
   return row as Record<string, unknown>
@@ -1069,7 +1079,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
 <template>
   <div ref="rootRef" class="dt">
     <!-- ── Toolbar ── -->
-    <div class="dt-toolbar">
+    <div v-if="hasShapeControls || hasFindControls || hasSlot('toolbar-end')" class="dt-toolbar">
       <div class="dt-toolbar-actions">
         <!-- Columns — "Visible columns" (every shown column, draggable/Alt+↑↓-reorderable, in
              real table order) above "Available columns" (hidden columns, click to show; a
@@ -1593,7 +1603,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
         </div>
         <!-- Divider between the "shape" controls above (Columns/Sort/Group) and the "find"
              controls below (Search/Filter). -->
-        <span v-else class="dt-toolbar-divider" />
+        <span v-else-if="hasShapeControls && hasFindControls" class="dt-toolbar-divider" />
 
         <span v-if="showSearch" class="dt-search-wrap">
           <input

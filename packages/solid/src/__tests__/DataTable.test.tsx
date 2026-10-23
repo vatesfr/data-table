@@ -327,6 +327,36 @@ describe('DataTable', () => {
     dispose()
   })
 
+  it('renders no toolbar when no control applies, and one for toolbarEnd or a restored state, without a lone divider', () => {
+    const BARE: ColumnDef<Row>[] = [
+      { key: 'name', label: 'Name', sortable: false, filterable: false },
+    ]
+    const mountWith = (props: Partial<Parameters<typeof DataTable<Row>>[0]>) => {
+      const container = document.createElement('div')
+      document.body.appendChild(container)
+      const dispose = createRoot((d) => {
+        render(
+          () => <DataTable data={ROWS} columns={BARE} rowKey="id" showSearch={false} {...props} />,
+          container,
+        )
+        return d
+      })
+      return { container, dispose }
+    }
+    const bare = mountWith({})
+    expect(bare.container.querySelector('.dt-toolbar')).toBeNull()
+    expect(bare.container.querySelector('.dt-active-bar')).not.toBeNull()
+    const withEnd = mountWith({ toolbarEnd: <button>Share</button> })
+    expect(withEnd.container.querySelector('.dt-toolbar-end')).not.toBeNull()
+    expect(withEnd.container.querySelector('.dt-toolbar-divider')).toBeNull()
+    const restored = mountWith({ initialViewState: { searchQuery: 'a' } })
+    expect(restored.container.querySelector('.dt-clear-all')).not.toBeNull()
+    const sortOnly = mountWith({ columns: [{ key: 'name', label: 'Name', filterable: false }] })
+    expect(sortOnly.container.querySelector('.dt-toolbar')).not.toBeNull()
+    expect(sortOnly.container.querySelector('.dt-toolbar-divider')).toBeNull()
+    for (const m of [bare, withEnd, restored, sortOnly]) m.dispose()
+  })
+
   it('renders toolbarEnd once, as the last child of the toolbar actions row', () => {
     const container = document.createElement('div')
     document.body.appendChild(container)
