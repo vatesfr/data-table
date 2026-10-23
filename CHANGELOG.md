@@ -7,6 +7,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Added
+
+- **`--dt-stripe-background`** (Solid, React, Vue, vanilla): the odd-row stripe colour, layered over pinned cells' background too, so `transparent` turns striping off everywhere in one setting.
+
 ### Changed
 
 - **BREAKING (all four adapters):** number columns right-align by default: `type: 'number'` defaults to `align: 'end'`. Set `align: 'start'` to keep one left-aligned (e.g. a number column whose cells render text).

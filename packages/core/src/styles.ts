@@ -28,6 +28,8 @@
 // off box-shadow so the header's drag-over line survives). Its header sits one level above the
 // pinned body cells: the header menu panel lives inside that th's stacking context. Every pinned
 // rule stays at or below the row-state selectors' specificity, so app row-state overrides win.
+// The odd-row stripe is a layer over the pinned base, so `--dt-stripe-background: transparent`
+// turns striping off on pinned cells too.
 export const DT_STYLES = `
 .dt{font-family:inherit;font-size:var(--font-size-lg,14px);color:var(--color-text-primary,#1a1916)}
 .dt-toolbar{padding:12px 0;border-bottom:.5px solid var(--color-border-tertiary,#eeedea)}
@@ -122,8 +124,8 @@ export const DT_STYLES = `
 .dt-pinned::after{content:'';position:absolute;inset:0 -8px 0 0;pointer-events:none;border-bottom:inherit;background:linear-gradient(to right,transparent calc(100% - 8px),rgba(0,0,0,.12) calc(100% - 8px),transparent)}
 .dt-th.dt-pinned{z-index:2}
 .dt-td.dt-pinned{background:var(--dt-pinned-background,var(--color-background-primary,#fff))}
-.dt-tr--odd .dt-td{background:color-mix(in srgb,var(--color-background-secondary,#f7f6f3) 45%,transparent)}
-.dt-tr--odd .dt-pinned{background:color-mix(in srgb,var(--color-background-secondary,#f7f6f3) 45%,var(--dt-pinned-background,var(--color-background-primary,#fff)))}
+.dt-tr--odd .dt-td{background:var(--dt-stripe-background,color-mix(in srgb,var(--color-background-secondary,#f7f6f3) 45%,transparent))}
+.dt-tr--odd .dt-pinned{background:linear-gradient(var(--dt-stripe-background,color-mix(in srgb,var(--color-background-secondary,#f7f6f3) 45%,transparent)),var(--dt-stripe-background,color-mix(in srgb,var(--color-background-secondary,#f7f6f3) 45%,transparent))),var(--dt-pinned-background,var(--color-background-primary,#fff))}
 .dt-tr--clickable{cursor:pointer}
 .dt-tr--clickable:not(.dt-tr--selected):hover .dt-td{background:var(--color-background-secondary,#f7f6f3)}
 .dt-tr--selected .dt-td{background:var(--color-background-info,#e6f1fb)}

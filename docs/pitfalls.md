@@ -4,6 +4,12 @@ Symptom first, then cause and fix. Delete entries once obsolete.
 
 <!-- check-docs-ignore: exceeded journalctl memory Killed chromium-browse Failed oom-kill _vts invoker -->
 
+## Odd pinned cells turn see-through
+
+- Symptom: on odd rows, scrolled cells show through the pinned column.
+- Cause: striping turned off with `none`. `--dt-stripe-background: none` isn't a colour, so the pinned stripe's `linear-gradient` is invalid and drops the whole declaration; an app rule `.dt-tr--odd .dt-td { background: none }` also matches pinned cells and wins the cascade.
+- Fix: `--dt-stripe-background: transparent`, and no app background rule for odd rows.
+
 ## `git merge -F -` fails
 
 - Symptom: `error: could not read file '-'`; nothing is merged.

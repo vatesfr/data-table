@@ -20,7 +20,7 @@ Each adapter's own cell/group-header rendering (React `cellValue()`, Vue `cellTe
 
 - `pinned: true` makes the column's cells (`.dt-pinned`) sticky at the table's left edge while it scrolls sideways; columns before it (selection checkbox included) scroll under it. No offset to compute, so no `width` needed.
 - One per table: several would stack at the same offset.
-- Pinned body cells are opaque, painted with `--dt-pinned-background` (default `--color-background-primary`): set it when rows sit on another background. The odd-row stripe is mixed onto it.
+- Pinned body cells are opaque, painted with `--dt-pinned-background` (default `--color-background-primary`): set it when rows sit on another background. The odd-row stripe (`--dt-stripe-background`) is layered over it, so setting that variable to `transparent` turns striping off on every cell, pinned ones included.
 - Pinned rules stay at or below the row-state selectors' specificity, so an app's `.dt-tr--selected .dt-td` (etc.) override colours the pinned cell too; it must be opaque, or scrolled cells show through.
 - Responsive pinning stays with the app: toggle `pinned`, or undo `.dt-pinned`'s `position` in a media query.
 - A static shadow and the row border are drawn on `.dt-pinned::after`.
