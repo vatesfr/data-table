@@ -9,6 +9,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Added
 
+- **`rowClass`** (Solid, React, Vue, vanilla): `(row) => string | undefined` adds an app's own classes to each data row, e.g. to dim an expired row without matching cell content (which broke once that column was hidden); vanilla adds `setRowClass`.
 - **Row focus ring** (Solid, React, Vue, vanilla): a row or group header moved to with the keyboard shows an inset outline, drawn over pinned cells too; a mouse click draws none.
 - **`--dt-stripe-background`** (Solid, React, Vue, vanilla): the odd-row stripe colour, layered over pinned cells' background too, so `transparent` turns striping off everywhere in one setting.
 

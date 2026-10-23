@@ -736,6 +736,7 @@ function ClickTable(props: {
         table={table}
         rowKey="id"
         currentRow={props.currentRow}
+        rowClass={(row) => (row.status === 'Inactive' ? 'demo-inactive' : undefined)}
         onRowClick={(row) => props.onRowClick(row)}
       />
     </>
@@ -1088,7 +1089,8 @@ export default function App() {
       <p style={{ 'font-size': '14px', color: 'var(--color-text-secondary)', margin: '0 0 8px' }}>
         Pass <code>onRowClick</code> to react to a row being clicked — it receives the full row
         object, no key lookup needed. Also fires on <kbd>Enter</kbd> while a row has keyboard focus.{' '}
-        <code>currentRow</code> marks the clicked row (<code>aria-current</code>).
+        <code>currentRow</code> marks the clicked row (<code>aria-current</code>);{' '}
+        <code>rowClass</code> dims inactive employees.
       </p>
       <Show when={clicked()}>
         {(c) => (

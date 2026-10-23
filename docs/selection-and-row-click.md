@@ -34,6 +34,8 @@ Custom cell renders (React/Solid `render`, Vue `#cell-*` slots) that put clickab
 
 `currentRow?: TRow | null` (all four adapters; vanilla adds `setCurrentRow`) marks the row a consumer has open elsewhere, e.g. in a side panel (GitHub issue #40). The matching row gets `aria-current="true"` and `dt-tr--current`, with no default styling.
 
+`rowClass?: (row: TRow) => string | undefined` (all four adapters; vanilla adds `setRowClass`) adds an app's own classes to a data row, after the built-in `dt-tr*` ones, e.g. to dim an expired row — robust where `.dt-tr:has(.marker)` breaks once the marker's column is hidden. Group, aggregate and empty rows don't get it (no `TRow`). Called on every render; an in-place change to a row object isn't tracked.
+
 - A prop on `DataTableView`, not `TableState`: only the consumer knows what "current" means, and nothing else in the table reads it.
 - Takes a row, not a key: rows are identified by object, like selection and `table.focus.row`; `rowKey` is a rendering hint only. No `getRowId` matching: `TableState` doesn't expose it to the view.
 - Not the focus target: keyboard focus moves while the side panel's row stays put.

@@ -76,6 +76,7 @@ function mount(
     defaultGroupsCollapsed: boolean
     getRowId: (row: Row) => number
     currentRow: Row | null
+    rowClass: (row: Row) => string | undefined
   }> = {},
 ) {
   const container = document.createElement('div')
@@ -90,6 +91,7 @@ function mount(
     defaultGroupsCollapsed: opts.defaultGroupsCollapsed,
     getRowId: opts.getRowId,
     currentRow: opts.currentRow,
+    rowClass: opts.rowClass,
   })
   return { container, table }
 }
@@ -360,6 +362,18 @@ describe('createDataTable — currentRow', () => {
     table.setCurrentRow(ROWS[0])
     expect(marked()).toEqual([container.querySelector('.dt-tr[data-proc-idx="0"]')])
     table.setCurrentRow(null)
+    expect(marked()).toEqual([])
+  })
+
+  it('adds rowClass from the option, then follows setRowClass', () => {
+    const { container, table } = mount({
+      rowClass: (r) => (r === ROWS[1] ? 'is-expired' : undefined),
+    })
+    const marked = () => [...container.querySelectorAll('.dt-tr.is-expired')]
+    expect(marked()).toEqual([container.querySelector('.dt-tr[data-proc-idx="1"]')])
+    table.setRowClass((r) => (r === ROWS[0] ? 'is-expired' : undefined))
+    expect(marked()).toEqual([container.querySelector('.dt-tr[data-proc-idx="0"]')])
+    table.setRowClass(undefined)
     expect(marked()).toEqual([])
   })
 })

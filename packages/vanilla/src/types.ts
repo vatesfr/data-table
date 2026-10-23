@@ -61,6 +61,11 @@ export interface DataTableOptions<TRow extends object = Record<string, unknown>>
    */
   currentRow?: TRow | null
   /**
+   * Extra classes for a data row (not group or aggregate rows), e.g. to dim an expired one:
+   * added after the built-in `dt-tr*` classes. Called on every render.
+   */
+  rowClass?: (row: TRow) => string | undefined
+  /**
    * Shows/hides the toolbar's search box. Defaults to `true`. Unlike the Sort/Group/Filter
    * dropdowns (which already hide themselves when no column qualifies for them), search always
    * applies regardless of column config — there's no equivalent auto-hide signal for it, so this
@@ -148,6 +153,8 @@ export interface DataTableInstance<TRow extends object = Record<string, unknown>
   setOnRowClick(cb: ((row: TRow, event: MouseEvent | KeyboardEvent) => void) | undefined): void
   /** Changes (or clears, passing `null`) the current row — see `DataTableOptions.currentRow`. */
   setCurrentRow(row: TRow | null): void
+  /** Changes (or clears, passing `undefined`) the row class callback — see `DataTableOptions.rowClass`. */
+  setRowClass(fn: ((row: TRow) => string | undefined) | undefined): void
   /** Replaces the label overrides after construction — see `DataTableOptions.labels`. */
   setLabels(labels: Partial<DataTableLabels> | undefined): void
   /** Changes whether newly-grouped groups start collapsed after construction. */

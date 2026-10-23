@@ -91,10 +91,11 @@ export function createDataTable<TRow extends object>(
   const [showColumns, setShowColumnsSignal] = createSignal(options.showColumns ?? true)
   const [toolbarEnd, setToolbarEndSignal] = createSignal(options.toolbarEnd ?? null)
   const [currentRow, setCurrentRowSignal] = createSignal(options.currentRow ?? null)
-  // `onRowClick`/`getRowId` are themselves functions, so Solid's setter overloads can't tell them
+  // `onRowClick`/`rowClass`/`getRowId` are themselves functions, so Solid's setter overloads can't tell them
   // apart from a functional updater — wrap each write in a thunk, the same workaround
   // `createTableState`'s own `selectionAnchor` signal already uses for the same reason.
   const [onRowClick, setOnRowClickSignal] = createSignal(options.onRowClick)
+  const [rowClass, setRowClassSignal] = createSignal(options.rowClass)
   const [labels, setLabelsSignal] = createSignal(options.labels)
   const [defaultGroupsCollapsed, setDefaultGroupsCollapsedSignal] = createSignal(
     options.defaultGroupsCollapsed,
@@ -150,6 +151,7 @@ export function createDataTable<TRow extends object>(
           selectable={selectable()}
           onRowClick={onRowClick()}
           currentRow={currentRow()}
+          rowClass={rowClass()}
           showSearch={showSearch()}
           showColumns={showColumns()}
           toolbarEnd={toolbarEnd()}
@@ -193,6 +195,8 @@ export function createDataTable<TRow extends object>(
     setOnRowClick: (cb: ((row: TRow, event: MouseEvent | KeyboardEvent) => void) | undefined) =>
       setOnRowClickSignal(() => cb),
     setCurrentRow: (row: TRow | null) => setCurrentRowSignal(() => row),
+    setRowClass: (fn: ((row: TRow) => string | undefined) | undefined) =>
+      setRowClassSignal(() => fn),
     setLabels: (next: DataTableOptions<TRow>['labels']) => setLabelsSignal(next),
     setDefaultGroupsCollapsed: (value: boolean) => setDefaultGroupsCollapsedSignal(value),
     setGetRowId: (next: GetRowId<TRow> | undefined) => setGetRowIdSignal(() => next),

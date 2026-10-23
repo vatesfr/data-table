@@ -14,6 +14,7 @@ export function DataTable<TRow extends object>({
   onSelectionChange,
   onRowClick,
   currentRow,
+  rowClass,
   showSearch,
   showColumns,
   toolbarEnd,
@@ -35,6 +36,7 @@ export function DataTable<TRow extends object>({
       onSelectionChange={onSelectionChange}
       onRowClick={onRowClick}
       currentRow={currentRow}
+      rowClass={rowClass}
       showSearch={showSearch}
       showColumns={showColumns}
       toolbarEnd={toolbarEnd}

@@ -85,6 +85,7 @@ watch(table.search.query, (query) => emit('update:searchQuery', query), { immedi
     :row-key="rowKey"
     :selectable="selectable"
     :current-row="currentRow"
+    :row-class="rowClass"
     :show-search="showSearch"
     :show-columns="showColumns"
     :row-clickable="isRowClickable"

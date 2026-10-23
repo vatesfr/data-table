@@ -73,6 +73,7 @@ export function DataTable<TRow extends object>(props: DataTableProps<TRow>) {
       selectable={props.selectable}
       onRowClick={props.onRowClick}
       currentRow={props.currentRow}
+      rowClass={props.rowClass}
       showSearch={props.showSearch}
       showColumns={props.showColumns}
       toolbarEnd={props.toolbarEnd}

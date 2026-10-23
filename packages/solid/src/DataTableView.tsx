@@ -29,6 +29,11 @@ export interface DataTableViewProps<TRow extends object> {
    */
   currentRow?: TRow | null
   /**
+   * Extra classes for a data row (not group or aggregate rows), e.g. to dim an expired one:
+   * added after the built-in `dt-tr*` classes. Called on every render.
+   */
+  rowClass?: (row: TRow) => string | undefined
+  /**
    * Shows/hides the toolbar's search box. Defaults to `true`. Unlike the Sort/Group/Filter
    * dropdowns (which already hide themselves when no column qualifies for them), search always
    * applies regardless of column config — there's no equivalent auto-hide signal for it, so this
@@ -197,6 +202,7 @@ export function DataTableView<TRow extends object>(props: DataTableViewProps<TRo
         selectable={props.selectable}
         onRowClick={props.onRowClick}
         currentRow={props.currentRow}
+        rowClass={props.rowClass}
       />
       <Pagination table={table} />
     </div>

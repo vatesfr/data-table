@@ -2168,12 +2168,15 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                 :aria-selected="selectable ? selection.has(row) : undefined"
                 :aria-current="isCurrent(row) ? 'true' : undefined"
                 class="dt-tr"
-                :class="{
-                  'dt-tr--odd': ri % 2 !== 0 && !(selectable && selection.has(row)),
-                  'dt-tr--selected': selectable && selection.has(row),
-                  'dt-tr--clickable': isRowClickable,
-                  'dt-tr--current': isCurrent(row),
-                }"
+                :class="[
+                  {
+                    'dt-tr--odd': ri % 2 !== 0 && !(selectable && selection.has(row)),
+                    'dt-tr--selected': selectable && selection.has(row),
+                    'dt-tr--clickable': isRowClickable,
+                    'dt-tr--current': isCurrent(row),
+                  },
+                  rowClass?.(row),
+                ]"
                 @click="handleRowClick(row, $event)"
                 @keydown="handleKeyDown($event, { kind: 'row', row })"
                 @focusin="setFocusTarget({ kind: 'row', row })"

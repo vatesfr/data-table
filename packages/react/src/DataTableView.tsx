@@ -982,9 +982,15 @@ function FilterPane<TRow extends object>({
  * return <DataTableView table={table} data={data} columns={columns} />
  * ```
  */
-// A data row's `dt-tr` modifiers; a selected row isn't striped
-function rowClass(selected: boolean, odd: boolean, clickable: boolean, current: boolean): string {
-  return `dt-tr${selected ? ' dt-tr--selected' : odd ? ' dt-tr--odd' : ''}${clickable ? ' dt-tr--clickable' : ''}${current ? ' dt-tr--current' : ''}`
+// A data row's `dt-tr` modifiers, then the app's `rowClass`; a selected row isn't striped
+function trClass(
+  selected: boolean,
+  odd: boolean,
+  clickable: boolean,
+  current: boolean,
+  extra: string | undefined,
+): string {
+  return `dt-tr${selected ? ' dt-tr--selected' : odd ? ' dt-tr--odd' : ''}${clickable ? ' dt-tr--clickable' : ''}${current ? ' dt-tr--current' : ''}${extra ? ` ${extra}` : ''}`
 }
 
 // `.dt-dd-item--drag-over`/`--drag-over-after`: a dropdown row's drop-position line
@@ -1001,6 +1007,7 @@ export function DataTableView<TRow extends object>({
   onSelectionChange,
   onRowClick,
   currentRow,
+  rowClass,
   showSearch,
   showColumns,
   toolbarEnd,
@@ -2659,11 +2666,12 @@ export function DataTableView<TRow extends object>({
                       }
                       aria-selected={selectable ? selection.has(row) : undefined}
                       aria-current={row === currentRow ? 'true' : undefined}
-                      className={rowClass(
+                      className={trClass(
                         !!selectable && selection.has(row),
                         ri % 2 !== 0,
                         !!onRowClick,
                         row === currentRow,
+                        rowClass?.(row),
                       )}
                       onKeyDown={
                         rowNavEnabled ? (e) => handleKeyDown(e, { kind: 'row', row }) : undefined

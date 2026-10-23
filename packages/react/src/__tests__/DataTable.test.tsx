@@ -1341,6 +1341,20 @@ describe('DataTable — currentRow', () => {
     expect(marked()).toHaveLength(0)
     expect(container.querySelector('.dt-tr--current')).toBeNull()
   })
+
+  it('adds rowClass after the built-in row classes, following the prop', () => {
+    const expired = (r: Row) => (r.name === 'Bob' ? 'is-expired dimmed' : undefined)
+    const { container, rerender } = render(
+      <DataTable data={ROWS} columns={COLS} rowKey="id" currentRow={ROWS[1]} rowClass={expired} />,
+    )
+    const rows = [...container.querySelectorAll('tbody tr.dt-tr')]
+    expect(rows.map((tr) => tr.className)).toEqual([
+      'dt-tr',
+      'dt-tr dt-tr--odd dt-tr--current is-expired dimmed',
+    ])
+    rerender(<DataTable data={ROWS} columns={COLS} rowKey="id" rowClass={() => undefined} />)
+    expect(container.querySelector('.is-expired')).toBeNull()
+  })
 })
 
 describe('DataTable — empty toolbar', () => {

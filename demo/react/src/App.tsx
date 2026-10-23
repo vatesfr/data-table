@@ -730,6 +730,7 @@ function ClickTable({
         columns={COLUMNS}
         rowKey="id"
         currentRow={currentRow}
+        rowClass={(row) => (row.status === 'Inactive' ? 'demo-inactive' : undefined)}
         onRowClick={onRowClick}
       />
     </>
@@ -1104,8 +1105,8 @@ export default function App() {
       >
         Pass <code>onRowClick</code> to react to a row being clicked — it receives the full row
         object, no key lookup needed. Also fires on <kbd>Enter</kbd> while a row has keyboard focus.{' '}
-        <code>currentRow</code> marks the clicked row (<code>aria-current</code>).{' '}
-        <DocLink anchor="row-click">📖 Docs</DocLink>
+        <code>currentRow</code> marks the clicked row (<code>aria-current</code>);{' '}
+        <code>rowClass</code> dims inactive employees. <DocLink anchor="row-click">📖 Docs</DocLink>
       </p>
       {clicked && (
         <div

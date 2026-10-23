@@ -555,6 +555,39 @@ describe('DataTable — currentRow', () => {
     expect(container.querySelector('.dt-tr--current')).toBeNull()
     dispose()
   })
+
+  it('adds rowClass after the built-in row classes, following the prop', () => {
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const [expiredName, setExpiredName] = createSignal('Bob')
+    const dispose = createRoot((d) => {
+      render(
+        () => (
+          <DataTable
+            data={ROWS}
+            columns={COLS}
+            rowKey="id"
+            currentRow={ROWS[1]}
+            rowClass={(r) => (r.name === expiredName() ? 'is-expired dimmed' : undefined)}
+          />
+        ),
+        container,
+      )
+      return d
+    })
+    const classes = () =>
+      [...container.querySelectorAll('tbody tr.dt-tr')].map((tr) => [...tr.classList])
+    expect(classes()).toEqual([
+      ['dt-tr'],
+      ['dt-tr', 'dt-tr--odd', 'dt-tr--current', 'is-expired', 'dimmed'],
+    ])
+    setExpiredName('Alice')
+    expect(classes()).toEqual([
+      ['dt-tr', 'is-expired', 'dimmed'],
+      ['dt-tr', 'dt-tr--odd', 'dt-tr--current'],
+    ])
+    dispose()
+  })
 })
 
 // U26: a column search matching nothing left the panel blank, or a section heading over nothing

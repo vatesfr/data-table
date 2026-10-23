@@ -25,6 +25,7 @@ interface TableBodyProps<TRow extends object> {
   selectable?: boolean
   onRowClick?: (row: TRow, event: MouseEvent | KeyboardEvent) => void
   currentRow?: TRow | null
+  rowClass?: (row: TRow) => string | undefined
 }
 
 // A multi-value (array) column's raw value has no natural single-string representation, so it's
@@ -412,6 +413,7 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
                         selectable={props.selectable}
                         onRowClick={props.onRowClick}
                         current={props.currentRow === row}
+                        extraClass={props.rowClass?.(row)}
                         tabIndex={
                           rowNavEnabled()
                             ? isFocusTarget({ kind: 'row', row })
@@ -463,6 +465,7 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
                         selectable={props.selectable}
                         onRowClick={props.onRowClick}
                         current={props.currentRow === row}
+                        extraClass={props.rowClass?.(row)}
                         indentGroup
                         tabIndex={
                           rowNavEnabled()
@@ -696,6 +699,7 @@ interface DataRowProps<TRow extends object> {
   onRowClick?: (row: TRow, event: MouseEvent | KeyboardEvent) => void
   indentGroup?: boolean
   current?: boolean
+  extraClass?: string
   tabIndex?: number
   onFocusRow: () => void
   onArrow: (delta: number, shiftKey: boolean) => void
@@ -719,13 +723,8 @@ function DataRow<TRow extends object>(props: DataRowProps<TRow>) {
 
   return (
     <tr
-      class="dt-tr"
-      classList={{
-        'dt-tr--selected': isSelected(),
-        'dt-tr--odd': !isSelected() && props.odd,
-        'dt-tr--clickable': !!props.onRowClick,
-        'dt-tr--current': props.current,
-      }}
+      // A class string, not classList: a computed key would bundle Solid's generic classList helper
+      class={`dt-tr${isSelected() ? ' dt-tr--selected' : props.odd ? ' dt-tr--odd' : ''}${props.onRowClick ? ' dt-tr--clickable' : ''}${props.current ? ' dt-tr--current' : ''}${props.extraClass ? ` ${props.extraClass}` : ''}`}
       data-row-key={String(rk())}
       data-proc-idx={props.procIdx}
       tabIndex={props.tabIndex}

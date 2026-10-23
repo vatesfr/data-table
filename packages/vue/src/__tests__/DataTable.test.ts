@@ -1658,6 +1658,25 @@ describe('DataTable — currentRow', () => {
     expect(marked()).toHaveLength(0)
     expect(wrapper.find('.dt-tr--current').exists()).toBe(false)
   })
+
+  it('adds rowClass after the built-in row classes, following the prop', async () => {
+    const wrapper = mount(DataTable, {
+      props: {
+        data: ROWS,
+        columns: COLS,
+        rowKey: 'id',
+        currentRow: ROWS[1],
+        rowClass: (r: Row) => (r.name === 'Bob' ? 'is-expired dimmed' : undefined),
+      },
+    })
+    const rows = wrapper.findAll('tbody tr.dt-tr')
+    expect(rows.map((tr) => tr.classes())).toEqual([
+      ['dt-tr'],
+      ['dt-tr', 'dt-tr--odd', 'dt-tr--current', 'is-expired', 'dimmed'],
+    ])
+    await wrapper.setProps({ rowClass: () => undefined })
+    expect(wrapper.find('.is-expired').exists()).toBe(false)
+  })
 })
 
 describe('DataTable — empty toolbar', () => {
