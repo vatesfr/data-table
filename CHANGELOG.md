@@ -7,6 +7,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING (all four adapters):** number columns right-align by default: `type: 'number'` defaults to `align: 'end'`. Set `align: 'start'` to keep one left-aligned (e.g. a number column whose cells render text).
+
 ## [0.19.0] - 2026-10-23
 
 ### Added

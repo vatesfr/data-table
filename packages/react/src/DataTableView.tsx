@@ -14,6 +14,7 @@ import {
   isMultiValueColumnCached,
   isExcludeOnlyColumn,
   exclusionChip,
+  getColumnAlign,
   getColumnValue,
   rowText,
   groupText,
@@ -2499,7 +2500,7 @@ export function DataTableView<TRow extends object>({
                     >
                       <span className="dt-th-inner">
                         {/* Takes the free space before the label, since the menu's auto margin defeats justifyContent */}
-                        {col.align === 'end' && <span className="dt-th-spacer" />}
+                        {getColumnAlign(col) && <span className="dt-th-spacer" />}
                         {/* A button so keyboard users can sort; its click bubbles to the <th>'s handler */}
                         {col.sortable === false ? (
                           labelAndIcon
@@ -2620,7 +2621,7 @@ export function DataTableView<TRow extends object>({
                           key={col.key}
                           className={col.pinned ? 'dt-agg-td dt-pinned' : 'dt-agg-td'}
                           data-col-key={col.key}
-                          style={{ textAlign: col.align }}
+                          style={{ textAlign: getColumnAlign(col) }}
                         >
                           {v !== undefined && v !== null
                             ? col.format
@@ -2686,7 +2687,7 @@ export function DataTableView<TRow extends object>({
                           key={col.key}
                           className={col.pinned ? 'dt-td dt-pinned' : 'dt-td'}
                           data-col-key={col.key}
-                          style={{ textAlign: col.align }}
+                          style={{ textAlign: getColumnAlign(col) }}
                         >
                           {cellValue(row, col)}
                         </td>

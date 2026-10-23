@@ -2,6 +2,7 @@
 import { computed, ref, toRaw, watch, nextTick, useSlots, onMounted, onBeforeUnmount } from 'vue'
 import {
   computeAggregate,
+  getColumnAlign,
   getColumnValue,
   cellText,
   rowText,
@@ -2019,7 +2020,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
             >
               <span class="dt-th-inner">
                 <!-- Takes the free space before the label, since the menu's auto margin defeats justify-content -->
-                <span v-if="col.align === 'end'" class="dt-th-spacer" />
+                <span v-if="getColumnAlign(col)" class="dt-th-spacer" />
                 <!-- A button so keyboard users can sort; its click bubbles to the <th>'s handler -->
                 <component
                   :is="col.sortable === false ? 'span' : 'button'"
@@ -2134,7 +2135,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                 class="dt-agg-td"
                 :class="{ 'dt-pinned': col.pinned }"
                 :data-col-key="col.key"
-                :style="{ textAlign: col.align }"
+                :style="{ textAlign: getColumnAlign(col) }"
               >
                 {{
                   (() => {
@@ -2189,7 +2190,10 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                   class="dt-td"
                   :class="{ 'dt-pinned': col.pinned }"
                   :data-col-key="col.key"
-                  :style="{ width: col.width ? `${col.width}px` : undefined, textAlign: col.align }"
+                  :style="{
+                    width: col.width ? `${col.width}px` : undefined,
+                    textAlign: getColumnAlign(col),
+                  }"
                 >
                   <!--
                     Slot #cell-{key} — custom cell rendering.

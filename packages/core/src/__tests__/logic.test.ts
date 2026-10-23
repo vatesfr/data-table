@@ -26,6 +26,7 @@ import {
   sumDateTreeNodeCount,
   findDateTreeNode,
   computeAggregate,
+  getColumnAlign,
   getColumnValue,
   cellText,
   groupText,
@@ -131,6 +132,19 @@ const COLS_FOR_SEARCH = [
 ]
 
 // ─── getColumnValue ─────────────────────────────────────────────────────────
+
+describe('getColumnAlign', () => {
+  it("right-aligns number columns by default, and `align: 'end'` columns", () => {
+    expect(getColumnAlign({ key: 'n', label: 'N', type: 'number' })).toBe('end')
+    expect(getColumnAlign({ key: 's', label: 'S', align: 'end' })).toBe('end')
+  })
+
+  it("leaves other columns, and `align: 'start'` number columns, unstyled", () => {
+    expect(getColumnAlign({ key: 's', label: 'S' })).toBeUndefined()
+    expect(getColumnAlign({ key: 'd', label: 'D', type: 'date' })).toBeUndefined()
+    expect(getColumnAlign({ key: 'n', label: 'N', type: 'number', align: 'start' })).toBeUndefined()
+  })
+})
 
 describe('getColumnValue', () => {
   it('reads row[key] when value is unset', () => {

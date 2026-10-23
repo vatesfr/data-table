@@ -334,6 +334,23 @@ describe('TableBody — grouping and aggregation', () => {
     dispose()
   })
 
+  it("right-aligns a number column by default, unless `align: 'start'`", () => {
+    const columns: ColumnDef<Row>[] = [
+      ...COLS.map((c) => (c.key === 'score' ? { ...c, align: undefined } : c)),
+      { key: 'id', label: 'ID', type: 'number', align: 'start' },
+    ]
+    const { container, dispose } = mount({ columns })
+    expect(container.querySelector('th[data-col-key="score"] .dt-th-spacer')).not.toBeNull()
+    expect(container.querySelectorAll('.dt-th-spacer')).toHaveLength(1)
+    const align = (key: string) =>
+      [...container.querySelectorAll<HTMLElement>(`td[data-col-key="${key}"]`)].map(
+        (td) => td.style.textAlign,
+      )
+    expect(align('score')).toEqual(['end', 'end', 'end'])
+    expect(align('id')).toEqual(['', '', ''])
+    dispose()
+  })
+
   it("marks a column's cells and aggregate cells with `data-col-key`", () => {
     const { container, table, dispose } = mount({ defaultGroupsCollapsed: false })
     table.group.toggle('dept')

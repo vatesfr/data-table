@@ -21,6 +21,11 @@ export function getColumnValue<TRow extends object>(col: ColumnDefBase<TRow>, ro
   return col.value ? col.value(row) : asRecord(row)[col.key]
 }
 
+/** `'end'` when the column's cells right-align (`align`, which defaults to `'end'` for `type: 'number'`), else `undefined`: no inline style. */
+export function getColumnAlign<TRow extends object>(col: ColumnDefBase<TRow>): 'end' | undefined {
+  return (col.align ?? (col.type === 'number' ? 'end' : 'start')) === 'end' ? 'end' : undefined
+}
+
 /** A cell's plain text (`format`, never `render`), e.g. for an accessible name. */
 export function cellText<TRow extends object>(col: ColumnDefBase<TRow>, row: TRow): string {
   const v = getColumnValue(col, row)

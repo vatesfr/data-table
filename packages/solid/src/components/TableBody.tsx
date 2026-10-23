@@ -1,5 +1,6 @@
 import { For, Index, Show, createEffect, createMemo, createSignal, onCleanup } from 'solid-js'
 import {
+  getColumnAlign,
   getColumnValue,
   rowText,
   groupText,
@@ -362,7 +363,7 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
                   >
                     <span class="dt-th-inner">
                       {/* Takes the free space before the label, since the menu's auto margin defeats justify-content */}
-                      <Show when={col.align === 'end'}>
+                      <Show when={getColumnAlign(col)}>
                         <span class="dt-th-spacer" />
                       </Show>
                       {/* A button so keyboard users can sort; its click bubbles to the <th>'s handler */}
@@ -656,7 +657,7 @@ function GroupHeaderRow<TRow extends object>(props: GroupHeaderRowProps<TRow>) {
                 class="dt-agg-td"
                 classList={{ 'dt-pinned': col.pinned }}
                 data-col-key={col.key}
-                style={{ 'text-align': col.align }}
+                style={{ 'text-align': getColumnAlign(col) }}
               >
                 {aggValue(col, props.group.rows, props.group.sampleRow!)}
               </td>
@@ -782,7 +783,7 @@ function DataRow<TRow extends object>(props: DataRowProps<TRow>) {
             class="dt-td"
             classList={{ 'dt-pinned': col.pinned }}
             data-col-key={col.key}
-            style={{ 'text-align': col.align }}
+            style={{ 'text-align': getColumnAlign(col) }}
           >
             {cellValue(col, row)}
           </td>

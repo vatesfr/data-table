@@ -87,7 +87,7 @@ export interface ColumnDefBase<TRow extends object = Record<string, unknown>> {
    */
   rangePresets?: { label: string; min?: number; max?: number }[]
   width?: number
-  /** `'end'` right-aligns (in left-to-right text) the column's header, cells and aggregate cells, e.g. so a number column's digits line up. Default: `'start'`. */
+  /** `'end'` right-aligns (in left-to-right text) the column's header, cells and aggregate cells, e.g. so a number column's digits line up. Default: `'end'` for `type: 'number'`, else `'start'`. */
   align?: 'start' | 'end'
   /**
    * Keeps the column at the table's left edge while it scrolls sideways (columns before it scroll

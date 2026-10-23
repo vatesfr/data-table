@@ -278,6 +278,22 @@ describe('DataTable — column align', () => {
     expect(lastCells).toEqual(['end', 'end', 'end', 'end'])
   })
 
+  it("right-aligns a number column by default, unless `align: 'start'`", () => {
+    const cols: ColumnDef<Row>[] = [
+      { key: 'id', label: 'ID', type: 'number', align: 'start' },
+      { key: 'score', label: 'Score', type: 'number' },
+    ]
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: cols, rowKey: 'id' } })
+    expect(wrapper.find('th[data-col-key="score"] .dt-th-spacer').exists()).toBe(true)
+    expect(wrapper.findAll('.dt-th-spacer')).toHaveLength(1)
+    const align = (key: string) =>
+      wrapper
+        .findAll(`td[data-col-key="${key}"]`)
+        .map((td) => (td.element as HTMLElement).style.textAlign)
+    expect(align('score')).toEqual(['end', 'end'])
+    expect(align('id')).toEqual(['', ''])
+  })
+
   it("marks a column's header, cells and aggregate cells with `data-col-key`", () => {
     const cols: ColumnDef<Row>[] = [
       { key: 'name', label: 'Name', groupable: true },
