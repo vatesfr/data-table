@@ -7,6 +7,8 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.20.0] - 2026-10-23
+
 ### Added
 
 - **`rowClass`** (Solid, React, Vue, vanilla): `(row) => string | undefined` adds an app's own classes to each data row, e.g. to dim an expired row without matching cell content (which broke once that column was hidden); vanilla adds `setRowClass`.
