@@ -41,6 +41,7 @@ import {
   countActiveFilters,
   buildViewStateSnapshot,
   resolveViewState,
+  clampInt,
   resolveFocusTarget,
   type VisibleItem,
 } from '@vates/data-table-core/internal'
@@ -459,12 +460,13 @@ export function useTableState<TRow extends object>(
       pageSize,
       numPages,
       setPage: (p: number) => {
-        if (!Number.isFinite(p)) return
-        page.value = Math.max(1, Math.min(Math.floor(p), numPages.value))
+        const next = clampInt(p, 1, numPages.value)
+        if (next !== undefined) page.value = next
       },
       setPageSize: (s: number) => {
-        if (!Number.isFinite(s)) return
-        pageSize.value = Math.max(0, Math.floor(s))
+        const next = clampInt(s, 0)
+        if (next === undefined) return
+        pageSize.value = next
         page.value = 1
       },
     },

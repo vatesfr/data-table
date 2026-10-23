@@ -1,5 +1,5 @@
 import type { SortEntry, RangeFilter, ColumnDefBase } from './types'
-import { getDefaultSortDir, insertGroupSort } from './logic'
+import { clampInt, getDefaultSortDir, insertGroupSort } from './logic'
 
 /**
  * Serializable snapshot of table configuration — everything a user can change through the UI
@@ -339,8 +339,6 @@ type Obj = Record<string, unknown>
 const isObj = (v: unknown): v is Obj => typeof v === 'object' && v !== null && !Array.isArray(v)
 const isStr = (v: unknown): v is string => typeof v === 'string'
 const strs = (v: unknown) => (Array.isArray(v) ? v.filter(isStr) : undefined)
-const num = (min: number) => (v: unknown) =>
-  typeof v === 'number' && Number.isFinite(v) ? Math.max(min, Math.floor(v)) : undefined
 const sortList = (v: unknown) =>
   Array.isArray(v)
     ? v.filter(
@@ -423,8 +421,8 @@ export function resolveViewState<TRow extends object = Record<string, unknown>>(
       entries((r): r is RangeFilter => isObj(r) && isStr(r.min) && isStr(r.max)),
     ) ?? {}
   const collapsedGroups = new Set(get('collapsedGroups', strs))
-  const page = get('page', num(1)) ?? 1
-  const pageSize = get('pageSize', num(0)) ?? 0
+  const page = get('page', (x) => clampInt(x, 1)) ?? 1
+  const pageSize = get('pageSize', (x) => clampInt(x, 0)) ?? 0
   const searchQuery = get('searchQuery', (x) => (isStr(x) ? x : undefined)) ?? ''
   return {
     visibleCols,

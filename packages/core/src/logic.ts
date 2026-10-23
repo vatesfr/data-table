@@ -2092,6 +2092,13 @@ export function getSortIndex(sorts: SortEntry[], key: string): number | null {
   return i >= 0 ? i + 1 : null
 }
 
+/** Floors a finite number into `[min, max]`; `undefined` for anything else (e.g. `NaN`, a string). */
+export function clampInt(v: unknown, min: number, max = Infinity): number | undefined {
+  return typeof v === 'number' && Number.isFinite(v)
+    ? Math.max(min, Math.min(Math.floor(v), max))
+    : undefined
+}
+
 export function paginateData<TRow extends object>(
   data: TRow[],
   page: number,

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import type { SortEntry } from '../types'
 import {
+  clampInt,
   rowText,
   processData,
   searchData,
@@ -2330,6 +2331,20 @@ describe('paginateData', () => {
 })
 
 // ─── computeTotalPages ───────────────────────────────────────────────────────────
+
+describe('clampInt', () => {
+  it('floors and clamps a finite number', () => {
+    expect(clampInt(2.7, 1)).toBe(2)
+    expect(clampInt(-5, 0)).toBe(0)
+    expect(clampInt(9, 1, 3)).toBe(3)
+  })
+
+  it('returns undefined for a non-finite or non-number value', () => {
+    expect(clampInt(NaN, 1)).toBeUndefined()
+    expect(clampInt(Infinity, 0)).toBeUndefined()
+    expect(clampInt('2', 1)).toBeUndefined()
+  })
+})
 
 describe('computeTotalPages', () => {
   it('returns 1 when pageSize is 0 (pagination disabled)', () => {

@@ -49,6 +49,7 @@ import {
   type GetRowId,
   buildViewStateSnapshot,
   resolveViewState,
+  clampInt,
   resolveFocusTarget,
   type VisibleItem,
 } from '@vates/data-table-core/internal'
@@ -528,12 +529,13 @@ export function createTableState<TRow extends object>(
       pageSize,
       numPages,
       setPage: (p: number) => {
-        if (!Number.isFinite(p)) return
-        setPageState(Math.max(1, Math.min(Math.floor(p), numPages())))
+        const next = clampInt(p, 1, numPages())
+        if (next !== undefined) setPageState(next)
       },
       setPageSize: (s: number) => {
-        if (!Number.isFinite(s)) return
-        setPageSizeState(Math.max(0, Math.floor(s)))
+        const next = clampInt(s, 0)
+        if (next === undefined) return
+        setPageSizeState(next)
         setPageState(1)
       },
     },
