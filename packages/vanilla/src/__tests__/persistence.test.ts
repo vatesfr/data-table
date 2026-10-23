@@ -4,6 +4,10 @@ import { createDataTable } from '../index'
 import { persistViewToLocalStorage, syncViewToUrl, resetView, persistView } from '../persistence'
 import type { ColumnDef } from '../types'
 
+// Encodes raw JSON, so a test can build a wrongly typed view `encodeViewState` wouldn't produce.
+const rawEncode = (json: string) =>
+  btoa(json).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+
 interface Row {
   id: number
   name: string
@@ -67,6 +71,13 @@ describe('persistence helpers', () => {
   })
 
   describe('syncViewToUrl', () => {
+    it('ignores a wrongly typed field in the URL and applies the rest (#44)', () => {
+      window.history.replaceState(null, '', `/?view=${rawEncode('{"f":[["name",5]],"q":"abc"}')}`)
+      const table = createDataTable(container, { data: ROWS, columns: COLS })
+      syncViewToUrl(table)
+      expect(table.getViewState()).toEqual({ searchQuery: 'abc' })
+    })
+
     it('hydrates from the URL immediately', () => {
       window.history.replaceState(null, '', `/?view=${encodeViewState({ searchQuery: 'abc' })}`)
       const table = createDataTable(container, { data: ROWS, columns: COLS })

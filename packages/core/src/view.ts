@@ -331,9 +331,29 @@ export interface ResolvedViewState {
   searchQuery: string
 }
 
-function toSetMap(m: Record<string, string[]>): Record<string, Set<string>> {
-  return Object.fromEntries(Object.entries(m).map(([k, v]) => [k, new Set(v)]))
+function toSetMap(m: Record<string, unknown[]> = {}): Record<string, Set<string>> {
+  return Object.fromEntries(Object.entries(m).map(([k, v]) => [k, new Set(v.filter(isStr))]))
 }
+
+type Obj = Record<string, unknown>
+const isObj = (v: unknown): v is Obj => typeof v === 'object' && v !== null && !Array.isArray(v)
+const isStr = (v: unknown): v is string => typeof v === 'string'
+const strs = (v: unknown) => (Array.isArray(v) ? v.filter(isStr) : undefined)
+const num = (min: number) => (v: unknown) =>
+  typeof v === 'number' && Number.isFinite(v) ? Math.max(min, Math.floor(v)) : undefined
+const sortList = (v: unknown) =>
+  Array.isArray(v)
+    ? v.filter(
+        (s): s is SortEntry => isObj(s) && isStr(s.key) && (s.dir === 'asc' || s.dir === 'desc'),
+      )
+    : undefined
+/** Keeps the entries of record `v` that pass `ok`. */
+const entries =
+  <T>(ok: (x: unknown) => x is T) =>
+  (v: unknown) =>
+    isObj(v)
+      ? (Object.fromEntries(Object.entries(v).filter(([, x]) => ok(x))) as Record<string, T>)
+      : undefined
 
 /**
  * Applies the same "grouping a column inserts a matching sort entry, ahead of whatever else is
@@ -377,28 +397,35 @@ export function resolveViewState<TRow extends object = Record<string, unknown>>(
   columns: ColumnDefBase<TRow>[],
   initialViewState?: TableViewState,
 ): ResolvedViewState {
-  const validInitialVisible = initialViewState?.visibleCols?.filter((k) =>
-    columns.some((c) => c.key === k),
+  // Untyped sources (hand-edited URL, stale storage, plain JS) can break the types: a wrongly
+  // typed field or entry acts as omitted instead of throwing (#44).
+  const v: Obj = isObj(view) ? view : {}
+  const i: Obj = isObj(initialViewState) ? initialViewState : {}
+  const get = <T>(k: keyof TableViewState, f: (x: unknown) => T | undefined) => f(v[k]) ?? f(i[k])
+  const known = (x: unknown) => strs(x)?.filter((k) => columns.some((c) => c.key === k))
+  const visibleCols = new Set(
+    [known(v.visibleCols), known(i.visibleCols), columns.map((c) => c.key)].find((a) => a?.length),
   )
-  const defaultVisible = validInitialVisible?.length
-    ? validInitialVisible
-    : columns.map((c) => c.key)
-  const validVisible = view.visibleCols?.filter((k) => columns.some((c) => c.key === k))
-  const visibleCols = validVisible?.length ? new Set(validVisible) : new Set(defaultVisible)
-  const columnOrder = (view.columnOrder ?? initialViewState?.columnOrder ?? []).filter((k) =>
-    columns.some((c) => c.key === k),
-  )
-  const groupBy = view.groupBy ?? initialViewState?.groupBy ?? []
-  const rawSorts = view.sorts ?? initialViewState?.sorts ?? []
-  const sorts = view.groupBy === undefined ? syncGroupSorts(rawSorts, groupBy, columns) : rawSorts
-  const filters = toSetMap(view.filters ?? initialViewState?.filters ?? {})
-  const excludeFilters = toSetMap(view.excludeFilters ?? initialViewState?.excludeFilters ?? {})
-  const filterModes = view.filterModes ?? initialViewState?.filterModes ?? {}
-  const rangeFilters = view.rangeFilters ?? initialViewState?.rangeFilters ?? {}
-  const collapsedGroups = new Set(view.collapsedGroups ?? initialViewState?.collapsedGroups ?? [])
-  const page = view.page ?? initialViewState?.page ?? 1
-  const pageSize = view.pageSize ?? initialViewState?.pageSize ?? 0
-  const searchQuery = view.searchQuery ?? initialViewState?.searchQuery ?? ''
+  const columnOrder = get('columnOrder', known) ?? []
+  const groupBy = get('groupBy', strs) ?? []
+  const rawSorts = get('sorts', sortList) ?? []
+  const sorts = strs(v.groupBy) ? rawSorts : syncGroupSorts(rawSorts, groupBy, columns)
+  const filters = toSetMap(get('filters', entries(Array.isArray)))
+  const excludeFilters = toSetMap(get('excludeFilters', entries(Array.isArray)))
+  const filterModes =
+    get(
+      'filterModes',
+      entries((m): m is 'and' | 'or' => m === 'and' || m === 'or'),
+    ) ?? {}
+  const rangeFilters =
+    get(
+      'rangeFilters',
+      entries((r): r is RangeFilter => isObj(r) && isStr(r.min) && isStr(r.max)),
+    ) ?? {}
+  const collapsedGroups = new Set(get('collapsedGroups', strs))
+  const page = get('page', num(1)) ?? 1
+  const pageSize = get('pageSize', num(0)) ?? 0
+  const searchQuery = get('searchQuery', (x) => (isStr(x) ? x : undefined)) ?? ''
   return {
     visibleCols,
     columnOrder,

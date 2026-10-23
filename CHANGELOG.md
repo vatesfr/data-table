@@ -7,6 +7,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Fixed
+
+- **A wrongly typed view field no longer crashes the table** (Solid, React, Vue, vanilla): a hand-edited or stale `?view=` link, a stored view, or a `setViewState`/`initialViewState` value of the wrong type (e.g. `filters: { name: 5 }`) is ignored instead of throwing on mount; the view's other fields still apply (#44).
+
 ## [0.18.0] - 2026-10-19
 
 ### Added

@@ -9,6 +9,9 @@ import {
 } from '../view'
 import type { ColumnDefBase } from '../types'
 
+// Not in core's ES2020 lib, but present in Node and browsers.
+declare const btoa: (s: string) => string
+
 const COLS: ColumnDefBase[] = [
   { key: 'name', label: 'Name' },
   { key: 'dept', label: 'Dept' },
@@ -145,6 +148,109 @@ describe('resolveViewState', () => {
   it('respects an explicit view.sorts alongside an explicit view.groupBy with no auto-insert', () => {
     const r = resolveViewState({ groupBy: ['score'], sorts: [{ key: 'name', dir: 'asc' }] }, COLS)
     expect(r.sorts).toEqual([{ key: 'name', dir: 'asc' }])
+  })
+})
+
+describe('resolveViewState with wrongly typed input (#44)', () => {
+  // Views from a hand-edited URL, stale storage or plain JS can break `TableViewState`'s types.
+  const bad = (v: unknown) => v as TableViewState
+  const rawEncode = (json: string) =>
+    btoa(json).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+
+  it.each([
+    { filters: { name: 5 } },
+    { filters: { name: 'ab' } },
+    { filters: [['name', ['a']]] },
+    { filters: null },
+    { excludeFilters: { name: 5 } },
+    { collapsedGroups: 3 },
+    { visibleCols: 'x' },
+    { columnOrder: 'x' },
+    { groupBy: 'x' },
+    { sorts: 'x' },
+    { sorts: [{ key: 'name', dir: 'up' }] },
+    { filterModes: { name: 'xor' } },
+    { rangeFilters: { name: 5 } },
+    { rangeFilters: { name: { min: 1, max: '' } } },
+    { page: 'x' },
+    { page: NaN },
+    { pageSize: 'x' },
+    { pageSize: Infinity },
+    { searchQuery: 5 },
+  ])('ignores %o', (view) => {
+    expect(resolveViewState(bad(view), COLS)).toEqual(resolveViewState({}, COLS))
+  })
+
+  it('keeps a "__proto__" key as an ordinary entry', () => {
+    const view = JSON.parse('{"rangeFilters":{"__proto__":{"min":"1","max":"2"}}}')
+    const r = resolveViewState(view, COLS)
+    expect(Object.getPrototypeOf(r.rangeFilters)).toBe(Object.prototype)
+    expect(Object.keys(r.rangeFilters)).toEqual(['__proto__'])
+  })
+
+  it('treats a non-object view as empty', () => {
+    expect(resolveViewState(bad(null), COLS)).toEqual(resolveViewState({}, COLS))
+    expect(resolveViewState(bad('x'), COLS)).toEqual(resolveViewState({}, COLS))
+  })
+
+  it('falls back to initialViewState for a wrongly typed field', () => {
+    const r = resolveViewState(bad({ page: 'x', groupBy: 'x' }), COLS, {
+      page: 3,
+      groupBy: ['score'],
+    })
+    expect(r.page).toBe(3)
+    expect(r.groupBy).toEqual(['score'])
+    expect(r.sorts).toEqual([{ key: 'score', dir: 'desc' }])
+  })
+
+  it('keeps valid fields and entries next to wrongly typed ones', () => {
+    const r = resolveViewState(
+      bad({
+        filters: { name: 5, dept: ['a', 7] },
+        sorts: [5, { key: 'name', dir: 'asc' }],
+        rangeFilters: { name: null, score: { min: '1', max: '' } },
+        visibleCols: ['name', 3],
+        searchQuery: 'q',
+        page: 'x',
+      }),
+      COLS,
+    )
+    expect(r.filters).toEqual({ dept: new Set(['a']) })
+    expect(r.sorts).toEqual([{ key: 'name', dir: 'asc' }])
+    expect(r.rangeFilters).toEqual({ score: { min: '1', max: '' } })
+    expect(r.visibleCols).toEqual(new Set(['name']))
+    expect(r.searchQuery).toBe('q')
+    expect(r.page).toBe(1)
+  })
+
+  it('floors and clamps page and pageSize like setPage/setPageSize', () => {
+    expect(resolveViewState({ page: 0, pageSize: -5 }, COLS)).toMatchObject({
+      page: 1,
+      pageSize: 0,
+    })
+    expect(resolveViewState({ page: 2.7, pageSize: 20.5 }, COLS)).toMatchObject({
+      page: 2,
+      pageSize: 20,
+    })
+  })
+
+  it('ignores a wrongly typed initialViewState field', () => {
+    expect(resolveViewState({}, COLS, bad({ filters: { name: 5 }, page: 'x' }))).toEqual(
+      resolveViewState({}, COLS),
+    )
+    const input: ViewStateSnapshotInput = {
+      ...resolveViewState({}, COLS),
+      columns: COLS,
+      initialViewState: bad({ collapsedGroups: 3 }),
+    }
+    expect(buildViewStateSnapshot(input)).toEqual({})
+  })
+
+  it('applies the valid fields of a decoded URL payload', () => {
+    const view = decodeViewState(rawEncode('{"f":[["name",5]],"q":"abc"}'))
+    const r = resolveViewState(view!, COLS)
+    expect(r.filters).toEqual({})
+    expect(r.searchQuery).toBe('abc')
   })
 })
 

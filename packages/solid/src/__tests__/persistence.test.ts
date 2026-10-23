@@ -5,6 +5,10 @@ import { createTableState } from '../createTableState'
 import { usePersistedView, useUrlView, resetView, usePersistence } from '../persistence'
 import type { ColumnDef } from '../types'
 
+// Encodes raw JSON, so a test can build a wrongly typed view `encodeViewState` wouldn't produce.
+const rawEncode = (json: string) =>
+  btoa(json).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+
 interface Row {
   id: number
   name: string
@@ -68,6 +72,13 @@ describe('usePersistedView', () => {
 })
 
 describe('useUrlView', () => {
+  it('ignores a wrongly typed field in the URL and applies the rest (#44)', () => {
+    window.history.replaceState(null, '', `/?view=${rawEncode('{"f":[["name",5]],"q":"abc"}')}`)
+    const { table, dispose } = mountTable((t) => useUrlView(t))
+    expect(table.getViewState()).toEqual({ searchQuery: 'abc' })
+    dispose()
+  })
+
   it('hydrates state from the URL on mount', () => {
     window.history.replaceState(null, '', `/?view=${encodeViewState({ searchQuery: 'abc' })}`)
     const { table, dispose } = mountTable((t) => useUrlView(t))
