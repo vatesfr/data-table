@@ -7,7 +7,10 @@ test('#43 an open dropdown re-clamps once while its transform is transitioning',
   section,
 }) => {
   const dt = await section('full-table')
-  await page.addStyleTag({ content: '.dt-dd { transition: transform 200ms }' })
+  // Narrower than full width, so widening it below gives the clamp room to shift it
+  await page.addStyleTag({
+    content: '.dt-dd { transition: transform 200ms } .dt-filter-panel--narrow { width: 300px }',
+  })
   await dt.getByRole('button', { name: 'Filter', exact: true }).tap()
   const panel = page.locator('.dt-dd').first()
   await expect(panel).toHaveAttribute('style', /translateX/)

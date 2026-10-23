@@ -56,6 +56,14 @@ test('UC07.1-4 on a phone', async ({ page, section }) => {
   await expect(boxes.nth(2)).toBeChecked()
 })
 
+test('UC07.1 on a phone: the Filter dropdown has equal side gutters', async ({ page, section }) => {
+  const dt = await section('full-table')
+  await dt.getByRole('button', { name: 'Filter', exact: true }).tap()
+  const box = (await page.locator('.dt-dd').first().boundingBox())!
+  const right = page.viewportSize()!.width - box.x - box.width
+  expect(Math.abs(box.x - right)).toBeLessThanOrEqual(1)
+})
+
 test('UC07.5 on a phone: the pinned Name column stays in view while the table scrolls sideways', async ({
   page,
   section,

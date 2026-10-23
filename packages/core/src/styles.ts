@@ -31,6 +31,12 @@
 // The odd-row stripe is a layer over the pinned base, so `--dt-stripe-background: transparent`
 // turns striping off on pinned cells too.
 //
+// Full-width panels (.dt-filter-panel--narrow, .dt-th-menu-panel) leave 17 px: twice the
+// viewport clamp's 8 px margin (computeDropdownClampOffset, computeMenuPosition) plus the .5 px
+// borders, so the clamp leaves equal gutters. The fixed header menu uses 100%, which excludes a
+// classic scrollbar; the narrow Filter panel's 100vw doesn't, so in a desktop window under 480 px
+// its last few pixels sit under that scrollbar.
+//
 // Row focus ring: :focus-visible, since a click focuses the row too and would ring every clicked
 // row; inset so the scroll wrapper doesn't clip it. A pinned cell paints above the row's outline,
 // so it redraws the ring's top and bottom edges (no left edge: unscrolled, it sits mid-row), and
@@ -121,7 +127,7 @@ export const DT_STYLES = `
 .dt-th-menu{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;width:24px;height:24px;margin:-4px 0 -4px auto;padding:0;border:none;border-radius:4px;background:none;color:var(--color-text-secondary,#666561);font:inherit;cursor:pointer}
 .dt-th-menu:hover,.dt-th-menu[aria-expanded=true]{background:var(--color-background-secondary,#f7f6f3)}
 .dt-th-menu--filtered{color:var(--color-text-info,#185fa5);font-weight:var(--font-weight-bold,700)}
-.dt-th-menu-panel{padding:4px 0;max-width:calc(100vw - 40px)}
+.dt-th-menu-panel{padding:4px 0;max-width:calc(100% - 17px)}
 .dt-th-menu-panel--drilled{max-height:none;padding:0;overflow:hidden}
 .dt-th-filter-flyout{display:flex;flex-direction:column;max-height:380px;overflow:hidden;font-weight:var(--font-weight-normal,400)}
 .dt-td{padding:8px 12px;border-bottom:.5px solid var(--color-border-tertiary,#eeedea);color:var(--color-text-primary,#1a1916);vertical-align:middle}
@@ -158,7 +164,7 @@ export const DT_STYLES = `
 .dt-search-clear:hover{color:var(--color-text-primary,#1a1916)}
 .dt-filter-cols .dt-dd-search{width:0}
 .dt-filter-panel{display:flex;min-width:460px;max-height:380px;overflow:hidden}
-.dt-filter-panel--narrow{flex-direction:column;min-width:0;width:calc(100vw - 40px)}
+.dt-filter-panel--narrow{flex-direction:column;min-width:0;width:calc(100vw - 17px)}
 .dt-filter-panel--narrow .dt-filter-cols{width:auto;max-width:none;border-right:none}
 .dt-filter-back{flex-shrink:0;font-weight:var(--font-weight-medium,500);border-bottom:.5px solid var(--color-border-tertiary,#eeedea)}
 .dt-filter-cols{width:max-content;min-width:150px;max-width:240px;flex-shrink:0;overflow-y:auto;border-right:.5px solid var(--color-border-tertiary,#eeedea);padding:4px 0}

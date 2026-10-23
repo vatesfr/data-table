@@ -80,6 +80,7 @@ Every dropdown panel (Columns/Sort/Group/Filter) is absolutely positioned off it
 - The viewport width is core's `viewportWidth()` (`clientWidth`, excluding a classic scrollbar that `innerWidth` includes), also used by category submenus and the header menu.
 - Clamp before focusing the panel's search box: focusing a field still past the edge scrolls the whole page sideways on a phone.
 - Below `FILTER_NARROW_QUERY` (480 px) the Filter panel can't fit at all, so it shows one pane at a time — see [filter dropdown](filter-dropdown.md).
+- Full-width panels (the narrow Filter panel, the header menu's `max-width`) leave 17 px: twice the clamp's 8 px margin plus their borders, so the clamp leaves equal gutters; a mismatch put all the slack on one side.
 
 Separately, the toolbar search input is `flex: 1` capped at a `max-width` of 280px instead of a fixed ~160px box, so it grows to use available toolbar space on wide viewports while still shrinking gracefully on narrow ones — a CSS-only responsiveness fix, not a behavioral change. (An earlier iteration also wrapped the toolbar's buttons and the search/clear-all pair into two separate flex sub-containers so they'd wrap as units on narrow viewports; [Toolbar layout](#toolbar-layout-shapefind-clusters-active-state-bar)'s shape/find redesign flattened both back into the single `dt-toolbar-actions` container, so each control now wraps individually again.)
 
