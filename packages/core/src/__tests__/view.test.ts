@@ -8,9 +8,7 @@ import {
   type ViewStateSnapshotInput,
 } from '../view'
 import type { ColumnDefBase } from '../types'
-
-// Not in core's ES2020 lib, but present in Node and browsers.
-declare const btoa: (s: string) => string
+import { encodeRawView } from './encodeRawView'
 
 const COLS: ColumnDefBase[] = [
   { key: 'name', label: 'Name' },
@@ -154,8 +152,6 @@ describe('resolveViewState', () => {
 describe('resolveViewState with wrongly typed input (#44)', () => {
   // Views from a hand-edited URL, stale storage or plain JS can break `TableViewState`'s types.
   const bad = (v: unknown) => v as TableViewState
-  const rawEncode = (json: string) =>
-    btoa(json).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
 
   it.each([
     { filters: { name: 5 } },
@@ -247,7 +243,7 @@ describe('resolveViewState with wrongly typed input (#44)', () => {
   })
 
   it('applies the valid fields of a decoded URL payload', () => {
-    const view = decodeViewState(rawEncode('{"f":[["name",5]],"q":"abc"}'))
+    const view = decodeViewState(encodeRawView('{"f":[["name",5]],"q":"abc"}'))
     const r = resolveViewState(view!, COLS)
     expect(r.filters).toEqual({})
     expect(r.searchQuery).toBe('abc')
