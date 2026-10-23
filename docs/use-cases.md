@@ -116,7 +116,7 @@ What people do with a table built on this library, end to end — the yardstick 
 4. Select a few rows by tapping.
 5. Scroll sideways to the figures: the pinned Name column stays in view, so each figure keeps its row's name.
 
-**Edges**: touch targets on checkboxes, chips' ×, pagination; dropdowns near the screen edge; a longer locale (DE, FR) still fitting the toolbar.
+**Edges**: a 320 px screen with a `toolbarEnd`; touch targets on checkboxes, chips' ×, pagination; dropdowns near the screen edge; a longer locale (DE, FR) still fitting the toolbar.
 
 **Docs**: [toolbar](toolbar.md) (viewport clamping), [columns](columns.md#pinned-column)
 

@@ -135,3 +135,17 @@ test('U20 on a phone: opening a toolbar dropdown leaves the keyboard down', asyn
     await page.keyboard.press('Escape')
   }
 })
+
+test.describe('at 320 px', () => {
+  test.use({ viewport: { width: 320, height: 640 } })
+
+  test('UC07.1 at 320 px: the toolbar, end slot included, fits without side-scrolling the page', async ({
+    page,
+    section,
+  }) => {
+    const dt = await section('persisted-table')
+    expect(await pageScrollsSideways(page)).toBe(false)
+    await expectInViewport(page, dt.getByRole('textbox', { name: 'Search…' }))
+    await expectInViewport(page, dt.locator('.dt-toolbar-end'))
+  })
+})
