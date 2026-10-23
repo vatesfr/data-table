@@ -7,6 +7,8 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.19.0] - 2026-10-23
+
 ### Added
 
 - **`data-col-key` on every column cell** (Solid, React, Vue, vanilla): body and aggregate cells, and React's and Vue's header cells, carry their column's key, a stable hook for app CSS (#45).
