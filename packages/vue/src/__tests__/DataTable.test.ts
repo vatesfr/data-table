@@ -299,6 +299,26 @@ describe('DataTable — column align', () => {
     expect(lastCells).toHaveLength(4)
     expect([...wrapper.element.querySelectorAll('td[data-col-key="score"]')]).toEqual(lastCells)
   })
+
+  it("marks a pinned column's header, cells and aggregate cells, and only those", () => {
+    const cols: ColumnDef<Row>[] = [
+      { key: 'name', label: 'Name', groupable: true },
+      { key: 'id', label: 'ID' },
+      { key: 'score', label: 'Score', type: 'number', aggregate: 'sum', pinned: true },
+    ]
+    const wrapper = mount(DataTable, {
+      props: {
+        data: ROWS,
+        columns: cols,
+        rowKey: 'id',
+        defaultGroupsCollapsed: false,
+        initialViewState: { groupBy: ['name'] },
+      },
+    })
+    const pinned = wrapper.findAll('.dt-pinned')
+    expect(pinned).toHaveLength(5) // header + 2 rows + 2 aggregates
+    expect(pinned.every((el) => el.attributes('data-col-key') === 'score')).toBe(true)
+  })
 })
 
 describe('DataTable — bucketed grouping (groupValue/groupFormat)', () => {

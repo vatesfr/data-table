@@ -343,7 +343,10 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
                 return (
                   <th
                     class="dt-th"
-                    classList={{ 'dt-dd-item--drag-over': dragOverColKey() === col.key }}
+                    classList={{
+                      'dt-pinned': col.pinned,
+                      'dt-dd-item--drag-over': dragOverColKey() === col.key,
+                    }}
                     draggable={menuColKey() === col.key ? 'false' : 'true'}
                     data-col-key={col.key}
                     aria-sort={
@@ -649,7 +652,12 @@ function GroupHeaderRow<TRow extends object>(props: GroupHeaderRowProps<TRow>) {
           <td class="dt-agg-td" style={{ width: '28px' }} />
           <For each={table.columns.active()}>
             {(col) => (
-              <td class="dt-agg-td" data-col-key={col.key} style={{ 'text-align': col.align }}>
+              <td
+                class="dt-agg-td"
+                classList={{ 'dt-pinned': col.pinned }}
+                data-col-key={col.key}
+                style={{ 'text-align': col.align }}
+              >
                 {aggValue(col, props.group.rows, props.group.sampleRow!)}
               </td>
             )}
@@ -770,7 +778,12 @@ function DataRow<TRow extends object>(props: DataRowProps<TRow>) {
       </Show>
       <For each={table.columns.active()}>
         {(col) => (
-          <td class="dt-td" data-col-key={col.key} style={{ 'text-align': col.align }}>
+          <td
+            class="dt-td"
+            classList={{ 'dt-pinned': col.pinned }}
+            data-col-key={col.key}
+            style={{ 'text-align': col.align }}
+          >
             {cellValue(col, row)}
           </td>
         )}

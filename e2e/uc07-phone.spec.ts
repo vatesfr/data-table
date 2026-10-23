@@ -56,6 +56,31 @@ test('UC07.1-4 on a phone', async ({ page, section }) => {
   await expect(boxes.nth(2)).toBeChecked()
 })
 
+test('UC07.5 on a phone: the pinned Name column stays in view while the table scrolls sideways', async ({
+  page,
+  section,
+}) => {
+  const dt = await section('full-table')
+  const wrap = dt.locator('.dt-table-wrap')
+  await wrap.evaluate((el) => el.scrollBy(200, 0))
+  expect(await wrap.evaluate((el) => el.scrollLeft)).toBe(200)
+  const wrapX = (await wrap.boundingBox())!.x
+  const name = (await dt.locator('tbody td[data-col-key="name"]').first().boundingBox())!
+  expect(Math.abs(name.x - wrapX)).toBeLessThanOrEqual(1) // wrap border
+  // The next column scrolled under it
+  const next = dt.locator('tbody td[data-col-key="name"] + td').first()
+  expect((await next.boundingBox())!.x).toBeLessThan(name.x + name.width)
+
+  // The pinned header's menu paints above the pinned body cells
+  await dt.getByRole('button', { name: /^Name options/ }).tap()
+  const menu = (await page.getByRole('dialog', { name: 'Name options' }).boundingBox())!
+  const onTop = await page.evaluate(
+    ([x, y]) => !!document.elementFromPoint(x, y)?.closest('[role=dialog]'),
+    [menu.x + 4, menu.y + menu.height - 4],
+  )
+  expect(onTop).toBe(true)
+})
+
 test('UC11.2 on a phone: a header menu filters in place, within the screen', async ({
   page,
   section,

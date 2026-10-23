@@ -22,6 +22,12 @@
 // this only needs to cancel --sortrow's hover highlight (a cue that dragging would do something
 // here, which it wouldn't), not restyle the row into looking disabled. Must come after
 // .dt-dd-item--sortrow:hover above to win the cascade on the shared hover background.
+//
+// .dt-pinned: with border-collapse the table paints row borders, which a sticky cell's opaque
+// background hides once scrolled, so its ::after redraws its border-bottom (and the shadow, kept
+// off box-shadow so the header's drag-over line survives). Its header sits one level above the
+// pinned body cells: the header menu panel lives inside that th's stacking context. Every pinned
+// rule stays at or below the row-state selectors' specificity, so app row-state overrides win.
 export const DT_STYLES = `
 .dt{font-family:inherit;font-size:var(--font-size-lg,14px);color:var(--color-text-primary,#1a1916)}
 .dt-toolbar{padding:12px 0;border-bottom:.5px solid var(--color-border-tertiary,#eeedea)}
@@ -112,7 +118,12 @@ export const DT_STYLES = `
 .dt-th-menu-panel--drilled{max-height:none;padding:0;overflow:hidden}
 .dt-th-filter-flyout{display:flex;flex-direction:column;max-height:380px;overflow:hidden;font-weight:var(--font-weight-normal,400)}
 .dt-td{padding:8px 12px;border-bottom:.5px solid var(--color-border-tertiary,#eeedea);color:var(--color-text-primary,#1a1916);vertical-align:middle}
+.dt-pinned{position:sticky;left:0;z-index:1}
+.dt-pinned::after{content:'';position:absolute;inset:0 -8px 0 0;pointer-events:none;border-bottom:inherit;background:linear-gradient(to right,transparent calc(100% - 8px),rgba(0,0,0,.12) calc(100% - 8px),transparent)}
+.dt-th.dt-pinned{z-index:2}
+.dt-td.dt-pinned{background:var(--dt-pinned-background,var(--color-background-primary,#fff))}
 .dt-tr--odd .dt-td{background:color-mix(in srgb,var(--color-background-secondary,#f7f6f3) 45%,transparent)}
+.dt-tr--odd .dt-pinned{background:color-mix(in srgb,var(--color-background-secondary,#f7f6f3) 45%,var(--dt-pinned-background,var(--color-background-primary,#fff)))}
 .dt-tr--clickable{cursor:pointer}
 .dt-tr--clickable:not(.dt-tr--selected):hover .dt-td{background:var(--color-background-secondary,#f7f6f3)}
 .dt-tr--selected .dt-td{background:var(--color-background-info,#e6f1fb)}
@@ -171,6 +182,7 @@ export const DT_STYLES = `
 .dt-date-tree-toggle--branch{cursor:pointer}
 .dt-agg-row{font-size:var(--font-size-sm,12px);font-weight:var(--font-weight-medium,500);color:var(--color-text-secondary,#666561);background:var(--color-background-secondary,#f7f6f3)}
 .dt-agg-td{padding:4px 12px;border-bottom:.5px solid var(--color-border-tertiary,#eeedea)}
+.dt-agg-row .dt-pinned{background:inherit}
 `
 
 // Injects the rules, and the theme tokens when given, into <head> at most once per page each, so a

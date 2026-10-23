@@ -38,13 +38,14 @@ function mount(
     onRowClick?: (r: Row, e: unknown) => void
     defaultGroupsCollapsed?: boolean
     initialViewState?: TableViewState
+    columns?: ColumnDef<Row>[]
   } = {},
 ) {
   const container = document.createElement('div')
   document.body.appendChild(container)
   let table!: ReturnType<typeof createTableState<Row>>
   const dispose = createRoot((d) => {
-    table = createTableState(ROWS, COLS, {
+    table = createTableState(ROWS, opts.columns ?? COLS, {
       defaultGroupsCollapsed: opts.defaultGroupsCollapsed,
       initialViewState: opts.initialViewState,
     })
@@ -52,7 +53,7 @@ function mount(
       () => (
         <TableBody
           table={table}
-          columns={COLS}
+          columns={opts.columns ?? COLS}
           rowKey="id"
           selectable={opts.selectable}
           onRowClick={opts.onRowClick}
@@ -341,6 +342,16 @@ describe('TableBody — grouping and aggregation', () => {
     )
     expect(lastCells).toHaveLength(5)
     expect([...container.querySelectorAll('td[data-col-key="score"]')]).toEqual(lastCells)
+    dispose()
+  })
+
+  it("marks a pinned column's header, cells and aggregate cells, and only those", () => {
+    const columns = COLS.map((c) => (c.key === 'score' ? { ...c, pinned: true } : c))
+    const { container, table, dispose } = mount({ defaultGroupsCollapsed: false, columns })
+    table.group.toggle('dept')
+    const pinned = [...container.querySelectorAll('.dt-pinned')]
+    expect(pinned).toHaveLength(6) // header + 3 rows + 2 aggregates
+    expect(pinned.every((el) => el.getAttribute('data-col-key') === 'score')).toBe(true)
     dispose()
   })
 

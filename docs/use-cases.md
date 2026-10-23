@@ -114,10 +114,11 @@ What people do with a table built on this library, end to end — the yardstick 
 2. Sort from the Sort dropdown (no shift-click on a phone).
 3. Scroll the table sideways inside its own area, not the page.
 4. Select a few rows by tapping.
+5. Scroll sideways to the figures: the pinned Name column stays in view, so each figure keeps its row's name.
 
 **Edges**: touch targets on checkboxes, chips' ×, pagination; dropdowns near the screen edge; a longer locale (DE, FR) still fitting the toolbar.
 
-**Docs**: [toolbar](toolbar.md) (viewport clamping)
+**Docs**: [toolbar](toolbar.md) (viewport clamping), [columns](columns.md#pinned-column)
 
 ## UC08 Large dataset
 

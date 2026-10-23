@@ -90,6 +90,12 @@ export interface ColumnDefBase<TRow extends object = Record<string, unknown>> {
   /** `'end'` right-aligns (in left-to-right text) the column's header, cells and aggregate cells, e.g. so a number column's digits line up. Default: `'start'`. */
   align?: 'start' | 'end'
   /**
+   * Keeps the column at the table's left edge while it scrolls sideways (columns before it scroll
+   * under it), e.g. a name column on a phone. One per table: several would overlap. Pinned body
+   * cells are painted with `--dt-pinned-background` (default `--color-background-primary`).
+   */
+  pinned?: boolean
+  /**
    * How to read this column's cell value from a row. Omitted: reads `row[key]`. Function:
    * computes the value from the whole row — covers property aliasing (`(row) => row.name`),
    * nested access, and columns with no single backing property (e.g. `price * qty`).

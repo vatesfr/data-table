@@ -2468,7 +2468,7 @@ export function DataTableView<TRow extends object>({
                       aria-sort={
                         sortDir ? (sortDir === 'asc' ? 'ascending' : 'descending') : undefined
                       }
-                      className={`dt-th${dragOverColKey === col.key ? ' dt-dd-item--drag-over' : ''}`}
+                      className={`dt-th${col.pinned ? ' dt-pinned' : ''}${dragOverColKey === col.key ? ' dt-dd-item--drag-over' : ''}`}
                       draggable
                       onDragStart={() => setDragColKey(col.key)}
                       onDragOver={(e) => {
@@ -2618,7 +2618,7 @@ export function DataTableView<TRow extends object>({
                       return (
                         <td
                           key={col.key}
-                          className="dt-agg-td"
+                          className={col.pinned ? 'dt-agg-td dt-pinned' : 'dt-agg-td'}
                           data-col-key={col.key}
                           style={{ textAlign: col.align }}
                         >
@@ -2684,7 +2684,7 @@ export function DataTableView<TRow extends object>({
                       {activeColumns.map((col) => (
                         <td
                           key={col.key}
-                          className="dt-td"
+                          className={col.pinned ? 'dt-td dt-pinned' : 'dt-td'}
                           data-col-key={col.key}
                           style={{ textAlign: col.align }}
                         >
