@@ -9,6 +9,7 @@ import {
 import {
   FILTER_NARROW_QUERY,
   HEADER_MENU_ITEMS,
+  HEADER_MENU_TRIGGER_ICON,
   ddNavFocusables,
   keepHeaderMenuFocus,
   moveMenuIndex,
@@ -38,7 +39,7 @@ interface HeaderMenuProps {
   onHide: () => void
 }
 
-function Icon({ item }: { item: HeaderMenuItem }) {
+function Icon({ d }: { d: string }) {
   return (
     <svg
       viewBox="0 0 16 16"
@@ -49,7 +50,7 @@ function Icon({ item }: { item: HeaderMenuItem }) {
       aria-hidden="true"
       className="dt-th-menu-icon"
     >
-      <path d={HEADER_MENU_ITEMS[item].icon} />
+      <path d={d} />
     </svg>
   )
 }
@@ -181,7 +182,7 @@ export function HeaderMenu({
         }}
       >
         {/* A funnel, not just a color, tells a filtered column apart */}
-        {filtered ? <Icon item="filter" /> : '▾'}
+        <Icon d={filtered ? HEADER_MENU_ITEMS.filter.icon : HEADER_MENU_TRIGGER_ICON} />
       </button>
       {open && (
         <div
@@ -235,7 +236,7 @@ export function HeaderMenu({
                   onClick={() => drill(true)}
                   onKeyDown={(e) => e.key === 'ArrowRight' && drill(true)}
                 >
-                  <Icon item={item} />
+                  <Icon d={HEADER_MENU_ITEMS[item].icon} />
                   <span className="dt-flex1">{L[HEADER_MENU_ITEMS[item].label]}</span>
                   <span className="dt-dd-category-arrow">▸</span>
                 </button>
@@ -243,7 +244,7 @@ export function HeaderMenu({
                 <CategorySubmenu
                   key={item}
                   name={L[HEADER_MENU_ITEMS[item].label]}
-                  icon={<Icon item={item} />}
+                  icon={<Icon d={HEADER_MENU_ITEMS[item].icon} />}
                   groupLabel={L[HEADER_MENU_ITEMS[item].label]}
                   className="dt-th-filter-flyout"
                   isOpen={filterOpen}
@@ -260,7 +261,7 @@ export function HeaderMenu({
                   data-dd-row
                   onClick={() => act(item)}
                 >
-                  <Icon item={item} />
+                  <Icon d={HEADER_MENU_ITEMS[item].icon} />
                   {L[HEADER_MENU_ITEMS[item].label]}
                 </button>
               ),

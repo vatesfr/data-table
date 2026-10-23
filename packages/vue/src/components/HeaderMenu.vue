@@ -3,6 +3,7 @@ import { computed, nextTick, onUnmounted, ref } from 'vue'
 import {
   FILTER_NARROW_QUERY,
   HEADER_MENU_ITEMS,
+  HEADER_MENU_TRIGGER_ICON,
   columnHasActiveFilter,
   ddNavFocusables,
   getHeaderMenuItems,
@@ -160,7 +161,6 @@ function onMenuKeydown(e: KeyboardEvent): void {
     >
       <!-- A funnel, not just a color, tells a filtered column apart -->
       <svg
-        v-if="isFiltered"
         class="dt-th-menu-icon"
         viewBox="0 0 16 16"
         fill="none"
@@ -169,9 +169,8 @@ function onMenuKeydown(e: KeyboardEvent): void {
         stroke-linejoin="round"
         aria-hidden="true"
       >
-        <path :d="HEADER_MENU_ITEMS.filter.icon" />
+        <path :d="isFiltered ? HEADER_MENU_ITEMS.filter.icon : HEADER_MENU_TRIGGER_ICON" />
       </svg>
-      <template v-else>▾</template>
     </button>
     <div
       v-if="open"

@@ -30,6 +30,9 @@ export const HEADER_MENU_ITEMS: Record<
   },
 }
 
+/** The ▾ trigger's chevron, same 16×16 stroked grid as the item icons */
+export const HEADER_MENU_TRIGGER_ICON = 'M4 6l4 4 4-4'
+
 /** The items `col`'s menu offers, in order; empty means the header gets no ▾ button */
 export function getHeaderMenuItems(
   col: { key: string; filterable?: boolean; groupable?: boolean },

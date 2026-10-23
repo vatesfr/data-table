@@ -2,6 +2,7 @@ import { For, Show, createSignal, onCleanup } from 'solid-js'
 import {
   FILTER_NARROW_QUERY,
   HEADER_MENU_ITEMS,
+  HEADER_MENU_TRIGGER_ICON,
   columnHasActiveFilter,
   ddNavFocusables,
   getHeaderMenuItems,
@@ -23,7 +24,7 @@ interface HeaderMenuProps<TRow extends object> {
   onOpenChange: (open: boolean) => void
 }
 
-function Icon(props: { item: HeaderMenuItem }) {
+function Icon(props: { d: string }) {
   return (
     <svg
       class="dt-th-menu-icon"
@@ -34,7 +35,7 @@ function Icon(props: { item: HeaderMenuItem }) {
       stroke-linejoin="round"
       aria-hidden="true"
     >
-      <path d={HEADER_MENU_ITEMS[props.item].icon} />
+      <path d={props.d} />
     </svg>
   )
 }
@@ -153,9 +154,7 @@ export function HeaderMenu<TRow extends object>(props: HeaderMenuProps<TRow>) {
         }}
       >
         {/* A funnel, not just a color, tells a filtered column apart */}
-        <Show when={isFiltered()} fallback="▾">
-          <Icon item="filter" />
-        </Show>
+        <Icon d={isFiltered() ? HEADER_MENU_ITEMS.filter.icon : HEADER_MENU_TRIGGER_ICON} />
       </button>
       <Show when={open()}>
         <div
@@ -187,14 +186,14 @@ export function HeaderMenu<TRow extends object>(props: HeaderMenuProps<TRow>) {
                       onClick={() => drill(true)}
                       onKeyDown={(e) => e.key === 'ArrowRight' && drill(true)}
                     >
-                      <Icon item={item} />
+                      <Icon d={HEADER_MENU_ITEMS[item].icon} />
                       <span class="dt-flex1">{label(item)}</span>
                       <span class="dt-dd-category-arrow">▸</span>
                     </button>
                   ) : item === 'filter' ? (
                     <CategorySubmenu
                       name={label(item)}
-                      icon={<Icon item={item} />}
+                      icon={<Icon d={HEADER_MENU_ITEMS[item].icon} />}
                       groupLabel={label(item)}
                       class="dt-th-filter-flyout"
                       isOpen={filterOpen()}
@@ -210,7 +209,7 @@ export function HeaderMenu<TRow extends object>(props: HeaderMenuProps<TRow>) {
                       data-dd-row
                       onClick={() => act(item)}
                     >
-                      <Icon item={item} />
+                      <Icon d={HEADER_MENU_ITEMS[item].icon} />
                       {label(item)}
                     </button>
                   )

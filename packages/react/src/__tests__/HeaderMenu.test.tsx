@@ -245,9 +245,12 @@ describe('HeaderMenu', () => {
     expect(isFiltered(trigger('Name')!)).toBe(false)
     // Named and shaped as filtered, not only colored (U19)
     expect(trigger('Dept')!.getAttribute('aria-label')).toBe('Dept options, filtered')
-    expect(trigger('Dept')!.querySelector('svg')).not.toBeNull()
     expect(trigger('Name')!.getAttribute('aria-label')).toBe('Name options')
-    expect(trigger('Name')!.querySelector('svg')).toBeNull()
+    // Both SVG icons so the unfiltered chevron is as legible as the funnel
+    const shape = (label: string) => trigger(label)!.querySelector('svg path')?.getAttribute('d')
+    expect(shape('Name')).toBeTruthy()
+    expect(shape('Dept')).toBeTruthy()
+    expect(shape('Dept')).not.toBe(shape('Name'))
   })
 })
 

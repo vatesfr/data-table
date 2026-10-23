@@ -38,7 +38,7 @@ Sort/Group's search box narrows only what's being _added_ — never the already-
 
 ## Header menu
 
-Each header has a ▾ button (`data-col-menu`) at its end, opening a menu of what that column supports, so a column is acted on where it is rather than picked again from a toolbar dropdown (UC11). Shared logic lives in core's `headerMenu.ts`; adapters only render it.
+Each header has a ▾ button (`data-col-menu`, an SVG chevron: `HEADER_MENU_TRIGGER_ICON`) at its end, opening a menu of what that column supports, so a column is acted on where it is rather than picked again from a toolbar dropdown (UC11). Shared logic lives in core's `headerMenu.ts`; adapters only render it.
 
 - **Sorting stays on the header**: the label is a button (when `sortable !== false`) whose click bubbles to the `<th>`'s sort handler, so Enter sorts and Shift+Enter adds a sort, like a click and shift-click.
 - **Items**: `getHeaderMenuItems(col, groupBy, visibleColumnCount, filtered)` — Filter (`filterable !== false`), Clear filter (while the column is filtered; clears its include, exclude and range filters), Group by this column (`groupable: true`), or Remove group once grouped (only a `keepVisibleWhenGrouped` column still has its header then), Hide column (more than one visible column). None → no ▾. Icons and label keys: `HEADER_MENU_ITEMS`.
