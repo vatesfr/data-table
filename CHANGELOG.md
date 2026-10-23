@@ -9,6 +9,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Added
 
+- **Row focus ring** (Solid, React, Vue, vanilla): a row or group header moved to with the keyboard shows an inset outline, drawn over pinned cells too; a mouse click draws none.
 - **`--dt-stripe-background`** (Solid, React, Vue, vanilla): the odd-row stripe colour, layered over pinned cells' background too, so `transparent` turns striping off everywhere in one setting.
 
 ### Changed

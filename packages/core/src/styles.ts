@@ -30,6 +30,11 @@
 // rule stays at or below the row-state selectors' specificity, so app row-state overrides win.
 // The odd-row stripe is a layer over the pinned base, so `--dt-stripe-background: transparent`
 // turns striping off on pinned cells too.
+//
+// Row focus ring: :focus-visible, since a click focuses the row too and would ring every clicked
+// row; inset so the scroll wrapper doesn't clip it. A pinned cell paints above the row's outline,
+// so it redraws the ring's top and bottom edges (no left edge: unscrolled, it sits mid-row), and
+// drops its redrawn row border, which would cover the bottom one.
 export const DT_STYLES = `
 .dt{font-family:inherit;font-size:var(--font-size-lg,14px);color:var(--color-text-primary,#1a1916)}
 .dt-toolbar{padding:12px 0;border-bottom:.5px solid var(--color-border-tertiary,#eeedea)}
@@ -129,6 +134,9 @@ export const DT_STYLES = `
 .dt-tr--clickable{cursor:pointer}
 .dt-tr--clickable:not(.dt-tr--selected):hover .dt-td{background:var(--color-background-secondary,#f7f6f3)}
 .dt-tr--selected .dt-td{background:var(--color-background-info,#e6f1fb)}
+.dt-tr:focus-visible,.dt-group-row:focus-visible{outline:2px solid var(--color-text-info,#185fa5);outline-offset:-2px}
+.dt-tr:focus-visible>.dt-pinned{box-shadow:inset 0 2px 0 var(--color-text-info,#185fa5),inset 0 -2px 0 var(--color-text-info,#185fa5)}
+.dt-tr:focus-visible>.dt-pinned::after{border-bottom:0}
 .dt-group-row{background:var(--color-background-secondary,#f7f6f3);border-left:3px solid var(--color-border-secondary,#dddcd8);font-weight:var(--font-weight-semibold,600);font-size:var(--font-size-sm,12px);color:var(--color-text-primary,#1a1916);cursor:pointer}
 .dt-dd-no-match{padding:6px 12px;font-size:var(--font-size-sm,12px);color:var(--color-text-tertiary,#9b9a96)}
 .dt-empty{padding:24px 12px;color:var(--color-text-secondary,#666561)}
