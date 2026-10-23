@@ -333,6 +333,17 @@ describe('TableBody — grouping and aggregation', () => {
     dispose()
   })
 
+  it("marks a column's cells and aggregate cells with `data-col-key`", () => {
+    const { container, table, dispose } = mount({ defaultGroupsCollapsed: false })
+    table.group.toggle('dept')
+    const lastCells = [...container.querySelectorAll('tbody tr:not(.dt-group-row)')].map(
+      (tr) => tr.lastElementChild,
+    )
+    expect(lastCells).toHaveLength(5)
+    expect([...container.querySelectorAll('td[data-col-key="score"]')]).toEqual(lastCells)
+    dispose()
+  })
+
   it('the aggregate row reflects computeAggregate for the group', () => {
     const { container, table, dispose } = mount({ defaultGroupsCollapsed: false })
     table.group.toggle('dept')

@@ -277,6 +277,28 @@ describe('DataTable — column align', () => {
       .map((tr) => (tr.element.lastElementChild as HTMLElement).style.textAlign)
     expect(lastCells).toEqual(['end', 'end', 'end', 'end'])
   })
+
+  it("marks a column's header, cells and aggregate cells with `data-col-key`", () => {
+    const cols: ColumnDef<Row>[] = [
+      { key: 'name', label: 'Name', groupable: true },
+      { key: 'score', label: 'Score', type: 'number', aggregate: 'sum' },
+    ]
+    const wrapper = mount(DataTable, {
+      props: {
+        data: ROWS,
+        columns: cols,
+        rowKey: 'id',
+        defaultGroupsCollapsed: false,
+        initialViewState: { groupBy: ['name'] },
+      },
+    })
+    expect(wrapper.find('th[data-col-key="score"]').exists()).toBe(true)
+    const lastCells = [...wrapper.element.querySelectorAll('tbody tr:not(.dt-group-row)')].map(
+      (tr) => tr.lastElementChild,
+    )
+    expect(lastCells).toHaveLength(4)
+    expect([...wrapper.element.querySelectorAll('td[data-col-key="score"]')]).toEqual(lastCells)
+  })
 })
 
 describe('DataTable — bucketed grouping (groupValue/groupFormat)', () => {
