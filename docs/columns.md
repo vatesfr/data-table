@@ -12,6 +12,20 @@ Each adapter's own cell/group-header rendering (React `cellValue()`, Vue `cellTe
 - Its header puts a flex spacer (`.dt-th-spacer`) before the label: the menu button's `margin-left: auto` would absorb a `justify-content`.
 - No `'center'`: nothing needs it yet, and centering beside the menu button would need a second spacer.
 
+## CSS hook
+
+- Every column cell (header, body, aggregate) carries `data-col-key`, so app CSS can target a column without matching its content.
+
+## Pinned column
+
+- `pinned: true` makes the column's cells (`.dt-pinned`) sticky at the table's left edge while it scrolls sideways; columns before it (selection checkbox included) scroll under it. No offset to compute, so no `width` needed.
+- One per table: several would stack at the same offset.
+- Pinned body cells are opaque, painted with `--dt-pinned-background` (default `--color-background-primary`): set it when rows sit on another background. The odd-row stripe is mixed onto it.
+- Pinned rules stay at or below the row-state selectors' specificity, so an app's `.dt-tr--selected .dt-td` (etc.) override colours the pinned cell too; it must be opaque, or scrolled cells show through.
+- Responsive pinning stays with the app: toggle `pinned`, or undo `.dt-pinned`'s `position` in a media query.
+- A static shadow and the row border are drawn on `.dt-pinned::after`.
+- Not pinned: group label and empty-table rows (one `colspan` cell each).
+
 ## Global search
 
 `searchData(data, query, columns)` filters rows before `processData` runs — it matches any column's string value (using `col.format` when defined) case-insensitively against the query. Every adapter exposes `table.search.query`/`setQuery`; `clearAll` resets it. Solid's `SearchBox` reuses the same `<input>` across updates, so focus persists with no restore step. `ColumnDefBase.searchable?: boolean` (default `true`) excludes a column from this match entirely — for a column whose underlying value isn't user-facing text (e.g. an image URL rendered via `render`), matching against it would surface rows on an accidental substring hit the user has no way to anticipate. Independent of `filterable`/`sortable`/`groupable`, which gate unrelated concerns.

@@ -289,7 +289,7 @@ const TIER_COLORS = {
 const COLUMNS: ColumnDef<Employee>[] = [
   // sortable: false + filterable: false — no sort/filter UI; hidden by default via initialViewState.visibleCols
   { key: 'id', label: 'ID', type: 'number', width: 60, sortable: false, filterable: false },
-  { key: 'name', label: 'Name', type: 'string', width: 160 },
+  { key: 'name', label: 'Name', type: 'string', width: 160, pinned: true },
   // category: groups this column under a named section in the Columns/Sort/Group dropdowns'
   // column lists (a submenu) and the Filter dropdown's left pane (a collapsible section) — useful
   // once a table has enough columns that a flat list is hard to scan. Department/Role/Salary/
@@ -963,12 +963,13 @@ export default function App() {
           marginBottom: 4,
         }}
       >
-        Every feature together: sort, filter, group, aggregate, column reordering, i18n, dark mode.
-        Click a column header to sort by it alone (replacing any other sort); shift-click to add it
-        to a multi-column sort instead — or use the Sort dropdown for finer control. Try dragging a
-        column header, or grouping by Department — groups start collapsed by default (
-        <code>defaultGroupsCollapsed</code>). Salary and Joined group into $20k ranges and years
-        instead of one group per row — see <code>groupValue</code>/<code>groupFormat</code>.
+        Every feature together: sort, filter, group, aggregate, column reordering, a pinned Name
+        column, i18n, dark mode. Click a column header to sort by it alone (replacing any other
+        sort); shift-click to add it to a multi-column sort instead — or use the Sort dropdown for
+        finer control. Try dragging a column header, or grouping by Department — groups start
+        collapsed by default (<code>defaultGroupsCollapsed</code>). Salary and Joined group into
+        $20k ranges and years instead of one group per row — see <code>groupValue</code>/
+        <code>groupFormat</code>.
       </p>
       <p
         style={{

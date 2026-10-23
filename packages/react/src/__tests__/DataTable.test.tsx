@@ -3079,6 +3079,48 @@ describe('DataTable — column align', () => {
       .map((tr) => (tr.lastElementChild as HTMLElement).style.textAlign)
     expect(lastCells).toEqual(['end', 'end', 'end', 'end'])
   })
+
+  it("marks a column's header, cells and aggregate cells with `data-col-key`", () => {
+    const cols: ColumnDef<Row>[] = [
+      { key: 'name', label: 'Name', groupable: true },
+      { key: 'score', label: 'Score', type: 'number', aggregate: 'sum' },
+    ]
+    const { container } = render(
+      <DataTable
+        data={ROWS}
+        columns={cols}
+        rowKey="id"
+        defaultGroupsCollapsed={false}
+        initialViewState={{ groupBy: ['name'] }}
+      />,
+    )
+    expect(container.querySelector('th[data-col-key="score"]')).not.toBeNull()
+    const lastCells = [...container.querySelectorAll('tbody tr:not(.dt-group-row)')].map(
+      (tr) => tr.lastElementChild,
+    )
+    expect(lastCells).toHaveLength(4)
+    expect([...container.querySelectorAll('td[data-col-key="score"]')]).toEqual(lastCells)
+  })
+
+  it("marks a pinned column's header, cells and aggregate cells, and only those", () => {
+    const cols: ColumnDef<Row>[] = [
+      { key: 'name', label: 'Name', groupable: true },
+      { key: 'id', label: 'ID' },
+      { key: 'score', label: 'Score', type: 'number', aggregate: 'sum', pinned: true },
+    ]
+    const { container } = render(
+      <DataTable
+        data={ROWS}
+        columns={cols}
+        rowKey="id"
+        defaultGroupsCollapsed={false}
+        initialViewState={{ groupBy: ['name'] }}
+      />,
+    )
+    const pinned = [...container.querySelectorAll('.dt-pinned')]
+    expect(pinned).toHaveLength(5) // header + 2 rows + 2 aggregates
+    expect(pinned.every((el) => el.getAttribute('data-col-key') === 'score')).toBe(true)
+  })
 })
 
 // U26: a column search matching nothing left the panel blank, or a section heading over nothing

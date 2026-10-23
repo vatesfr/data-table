@@ -392,6 +392,7 @@ interface ColumnDef<TRow extends object> {
   label: string
   type?: 'string' | 'number' | 'date' // controls filter UI: checklist / range / year-month-day tree; default: 'string'
   width?: number
+  pinned?: boolean // keep at the left edge while the table scrolls sideways; see the columns doc
   value?: (row: TRow) => unknown // compute the cell value from the whole row (also covers aliasing)
   format?: (value: unknown, row: TRow) => string
   render?: (value: unknown, row: TRow) => Node // custom cell DOM node; takes priority over format; see Cell customization

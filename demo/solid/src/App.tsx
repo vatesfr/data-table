@@ -298,7 +298,7 @@ function muted(text: string): Node {
 const COLUMNS: ColumnDef<Employee>[] = [
   // sortable: false + filterable: false — no sort/filter UI; hidden by default via initialViewState.visibleCols
   { key: 'id', label: 'ID', type: 'number', width: 60, sortable: false, filterable: false },
-  { key: 'name', label: 'Name', type: 'string', width: 160 },
+  { key: 'name', label: 'Name', type: 'string', width: 160, pinned: true },
   // groupable + render: a real DOM node badge (this package's ColumnDef.render returns a Node, not
   // JSX — see components/Badge.ts). renderFilterLabel mirrors it in the filter checklist, so the
   // same badge shows there instead of the raw string.
@@ -957,12 +957,13 @@ export default function App() {
         Full-featured table
       </h2>
       <p style={{ 'font-size': '14px', color: 'var(--color-text-secondary)', margin: '0 0 4px' }}>
-        Every feature together: sort, filter, group, aggregate, column reordering, i18n, dark mode.
-        Click a column header to sort by it alone (replacing any other sort); shift-click to add it
-        to a multi-column sort instead — or use the Sort dropdown for finer control. Try dragging a
-        column header, or grouping by Department — groups start collapsed by default (
-        <code>defaultGroupsCollapsed</code>). Salary and Joined group into $20k ranges and years
-        instead of one group per row — see <code>groupValue</code>/<code>groupFormat</code>.
+        Every feature together: sort, filter, group, aggregate, column reordering, a pinned Name
+        column, i18n, dark mode. Click a column header to sort by it alone (replacing any other
+        sort); shift-click to add it to a multi-column sort instead — or use the Sort dropdown for
+        finer control. Try dragging a column header, or grouping by Department — groups start
+        collapsed by default (<code>defaultGroupsCollapsed</code>). Salary and Joined group into
+        $20k ranges and years instead of one group per row — see <code>groupValue</code>/
+        <code>groupFormat</code>.
       </p>
       <p style={{ 'font-size': '12px', color: 'var(--color-text-secondary)', margin: '0 0 16px' }}>
         📖 <DocLink anchor="usage">Package docs</DocLink>

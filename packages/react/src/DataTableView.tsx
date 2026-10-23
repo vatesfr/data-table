@@ -2464,10 +2464,11 @@ export function DataTableView<TRow extends object>({
                   return (
                     <th
                       key={col.key}
+                      data-col-key={col.key}
                       aria-sort={
                         sortDir ? (sortDir === 'asc' ? 'ascending' : 'descending') : undefined
                       }
-                      className={`dt-th${dragOverColKey === col.key ? ' dt-dd-item--drag-over' : ''}`}
+                      className={`dt-th${col.pinned ? ' dt-pinned' : ''}${dragOverColKey === col.key ? ' dt-dd-item--drag-over' : ''}`}
                       draggable
                       onDragStart={() => setDragColKey(col.key)}
                       onDragOver={(e) => {
@@ -2615,7 +2616,12 @@ export function DataTableView<TRow extends object>({
                     {activeColumns.map((col) => {
                       const v = computeAggregate(col, rows)
                       return (
-                        <td key={col.key} className="dt-agg-td" style={{ textAlign: col.align }}>
+                        <td
+                          key={col.key}
+                          className={col.pinned ? 'dt-agg-td dt-pinned' : 'dt-agg-td'}
+                          data-col-key={col.key}
+                          style={{ textAlign: col.align }}
+                        >
                           {v !== undefined && v !== null
                             ? col.format
                               ? col.format(v, sampleRow!)
@@ -2676,7 +2682,12 @@ export function DataTableView<TRow extends object>({
                       )}
                       {gkey !== null && <td className="dt-td" style={{ width: 28 }} />}
                       {activeColumns.map((col) => (
-                        <td key={col.key} className="dt-td" style={{ textAlign: col.align }}>
+                        <td
+                          key={col.key}
+                          className={col.pinned ? 'dt-td dt-pinned' : 'dt-td'}
+                          data-col-key={col.key}
+                          style={{ textAlign: col.align }}
+                        >
                           {cellValue(row, col)}
                         </td>
                       ))}

@@ -2003,8 +2003,10 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
               v-for="col in activeColumns"
               :key="col.key"
               class="dt-th"
+              :data-col-key="col.key"
               :aria-sort="headerAriaSort(col.key)"
               :class="{
+                'dt-pinned': col.pinned,
                 'dt-dd-item--drag-over': dragOverColKey === col.key,
               }"
               :style="{ width: col.width ? `${col.width}px` : undefined }"
@@ -2130,6 +2132,8 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                 v-for="col in activeColumns"
                 :key="col.key"
                 class="dt-agg-td"
+                :class="{ 'dt-pinned': col.pinned }"
+                :data-col-key="col.key"
                 :style="{ textAlign: col.align }"
               >
                 {{
@@ -2183,6 +2187,8 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                   v-for="col in activeColumns"
                   :key="col.key"
                   class="dt-td"
+                  :class="{ 'dt-pinned': col.pinned }"
+                  :data-col-key="col.key"
                   :style="{ width: col.width ? `${col.width}px` : undefined, textAlign: col.align }"
                 >
                   <!--

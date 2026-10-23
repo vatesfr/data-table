@@ -7,6 +7,11 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Added
+
+- **`data-col-key` on every column cell** (Solid, React, Vue, vanilla): body and aggregate cells, and React's and Vue's header cells, carry their column's key, a stable hook for app CSS (#45).
+- **Pinned column** (Solid, React, Vue, vanilla): `pinned: true` on a column keeps it at the table's left edge while the table scrolls sideways, e.g. a name column on a phone; its background follows the row's state and `--dt-pinned-background` (#45).
+
 ### Changed
 
 - **Header ▾ button easier to spot** (Solid, React, Vue, vanilla): it shows a 14 px SVG chevron, drawn like the filtered funnel, instead of a `▾` character a few pixels wide.
