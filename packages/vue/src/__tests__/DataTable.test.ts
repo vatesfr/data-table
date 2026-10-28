@@ -4541,3 +4541,45 @@ describe('DataTable — column search with no match', () => {
     expect(wrapper.find('[data-dd-no-match]').exists()).toBe(false)
   })
 })
+
+describe('DataTable — filter values', () => {
+  const openFilter = (wrapper: ReturnType<typeof mount>) =>
+    wrapper
+      .findAll('button')
+      .find((b) => b.text() === 'Filter')!
+      .trigger('click')
+
+  it('reads filter checklist values only while their filter pane is open', async () => {
+    let reads = 0
+    // Hidden, so cell rendering doesn't read it; first filterable, so the pane opens on it
+    const cols: ColumnDef<Row>[] = [
+      { key: 'tag', label: 'Tag', value: (r) => (reads++, `t${r.id}`) },
+      ...COLS,
+    ]
+    const wrapper = mount(DataTable, {
+      props: {
+        data: ROWS,
+        columns: cols,
+        rowKey: 'id',
+        initialViewState: { visibleCols: ['name'] },
+      },
+    })
+    await wrapper.setProps({ data: ROWS.map((r) => ({ ...r })) })
+    expect(reads).toBe(0)
+    await openFilter(wrapper)
+    expect(reads).toBeGreaterThan(0)
+  })
+
+  it('lists rows with an empty array under the emptyValue label', async () => {
+    const cols: ColumnDef<Row>[] = [
+      { key: 'tags', label: 'Tags', value: (r) => (r.id === 1 ? ['RPG'] : []) },
+    ]
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS, columns: cols, rowKey: 'id', labels: { emptyValue: 'N/A' } },
+    })
+    await openFilter(wrapper)
+    expect(wrapper.findAll('.dt-filter-list .dt-dd-item .dt-flex1').map((el) => el.text())).toEqual(
+      ['N/A', 'RPG'],
+    )
+  })
+})

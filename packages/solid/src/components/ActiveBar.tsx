@@ -4,7 +4,8 @@ import {
   formatFilterValue,
   rangeChipText,
   getSortIcon,
-  isExcludeOnlyColumn,
+  exclusionValueKeys,
+  exclusionValues,
   summarizeFilterValues,
   filterMatchMode,
   chipSeparator,
@@ -52,6 +53,12 @@ export function ActiveBar<TRow extends object>(props: ActiveBarProps<TRow>) {
   const { table } = props
 
   const pageGroupCount = createMemo(() => new Set(table.groupedData().map((g) => g.key)).size)
+  const exclusionKeys = createMemo(() =>
+    exclusionValueKeys(table.data(), props.columns, table.filter.exclude()),
+  )
+  const allValues = createMemo(() =>
+    exclusionValues(table.data(), props.columns, exclusionKeys(), table.labels().emptyValue),
+  )
 
   return (
     <div class="dt-active-bar">
@@ -145,13 +152,7 @@ export function ActiveBar<TRow extends object>(props: ActiveBarProps<TRow>) {
           {([key, vals]) => {
             const col = props.columns.find((c) => c.key === key)
             // Names the kept values when fewer are kept than hidden
-            const chip = createMemo(() =>
-              exclusionChip(
-                vals,
-                table.filter.valueMap()[key],
-                !!col && isExcludeOnlyColumn(table.data(), col),
-              ),
-            )
+            const chip = createMemo(() => exclusionChip(vals, allValues()[key]))
             return (
               <span
                 class="dt-chip dt-chip--filter"

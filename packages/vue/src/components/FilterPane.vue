@@ -7,6 +7,7 @@
 <script setup lang="ts" generic="TRow extends object">
 import { computed, nextTick, ref, watch } from 'vue'
 import {
+  computeStringValues,
   computeStringValueCounts,
   isMultiValueColumnCached,
   formatFilterValue,
@@ -68,7 +69,6 @@ const {
   exclude: excludeFilters,
   ranges: rangeFilters,
   modes: filterModes,
-  valueMap: stringValueMap,
   setMode: setFilterMode,
   setRange: setRangeFilter,
 } = props.table.filter
@@ -80,6 +80,7 @@ const expanded = ref(new Set<string>())
 
 // Scoped to this one column (computeStringValueCounts's targetKeys) — computing it for every
 // filterable column is this library's single biggest measured cost.
+const allValues = computed(() => computeStringValues(props.data, props.col, L.value.emptyValue))
 const valueCounts = computed(
   () =>
     computeStringValueCounts(
@@ -113,11 +114,7 @@ const alreadyTouched = computed(() =>
 // Range/count-filtered, not yet narrowed by the value search — `otherValues` diffs the two.
 const beforeSearchValues = computed(() =>
   filterValuesByCount(
-    filterValuesByRange(
-      stringValueMap.value[props.col.key] ?? [],
-      rangeFilters.value[props.col.key],
-      props.col.parseDate,
-    ),
+    filterValuesByRange(allValues.value, rangeFilters.value[props.col.key], props.col.parseDate),
     valueCounts.value,
     alreadyTouched.value,
   ),

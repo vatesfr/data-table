@@ -34,7 +34,8 @@ import {
   watchMedia,
   FILTER_NARROW_QUERY,
   exclusionChip,
-  isExcludeOnlyColumn,
+  exclusionValueKeys,
+  exclusionValues,
   injectStyles,
 } from '@vates/data-table-core/internal'
 import { type SortEntry } from '@vates/data-table-core'
@@ -524,6 +525,12 @@ function clearColFilter(key: string): void {
   clearColumnFilter(key, 'exclude')
   clearColumnFilter(key, 'range')
 }
+const exclusionKeys = computed(() =>
+  exclusionValueKeys(props.data, props.columns, excludeFilters.value),
+)
+const exclusionAllValues = computed(() =>
+  exclusionValues(props.data, props.columns, exclusionKeys.value, L.value.emptyValue),
+)
 // Exclusion chips name the kept values when fewer are kept than hidden
 const exclusionChips = computed(() =>
   Object.entries(excludeFilters.value)
@@ -533,11 +540,7 @@ const exclusionChips = computed(() =>
       return {
         key,
         label: col?.label,
-        ...exclusionChip(
-          vals,
-          props.table.filter.valueMap.value[key],
-          !!col && isExcludeOnlyColumn(props.data, col),
-        ),
+        ...exclusionChip(vals, exclusionAllValues.value[key]),
       }
     }),
 )

@@ -15,7 +15,6 @@ import {
   paginateVisibleGroups,
   paginateData,
   computeTotalPages,
-  computeStringValues,
   toggleSort as _toggleSort,
   replaceSort as _replaceSort,
   appendOrToggleSort as _appendOrToggleSort,
@@ -237,8 +236,6 @@ export function createTableState<TRow extends object>(
 
   const defaultSortDirFor = (key: string) => getDefaultSortDir(columns(), key)
 
-  const stringValueMap = createMemo(() => computeStringValues(data(), columns(), L().emptyValue))
-
   const processedData = createMemo(() =>
     processData(
       searchData(data(), searchQuery(), columns()),
@@ -388,7 +385,6 @@ export function createTableState<TRow extends object>(
       ranges: rangeFilters,
       modes: filterModes,
       activeCount: activeFilterCount,
-      valueMap: stringValueMap,
       setMode: (key: string, mode: 'and' | 'or') =>
         setFilterModes((prev) => _setFilterMode(prev, key, mode)),
       toggleAll: (key: string, values: string[]) => {

@@ -89,7 +89,8 @@ for (const n of SIZES) {
   test(`filter facets @ ${n.toLocaleString()} rows`, async ({ bench }) => {
     await bench.compare(
       bench('computeStringValues (all filterable columns)', () => {
-        computeStringValues(data, benchColumns)
+        for (const col of benchColumns)
+          if (col.type !== 'number' && col.filterable !== false) computeStringValues(data, col)
       }),
       bench('computeStringValueCounts, no active filters (all filterable columns)', () => {
         computeStringValueCounts(data, {}, {}, benchColumns)

@@ -729,23 +729,17 @@ export function indexOfVisibleItem<TRow extends object>(
   return items.findIndex((item) => isSameVisibleItem(item, target))
 }
 
+// One column only: callers compute it where a checklist is shown, not for every column eagerly.
 export function computeStringValues<TRow extends object>(
   data: TRow[],
-  columns: ColumnDefBase<TRow>[],
+  col: ColumnDefBase<TRow>,
   emptyLabel = '(none)',
-): Record<string, string[]> {
-  const map: Record<string, string[]> = {}
-  const cols = columns.filter((c) => c.type !== 'number' && c.filterable !== false)
-  for (const col of cols) {
-    const values = [
-      ...new Set(data.flatMap((r) => multiValues(getColumnValue(col, r), emptyLabel))),
-    ]
-    // No direction of its own here — a fixed 'asc' lets a compare like compareMissingLast()
-    // still pin its matching values last (compareMissingLast's non-pinned branch is direction-
-    // naive anyway, so 'asc' vs 'desc' would make no difference there).
-    map[col.key] = col.compare ? values.sort((a, b) => col.compare!(a, b, 'asc')) : values.sort()
-  }
-  return map
+): string[] {
+  const values = [...new Set(data.flatMap((r) => multiValues(getColumnValue(col, r), emptyLabel)))]
+  // No direction of its own here — a fixed 'asc' lets a compare like compareMissingLast()
+  // still pin its matching values last (compareMissingLast's non-pinned branch is direction-
+  // naive anyway, so 'asc' vs 'desc' would make no difference there).
+  return col.compare ? values.sort((a, b) => col.compare!(a, b, 'asc')) : values.sort()
 }
 
 /**

@@ -1578,50 +1578,37 @@ describe('computeStringValues', () => {
   const COLS = [
     { key: 'name' as const, label: 'Name', type: 'string' as const },
     { key: 'dept' as const, label: 'Dept', type: 'string' as const },
-    { key: 'salary' as const, label: 'Salary', type: 'number' as const },
   ]
 
-  it('returns sorted unique string values per filterable string column', () => {
-    const result = computeStringValues(ROWS, COLS)
-    expect(result['dept']).toEqual(['Eng', 'HR'])
-    expect(result['name']).toEqual(['Alice', 'Bob', 'Clara', 'David'])
-  })
-
-  it('excludes numeric columns from the map', () => {
-    const result = computeStringValues(ROWS, COLS)
-    expect(result['salary']).toBeUndefined()
-  })
-
-  it('excludes columns with filterable: false', () => {
-    const cols = [{ key: 'id' as const, label: 'ID', type: 'number' as const, filterable: false }]
-    const result = computeStringValues(ROWS, cols)
-    expect(result['id']).toBeUndefined()
+  it('returns the sorted unique string values of one column', () => {
+    expect(computeStringValues(ROWS, COLS[1])).toEqual(['Eng', 'HR'])
+    expect(computeStringValues(ROWS, COLS[0])).toEqual(['Alice', 'Bob', 'Clara', 'David'])
   })
 
   it('flattens and dedupes array-valued columns instead of stringifying the whole array', () => {
     const cols = [{ key: 'tags' as const, label: 'Tags' }]
-    const result = computeStringValues(GAMES, cols)
-    expect(result['tags']).toEqual(['Action', 'Adventure', 'RPG'])
+    const result = computeStringValues(GAMES, cols[0])
+    expect(result).toEqual(['Action', 'Adventure', 'RPG'])
   })
 
   it('lists a "(none)" entry for rows with an empty array, by default', () => {
     const cols = [{ key: 'tags' as const, label: 'Tags' }]
-    const result = computeStringValues(GAMES_WITH_EMPTY, cols)
-    expect(result['tags']).toEqual(['(none)', 'Action', 'Adventure', 'RPG'])
+    const result = computeStringValues(GAMES_WITH_EMPTY, cols[0])
+    expect(result).toEqual(['(none)', 'Action', 'Adventure', 'RPG'])
   })
 
   it('uses a custom emptyLabel for rows with an empty array', () => {
     const cols = [{ key: 'tags' as const, label: 'Tags' }]
-    const result = computeStringValues(GAMES_WITH_EMPTY, cols, 'N/A')
-    expect(result['tags']).toContain('N/A')
+    const result = computeStringValues(GAMES_WITH_EMPTY, cols[0], 'N/A')
+    expect(result).toContain('N/A')
   })
 
   it('collects values from a computed column', () => {
     const cols = [
       { key: 'band', label: 'Band', value: (row: Row) => (row.salary >= 90000 ? 'High' : 'Low') },
     ]
-    const result = computeStringValues(ROWS, cols)
-    expect(result['band']).toEqual(['High', 'Low'])
+    const result = computeStringValues(ROWS, cols[0])
+    expect(result).toEqual(['High', 'Low'])
   })
 
   it('includes date columns (fed into computeDateTree by the filter UI, not excluded like number)', () => {
@@ -1631,8 +1618,8 @@ describe('computeStringValues', () => {
       { released: '2021-01-02' },
       { released: '2023-05-14' },
     ]
-    const result = computeStringValues(games, cols)
-    expect(result['released']).toEqual(['2021-01-02', '2023-05-14'])
+    const result = computeStringValues(games, cols[0])
+    expect(result).toEqual(['2021-01-02', '2023-05-14'])
   })
 
   it('orders values by a column compare instead of alphabetically (issue #15)', () => {
@@ -1646,15 +1633,15 @@ describe('computeStringValues', () => {
       },
     ]
     const rows = [{ tier: 'Gold' }, { tier: 'Bronze' }, { tier: 'Silver' }]
-    const result = computeStringValues(rows, cols)
-    expect(result['tier']).toEqual(['Bronze', 'Silver', 'Gold'])
+    const result = computeStringValues(rows, cols[0])
+    expect(result).toEqual(['Bronze', 'Silver', 'Gold'])
   })
 
   it('compareMissingLast pins the empty-string stand-in for a missing scalar at the end (issue #15)', () => {
     const cols = [{ key: 'dept', label: 'Dept', compare: compareMissingLast() }]
     const rows = [{ dept: 'Eng' }, { dept: '' }, { dept: 'HR' }]
-    const result = computeStringValues(rows, cols)
-    expect(result['dept']).toEqual(['Eng', 'HR', ''])
+    const result = computeStringValues(rows, cols[0])
+    expect(result).toEqual(['Eng', 'HR', ''])
   })
 })
 

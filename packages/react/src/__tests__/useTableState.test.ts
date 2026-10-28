@@ -1070,12 +1070,7 @@ const GAMES: Game[] = [
 const GAMES_WITH_EMPTY: Game[] = [...GAMES, { id: 3, name: 'Game C', tags: [] }]
 
 describe('useTableState — multi-value (array) columns', () => {
-  it('stringValueMap flattens array values into individual filter options', () => {
-    const { result } = renderHook(() => useTableState(GAMES, GAME_COLS))
-    expect(result.current.filter.valueMap['tags']).toEqual(['Action', 'Adventure', 'RPG'])
-  })
-
-  // stringValueCounts (facet counts) moved out of useTableState into DataTableView — see
+  // Checklist values and stringValueCounts (facet counts) moved out of useTableState into DataTableView — see
   // DataTable.test.tsx's "filter dropdown" describe block for coverage of the rendered counts,
   // and packages/core's logic.test.ts for the underlying computeStringValueCounts faceting logic.
 
@@ -1099,11 +1094,6 @@ describe('useTableState — multi-value (array) columns', () => {
     ])
   })
 
-  it('stringValueMap lists a "(none)" entry for rows with an empty array', () => {
-    const { result } = renderHook(() => useTableState(GAMES_WITH_EMPTY, GAME_COLS))
-    expect(result.current.filter.valueMap['tags']).toEqual(['(none)', 'Action', 'Adventure', 'RPG'])
-  })
-
   it('groupedData buckets rows with an empty array under "(none)"', () => {
     const { result } = renderHook(() => useTableState(GAMES_WITH_EMPTY, GAME_COLS))
     act(() => {
@@ -1117,7 +1107,6 @@ describe('useTableState — multi-value (array) columns', () => {
     const { result } = renderHook(() =>
       useTableState(GAMES_WITH_EMPTY, GAME_COLS, { labels: { emptyValue: 'N/A' } }),
     )
-    expect(result.current.filter.valueMap['tags']).toContain('N/A')
     act(() => {
       result.current.group.toggle('tags')
     })

@@ -8,7 +8,6 @@ import {
   paginateVisibleGroups,
   paginateData,
   computeTotalPages,
-  computeStringValues,
   toggleSort as _toggleSort,
   replaceSort as _replaceSort,
   appendOrToggleSort as _appendOrToggleSort,
@@ -171,10 +170,6 @@ export function useTableState<TRow extends object>(
       selection.value = reconcileSelection(nextData, selection.value, getRowId.value)
   })
 
-  const stringValueMap = computed(() =>
-    computeStringValues(data.value, columns.value, L.value.emptyValue),
-  )
-
   const processedData = computed(() =>
     processData(
       searchData(data.value, searchQuery.value, columns.value),
@@ -321,7 +316,6 @@ export function useTableState<TRow extends object>(
       ranges: rangeFilters,
       modes: filterModes,
       activeCount: activeFilterCount,
-      valueMap: stringValueMap,
       setMode: (key: string, mode: 'and' | 'or') => {
         filterModes.value = _setFilterMode(filterModes.value, key, mode)
       },

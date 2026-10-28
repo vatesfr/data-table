@@ -8,7 +8,6 @@ import {
   paginateVisibleGroups,
   paginateData,
   computeTotalPages,
-  computeStringValues,
   resolveFocusTarget,
   type VisibleItem,
   toggleSort as _toggleSort,
@@ -204,11 +203,6 @@ export function useTableState<TRow extends object>(
 
   const defaultSortDirFor = (key: string) => getDefaultSortDir(columns, key)
 
-  const stringValueMap = useMemo(
-    () => computeStringValues(data, columns, L.emptyValue),
-    [data, columns, L.emptyValue],
-  )
-
   const processedData = useMemo(
     () =>
       processData(
@@ -386,7 +380,6 @@ export function useTableState<TRow extends object>(
       ranges: rangeFilters,
       modes: filterModes,
       activeCount: activeFilterCount,
-      valueMap: stringValueMap,
       setMode: (key: string, mode: 'and' | 'or') =>
         setFilterModes((prev) => _setFilterMode(prev, key, mode)),
       toggleAll: (key: string, values: string[]) => {

@@ -923,13 +923,7 @@ const GAMES: Game[] = [
 const GAMES_WITH_EMPTY: Game[] = [...GAMES, { id: 3, name: 'Game C', tags: [] }]
 
 describe('useTableState — multi-value (array) columns', () => {
-  it('stringValueMap flattens array values into individual filter options', () => {
-    const table = useTableState(GAMES, GAME_COLS)
-    const { valueMap: stringValueMap } = table.filter
-    expect(stringValueMap.value['tags']).toEqual(['Action', 'Adventure', 'RPG'])
-  })
-
-  // stringValueCounts (facet counts) moved out of useTableState into DataTableView.vue — see
+  // Checklist values and stringValueCounts (facet counts) moved out of useTableState into the filter pane — see
   // DataTable.test.ts's filter-dropdown coverage for the rendered counts, and packages/core's
   // logic.test.ts for the underlying computeStringValueCounts faceting logic.
 
@@ -949,12 +943,6 @@ describe('useTableState — multi-value (array) columns', () => {
     expect(groupedData.value.map((g) => g.key).sort()).toEqual(['Action', 'Adventure', 'RPG'])
   })
 
-  it('stringValueMap lists a "(none)" entry for rows with an empty array', () => {
-    const table = useTableState(GAMES_WITH_EMPTY, GAME_COLS)
-    const { valueMap: stringValueMap } = table.filter
-    expect(stringValueMap.value['tags']).toEqual(['(none)', 'Action', 'Adventure', 'RPG'])
-  })
-
   it('groupedData buckets rows with an empty array under "(none)"', () => {
     const table = useTableState(GAMES_WITH_EMPTY, GAME_COLS)
     const { groupedData } = table
@@ -967,9 +955,7 @@ describe('useTableState — multi-value (array) columns', () => {
   it('uses a custom emptyValue label when provided', () => {
     const table = useTableState(GAMES_WITH_EMPTY, GAME_COLS, { labels: { emptyValue: 'N/A' } })
     const { groupedData } = table
-    const { valueMap: stringValueMap } = table.filter
     const { toggle: toggleGroup } = table.group
-    expect(stringValueMap.value['tags']).toContain('N/A')
     toggleGroup('tags')
     expect(groupedData.value.map((g) => g.key)).toContain('N/A')
   })

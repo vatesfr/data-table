@@ -1,5 +1,6 @@
 import type { ColumnDefBase, DateTreeNode } from './types'
 import {
+  computeStringValues,
   findDateTreeNode,
   getDateTreeNodeState,
   isMultiValueColumn,
@@ -155,18 +156,48 @@ export function isExcludeOnlyColumn<TRow extends object>(
 }
 
 /**
+ * The keys of the columns whose active-bar exclusion chip needs the column's full value list
+ * (filterable, exclude-only, with an active exclusion), joined into one string: a memo keyed on it
+ * skips an unchanged key set, so ticking a checklist box doesn't rescan every row.
+ */
+export function exclusionValueKeys<TRow extends object>(
+  data: TRow[],
+  columns: ColumnDefBase<TRow>[],
+  exclude: Record<string, Set<string>>,
+): string {
+  return columns
+    .filter((c) => exclude[c.key]?.size && c.filterable !== false && isExcludeOnlyColumn(data, c))
+    .map((c) => c.key)
+    .join('\0')
+}
+
+/** The value list of each column named by `exclusionValueKeys`, for `exclusionChip` */
+export function exclusionValues<TRow extends object>(
+  data: TRow[],
+  columns: ColumnDefBase<TRow>[],
+  keys: string,
+  emptyLabel: string,
+): Record<string, string[]> {
+  const wanted = new Set(keys.split('\0'))
+  return Object.fromEntries(
+    columns
+      .filter((c) => wanted.has(c.key))
+      .map((c) => [c.key, computeStringValues(data, c, emptyLabel)]),
+  )
+}
+
+/**
  * The values an exclusion's active-bar chip names, the shorter way round: on an exclude-only
  * column, the kept values when fewer are kept than hidden (`kept: true` — "Department:
  * Engineering" rather than "Department: ≠ Design, HR, Product, +1 more"), else the excluded ones.
  * A multi-value column's exclusion hides every row containing the value, so it can't be reworded
- * as the rest. `allValues` is the column's value list (`table.filter.valueMap()[key]`).
+ * as the rest. `allValues` is the column's value list, given only for an exclude-only column (see
+ * `exclusionValueKeys`).
  */
 export function exclusionChip(
   excluded: Set<string>,
   allValues: string[] | undefined,
-  excludeOnly: boolean,
 ): { kept: boolean; values: Set<string> } {
-  if (!excludeOnly) return { kept: false, values: excluded }
   const kept = (allValues ?? []).filter((v) => !excluded.has(v))
   return kept.length > 0 && kept.length < excluded.size
     ? { kept: true, values: new Set(kept) }

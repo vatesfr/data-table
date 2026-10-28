@@ -7,6 +7,14 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING (Solid, React, Vue):** `table.filter.valueMap` is removed: the filter pane computes its column's values itself, only while open.
+
+### Fixed
+
+- **No lag on data updates** (Solid, React, vanilla): changing `data` no longer rebuilds every filterable column's checklist values while no filter pane is open; with 1,200 rows and 16 string columns held in a Solid store, that was ~140 ms per update.
+
 ## [0.20.0] - 2026-10-23
 
 ### Added

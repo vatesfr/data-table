@@ -1,6 +1,7 @@
 import { For, Show, createEffect, createMemo, createSignal } from 'solid-js'
 import type { ValueSort } from '@vates/data-table-core'
 import {
+  computeStringValues,
   computeStringValueCounts,
   filterValuesBySearch,
   filterValuesByCount,
@@ -224,9 +225,13 @@ export function FilterPane<TRow extends object>(props: FilterPaneProps<TRow>) {
   // the search is currently hiding. Order relative to search doesn't matter here: range/count
   // filtering and search are independent per-value predicates, so computing them in either order
   // yields the same final set.
+  const allValues = createMemo(() =>
+    computeStringValues(table.data(), activeCol(), table.labels().emptyValue),
+  )
+
   const detailValuesBeforeSearch = createMemo(() => {
     const col = activeCol()
-    let values = table.filter.valueMap()[col.key] ?? []
+    let values = allValues()
     if (col.type === 'date')
       values = filterValuesByRange(values, table.filter.ranges()[col.key], col.parseDate)
     return filterValuesByCount(values, stringValueCounts(), alreadyTouched(col))
