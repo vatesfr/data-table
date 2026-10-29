@@ -1,4 +1,11 @@
-import { createSignal, createMemo, createRenderEffect, untrack, type Accessor } from 'solid-js'
+import {
+  batch,
+  createSignal,
+  createMemo,
+  createRenderEffect,
+  untrack,
+  type Accessor,
+} from 'solid-js'
 import {
   DEFAULT_LABELS,
   type SortEntry,
@@ -9,6 +16,7 @@ import {
 import {
   processData,
   searchData,
+  buildSearchIndex,
   groupData,
   sortWithinGroups,
   getVisibleRows,
@@ -236,9 +244,11 @@ export function createTableState<TRow extends object>(
 
   const defaultSortDirFor = (key: string) => getDefaultSortDir(columns(), key)
 
-  const processedData = createMemo(() =>
+  // Search runs after the sort, on its own memo, so a keystroke filters without re-sorting:
+  // filtering keeps the (stable) sort order, so the result is the same either way.
+  const filteredSorted = createMemo(() =>
     processData(
-      searchData(data(), searchQuery(), columns()),
+      data(),
       filters(),
       rangeFilters(),
       sorts(),
@@ -248,6 +258,13 @@ export function createTableState<TRow extends object>(
       filterModes(),
     ),
   )
+  // Built on the first keystroke, then reused until data or columns change; none while not searching.
+  const searching = createMemo(() => searchQuery() !== '')
+  const searchIndex = createMemo(() => (searching() ? buildSearchIndex(data(), columns()) : null))
+  const processedData = createMemo(() => {
+    const index = searchIndex()
+    return index ? searchData(filteredSorted(), searchQuery(), index) : filteredSorted()
+  })
 
   // Grouping runs over the *full* filtered/sorted data, not a page's slice, so pagination (below)
   // can budget page size across header rows and data rows together instead of paginating data
@@ -462,13 +479,15 @@ export function createTableState<TRow extends object>(
       // Live — reads the latest `options.defaultGroupsCollapsed` on every call, tracking it
       // reactively when `options` itself was given as an Accessor (see `getOptions` above).
       defaultCollapsed: () => getOptions().defaultGroupsCollapsed ?? true,
-      toggle: (key: string) =>
-        setGroupBy((prev) => {
-          if (!prev.includes(key)) {
-            setSorts((prevSorts) => insertGroupSort(prevSorts, prev, key, defaultSortDirFor(key)))
-          }
-          return toggleGroupBy(prev, key)
-        }),
+      // Batched so groupBy and sorts change together: grouping (and persistence) run once
+      toggle: (key: string) => {
+        const prev = groupBy()
+        batch(() => {
+          if (!prev.includes(key))
+            setSorts((s) => insertGroupSort(s, prev, key, defaultSortDirFor(key)))
+          setGroupBy(toggleGroupBy(prev, key))
+        })
+      },
       remove: (key: string) => setGroupBy((prev) => prev.filter((k) => k !== key)),
       moveBy: (key: string, delta: number) =>
         setGroupBy((prev) => {

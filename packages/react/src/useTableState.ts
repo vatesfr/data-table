@@ -2,6 +2,7 @@ import { useState, useMemo, useRef, useCallback } from 'react'
 import {
   processData,
   searchData,
+  buildSearchIndex,
   groupData,
   sortWithinGroups,
   getVisibleRows,
@@ -203,10 +204,12 @@ export function useTableState<TRow extends object>(
 
   const defaultSortDirFor = (key: string) => getDefaultSortDir(columns, key)
 
-  const processedData = useMemo(
+  // Search runs after the sort, on its own memo, so a keystroke filters without re-sorting:
+  // filtering keeps the (stable) sort order, so the result is the same either way.
+  const filteredSorted = useMemo(
     () =>
       processData(
-        searchData(data, searchQuery, columns),
+        data,
         filters,
         rangeFilters,
         sorts,
@@ -215,17 +218,17 @@ export function useTableState<TRow extends object>(
         excludeFilters,
         filterModes,
       ),
-    [
-      data,
-      searchQuery,
-      columns,
-      filters,
-      rangeFilters,
-      sorts,
-      L.emptyValue,
-      excludeFilters,
-      filterModes,
-    ],
+    [data, columns, filters, rangeFilters, sorts, L.emptyValue, excludeFilters, filterModes],
+  )
+  // Built on the first keystroke, then reused until data or columns change; none while not searching.
+  const searching = searchQuery !== ''
+  const searchIndex = useMemo(
+    () => (searching ? buildSearchIndex(data, columns) : null),
+    [searching, data, columns],
+  )
+  const processedData = useMemo(
+    () => (searchIndex ? searchData(filteredSorted, searchQuery, searchIndex) : filteredSorted),
+    [filteredSorted, searchQuery, searchIndex],
   )
 
   // Grouping runs over the *full* filtered/sorted data, not a page's slice, so pagination (below)

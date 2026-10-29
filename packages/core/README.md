@@ -199,7 +199,8 @@ computeAggregate(col, rows) // compute a group header's aggregate value per col.
 #### Search
 
 ```ts
-searchData(data, query, columns) // filter rows by a case- and diacritic-insensitive substring match against any searchable column's string value
+buildSearchIndex(data, columns) // Map<row, text>: each row's searchable column strings, formatted and normalized once
+searchData(data, query, index) // filter rows (any subset of the indexed ones) by a case- and diacritic-insensitive substring match against that text
 ```
 
 ### View state

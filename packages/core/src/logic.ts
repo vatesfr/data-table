@@ -339,14 +339,32 @@ export function groupData<TRow extends object>(
 ): GroupResult<TRow>[] {
   if (groupBy.length === 0) return [{ key: null, keyParts: [], rows: data }]
   const colByKey = buildColByKey(columns)
+  const groupCols = groupBy.map((g) => colByKey.get(g))
   const groups = new Map<string, { keyParts: string[]; rows: TRow[] }>()
   for (const row of data) {
-    let combos: string[][] = [[]]
-    for (const g of groupBy) {
-      const col = colByKey.get(g)
+    const bucketed = groupBy.map((g, i) => {
+      const col = groupCols[i]
       const raw = resolveValue(col, row, g)
-      const bucketed = col?.groupValue ? col.groupValue(raw, row) : raw
-      const values = multiValues(bucketed, emptyLabel)
+      return col?.groupValue ? col.groupValue(raw, row) : raw
+    })
+    // Fast path for the usual all-scalar row (one bucket): no per-row combo arrays, and keyParts
+    // only built for a new group
+    if (!bucketed.some(Array.isArray)) {
+      const key =
+        bucketed.length === 1
+          ? String(bucketed[0] ?? '')
+          : bucketed.map((v) => String(v ?? '')).join(' › ')
+      let group = groups.get(key)
+      if (!group) {
+        group = { keyParts: bucketed.map((v) => String(v ?? '')), rows: [] }
+        groups.set(key, group)
+      }
+      group.rows.push(row)
+      continue
+    }
+    let combos: string[][] = [[]]
+    for (const value of bucketed) {
+      const values = multiValues(value, emptyLabel)
       combos = combos.flatMap((combo) => values.map((v) => [...combo, v]))
     }
     for (const keyParts of combos) {
@@ -2298,21 +2316,36 @@ export function showsPager(itemCount: number, pageSizeOptions: number[]): boolea
   return itemCount > pageSizeOptions[0]
 }
 
+/**
+ * Each row's searchable cells, formatted and normalized once, so a keystroke only runs a
+ * substring check per row. Cells are joined with a NUL a query can't contain, so a match never
+ * spans two cells.
+ */
+export function buildSearchIndex<TRow extends object>(
+  data: TRow[],
+  columns: ColumnDefBase<TRow>[],
+): Map<TRow, string> {
+  const cols = columns.filter((col) => col.searchable !== false)
+  const index = new Map<TRow, string>()
+  for (const row of data) {
+    const cells = cols.map((col) => {
+      const v = getColumnValue(col, row)
+      return col.format ? col.format(v, row) : v != null ? String(v) : ''
+    })
+    index.set(row, normalizeForSearch(cells.join('\0')))
+  }
+  return index
+}
+
+/** Keeps the rows of `data` (any subset of the rows `index` was built from) matching `query`. */
 export function searchData<TRow extends object>(
   data: TRow[],
   query: string,
-  columns: ColumnDefBase<TRow>[],
+  index: Map<TRow, string>,
 ): TRow[] {
   if (!query) return data
   const q = normalizeForSearch(query)
-  return data.filter((row) =>
-    columns.some((col) => {
-      if (col.searchable === false) return false
-      const v = getColumnValue(col, row)
-      const s = col.format ? col.format(v, row) : v != null ? String(v) : ''
-      return normalizeForSearch(s).includes(q)
-    }),
-  )
+  return data.filter((row) => index.get(row)?.includes(q) ?? false)
 }
 
 export function computeAggregate<TRow extends object>(

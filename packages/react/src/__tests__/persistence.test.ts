@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { encodeViewState, decodeViewState } from '@vates/data-table-core/internal'
 import { useTableState } from '../useTableState'
@@ -233,5 +233,33 @@ describe('resetView', () => {
     act(() => resetView(result.current))
     expect(localStorage.getItem('unrelated')).toBe('x')
     expect(new URLSearchParams(window.location.search).get('other')).toBe('1')
+  })
+})
+
+describe('persistence writes', () => {
+  it('writes storage and URL only when the view changes, not on every render', () => {
+    const setItem = vi.spyOn(Storage.prototype, 'setItem')
+    const replaceState = vi.spyOn(window.history, 'replaceState')
+    const { result, rerender } = renderHook(() => {
+      // Inline columns and options, as a consumer typically writes them
+      const table = useTableState(ROWS, [...COLS], { initialViewState: { pageSize: 10 } })
+      usePersistence(table, { storageKey: 'writes', paramName: 'v' })
+      return table
+    })
+    // A non-empty view: an empty one is removed from storage rather than set
+    act(() => result.current.sort.toggle('name'))
+    setItem.mockClear()
+    replaceState.mockClear()
+
+    rerender()
+    act(() => result.current.focus.setTarget({ kind: 'row', row: ROWS[0] }))
+    expect(setItem).not.toHaveBeenCalled()
+    expect(replaceState).not.toHaveBeenCalled()
+
+    act(() => result.current.sort.toggle('score'))
+    expect(setItem).toHaveBeenCalledTimes(1)
+    expect(replaceState).toHaveBeenCalledTimes(1)
+    setItem.mockRestore()
+    replaceState.mockRestore()
   })
 })

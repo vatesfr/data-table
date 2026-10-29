@@ -13,6 +13,9 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Fixed
 
+- **Faster search** (Solid, React, Vue, vanilla): a search keystroke no longer re-sorts the rows nor re-reads every cell; on 200,000 sorted rows, each keystroke after the first went from ~190 ms to ~120 ms (the first, which indexes the rows, stays ~300 ms).
+- **No storage writes on unrelated renders** (React): `usePersistedView`/`useUrlView` wrote `localStorage` and the URL on every render, e.g. each focus move or selection click; they now write only when the view changes.
+- **Faster grouping** (Solid, React, Vue, vanilla): grouping rows by plain (non-array) values takes ~4× fewer instructions and allocates ~4× less; in Solid and vanilla, picking a group-by column also grouped the rows twice and now groups once (~470 ms to ~370 ms on 200,000 rows).
 - **No lag on data updates** (Solid, React, vanilla): changing `data` no longer rebuilds every filterable column's checklist values while no filter pane is open; with 1,200 rows and 16 string columns held in a Solid store, that was ~140 ms per update.
 
 ## [0.20.0] - 2026-10-23

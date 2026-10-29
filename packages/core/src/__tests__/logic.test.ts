@@ -5,6 +5,7 @@ import {
   rowText,
   processData,
   searchData,
+  buildSearchIndex,
   groupData,
   sortWithinGroups,
   getVisibleRows,
@@ -213,27 +214,33 @@ describe('groupText', () => {
 // ─── searchData ───────────────────────────────────────────────────────────────
 
 describe('searchData', () => {
+  const search = <TRow extends object>(
+    rows: TRow[],
+    query: string,
+    cols: Parameters<typeof buildSearchIndex<TRow>>[1],
+  ) => searchData(rows, query, buildSearchIndex(rows, cols))
+
   it('returns all rows when query is empty', () => {
-    expect(searchData(ROWS, '', COLS_FOR_SEARCH)).toEqual(ROWS)
+    expect(search(ROWS, '', COLS_FOR_SEARCH)).toEqual(ROWS)
   })
 
   it('matches substring case-insensitively', () => {
-    const result = searchData(ROWS, 'ali', COLS_FOR_SEARCH)
+    const result = search(ROWS, 'ali', COLS_FOR_SEARCH)
     expect(result.map((r) => r.name)).toEqual(['Alice'])
   })
 
   it('matches across any column', () => {
-    const result = searchData(ROWS, 'eng', COLS_FOR_SEARCH)
+    const result = search(ROWS, 'eng', COLS_FOR_SEARCH)
     expect(result.map((r) => r.name)).toEqual(['Alice', 'Clara'])
   })
 
   it('returns empty when no match', () => {
-    expect(searchData(ROWS, 'zzz', COLS_FOR_SEARCH)).toHaveLength(0)
+    expect(search(ROWS, 'zzz', COLS_FOR_SEARCH)).toHaveLength(0)
   })
 
   it('uses col.format when available', () => {
     const cols = [{ key: 'salary' as const, label: 'Salary', format: (v: unknown) => `$${v}` }]
-    const result = searchData(ROWS, '$90000', cols)
+    const result = search(ROWS, '$90000', cols)
     expect(result.map((r) => r.name)).toEqual(['Alice'])
   })
 
@@ -245,21 +252,21 @@ describe('searchData', () => {
         format: (v: unknown, row?: Row) => `${row?.name}:${v}`,
       },
     ]
-    const result = searchData(ROWS, 'clara:110000', cols)
+    const result = search(ROWS, 'clara:110000', cols)
     expect(result.map((r) => r.name)).toEqual(['Clara'])
   })
 
   it('matches against a computed column value', () => {
     const cols = [{ key: 'salaryK', label: 'Salary (K)', value: (row: Row) => row.salary / 1000 }]
-    const result = searchData(ROWS, '110', cols)
+    const result = search(ROWS, '110', cols)
     expect(result.map((r) => r.name)).toEqual(['Clara'])
   })
 
   it('ignores diacritics on both the row value and the query', () => {
     const cols = [{ key: 'name' as const, label: 'Name' }]
     const rows = [{ name: 'Öoo' }, { name: 'Zoe' }]
-    expect(searchData(rows, 'ooo', cols).map((r) => r.name)).toEqual(['Öoo'])
-    expect(searchData(rows, 'ÖOO', cols).map((r) => r.name)).toEqual(['Öoo'])
+    expect(search(rows, 'ooo', cols).map((r) => r.name)).toEqual(['Öoo'])
+    expect(search(rows, 'ÖOO', cols).map((r) => r.name)).toEqual(['Öoo'])
   })
 
   it('excludes a column marked searchable: false', () => {
@@ -267,8 +274,19 @@ describe('searchData', () => {
       { key: 'name' as const, label: 'Name' },
       { key: 'dept' as const, label: 'Dept', searchable: false },
     ]
-    expect(searchData(ROWS, 'eng', cols)).toHaveLength(0)
-    expect(searchData(ROWS, 'ali', cols).map((r) => r.name)).toEqual(['Alice'])
+    expect(search(ROWS, 'eng', cols)).toHaveLength(0)
+    expect(search(ROWS, 'ali', cols).map((r) => r.name)).toEqual(['Alice'])
+  })
+
+  it('does not match across two cells', () => {
+    // 'Alice' + 'Eng'
+    expect(search(ROWS, 'ceeng', COLS_FOR_SEARCH)).toHaveLength(0)
+  })
+
+  it('searches any subset of the indexed rows, keeping their order', () => {
+    const index = buildSearchIndex(ROWS, COLS_FOR_SEARCH)
+    const reversed = [...ROWS].reverse()
+    expect(searchData(reversed, 'eng', index).map((r) => r.name)).toEqual(['Clara', 'Alice'])
   })
 })
 
@@ -813,6 +831,15 @@ describe('groupData', () => {
     const result = groupData(ROWS, ['dept', 'name'], [])
     const eng = result.find((g) => g.key === 'Eng › Alice')
     expect(eng?.keyParts).toEqual(['Eng', 'Alice'])
+  })
+
+  it('groups a missing scalar value under an empty key', () => {
+    const rows = [{ dept: 'Eng' }, { dept: undefined }, { dept: null }]
+    const result = groupData(rows, ['dept'], [])
+    expect(result.map((g) => [g.key, g.keyParts, g.rows.length])).toEqual([
+      ['Eng', ['Eng'], 1],
+      ['', [''], 2],
+    ])
   })
 
   it('fans an array-valued column out into one group per item', () => {
