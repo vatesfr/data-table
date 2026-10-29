@@ -2,7 +2,13 @@
 
 Symptom first, then cause and fix. Delete entries once obsolete.
 
-<!-- check-docs-ignore: exceeded journalctl memory Killed chromium-browse Failed oom-kill _vts invoker -->
+<!-- check-docs-ignore: exceeded journalctl memory Killed chromium-browse Failed oom-kill _vts invoker timed Cannot uptime -->
+
+## Unit tests time out on a busy machine
+
+- Symptom: `Error: Test timed out in 5000ms.` in a test that passes alone, then a cascade of `Cannot read properties of null` in the same file (seen in React's and Solid's `HeaderMenu.test.tsx`, vanilla's `createDataTable.groupingAndViewState.test.tsx`).
+- Cause: CPU contention from other work (another project's Playwright suite, a perf run): `npm run check` runs its steps in parallel and the first test of a file pays the cold start.
+- Fix: check `uptime`, rerun the file alone, then rerun `check` once the load drops; don't raise the timeout.
 
 ## Odd pinned cells turn see-through
 
