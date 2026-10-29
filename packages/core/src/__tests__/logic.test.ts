@@ -833,6 +833,15 @@ describe('groupData', () => {
     expect(eng?.keyParts).toEqual(['Eng', 'Alice'])
   })
 
+  it('groups a missing scalar value under an empty key', () => {
+    const rows = [{ dept: 'Eng' }, { dept: undefined }, { dept: null }]
+    const result = groupData(rows, ['dept'], [])
+    expect(result.map((g) => [g.key, g.keyParts, g.rows.length])).toEqual([
+      ['Eng', ['Eng'], 1],
+      ['', [''], 2],
+    ])
+  })
+
   it('fans an array-valued column out into one group per item', () => {
     const result = groupData(GAMES, ['tags'], [])
     expect(result.map((g) => g.key).sort()).toEqual(['Action', 'Adventure', 'RPG'])
