@@ -40,4 +40,18 @@ describe('useTableState — pipeline recomputes', () => {
     )
     expect(vi.mocked(logic.processData)).not.toHaveBeenCalled()
   })
+  it('builds the search index once, on the first keystroke', async () => {
+    const table = useTableState(ROWS, COLS)
+    void table.processedData.value
+    expect(vi.mocked(logic.buildSearchIndex)).not.toHaveBeenCalled()
+
+    table.search.setQuery('n')
+    await nextTick()
+    void table.processedData.value
+    table.search.setQuery('n1')
+    await nextTick()
+
+    expect(table.processedData.value).toHaveLength(11)
+    expect(vi.mocked(logic.buildSearchIndex)).toHaveBeenCalledTimes(1)
+  })
 })

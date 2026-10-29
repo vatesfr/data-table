@@ -2,6 +2,7 @@ import { ref, shallowRef, computed, toValue, watch, type MaybeRefOrGetter } from
 import {
   processData,
   searchData,
+  buildSearchIndex,
   groupData,
   sortWithinGroups,
   getVisibleRows,
@@ -184,8 +185,15 @@ export function useTableState<TRow extends object>(
       filterModes.value,
     ),
   )
+  // Built on the first keystroke, then reused until data or columns change; none while not searching.
+  const searching = computed(() => searchQuery.value !== '')
+  const searchIndex = computed(() =>
+    searching.value ? buildSearchIndex(data.value, columns.value) : null,
+  )
   const processedData = computed(() =>
-    searchData(filteredSorted.value, searchQuery.value, columns.value),
+    searchIndex.value
+      ? searchData(filteredSorted.value, searchQuery.value, searchIndex.value)
+      : filteredSorted.value,
   )
 
   // Grouping runs over the *full* filtered/sorted data, not a page's slice, so pagination (below)

@@ -2,6 +2,7 @@ import { test } from 'vitest'
 import {
   processData,
   searchData,
+  buildSearchIndex,
   groupData,
   getVisibleRows,
   computeStringValues,
@@ -62,10 +63,18 @@ for (const n of SIZES) {
     )
   })
 
-  test(`searchData @ ${n.toLocaleString()} rows`, async ({ bench }) => {
-    await bench('global search across all columns', () => {
-      searchData(data, 'category 7', benchColumns)
-    }).run(opts)
+  const searchIndex = buildSearchIndex(data, benchColumns)
+
+  test(`search @ ${n.toLocaleString()} rows`, async ({ bench }) => {
+    await bench.compare(
+      bench('buildSearchIndex (first keystroke)', () => {
+        buildSearchIndex(data, benchColumns)
+      }),
+      bench('searchData across all columns (each keystroke)', () => {
+        searchData(data, 'category 7', searchIndex)
+      }),
+      opts,
+    )
   })
 
   const grouped = groupData(data, ['category'], benchColumns)

@@ -38,4 +38,14 @@ describe('useTableState — pipeline recomputes', () => {
         .sort(),
     )
   })
+  it('builds the search index once, on the first keystroke', () => {
+    const { result } = renderHook(() => useTableState(ROWS, COLS))
+    expect(vi.mocked(logic.buildSearchIndex)).not.toHaveBeenCalled()
+
+    act(() => result.current.search.setQuery('n'))
+    act(() => result.current.search.setQuery('n1'))
+
+    expect(vi.mocked(logic.buildSearchIndex)).toHaveBeenCalledTimes(1)
+    expect(result.current.processedData).toHaveLength(11)
+  })
 })

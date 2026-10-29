@@ -2,6 +2,7 @@ import { useState, useMemo, useRef, useCallback } from 'react'
 import {
   processData,
   searchData,
+  buildSearchIndex,
   groupData,
   sortWithinGroups,
   getVisibleRows,
@@ -219,9 +220,15 @@ export function useTableState<TRow extends object>(
       ),
     [data, columns, filters, rangeFilters, sorts, L.emptyValue, excludeFilters, filterModes],
   )
+  // Built on the first keystroke, then reused until data or columns change; none while not searching.
+  const searching = searchQuery !== ''
+  const searchIndex = useMemo(
+    () => (searching ? buildSearchIndex(data, columns) : null),
+    [searching, data, columns],
+  )
   const processedData = useMemo(
-    () => searchData(filteredSorted, searchQuery, columns),
-    [filteredSorted, searchQuery, columns],
+    () => (searchIndex ? searchData(filteredSorted, searchQuery, searchIndex) : filteredSorted),
+    [filteredSorted, searchQuery, searchIndex],
   )
 
   // Grouping runs over the *full* filtered/sorted data, not a page's slice, so pagination (below)

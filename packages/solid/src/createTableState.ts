@@ -9,6 +9,7 @@ import {
 import {
   processData,
   searchData,
+  buildSearchIndex,
   groupData,
   sortWithinGroups,
   getVisibleRows,
@@ -250,7 +251,13 @@ export function createTableState<TRow extends object>(
       filterModes(),
     ),
   )
-  const processedData = createMemo(() => searchData(filteredSorted(), searchQuery(), columns()))
+  // Built on the first keystroke, then reused until data or columns change; none while not searching.
+  const searching = createMemo(() => searchQuery() !== '')
+  const searchIndex = createMemo(() => (searching() ? buildSearchIndex(data(), columns()) : null))
+  const processedData = createMemo(() => {
+    const index = searchIndex()
+    return index ? searchData(filteredSorted(), searchQuery(), index) : filteredSorted()
+  })
 
   // Grouping runs over the *full* filtered/sorted data, not a page's slice, so pagination (below)
   // can budget page size across header rows and data rows together instead of paginating data

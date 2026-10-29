@@ -41,4 +41,17 @@ describe('createTableState — pipeline recomputes', () => {
       dispose()
     })
   })
+  it('builds the search index once, on the first keystroke', () => {
+    createRoot((dispose) => {
+      const table = createTableState(ROWS, COLS)
+      expect(vi.mocked(logic.buildSearchIndex)).not.toHaveBeenCalled()
+
+      table.search.setQuery('n')
+      table.search.setQuery('n1')
+
+      expect(table.processedData()).toHaveLength(11)
+      expect(vi.mocked(logic.buildSearchIndex)).toHaveBeenCalledTimes(1)
+      dispose()
+    })
+  })
 })

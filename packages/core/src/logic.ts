@@ -2298,21 +2298,36 @@ export function showsPager(itemCount: number, pageSizeOptions: number[]): boolea
   return itemCount > pageSizeOptions[0]
 }
 
+/**
+ * Each row's searchable cells, formatted and normalized once, so a keystroke only runs a
+ * substring check per row. Cells are joined with a NUL a query can't contain, so a match never
+ * spans two cells.
+ */
+export function buildSearchIndex<TRow extends object>(
+  data: TRow[],
+  columns: ColumnDefBase<TRow>[],
+): Map<TRow, string> {
+  const cols = columns.filter((col) => col.searchable !== false)
+  const index = new Map<TRow, string>()
+  for (const row of data) {
+    const cells = cols.map((col) => {
+      const v = getColumnValue(col, row)
+      return col.format ? col.format(v, row) : v != null ? String(v) : ''
+    })
+    index.set(row, normalizeForSearch(cells.join('\0')))
+  }
+  return index
+}
+
+/** Keeps the rows of `data` (any subset of the rows `index` was built from) matching `query`. */
 export function searchData<TRow extends object>(
   data: TRow[],
   query: string,
-  columns: ColumnDefBase<TRow>[],
+  index: Map<TRow, string>,
 ): TRow[] {
   if (!query) return data
   const q = normalizeForSearch(query)
-  return data.filter((row) =>
-    columns.some((col) => {
-      if (col.searchable === false) return false
-      const v = getColumnValue(col, row)
-      const s = col.format ? col.format(v, row) : v != null ? String(v) : ''
-      return normalizeForSearch(s).includes(q)
-    }),
-  )
+  return data.filter((row) => index.get(row)?.includes(q) ?? false)
 }
 
 export function computeAggregate<TRow extends object>(
