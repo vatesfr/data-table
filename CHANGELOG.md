@@ -13,6 +13,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Fixed
 
+- **Faster search** (Solid, React, Vue, vanilla): a search keystroke no longer re-sorts the rows; on 200,000 sorted rows a keystroke went from ~300 ms to ~230 ms.
 - **No lag on data updates** (Solid, React, vanilla): changing `data` no longer rebuilds every filterable column's checklist values while no filter pane is open; with 1,200 rows and 16 string columns held in a Solid store, that was ~140 ms per update.
 
 ## [0.20.0] - 2026-10-23

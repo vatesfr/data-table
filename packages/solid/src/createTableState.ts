@@ -236,9 +236,11 @@ export function createTableState<TRow extends object>(
 
   const defaultSortDirFor = (key: string) => getDefaultSortDir(columns(), key)
 
-  const processedData = createMemo(() =>
+  // Search runs after the sort, on its own memo, so a keystroke filters without re-sorting:
+  // filtering keeps the (stable) sort order, so the result is the same either way.
+  const filteredSorted = createMemo(() =>
     processData(
-      searchData(data(), searchQuery(), columns()),
+      data(),
       filters(),
       rangeFilters(),
       sorts(),
@@ -248,6 +250,7 @@ export function createTableState<TRow extends object>(
       filterModes(),
     ),
   )
+  const processedData = createMemo(() => searchData(filteredSorted(), searchQuery(), columns()))
 
   // Grouping runs over the *full* filtered/sorted data, not a page's slice, so pagination (below)
   // can budget page size across header rows and data rows together instead of paginating data

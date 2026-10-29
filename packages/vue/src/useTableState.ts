@@ -170,9 +170,11 @@ export function useTableState<TRow extends object>(
       selection.value = reconcileSelection(nextData, selection.value, getRowId.value)
   })
 
-  const processedData = computed(() =>
+  // Search runs after the sort, on its own computed, so a keystroke filters without re-sorting:
+  // filtering keeps the (stable) sort order, so the result is the same either way.
+  const filteredSorted = computed(() =>
     processData(
-      searchData(data.value, searchQuery.value, columns.value),
+      data.value,
       filters.value,
       rangeFilters.value,
       sorts.value,
@@ -181,6 +183,9 @@ export function useTableState<TRow extends object>(
       excludeFilters.value,
       filterModes.value,
     ),
+  )
+  const processedData = computed(() =>
+    searchData(filteredSorted.value, searchQuery.value, columns.value),
   )
 
   // Grouping runs over the *full* filtered/sorted data, not a page's slice, so pagination (below)

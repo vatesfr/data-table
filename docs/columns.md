@@ -28,7 +28,7 @@ Each adapter's own cell/group-header rendering (React `cellValue()`, Vue `cellTe
 
 ## Global search
 
-`searchData(data, query, columns)` filters rows before `processData` runs — it matches any column's string value (using `col.format` when defined) case-insensitively against the query. Every adapter exposes `table.search.query`/`setQuery`; `clearAll` resets it. Solid's `SearchBox` reuses the same `<input>` across updates, so focus persists with no restore step. `ColumnDefBase.searchable?: boolean` (default `true`) excludes a column from this match entirely — for a column whose underlying value isn't user-facing text (e.g. an image URL rendered via `render`), matching against it would surface rows on an accidental substring hit the user has no way to anticipate. Independent of `filterable`/`sortable`/`groupable`, which gate unrelated concerns.
+`searchData(data, query, columns)` filters `processData`'s already-filtered, sorted rows, in its own memo so a keystroke doesn't re-sort (filtering keeps the stable sort order) — it matches any column's string value (using `col.format` when defined) case-insensitively against the query. Every adapter exposes `table.search.query`/`setQuery`; `clearAll` resets it. Solid's `SearchBox` reuses the same `<input>` across updates, so focus persists with no restore step. `ColumnDefBase.searchable?: boolean` (default `true`) excludes a column from this match entirely — for a column whose underlying value isn't user-facing text (e.g. an image URL rendered via `render`), matching against it would surface rows on an accidental substring hit the user has no way to anticipate. Independent of `filterable`/`sortable`/`groupable`, which gate unrelated concerns.
 
 ## Column categories
 
