@@ -1,4 +1,11 @@
-import { createSignal, createMemo, createRenderEffect, untrack, type Accessor } from 'solid-js'
+import {
+  batch,
+  createSignal,
+  createMemo,
+  createRenderEffect,
+  untrack,
+  type Accessor,
+} from 'solid-js'
 import {
   DEFAULT_LABELS,
   type SortEntry,
@@ -472,13 +479,15 @@ export function createTableState<TRow extends object>(
       // Live — reads the latest `options.defaultGroupsCollapsed` on every call, tracking it
       // reactively when `options` itself was given as an Accessor (see `getOptions` above).
       defaultCollapsed: () => getOptions().defaultGroupsCollapsed ?? true,
-      toggle: (key: string) =>
-        setGroupBy((prev) => {
-          if (!prev.includes(key)) {
-            setSorts((prevSorts) => insertGroupSort(prevSorts, prev, key, defaultSortDirFor(key)))
-          }
-          return toggleGroupBy(prev, key)
-        }),
+      // Batched so groupBy and sorts change together: grouping (and persistence) run once
+      toggle: (key: string) => {
+        const prev = groupBy()
+        batch(() => {
+          if (!prev.includes(key))
+            setSorts((s) => insertGroupSort(s, prev, key, defaultSortDirFor(key)))
+          setGroupBy(toggleGroupBy(prev, key))
+        })
+      },
       remove: (key: string) => setGroupBy((prev) => prev.filter((k) => k !== key)),
       moveBy: (key: string, delta: number) =>
         setGroupBy((prev) => {

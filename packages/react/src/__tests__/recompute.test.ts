@@ -48,4 +48,13 @@ describe('useTableState — pipeline recomputes', () => {
     expect(vi.mocked(logic.buildSearchIndex)).toHaveBeenCalledTimes(1)
     expect(result.current.processedData).toHaveLength(11)
   })
+  it('a group toggle groups once', () => {
+    const { result } = renderHook(() => useTableState(ROWS, COLS))
+    vi.mocked(logic.groupData).mockClear()
+
+    act(() => result.current.group.toggle('name'))
+
+    expect(vi.mocked(logic.groupData)).toHaveBeenCalledTimes(1)
+    expect(result.current.sort.entries).toEqual([{ key: 'name', dir: 'asc' }])
+  })
 })

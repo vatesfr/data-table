@@ -54,4 +54,16 @@ describe('createTableState — pipeline recomputes', () => {
       dispose()
     })
   })
+  it('a group toggle groups once', () => {
+    createRoot((dispose) => {
+      const table = createTableState(ROWS, COLS)
+      vi.mocked(logic.groupData).mockClear()
+
+      table.group.toggle('name')
+
+      expect(vi.mocked(logic.groupData)).toHaveBeenCalledTimes(1)
+      expect(table.sort.entries()).toEqual([{ key: 'name', dir: 'asc' }])
+      dispose()
+    })
+  })
 })
