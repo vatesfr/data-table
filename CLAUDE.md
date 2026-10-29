@@ -24,6 +24,7 @@
 - **Size**: per-package gzip budgets in each `package.json`'s `size-limit` (core: its public entry, and the internal entry every adapter imports, which the adapters' budgets exclude), checked by `npm run size` (after `npm run build`) and on commit; raising one needs approval, except moving bytes into core: a core budget may rise as long as no adapter's core internal + adapter total does (compare exact bytes: `node scripts/size-diff.mjs [ref]` prints each entry's before/after/delta and budget headroom against `ref`, default `HEAD`). Set a budget about 100 B above the measured size, so the next small change doesn't fail the commit. Patch updates to bundled deps (solid-js, its compiler) can grow the solid/vanilla bundles: run `npm run size` right after `npm update`.
 - **Demos**: `npm run dev:react|vue|solid|vanilla` (ports 58981–58984).
 - **GitHub**: the `gh` CLI (issues, workflow runs); it works even when a GitHub MCP server doesn't.
+- **Perf**: `perf-review` measures core costs (`scripts/perf-core.mjs`), adapter recomputes (`recompute.test.ts`) and demo interaction timings (`scripts/perf-browser.mjs`); see [performance](docs/performance.md).
 - **UX**: `ux-review` walks `docs/use-cases.md` on the demos and records findings in `docs/improvements.md`; `ux-fix` fixes them, one commit each.
 
 ## Architecture
