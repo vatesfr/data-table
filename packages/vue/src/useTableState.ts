@@ -172,8 +172,12 @@ export function useTableState<TRow extends object>(
       selection.value = reconcileSelection(nextData, selection.value, getRowId.value)
   })
 
+  // One computed per column, created on first read, so each tracks its own reactive reads
   const stringValueMap = computed(() =>
-    computeStringValues(data.value, columns.value, L.value.emptyValue),
+    computeStringValues(data.value, columns.value, L.value.emptyValue, (compute) => {
+      const values = computed(compute)
+      return () => values.value
+    }),
   )
 
   // Sorted apart from search/filters so a keystroke or filter click never re-sorts (see `sortData`)

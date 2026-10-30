@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import type { SortEntry } from '../types'
 import {
   clampInt,
@@ -1613,6 +1613,38 @@ describe('computeStringValues', () => {
   it('excludes numeric columns from the map', () => {
     const result = computeStringValues(ROWS, COLS)
     expect(result['salary']).toBeUndefined()
+  })
+
+  it('computes a column on its first read only, once', () => {
+    const name = vi.fn((r: Row) => r.name)
+    const dept = vi.fn((r: Row) => r.dept)
+    const result = computeStringValues(ROWS, [
+      { key: 'name', label: 'Name', value: name },
+      { key: 'dept', label: 'Dept', value: dept },
+    ])
+    expect(name).not.toHaveBeenCalled()
+    expect(result['dept']).toEqual(['Eng', 'HR'])
+    expect(result['dept']).toEqual(['Eng', 'HR'])
+    expect(dept).toHaveBeenCalledTimes(ROWS.length)
+    expect(name).not.toHaveBeenCalled()
+    expect(result).toEqual({ name: ['Alice', 'Bob', 'Clara', 'David'], dept: ['Eng', 'HR'] })
+  })
+
+  it('wraps each column computation with the given memo', () => {
+    let memos = 0
+    const memo = <T>(compute: () => T) => (memos++, compute)
+    const result = computeStringValues(ROWS, COLS, undefined, memo)
+    void result['dept']
+    void result['dept']
+    expect(memos).toBe(1)
+  })
+
+  it('keeps a __proto__ column key as an own property', () => {
+    const result = computeStringValues(
+      [JSON.parse('{"__proto__": "x"}') as object],
+      [{ key: '__proto__', label: 'Proto' }],
+    )
+    expect(Object.keys(result)).toEqual(['__proto__'])
   })
 
   it('excludes columns with filterable: false', () => {

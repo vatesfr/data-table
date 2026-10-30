@@ -744,23 +744,45 @@ export function indexOfVisibleItem<TRow extends object>(
   return items.findIndex((item) => isSameVisibleItem(item, target))
 }
 
+/**
+ * Each filterable non-number column's sorted distinct values, keyed by column. Each column is
+ * computed on first read (through `memo(compute)` when given, else once): a table only reads the
+ * columns whose filter pane is open or that carry an exclude chip, so mounting or replacing `data`
+ * costs nothing here until then. Vue/Solid pass their own memo so a column's values track the
+ * reactive reads they make (deep-reactive rows, a `value` reading a signal). The properties are
+ * getters: read them, don't assign them.
+ */
 export function computeStringValues<TRow extends object>(
   data: TRow[],
   columns: ColumnDefBase<TRow>[],
   emptyLabel = '(none)',
-): Record<string, string[]> {
+  memo?: (compute: () => string[]) => () => string[],
+): Readonly<Record<string, string[]>> {
   const map: Record<string, string[]> = {}
-  const cols = columns.filter((c) => c.type !== 'number' && c.filterable !== false)
-  for (const col of cols) {
-    const values = [
-      ...new Set(data.flatMap((r) => multiValues(getColumnValue(col, r), emptyLabel))),
-    ]
-    // No direction of its own here — a fixed 'asc' lets a compare like compareMissingLast()
-    // still pin its matching values last (compareMissingLast's non-pinned branch is direction-
-    // naive anyway, so 'asc' vs 'desc' would make no difference there).
-    map[col.key] = col.compare ? values.sort((a, b) => col.compare!(a, b, 'asc')) : values.sort()
+  for (const col of columns) {
+    if (col.type === 'number' || col.filterable === false) continue
+    const compute = () => computeColumnStringValues(data, col, emptyLabel)
+    let read: (() => string[]) | undefined
+    let values: string[] | undefined
+    // defineProperty, not assignment: a `__proto__` key stays an own property
+    Object.defineProperty(map, col.key, {
+      enumerable: true,
+      get: () => (memo ? (read ??= memo(compute))() : (values ??= compute())),
+    })
   }
   return map
+}
+
+function computeColumnStringValues<TRow extends object>(
+  data: TRow[],
+  col: ColumnDefBase<TRow>,
+  emptyLabel: string,
+): string[] {
+  const values = [...new Set(data.flatMap((r) => multiValues(getColumnValue(col, r), emptyLabel)))]
+  // No direction of its own here — a fixed 'asc' lets a compare like compareMissingLast()
+  // still pin its matching values last (compareMissingLast's non-pinned branch is direction-
+  // naive anyway, so 'asc' vs 'desc' would make no difference there).
+  return col.compare ? values.sort((a, b) => col.compare!(a, b, 'asc')) : values.sort()
 }
 
 /**
