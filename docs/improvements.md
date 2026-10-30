@@ -10,7 +10,6 @@ Seeded 2026-10-04 from issues reported by a consumer app, each reproduced on the
 
 - [Dropdowns](#dropdowns)
 - [Keyboard](#keyboard)
-- [Accessibility](#accessibility)
 
 ## Dropdowns
 
@@ -23,7 +22,3 @@ Seeded 2026-10-04 from issues reported by a consumer app, each reproduced on the
 
 - **U30 · minor · UC04** — removing an active-bar chip with its × (Enter) drops focus to the page body, even when other chips remain. Focus the next chip, else the previous one, else the search box.
 - **U32 · minor · UC04** — React, Vue: → from a Filter column lands on the "Select all" checkbox, where ↓/↑ do nothing and Space toggles every value; Solid lands on the value search. Focus the value search, as Solid does.
-
-## Accessibility
-
-- **U31 · major · UC09** — nothing is announced after search, filter or paging: no live region carries the row count, the page or "No matching rows". A polite status region with the row count and page.

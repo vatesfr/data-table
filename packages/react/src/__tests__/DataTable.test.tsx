@@ -2461,7 +2461,7 @@ describe('DataTable — filter column ordering & clear button', () => {
 describe('DataTable — active state bar', () => {
   it('renders with just the row-count stats when nothing is active', () => {
     const { getByText } = render(<DataTable data={ROWS} columns={COLS} rowKey="id" />)
-    expect(getByText('2 / 2 rows')).toBeTruthy()
+    expect(getByText('2 / 2 rows', { ignore: '.dt-status' })).toBeTruthy()
   })
 
   it('shows sort, group, and filter chips together, each removable on its own', () => {
@@ -2615,7 +2615,7 @@ describe('DataTable — keyboard navigation across pages', () => {
       <DataTable data={ROWS6} columns={COLS} rowKey="id" />,
     )
     fireEvent.change(getAllByPlaceholderText('Search…')[0], { target: { value: 'zzz' } })
-    expect(getByText('No matching rows')).toBeTruthy()
+    expect(getByText('No matching rows', { ignore: '.dt-status' })).toBeTruthy()
     fireEvent.click(getByRole('button', { name: 'Clear search and filters' }))
     expect(getAllByPlaceholderText('Search…')[0]).toHaveProperty('value', '')
     expect(container.querySelectorAll('tbody tr')).toHaveLength(ROWS6.length)

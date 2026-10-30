@@ -13,6 +13,7 @@ import {
   paginateVisibleItems,
   pageSizeOptions,
   showsPager,
+  tableStatus,
   getCrossPageFocusTarget,
   getSortIndex as getHeaderSortIndex,
   getSortIcon as getHeaderSortIcon,
@@ -2291,6 +2292,9 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
           <option v-for="n in pageSizes" :key="n" :value="n">{{ n }}</option>
         </select>
       </label>
+    </div>
+    <div role="status" class="dt-status">
+      {{ tableStatus(L, processedData.length, data.length, page, numPages) }}
     </div>
   </div>
 </template>

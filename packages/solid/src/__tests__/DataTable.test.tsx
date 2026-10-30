@@ -2,6 +2,8 @@ import { describe, it, expect, vi } from 'vitest'
 import { createRoot, createSignal } from 'solid-js'
 import { render } from 'solid-js/web'
 import { DataTable } from '../DataTable'
+import { DataTableView } from '../DataTableView'
+import { createTableState } from '../createTableState'
 import type { ColumnDef } from '../types'
 import { stubMatchMedia } from './stubMatchMedia'
 
@@ -23,6 +25,26 @@ function rowNames(container: HTMLElement): string[] {
 }
 
 describe('DataTable', () => {
+  it('U31: announces the row count and page in a polite status region', () => {
+    const container = document.createElement('div')
+    let table!: ReturnType<typeof createTableState<Row>>
+    const dispose = createRoot((d) => {
+      table = createTableState(ROWS, COLS)
+      render(() => <DataTableView table={table} rowKey="id" />, container)
+      return d
+    })
+    const status = () => container.querySelector('[role="status"]')?.textContent
+    expect(status()).toBe('2 / 2 rows')
+    table.search.setQuery('ali')
+    expect(status()).toBe('1 / 2 rows')
+    table.search.setQuery('zzz')
+    expect(status()).toBe('No matching rows')
+    table.search.setQuery('')
+    table.pagination.setPageSize(1)
+    expect(status()).toBe('2 / 2 rows, Page 1 of 2')
+    dispose()
+  })
+
   it('accepts columns built inline, a new array on every read', () => {
     const container = document.createElement('div')
     const dispose = createRoot((d) => {

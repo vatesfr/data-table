@@ -41,6 +41,22 @@ function Harness({
 }
 
 describe('DataTableView', () => {
+  it('U31: announces the row count and page in a polite status region', () => {
+    let table!: ReturnType<typeof useTableState<Row>>
+    const { getByRole } = render(<Harness onReady={(t) => (table = t)} />)
+    const status = getByRole('status')
+    expect(status.textContent).toBe('2 / 2 rows')
+    act(() => table.search.setQuery('ali'))
+    expect(status.textContent).toBe('1 / 2 rows')
+    act(() => table.search.setQuery('zzz'))
+    expect(status.textContent).toBe('No matching rows')
+    act(() => {
+      table.search.setQuery('')
+      table.pagination.setPageSize(1)
+    })
+    expect(status.textContent).toBe('2 / 2 rows, Page 1 of 2')
+  })
+
   it('renders the built-in table UI from an externally-owned table', () => {
     const { getByText } = render(<Harness onReady={() => {}} />)
     expect(getByText('Alice')).toBeTruthy()

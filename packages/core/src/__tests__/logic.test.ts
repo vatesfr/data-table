@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import type { SortEntry } from '../types'
+import { LABELS_EN } from '../locales'
 import {
   clampInt,
   rowText,
@@ -20,6 +21,7 @@ import {
   computeStringValues,
   computeStringValueCounts,
   filterValuesBySearch,
+  tableStatus,
   normalizeForSearch,
   filterValuesByCount,
   filterValuesByRange,
@@ -1564,6 +1566,18 @@ describe('pageSizeOptions', () => {
     expect(pageSizeOptions(10, 5)).toEqual([5, 10, 20, 50, 100])
     expect(pageSizeOptions(30, 5)).toEqual([5, 10, 20, 30, 50, 100])
     expect(pageSizeOptions(5, 5)).toEqual([5, 10, 20, 50, 100])
+  })
+})
+
+describe('tableStatus', () => {
+  it('reads the shown and total row counts, with the page once there are several', () => {
+    expect(tableStatus(LABELS_EN, 12, 40, 1, 1)).toBe('12 / 40 rows')
+    expect(tableStatus(LABELS_EN, 12, 40, 2, 3)).toBe('12 / 40 rows, Page 2 of 3')
+  })
+
+  it('says no row matches, or that there are no rows at all', () => {
+    expect(tableStatus(LABELS_EN, 0, 40, 1, 1)).toBe('No matching rows')
+    expect(tableStatus(LABELS_EN, 0, 0, 1, 1)).toBe('No rows')
   })
 })
 

@@ -70,6 +70,7 @@ import {
   toggleCollapse,
   getHeaderMenuItems,
   watchMedia,
+  tableStatus,
   FILTER_NARROW_QUERY,
   injectStyles,
   type VisibleItem,
@@ -2783,6 +2784,9 @@ export function DataTableView<TRow extends object>({
           </label>
         </div>
       )}
+      <div role="status" className="dt-status">
+        {tableStatus(L, processedData.length, data.length, page, numPages)}
+      </div>
     </div>
   )
 }
