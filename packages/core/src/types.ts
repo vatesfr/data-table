@@ -41,7 +41,7 @@ export interface ColumnDefBase<TRow extends object = Record<string, unknown>> {
    * `Array.prototype.sort`-style comparator over two already-resolved column values (whatever
    * `value()`/`row[key]` produced for each side) — not full rows; see `sortWithinGroups` for why
    * rows aren't available here. Overrides the default numeric-or-lexicographic comparison
-   * everywhere a column's values are ordered: row sort (`processData`, `sortWithinGroups`'
+   * everywhere a column's values are ordered: row sort (`sortData`, `sortWithinGroups`'
    * group-order pass), the filter checklist's default order (`computeStringValues`), and its
    * explicit alpha-mode sort toggle including count-mode's tie-break (`sortFilterValues`).
    * Doesn't affect `groupValue`/`groupFormat` bucketing, which solves the equivalent problem for

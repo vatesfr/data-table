@@ -40,18 +40,29 @@ export function formatRows(rows) {
   ].join('\n')
 }
 
+// size-limit exits 1 when an entry is over budget, yet still prints the JSON this script reports
+export function sizeLimitJson(cmd, args, cwd) {
+  try {
+    return JSON.parse(
+      execFileSync(cmd, args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }),
+    )
+  } catch (error) {
+    if (error.status === 1 && error.stdout) return JSON.parse(error.stdout)
+    throw error
+  }
+}
+
 function measure(root) {
   const run = (args, cwd = root) =>
     execFileSync('npm', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] })
   run(['run', 'build'])
   return PACKAGES.flatMap((pkg) =>
-    JSON.parse(
-      execFileSync('npx', ['size-limit', '--json'], {
-        cwd: join(root, 'packages', pkg),
-        encoding: 'utf8',
-        stdio: ['ignore', 'pipe', 'ignore'],
-      }),
-    ).map((e) => ({ pkg, name: e.name, size: e.size, sizeLimit: e.sizeLimit })),
+    sizeLimitJson('npx', ['size-limit', '--json'], join(root, 'packages', pkg)).map((e) => ({
+      pkg,
+      name: e.name,
+      size: e.size,
+      sizeLimit: e.sizeLimit,
+    })),
   )
 }
 

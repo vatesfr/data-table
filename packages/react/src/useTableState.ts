@@ -1,6 +1,7 @@
 import { useState, useMemo, useRef, useCallback } from 'react'
 import {
-  processData,
+  filterData,
+  sortData,
   searchData,
   groupData,
   sortWithinGroups,
@@ -209,25 +210,26 @@ export function useTableState<TRow extends object>(
     [data, columns, L.emptyValue],
   )
 
+  // Sorted apart from search/filters so a keystroke or filter click never re-sorts (see `sortData`)
+  const sortedData = useMemo(() => sortData(data, sorts, columns), [data, sorts, columns])
+
   const processedData = useMemo(
     () =>
-      processData(
-        searchData(data, searchQuery, columns),
+      filterData(
+        searchData(sortedData, searchQuery, columns),
         filters,
         rangeFilters,
-        sorts,
         columns,
         L.emptyValue,
         excludeFilters,
         filterModes,
       ),
     [
-      data,
+      sortedData,
       searchQuery,
       columns,
       filters,
       rangeFilters,
-      sorts,
       L.emptyValue,
       excludeFilters,
       filterModes,

@@ -1,6 +1,7 @@
 import { ref, shallowRef, computed, toValue, watch, type MaybeRefOrGetter } from 'vue'
 import {
-  processData,
+  filterData,
+  sortData,
   searchData,
   groupData,
   sortWithinGroups,
@@ -175,12 +176,14 @@ export function useTableState<TRow extends object>(
     computeStringValues(data.value, columns.value, L.value.emptyValue),
   )
 
+  // Sorted apart from search/filters so a keystroke or filter click never re-sorts (see `sortData`)
+  const sortedData = computed(() => sortData(data.value, sorts.value, columns.value))
+
   const processedData = computed(() =>
-    processData(
-      searchData(data.value, searchQuery.value, columns.value),
+    filterData(
+      searchData(sortedData.value, searchQuery.value, columns.value),
       filters.value,
       rangeFilters.value,
-      sorts.value,
       columns.value,
       L.value.emptyValue,
       excludeFilters.value,

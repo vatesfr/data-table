@@ -29,7 +29,7 @@ compareMissingLast
 // + every named locale export from `./locales` (LABELS_EN, LABELS_FR, LABELS_ES, LABELS_DE, LABELS_PT)
 ```
 
-Everything else described below the fold in this README — `processData`, `groupData`, selection/keyboard-nav/pagination helpers, `encodeViewState`/`decodeViewState`, view-persistence helpers, and more — lives in **`@vates/data-table-core/internal`** instead. That sub-path exists solely so the adapter packages can share implementation code with each other while building their own `useTableState`/`createTableState`/persistence layer; it is **not a supported public API** and may change shape without a major version bump. If you're consuming one of the adapter packages, get what you need from that adapter directly rather than reaching into `@vates/data-table-core` or `@vates/data-table-core/internal` yourself.
+Everything else described below the fold in this README — `filterData`, `sortData`, `groupData`, selection/keyboard-nav/pagination helpers, `encodeViewState`/`decodeViewState`, view-persistence helpers, and more — lives in **`@vates/data-table-core/internal`** instead. That sub-path exists solely so the adapter packages can share implementation code with each other while building their own `useTableState`/`createTableState`/persistence layer; it is **not a supported public API** and may change shape without a major version bump. If you're consuming one of the adapter packages, get what you need from that adapter directly rather than reaching into `@vates/data-table-core` or `@vates/data-table-core/internal` yourself.
 
 `@vates/data-table-core/locales` and `@vates/data-table-core/theme` are unaffected by this split — see their own sections below.
 
@@ -59,7 +59,8 @@ LABELS_PT                           // Portuguese
 #### Filtering
 
 ```ts
-processData(data, filters, rangeFilters, sorts, columns, emptyLabel?, excludeFilters?, filterModes?) // filter + sort rows; columns needed for array-valued (multiMode) filters and computed columns, emptyLabel for empty-array rows (default '(none)'), excludeFilters for "not one of these" values, filterModes for a per-column runtime any/all override (see setFilterMode)
+sortData(data, sorts, columns) // stable sort; returns data itself when sorts is empty. Adapters sort first, then search and filter the sorted rows, so a keystroke never re-sorts
+filterData(data, filters, rangeFilters, columns, emptyLabel?, excludeFilters?, filterModes?) // filter rows, keeping their order; columns needed for array-valued (multiMode) filters and computed columns, emptyLabel for empty-array rows (default '(none)'), excludeFilters for "not one of these" values, filterModes for a per-column runtime any/all override (see setFilterMode)
 computeStringValues(data, columns, emptyLabel?) // build filter value lists; array values are flattened and deduped, empty arrays contribute emptyLabel
 computeStringValueCounts(data, filters, rangeFilters, columns, emptyLabel?, targetKeys?, excludeFilters?, filterModes?) // per-value facet counts (rows matching every *other* active filter); targetKeys scopes computation to just the columns needed, for performance
 cycleFilterValue(filters, excludeFilters, key, value) // cycle a checklist value neutral → include → exclude → neutral
@@ -111,7 +112,7 @@ countActiveSorts(sorts) // sorts.length, exported for symmetry with countActiveF
 compareMissingLast(compare?, isMissing?) // ready-made ColumnDefBase.compare that pins a value (missing data, by default) last regardless of sort direction
 ```
 
-`ColumnDefBase.compare`/`defaultSortDir` (a plain, direction-naive `(a, b, dir) => number` comparator, and the direction a fresh sort starts at) are read internally by `processData`'s sort, `sortWithinGroups`, `computeStringValues`, and `sortFilterValues` — no separate function to call.
+`ColumnDefBase.compare`/`defaultSortDir` (a plain, direction-naive `(a, b, dir) => number` comparator, and the direction a fresh sort starts at) are read internally by `sortData`, `sortWithinGroups`, `computeStringValues`, and `sortFilterValues` — no separate function to call.
 
 #### Grouping
 

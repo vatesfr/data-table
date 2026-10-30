@@ -403,6 +403,25 @@ describe('createDataTable (grouping, group dropdown, pagination+grouping, search
     expect(container.querySelectorAll('tbody tr')).toHaveLength(2)
   })
 
+  it('typing in the search input does not re-sort; new data does', () => {
+    const compare = vi.fn((a: unknown, b: unknown) => Number(a) - Number(b))
+    const cols = COLS.map((c) => (c.key === 'score' ? { ...c, compare } : c))
+    const table = createDataTable(container, {
+      data: ROWS,
+      columns: cols,
+      initialViewState: { sorts: [{ key: 'score', dir: 'asc' }] },
+    })
+    expect(compare).toHaveBeenCalled()
+
+    compare.mockClear()
+    setInput(container.querySelector<HTMLInputElement>('.dt-search-input')!, 'a')
+    expect(table.getProcessedData().map((r) => r.name)).toEqual(['David', 'Clara', 'Alice'])
+    expect(compare).not.toHaveBeenCalled()
+
+    table.setData([...ROWS])
+    expect(compare).toHaveBeenCalled()
+  })
+
   it('clear-all resets search query', () => {
     createDataTable(container, { data: ROWS, columns: COLS })
     setInput(container.querySelector<HTMLInputElement>('.dt-search-input')!, 'ali')

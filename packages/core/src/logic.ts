@@ -74,7 +74,7 @@ function buildColByKey<TRow extends object>(
  * Resolves a row's value for a given key — via the column's own accessor (`getColumnValue`,
  * which honors `col.value`) when a matching column exists, or a plain `row[key]` lookup when it
  * doesn't (a filter/rangeFilter/groupBy key with no corresponding column definition still needs
- * to resolve to *something*). Shared by every place `processData`/`groupData` look up a raw
+ * to resolve to *something*). Shared by every place `filterData`/`groupData` look up a raw
  * value from a possibly-absent column.
  */
 function resolveValue<TRow extends object>(
@@ -187,7 +187,7 @@ export function compareMissingLast<T = unknown>(
 }
 
 /**
- * Sorts `rows` by `sorts`, shared by `processData`'s global sort and `sortWithinGroups`'
+ * Sorts `rows` by `sorts`, shared by `sortData`'s global sort and `sortWithinGroups`'
  * per-bucket re-sort. Decorate-sort-undecorate: `getComparableValue` (esp. a `type: 'date'`
  * column's `parseDate`) is pure per-row, but a comparator recomputes it for both sides on every
  * comparison — O(n log n) calls instead of O(n). Precomputing once per row per sort key avoids
@@ -223,11 +223,24 @@ function sortRows<TRow extends object>(
   return decorated.map((d) => d.row)
 }
 
-export function processData<TRow extends object>(
+/**
+ * Adapters sort the full data once and filter the sorted rows (`searchData`, `filterData`), so a
+ * keystroke or filter click never re-sorts: filtering keeps order and the sort is stable, so the
+ * result equals filtering first, given a consistent comparator. Returns `data` itself when `sorts`
+ * is empty.
+ */
+export function sortData<TRow extends object>(
+  data: TRow[],
+  sorts: SortEntry[],
+  columns: ColumnDefBase<TRow>[],
+): TRow[] {
+  return sortRows(data, sorts, buildColByKey(columns))
+}
+
+export function filterData<TRow extends object>(
   data: TRow[],
   filters: Record<string, Set<string>>,
   rangeFilters: Record<string, RangeFilter>,
-  sorts: SortEntry[],
   columns: ColumnDefBase<TRow>[],
   emptyLabel = '(none)',
   excludeFilters: Record<string, Set<string>> = {},
@@ -305,7 +318,7 @@ export function processData<TRow extends object>(
     }
   }
 
-  return sortRows(result, sorts, colByKey)
+  return result
 }
 
 export interface GroupResult<TRow extends object> {
@@ -377,7 +390,7 @@ function comparableFromKeyPart<TRow extends object>(
  *
  * `groupData` fans a row into one bucket per individual value for a multi-value groupBy column
  * (e.g. a row tagged `['Action', 'RPG']` lands in both the 'Action' and 'RPG' buckets), but
- * `processData`'s sort runs *before* that fan-out, over the flat row list — so a multi-value
+ * `sortData`'s sort runs *before* that fan-out, over the flat row list — so a multi-value
  * column used as a sort key has no single per-row comparable value that matches any one bucket,
  * and falls back to comparing the row's whole array (`String(array)`). That comparison is
  * unrelated to either bucket a row lands in, and it determines *two* things downstream that both
@@ -395,7 +408,7 @@ function comparableFromKeyPart<TRow extends object>(
  * exactly as it already does for a single-value groupBy column, where the flat pre-sort happens
  * to already put same-value rows adjacent to each other.
  *
- * Sorting a multi-value column that is *not* a groupBy column keeps `processData`'s incidental
+ * Sorting a multi-value column that is *not* a groupBy column keeps `sortData`'s incidental
  * whole-array comparison, unchanged — there is no per-bucket context to resolve it against.
  */
 export function sortWithinGroups<TRow extends object>(
@@ -404,6 +417,8 @@ export function sortWithinGroups<TRow extends object>(
   groupBy: string[],
   columns: ColumnDefBase<TRow>[],
 ): GroupResult<TRow>[] {
+  // Ungrouped: the single group's rows are already sorted by `sortData`, re-sorting them is a no-op
+  if (groupBy.length === 0) return groups
   const colByKey = buildColByKey(columns)
   const dirByGroupKey = new Map(
     sorts.filter((s) => groupBy.includes(s.key)).map((s) => [s.key, s.dir]),
@@ -768,7 +783,7 @@ export function computeStringValues<TRow extends object>(
  * — otherwise narrowing the range would shrink its own checklist counts instead of only every
  * other column's.
  *
- * `filterModes` (see `setFilterMode`) is passed straight through to the narrowing `processData`
+ * `filterModes` (see `setFilterMode`) is passed straight through to the narrowing `filterData`
  * call, unfiltered by column — unlike `filters`/`excludeFilters`/`rangeFilters`, a column's own
  * any/all mode has no bearing on *its own* baseline (only whether its own selected values are
  * excluded matters, not how they'd combine), so there's nothing to delete here. It matters for
@@ -799,11 +814,10 @@ export function computeStringValueCounts<TRow extends object>(
     delete otherExcludeFilters[col.key]
     const otherRangeFilters = { ...rangeFilters }
     delete otherRangeFilters[col.key]
-    const rows = processData(
+    const rows = filterData(
       data,
       otherFilters,
       otherRangeFilters,
-      [],
       columns,
       emptyLabel,
       otherExcludeFilters,
@@ -820,8 +834,12 @@ export function computeStringValueCounts<TRow extends object>(
   return map
 }
 
+// Printable ASCII has no diacritics: skipping NFD + regex makes a 500k-row search ~1.7x faster
+const PRINTABLE_ASCII = /^[ -~]*$/
+
 /** Lowercases and strips diacritics (e.g. "Öoo" -> "ooo") so search is accent-insensitive. */
 export function normalizeForSearch(s: string): string {
+  if (PRINTABLE_ASCII.test(s)) return s.toLowerCase()
   return s
     .toLowerCase()
     .normalize('NFD')
@@ -1124,7 +1142,7 @@ export function computeRangeSliderGeometry(
  * dates from the tree itself instead of merely being ANDed onto the final row set once a checkbox
  * is ticked. `values` are parsed with `parseDate` (default/override, matching the column's own);
  * the bounds are always ISO `YYYY-MM-DD` from the range filter's native `<input type="date">`s,
- * so they're parsed with the default parser regardless — see `processData`'s range-filter loop
+ * so they're parsed with the default parser regardless — see `filterData`'s range-filter loop
  * for the same distinction. A value that fails to parse is dropped whenever a bound is active —
  * it isn't part of any chronological range in the first place, same reasoning as `selectDateRange`.
  */
@@ -1499,13 +1517,13 @@ export function setFilterValues(
  * `filters` alone can only ever narrow *down to* a set of values, never rule specific ones out.
  * Kept as two separate `Set<string>` maps (`filters` for include, `excludeFilters` for exclude)
  * rather than a single `Map<string, 'include'|'exclude'>` per value, so every existing
- * include-only call site (`processData`'s default exclude-less overload, `computeStringValueCounts`,
+ * include-only call site (`filterData`'s default exclude-less overload, `computeStringValueCounts`,
  * view-state persistence, `toggleFilterAll`/`setFilterValues`) keeps working unchanged against
  * `filters` alone — only the few sites that need to know about exclusion at all take the second
  * map as a new, optional/trailing parameter.
  *
  * A value is never present in both sets at once: moving it into one always removes it from the
- * other, so `processData`'s two filter passes (include, then exclude) never fight over the same
+ * other, so `filterData`'s two filter passes (include, then exclude) never fight over the same
  * value.
  */
 export function cycleFilterValue(

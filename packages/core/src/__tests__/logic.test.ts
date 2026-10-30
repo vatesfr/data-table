@@ -3,7 +3,8 @@ import type { SortEntry } from '../types'
 import {
   clampInt,
   rowText,
-  processData,
+  filterData,
+  sortData,
   searchData,
   groupData,
   sortWithinGroups,
@@ -18,6 +19,7 @@ import {
   computeStringValues,
   computeStringValueCounts,
   filterValuesBySearch,
+  normalizeForSearch,
   filterValuesByCount,
   filterValuesByRange,
   computeValueBounds,
@@ -336,7 +338,7 @@ describe('compareMissingLast', () => {
   // compareMissingLast's return value is meant to be fed through the same "negate for desc"
   // flip every sort call site already applies (dir === 'asc' ? cmp : -cmp) — it pre-cancels
   // that upcoming flip for a missing value, so it isn't itself the final comparison result.
-  // applyDir mirrors that flip, the same way processData/sortWithinGroups/sortFilterValues do.
+  // applyDir mirrors that flip, the same way sortData/sortWithinGroups/sortFilterValues do.
   const applyDir = (cmp: number, dir: 'asc' | 'desc') => (dir === 'asc' ? cmp : -cmp)
 
   it('pins null/undefined/empty-string values last, after the caller applies its own dir flip', () => {
@@ -376,73 +378,95 @@ describe('compareMissingLast', () => {
   })
 })
 
-// ─── processData ─────────────────────────────────────────────────────────────
+// ─── filterData / sortData ──────────────────────────────────────────────────
 
-describe('processData', () => {
+describe('filterData / sortData', () => {
   it('returns all rows when no filters or sorts', () => {
-    expect(processData(ROWS, {}, {}, [], [])).toEqual(ROWS)
+    expect(filterData(ROWS, {}, {}, [])).toEqual(ROWS)
+  })
+
+  it('sortData returns its input as is when no sort is active', () => {
+    expect(sortData(ROWS, [], [])).toBe(ROWS)
+  })
+
+  // Adapters sort once and filter the sorted rows so a keystroke never re-sorts: this must give
+  // the same rows in the same order as filtering first, ties included.
+  it('filtering sorted rows equals sorting filtered rows', () => {
+    const cols = [
+      { key: 'score', label: 'Score', type: 'number' as const },
+      { key: 'tags', label: 'Tags' },
+    ]
+    const rows = Array.from({ length: 60 }, (_, i) => ({
+      id: i,
+      score: (i * 7) % 5,
+      tier: ['b', 'a', 'c'][i % 3],
+      tags: [['x'], ['y'], ['x', 'z'], []][i % 4],
+    }))
+    const filters = { tags: new Set(['x']) }
+    const ranges = { score: { min: '1', max: '' } }
+    const sorts: SortEntry[] = [
+      { key: 'tier', dir: 'desc' },
+      { key: 'score', dir: 'asc' },
+    ]
+    expect(filterData(sortData(rows, sorts, cols), filters, ranges, cols)).toEqual(
+      sortData(filterData(rows, filters, ranges, cols), sorts, cols),
+    )
   })
 
   it('filters by a string checklist', () => {
-    const result = processData(ROWS, { dept: new Set(['Eng']) }, {}, [], [])
+    const result = filterData(ROWS, { dept: new Set(['Eng']) }, {}, [])
     expect(result.map((r) => r.name)).toEqual(['Alice', 'Clara'])
   })
 
   it('ignores an empty filter set (shows all)', () => {
-    const result = processData(ROWS, { dept: new Set() }, {}, [], [])
+    const result = filterData(ROWS, { dept: new Set() }, {}, [])
     expect(result).toHaveLength(4)
   })
 
   it('filters by multiple columns (AND logic)', () => {
-    const result = processData(
-      ROWS,
-      { dept: new Set(['Eng']), name: new Set(['Clara']) },
-      {},
-      [],
-      [],
-    )
+    const result = filterData(ROWS, { dept: new Set(['Eng']), name: new Set(['Clara']) }, {}, [])
     expect(result.map((r) => r.name)).toEqual(['Clara'])
   })
 
   it('applies a numeric range min filter', () => {
-    const result = processData(ROWS, {}, { salary: { min: '80000', max: '' } }, [], [])
+    const result = filterData(ROWS, {}, { salary: { min: '80000', max: '' } }, [])
     expect(result.map((r) => r.name)).toEqual(['Alice', 'Clara'])
   })
 
   it('applies a numeric range max filter', () => {
-    const result = processData(ROWS, {}, { salary: { min: '', max: '65000' } }, [], [])
+    const result = filterData(ROWS, {}, { salary: { min: '', max: '65000' } }, [])
     expect(result.map((r) => r.name)).toEqual(['Bob'])
   })
 
   it('applies min and max together', () => {
-    const result = processData(ROWS, {}, { salary: { min: '65000', max: '95000' } }, [], [])
+    const result = filterData(ROWS, {}, { salary: { min: '65000', max: '95000' } }, [])
     expect(result.map((r) => r.name)).toEqual(['Alice', 'David'])
   })
 
   it('range-filters using a computed column value', () => {
     const cols = [{ key: 'salaryK', label: 'Salary (K)', value: (row: Row) => row.salary / 1000 }]
-    const result = processData(ROWS, {}, { salaryK: { min: '65', max: '95' } }, [], cols)
+    const result = filterData(ROWS, {}, { salaryK: { min: '65', max: '95' } }, cols)
     expect(result.map((r) => r.name)).toEqual(['Alice', 'David'])
   })
 
   it('sorts ascending by string column', () => {
-    const result = processData(ROWS, {}, {}, [{ key: 'name', dir: 'asc' }], [])
+    const result = sortData(ROWS, [{ key: 'name', dir: 'asc' }], [])
     expect(result.map((r) => r.name)).toEqual(['Alice', 'Bob', 'Clara', 'David'])
   })
 
   it('sorts descending by string column', () => {
-    const result = processData(ROWS, {}, {}, [{ key: 'name', dir: 'desc' }], [])
+    const result = sortData(ROWS, [{ key: 'name', dir: 'desc' }], [])
     expect(result.map((r) => r.name)).toEqual(['David', 'Clara', 'Bob', 'Alice'])
   })
 
   it('sorts ascending by numeric column', () => {
-    const result = processData(ROWS, {}, {}, [{ key: 'salary', dir: 'asc' }], [])
+    const result = sortData(ROWS, [{ key: 'salary', dir: 'asc' }], [])
     expect(result.map((r) => r.salary)).toEqual([60000, 70000, 90000, 110000])
   })
 
   it('sorts using a computed column value', () => {
     const cols = [{ key: 'salaryK', label: 'Salary (K)', value: (row: Row) => row.salary / 1000 }]
-    const result = processData(ROWS, {}, {}, [{ key: 'salaryK', dir: 'asc' }], cols)
+    const result = sortData(ROWS, [{ key: 'salaryK', dir: 'asc' }], cols)
     expect(result.map((r) => r.name)).toEqual(['Bob', 'David', 'Alice', 'Clara'])
   })
 
@@ -465,7 +489,7 @@ describe('processData', () => {
           TIER_ORDER.indexOf(String(a).toLowerCase()) - TIER_ORDER.indexOf(String(b).toLowerCase()),
       },
     ]
-    const result = processData(rows, {}, {}, [{ key: 'tier', dir: 'asc' }], cols)
+    const result = sortData(rows, [{ key: 'tier', dir: 'asc' }], cols)
     expect(result.map((r) => r.tier)).toEqual(['Bronze', 'Silver', 'Gold'])
   })
 
@@ -489,7 +513,7 @@ describe('processData', () => {
         compare: (a: unknown, b: unknown) => Number(b) - Number(a),
       },
     ]
-    const result = processData(rows, {}, {}, [{ key: 'tier', dir: 'asc' }], cols)
+    const result = sortData(rows, [{ key: 'tier', dir: 'asc' }], cols)
     expect(result.map((r) => r.tier)).toEqual([3, 2, 1])
   })
 
@@ -507,10 +531,10 @@ describe('processData', () => {
     ]
     const cols = [{ key: 'score' as const, label: 'Score', compare: compareMissingLast() }]
 
-    const asc = processData(rows, {}, {}, [{ key: 'score', dir: 'asc' }], cols)
+    const asc = sortData(rows, [{ key: 'score', dir: 'asc' }], cols)
     expect(asc.map((r) => r.score)).toEqual([10, 20, 30, null, null])
 
-    const desc = processData(rows, {}, {}, [{ key: 'score', dir: 'desc' }], cols)
+    const desc = sortData(rows, [{ key: 'score', dir: 'desc' }], cols)
     expect(desc.map((r) => r.score)).toEqual([30, 20, 10, null, null])
   })
 
@@ -526,10 +550,8 @@ describe('processData', () => {
       { id: 3, score: null, name: 'Alice' },
     ]
     const cols = [{ key: 'score' as const, label: 'Score', compare: compareMissingLast() }]
-    const result = processData(
+    const result = sortData(
       rows,
-      {},
-      {},
       [
         { key: 'score', dir: 'asc' },
         { key: 'name', dir: 'asc' },
@@ -540,10 +562,8 @@ describe('processData', () => {
   })
 
   it('applies sort after filter', () => {
-    const result = processData(
-      ROWS,
-      { dept: new Set(['Eng']) },
-      {},
+    const result = sortData(
+      filterData(ROWS, { dept: new Set(['Eng']) }, {}, []),
       [{ key: 'salary', dir: 'desc' }],
       [],
     )
@@ -551,28 +571,27 @@ describe('processData', () => {
   })
 
   it('matches array-valued columns by intersection (or semantics, default)', () => {
-    const result = processData(GAMES, { tags: new Set(['Action']) }, {}, [], [])
+    const result = filterData(GAMES, { tags: new Set(['Action']) }, {}, [])
     expect(result.map((r) => r.name)).toEqual(['Game A', 'Game B'])
   })
 
   it('matches array-valued columns with any selected value (or semantics)', () => {
-    const result = processData(GAMES, { tags: new Set(['Adventure', 'RPG']) }, {}, [], [])
+    const result = filterData(GAMES, { tags: new Set(['Adventure', 'RPG']) }, {}, [])
     expect(result.map((r) => r.name)).toEqual(['Game A', 'Game B', 'Game C'])
   })
 
   it('requires all selected values for and semantics', () => {
     const cols = [{ key: 'tags' as const, label: 'Tags', multiMode: 'and' as const }]
-    const result = processData(GAMES, { tags: new Set(['Action', 'RPG']) }, {}, [], cols)
+    const result = filterData(GAMES, { tags: new Set(['Action', 'RPG']) }, {}, cols)
     expect(result.map((r) => r.name)).toEqual(['Game A'])
   })
 
   it("filterModes overrides col.multiMode's default for the given key", () => {
     // No `multiMode` on the column at all — the override is what supplies 'and' here.
-    const result = processData(
+    const result = filterData(
       GAMES,
       { tags: new Set(['Action', 'RPG']) },
       {},
-      [],
       [],
       '(none)',
       {},
@@ -583,11 +602,10 @@ describe('processData', () => {
 
   it('filterModes can override a column-level "and" default back to "or"', () => {
     const cols = [{ key: 'tags' as const, label: 'Tags', multiMode: 'and' as const }]
-    const result = processData(
+    const result = filterData(
       GAMES,
       { tags: new Set(['Adventure', 'RPG']) },
       {},
-      [],
       cols,
       '(none)',
       {},
@@ -597,22 +615,22 @@ describe('processData', () => {
   })
 
   it('matches rows with an empty array against the "(none)" bucket by default', () => {
-    const result = processData(GAMES_WITH_EMPTY, { tags: new Set(['(none)']) }, {}, [], [])
+    const result = filterData(GAMES_WITH_EMPTY, { tags: new Set(['(none)']) }, {}, [])
     expect(result.map((r) => r.name)).toEqual(['Game D'])
   })
 
   it('matches rows with an empty array against a custom emptyLabel', () => {
-    const result = processData(GAMES_WITH_EMPTY, { tags: new Set(['N/A']) }, {}, [], [], 'N/A')
+    const result = filterData(GAMES_WITH_EMPTY, { tags: new Set(['N/A']) }, {}, [], 'N/A')
     expect(result.map((r) => r.name)).toEqual(['Game D'])
   })
 
   it('excludeFilters drops a row as soon as it has any excluded value', () => {
-    const result = processData(GAMES, {}, {}, [], [], '(none)', { tags: new Set(['RPG']) })
+    const result = filterData(GAMES, {}, {}, [], '(none)', { tags: new Set(['RPG']) })
     expect(result.map((r) => r.name)).toEqual(['Game B'])
   })
 
   it('excludeFilters composes with multiple excluded values as a NOR (row must have none of them)', () => {
-    const result = processData(GAMES, {}, {}, [], [], '(none)', {
+    const result = filterData(GAMES, {}, {}, [], '(none)', {
       tags: new Set(['RPG', 'Adventure']),
     })
     expect(result.map((r) => r.name)).toEqual([])
@@ -620,12 +638,12 @@ describe('processData', () => {
 
   it('excludeFilters ignores col.multiMode (exclude is always "has none of", not "and"/"or")', () => {
     const cols = [{ key: 'tags' as const, label: 'Tags', multiMode: 'and' as const }]
-    const result = processData(GAMES, {}, {}, [], cols, '(none)', { tags: new Set(['Action']) })
+    const result = filterData(GAMES, {}, {}, cols, '(none)', { tags: new Set(['Action']) })
     expect(result.map((r) => r.name)).toEqual(['Game C'])
   })
 
   it('composes include filters and excludeFilters together', () => {
-    const result = processData(GAMES, { tags: new Set(['Action']) }, {}, [], [], '(none)', {
+    const result = filterData(GAMES, { tags: new Set(['Action']) }, {}, [], '(none)', {
       tags: new Set(['Adventure']),
     })
     expect(result.map((r) => r.name)).toEqual(['Game A'])
@@ -641,13 +659,13 @@ describe('processData', () => {
   // set large enough that a reintroduced O(rows × set size) scan would be easy to notice manually.
   it('a large include set still narrows correctly (large-Set correctness, not just a couple of values)', () => {
     const decoys = Array.from({ length: 2000 }, (_, i) => `Decoy ${i}`)
-    const result = processData(ROWS, { name: new Set([...decoys, 'Clara']) }, {}, [], [])
+    const result = filterData(ROWS, { name: new Set([...decoys, 'Clara']) }, {}, [])
     expect(result.map((r) => r.name)).toEqual(['Clara'])
   })
 
   it('a large exclude set still narrows correctly (large-Set correctness, not just a couple of values)', () => {
     const decoys = Array.from({ length: 2000 }, (_, i) => `Decoy ${i}`)
-    const result = processData(ROWS, {}, {}, [], [], '(none)', {
+    const result = filterData(ROWS, {}, {}, [], '(none)', {
       name: new Set([...decoys, 'Clara']),
     })
     expect(result.map((r) => r.name).sort()).toEqual(['Alice', 'Bob', 'David'])
@@ -656,7 +674,7 @@ describe('processData', () => {
   it('a large "and"-mode multi-value include set still narrows correctly', () => {
     const cols = [{ key: 'tags' as const, label: 'Tags', multiMode: 'and' as const }]
     const decoys = Array.from({ length: 2000 }, (_, i) => `Decoy ${i}`)
-    const result = processData(GAMES, { tags: new Set([...decoys, 'Action', 'RPG']) }, {}, [], cols)
+    const result = filterData(GAMES, { tags: new Set([...decoys, 'Action', 'RPG']) }, {}, cols)
     expect(result.map((r) => r.name)).toEqual([])
   })
 
@@ -668,7 +686,7 @@ describe('processData', () => {
       { id: 3, d: '23 Apr, 2020' },
       { id: 4, d: '9 Sep, 2020' },
     ]
-    const result = processData(rows, {}, {}, [{ key: 'd', dir: 'asc' }], cols)
+    const result = sortData(rows, [{ key: 'd', dir: 'asc' }], cols)
     expect(result.map((r) => r.id)).toEqual([2, 1, 3, 4])
   })
 
@@ -689,7 +707,7 @@ describe('processData', () => {
       { id: 1, d: '20/05/2023' },
       { id: 2, d: '06/06/2023' },
     ]
-    const result = processData(rows, {}, {}, [{ key: 'd', dir: 'asc' }], cols)
+    const result = sortData(rows, [{ key: 'd', dir: 'asc' }], cols)
     expect(result.map((r) => r.id)).toEqual([1, 2])
   })
 
@@ -699,7 +717,7 @@ describe('processData', () => {
       { id: 1, d: 'not a date' },
       { id: 2, d: '2020-01-01' },
     ]
-    const result = processData(rows, {}, {}, [{ key: 'd', dir: 'asc' }], cols)
+    const result = sortData(rows, [{ key: 'd', dir: 'asc' }], cols)
     expect(result.map((r) => r.id)).toEqual([2, 1])
   })
 
@@ -710,7 +728,7 @@ describe('processData', () => {
       { id: 2, d: '2020-06-15' },
       { id: 3, d: '2021-03-10' },
     ]
-    const result = processData(rows, {}, { d: { min: '2020-06-01', max: '' } }, [], cols)
+    const result = filterData(rows, {}, { d: { min: '2020-06-01', max: '' } }, cols)
     expect(result.map((r) => r.id)).toEqual([2, 3])
   })
 
@@ -721,7 +739,7 @@ describe('processData', () => {
       { id: 2, d: '2020-06-15' },
       { id: 3, d: '2021-03-10' },
     ]
-    const result = processData(rows, {}, { d: { min: '', max: '2020-06-15' } }, [], cols)
+    const result = filterData(rows, {}, { d: { min: '', max: '2020-06-15' } }, cols)
     expect(result.map((r) => r.id)).toEqual([1, 2])
   })
 
@@ -744,7 +762,7 @@ describe('processData', () => {
     ]
     // Bounds are always ISO (what a native <input type="date"> produces), never the column's own
     // DD/MM/YYYY format.
-    const result = processData(rows, {}, { d: { min: '2023-06-01', max: '' } }, [], cols)
+    const result = filterData(rows, {}, { d: { min: '2023-06-01', max: '' } }, cols)
     expect(result.map((r) => r.id)).toEqual([2])
   })
 
@@ -757,7 +775,7 @@ describe('processData', () => {
       { id: 2, n: '80' },
       { id: 3, n: '950' },
     ]
-    const result = processData(rows, {}, {}, [{ key: 'n', dir: 'asc' }], cols)
+    const result = sortData(rows, [{ key: 'n', dir: 'asc' }], cols)
     expect(result.map((r) => r.id)).toEqual([2, 3, 1])
   })
 
@@ -767,7 +785,7 @@ describe('processData', () => {
       { id: 1, n: 'not a number' },
       { id: 2, n: '5' },
     ]
-    const result = processData(rows, {}, {}, [{ key: 'n', dir: 'asc' }], cols)
+    const result = sortData(rows, [{ key: 'n', dir: 'asc' }], cols)
     expect(result.map((r) => r.id)).toEqual([2, 1])
   })
 })
@@ -1027,6 +1045,11 @@ describe('sortWithinGroups', () => {
   it('returns the groups unchanged when sorts is empty', () => {
     const groups = groupData(SCORED_GAMES, ['tags'], [])
     expect(sortWithinGroups(groups, [], ['tags'], [])).toBe(groups)
+  })
+
+  it('returns the groups unchanged when ungrouped, since sortData already sorted the rows', () => {
+    const groups = groupData(SCORED_GAMES, [], [])
+    expect(sortWithinGroups(groups, [{ key: 'score', dir: 'desc' }], [], [])).toBe(groups)
   })
 
   it('orders bucketed groups (groupValue) numerically off the bucket key, not lexicographically', () => {
@@ -1824,6 +1847,17 @@ describe('filterValuesBySearch', () => {
 
   it('ignores diacritics on both the value and the term', () => {
     expect(filterValuesBySearch(['Öoo', 'Zoe'], 'ooo')).toEqual(['Öoo'])
+  })
+})
+
+describe('normalizeForSearch', () => {
+  it('lowercases plain ASCII', () => {
+    expect(normalizeForSearch('Hello World 42')).toBe('hello world 42')
+  })
+
+  it('strips diacritics from non-ASCII text, including mixed and control characters', () => {
+    expect(normalizeForSearch('Crème Brûlée')).toBe('creme brulee')
+    expect(normalizeForSearch('A\tÉ\n')).toBe('a\te\n')
   })
 })
 

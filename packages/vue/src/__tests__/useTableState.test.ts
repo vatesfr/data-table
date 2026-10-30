@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { ref, shallowRef, nextTick } from 'vue'
 import { useTableState } from '../useTableState'
 import type { ColumnDef } from '../types'
@@ -1062,6 +1062,30 @@ describe('useTableState — computed columns', () => {
       'Bob',
       'David',
     ])
+  })
+})
+
+describe('useTableState — sort stays off the search/filter path', () => {
+  it('re-sorts on a sort or data change, not on a search or filter change', () => {
+    const compare = vi.fn((a: unknown, b: unknown) => Number(a) - Number(b))
+    const cols: ColumnDef<Row>[] = COLS.map((c) => (c.key === 'score' ? { ...c, compare } : c))
+    const data = shallowRef(ROWS)
+    const table = useTableState(data, cols)
+    table.sort.toggle('score')
+    // Computeds are lazy: read the result after each change, or nothing runs at all
+    void table.pagedData.value
+    expect(compare).toHaveBeenCalled()
+
+    compare.mockClear()
+    table.search.setQuery('a')
+    void table.pagedData.value
+    table.filter.toggleAll('name', ['Alice', 'Clara'])
+    expect(table.pagedData.value.map((r) => r.name)).toEqual(['Clara', 'Alice'])
+    expect(compare).not.toHaveBeenCalled()
+
+    data.value = [...ROWS]
+    void table.pagedData.value
+    expect(compare).toHaveBeenCalled()
   })
 })
 
