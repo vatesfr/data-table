@@ -146,6 +146,19 @@ describe('HeaderMenu', () => {
     unmount()
   })
 
+  it('U34: a click on an already-open Filter ▸ keeps its flyout open', async () => {
+    const { el, trigger, item, unmount } = mountView()
+    trigger('Dept')!.click()
+    await tick()
+    // The first click stands for the hover that opened it, the second for the click that follows
+    item('Filter').click()
+    await tick()
+    item('Filter').click()
+    await tick()
+    expect(el.querySelector('.dt-th-filter-flyout')).not.toBeNull()
+    unmount()
+  })
+
   it('filters the column from a flyout', async () => {
     const { el, table, trigger, item, unmount } = mountView()
     trigger('Dept')!.click()

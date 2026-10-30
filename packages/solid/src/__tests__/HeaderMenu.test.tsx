@@ -150,6 +150,19 @@ describe('HeaderMenu', () => {
     dispose()
   })
 
+  it('U34: a click on an already-open Filter ▸ keeps its flyout open', async () => {
+    const { container, trigger, item, dispose } = mount()
+    trigger('Dept')!.click()
+    await tick()
+    // The first click stands for the hover that opened it, the second for the click that follows
+    item('Filter').click()
+    await tick()
+    item('Filter').click()
+    await tick()
+    expect(container.querySelector('.dt-th-filter-flyout')).not.toBeNull()
+    dispose()
+  })
+
   it('filters the column from a flyout', async () => {
     const { container, table, trigger, item, dispose } = mount()
     trigger('Dept')!.click()
