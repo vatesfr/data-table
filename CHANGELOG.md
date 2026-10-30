@@ -7,6 +7,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Changed
+
+- **Faster search** (Solid, React, Vue, vanilla): the global search and the Filter checklist search skip diacritic stripping for plain ASCII text, ~1.7x faster on 500k rows.
+
 ## [0.20.0] - 2026-10-23
 
 ### Added

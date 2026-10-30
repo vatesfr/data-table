@@ -18,6 +18,7 @@ import {
   computeStringValues,
   computeStringValueCounts,
   filterValuesBySearch,
+  normalizeForSearch,
   filterValuesByCount,
   filterValuesByRange,
   computeValueBounds,
@@ -1824,6 +1825,17 @@ describe('filterValuesBySearch', () => {
 
   it('ignores diacritics on both the value and the term', () => {
     expect(filterValuesBySearch(['Öoo', 'Zoe'], 'ooo')).toEqual(['Öoo'])
+  })
+})
+
+describe('normalizeForSearch', () => {
+  it('lowercases plain ASCII', () => {
+    expect(normalizeForSearch('Hello World 42')).toBe('hello world 42')
+  })
+
+  it('strips diacritics from non-ASCII text, including mixed and control characters', () => {
+    expect(normalizeForSearch('Crème Brûlée')).toBe('creme brulee')
+    expect(normalizeForSearch('A\tÉ\n')).toBe('a\te\n')
   })
 })
 
