@@ -1093,6 +1093,29 @@ describe('useTableState — search stays off the filter path', () => {
   })
 })
 
+describe('useTableState — an active search sees reactive changes', () => {
+  it('matches a row edited in place in a deep ref', () => {
+    const data = ref(ROWS.map((r) => ({ ...r })))
+    const table = useTableState(data, COLS)
+    table.search.setQuery('zed')
+    expect(table.pagedData.value).toEqual([])
+    data.value[1].name = 'Zed'
+    expect(table.pagedData.value.map((r) => r.id)).toEqual([2])
+  })
+
+  it("matches once a column's value reads a changed ref", () => {
+    const suffix = ref('')
+    const cols: ColumnDef<Row>[] = COLS.map((c) =>
+      c.key === 'name' ? { ...c, value: (r: Row) => r.name + suffix.value } : c,
+    )
+    const table = useTableState(ROWS, cols)
+    table.search.setQuery('bob!')
+    expect(table.pagedData.value).toEqual([])
+    suffix.value = '!'
+    expect(table.pagedData.value.map((r) => r.id)).toEqual([2])
+  })
+})
+
 describe('useTableState — view state', () => {
   it('getViewState omits fields still at their default', () => {
     const table = useTableState(ROWS, COLS)
