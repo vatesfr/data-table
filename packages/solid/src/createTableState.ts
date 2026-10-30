@@ -1,4 +1,12 @@
-import { createSignal, createMemo, createRenderEffect, untrack, type Accessor } from 'solid-js'
+import {
+  createSignal,
+  createMemo,
+  createRenderEffect,
+  getOwner,
+  runWithOwner,
+  untrack,
+  type Accessor,
+} from 'solid-js'
 import {
   DEFAULT_LABELS,
   type SortEntry,
@@ -238,7 +246,14 @@ export function createTableState<TRow extends object>(
 
   const defaultSortDirFor = (key: string) => getDefaultSortDir(columns(), key)
 
-  const stringValueMap = createMemo(() => computeStringValues(data(), columns(), L().emptyValue))
+  // One memo per column, created on first read under this memo's owner (disposed when it re-runs),
+  // so each tracks its own reactive reads
+  const stringValueMap = createMemo(() => {
+    const owner = getOwner()
+    return computeStringValues(data(), columns(), L().emptyValue, (compute) =>
+      runWithOwner(owner, () => createMemo(compute))!,
+    )
+  })
 
   // Sorted apart from search/filters so a keystroke or filter click never re-sorts (see `sortData`)
   const sortedData = createMemo(() => sortData(data(), sorts(), columns()))

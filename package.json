@@ -17,6 +17,7 @@
     "type-check": "npm run type-check -w packages/core && npm run type-check -w packages/react && npm run type-check -w packages/vue && npm run type-check -w packages/solid && npm run type-check -w packages/vanilla && npm run type-check -w demo/react -w demo/vue -w demo/solid -w demo/vanilla && tsc -p e2e",
     "e2e": "playwright test -c e2e",
     "test": "npm run test -w packages/core && npm run test -w packages/react && npm run test -w packages/vue && npm run test -w packages/solid && npm run test -w packages/vanilla",
+    "bench:ab": "node --expose-gc scripts/bench-ab.mjs",
     "test:scripts": "node --test 'scripts/__tests__/*.test.mjs'",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

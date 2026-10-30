@@ -61,7 +61,7 @@ LABELS_PT                           // Portuguese
 ```ts
 sortData(data, sorts, columns) // stable sort; returns data itself when sorts is empty. Adapters sort first, then search and filter the sorted rows, so a keystroke never re-sorts
 filterData(data, filters, rangeFilters, columns, emptyLabel?, excludeFilters?, filterModes?) // filter rows, keeping their order; columns needed for array-valued (multiMode) filters and computed columns, emptyLabel for empty-array rows (default '(none)'), excludeFilters for "not one of these" values, filterModes for a per-column runtime any/all override (see setFilterMode)
-computeStringValues(data, columns, emptyLabel?) // build filter value lists; array values are flattened and deduped, empty arrays contribute emptyLabel
+computeStringValues(data, columns, emptyLabel?, memo?) // build filter value lists, each column on its first read (memo: the adapter's reactive memo, default computes once); array values are flattened and deduped, empty arrays contribute emptyLabel
 computeStringValueCounts(data, filters, rangeFilters, columns, emptyLabel?, targetKeys?, excludeFilters?, filterModes?) // per-value facet counts (rows matching every *other* active filter); targetKeys scopes computation to just the columns needed, for performance
 cycleFilterValue(filters, excludeFilters, key, value) // cycle a checklist value neutral → include → exclude → neutral
 clearExcludeValues(excludeFilters, key, values) // remove values from key's exclude set, keeping cycleFilterValue's "never in both sets" invariant after a batch include action

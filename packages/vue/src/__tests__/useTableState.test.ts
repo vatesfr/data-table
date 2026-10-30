@@ -1089,6 +1089,29 @@ describe('useTableState — sort stays off the search/filter path', () => {
   })
 })
 
+describe('useTableState — filter value lists computed on demand', () => {
+  it("computes a column's values on its first read only", () => {
+    const name = vi.fn((r: Row) => r.name)
+    const cols: ColumnDef<Row>[] = COLS.map((c) => (c.key === 'name' ? { ...c, value: name } : c))
+    const table = useTableState(ROWS, cols)
+    expect(table.filter.valueMap.value['id']).toEqual(['1', '2', '3', '4'])
+    expect(name).not.toHaveBeenCalled()
+    expect(table.filter.valueMap.value['name']).toEqual(['Alice', 'Bob', 'Clara', 'David'])
+    expect(name).toHaveBeenCalledTimes(ROWS.length)
+  })
+
+  it("tracks what a column's value reads", () => {
+    const suffix = ref('')
+    const cols: ColumnDef<Row>[] = COLS.map((c) =>
+      c.key === 'name' ? { ...c, value: (r: Row) => r.name + suffix.value } : c,
+    )
+    const table = useTableState(ROWS, cols)
+    expect(table.filter.valueMap.value['name'][0]).toBe('Alice')
+    suffix.value = '!'
+    expect(table.filter.valueMap.value['name'][0]).toBe('Alice!')
+  })
+})
+
 describe('useTableState — view state', () => {
   it('getViewState omits fields still at their default', () => {
     const table = useTableState(ROWS, COLS)

@@ -1263,6 +1263,18 @@ describe('useTableState — sort stays off the search/filter path', () => {
   })
 })
 
+describe('useTableState — filter value lists computed on demand', () => {
+  it("computes a column's values on its first read only", () => {
+    const name = vi.fn((r: Row) => r.name)
+    const cols: ColumnDef<Row>[] = COLS.map((c) => (c.key === 'name' ? { ...c, value: name } : c))
+    const { result } = renderHook(() => useTableState(ROWS, cols))
+    expect(result.current.filter.valueMap['id']).toEqual(['1', '2', '3', '4'])
+    expect(name).not.toHaveBeenCalled()
+    expect(result.current.filter.valueMap['name']).toEqual(['Alice', 'Bob', 'Clara', 'David'])
+    expect(name).toHaveBeenCalledTimes(ROWS.length)
+  })
+})
+
 describe('useTableState — view state', () => {
   it('getViewState omits fields still at their default', () => {
     const { result } = renderHook(() => useTableState(ROWS, COLS))
