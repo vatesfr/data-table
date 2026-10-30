@@ -110,6 +110,7 @@ Load-bearing: the core public/internal split above (enforced by ESLint for demos
 - **Message format**: Conventional Commits with a scope where one applies (`feat(dropdowns): …`, `fix(ci): …`, `chore(release): …`). A commit fixing a GitHub issue carries a closing keyword (`Fixes #N`) in its body; if the issue number isn't known, ask before committing.
 - Rewrite unpushed history freely: amend the commit just made instead of adding a fixup, and squash (`git reset --soft <parent>`, then recommit) several unpushed commits covering the same feature. Once pushed, a commit is shared — stop rewriting it.
 - **Branching and merging**: no PRs; commit directly to `main`. Features spanning more than one commit get a dedicated branch closed with `git merge --no-ff` — never fast-forward or rebase-merge into `main`; the merge commit marks the unit of work.
+- **Before starting work**: `git fetch`; if `origin/main` has commits `main` lacks, merge them into `main` first and check they don't already cover the task — parallel sessions have done the same work twice.
 
 ## Development workflow
 
