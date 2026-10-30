@@ -39,6 +39,7 @@ How the table's UI should behave where the feature docs are silent; what `ux-rev
 - **Empty states** say what emptied the table (no data vs. filters matching nothing) and offer the way back (clear filters).
 - **Numbers and dates** in filters, chips and group headers read as the column displays them (its `format`), never as raw floats or timestamps.
 - **Missing values** are placed and labelled consistently across cells, filters, sorting and groups.
+- **Hover cue**: every row a pointer can act on in a dropdown or pane gets the same hover background, both Filter panes included (U35).
 
 ## Wording
 

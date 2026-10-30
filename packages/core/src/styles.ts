@@ -170,7 +170,7 @@ export const DT_STYLES = `
 .dt-filter-back{flex-shrink:0;font-weight:var(--font-weight-medium,500);border-bottom:.5px solid var(--color-border-tertiary,#eeedea)}
 .dt-filter-cols{width:max-content;min-width:150px;max-width:240px;flex-shrink:0;overflow-y:auto;border-right:.5px solid var(--color-border-tertiary,#eeedea);padding:4px 0}
 .dt-filter-col-row{display:flex;align-items:stretch}
-.dt-filter-col-row:hover,.dt-filter-col-row--active{background:var(--color-background-secondary,#f7f6f3)}
+.dt-filter-col-row:hover,.dt-filter-col-row--active,.dt-filter-list .dt-dd-item:hover{background:var(--color-background-secondary,#f7f6f3)}
 .dt-filter-col-item{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:7px 10px;font-size:var(--font-size-md,13px);cursor:pointer;color:var(--color-text-primary,#1a1916);border:none;background:none;font-family:inherit;text-align:left;margin:0;flex:1 1 auto;min-width:0;overflow:hidden;box-sizing:border-box}
 .dt-filter-col-item span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dt-filter-col-item--active{font-weight:var(--font-weight-medium,500)}

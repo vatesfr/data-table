@@ -7,9 +7,3 @@ Next free ID: **U37** (IDs are never reused, including ones dropped before commi
 Severity: **blocker** (goal unreachable) · **major** (reached with confusion or a workaround) · **minor** (friction) · **polish**.
 
 Seeded 2026-10-04 from issues reported by a consumer app, each reproduced on the demos (Solid, spot-checked on React and Vue).
-
-- [Dropdowns](#dropdowns)
-
-## Dropdowns
-
-- **U35 · polish · UC01** — Filter checklist value rows get no hover background, while the left pane's column rows do. Same hover cue on both panes.
