@@ -183,9 +183,14 @@ export function useTableState<TRow extends object>(
   // Sorted apart from search/filters so a keystroke or filter click never re-sorts (see `sortData`)
   const sortedData = computed(() => sortData(data.value, sorts.value, columns.value))
 
+  // Apart from filters, so a filter click doesn't re-run the search over every row
+  const searchedData = computed(() =>
+    searchData(sortedData.value, searchQuery.value, columns.value),
+  )
+
   const processedData = computed(() =>
     filterData(
-      searchData(sortedData.value, searchQuery.value, columns.value),
+      searchedData.value,
       filters.value,
       rangeFilters.value,
       columns.value,
