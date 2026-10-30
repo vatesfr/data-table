@@ -213,10 +213,16 @@ export function useTableState<TRow extends object>(
   // Sorted apart from search/filters so a keystroke or filter click never re-sorts (see `sortData`)
   const sortedData = useMemo(() => sortData(data, sorts, columns), [data, sorts, columns])
 
+  // Apart from filters, so a filter click doesn't re-run the search over every row
+  const searchedData = useMemo(
+    () => searchData(sortedData, searchQuery, columns),
+    [sortedData, searchQuery, columns],
+  )
+
   const processedData = useMemo(
     () =>
       filterData(
-        searchData(sortedData, searchQuery, columns),
+        searchedData,
         filters,
         rangeFilters,
         columns,
@@ -224,16 +230,7 @@ export function useTableState<TRow extends object>(
         excludeFilters,
         filterModes,
       ),
-    [
-      sortedData,
-      searchQuery,
-      columns,
-      filters,
-      rangeFilters,
-      L.emptyValue,
-      excludeFilters,
-      filterModes,
-    ],
+    [searchedData, columns, filters, rangeFilters, L.emptyValue, excludeFilters, filterModes],
   )
 
   // Grouping runs over the *full* filtered/sorted data, not a page's slice, so pagination (below)

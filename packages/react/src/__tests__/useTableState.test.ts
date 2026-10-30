@@ -1275,6 +1275,22 @@ describe('useTableState — filter value lists computed on demand', () => {
   })
 })
 
+describe('useTableState — search stays off the filter path', () => {
+  it('re-runs the search on a query change, not on a filter change', () => {
+    // Only the search reads `id`: not sorted, not filtered
+    const id = vi.fn((r: Row) => r.id)
+    const cols: ColumnDef<Row>[] = COLS.map((c) => (c.key === 'id' ? { ...c, value: id } : c))
+    const { result } = renderHook(() => useTableState(ROWS, cols))
+    act(() => result.current.search.setQuery('a'))
+    expect(id).toHaveBeenCalled()
+
+    id.mockClear()
+    act(() => result.current.filter.toggleAll('name', ['Alice', 'Clara']))
+    expect(result.current.processedData.map((r) => r.name)).toEqual(['Alice', 'Clara'])
+    expect(id).not.toHaveBeenCalled()
+  })
+})
+
 describe('useTableState — view state', () => {
   it('getViewState omits fields still at their default', () => {
     const { result } = renderHook(() => useTableState(ROWS, COLS))

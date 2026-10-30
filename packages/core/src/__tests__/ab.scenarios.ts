@@ -28,6 +28,8 @@ export function scenarios(
     { name: 'sort number column', run: () => L.sortData(data, sortBy('price'), columns) },
     { name: 'sort date column', run: () => L.sortData(data, sortBy('createdAt'), columns) },
     { name: 'search', run: () => L.searchData(data, 'category 7', columns) },
+    // A query typed further: matches a few dozen rows, the common case while narrowing down
+    { name: 'search, narrow query', run: () => L.searchData(data, 'zz9', columns) },
     {
       name: 'grouped search keystroke',
       run: () =>

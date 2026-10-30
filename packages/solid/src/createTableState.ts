@@ -258,9 +258,12 @@ export function createTableState<TRow extends object>(
   // Sorted apart from search/filters so a keystroke or filter click never re-sorts (see `sortData`)
   const sortedData = createMemo(() => sortData(data(), sorts(), columns()))
 
+  // Apart from filters, so a filter click doesn't re-run the search over every row
+  const searchedData = createMemo(() => searchData(sortedData(), searchQuery(), columns()))
+
   const processedData = createMemo(() =>
     filterData(
-      searchData(sortedData(), searchQuery(), columns()),
+      searchedData(),
       filters(),
       rangeFilters(),
       columns(),

@@ -671,6 +671,24 @@ describe('createTableState — filter value lists computed on demand', () => {
   })
 })
 
+describe('createTableState — search stays off the filter path', () => {
+  it('re-runs the search on a query change, not on a filter change', () => {
+    withRoot(() => {
+      // Only the search reads `id`: not sorted, not filtered
+      const id = vi.fn((r: Row) => r.id)
+      const cols: ColumnDef<Row>[] = COLS.map((c) => (c.key === 'id' ? { ...c, value: id } : c))
+      const table = createTableState(ROWS, cols)
+      table.search.setQuery('a')
+      expect(id).toHaveBeenCalled()
+
+      id.mockClear()
+      table.filter.toggleAll('name', ['Alice', 'Clara'])
+      expect(table.processedData().map((r) => r.name)).toEqual(['Alice', 'Clara'])
+      expect(id).not.toHaveBeenCalled()
+    })
+  })
+})
+
 describe('createTableState — accessor inputs for data/columns', () => {
   it('tracks a data accessor reactively, with no explicit setData call needed', () => {
     // Deliberately not using withRoot here: mutating the signal from *inside* the same
