@@ -5,6 +5,7 @@ import type {
   DateTreeNode,
   ValueSort,
   SortDir,
+  DataTableLabels,
 } from './types'
 
 function asRecord(row: object): Record<string, unknown> {
@@ -2328,6 +2329,19 @@ export function getCrossPageFocusTarget<TRow extends object>(
  */
 export function pageSizeOptions(pageSize: number, initialPageSize: number): number[] {
   return [...new Set([10, 20, 50, 100, pageSize, initialPageSize])].sort((a, b) => a - b)
+}
+
+/** What the table's polite live region announces after a search, filter or page change (U31). */
+export function tableStatus(
+  labels: Pick<DataTableLabels, 'rowCount' | 'pageOf' | 'noRows' | 'noMatchingRows'>,
+  shown: number,
+  total: number,
+  page: number,
+  numPages: number,
+): string {
+  if (shown === 0) return total === 0 ? labels.noRows : labels.noMatchingRows
+  const count = labels.rowCount(shown, total)
+  return numPages > 1 ? `${count}, ${labels.pageOf(page, numPages)}` : count
 }
 
 /** Whether the pager is worth showing: the smallest of the (sorted) page sizes splits the items into pages */

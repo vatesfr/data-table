@@ -15,6 +15,13 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Fixed
 
+- **Filter value rows show a hover background** (Solid, React, Vue, vanilla), like the column rows in the left pane (U35).
+- **Dropdowns stay on screen when they resize** (Solid, React, Vue, vanilla): an open dropdown whose size changed without a DOM change (a stylesheet, an animated `min-width`) kept its old position and could end past the right edge on a phone; it now re-clamps on every resize (U29).
+- **Clicking an open submenu keeps it open** (Solid, React, Vue, vanilla): the header menu's "Filter ▸" and the category submenus open on hover, so the click that usually follows closed them again; a click now only opens (U34).
+- **One open dropdown at a time** (React, Vue): opening a toolbar dropdown from the keyboard while another was still open (focus had left it with Tab) left both open, overlapping; the first now closes, as in Solid and vanilla (U33).
+- **→ from a Filter column lands on the value search** (React, Vue): it focused the "Select all" checkbox, where ↓/↑ did nothing and Space toggled every value; it now matches Solid and vanilla (U32).
+- **Removing a chip keeps your place** (Solid, React, Vue, vanilla): its × moves focus to the next chip, else the previous one, else the search box, instead of dropping it to the page (U30).
+- **Screen readers hear the results** (Solid, React, Vue, vanilla): after a search, a filter or a page change, a polite status region announces the row count and page, or that no row matches (U31).
 - **Faster search** (Solid, React, Vue, vanilla): a search keystroke no longer re-sorts the rows nor re-reads every cell; on 200,000 sorted rows, each keystroke after the first went from ~190 ms to ~120 ms (the first, which indexes the rows, stays ~300 ms). Plain ASCII text also skips diacritic stripping, in the index and the Filter checklist search: indexing 500k rows is ~1.2x faster.
 - **No storage writes on unrelated renders** (React): `usePersistedView`/`useUrlView` wrote `localStorage` and the URL on every render, e.g. each focus move or selection click; they now write only when the view changes.
 - **Faster grouping** (Solid, React, Vue, vanilla): grouping rows by plain (non-array) values takes ~4× fewer instructions and allocates ~4× less; in Solid and vanilla, picking a group-by column also grouped the rows twice and now groups once (~470 ms to ~370 ms on 200,000 rows).

@@ -1,5 +1,10 @@
 import { Show, children, createSignal, onCleanup, type JSXElement } from 'solid-js'
-import { FILTER_NARROW_QUERY, injectStyles, watchMedia } from '@vates/data-table-core/internal'
+import {
+  FILTER_NARROW_QUERY,
+  injectStyles,
+  tableStatus,
+  watchMedia,
+} from '@vates/data-table-core/internal'
 import { renderThemeCss } from '@vates/data-table-core/theme'
 import type { TableState } from './createTableState'
 import { SearchBox, focusSearch } from './components/SearchBox'
@@ -205,6 +210,15 @@ export function DataTableView<TRow extends object>(props: DataTableViewProps<TRo
         rowClass={props.rowClass}
       />
       <Pagination table={table} />
+      <div role="status" class="dt-status">
+        {tableStatus(
+          table.labels(),
+          table.processedData().length,
+          table.data().length,
+          table.pagination.page(),
+          table.pagination.numPages(),
+        )}
+      </div>
     </div>
   )
 }

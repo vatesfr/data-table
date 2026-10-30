@@ -90,9 +90,10 @@ export function computeDropdownClampOffset(
 }
 
 /**
- * Clamps an open panel horizontally now and after every DOM change: its trigger can move while the
- * panel is open (a filter count badge widens the Filter button, the toolbar rewraps). `getDx`/
- * `setDx` read and apply the panel's `translateX`. Returns the function stopping it.
+ * Clamps an open panel horizontally now, after every DOM change and whenever it resizes: its
+ * trigger can move while the panel is open (a filter count badge widens the Filter button, the
+ * toolbar rewraps). `getDx`/`setDx` read and apply the panel's `translateX`. Returns the function
+ * stopping it.
  */
 export function keepDropdownClamped(
   panel: HTMLElement,
@@ -127,7 +128,13 @@ export function keepDropdownClamped(
     attributes: true,
     characterData: true,
   })
-  return () => observer.disconnect()
+  // A stylesheet or a transition can resize the panel with no DOM change (U29)
+  const resized = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(clamp)
+  resized?.observe(panel)
+  return () => {
+    observer.disconnect()
+    resized?.disconnect()
+  }
 }
 
 /**
@@ -260,4 +267,35 @@ export function ddOpenFocusTarget(panel: HTMLElement): HTMLElement | undefined {
   if (search && !touch) return search
   const rows = ddNavFocusables(panel).filter((el) => !el.matches('input[data-dd-search]'))
   return rows.find((el) => el.matches('[aria-current]')) ?? rows[0]
+}
+
+/**
+ * Where focus goes when a chip's × removes its chip (U30): the next chip's ×, else the previous
+ * one's, else the table's search box, else its first button. Look it up and focus it before the
+ * removal: the target outlives it, so no framework's render timing matters.
+ */
+export function chipRemovalFocusTarget(x: HTMLElement): HTMLElement | null {
+  const xs = [...(x.closest('.dt-active-bar')?.querySelectorAll<HTMLElement>('.dt-chip-x') ?? [])]
+  const i = xs.indexOf(x)
+  const root = x.closest('.dt')
+  return (
+    xs[i + 1] ??
+    xs[i - 1] ??
+    root?.querySelector<HTMLElement>('.dt-search-input') ??
+    root?.querySelector<HTMLElement>('button') ??
+    null
+  )
+}
+
+/** The Filter pane's arrow-key stops: value search, value rows, date-tree boxes — not "Select all", which sits beside the list. */
+export const FILTER_DETAIL_NAV_SELECTOR =
+  'input[data-dd-value-search], input[data-dd-value-row], .dt-date-tree-wrap input[type="checkbox"]'
+
+/** Where → from a Filter column lands (U32): the pane's first arrow-key stop, else its first input (a number column's range). */
+export function filterDetailFocusTarget(detail: Element | null | undefined): HTMLElement | null {
+  return (
+    detail?.querySelector<HTMLElement>(FILTER_DETAIL_NAV_SELECTOR) ??
+    detail?.querySelector<HTMLElement>('input') ??
+    null
+  )
 }

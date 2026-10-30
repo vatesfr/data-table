@@ -59,7 +59,7 @@
       "name": "ESM bundle (gzip)",
       "path": "dist/data-table-react.js",
       "gzip": true,
-      "limit": "17.6 KB"
+      "limit": "17.86 KB"
     }
   ],
   "dependencies": {

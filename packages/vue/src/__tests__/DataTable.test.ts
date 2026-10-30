@@ -2487,6 +2487,29 @@ describe('DataTable — filter column ordering & clear button', () => {
 })
 
 describe('DataTable — active state bar', () => {
+  it('U30: removing a chip focuses the next chip, else the previous one, else the search box', async () => {
+    const wrapper = mount(DataTable, {
+      props: {
+        data: ROWS,
+        columns: COLS,
+        rowKey: 'id',
+        initialViewState: {
+          sorts: [
+            { key: 'name', dir: 'asc' },
+            { key: 'score', dir: 'asc' },
+          ],
+        },
+      },
+      attachTo: document.body,
+    })
+    const x = (label: string) => wrapper.find(`[aria-label="Remove sort: ${label}"]`)
+    await x('Name').trigger('click')
+    expect(document.activeElement).toBe(x('Score').element)
+    await x('Score').trigger('click')
+    expect(document.activeElement).toBe(wrapper.find('.dt-search-input').element)
+    wrapper.unmount()
+  })
+
   it('renders with just the row-count stats when nothing is active', () => {
     const wrapper = mount(DataTable, { props: { data: ROWS, columns: COLS, rowKey: 'id' } })
     expect(wrapper.find('.dt-active-bar').exists()).toBe(true)
@@ -3441,7 +3464,7 @@ describe('DataTable — dropdown column search and keyboard navigation', () => {
     wrapper.unmount()
   })
 
-  it('ArrowRight on the left column list enters the right detail pane', async () => {
+  it('ArrowRight on the left column list enters the right detail pane at its value search (U32)', async () => {
     const wrapper = mount(DataTable, {
       props: { data: ROWS, columns: THREE_COLS, rowKey: 'id' },
       attachTo: document.body,
@@ -3452,7 +3475,9 @@ describe('DataTable — dropdown column search and keyboard navigation', () => {
       .find((el) => el.text().startsWith('Name'))!
     ;(nameBtn.element as HTMLElement).focus()
     await nameBtn.trigger('keydown', { key: 'ArrowRight' })
-    expect(wrapper.find('.dt-filter-detail').element.contains(document.activeElement)).toBe(true)
+    expect(document.activeElement).toBe(
+      wrapper.find('.dt-filter-detail input[data-dd-value-search]').element,
+    )
   })
 
   it('ArrowLeft from a checklist row returns focus to the active column button', async () => {
@@ -3515,6 +3540,19 @@ const CATEGORIZED_COLS: ColumnDef<Row>[] = [
   { key: 'score', label: 'Score', type: 'number', category: 'Numbers', groupable: true },
   { key: 'id', label: 'Id', type: 'number', groupable: true },
 ]
+
+describe('DataTable — one open dropdown', () => {
+  it('U33: opening a dropdown from the keyboard closes the one still open', async () => {
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: COLS, rowKey: 'id' } })
+    // A click without a mousedown, as Enter/Space on a trigger after Tab left the open menu
+    await openDdByLabel(wrapper, 'Columns')
+    await openDdByLabel(wrapper, 'Sort')
+    await flushPromises()
+    expect(wrapper.findAll('.dt-dd')).toHaveLength(1)
+    const sortWrap = wrapper.findAll('.dt-dd-wrap').find((w) => w.text().startsWith('Sort'))!
+    expect(sortWrap.find('.dt-dd').exists()).toBe(true)
+  })
+})
 
 function openDdByLabel(wrapper: ReturnType<typeof mount>, label: string) {
   return wrapper
@@ -4382,7 +4420,9 @@ describe('DataTable — filter dropdown on a narrow screen (U16)', () => {
     ;(nameBtn(wrapper)!.element as HTMLElement).focus()
     await nameBtn(wrapper)!.trigger('keydown', { key: 'ArrowRight' })
     await tick()
-    expect(wrapper.find('.dt-filter-detail').element.contains(document.activeElement)).toBe(true)
+    expect(document.activeElement).toBe(
+      wrapper.find('.dt-filter-detail input[data-dd-value-search]').element,
+    )
     const row = wrapper.find('.dt-filter-detail input[data-value]')
     ;(row.element as HTMLElement).focus()
     await row.trigger('keydown', { key: 'ArrowLeft' })

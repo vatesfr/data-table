@@ -13,6 +13,9 @@ import {
   paginateVisibleItems,
   pageSizeOptions,
   showsPager,
+  tableStatus,
+  chipRemovalFocusTarget,
+  filterDetailFocusTarget,
   getCrossPageFocusTarget,
   getSortIndex as getHeaderSortIndex,
   getSortIcon as getHeaderSortIcon,
@@ -565,7 +568,7 @@ async function showFilterValues(): Promise<void> {
   const root = rootRef.value
   // A number column has no value rows: fall back to the back button
   ;(
-    root?.querySelector<HTMLElement>('.dt-filter-detail input, .dt-filter-detail button') ??
+    filterDetailFocusTarget(root?.querySelector('.dt-filter-detail')) ??
     root?.querySelector<HTMLElement>('.dt-filter-back')
   )?.focus()
 }
@@ -975,6 +978,10 @@ const rootRef = ref<HTMLElement | null>(null)
 function focusSearch(): void {
   ;(searchInputRef.value ?? rootRef.value?.querySelector('button'))?.focus()
 }
+// Before a chip's × removes it, so focus doesn't drop to the page (U30)
+function focusChipNeighbor(e: MouseEvent): void {
+  chipRemovalFocusTarget(e.currentTarget as HTMLElement)?.focus()
+}
 function clearSearchQuery(): void {
   setSearchQuery('')
   focusSearch()
@@ -999,6 +1006,18 @@ function clearSearchAndFilters(): void {
 // `groupDropdownRef`'s own component instance is still needed here — not for Escape/nav anymore,
 // but for the active-bar group chip's "open straight to this entry" action (onOpenGroupEntry).
 const groupDropdownRef = ref<InstanceType<typeof Dropdown> | null>(null)
+const colsDropdownRef = ref<InstanceType<typeof Dropdown> | null>(null)
+const sortDropdownRef = ref<InstanceType<typeof Dropdown> | null>(null)
+// One open toolbar dropdown per table, as in Solid: opening one closes the others (U33)
+const toolbarDropdowns = [colsDropdownRef, groupDropdownRef, sortDropdownRef, filterDropdownRef]
+watch(
+  () => toolbarDropdowns.map((d) => !!d.value?.isOpen),
+  (open, wasOpen) => {
+    const opened = open.findIndex((o, i) => o && !wasOpen[i])
+    if (opened !== -1)
+      toolbarDropdowns.forEach((d, i) => i !== opened && open[i] && d.value?.close())
+  },
+)
 // filterDropdownRef itself is declared much earlier (see the filterColOrderKeys watch above) —
 // this comment marks where it'd otherwise sit, alongside its sibling above.
 
@@ -1052,7 +1071,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
         return
       }
       const menu = event.currentTarget as HTMLElement
-      menu.querySelector<HTMLElement>('.dt-filter-detail input, .dt-filter-detail button')?.focus()
+      filterDetailFocusTarget(menu.querySelector('.dt-filter-detail'))?.focus()
       return
     }
 
@@ -1094,6 +1113,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
              for Visible, since submenu rows can't also be a drag surface) creates no conflict. -->
         <Dropdown
           v-if="showColumns && columns.length >= 2"
+          ref="colsDropdownRef"
           @dragover="onColRowsDragOver"
           @drop="onColRowsDrop"
           :on-escape-clearable="colsEscapeClearable"
@@ -1389,6 +1409,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
         <!-- Sort -->
         <Dropdown
           v-if="sortableCols.length > 0"
+          ref="sortDropdownRef"
           @dragover="onSortRowsDragOver"
           @drop="onSortRowsDrop"
           :on-escape-clearable="sortEscapeClearable"
@@ -1895,7 +1916,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
           class="dt-chip-x"
           :title="L.removeGroup(findCol(key)?.label ?? key)"
           :aria-label="L.removeGroup(findCol(key)?.label ?? key)"
-          @click="removeGroup(key)"
+          @click="(focusChipNeighbor($event), removeGroup(key))"
         >
           ×
         </button>
@@ -1909,7 +1930,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
           class="dt-chip-x"
           :title="L.removeSort(findCol(entry.key)?.label ?? entry.key)"
           :aria-label="L.removeSort(findCol(entry.key)?.label ?? entry.key)"
-          @click="removeSort(entry.key)"
+          @click="(focusChipNeighbor($event), removeSort(entry.key))"
         >
           ×
         </button>
@@ -1933,7 +1954,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
               class="dt-chip-x"
               :title="L.clearColumnFilter"
               :aria-label="L.clearColumnFilter"
-              @click="clearColumnFilter(key, 'include')"
+              @click="(focusChipNeighbor($event), clearColumnFilter(key, 'include'))"
             >
               ×
             </button>
@@ -1959,7 +1980,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
               class="dt-chip-x"
               :title="L.clearColumnFilter"
               :aria-label="L.clearColumnFilter"
-              @click="clearColumnFilter(chip.key, 'exclude')"
+              @click="(focusChipNeighbor($event), clearColumnFilter(chip.key, 'exclude'))"
             >
               ×
             </button>
@@ -1979,7 +2000,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
               class="dt-chip-x"
               :title="L.clearColumnFilter"
               :aria-label="L.clearColumnFilter"
-              @click="clearColumnFilter(key, 'range')"
+              @click="(focusChipNeighbor($event), clearColumnFilter(key, 'range'))"
             >
               ×
             </button>
@@ -2291,6 +2312,9 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
           <option v-for="n in pageSizes" :key="n" :value="n">{{ n }}</option>
         </select>
       </label>
+    </div>
+    <div role="status" class="dt-status">
+      {{ tableStatus(L, processedData.length, data.length, page, numPages) }}
     </div>
   </div>
 </template>

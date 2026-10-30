@@ -29,6 +29,7 @@ How the table's UI should behave where the feature docs are silent; what `ux-rev
 
 - Every control has an accessible name — icon-only buttons and checkboxes included ("Select all", "Select Alice Martin").
 - State is exposed, not only colored: sort direction (`aria-sort`), expanded groups, selected rows, pressed toggles.
+- Results are announced: each table ends with a visually hidden `role="status"` region (`.dt-status`, text from `tableStatus`) reading the row count and page, or that no row matches, so a search, filter or page change is heard without looking.
 - Text and icons meet WCAG AA contrast in both themes.
 
 ## Patterns
@@ -38,6 +39,7 @@ How the table's UI should behave where the feature docs are silent; what `ux-rev
 - **Empty states** say what emptied the table (no data vs. filters matching nothing) and offer the way back (clear filters).
 - **Numbers and dates** in filters, chips and group headers read as the column displays them (its `format`), never as raw floats or timestamps.
 - **Missing values** are placed and labelled consistently across cells, filters, sorting and groups.
+- **Hover cue**: every row a pointer can act on in a dropdown or pane gets the same hover background, both Filter panes included (U35).
 
 ## Wording
 

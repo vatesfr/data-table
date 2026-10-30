@@ -9,7 +9,7 @@ test('UC01.1-7 find rows in a list', async ({ page, section }) => {
 
   // 1. Search
   await dt.getByRole('textbox', { name: 'Search…' }).fill('lead')
-  await expect(dt.getByText('7 / 20 rows')).toBeVisible()
+  await expect(dt.locator('.dt-stats').getByText('7 / 20 rows')).toBeVisible()
   for (const row of await dt.locator('tbody tr').allInnerTexts()) expect(row).toMatch(/lead/i)
 
   // 2. Department to Engineering and Product
@@ -67,6 +67,6 @@ test('UC01.1-7 find rows in a list', async ({ page, section }) => {
 
   // 7. Clear all
   await dt.getByRole('button', { name: '× Clear all' }).click()
-  await expect(dt.getByText('20 / 20 rows')).toBeVisible()
+  await expect(dt.locator('.dt-stats').getByText('20 / 20 rows')).toBeVisible()
   expect(await names()).toEqual(initialNames)
 })

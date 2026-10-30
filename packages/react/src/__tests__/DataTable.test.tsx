@@ -153,6 +153,17 @@ describe('DataTable — onRowClick', () => {
   })
 })
 
+describe('DataTable — one open dropdown', () => {
+  it('U33: opening a dropdown from the keyboard closes the one still open', () => {
+    const { getByText, container } = render(<DataTable data={ROWS} columns={COLS} rowKey="id" />)
+    // A click without a mousedown, as Enter/Space on a trigger after Tab left the open menu
+    fireEvent.click(getByText('Columns'))
+    fireEvent.click(getByText('Sort'))
+    expect(container.querySelectorAll('.dt-dd')).toHaveLength(1)
+    expect(getByText('Sort').closest('.dt-dd-wrap')!.querySelector('.dt-dd')).not.toBeNull()
+  })
+})
+
 describe('DataTable — filter dropdown', () => {
   const FILTER_COLS: ColumnDef<Row>[] = [
     { key: 'name', label: 'Name', filterable: true },
@@ -2461,7 +2472,7 @@ describe('DataTable — filter column ordering & clear button', () => {
 describe('DataTable — active state bar', () => {
   it('renders with just the row-count stats when nothing is active', () => {
     const { getByText } = render(<DataTable data={ROWS} columns={COLS} rowKey="id" />)
-    expect(getByText('2 / 2 rows')).toBeTruthy()
+    expect(getByText('2 / 2 rows', { ignore: '.dt-status' })).toBeTruthy()
   })
 
   it('shows sort, group, and filter chips together, each removable on its own', () => {
@@ -2487,6 +2498,26 @@ describe('DataTable — active state bar', () => {
     // `name` is checked-by-default (see docs/filter-dropdown.md's "Filter dropdown"): clicking Alice's checkbox
     // excludes her, rendering as the exclude chip rather than an include one.
     expect(container.textContent).toContain('Name: ≠ Alice')
+  })
+
+  it('U30: removing a chip focuses the next chip, else the previous one, else the search box', () => {
+    const { getByLabelText, container } = render(
+      <DataTable
+        data={ROWS}
+        columns={COLS}
+        rowKey="id"
+        initialViewState={{
+          sorts: [
+            { key: 'name', dir: 'asc' },
+            { key: 'score', dir: 'asc' },
+          ],
+        }}
+      />,
+    )
+    fireEvent.click(getByLabelText('Remove sort: Name'))
+    expect(document.activeElement).toBe(getByLabelText('Remove sort: Score'))
+    fireEvent.click(getByLabelText('Remove sort: Score'))
+    expect(document.activeElement).toBe(container.querySelector('.dt-search-input'))
   })
 })
 
@@ -2615,7 +2646,7 @@ describe('DataTable — keyboard navigation across pages', () => {
       <DataTable data={ROWS6} columns={COLS} rowKey="id" />,
     )
     fireEvent.change(getAllByPlaceholderText('Search…')[0], { target: { value: 'zzz' } })
-    expect(getByText('No matching rows')).toBeTruthy()
+    expect(getByText('No matching rows', { ignore: '.dt-status' })).toBeTruthy()
     fireEvent.click(getByRole('button', { name: 'Clear search and filters' }))
     expect(getAllByPlaceholderText('Search…')[0]).toHaveProperty('value', '')
     expect(container.querySelectorAll('tbody tr')).toHaveLength(ROWS6.length)

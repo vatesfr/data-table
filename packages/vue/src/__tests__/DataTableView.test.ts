@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { defineComponent, h, ref } from 'vue'
+import { defineComponent, h, nextTick, ref } from 'vue'
 import { mount } from '@vue/test-utils'
 import { useTableState } from '../useTableState'
 import DataTableViewRaw from '../DataTableView.vue'
@@ -52,6 +52,22 @@ function mountView(options: { selectable?: boolean; attachToBody?: boolean } = {
 }
 
 describe('DataTableView', () => {
+  it('U31: announces the row count and page in a polite status region', async () => {
+    const { table, wrapper } = mountView()
+    const status = () => wrapper.find('[role="status"]').text()
+    expect(status()).toBe('2 / 2 rows')
+    table.search.setQuery('ali')
+    await nextTick()
+    expect(status()).toBe('1 / 2 rows')
+    table.search.setQuery('zzz')
+    await nextTick()
+    expect(status()).toBe('No matching rows')
+    table.search.setQuery('')
+    table.pagination.setPageSize(1)
+    await nextTick()
+    expect(status()).toBe('2 / 2 rows, Page 1 of 2')
+  })
+
   it('renders the built-in table UI from an externally-owned table', () => {
     const { wrapper } = mountView()
     expect(wrapper.text()).toContain('Alice')

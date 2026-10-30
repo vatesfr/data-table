@@ -10,9 +10,9 @@ import {
 // opens on hover once its parent menu is already open. OPEN_DELAY avoids a flicker-open while the
 // pointer merely sweeps across a category row on its way to something else; CLOSE_DELAY is
 // longer, giving the pointer room to travel diagonally from the trigger into the submenu itself
-// without the gap between them (however narrow) closing it prematurely. Click still opens/closes
-// immediately (no delay), as do ArrowRight/Enter/Escape — matches Solid/React's identical
-// component.
+// without the gap between them (however narrow) closing it prematurely. Click opens immediately
+// (no delay) and never closes (hover usually opened it already, U34); ArrowRight/Enter open and
+// Escape closes — matches Solid/React's identical component.
 const OPEN_DELAY = 100
 const CLOSE_DELAY = 250
 
@@ -188,7 +188,7 @@ defineExpose({ triggerRef })
       :aria-expanded="props.isOpen"
       @mouseenter="scheduleOpen"
       @mouseleave="scheduleClose"
-      @click="props.isOpen ? closeNow(false) : openNow(true)"
+      @click="openNow(true)"
       @keydown="
         (e: KeyboardEvent) => {
           if (e.key === 'ArrowRight' && !props.isOpen) {

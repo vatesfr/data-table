@@ -26,6 +26,7 @@ import {
   applyCheckboxState,
   deferCheckboxCorrection,
   filterMatchMode,
+  FILTER_DETAIL_NAV_SELECTOR,
 } from '@vates/data-table-core/internal'
 import type { TableState } from '../createTableState'
 import type { ColumnDef } from '../types'
@@ -147,12 +148,8 @@ function FilterSearchRow(props: FilterSearchRowProps) {
 }
 
 /** The pane's keyboard stops, in order: value search, then checklist rows or date tree checkboxes */
-export function detailFocusables(detailEl: Element): HTMLElement[] {
-  return Array.from(
-    detailEl.querySelectorAll<HTMLElement>(
-      'input[data-dd-value-search], input[data-dd-value-row], .dt-date-tree-wrap input[type="checkbox"]',
-    ),
-  )
+function detailFocusables(detailEl: Element): HTMLElement[] {
+  return Array.from(detailEl.querySelectorAll<HTMLElement>(FILTER_DETAIL_NAV_SELECTOR))
 }
 
 // One column's filter controls — checklist (string, virtualized — see "Checklist virtualization"

@@ -11,8 +11,9 @@ import {
 // anywhere else. `OPEN_DELAY` avoids a flicker-open while the pointer merely sweeps across a
 // category row on its way to something else; `CLOSE_DELAY` is longer, giving the pointer room to
 // travel diagonally from the trigger into the submenu itself without the gap between them (however
-// narrow) closing it prematurely. Click still opens/closes immediately (no delay) — the explicit,
-// deliberate action a touch tap or an impatient click expects — as do ArrowRight/Enter/Escape.
+// narrow) closing it prematurely. Click opens immediately (no delay) — the explicit, deliberate
+// action a touch tap or an impatient click expects — and never closes, since hover usually opened
+// it already (U34); ArrowRight/Enter open and Escape closes.
 const OPEN_DELAY = 100
 const CLOSE_DELAY = 250
 
@@ -160,7 +161,7 @@ export function CategorySubmenu(props: CategorySubmenuProps) {
         aria-expanded={props.isOpen}
         onMouseEnter={scheduleOpen}
         onMouseLeave={scheduleClose}
-        onClick={() => (props.isOpen ? closeNow(false) : openNow(true))}
+        onClick={() => openNow(true)}
         onKeyDown={(e) => {
           if (e.key === 'ArrowRight' && !props.isOpen) {
             e.preventDefault()
