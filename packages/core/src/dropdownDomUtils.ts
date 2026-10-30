@@ -90,9 +90,10 @@ export function computeDropdownClampOffset(
 }
 
 /**
- * Clamps an open panel horizontally now and after every DOM change: its trigger can move while the
- * panel is open (a filter count badge widens the Filter button, the toolbar rewraps). `getDx`/
- * `setDx` read and apply the panel's `translateX`. Returns the function stopping it.
+ * Clamps an open panel horizontally now, after every DOM change and whenever it resizes: its
+ * trigger can move while the panel is open (a filter count badge widens the Filter button, the
+ * toolbar rewraps). `getDx`/`setDx` read and apply the panel's `translateX`. Returns the function
+ * stopping it.
  */
 export function keepDropdownClamped(
   panel: HTMLElement,
@@ -127,7 +128,13 @@ export function keepDropdownClamped(
     attributes: true,
     characterData: true,
   })
-  return () => observer.disconnect()
+  // A stylesheet or a transition can resize the panel with no DOM change (U29)
+  const resized = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(clamp)
+  resized?.observe(panel)
+  return () => {
+    observer.disconnect()
+    resized?.disconnect()
+  }
 }
 
 /**

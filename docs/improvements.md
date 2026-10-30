@@ -12,5 +12,4 @@ Seeded 2026-10-04 from issues reported by a consumer app, each reproduced on the
 
 ## Dropdowns
 
-- **U29 · minor · UC07** — the viewport clamp only re-runs on a DOM change, so a panel whose size changes by animation stays where it was: with the common reduced-motion reset (a near-zero transition duration on every element) and the open Filter panel's `min-width` raised 40 px at 390 px wide, it ends 32 px past the right edge. Also re-clamp when the panel's size changes (a ResizeObserver on it).
 - **U35 · polish · UC01** — Filter checklist value rows get no hover background, while the left pane's column rows do. Same hover cue on both panes.
