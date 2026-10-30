@@ -2,7 +2,7 @@
 
 Symptom first, then cause and fix. Delete entries once obsolete.
 
-<!-- check-docs-ignore: exceeded journalctl memory Killed chromium-browse Failed oom-kill _vts invoker timed Cannot uptime python3 curl -->
+<!-- check-docs-ignore: exceeded journalctl memory Killed chromium-browse Failed oom-kill _vts invoker timed Cannot uptime python3 curl ENOSPC -->
 
 ## Unit tests time out on a busy machine
 
@@ -121,7 +121,7 @@ Symptom first, then cause and fix. Delete entries once obsolete.
 ## A demo still behaves like the old code, while its unit test passes
 
 - Symptom: a browser check on a running demo dev server shows the bug a fix just closed (the unit test for it passes); no error, and the Vite log shows `hmr update` lines for the file.
-- Cause: the dev server kept serving its cached transform of a file rewritten by a script (`python3`/`sed` writing in place, then Prettier rewriting it again), so the page still ran the old module.
+- Cause: the dev server's file watcher missed the edit and kept serving its cached transform, so the page still ran the old module. Seen twice in one session from a long-running server in a worktree: after a script rewrote a file in place, and after a plain edit of `packages/core/src/styles.ts`; no `ENOSPC` in its log.
 - Fix: check what the server serves, e.g. `curl -s localhost:58981/@fs/<absolute path to the .tsx> | grep -c <new identifier>`, and restart that dev server when it lacks the change.
 
 ## A demo renders a blank page: "does not provide an export named …"
