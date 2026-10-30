@@ -1023,9 +1023,26 @@ export function DataTableView<TRow extends object>({
 }: DataTableViewProps<TRow>) {
   // No theme tokens: React apps define their own (see the README's Theming)
   useInsertionEffect(injectStyles, [])
-  const [openColsDD, setOpenColsDD] = useState(false)
-  const [openSortDD, setOpenSortDD] = useState(false)
-  const [openFilterDD, setOpenFilterDD] = useState(false)
+  // One open toolbar dropdown per table, as in Solid: opening one closes the others (U33)
+  const [openDD, setOpenDD] = useState<'cols' | 'sort' | 'filter' | 'group' | null>(null)
+  const ddSetters = useMemo(() => {
+    const setter = (id: NonNullable<typeof openDD>) => (open: boolean) =>
+      setOpenDD((cur) => (open ? id : cur === id ? null : cur))
+    return {
+      cols: setter('cols'),
+      sort: setter('sort'),
+      filter: setter('filter'),
+      group: setter('group'),
+    }
+  }, [])
+  const openColsDD = openDD === 'cols'
+  const setOpenColsDD = ddSetters.cols
+  const openSortDD = openDD === 'sort'
+  const setOpenSortDD = ddSetters.sort
+  const openFilterDD = openDD === 'filter'
+  const setOpenFilterDD = ddSetters.filter
+  const openGroupDD = openDD === 'group'
+  const setOpenGroupDD = ddSetters.group
   // Narrow screen (U16): the Filter dropdown shows one pane at a time — columns, or values
   const [narrowFilter, setNarrowFilter] = useState(false)
   useEffect(() => watchMedia(FILTER_NARROW_QUERY, setNarrowFilter), [])
@@ -1034,7 +1051,6 @@ export function DataTableView<TRow extends object>({
   const endFirst = narrowFilter && hasToolbarEnd
   const [filterShowValues, setFilterShowValues] = useState(false)
   const pendingFilterValuesFocus = useRef(false)
-  const [openGroupDD, setOpenGroupDD] = useState(false)
   const rowRefs = useRef(new Map<TRow | string, HTMLTableRowElement>())
   const [dragColKey, setDragColKey] = useState<string | null>(null)
   const [dragOverColKey, setDragOverColKey] = useState<string | null>(null)

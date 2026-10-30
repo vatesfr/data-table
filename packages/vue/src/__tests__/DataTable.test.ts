@@ -3541,6 +3541,19 @@ const CATEGORIZED_COLS: ColumnDef<Row>[] = [
   { key: 'id', label: 'Id', type: 'number', groupable: true },
 ]
 
+describe('DataTable — one open dropdown', () => {
+  it('U33: opening a dropdown from the keyboard closes the one still open', async () => {
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: COLS, rowKey: 'id' } })
+    // A click without a mousedown, as Enter/Space on a trigger after Tab left the open menu
+    await openDdByLabel(wrapper, 'Columns')
+    await openDdByLabel(wrapper, 'Sort')
+    await flushPromises()
+    expect(wrapper.findAll('.dt-dd')).toHaveLength(1)
+    const sortWrap = wrapper.findAll('.dt-dd-wrap').find((w) => w.text().startsWith('Sort'))!
+    expect(sortWrap.find('.dt-dd').exists()).toBe(true)
+  })
+})
+
 function openDdByLabel(wrapper: ReturnType<typeof mount>, label: string) {
   return wrapper
     .findAll('button')

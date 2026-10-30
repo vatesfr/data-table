@@ -153,6 +153,17 @@ describe('DataTable — onRowClick', () => {
   })
 })
 
+describe('DataTable — one open dropdown', () => {
+  it('U33: opening a dropdown from the keyboard closes the one still open', () => {
+    const { getByText, container } = render(<DataTable data={ROWS} columns={COLS} rowKey="id" />)
+    // A click without a mousedown, as Enter/Space on a trigger after Tab left the open menu
+    fireEvent.click(getByText('Columns'))
+    fireEvent.click(getByText('Sort'))
+    expect(container.querySelectorAll('.dt-dd')).toHaveLength(1)
+    expect(getByText('Sort').closest('.dt-dd-wrap')!.querySelector('.dt-dd')).not.toBeNull()
+  })
+})
+
 describe('DataTable — filter dropdown', () => {
   const FILTER_COLS: ColumnDef<Row>[] = [
     { key: 'name', label: 'Name', filterable: true },

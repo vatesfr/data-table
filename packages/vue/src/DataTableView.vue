@@ -1006,6 +1006,18 @@ function clearSearchAndFilters(): void {
 // `groupDropdownRef`'s own component instance is still needed here — not for Escape/nav anymore,
 // but for the active-bar group chip's "open straight to this entry" action (onOpenGroupEntry).
 const groupDropdownRef = ref<InstanceType<typeof Dropdown> | null>(null)
+const colsDropdownRef = ref<InstanceType<typeof Dropdown> | null>(null)
+const sortDropdownRef = ref<InstanceType<typeof Dropdown> | null>(null)
+// One open toolbar dropdown per table, as in Solid: opening one closes the others (U33)
+const toolbarDropdowns = [colsDropdownRef, groupDropdownRef, sortDropdownRef, filterDropdownRef]
+watch(
+  () => toolbarDropdowns.map((d) => !!d.value?.isOpen),
+  (open, wasOpen) => {
+    const opened = open.findIndex((o, i) => o && !wasOpen[i])
+    if (opened !== -1)
+      toolbarDropdowns.forEach((d, i) => i !== opened && open[i] && d.value?.close())
+  },
+)
 // filterDropdownRef itself is declared much earlier (see the filterColOrderKeys watch above) —
 // this comment marks where it'd otherwise sit, alongside its sibling above.
 
@@ -1101,6 +1113,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
              for Visible, since submenu rows can't also be a drag surface) creates no conflict. -->
         <Dropdown
           v-if="showColumns && columns.length >= 2"
+          ref="colsDropdownRef"
           @dragover="onColRowsDragOver"
           @drop="onColRowsDrop"
           :on-escape-clearable="colsEscapeClearable"
@@ -1396,6 +1409,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
         <!-- Sort -->
         <Dropdown
           v-if="sortableCols.length > 0"
+          ref="sortDropdownRef"
           @dragover="onSortRowsDragOver"
           @drop="onSortRowsDrop"
           :on-escape-clearable="sortEscapeClearable"
