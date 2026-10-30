@@ -619,3 +619,37 @@ describe('DataTable — column search with no match', () => {
     container.remove()
   })
 })
+
+describe('DataTable — filter values', () => {
+  it('reads filter checklist values only while their filter pane is open', () => {
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    let reads = 0
+    // Hidden, so cell rendering doesn't read it; first filterable, so the pane opens on it
+    const cols: ColumnDef<Row>[] = [
+      { key: 'tag', label: 'Tag', value: (r) => (reads++, `t${r.id}`) },
+      ...COLS,
+    ]
+    const [data, setData] = createSignal(ROWS)
+    const dispose = createRoot((d) => {
+      render(
+        () => (
+          <DataTable
+            data={data()}
+            columns={cols}
+            rowKey="id"
+            initialViewState={{ visibleCols: ['name'] }}
+          />
+        ),
+        container,
+      )
+      return d
+    })
+    setData(ROWS.map((r) => ({ ...r })))
+    expect(reads).toBe(0)
+    ;[...container.querySelectorAll('button')].find((b) => b.textContent === 'Filter')!.click()
+    expect(reads).toBeGreaterThan(0)
+    dispose()
+    container.remove()
+  })
+})

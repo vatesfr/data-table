@@ -3281,3 +3281,40 @@ describe('DataTable — column search with no match', () => {
     expect(container.querySelector('[data-dd-no-match]')).toBeNull()
   })
 })
+
+describe('DataTable — filter values', () => {
+  const values = (container: HTMLElement) =>
+    [...container.querySelectorAll('.dt-filter-list .dt-dd-item .dt-flex1')].map(
+      (el) => el.textContent,
+    )
+
+  it('reads filter checklist values only while their filter pane is open', () => {
+    let reads = 0
+    // Hidden, so cell rendering doesn't read it; first filterable, so the pane opens on it
+    const cols: ColumnDef<Row>[] = [
+      { key: 'tag', label: 'Tag', value: (r) => (reads++, `t${r.id}`) },
+      ...COLS,
+    ]
+    const props = {
+      columns: cols,
+      rowKey: 'id' as const,
+      initialViewState: { visibleCols: ['name'] },
+    }
+    const { rerender, getByText } = render(<DataTable data={ROWS} {...props} />)
+    rerender(<DataTable data={ROWS.map((r) => ({ ...r }))} {...props} />)
+    expect(reads).toBe(0)
+    fireEvent.click(getByText('Filter'))
+    expect(reads).toBeGreaterThan(0)
+  })
+
+  it('lists rows with an empty array under the emptyValue label', () => {
+    const cols: ColumnDef<Row>[] = [
+      { key: 'tags', label: 'Tags', value: (r) => (r.id === 1 ? ['RPG'] : []) },
+    ]
+    const { getByText, container } = render(
+      <DataTable data={ROWS} columns={cols} rowKey="id" labels={{ emptyValue: 'N/A' }} />,
+    )
+    fireEvent.click(getByText('Filter'))
+    expect(values(container)).toEqual(['N/A', 'RPG'])
+  })
+})

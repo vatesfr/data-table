@@ -9,10 +9,16 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Changed
 
-- **Faster search** (Solid, React, Vue, vanilla): the global search and the Filter checklist search skip diacritic stripping for plain ASCII text, ~1.7x faster on 500k rows.
-- **Typing in the search box or changing a filter no longer re-sorts** (Solid, React, Vue, vanilla): rows are sorted once per sort or data change, then searched and filtered; an ungrouped table also stops sorting every row twice. On the 200k-row demo with a sort active, a keystroke whose query still matches most rows takes ~90–210 ms instead of ~220–290 ms, and a sort click ~20–30% less; once the query narrows, keystrokes are only ~12% faster, since the old sort only covered the matching rows. In exchange, a sort or data change sorts every row, not just the filtered ones (a sort click with a narrow filter: ~16 ms → ~140–185 ms), so a column's `value`, `parseDate` or `compare` now also runs on rows the filters drop.
-- **Changing a filter while searching no longer re-runs the search** (Solid, React, Vue, vanilla): the search result is kept apart from the filters, saving a full pass over the rows on each filter click.
-- **Faster mount and data updates** (Solid, React, Vue, vanilla): a filter checklist's values are computed when its pane first needs them, not for every filterable column up front: mounting the 200k-row demo table is 10–30% faster, while opening a pane computes that column then (~20 ms more on a 2,000-value column in React and Solid). `filter.valueMap` is now read-only and computes a column on its first read: read the keys you need rather than spreading or serializing it.
+- **BREAKING (Solid, React, Vue):** `table.filter.valueMap` is removed: the filter pane computes its column's values itself, only while open.
+- **Changing a filter no longer re-sorts** (Solid, React, Vue, vanilla): rows are sorted once per sort or data change, then searched and filtered; an ungrouped table also stops sorting every row twice, making a sort click ~20–30% faster on the 200k-row demo. In exchange, a sort or data change sorts every row, not just the filtered ones (a sort click with a narrow filter: ~16 ms → ~140–185 ms), so a column's `value`, `parseDate` or `compare` now also runs on rows the filters drop.
+- **Changing a filter while searching no longer re-runs the search** (Solid, React, Vue, vanilla): the search result is kept apart from the filters, saving a pass over the rows on each filter click.
+
+### Fixed
+
+- **Faster search** (Solid, React, Vue, vanilla): a search keystroke no longer re-sorts the rows nor re-reads every cell; on 200,000 sorted rows, each keystroke after the first went from ~190 ms to ~120 ms (the first, which indexes the rows, stays ~300 ms). Plain ASCII text also skips diacritic stripping, in the index and the Filter checklist search: indexing 500k rows is ~1.2x faster.
+- **No storage writes on unrelated renders** (React): `usePersistedView`/`useUrlView` wrote `localStorage` and the URL on every render, e.g. each focus move or selection click; they now write only when the view changes.
+- **Faster grouping** (Solid, React, Vue, vanilla): grouping rows by plain (non-array) values takes ~4× fewer instructions and allocates ~4× less; in Solid and vanilla, picking a group-by column also grouped the rows twice and now groups once (~470 ms to ~370 ms on 200,000 rows).
+- **No lag on data updates** (Solid, React, vanilla): changing `data` no longer rebuilds every filterable column's checklist values while no filter pane is open; with 1,200 rows and 16 string columns held in a Solid store, that was ~140 ms per update.
 
 ## [0.20.0] - 2026-10-23
 

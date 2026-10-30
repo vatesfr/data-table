@@ -61,7 +61,7 @@ LABELS_PT                           // Portuguese
 ```ts
 sortData(data, sorts, columns) // stable sort; returns data itself when sorts is empty. Adapters sort first, then search and filter the sorted rows, so a keystroke never re-sorts
 filterData(data, filters, rangeFilters, columns, emptyLabel?, excludeFilters?, filterModes?) // filter rows, keeping their order; columns needed for array-valued (multiMode) filters and computed columns, emptyLabel for empty-array rows (default '(none)'), excludeFilters for "not one of these" values, filterModes for a per-column runtime any/all override (see setFilterMode)
-computeStringValues(data, columns, emptyLabel?, memo?) // build filter value lists, each column on its first read (memo: the adapter's reactive memo, default computes once); array values are flattened and deduped, empty arrays contribute emptyLabel
+computeStringValues(data, col, emptyLabel?) // build one column's filter value list; array values are flattened and deduped, empty arrays contribute emptyLabel
 computeStringValueCounts(data, filters, rangeFilters, columns, emptyLabel?, targetKeys?, excludeFilters?, filterModes?) // per-value facet counts (rows matching every *other* active filter); targetKeys scopes computation to just the columns needed, for performance
 cycleFilterValue(filters, excludeFilters, key, value) // cycle a checklist value neutral → include → exclude → neutral
 clearExcludeValues(excludeFilters, key, values) // remove values from key's exclude set, keeping cycleFilterValue's "never in both sets" invariant after a batch include action
@@ -200,7 +200,8 @@ computeAggregate(col, rows) // compute a group header's aggregate value per col.
 #### Search
 
 ```ts
-searchData(data, query, columns) // filter rows by a case- and diacritic-insensitive substring match against any searchable column's string value
+buildSearchIndex(data, columns) // Map<row, text>: each row's searchable column strings, formatted and normalized once
+searchData(data, query, index) // filter rows (any subset of the indexed ones) by a case- and diacritic-insensitive substring match against that text
 ```
 
 ### View state

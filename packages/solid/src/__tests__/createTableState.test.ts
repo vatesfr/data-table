@@ -639,38 +639,6 @@ describe('createTableState — sort stays off the search/filter path', () => {
   })
 })
 
-describe('createTableState — filter value lists computed on demand', () => {
-  it("computes a column's values on its first read only", () => {
-    withRoot(() => {
-      const name = vi.fn((r: Row) => r.name)
-      const cols: ColumnDef<Row>[] = COLS.map((c) => (c.key === 'name' ? { ...c, value: name } : c))
-      const table = createTableState(ROWS, cols)
-      expect(table.filter.valueMap()['id']).toEqual(['1', '2', '3', '4'])
-      expect(name).not.toHaveBeenCalled()
-      expect(table.filter.valueMap()['name']).toEqual(['Alice', 'Bob', 'Clara', 'David'])
-      expect(name).toHaveBeenCalledTimes(ROWS.length)
-    })
-  })
-
-  it("tracks what a column's value reads", () => {
-    // Outside withRoot so writes flush synchronously, see the data-accessor test below
-    const [suffix, setSuffix] = createSignal('')
-    const cols: ColumnDef<Row>[] = COLS.map((c) =>
-      c.key === 'name' ? { ...c, value: (r: Row) => r.name + suffix() } : c,
-    )
-    let table!: ReturnType<typeof createTableState<Row>>
-    let dispose!: () => void
-    createRoot((d) => {
-      dispose = d
-      table = createTableState(ROWS, cols)
-    })
-    expect(table.filter.valueMap()['name'][0]).toBe('Alice')
-    setSuffix('!')
-    expect(table.filter.valueMap()['name'][0]).toBe('Alice!')
-    dispose()
-  })
-})
-
 describe('createTableState — search stays off the filter path', () => {
   it('re-runs the search on a query change, not on a filter change', () => {
     withRoot(() => {

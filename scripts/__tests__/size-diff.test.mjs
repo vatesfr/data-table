@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import process from 'node:process'
-import { diffRows, formatRows, sizeLimitJson } from '../size-diff.mjs'
+import { diffRows, formatRows, jsonOutput } from '../size-diff.mjs'
 
 const entry = (pkg, size, sizeLimit = 1000) => ({ pkg, name: 'bundle (gzip)', size, sizeLimit })
 
@@ -22,10 +22,7 @@ test('formats a signed delta and a dash for an entry new in the working tree', (
   assert.match(out, /vue bundle \(gzip\) +— +10 +— +990/)
 })
 
-test("reads size-limit's JSON even when it exits 1 for an entry over budget", () => {
-  const overBudget =
-    'console.log(JSON.stringify([{ name: "b", size: 2, sizeLimit: 1 }])); process.exit(1)'
-  assert.deepEqual(sizeLimitJson(process.execPath, ['-e', overBudget], '.'), [
-    { name: 'b', size: 2, sizeLimit: 1 },
-  ])
+test('reads JSON from a command that exits non-zero, as size-limit does over budget', () => {
+  const script = 'console.log(\'[{"size":1}]\'); process.exit(1)'
+  assert.deepEqual(jsonOutput(process.execPath, ['-e', script]), [{ size: 1 }])
 })

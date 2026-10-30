@@ -4,16 +4,19 @@ import {
   useEffect,
   useLayoutEffect,
   useInsertionEffect,
+  useMemo,
   type KeyboardEvent,
   type MouseEventHandler,
   type ReactNode,
 } from 'react'
 import {
   computeAggregate,
+  computeStringValues,
   computeStringValueCounts,
   isMultiValueColumnCached,
-  isExcludeOnlyColumn,
   exclusionChip,
+  exclusionValueKeys,
+  exclusionValues,
   getColumnAlign,
   getColumnValue,
   rowText,
@@ -315,7 +318,6 @@ function FilterPane<TRow extends object>({
     exclude: excludeFilters,
     ranges: rangeFilters,
     modes: filterModes,
-    valueMap: stringValueMap,
     setMode: setFilterMode,
     setRange: setRangeFilter,
   } = table.filter
@@ -329,6 +331,10 @@ function FilterPane<TRow extends object>({
   const filterSelectAllRef = useRef<HTMLInputElement>(null)
   const filterOthersRef = useRef<HTMLInputElement>(null)
 
+  const allValues = useMemo(
+    () => (col.type !== 'number' ? computeStringValues(data, col, L.emptyValue) : []),
+    [data, col, L.emptyValue],
+  )
   const stringValueCounts = computeStringValueCounts(
     data,
     filters,
@@ -463,7 +469,7 @@ function FilterPane<TRow extends object>({
           // Narrowed by the date range filter (if any) — a value outside the active range never
           // becomes a tree leaf, rather than merely being ANDed onto the final row set once
           // ticked. A no-op for string columns (they never populate rangeFilters).
-          filterValuesByRange(stringValueMap[col.key] ?? [], rangeFilters[col.key], col.parseDate),
+          filterValuesByRange(allValues, rangeFilters[col.key], col.parseDate),
           stringValueCounts[col.key] ?? new Map(),
           filterAlreadyTouched(col),
         )
@@ -1137,6 +1143,11 @@ export function DataTableView<TRow extends object>({
     clearColumn: clearColumnFilter,
     clear: clearFilters,
   } = table.filter
+  const exclusionKeys = exclusionValueKeys(data, columns, excludeFilters)
+  const exclusionAllValues = useMemo(
+    () => exclusionValues(data, columns, exclusionKeys, L.emptyValue),
+    [data, columns, exclusionKeys, L.emptyValue],
+  )
   const {
     by: groupBy,
     collapsed: collapsedGroups,
@@ -2376,11 +2387,7 @@ export function DataTableView<TRow extends object>({
             .map(([key, vals]) => {
               const col = columns.find((c) => c.key === key)
               // Names the kept values when fewer are kept than hidden
-              const chip = exclusionChip(
-                vals,
-                table.filter.valueMap[key],
-                !!col && isExcludeOnlyColumn(data, col),
-              )
+              const chip = exclusionChip(vals, exclusionAllValues[key])
               return (
                 <span
                   key={`exclude-${key}`}

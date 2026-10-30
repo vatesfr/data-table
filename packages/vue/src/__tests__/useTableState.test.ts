@@ -923,13 +923,7 @@ const GAMES: Game[] = [
 const GAMES_WITH_EMPTY: Game[] = [...GAMES, { id: 3, name: 'Game C', tags: [] }]
 
 describe('useTableState — multi-value (array) columns', () => {
-  it('stringValueMap flattens array values into individual filter options', () => {
-    const table = useTableState(GAMES, GAME_COLS)
-    const { valueMap: stringValueMap } = table.filter
-    expect(stringValueMap.value['tags']).toEqual(['Action', 'Adventure', 'RPG'])
-  })
-
-  // stringValueCounts (facet counts) moved out of useTableState into DataTableView.vue — see
+  // Checklist values and stringValueCounts (facet counts) moved out of useTableState into the filter pane — see
   // DataTable.test.ts's filter-dropdown coverage for the rendered counts, and packages/core's
   // logic.test.ts for the underlying computeStringValueCounts faceting logic.
 
@@ -949,12 +943,6 @@ describe('useTableState — multi-value (array) columns', () => {
     expect(groupedData.value.map((g) => g.key).sort()).toEqual(['Action', 'Adventure', 'RPG'])
   })
 
-  it('stringValueMap lists a "(none)" entry for rows with an empty array', () => {
-    const table = useTableState(GAMES_WITH_EMPTY, GAME_COLS)
-    const { valueMap: stringValueMap } = table.filter
-    expect(stringValueMap.value['tags']).toEqual(['(none)', 'Action', 'Adventure', 'RPG'])
-  })
-
   it('groupedData buckets rows with an empty array under "(none)"', () => {
     const table = useTableState(GAMES_WITH_EMPTY, GAME_COLS)
     const { groupedData } = table
@@ -967,9 +955,7 @@ describe('useTableState — multi-value (array) columns', () => {
   it('uses a custom emptyValue label when provided', () => {
     const table = useTableState(GAMES_WITH_EMPTY, GAME_COLS, { labels: { emptyValue: 'N/A' } })
     const { groupedData } = table
-    const { valueMap: stringValueMap } = table.filter
     const { toggle: toggleGroup } = table.group
-    expect(stringValueMap.value['tags']).toContain('N/A')
     toggleGroup('tags')
     expect(groupedData.value.map((g) => g.key)).toContain('N/A')
   })
@@ -1086,29 +1072,6 @@ describe('useTableState — sort stays off the search/filter path', () => {
     data.value = [...ROWS]
     void table.pagedData.value
     expect(compare).toHaveBeenCalled()
-  })
-})
-
-describe('useTableState — filter value lists computed on demand', () => {
-  it("computes a column's values on its first read only", () => {
-    const name = vi.fn((r: Row) => r.name)
-    const cols: ColumnDef<Row>[] = COLS.map((c) => (c.key === 'name' ? { ...c, value: name } : c))
-    const table = useTableState(ROWS, cols)
-    expect(table.filter.valueMap.value['id']).toEqual(['1', '2', '3', '4'])
-    expect(name).not.toHaveBeenCalled()
-    expect(table.filter.valueMap.value['name']).toEqual(['Alice', 'Bob', 'Clara', 'David'])
-    expect(name).toHaveBeenCalledTimes(ROWS.length)
-  })
-
-  it("tracks what a column's value reads", () => {
-    const suffix = ref('')
-    const cols: ColumnDef<Row>[] = COLS.map((c) =>
-      c.key === 'name' ? { ...c, value: (r: Row) => r.name + suffix.value } : c,
-    )
-    const table = useTableState(ROWS, cols)
-    expect(table.filter.valueMap.value['name'][0]).toBe('Alice')
-    suffix.value = '!'
-    expect(table.filter.valueMap.value['name'][0]).toBe('Alice!')
   })
 })
 

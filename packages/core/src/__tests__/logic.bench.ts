@@ -3,6 +3,7 @@ import {
   filterData,
   sortData,
   searchData,
+  buildSearchIndex,
   groupData,
   getVisibleRows,
   computeStringValues,
@@ -67,12 +68,20 @@ for (const n of SIZES) {
     TIMEOUT,
   )
 
+  const searchIndex = buildSearchIndex(data, benchColumns)
+
   test(
-    `searchData @ ${n.toLocaleString()} rows`,
+    `search @ ${n.toLocaleString()} rows`,
     async ({ bench }) => {
-      await bench('global search across all columns', () => {
-        searchData(data, 'category 7', benchColumns)
-      }).run(opts)
+      await bench.compare(
+        bench('buildSearchIndex (first keystroke)', () => {
+          buildSearchIndex(data, benchColumns)
+        }),
+        bench('searchData across all columns (each keystroke)', () => {
+          searchData(data, 'category 7', searchIndex)
+        }),
+        opts,
+      )
     },
     TIMEOUT,
   )
@@ -104,7 +113,8 @@ for (const n of SIZES) {
     async ({ bench }) => {
       await bench.compare(
         bench('computeStringValues (all filterable columns)', () => {
-          computeStringValues(data, benchColumns)
+          for (const col of benchColumns)
+            if (col.type !== 'number' && col.filterable !== false) computeStringValues(data, col)
         }),
         bench('computeStringValueCounts, no active filters (all filterable columns)', () => {
           computeStringValueCounts(data, {}, {}, benchColumns)

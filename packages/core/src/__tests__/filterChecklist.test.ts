@@ -5,6 +5,8 @@ import {
   clickDateTreeNode,
   toggleChecklistExclude,
   exclusionChip,
+  exclusionValueKeys,
+  exclusionValues,
   isExcludeOnlyColumn,
   toggleChecklistValues,
   type ChecklistFilterActions,
@@ -169,7 +171,7 @@ describe('exclusionChip', () => {
 
   it('names the kept values when fewer are kept than hidden', () => {
     const excluded = new Set(['Design', 'HR', 'Product', 'Sales'])
-    expect(exclusionChip(excluded, ALL, true)).toEqual({
+    expect(exclusionChip(excluded, ALL)).toEqual({
       kept: true,
       values: new Set(['Engineering']),
     })
@@ -177,14 +179,34 @@ describe('exclusionChip', () => {
 
   it('names the hidden values otherwise', () => {
     const excluded = new Set(['HR'])
-    expect(exclusionChip(excluded, ALL, true)).toEqual({ kept: false, values: excluded })
+    expect(exclusionChip(excluded, ALL)).toEqual({ kept: false, values: excluded })
   })
 
-  it('keeps naming hidden values when nothing is left, or on a multi-value column', () => {
-    expect(exclusionChip(new Set(ALL), ALL, true).kept).toBe(false)
-    expect(exclusionChip(new Set(['Design', 'HR', 'Product', 'Sales']), ALL, false).kept).toBe(
-      false,
-    )
+  it('keeps naming hidden values when nothing is left, or without a value list', () => {
+    expect(exclusionChip(new Set(ALL), ALL).kept).toBe(false)
+    expect(exclusionChip(new Set(['Design', 'HR', 'Product', 'Sales']), undefined).kept).toBe(false)
+  })
+})
+
+describe('exclusionValueKeys', () => {
+  const rows = [{ dept: 'HR', tags: ['a'], age: 1, note: 'x' }]
+  const cols = [
+    { key: 'dept', label: 'Dept' },
+    { key: 'tags', label: 'Tags' },
+    { key: 'age', label: 'Age', type: 'number' as const },
+    { key: 'note', label: 'Note', filterable: false },
+    { key: 'other', label: 'Other' },
+  ]
+  const ex = (...keys: string[]) => Object.fromEntries(keys.map((k) => [k, new Set(['v'])]))
+
+  it('keeps only filterable exclude-only columns with an active exclusion', () => {
+    const exclude = { ...ex('dept', 'tags', 'age', 'note', 'other'), other: new Set<string>() }
+    expect(exclusionValueKeys(rows, cols, exclude)).toBe('dept')
+  })
+
+  it('feeds exclusionValues the value lists of those columns only', () => {
+    const keys = exclusionValueKeys(rows, cols, ex('dept', 'other'))
+    expect(exclusionValues(rows, cols, keys, '(none)')).toEqual({ dept: ['HR'], other: [''] })
   })
 })
 

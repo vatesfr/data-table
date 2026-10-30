@@ -3,13 +3,13 @@ import {
   filterData,
   sortData,
   searchData,
+  buildSearchIndex,
   groupData,
   sortWithinGroups,
   getVisibleRows,
   paginateVisibleGroups,
   paginateData,
   computeTotalPages,
-  computeStringValues,
   toggleSort as _toggleSort,
   replaceSort as _replaceSort,
   appendOrToggleSort as _appendOrToggleSort,
@@ -172,20 +172,19 @@ export function useTableState<TRow extends object>(
       selection.value = reconcileSelection(nextData, selection.value, getRowId.value)
   })
 
-  // One computed per column, created on first read, so each tracks its own reactive reads
-  const stringValueMap = computed(() =>
-    computeStringValues(data.value, columns.value, L.value.emptyValue, (compute) => {
-      const values = computed(compute)
-      return () => values.value
-    }),
-  )
-
   // Sorted apart from search/filters so a keystroke or filter click never re-sorts (see `sortData`)
   const sortedData = computed(() => sortData(data.value, sorts.value, columns.value))
 
+  // Built on the first keystroke, then reused until data or columns change; none while not searching.
+  const searching = computed(() => searchQuery.value !== '')
+  const searchIndex = computed(() =>
+    searching.value ? buildSearchIndex(data.value, columns.value) : null,
+  )
   // Apart from filters, so a filter click doesn't re-run the search over every row
   const searchedData = computed(() =>
-    searchData(sortedData.value, searchQuery.value, columns.value),
+    searchIndex.value
+      ? searchData(sortedData.value, searchQuery.value, searchIndex.value)
+      : sortedData.value,
   )
 
   const processedData = computed(() =>
@@ -333,7 +332,6 @@ export function useTableState<TRow extends object>(
       ranges: rangeFilters,
       modes: filterModes,
       activeCount: activeFilterCount,
-      valueMap: stringValueMap,
       setMode: (key: string, mode: 'and' | 'or') => {
         filterModes.value = _setFilterMode(filterModes.value, key, mode)
       },

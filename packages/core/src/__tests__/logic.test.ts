@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import type { SortEntry } from '../types'
 import {
   clampInt,
@@ -6,6 +6,7 @@ import {
   filterData,
   sortData,
   searchData,
+  buildSearchIndex,
   groupData,
   sortWithinGroups,
   getVisibleRows,
@@ -215,27 +216,33 @@ describe('groupText', () => {
 // ─── searchData ───────────────────────────────────────────────────────────────
 
 describe('searchData', () => {
+  const search = <TRow extends object>(
+    rows: TRow[],
+    query: string,
+    cols: Parameters<typeof buildSearchIndex<TRow>>[1],
+  ) => searchData(rows, query, buildSearchIndex(rows, cols))
+
   it('returns all rows when query is empty', () => {
-    expect(searchData(ROWS, '', COLS_FOR_SEARCH)).toEqual(ROWS)
+    expect(search(ROWS, '', COLS_FOR_SEARCH)).toEqual(ROWS)
   })
 
   it('matches substring case-insensitively', () => {
-    const result = searchData(ROWS, 'ali', COLS_FOR_SEARCH)
+    const result = search(ROWS, 'ali', COLS_FOR_SEARCH)
     expect(result.map((r) => r.name)).toEqual(['Alice'])
   })
 
   it('matches across any column', () => {
-    const result = searchData(ROWS, 'eng', COLS_FOR_SEARCH)
+    const result = search(ROWS, 'eng', COLS_FOR_SEARCH)
     expect(result.map((r) => r.name)).toEqual(['Alice', 'Clara'])
   })
 
   it('returns empty when no match', () => {
-    expect(searchData(ROWS, 'zzz', COLS_FOR_SEARCH)).toHaveLength(0)
+    expect(search(ROWS, 'zzz', COLS_FOR_SEARCH)).toHaveLength(0)
   })
 
   it('uses col.format when available', () => {
     const cols = [{ key: 'salary' as const, label: 'Salary', format: (v: unknown) => `$${v}` }]
-    const result = searchData(ROWS, '$90000', cols)
+    const result = search(ROWS, '$90000', cols)
     expect(result.map((r) => r.name)).toEqual(['Alice'])
   })
 
@@ -247,21 +254,21 @@ describe('searchData', () => {
         format: (v: unknown, row?: Row) => `${row?.name}:${v}`,
       },
     ]
-    const result = searchData(ROWS, 'clara:110000', cols)
+    const result = search(ROWS, 'clara:110000', cols)
     expect(result.map((r) => r.name)).toEqual(['Clara'])
   })
 
   it('matches against a computed column value', () => {
     const cols = [{ key: 'salaryK', label: 'Salary (K)', value: (row: Row) => row.salary / 1000 }]
-    const result = searchData(ROWS, '110', cols)
+    const result = search(ROWS, '110', cols)
     expect(result.map((r) => r.name)).toEqual(['Clara'])
   })
 
   it('ignores diacritics on both the row value and the query', () => {
     const cols = [{ key: 'name' as const, label: 'Name' }]
     const rows = [{ name: 'Öoo' }, { name: 'Zoe' }]
-    expect(searchData(rows, 'ooo', cols).map((r) => r.name)).toEqual(['Öoo'])
-    expect(searchData(rows, 'ÖOO', cols).map((r) => r.name)).toEqual(['Öoo'])
+    expect(search(rows, 'ooo', cols).map((r) => r.name)).toEqual(['Öoo'])
+    expect(search(rows, 'ÖOO', cols).map((r) => r.name)).toEqual(['Öoo'])
   })
 
   it('excludes a column marked searchable: false', () => {
@@ -269,8 +276,19 @@ describe('searchData', () => {
       { key: 'name' as const, label: 'Name' },
       { key: 'dept' as const, label: 'Dept', searchable: false },
     ]
-    expect(searchData(ROWS, 'eng', cols)).toHaveLength(0)
-    expect(searchData(ROWS, 'ali', cols).map((r) => r.name)).toEqual(['Alice'])
+    expect(search(ROWS, 'eng', cols)).toHaveLength(0)
+    expect(search(ROWS, 'ali', cols).map((r) => r.name)).toEqual(['Alice'])
+  })
+
+  it('does not match across two cells', () => {
+    // 'Alice' + 'Eng'
+    expect(search(ROWS, 'ceeng', COLS_FOR_SEARCH)).toHaveLength(0)
+  })
+
+  it('searches any subset of the indexed rows, keeping their order', () => {
+    const index = buildSearchIndex(ROWS, COLS_FOR_SEARCH)
+    const reversed = [...ROWS].reverse()
+    expect(searchData(reversed, 'eng', index).map((r) => r.name)).toEqual(['Clara', 'Alice'])
   })
 })
 
@@ -831,6 +849,15 @@ describe('groupData', () => {
     const result = groupData(ROWS, ['dept', 'name'], [])
     const eng = result.find((g) => g.key === 'Eng › Alice')
     expect(eng?.keyParts).toEqual(['Eng', 'Alice'])
+  })
+
+  it('groups a missing scalar value under an empty key', () => {
+    const rows = [{ dept: 'Eng' }, { dept: undefined }, { dept: null }]
+    const result = groupData(rows, ['dept'], [])
+    expect(result.map((g) => [g.key, g.keyParts, g.rows.length])).toEqual([
+      ['Eng', ['Eng'], 1],
+      ['', [''], 2],
+    ])
   })
 
   it('fans an array-valued column out into one group per item', () => {
@@ -1601,82 +1628,37 @@ describe('computeStringValues', () => {
   const COLS = [
     { key: 'name' as const, label: 'Name', type: 'string' as const },
     { key: 'dept' as const, label: 'Dept', type: 'string' as const },
-    { key: 'salary' as const, label: 'Salary', type: 'number' as const },
   ]
 
-  it('returns sorted unique string values per filterable string column', () => {
-    const result = computeStringValues(ROWS, COLS)
-    expect(result['dept']).toEqual(['Eng', 'HR'])
-    expect(result['name']).toEqual(['Alice', 'Bob', 'Clara', 'David'])
-  })
-
-  it('excludes numeric columns from the map', () => {
-    const result = computeStringValues(ROWS, COLS)
-    expect(result['salary']).toBeUndefined()
-  })
-
-  it('computes a column on its first read only, once', () => {
-    const name = vi.fn((r: Row) => r.name)
-    const dept = vi.fn((r: Row) => r.dept)
-    const result = computeStringValues(ROWS, [
-      { key: 'name', label: 'Name', value: name },
-      { key: 'dept', label: 'Dept', value: dept },
-    ])
-    expect(name).not.toHaveBeenCalled()
-    expect(result['dept']).toEqual(['Eng', 'HR'])
-    expect(result['dept']).toEqual(['Eng', 'HR'])
-    expect(dept).toHaveBeenCalledTimes(ROWS.length)
-    expect(name).not.toHaveBeenCalled()
-    expect(result).toEqual({ name: ['Alice', 'Bob', 'Clara', 'David'], dept: ['Eng', 'HR'] })
-  })
-
-  it('wraps each column computation with the given memo', () => {
-    let memos = 0
-    const memo = <T>(compute: () => T) => (memos++, compute)
-    const result = computeStringValues(ROWS, COLS, undefined, memo)
-    void result['dept']
-    void result['dept']
-    expect(memos).toBe(1)
-  })
-
-  it('keeps a __proto__ column key as an own property', () => {
-    const result = computeStringValues(
-      [JSON.parse('{"__proto__": "x"}') as object],
-      [{ key: '__proto__', label: 'Proto' }],
-    )
-    expect(Object.keys(result)).toEqual(['__proto__'])
-  })
-
-  it('excludes columns with filterable: false', () => {
-    const cols = [{ key: 'id' as const, label: 'ID', type: 'number' as const, filterable: false }]
-    const result = computeStringValues(ROWS, cols)
-    expect(result['id']).toBeUndefined()
+  it('returns the sorted unique string values of one column', () => {
+    expect(computeStringValues(ROWS, COLS[1])).toEqual(['Eng', 'HR'])
+    expect(computeStringValues(ROWS, COLS[0])).toEqual(['Alice', 'Bob', 'Clara', 'David'])
   })
 
   it('flattens and dedupes array-valued columns instead of stringifying the whole array', () => {
     const cols = [{ key: 'tags' as const, label: 'Tags' }]
-    const result = computeStringValues(GAMES, cols)
-    expect(result['tags']).toEqual(['Action', 'Adventure', 'RPG'])
+    const result = computeStringValues(GAMES, cols[0])
+    expect(result).toEqual(['Action', 'Adventure', 'RPG'])
   })
 
   it('lists a "(none)" entry for rows with an empty array, by default', () => {
     const cols = [{ key: 'tags' as const, label: 'Tags' }]
-    const result = computeStringValues(GAMES_WITH_EMPTY, cols)
-    expect(result['tags']).toEqual(['(none)', 'Action', 'Adventure', 'RPG'])
+    const result = computeStringValues(GAMES_WITH_EMPTY, cols[0])
+    expect(result).toEqual(['(none)', 'Action', 'Adventure', 'RPG'])
   })
 
   it('uses a custom emptyLabel for rows with an empty array', () => {
     const cols = [{ key: 'tags' as const, label: 'Tags' }]
-    const result = computeStringValues(GAMES_WITH_EMPTY, cols, 'N/A')
-    expect(result['tags']).toContain('N/A')
+    const result = computeStringValues(GAMES_WITH_EMPTY, cols[0], 'N/A')
+    expect(result).toContain('N/A')
   })
 
   it('collects values from a computed column', () => {
     const cols = [
       { key: 'band', label: 'Band', value: (row: Row) => (row.salary >= 90000 ? 'High' : 'Low') },
     ]
-    const result = computeStringValues(ROWS, cols)
-    expect(result['band']).toEqual(['High', 'Low'])
+    const result = computeStringValues(ROWS, cols[0])
+    expect(result).toEqual(['High', 'Low'])
   })
 
   it('includes date columns (fed into computeDateTree by the filter UI, not excluded like number)', () => {
@@ -1686,8 +1668,8 @@ describe('computeStringValues', () => {
       { released: '2021-01-02' },
       { released: '2023-05-14' },
     ]
-    const result = computeStringValues(games, cols)
-    expect(result['released']).toEqual(['2021-01-02', '2023-05-14'])
+    const result = computeStringValues(games, cols[0])
+    expect(result).toEqual(['2021-01-02', '2023-05-14'])
   })
 
   it('orders values by a column compare instead of alphabetically (issue #15)', () => {
@@ -1701,15 +1683,15 @@ describe('computeStringValues', () => {
       },
     ]
     const rows = [{ tier: 'Gold' }, { tier: 'Bronze' }, { tier: 'Silver' }]
-    const result = computeStringValues(rows, cols)
-    expect(result['tier']).toEqual(['Bronze', 'Silver', 'Gold'])
+    const result = computeStringValues(rows, cols[0])
+    expect(result).toEqual(['Bronze', 'Silver', 'Gold'])
   })
 
   it('compareMissingLast pins the empty-string stand-in for a missing scalar at the end (issue #15)', () => {
     const cols = [{ key: 'dept', label: 'Dept', compare: compareMissingLast() }]
     const rows = [{ dept: 'Eng' }, { dept: '' }, { dept: 'HR' }]
-    const result = computeStringValues(rows, cols)
-    expect(result['dept']).toEqual(['Eng', 'HR', ''])
+    const result = computeStringValues(rows, cols[0])
+    expect(result).toEqual(['Eng', 'HR', ''])
   })
 })
 

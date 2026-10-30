@@ -1,9 +1,8 @@
 import {
+  batch,
   createSignal,
   createMemo,
   createRenderEffect,
-  getOwner,
-  runWithOwner,
   untrack,
   type Accessor,
 } from 'solid-js'
@@ -18,13 +17,13 @@ import {
   filterData,
   sortData,
   searchData,
+  buildSearchIndex,
   groupData,
   sortWithinGroups,
   getVisibleRows,
   paginateVisibleGroups,
   paginateData,
   computeTotalPages,
-  computeStringValues,
   toggleSort as _toggleSort,
   replaceSort as _replaceSort,
   appendOrToggleSort as _appendOrToggleSort,
@@ -246,20 +245,17 @@ export function createTableState<TRow extends object>(
 
   const defaultSortDirFor = (key: string) => getDefaultSortDir(columns(), key)
 
-  // One memo per column, created on first read under this memo's owner (disposed when it re-runs),
-  // so each tracks its own reactive reads
-  const stringValueMap = createMemo(() => {
-    const owner = getOwner()
-    return computeStringValues(data(), columns(), L().emptyValue, (compute) =>
-      runWithOwner(owner, () => createMemo(compute))!,
-    )
-  })
-
   // Sorted apart from search/filters so a keystroke or filter click never re-sorts (see `sortData`)
   const sortedData = createMemo(() => sortData(data(), sorts(), columns()))
 
+  // Built on the first keystroke, then reused until data or columns change; none while not searching.
+  const searching = createMemo(() => searchQuery() !== '')
+  const searchIndex = createMemo(() => (searching() ? buildSearchIndex(data(), columns()) : null))
   // Apart from filters, so a filter click doesn't re-run the search over every row
-  const searchedData = createMemo(() => searchData(sortedData(), searchQuery(), columns()))
+  const searchedData = createMemo(() => {
+    const index = searchIndex()
+    return index ? searchData(sortedData(), searchQuery(), index) : sortedData()
+  })
 
   const processedData = createMemo(() =>
     filterData(
@@ -409,7 +405,6 @@ export function createTableState<TRow extends object>(
       ranges: rangeFilters,
       modes: filterModes,
       activeCount: activeFilterCount,
-      valueMap: stringValueMap,
       setMode: (key: string, mode: 'and' | 'or') =>
         setFilterModes((prev) => _setFilterMode(prev, key, mode)),
       toggleAll: (key: string, values: string[]) => {
@@ -487,13 +482,15 @@ export function createTableState<TRow extends object>(
       // Live — reads the latest `options.defaultGroupsCollapsed` on every call, tracking it
       // reactively when `options` itself was given as an Accessor (see `getOptions` above).
       defaultCollapsed: () => getOptions().defaultGroupsCollapsed ?? true,
-      toggle: (key: string) =>
-        setGroupBy((prev) => {
-          if (!prev.includes(key)) {
-            setSorts((prevSorts) => insertGroupSort(prevSorts, prev, key, defaultSortDirFor(key)))
-          }
-          return toggleGroupBy(prev, key)
-        }),
+      // Batched so groupBy and sorts change together: grouping (and persistence) run once
+      toggle: (key: string) => {
+        const prev = groupBy()
+        batch(() => {
+          if (!prev.includes(key))
+            setSorts((s) => insertGroupSort(s, prev, key, defaultSortDirFor(key)))
+          setGroupBy(toggleGroupBy(prev, key))
+        })
+      },
       remove: (key: string) => setGroupBy((prev) => prev.filter((k) => k !== key)),
       moveBy: (key: string, delta: number) =>
         setGroupBy((prev) => {

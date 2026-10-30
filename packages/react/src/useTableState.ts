@@ -3,13 +3,13 @@ import {
   filterData,
   sortData,
   searchData,
+  buildSearchIndex,
   groupData,
   sortWithinGroups,
   getVisibleRows,
   paginateVisibleGroups,
   paginateData,
   computeTotalPages,
-  computeStringValues,
   resolveFocusTarget,
   type VisibleItem,
   toggleSort as _toggleSort,
@@ -205,18 +205,19 @@ export function useTableState<TRow extends object>(
 
   const defaultSortDirFor = (key: string) => getDefaultSortDir(columns, key)
 
-  const stringValueMap = useMemo(
-    () => computeStringValues(data, columns, L.emptyValue),
-    [data, columns, L.emptyValue],
-  )
-
   // Sorted apart from search/filters so a keystroke or filter click never re-sorts (see `sortData`)
   const sortedData = useMemo(() => sortData(data, sorts, columns), [data, sorts, columns])
 
+  // Built on the first keystroke, then reused until data or columns change; none while not searching.
+  const searching = searchQuery !== ''
+  const searchIndex = useMemo(
+    () => (searching ? buildSearchIndex(data, columns) : null),
+    [searching, data, columns],
+  )
   // Apart from filters, so a filter click doesn't re-run the search over every row
   const searchedData = useMemo(
-    () => searchData(sortedData, searchQuery, columns),
-    [sortedData, searchQuery, columns],
+    () => (searchIndex ? searchData(sortedData, searchQuery, searchIndex) : sortedData),
+    [sortedData, searchQuery, searchIndex],
   )
 
   const processedData = useMemo(
@@ -385,7 +386,6 @@ export function useTableState<TRow extends object>(
       ranges: rangeFilters,
       modes: filterModes,
       activeCount: activeFilterCount,
-      valueMap: stringValueMap,
       setMode: (key: string, mode: 'and' | 'or') =>
         setFilterModes((prev) => _setFilterMode(prev, key, mode)),
       toggleAll: (key: string, values: string[]) => {
