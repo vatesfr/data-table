@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { createRoot, createSignal } from 'solid-js'
+import { createStore } from 'solid-js/store'
 import { createTableState } from '../createTableState'
 import type { ColumnDef } from '../types'
 
@@ -654,6 +655,42 @@ describe('createTableState — search stays off the filter path', () => {
       expect(table.processedData().map((r) => r.name)).toEqual(['Alice', 'Clara'])
       expect(id).not.toHaveBeenCalled()
     })
+  })
+})
+
+describe('createTableState — an active search sees reactive changes', () => {
+  // Outside withRoot so writes flush synchronously, see the data-accessor tests below
+  it('matches a store row edited in place', () => {
+    const [rows, setRows] = createStore(ROWS.map((r) => ({ ...r })))
+    let table!: ReturnType<typeof createTableState<Row>>
+    let dispose!: () => void
+    createRoot((d) => {
+      dispose = d
+      table = createTableState(() => rows, COLS)
+    })
+    table.search.setQuery('zed')
+    expect(table.processedData()).toEqual([])
+    setRows(1, 'name', 'Zed')
+    expect(table.processedData().map((r) => r.id)).toEqual([2])
+    dispose()
+  })
+
+  it("matches once a column's value reads a changed signal", () => {
+    const [suffix, setSuffix] = createSignal('')
+    const cols: ColumnDef<Row>[] = COLS.map((c) =>
+      c.key === 'name' ? { ...c, value: (r: Row) => r.name + suffix() } : c,
+    )
+    let table!: ReturnType<typeof createTableState<Row>>
+    let dispose!: () => void
+    createRoot((d) => {
+      dispose = d
+      table = createTableState(ROWS, cols)
+    })
+    table.search.setQuery('bob!')
+    expect(table.processedData()).toEqual([])
+    setSuffix('!')
+    expect(table.processedData().map((r) => r.id)).toEqual([2])
+    dispose()
   })
 })
 
