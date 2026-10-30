@@ -279,3 +279,16 @@ export function chipRemovalFocusTarget(x: HTMLElement): HTMLElement | null {
     null
   )
 }
+
+/** The Filter pane's arrow-key stops: value search, value rows, date-tree boxes — not "Select all", which sits beside the list. */
+export const FILTER_DETAIL_NAV_SELECTOR =
+  'input[data-dd-value-search], input[data-dd-value-row], .dt-date-tree-wrap input[type="checkbox"]'
+
+/** Where → from a Filter column lands (U32): the pane's first arrow-key stop, else its first input (a number column's range). */
+export function filterDetailFocusTarget(detail: Element | null | undefined): HTMLElement | null {
+  return (
+    detail?.querySelector<HTMLElement>(FILTER_DETAIL_NAV_SELECTOR) ??
+    detail?.querySelector<HTMLElement>('input') ??
+    null
+  )
+}

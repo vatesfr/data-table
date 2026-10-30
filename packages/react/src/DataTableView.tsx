@@ -72,6 +72,7 @@ import {
   watchMedia,
   tableStatus,
   chipRemovalFocusTarget,
+  filterDetailFocusTarget,
   FILTER_NARROW_QUERY,
   injectStyles,
   type VisibleItem,
@@ -1085,9 +1086,8 @@ export function DataTableView<TRow extends object>({
       pendingFilterValuesFocus.current = false
       // A number column has no value rows: fall back to the back button
       ;(
-        root.querySelector<HTMLElement>(
-          '[data-filter-detail] input, [data-filter-detail] button',
-        ) ?? root.querySelector<HTMLElement>('[data-filter-back]')
+        filterDetailFocusTarget(root.querySelector('[data-filter-detail]')) ??
+        root.querySelector<HTMLElement>('[data-filter-back]')
       )?.focus()
     }
     focusPendingKey(root, pendingColFocusKey, [
@@ -1639,9 +1639,7 @@ export function DataTableView<TRow extends object>({
         pendingFilterValuesFocus.current = true
         return
       }
-      e.currentTarget
-        .querySelector<HTMLElement>('[data-filter-detail] input, [data-filter-detail] button')
-        ?.focus()
+      filterDetailFocusTarget(e.currentTarget.querySelector('[data-filter-detail]'))?.focus()
       return
     }
 

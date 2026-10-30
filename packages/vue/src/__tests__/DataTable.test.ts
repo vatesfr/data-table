@@ -3464,7 +3464,7 @@ describe('DataTable — dropdown column search and keyboard navigation', () => {
     wrapper.unmount()
   })
 
-  it('ArrowRight on the left column list enters the right detail pane', async () => {
+  it('ArrowRight on the left column list enters the right detail pane at its value search (U32)', async () => {
     const wrapper = mount(DataTable, {
       props: { data: ROWS, columns: THREE_COLS, rowKey: 'id' },
       attachTo: document.body,
@@ -3475,7 +3475,9 @@ describe('DataTable — dropdown column search and keyboard navigation', () => {
       .find((el) => el.text().startsWith('Name'))!
     ;(nameBtn.element as HTMLElement).focus()
     await nameBtn.trigger('keydown', { key: 'ArrowRight' })
-    expect(wrapper.find('.dt-filter-detail').element.contains(document.activeElement)).toBe(true)
+    expect(document.activeElement).toBe(
+      wrapper.find('.dt-filter-detail input[data-dd-value-search]').element,
+    )
   })
 
   it('ArrowLeft from a checklist row returns focus to the active column button', async () => {
@@ -4405,7 +4407,9 @@ describe('DataTable — filter dropdown on a narrow screen (U16)', () => {
     ;(nameBtn(wrapper)!.element as HTMLElement).focus()
     await nameBtn(wrapper)!.trigger('keydown', { key: 'ArrowRight' })
     await tick()
-    expect(wrapper.find('.dt-filter-detail').element.contains(document.activeElement)).toBe(true)
+    expect(document.activeElement).toBe(
+      wrapper.find('.dt-filter-detail input[data-dd-value-search]').element,
+    )
     const row = wrapper.find('.dt-filter-detail input[data-value]')
     ;(row.element as HTMLElement).focus()
     await row.trigger('keydown', { key: 'ArrowLeft' })

@@ -15,12 +15,13 @@ import {
   columnMatchesSearch,
   watchMedia,
   FILTER_NARROW_QUERY,
+  filterDetailFocusTarget,
 } from '@vates/data-table-core/internal'
 import type { TableState } from '../createTableState'
 import type { ColumnDef } from '../types'
 import { Dropdown } from './Dropdown'
 import { DropdownClearButton, DropdownTriggerButton, NoMatchingColumns } from './DropdownParts'
-import { FilterPane, detailFocusables } from './FilterPane'
+import { FilterPane } from './FilterPane'
 
 export interface FilterDropdownHandle {
   selectColumn: (key: string) => void
@@ -100,10 +101,8 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
   }
   // A number column has no value rows: fall back to its first field, else the back button
   function focusFirstValue(): boolean {
-    const detailEl = panelEl?.querySelector('.dt-filter-detail')
     const first =
-      (detailEl &&
-        (detailFocusables(detailEl)[0] ?? detailEl.querySelector<HTMLElement>('input'))) ??
+      filterDetailFocusTarget(panelEl?.querySelector('.dt-filter-detail')) ??
       panelEl?.querySelector<HTMLElement>('.dt-filter-back')
     first?.focus()
     return !!first

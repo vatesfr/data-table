@@ -15,6 +15,7 @@ import {
   showsPager,
   tableStatus,
   chipRemovalFocusTarget,
+  filterDetailFocusTarget,
   getCrossPageFocusTarget,
   getSortIndex as getHeaderSortIndex,
   getSortIcon as getHeaderSortIcon,
@@ -567,7 +568,7 @@ async function showFilterValues(): Promise<void> {
   const root = rootRef.value
   // A number column has no value rows: fall back to the back button
   ;(
-    root?.querySelector<HTMLElement>('.dt-filter-detail input, .dt-filter-detail button') ??
+    filterDetailFocusTarget(root?.querySelector('.dt-filter-detail')) ??
     root?.querySelector<HTMLElement>('.dt-filter-back')
   )?.focus()
 }
@@ -1058,7 +1059,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
         return
       }
       const menu = event.currentTarget as HTMLElement
-      menu.querySelector<HTMLElement>('.dt-filter-detail input, .dt-filter-detail button')?.focus()
+      filterDetailFocusTarget(menu.querySelector('.dt-filter-detail'))?.focus()
       return
     }
 

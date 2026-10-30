@@ -9,7 +9,6 @@ Severity: **blocker** (goal unreachable) · **major** (reached with confusion or
 Seeded 2026-10-04 from issues reported by a consumer app, each reproduced on the demos (Solid, spot-checked on React and Vue).
 
 - [Dropdowns](#dropdowns)
-- [Keyboard](#keyboard)
 
 ## Dropdowns
 
@@ -17,7 +16,3 @@ Seeded 2026-10-04 from issues reported by a consumer app, each reproduced on the
 - **U33 · minor · UC04, UC11** — React, Vue: opening a second toolbar dropdown from the keyboard while another is still open (focus left it with Tab) leaves both open, overlapping; Solid closes the first (one shared open state). One open dropdown per table, as in Solid.
 - **U34 · minor · UC11** — the header menu's "Filter ▸" opens its flyout on hover, so the click that usually follows closes it again. A click on an already-open "Filter ▸" keeps the flyout open.
 - **U35 · polish · UC01** — Filter checklist value rows get no hover background, while the left pane's column rows do. Same hover cue on both panes.
-
-## Keyboard
-
-- **U32 · minor · UC04** — React, Vue: → from a Filter column lands on the "Select all" checkbox, where ↓/↑ do nothing and Space toggles every value; Solid lands on the value search. Focus the value search, as Solid does.

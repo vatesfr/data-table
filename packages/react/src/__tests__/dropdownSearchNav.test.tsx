@@ -418,14 +418,14 @@ describe('DataTable — dropdown keyboard navigation order and Escape', () => {
 })
 
 describe('DataTable — filter dropdown left/right pane navigation', () => {
-  it('ArrowRight on the left column list enters the right detail pane', () => {
+  it('ArrowRight on the left column list enters the right detail pane at its value search (U32)', () => {
     const { getByText, container } = render(<DataTable data={ROWS} columns={COLS} rowKey="id" />)
     fireEvent.click(getByText('Filter'))
     const nameBtn = container.querySelector<HTMLElement>('[data-filter-col-key="name"]')!
     nameBtn.focus()
     fireEvent.keyDown(nameBtn, { key: 'ArrowRight' })
-    expect(container.querySelector('[data-filter-detail]')!.contains(document.activeElement)).toBe(
-      true,
+    expect(document.activeElement).toBe(
+      container.querySelector('[data-filter-detail] input[data-dd-value-search]'),
     )
   })
 
@@ -1068,8 +1068,8 @@ describe('DataTable — filter dropdown on a narrow screen (U16)', () => {
     const nameBtn = container.querySelector<HTMLElement>('[data-filter-col-key="name"]')!
     nameBtn.focus()
     fireEvent.keyDown(nameBtn, { key: 'ArrowRight' })
-    expect(container.querySelector('[data-filter-detail]')!.contains(document.activeElement)).toBe(
-      true,
+    expect(document.activeElement).toBe(
+      container.querySelector('[data-filter-detail] input[data-dd-value-search]'),
     )
     const row = container.querySelector<HTMLInputElement>('input[data-dd-value-row]')!
     row.focus()
