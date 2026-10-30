@@ -2488,6 +2488,26 @@ describe('DataTable — active state bar', () => {
     // excludes her, rendering as the exclude chip rather than an include one.
     expect(container.textContent).toContain('Name: ≠ Alice')
   })
+
+  it('U30: removing a chip focuses the next chip, else the previous one, else the search box', () => {
+    const { getByLabelText, container } = render(
+      <DataTable
+        data={ROWS}
+        columns={COLS}
+        rowKey="id"
+        initialViewState={{
+          sorts: [
+            { key: 'name', dir: 'asc' },
+            { key: 'score', dir: 'asc' },
+          ],
+        }}
+      />,
+    )
+    fireEvent.click(getByLabelText('Remove sort: Name'))
+    expect(document.activeElement).toBe(getByLabelText('Remove sort: Score'))
+    fireEvent.click(getByLabelText('Remove sort: Score'))
+    expect(document.activeElement).toBe(container.querySelector('.dt-search-input'))
+  })
 })
 
 describe('DataTable — keyboard navigation', () => {

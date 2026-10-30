@@ -71,6 +71,7 @@ import {
   getHeaderMenuItems,
   watchMedia,
   tableStatus,
+  chipRemovalFocusTarget,
   FILTER_NARROW_QUERY,
   injectStyles,
   type VisibleItem,
@@ -1723,7 +1724,16 @@ export function DataTableView<TRow extends object>({
       </button>
     )
   const chipX = (label: string, onClick: () => void) => (
-    <button type="button" title={label} aria-label={label} className="dt-chip-x" onClick={onClick}>
+    <button
+      type="button"
+      title={label}
+      aria-label={label}
+      className="dt-chip-x"
+      onClick={(e) => {
+        chipRemovalFocusTarget(e.currentTarget)?.focus()
+        onClick()
+      }}
+    >
       ×
     </button>
   )

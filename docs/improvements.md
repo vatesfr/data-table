@@ -20,5 +20,4 @@ Seeded 2026-10-04 from issues reported by a consumer app, each reproduced on the
 
 ## Keyboard
 
-- **U30 · minor · UC04** — removing an active-bar chip with its × (Enter) drops focus to the page body, even when other chips remain. Focus the next chip, else the previous one, else the search box.
 - **U32 · minor · UC04** — React, Vue: → from a Filter column lands on the "Select all" checkbox, where ↓/↑ do nothing and Space toggles every value; Solid lands on the value search. Focus the value search, as Solid does.

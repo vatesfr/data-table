@@ -2487,6 +2487,29 @@ describe('DataTable — filter column ordering & clear button', () => {
 })
 
 describe('DataTable — active state bar', () => {
+  it('U30: removing a chip focuses the next chip, else the previous one, else the search box', async () => {
+    const wrapper = mount(DataTable, {
+      props: {
+        data: ROWS,
+        columns: COLS,
+        rowKey: 'id',
+        initialViewState: {
+          sorts: [
+            { key: 'name', dir: 'asc' },
+            { key: 'score', dir: 'asc' },
+          ],
+        },
+      },
+      attachTo: document.body,
+    })
+    const x = (label: string) => wrapper.find(`[aria-label="Remove sort: ${label}"]`)
+    await x('Name').trigger('click')
+    expect(document.activeElement).toBe(x('Score').element)
+    await x('Score').trigger('click')
+    expect(document.activeElement).toBe(wrapper.find('.dt-search-input').element)
+    wrapper.unmount()
+  })
+
   it('renders with just the row-count stats when nothing is active', () => {
     const wrapper = mount(DataTable, { props: { data: ROWS, columns: COLS, rowKey: 'id' } })
     expect(wrapper.find('.dt-active-bar').exists()).toBe(true)

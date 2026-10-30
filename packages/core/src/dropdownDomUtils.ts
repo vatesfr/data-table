@@ -261,3 +261,21 @@ export function ddOpenFocusTarget(panel: HTMLElement): HTMLElement | undefined {
   const rows = ddNavFocusables(panel).filter((el) => !el.matches('input[data-dd-search]'))
   return rows.find((el) => el.matches('[aria-current]')) ?? rows[0]
 }
+
+/**
+ * Where focus goes when a chip's × removes its chip (U30): the next chip's ×, else the previous
+ * one's, else the table's search box, else its first button. Look it up and focus it before the
+ * removal: the target outlives it, so no framework's render timing matters.
+ */
+export function chipRemovalFocusTarget(x: HTMLElement): HTMLElement | null {
+  const xs = [...(x.closest('.dt-active-bar')?.querySelectorAll<HTMLElement>('.dt-chip-x') ?? [])]
+  const i = xs.indexOf(x)
+  const root = x.closest('.dt')
+  return (
+    xs[i + 1] ??
+    xs[i - 1] ??
+    root?.querySelector<HTMLElement>('.dt-search-input') ??
+    root?.querySelector<HTMLElement>('button') ??
+    null
+  )
+}

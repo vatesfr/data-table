@@ -9,6 +9,7 @@ import {
   summarizeFilterValues,
   filterMatchMode,
   chipSeparator,
+  chipRemovalFocusTarget,
 } from '@vates/data-table-core/internal'
 import type { TableState } from '../createTableState'
 import type { ColumnDef } from '../types'
@@ -49,6 +50,11 @@ function chipValues<TRow extends object>(
 // onOpenFilter handlers for how (a queueMicrotask, queued after Dropdown's own already-scheduled
 // focus-on-open microtask so this one runs last and wins — see Dropdown.tsx's own comment on why
 // that can't be done synchronously).
+// Before a chip's × removes it, so focus doesn't drop to the page (U30)
+function focusChipNeighbor(e: MouseEvent & { currentTarget: HTMLElement }): void {
+  chipRemovalFocusTarget(e.currentTarget)?.focus()
+}
+
 export function ActiveBar<TRow extends object>(props: ActiveBarProps<TRow>) {
   const { table } = props
 
@@ -84,7 +90,10 @@ export function ActiveBar<TRow extends object>(props: ActiveBarProps<TRow>) {
                 class="dt-chip-x"
                 title={table.labels().removeGroup(label())}
                 aria-label={table.labels().removeGroup(label())}
-                onClick={() => table.group.remove(key)}
+                onClick={(e) => {
+                  focusChipNeighbor(e)
+                  table.group.remove(key)
+                }}
               >
                 ×
               </button>
@@ -109,7 +118,10 @@ export function ActiveBar<TRow extends object>(props: ActiveBarProps<TRow>) {
                 class="dt-chip-x"
                 title={table.labels().removeSort(col()?.label ?? entry.key)}
                 aria-label={table.labels().removeSort(col()?.label ?? entry.key)}
-                onClick={() => table.sort.remove(entry.key)}
+                onClick={(e) => {
+                  focusChipNeighbor(e)
+                  table.sort.remove(entry.key)
+                }}
               >
                 ×
               </button>
@@ -141,7 +153,10 @@ export function ActiveBar<TRow extends object>(props: ActiveBarProps<TRow>) {
                 class="dt-chip-x"
                 title={table.labels().clearColumnFilter}
                 aria-label={table.labels().clearColumnFilter}
-                onClick={() => table.filter.clearColumn(key, 'include')}
+                onClick={(e) => {
+                  focusChipNeighbor(e)
+                  table.filter.clearColumn(key, 'include')
+                }}
               >
                 ×
               </button>
@@ -167,7 +182,10 @@ export function ActiveBar<TRow extends object>(props: ActiveBarProps<TRow>) {
                   class="dt-chip-x"
                   title={table.labels().clearColumnFilter}
                   aria-label={table.labels().clearColumnFilter}
-                  onClick={() => table.filter.clearColumn(key, 'exclude')}
+                  onClick={(e) => {
+                    focusChipNeighbor(e)
+                    table.filter.clearColumn(key, 'exclude')
+                  }}
                 >
                   ×
                 </button>
@@ -195,7 +213,10 @@ export function ActiveBar<TRow extends object>(props: ActiveBarProps<TRow>) {
                 class="dt-chip-x"
                 title={table.labels().clearColumnFilter}
                 aria-label={table.labels().clearColumnFilter}
-                onClick={() => table.filter.clearColumn(key, 'range')}
+                onClick={(e) => {
+                  focusChipNeighbor(e)
+                  table.filter.clearColumn(key, 'range')
+                }}
               >
                 ×
               </button>

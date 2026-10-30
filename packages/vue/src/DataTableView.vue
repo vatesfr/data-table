@@ -14,6 +14,7 @@ import {
   pageSizeOptions,
   showsPager,
   tableStatus,
+  chipRemovalFocusTarget,
   getCrossPageFocusTarget,
   getSortIndex as getHeaderSortIndex,
   getSortIcon as getHeaderSortIcon,
@@ -976,6 +977,10 @@ const rootRef = ref<HTMLElement | null>(null)
 function focusSearch(): void {
   ;(searchInputRef.value ?? rootRef.value?.querySelector('button'))?.focus()
 }
+// Before a chip's × removes it, so focus doesn't drop to the page (U30)
+function focusChipNeighbor(e: MouseEvent): void {
+  chipRemovalFocusTarget(e.currentTarget as HTMLElement)?.focus()
+}
 function clearSearchQuery(): void {
   setSearchQuery('')
   focusSearch()
@@ -1896,7 +1901,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
           class="dt-chip-x"
           :title="L.removeGroup(findCol(key)?.label ?? key)"
           :aria-label="L.removeGroup(findCol(key)?.label ?? key)"
-          @click="removeGroup(key)"
+          @click="(focusChipNeighbor($event), removeGroup(key))"
         >
           ×
         </button>
@@ -1910,7 +1915,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
           class="dt-chip-x"
           :title="L.removeSort(findCol(entry.key)?.label ?? entry.key)"
           :aria-label="L.removeSort(findCol(entry.key)?.label ?? entry.key)"
-          @click="removeSort(entry.key)"
+          @click="(focusChipNeighbor($event), removeSort(entry.key))"
         >
           ×
         </button>
@@ -1934,7 +1939,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
               class="dt-chip-x"
               :title="L.clearColumnFilter"
               :aria-label="L.clearColumnFilter"
-              @click="clearColumnFilter(key, 'include')"
+              @click="(focusChipNeighbor($event), clearColumnFilter(key, 'include'))"
             >
               ×
             </button>
@@ -1960,7 +1965,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
               class="dt-chip-x"
               :title="L.clearColumnFilter"
               :aria-label="L.clearColumnFilter"
-              @click="clearColumnFilter(chip.key, 'exclude')"
+              @click="(focusChipNeighbor($event), clearColumnFilter(chip.key, 'exclude'))"
             >
               ×
             </button>
@@ -1980,7 +1985,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
               class="dt-chip-x"
               :title="L.clearColumnFilter"
               :aria-label="L.clearColumnFilter"
-              @click="clearColumnFilter(key, 'range')"
+              @click="(focusChipNeighbor($event), clearColumnFilter(key, 'range'))"
             >
               ×
             </button>

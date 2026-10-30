@@ -45,6 +45,31 @@ describe('DataTable', () => {
     dispose()
   })
 
+  it('U30: removing a chip focuses the next chip, else the previous one, else the search box', () => {
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const dispose = createRoot((d) => {
+      const table = createTableState(ROWS, [...COLS, { key: 'id', label: 'Id' }], {
+        initialViewState: {
+          sorts: [
+            { key: 'name', dir: 'asc' },
+            { key: 'id', dir: 'asc' },
+          ],
+        },
+      })
+      render(() => <DataTableView table={table} rowKey="id" />, container)
+      return d
+    })
+    const x = (label: string) =>
+      container.querySelector<HTMLButtonElement>(`[aria-label="Remove sort: ${label}"]`)!
+    x('Name').click()
+    expect(document.activeElement).toBe(x('Id'))
+    x('Id').click()
+    expect(document.activeElement).toBe(container.querySelector('.dt-search-input'))
+    dispose()
+    container.remove()
+  })
+
   it('accepts columns built inline, a new array on every read', () => {
     const container = document.createElement('div')
     const dispose = createRoot((d) => {
