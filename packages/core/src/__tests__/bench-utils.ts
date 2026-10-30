@@ -34,7 +34,8 @@ export function makeDataset(n: number): BenchRow[] {
   for (let i = 0; i < n; i++) {
     rows.push({
       id: i,
-      name: `Item ${i} ${rand().toString(36).slice(2, 8)}`,
+      // Random prefix: an `Item ${i}` prefix leaves the rows nearly sorted, flattering string sorts.
+      name: `${rand().toString(36).slice(2, 8)} ${i}`,
       category: CATEGORIES[Math.floor(rand() * CATEGORIES.length)],
       status: STATUSES[Math.floor(rand() * STATUSES.length)],
       region: REGIONS[Math.floor(rand() * REGIONS.length)],
