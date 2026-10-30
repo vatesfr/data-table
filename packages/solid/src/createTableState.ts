@@ -7,7 +7,8 @@ import {
   type TableViewState,
 } from '@vates/data-table-core'
 import {
-  processData,
+  filterData,
+  sortData,
   searchData,
   groupData,
   sortWithinGroups,
@@ -239,12 +240,14 @@ export function createTableState<TRow extends object>(
 
   const stringValueMap = createMemo(() => computeStringValues(data(), columns(), L().emptyValue))
 
+  // Sorted apart from search/filters so a keystroke or filter click never re-sorts (see `sortData`)
+  const sortedData = createMemo(() => sortData(data(), sorts(), columns()))
+
   const processedData = createMemo(() =>
-    processData(
-      searchData(data(), searchQuery(), columns()),
+    filterData(
+      searchData(sortedData(), searchQuery(), columns()),
       filters(),
       rangeFilters(),
-      sorts(),
       columns(),
       L().emptyValue,
       excludeFilters(),

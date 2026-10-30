@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { createRoot, createSignal } from 'solid-js'
 import { createTableState } from '../createTableState'
 import type { ColumnDef } from '../types'
@@ -609,6 +609,33 @@ describe('createTableState — columns.moveVisibleBy', () => {
       table.columns.toggleVisibility('name')
       expect(table.columns.ordered().map((c) => c.key)).toEqual(['score', 'name', 'id'])
     })
+  })
+})
+
+describe('createTableState — sort stays off the search/filter path', () => {
+  it('re-sorts on a sort or data change, not on a search or filter change', () => {
+    const compare = vi.fn((a: unknown, b: unknown) => Number(a) - Number(b))
+    const cols: ColumnDef<Row>[] = COLS.map((c) => (c.key === 'score' ? { ...c, compare } : c))
+    // Outside withRoot so writes flush synchronously, see the data-accessor test below
+    const [rows, setRows] = createSignal(ROWS)
+    let table!: ReturnType<typeof createTableState<Row>>
+    let dispose!: () => void
+    createRoot((d) => {
+      dispose = d
+      table = createTableState(rows, cols)
+    })
+    table.sort.toggle('score')
+    expect(compare).toHaveBeenCalled()
+
+    compare.mockClear()
+    table.search.setQuery('a')
+    table.filter.toggleAll('name', ['Alice', 'Clara'])
+    expect(table.processedData().map((r) => r.name)).toEqual(['Clara', 'Alice'])
+    expect(compare).not.toHaveBeenCalled()
+
+    setRows([...ROWS])
+    expect(compare).toHaveBeenCalled()
+    dispose()
   })
 })
 

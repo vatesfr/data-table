@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { useTableState } from '../useTableState'
 import type { ColumnDef } from '../types'
@@ -1239,6 +1239,27 @@ describe('useTableState — computed columns', () => {
       'Bob',
       'David',
     ])
+  })
+})
+
+describe('useTableState — sort stays off the search/filter path', () => {
+  it('re-sorts on a sort or data change, not on a search or filter change', () => {
+    const compare = vi.fn((a: unknown, b: unknown) => Number(a) - Number(b))
+    const cols: ColumnDef<Row>[] = COLS.map((c) => (c.key === 'score' ? { ...c, compare } : c))
+    const { result, rerender } = renderHook(({ data }) => useTableState(data, cols), {
+      initialProps: { data: ROWS },
+    })
+    act(() => result.current.sort.toggle('score'))
+    expect(compare).toHaveBeenCalled()
+
+    compare.mockClear()
+    act(() => result.current.search.setQuery('a'))
+    act(() => result.current.filter.toggleAll('name', ['Alice', 'Clara']))
+    expect(result.current.processedData.map((r) => r.name)).toEqual(['Clara', 'Alice'])
+    expect(compare).not.toHaveBeenCalled()
+
+    rerender({ data: [...ROWS] })
+    expect(compare).toHaveBeenCalled()
   })
 })
 

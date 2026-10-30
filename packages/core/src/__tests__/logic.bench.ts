@@ -1,6 +1,7 @@
 import { test } from 'vitest'
 import {
-  processData,
+  filterData,
+  sortData,
   searchData,
   groupData,
   getVisibleRows,
@@ -24,43 +25,41 @@ for (const n of SIZES) {
   // (see docs/filter-dropdown.md's "Filter dropdown") — `name` is effectively unique per row here, so a
   // 2,000-value Set exercises the same shape a large real dataset's checklist would produce.
   // Guards against the O(rows × set size) regression found profiling the huge-dataset demo:
-  // `processData`'s include/exclude passes used to spread the filter Set to an array and call
+  // `filterData`'s include/exclude passes used to spread the filter Set to an array and call
   // `.includes()` per row instead of an O(1) `Set.has`, so this used to scale with set size.
   const largeNameSet = new Set(data.slice(0, Math.min(2000, n)).map((r) => r.name))
 
   test(
-    `processData @ ${n.toLocaleString()} rows`,
+    `filterData / sortData @ ${n.toLocaleString()} rows`,
     async ({ bench }) => {
       await bench.compare(
         bench('no filters, no sort (copy only)', () => {
-          processData(data, {}, {}, [], benchColumns)
+          filterData(data, {}, {}, benchColumns)
         }),
         bench('sort by string column', () => {
-          processData(data, {}, {}, [{ key: 'name', dir: 'asc' }], benchColumns)
+          sortData(data, [{ key: 'name', dir: 'asc' }], benchColumns)
         }),
         bench('sort by number column', () => {
-          processData(data, {}, {}, [{ key: 'price', dir: 'asc' }], benchColumns)
+          sortData(data, [{ key: 'price', dir: 'asc' }], benchColumns)
         }),
         bench('sort by date column', () => {
-          processData(data, {}, {}, [{ key: 'createdAt', dir: 'asc' }], benchColumns)
+          sortData(data, [{ key: 'createdAt', dir: 'asc' }], benchColumns)
         }),
         bench('one active filter + sort', () => {
-          processData(
-            data,
-            { status: new Set(['active']) },
-            {},
+          sortData(
+            filterData(data, { status: new Set(['active']) }, {}, benchColumns),
             [{ key: 'price', dir: 'desc' }],
             benchColumns,
           )
         }),
         bench('range filter on price', () => {
-          processData(data, {}, { price: { min: '100', max: '5000' } }, [], benchColumns)
+          filterData(data, {}, { price: { min: '100', max: '5000' } }, benchColumns)
         }),
         bench('large exclude set (2,000 values) on a high-cardinality column', () => {
-          processData(data, {}, {}, [], benchColumns, undefined, { name: largeNameSet })
+          filterData(data, {}, {}, benchColumns, undefined, { name: largeNameSet })
         }),
         bench('large include set (2,000 values) on a high-cardinality column', () => {
-          processData(data, { name: largeNameSet }, {}, [], benchColumns)
+          filterData(data, { name: largeNameSet }, {}, benchColumns)
         }),
         opts,
       )

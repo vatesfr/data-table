@@ -10,6 +10,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ### Changed
 
 - **Faster search** (Solid, React, Vue, vanilla): the global search and the Filter checklist search skip diacritic stripping for plain ASCII text, ~1.7x faster on 500k rows.
+- **Typing in the search box or changing a filter no longer re-sorts** (Solid, React, Vue, vanilla): rows are sorted once per sort or data change, then searched and filtered; an ungrouped table also stops sorting every row twice. One keystroke with a sort active on 500k rows: ~1.8 s → ~0.3–0.5 s. In exchange, a sort or data change sorts every row, not just the filtered ones, so a column's `value`, `parseDate` or `compare` now also runs on rows the filters drop.
 
 ## [0.20.0] - 2026-10-23
 
