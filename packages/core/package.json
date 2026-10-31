@@ -61,8 +61,7 @@
     "test:watch": "vitest",
     "bench": "vitest bench --run --reporter=verbose",
     "type-check": "tsc --noEmit",
-    "size": "size-limit",
-    "prepublishOnly": "npm run build"
+    "size": "size-limit"
   },
   "size-limit": [
     {
