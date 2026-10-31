@@ -72,4 +72,4 @@ Originally a flat list — one section header + checkbox list per string column,
 
 _Part of the `@vates/data-table` architecture docs — see [CLAUDE.md](../CLAUDE.md) for the project overview._
 
-<!-- check-docs-ignore: data-kind numericRanges -->
+<!-- check-docs-ignore: data-kind numericRanges setState set-state-in-effect -->

@@ -45,27 +45,14 @@ import type { ValueSort } from '@vates/data-table-core'
 import type { ColumnDef } from '../types'
 import type { TableState } from '../useTableState'
 
-// Fixed row height for the filter dropdown's virtualized checklist (see computeVirtualRange) —
-// must match the actual rendered height of a checklist row exactly, which is why each row gets
-// an explicit inline height below instead of relying on .dt-dd-item's padding + line-height.
+// Must equal a checklist row's rendered height, hence the rows' inline height
 const FILTER_LIST_ITEM_HEIGHT = 32
-// Only the *assumed* viewport height fed to computeVirtualRange's windowing math: `.dt-filter-list`
-// flex-fills `.dt-filter-detail` instead of having a fixed height. Safe to leave un-measured:
-// `.dt-filter-panel`'s max-height of 380px bounds how much taller the list can grow past this
-// (~60-80px, given the search row above it), well inside the 5-row (160px) overscan on each side.
+// Assumed list height for windowing; the panel's 380px max-height keeps the real one within the overscan
 const FILTER_LIST_VIEWPORT_HEIGHT = 260
 
 /**
- * The "2 inputs + a slider" range control's slider half — two overlapping native
- * <input type="range"> thumbs sharing one visual track (only the thumb itself is a hit target,
- * via `.dt-range-slider-thumb`, so grabbing either one works regardless of z-order) plus a
- * colored fill between them. `onChange` always receives already-sorted (low, high) — dragging
- * one thumb past the other just swaps their visual roles on the next render rather than needing
- * cross-clamping, the standard behavior for this two-native-inputs trick. Unlike the vanilla
- * adapter's version, this fires on every `input` tick (not just on drag-end): React's reconciler
- * keeps the same underlying DOM node across a state-driven re-render of a controlled input, so
- * there's no "rebuild mid-drag aborts the native drag" risk here the way there is for vanilla's
- * innerHTML-rebuilding render().
+ * The range control's slider: two overlapping native range inputs on one track, `onChange` getting
+ * sorted (low, high). Fires on every `input` tick: React keeps the DOM node across re-renders.
  */
 function RangeSlider({
   bounds,
@@ -175,11 +162,7 @@ export function FilterPane<TRow extends object>({
     excludeFilters,
     filterModes,
   )
-  // Bounds are the column's actual min/max across the full, unfiltered `data` (not
-  // filtered/processed data) — see computeValueBounds — so they don't shift under a mid-drag
-  // user just because some other filter narrowed the row set. Computed once by the caller (see
-  // filterDetailBounds below) and shared with the plain min/max inputs' own default value, rather
-  // than recomputed here on every render.
+  // Bounds span the full unfiltered `data`, so they don't shift mid-drag
   const renderRangeSliderFor = (
     col: ColumnDef<TRow>,
     bounds: { min: number; max: number } | null,
@@ -265,9 +248,7 @@ export function FilterPane<TRow extends object>({
   }
   const filterDetailBounds =
     col.type === 'number' || col.type === 'date' ? computeValueBounds(data, col) : null
-  // Any/all match-mode control — only meaningful for a column whose values are actually
-  // array-shaped in the data (see isMultiValueColumn's own doc comment), and only for the
-  // string checklist, not the date tree (mirrors Solid's FilterDropdown.tsx).
+  // Any/all toggle: only for an array-valued column's checklist, not the date tree
   const isMultiValueFilterCol = isMultiValueColumnCached(data, col)
   // A plain string column's checklist is checked-by-default, exclude-only (see
   // docs/filter-dropdown.md's "Filter dropdown"): "checked" means "not in `excludeFilters`"
@@ -299,24 +280,15 @@ export function FilterPane<TRow extends object>({
       filterOthersRef.current.indeterminate = filterOthersState.indeterminate
   }, [filterOthersState.indeterminate])
 
-  // Reset the virtualized checklist's scroll position whenever the values it's scrolled
-  // through change identity — switching columns or narrowing by search both shift what row 0
-  // even means, so staying scrolled to the same pixel offset would show an unrelated slice.
-  // Comparing against the previous render (rather than an effect) is React's own documented
-  // pattern for "adjust state when a prop changes" — https://react.dev/reference/react/useState#storing-information-from-previous-renders —
-  // and avoids the cascading-render lint error a setState-in-effect would trigger.
+  // A new search shifts what row 0 is, so scroll back to the top; render-time, not an effect
+  // (https://react.dev/reference/react/useState#storing-information-from-previous-renders)
   const filterListResetKey = searchTerm
   const [prevFilterListResetKey, setPrevFilterListResetKey] = useState(filterListResetKey)
   if (filterListResetKey !== prevFilterListResetKey) {
     setPrevFilterListResetKey(filterListResetKey)
     setFilterListScrollTop(0)
   }
-  // Keyed on filterListResetKey, NOT filterListScrollTop — this only needs to imperatively move
-  // the DOM's scroll position when we're the ones forcing it back to 0 above. Keying it on
-  // filterListScrollTop instead (every state update, including ones the user's own scrolling
-  // just caused) re-applies a snapshot of scrollTop taken at a slightly earlier point in time on
-  // every scroll-driven re-render, fighting the live native scroll and making it flicker back —
-  // in practice, feeling like the list won't scroll at all.
+  // Not keyed on the scroll position: re-applying it on every scroll fights the native scroll
   useEffect(() => {
     if (filterListRef.current) filterListRef.current.scrollTop = 0
   }, [filterListResetKey])
@@ -328,14 +300,7 @@ export function FilterPane<TRow extends object>({
     filterDetailValues.length,
   )
 
-  // Up/Down/Home/End on the flat checklist (see handleFilterPanelKeyDown below) needs to reach a
-  // value that isn't currently rendered — the list is virtualized (see filterListVirtualRange
-  // above), so only a scrolled-into-view window of rows actually exists in the DOM at any
-  // moment. Scrolling there is a state update (setFilterListScrollTop), which re-renders
-  // asynchronously — the row to focus can't be reached via a ref until that render commits, so
-  // it's stashed here and a layout effect below (keyed on filterListScrollTop, the same shape as
-  // pendingFocusTarget/[page] elsewhere in this file) picks it up once the new window's rows are
-  // actually mounted.
+  // A value scrolled out of the virtual window mounts only after a render: focus it then
   const pendingFilterValueFocus = useRef<{ value: string; onExclude: boolean } | null>(null)
   // The checkbox of `value`'s row, or its ≠ button
   const focusChecklistValue = (value: string, onExclude: boolean) => {
@@ -576,18 +541,11 @@ export function FilterPane<TRow extends object>({
             </div>
           ) : (
             (() => {
-              // Virtualized: only the rows scrolled into view (+ overscan) are
-              // ever mounted, regardless of how many thousands of distinct values
-              // filterDetailValues holds — see computeVirtualRange/FILTER_LIST_*.
-              // Select-all/shift-range above still operate on the full array, so
-              // behavior is unaffected by how much of it is actually rendered.
+              // Only the rows in view are mounted; bulk actions still use the full array
               const { startIndex, endIndex, offsetY, totalHeight } = filterListVirtualRange
               return (
                 <>
-                  {/* Bulk (de)select everything the value search above is
-                                    currently hiding — see docs/filter-dropdown.md's "Filter dropdown". Only
-                                    rendered once a search term actually narrows the list. Not
-                                    extended to the date tree, which has its own branch above. */}
+                  {/* Bulk (de)select what the value search hides (docs/filter-dropdown.md) */}
                   {filterOtherValues.length > 0 && (
                     <label className="dt-dd-item dt-filter-others">
                       <input
@@ -622,10 +580,7 @@ export function FilterPane<TRow extends object>({
                         filterListRafPending.current = true
                         requestAnimationFrame(() => {
                           filterListRafPending.current = false
-                          // Read the live scrollTop here (not a value captured back
-                          // in the triggering onScroll call) — several scroll events
-                          // can fire before this callback runs, and only the latest
-                          // position matters.
+                          // Live scrollTop: several scroll events may precede this frame
                           if (filterListRef.current) {
                             setFilterListScrollTop(filterListRef.current.scrollTop)
                           }

@@ -48,7 +48,7 @@ Sort/Group's search box narrows only what's being _added_ — never the already-
 
 **Delete/Backspace** on a focused active row (a Sort active-sort/"Group order" row, a Group active row, a Columns Visible row) removes/hides it, the keyboard equivalent of clicking that row's own `×` button — matching the Filter dropdown's own pre-existing Delete/Backspace-clears-this-column's-filter shortcut. A focused/hovered active row also gets a background tint, not just the browser's native focus outline (a `:hover`/`:focus` CSS rule, same tokens the Filter dropdown's own selected-column row already used). Sort's own non-draggable "Group order" rows cancel just the _hover_ cue (a signal that dragging would do something there, which it wouldn't — the row's own section heading/hint text already explain why) while keeping the _focus_ one, since the row is still keyboard-toggleable.
 
-<!-- check-docs-ignore: address openXxxCategory -->
+<!-- check-docs-ignore: address openXxxCategory createPortal -->
 
 ## Header menu
 

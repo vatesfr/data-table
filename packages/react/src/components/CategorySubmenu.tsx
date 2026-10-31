@@ -6,21 +6,13 @@ import {
   viewportWidth,
 } from '@vates/data-table-core/internal'
 
-// Hover-intent delays (see docs/columns.md's "Column categories") — a native OS/app-menu-style flyout
-// opens on hover once its parent menu is already open. OPEN_DELAY avoids a flicker-open while the
-// pointer merely sweeps across a category row on its way to something else; CLOSE_DELAY is
-// longer, giving the pointer room to travel diagonally from the trigger into the submenu itself
-// without the gap between them (however narrow) closing it prematurely. Click opens
-// immediately (no delay) and never closes (hover usually opened it already, U34); ArrowRight/Enter
-// open and Escape closes — matches Solid's identical component.
+// Hover-intent delays: no flicker-open on a passing pointer, room to travel diagonally into the flyout (docs/columns.md's "Column categories")
 const OPEN_DELAY = 100
 const CLOSE_DELAY = 250
 
 export interface CategorySubmenuProps {
   name: string
-  // Controlled, not self-managed: the parent (Sort/Group's own DataTableView.tsx block) owns one
-  // shared "which category is open" value across every CategorySubmenu in its list, so opening
-  // one always closes any other that was open.
+  // Controlled: the parent's single open-category value closes any sibling
   isOpen: boolean
   onOpen: () => void
   onClose: () => void
@@ -33,36 +25,7 @@ export interface CategorySubmenuProps {
   className?: string
 }
 
-// A category row in the Sort/Group dropdowns' addable-column lists (see docs/columns.md's "Column
-// categories"): collapses every column sharing `ColumnDefBase.category` into one row that opens a
-// flyout submenu listing them, instead of a flat run of individual rows — worthwhile once a
-// category has enough columns that this saves real scanning. Mirrors
-// `packages/solid/src/components/CategorySubmenu.tsx` — same design, ported to React's own
-// ref/layout-effect idioms instead of Solid's signals.
-//
-// Positioned with `position: fixed` at viewport coordinates computed from the trigger's own rect
-// (`computeSubmenuPosition`, core), but rendered as a plain sibling of the trigger — NOT portaled
-// to `document.body`, and NOT `position: absolute` either. Solid's own first version used
-// `position: absolute` and hit a real bug: `.dt-dd`'s `overflow-y: auto` (see core's `DT_STYLES`)
-// means an absolutely positioned descendant that overflows a scrollable ancestor
-// horizontally still grows that ancestor's own scrollable region even though it's out of normal
-// flow — clipping the flyout and adding a spurious horizontal scrollbar to the whole panel. A
-// `createPortal` to `document.body` was tried next and does dodge that, but comes with a real
-// cost: a portaled node is no longer a DOM descendant of whatever ancestor a consumer scopes theme
-// CSS custom properties to (if that ancestor is narrower than `<body>`), so the submenu silently
-// falls back to the library's baked-in default colors instead of inheriting the consumer's theme
-// (GitHub issue #23). `position: fixed` alone turns out to solve the original overflow problem on
-// its own, with no portal needed: a fixed element's containing block is the *viewport*, not any
-// scrolling ancestor, unless that ancestor sets `transform`/`filter`/`perspective`/
-// `will-change: transform` (none of `.dt-dd`'s chrome does) — so a fixed submenu never contributes
-// to `.dt-dd`'s scrollable area in the first place, portal or not.
-//
-// Because the submenu is a real DOM descendant of the panel again, its `data-dd-row`-marked rows
-// *are* reachable by `Dropdown.tsx`'s own generic panel-wide roving nav — which is exactly why
-// that nav explicitly excludes anything inside `[data-category-submenu]` (see its own comment):
-// `handleSubmenuKeyDown` below is still what should drive Up/Down/Home/End while the submenu is
-// open, not the panel's. It calls `stopPropagation()` so `Dropdown.tsx`'s own panel-level handler
-// never double-handles the same keydown.
+// A category row opening a fixed, non-portaled flyout with its own ↑/↓ nav (docs/columns.md's "Column categories")
 export function CategorySubmenu(props: CategorySubmenuProps) {
   const [left, setLeft] = useState(0)
   const [top, setTop] = useState(0)
@@ -101,9 +64,7 @@ export function CategorySubmenu(props: CategorySubmenuProps) {
     cancelClose()
     if (!props.isOpen) {
       if (triggerRef.current) {
-        // Initial guess (right of the trigger, top-aligned) — corrected by the layout effect
-        // below once the submenu's real size is known. Avoids a 0,0-positioned flash before that
-        // measurement lands.
+        // Initial guess, corrected by the layout effect once the submenu is measured
         const rect = triggerRef.current.getBoundingClientRect()
         setLeft(rect.right)
         setTop(rect.top)
@@ -135,9 +96,7 @@ export function CategorySubmenu(props: CategorySubmenuProps) {
     }, CLOSE_DELAY)
   }
 
-  // Corrects the initial guess above once the submenu's real size is known — runs synchronously
-  // after the DOM update (before paint), same reasoning as Dropdown.tsx's own viewport-clamp
-  // layout effect.
+  // Corrects the initial guess with the submenu's real size, before paint
   useLayoutEffect(() => {
     if (!props.isOpen) return
     const trigger = triggerRef.current

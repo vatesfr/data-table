@@ -55,9 +55,7 @@ function Icon({ d }: { d: string }) {
   )
 }
 
-// A header's ▾ menu. `position: fixed` (like CategorySubmenu) so the table's scrolling wrapper
-// doesn't clip it; it closes on any scroll rather than tracking its header. Mirrors Solid's
-// HeaderMenu.tsx; the shared logic lives in core's headerMenu.ts.
+// A header's ▾ menu, `position: fixed` so the scroll wrapper doesn't clip it (docs/columns.md). Mirrors Solid's HeaderMenu.
 export function HeaderMenu({
   label,
   menuLabel,
