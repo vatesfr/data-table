@@ -47,15 +47,7 @@ function prop<T>(initial: T): [Accessor<T>, (value: T) => void] {
 
 // --- Factory ---
 
-// This is now a thin wrapper: the actual reactive state (createTableState) and render layer
-// (DataTableView) live in @vates/data-table-solid (a real, standalone Solid package — solid-js
-// is a peerDependency there, never bundled) so a project already using Solid can depend on it
-// directly and compose the table into its own reactive tree, sharing its own solid-js instance
-// instead of getting a second, non-interoperable copy. This package's own job is narrower: adapt
-// that Solid API into the plain-DOM-container, callback-based `createDataTable` shape a non-Solid
-// consumer expects, and — since a non-Solid consumer must never need to install solid-js
-// themselves — bundle both solid-js and @vates/data-table-solid into its own dist/ (see
-// vite.config.ts's `external`, which still only excludes @vates/data-table-core).
+// Adapts @vates/data-table-solid, bundled with solid-js so consumers never install them, to a plain-DOM factory (docs/packages.md)
 export function createDataTable<TRow extends object>(
   container: HTMLElement,
   options: DataTableOptions<TRow>,
@@ -64,9 +56,7 @@ export function createDataTable<TRow extends object>(
   let disposeView!: () => void
   let table!: ReturnType<typeof createTableState<TRow>>
   const viewChangeListeners = new Set<(view: ReturnType<typeof table.getViewState>) => void>()
-  // Set-of-listeners, mirroring `viewChangeListeners` above, rather than a single fixed callback —
-  // lets a consumer attach a listener after construction too (e.g. wiring up an external "selected
-  // rows" display added later), not just via the constructor's `onSelectionChange` option.
+  // A set, so listeners can be added after construction too
   const selectionChangeListeners = new Set<(rows: TRow[]) => void>()
   if (options.onSelectionChange) selectionChangeListeners.add(options.onSelectionChange)
 
@@ -92,12 +82,7 @@ export function createDataTable<TRow extends object>(
       getRowId: getRowId(),
     }))
 
-    // Fires on every subsequent change to any view-affecting signal (sort/filter/group/page/etc,
-    // see getViewState) — `on(..., { defer: true })` skips the initial run at mount, matching the
-    // old vanilla behavior where this only ever fired from inside a specific action handler, never
-    // on initial render. Deliberately does NOT read `selection` (getViewState doesn't either), so
-    // a selection-only change never fires this — same "not persisted/shared" reasoning as the
-    // view-state docs.
+    // Deferred: not on mount; selection isn't part of the view, so it doesn't fire this
     createEffect(
       on(
         () => table.getViewState(),
@@ -118,12 +103,7 @@ export function createDataTable<TRow extends object>(
       ),
     )
 
-    // `render()` (solid-js/web) creates its own internal `createRoot` for the mounted subtree,
-    // separate from the outer `createRoot` this factory owns — a nested root is only linked to
-    // its parent via `.owner`, never registered in the parent's `.owned`, so the outer `dispose`
-    // above never reaches anything mounted here (e.g. `Dropdown`'s `document`-level click
-    // listener). `render`'s own return value must be captured and disposed too, or every
-    // `createDataTable(...)` call leaks that listener forever, even past `destroy()`.
+    // `render()` makes its own root, which the outer `dispose` never reaches: dispose it too, or its listeners leak
     disposeView = render(
       () => (
         <DataTableView
@@ -159,9 +139,7 @@ export function createDataTable<TRow extends object>(
     setSelection: (rows: TRow[]) => table.selection.setAll(rows),
     clearSelection: () => table.selection.clear(),
     getProcessedData: () => [...table.processedData()],
-    // Mirrors `table.focus.moveTo` (see its own doc comment in @vates/data-table-solid) — flat
-    // name, same as every other selection/focus method here, rather than a nested `focus` object
-    // (see docs/packages.md's "Vanilla package" for why this adapter flattens every namespaced group).
+    // Flat name, as vanilla flattens every namespaced group (docs/packages.md)
     focusRow: (row: TRow, options?: { focus?: boolean }) => table.focus.moveTo(row, options),
     clearAll: () => table.clearAll(),
     setRowKey,

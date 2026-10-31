@@ -5,26 +5,15 @@ import type {
   TableViewState,
 } from '@vates/data-table-core'
 
-// Structurally identical to @vates/data-table-solid's own `ColumnDef` (createTableState/
-// DataTableView there are typed against it) — declared again here rather than imported from
-// that package so this package's own published `dist/index.d.ts` never references a type from
-// @vates/data-table-solid, which (unlike @vates/data-table-core) isn't a real "dependencies"
-// entry for this package — it's bundled, the same internal-implementation-detail status as
-// solid-js itself, so consumers must never be required to have its types resolvable. TypeScript's
-// structural typing means an identically-shaped, independently-declared interface here is still
-// assignable to solid's own `ColumnDef` at every call site that passes one across the boundary
-// (same reasoning React/Vue each already declare their own independent `ColumnDef` rather than
-// sharing one).
+// A copy of @vates/data-table-solid's `ColumnDef`: published types must not reference that bundled package
 export interface ColumnDef<
   TRow extends object = Record<string, unknown>,
 > extends ColumnDefBase<TRow> {
   /** Returns a DOM node to render for this cell instead of a string. Takes priority over `format`. */
   render?: (value: unknown, row: TRow) => Node
   /**
-   * Render a custom label in filter dropdown options. Not applied to `type: 'date'` columns —
-   * their filter is a Year/Month/Day tree, and a branch node's label (e.g. a month) has no
-   * single raw value to hand back; only a day leaf's underlying values are checklist-like, and
-   * even then a leaf can bundle more than one raw value (e.g. several timestamps on the same day).
+   * Render a custom label in filter dropdown options. Not applied to `type: 'date'` columns, whose
+   * tree nodes don't map to one raw value.
    */
   renderFilterLabel?: (value: string) => Node
 }
@@ -33,11 +22,8 @@ export interface DataTableOptions<TRow extends object = Record<string, unknown>>
   data: TRow[]
   columns: ColumnDef<TRow>[]
   /**
-   * A row property used as a stable DOM key for table rows (falls back to array index when
-   * omitted). Purely a rendering-identity hint — it is **not** used for selection, which is
-   * tracked by object identity instead (see `DataTableInstance.getSelection`/the internal
-   * `toggleRowSelection` behavior) and works correctly with no `rowKey` at all. Unlike most table
-   * libraries' "row key" prop, this one has no bearing on selection/sort/filter state.
+   * A row property used as a stable DOM key (default: the index). Not used for selection, which
+   * tracks rows by object identity (or `getRowId`).
    */
   rowKey?: keyof TRow & string
   labels?: Partial<DataTableLabels>
@@ -45,11 +31,7 @@ export interface DataTableOptions<TRow extends object = Record<string, unknown>>
   defaultGroupsCollapsed?: boolean
   /** See `@vates/data-table-solid`'s `CreateTableStateOptions.initialViewState` doc comment. */
   initialViewState?: TableViewState
-  /**
-   * Opt-in row identity for selection — see `@vates/data-table-solid`'s `CreateTableStateOptions.
-   * getRowId` doc comment for the full reasoning. Omit to keep the default object-identity
-   * behavior.
-   */
+  /** Opt-in row identity for selection — see `CreateTableStateOptions.getRowId` in `@vates/data-table-solid`. */
   getRowId?: GetRowId<TRow>
   selectable?: boolean
   onSelectionChange?: (rows: TRow[]) => void
@@ -66,20 +48,11 @@ export interface DataTableOptions<TRow extends object = Record<string, unknown>>
    */
   rowClass?: (row: TRow) => string | undefined
   /**
-   * Shows/hides the toolbar's search box. Defaults to `true`. Unlike the Sort/Group/Filter
-   * dropdowns (which already hide themselves when no column qualifies for them), search always
-   * applies regardless of column config — there's no equivalent auto-hide signal for it, so this
-   * is the one toolbar control that needs an explicit opt-out (e.g. when the page already has its
-   * own search input and the toolbar's own box would just duplicate it).
+   * Shows the toolbar's search box. Default: `true`. Opt out when the page has its own search.
    */
   showSearch?: boolean
   /**
-   * Shows/hides the Columns toolbar button. Defaults to `true`, but auto-hides regardless once
-   * `columns.length < 2` — reordering/toggling the visibility of a single column has nothing
-   * meaningful to act on. Unlike Sort/Group/Filter (which derive their own auto-hide from a
-   * per-column flag), Columns has no such per-column signal — hiding/showing a column is a
-   * table-level preference, not something a column def opts into — so this explicit opt-out
-   * mirrors `showSearch`'s reasoning rather than adding a `showable`-style column flag.
+   * Shows the Columns toolbar button. Default: `true`; hidden anyway with fewer than 2 columns.
    */
   showColumns?: boolean
   /**
@@ -98,10 +71,8 @@ export interface DataTableInstance<TRow extends object = Record<string, unknown>
   /** Fires after any user action that changes the view (not selection). Returns an unsubscribe function. */
   onViewChange(cb: (view: TableViewState) => void): () => void
   /**
-   * Fires whenever the selection changes, with the current `getSelection()`-equivalent rows.
-   * Mirrors `onViewChange`'s subscribe/unsubscribe shape — a listener can be attached any time,
-   * not only via the constructor's `onSelectionChange` option (which is still supported and is
-   * seeded as this listener set's first member). Returns an unsubscribe function.
+   * Fires whenever the selection changes, with the selected rows; attachable any time, alongside
+   * the `onSelectionChange` option. Returns an unsubscribe function.
    */
   onSelectionChange(cb: (rows: TRow[]) => void): () => void
   /**
@@ -115,22 +86,14 @@ export interface DataTableInstance<TRow extends object = Record<string, unknown>
   /** Empties the selection — e.g. to wire an external "Clear selection" button. */
   clearSelection(): void
   /**
-   * Current rows after search + filters + sort, before grouping/pagination — the same value
-   * React/Vue/Solid expose as `table.processedData`. Useful for deriving a "current linear order"
-   * independent of display-only grouping (which can fan a multi-value row out into more than one
-   * bucket) or pagination (a display slice, not a reordering) — e.g. prev/next-row navigation.
+   * Rows after search, filters and sort, before grouping and pagination (`table.processedData`
+   * elsewhere), e.g. for prev/next-row navigation.
    */
   getProcessedData(): TRow[]
   /**
-   * Brings `row` into view from outside the table: expands whichever group(s) it belongs to if
-   * collapsed, jumps to the page containing it, and sets it as the roving-tabindex "current" row
-   * — so it's highlighted and scrolled into view, and the very next Tab/arrow-key press lands
-   * there. Never moves real DOM focus itself by default — only an actual keyboard interaction
-   * does that — so calling this from e.g. an external lightbox's prev/next never steals focus
-   * away from it. Pass `{ focus: true }` to opt into real DOM focus too (e.g. to visibly focus
-   * the row even while DOM focus is elsewhere) — no internal DOM class name/attribute needs to be
-   * public API for this. No-ops if `row` isn't part of the table's current (filtered/sorted) data.
-   * Mirrors `table.focus.moveTo` on React/Vue/Solid.
+   * Reveals `row` from outside the table: expands its groups, jumps to its page and makes it the
+   * roving-tabindex row, so the next Tab or arrow key lands there. Moves DOM focus only with
+   * `{ focus: true }`, so an external control keeps it. No-op for a row outside the current data.
    */
   focusRow(row: TRow, options?: { focus?: boolean }): void
   /**
