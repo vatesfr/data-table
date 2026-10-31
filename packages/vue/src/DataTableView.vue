@@ -32,7 +32,6 @@ import {
   columnsDropdownLists,
   columnMatchesSearch,
   groupColumnsByCategory,
-  moveVisibleColumnBy as _moveVisibleColumnBy,
   type PagedGroup,
   type VisibleItem,
   watchMedia,
@@ -72,11 +71,7 @@ const slots = useSlots()
 
 const isRowClickable = computed(() => !!props.onRowClick)
 
-// `props.table`'s own fields are namespaced by concern (see docs/table-state.md's "Namespaced TableState")
-// — destructured here into the same bare local names this file's script and template already
-// use throughout, so nothing below this block (including every `<template>` binding, since
-// `<script setup>` auto-exposes top-level `const`s to the template) needed to change when the
-// namespacing landed.
+// Bare local names for `table`'s namespaced fields (docs/table-state.md), also exposed to the template
 const { processedData, groupedData, visibleItems, labels: L, clearAll } = props.table
 const {
   visible: visibleCols,
@@ -126,10 +121,6 @@ const {
 } = props.table.selection
 const { page, pageSize, numPages, setPage, setPageSize } = props.table.pagination
 const { query: searchQuery, setQuery: setSearchQuery } = props.table.search
-// `focusTarget`/`setFocusTarget` used to be local `shallowRef`/function here — lifted to
-// `useTableState` (`table.focus.target`/`setTarget`) so it's reachable/settable from outside the
-// rendered table (see `focus.moveTo`'s own doc comment there); everything below still reads/
-// writes it through these same bare local names.
 const { target: focusTarget, setTarget: setFocusTarget } = props.table.focus
 
 // Split for the Sort dropdown's active list and the active-bar chips (see "Auto-syncing group
@@ -940,13 +931,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
           <template #trigger>
             <ToolbarBtn>{{ L.columns }}</ToolbarBtn>
           </template>
-          <!--
-            Pinned at the top and always mounted (never conditionally rendered based on match
-            count — an earlier version unmounted this whole box once Available's filtered list
-            hit zero, which dropped focus out from under whoever was mid-typing). Narrows *both*
-            Visible and Available now, unlike Sort/Group (search there narrows only what's being
-            added) — a column you already show is just as often what you're hunting for.
-          -->
+          <!-- Always mounted: a search matching nothing must not unmount the box and drop focus -->
           <div class="dt-dd-search-row">
             <span class="dt-dd-search-wrap">
               <input
@@ -1565,30 +1550,8 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
       </div>
     </div>
 
-    <!--
-      ── Active state bar ──
-      Always rendered (even with nothing active) rather than only appearing once a filter is
-      set — this gives the row-count stats a single stable home instead of bouncing between "end
-      of the toolbar row" and nowhere, and means toggling a sort/filter/group never changes the
-      toolbar's height. Shows one chip per active sort entry, group column, and filter column —
-      sort/group chips were previously only visible as a bare count on their toolbar button (see
-      above); giving them the same at-a-glance chip treatment filters already had removes that
-      asymmetry. Sort/group chips reuse the plain neutral `.dt-chip` look (the same one the
-      removed count badges used) — filter chips keep their existing blue `.dt-chip--filter` tint,
-      the one deliberate color accent in this bar, since filters already carried that "this is
-      narrowing your view" meaning before this change.
-    -->
-    <!--
-      Each chip's body is now a real, focusable <button> (a sibling of its × remove button, not
-      nested inside it — a <button> can't contain another interactive element, the same reasoning
-      already used for the toolbar's grouped clear buttons) rather than a plain, inert <span>:
-      clicking (or Enter/Space-activating) it does something specific to that chip's own kind of
-      active state, so tweaking an already-active sort/group/filter no longer requires reopening
-      its dropdown and re-navigating to the same entry — see "Active-bar chip click actions".
-      Sort's body toggles direction in place (no dropdown needed for the single most common
-      tweak); Group's/Filter's open their dropdown straight to that entry/column, since neither
-      has an equally obvious single inline toggle the way direction is for sort.
-    -->
+    <!-- ── Active state bar ── always rendered so the stats keep one home; chip bodies are buttons
+         (docs/toolbar.md's "Active-bar chip click actions") -->
     <div class="dt-active-bar">
       <!-- Group chips render before sort chips — matches the Sort dropdown's own "Group order"
            section coming before "Active sorts", since grouping is the structural, primary
