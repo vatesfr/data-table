@@ -165,18 +165,6 @@ function RemoveButton({ label, onClick }: { label: string; onClick: MouseEventHa
   )
 }
 
-/**
- * Renders the built-in table UI for a `useTableState` result you own yourself — the same
- * markup `<DataTable>` renders, minus the internal `useTableState` call. Use this instead of
- * `<DataTable>` when you need to reach the table's state from outside (view persistence,
- * imperative selection control, etc.) but still want the default look, e.g.:
- *
- * ```tsx
- * const table = useTableState(data, columns)
- * usePersistedView(table, 'my-table-view')
- * return <DataTableView table={table} data={data} columns={columns} />
- * ```
- */
 // A data row's `dt-tr` modifiers, then the app's `rowClass`; a selected row isn't striped
 function trClass(
   selected: boolean,
@@ -193,6 +181,18 @@ function dragOverClass(over: boolean, after: boolean): string {
   return over ? (after ? ' dt-dd-item--drag-over-after' : ' dt-dd-item--drag-over') : ''
 }
 
+/**
+ * Renders the built-in table UI for a `useTableState` result you own yourself — the same
+ * markup `<DataTable>` renders, minus the internal `useTableState` call. Use this instead of
+ * `<DataTable>` when you need to reach the table's state from outside (view persistence,
+ * imperative selection control, etc.) but still want the default look, e.g.:
+ *
+ * ```tsx
+ * const table = useTableState(data, columns)
+ * usePersistedView(table, 'my-table-view')
+ * return <DataTableView table={table} data={data} columns={columns} />
+ * ```
+ */
 export function DataTableView<TRow extends object>({
   table,
   data,
