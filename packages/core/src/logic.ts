@@ -847,9 +847,9 @@ export function filterValuesBySearch(values: string[], term: string): string[] {
 export function filterValuesByCount(
   values: string[],
   counts: Map<string, number>,
-  selected: Set<string>,
+  selected: ReadonlySet<string> | undefined,
 ): string[] {
-  return values.filter((v) => selected.has(v) || (counts.get(v) ?? 0) > 0)
+  return values.filter((v) => selected?.has(v) || (counts.get(v) ?? 0) > 0)
 }
 
 /**
@@ -1180,6 +1180,14 @@ export function cycleValueSort(sort: ValueSort): ValueSort {
   if (sort.by === 'alpha')
     return sort.dir === 'asc' ? { by: 'alpha', dir: 'desc' } : { by: 'count', dir: 'desc' }
   return sort.dir === 'desc' ? { by: 'count', dir: 'asc' } : { by: 'alpha', dir: 'asc' }
+}
+
+/** The sort button's next `ValueSort`: the date tree only flips direction, a checklist cycles. */
+export function nextValueSort<TRow extends object>(
+  col: ColumnDefBase<TRow>,
+  sort: ValueSort,
+): ValueSort {
+  return col.type === 'date' ? { ...sort, dir: toggleSortDir(sort.dir) } : cycleValueSort(sort)
 }
 
 /** Flips a plain ascending/descending direction, used for the date tree's asc/desc toggle. */

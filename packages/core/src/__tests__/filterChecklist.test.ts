@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   checklistBulkState,
   checklistNavIndex,
+  checklistValues,
   clickChecklistValue,
   clickDateTreeNode,
   toggleChecklistExclude,
@@ -238,5 +239,45 @@ describe('checklistNavIndex', () => {
     expect(checklistNavIndex('ArrowUp', values, 'a')).toBeNull()
     expect(checklistNavIndex('ArrowDown', values, undefined)).toBeNull()
     expect(checklistNavIndex('Enter', values, 'a')).toBeNull()
+  })
+})
+
+describe('checklistValues', () => {
+  const col = { key: 'f', label: 'F' }
+  const counts = new Map([
+    ['apple', 2],
+    ['banana', 0],
+    ['cherry', 5],
+  ])
+  const all = ['banana', 'cherry', 'apple']
+  const sort = { by: 'alpha', dir: 'asc' } as const
+
+  it('drops 0-count values unless touched, then sorts', () => {
+    expect(checklistValues(col, all, counts, undefined, undefined, '', sort)).toEqual([
+      ['apple', 'cherry'],
+      [],
+    ])
+    expect(checklistValues(col, all, counts, new Set(['banana']), undefined, '', sort)[0]).toEqual([
+      'apple',
+      'banana',
+      'cherry',
+    ])
+  })
+
+  it('lists what the value search hides as others', () => {
+    expect(checklistValues(col, all, counts, undefined, undefined, 'ch', sort)).toEqual([
+      ['cherry'],
+      ['apple'],
+    ])
+  })
+
+  it('narrows a date column by its range', () => {
+    const dates = ['2024-01-01', '2024-06-01']
+    const dateCounts = new Map(dates.map((d) => [d, 1]))
+    const range = { min: '2024-03-01', max: '' }
+    const dateCol = { key: 'd', label: 'D', type: 'date' as const }
+    expect(checklistValues(dateCol, dates, dateCounts, undefined, range, '', sort)[0]).toEqual([
+      '2024-06-01',
+    ])
   })
 })

@@ -11,17 +11,15 @@ import {
   computeStringValueCounts,
   isMultiValueColumnCached,
   formatFilterValue,
-  filterValuesBySearch,
-  filterValuesByCount,
-  filterValuesByRange,
   computeValueBounds,
   computeRangeSliderGeometry,
   formatRangeBound,
   rangeInputProps,
   matchingRangePreset,
-  sortFilterValues,
-  cycleValueSort,
-  toggleSortDir,
+  nextValueSort,
+  checklistValues,
+  isExcludeOnlyColumn,
+  toggleCollapse,
   getValueSortIcon,
   getDateSortIcon,
   computeDateTree,
@@ -98,41 +96,27 @@ const valueCounts = computed(() =>
 // Any/all match mode — only for a column whose values are actually arrays (see
 // isMultiValueColumn), and only for the string checklist.
 const isMultiValue = computed(() => isMultiValueColumnCached(props.data, props.col))
-// A non-multi-value string column uses a checked-by-default, exclude-only model (see
+// A plain string column's checklist is checked-by-default, exclude-only (see
 // docs/filter-dropdown.md's "Filter dropdown"): "checked" means "not in `excludeFilters`".
-const usesExcludeOnly = computed(
-  () => props.col.type !== 'date' && props.col.type !== 'number' && !isMultiValue.value,
-)
+const usesExcludeOnly = computed(() => isExcludeOnlyColumn(props.data, props.col))
 const matchMode = computed(() => filterMatchMode(filterModes.value, props.col.key, props.col))
 
-// The set a value must be in to stay visible even at a 0 facet count (see filterValuesByCount).
-const alreadyTouched = computed(() =>
-  usesExcludeOnly.value
-    ? (excludeFilters.value[props.col.key] ?? new Set<string>())
-    : (filters.value[props.col.key] ?? new Set<string>()),
-)
-// Range/count-filtered, not yet narrowed by the value search — `otherValues` diffs the two.
-const beforeSearchValues = computed(() =>
-  filterValuesByCount(
-    filterValuesByRange(allValues.value, rangeFilters.value[props.col.key], props.col.parseDate),
+// The set the column's model writes
+const touched = () => (usesExcludeOnly.value ? excludeFilters.value : filters.value)[props.col.key]
+const checklist = computed(() =>
+  checklistValues(
+    props.col,
+    allValues.value,
     valueCounts.value,
-    alreadyTouched.value,
-  ),
-)
-const values = computed(() =>
-  sortFilterValues(
-    filterValuesBySearch(beforeSearchValues.value, searchTerm.value),
-    valueCounts.value,
+    touched(),
+    rangeFilters.value[props.col.key],
+    searchTerm.value,
     valueSort.value,
-    props.col.compare,
   ),
 )
+const values = computed(() => checklist.value[0])
 // "Others": the values the value search is hiding; empty without a search.
-const otherValues = computed(() => {
-  if (!searchTerm.value) return []
-  const shown = new Set(values.value)
-  return beforeSearchValues.value.filter((v) => !shown.has(v))
-})
+const otherValues = computed(() => checklist.value[1])
 
 function isValueChecked(value: string): boolean {
   return usesExcludeOnly.value
@@ -159,7 +143,6 @@ function onExcludeClick(value: string): void {
 }
 
 // Select-all and "Others" state and clicks: shared logic in core
-const touched = () => (usesExcludeOnly.value ? excludeFilters.value : filters.value)[props.col.key]
 const allState = computed(() => checklistBulkState(values.value, touched(), usesExcludeOnly.value))
 const othersState = computed(() =>
   checklistBulkState(otherValues.value, touched(), usesExcludeOnly.value),
@@ -193,10 +176,7 @@ function onValueClick(value: string, event: MouseEvent): void {
 }
 
 function cycleSort(): void {
-  valueSort.value =
-    props.col.type === 'date'
-      ? { ...valueSort.value, dir: toggleSortDir(valueSort.value.dir) }
-      : cycleValueSort(valueSort.value)
+  valueSort.value = nextValueSort(props.col, valueSort.value)
 }
 
 // Bounds over the full, unfiltered data so the slider doesn't shift under a mid-drag user.
@@ -230,10 +210,7 @@ const dateTree = computed(() =>
     : [],
 )
 function toggleExpand(path: string): void {
-  const next = new Set(expanded.value)
-  if (next.has(path)) next.delete(path)
-  else next.add(path)
-  expanded.value = next
+  expanded.value = toggleCollapse(expanded.value, path)
 }
 function onDateNodeClick(node: DateTreeNode, event: MouseEvent): void {
   clickDateTreeNode(props.table.filter, props.col.key, node, event.shiftKey, {

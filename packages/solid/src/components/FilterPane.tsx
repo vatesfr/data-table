@@ -3,13 +3,11 @@ import type { ValueSort } from '@vates/data-table-core'
 import {
   computeStringValues,
   computeStringValueCounts,
-  filterValuesBySearch,
-  filterValuesByCount,
-  filterValuesByRange,
   computeValueBounds,
-  sortFilterValues,
-  cycleValueSort,
-  toggleSortDir,
+  nextValueSort,
+  checklistValues,
+  isExcludeOnlyColumn,
+  toggleCollapse,
   getValueSortIcon,
   getDateSortIcon,
   computeDateTree,
@@ -194,56 +192,28 @@ export function FilterPane<TRow extends object>(props: FilterPaneProps<TRow>) {
     filterMatchMode(table.filter.modes(), activeCol().key, activeCol()),
   )
 
-  // A non-multi-value column's checklist uses a checked-by-default, exclude-only model instead
-  // of the tri-state include/exclude cycle (see docs/filter-dropdown.md's "Filter dropdown"): `filters` is
-  // never written for such a column, "checked" simply means "not in `excludeFilters`". Date/
-  // number columns (their own detail branches below) and genuinely multi-value columns keep the
-  // original include-based model untouched.
-  const usesExcludeOnly = createMemo(() => {
-    const col = activeCol()
-    if (col.type === 'date' || col.type === 'number') return false
-    return !isMultiValueCol()
-  })
+  // A plain string column's checklist is checked-by-default, exclude-only (see
+  // docs/filter-dropdown.md's "Filter dropdown"): "checked" means "not in `excludeFilters`"
+  const usesExcludeOnly = createMemo(() => isExcludeOnlyColumn(table.data(), activeCol()))
 
-  // The set a value must be in to stay visible even at a 0 facet count (see
-  // `filterValuesByCount`) — whichever map the active column's model actually writes to.
-  function alreadyTouched(col: ColumnDef<TRow>): Set<string> {
-    return usesExcludeOnly()
-      ? (table.filter.exclude()[col.key] ?? new Set())
-      : (table.filter.include()[col.key] ?? new Set())
-  }
-
-  // Count/range-filtered, but *not* yet narrowed by the checklist's own value search — kept
-  // separate from filterDetailValues below so `otherValues` can diff the two to find exactly what
-  // the search is currently hiding. Order relative to search doesn't matter here: range/count
-  // filtering and search are independent per-value predicates, so computing them in either order
-  // yields the same final set.
   const allValues = createMemo(() =>
     computeStringValues(table.data(), activeCol(), table.labels().emptyValue),
   )
-
-  const detailValuesBeforeSearch = createMemo(() => {
+  const checklist = createMemo(() => {
     const col = activeCol()
-    let values = allValues()
-    if (col.type === 'date')
-      values = filterValuesByRange(values, table.filter.ranges()[col.key], col.parseDate)
-    return filterValuesByCount(values, stringValueCounts(), alreadyTouched(col))
+    return checklistValues(
+      col,
+      allValues(),
+      stringValueCounts(),
+      (usesExcludeOnly() ? table.filter.exclude() : table.filter.include())[col.key],
+      table.filter.ranges()[col.key],
+      searchTerm(),
+      valueSort(),
+    )
   })
-
-  const filterDetailValues = createMemo(() => {
-    const col = activeCol()
-    const values = filterValuesBySearch(detailValuesBeforeSearch(), searchTerm())
-    return sortFilterValues(values, stringValueCounts(), valueSort(), col.compare)
-  })
-
-  // "Others" — the values the checklist's own value search is currently hiding (see docs/filter-dropdown.md's
-  // "Filter dropdown"). Only meaningful once a search term actually narrows the list; empty
-  // otherwise, which also keeps it a no-op for the date tree's own (unused) reference to this.
-  const otherValues = createMemo(() => {
-    if (!searchTerm()) return []
-    const shown = new Set(filterDetailValues())
-    return detailValuesBeforeSearch().filter((v) => !shown.has(v))
-  })
+  const filterDetailValues = () => checklist()[0]
+  // "Others": the values the value search is hiding; empty without a search
+  const otherValues = () => checklist()[1]
 
   const dateTree = createMemo(() => {
     const col = activeCol()
@@ -281,20 +251,10 @@ export function FilterPane<TRow extends object>(props: FilterPaneProps<TRow>) {
   )
 
   function toggleExpand(path: string): void {
-    setExpanded((prev) => {
-      const next = new Set(prev)
-      if (next.has(path)) next.delete(path)
-      else next.add(path)
-      return next
-    })
+    setExpanded((prev) => toggleCollapse(prev, path))
   }
   function cycleSort(): void {
-    const col = activeCol()
-    setValueSort(
-      col.type === 'date'
-        ? { ...valueSort(), dir: toggleSortDir(valueSort().dir) }
-        : cycleValueSort(valueSort()),
-    )
+    setValueSort(nextValueSort(activeCol(), valueSort()))
   }
 
   // --- Flat checklist (string columns), "Others" and date tree: shared click logic in core ---

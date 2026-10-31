@@ -11,9 +11,6 @@ import {
   computeStringValues,
   computeStringValueCounts,
   isMultiValueColumnCached,
-  filterValuesBySearch,
-  filterValuesByCount,
-  filterValuesByRange,
   computeValueBounds,
   computeRangeSliderGeometry,
   formatRangeBound,
@@ -21,9 +18,9 @@ import {
   matchingRangePreset,
   rangePresetFilter,
   formatDateTreeLabel,
-  sortFilterValues,
-  cycleValueSort,
-  toggleSortDir as toggleValueSortDir,
+  nextValueSort,
+  checklistValues,
+  isExcludeOnlyColumn,
   getValueSortIcon,
   getDateSortIcon,
   computeDateTree,
@@ -272,64 +269,23 @@ export function FilterPane<TRow extends object>({
   // array-shaped in the data (see isMultiValueColumn's own doc comment), and only for the
   // string checklist, not the date tree (mirrors Solid's FilterDropdown.tsx).
   const isMultiValueFilterCol = isMultiValueColumnCached(data, col)
-  // A non-multi-value column's checklist uses a checked-by-default, exclude-only model instead
-  // of the tri-state include/exclude cycle (see docs/filter-dropdown.md's "Filter dropdown"): `filters` is
-  // never written for such a column, "checked" simply means "not in `excludeFilters`". Date/
-  // number columns (their own detail branches) and genuinely multi-value columns keep the
-  // original include-based model untouched. Mirrors Solid's `usesExcludeOnly`.
-  const usesExcludeOnly = col.type !== 'date' && col.type !== 'number' && !isMultiValueFilterCol
-  // The set a value must be in to stay visible even at a 0 facet count (see
-  // filterValuesByCount) — whichever map the active column's model actually writes to.
-  const filterAlreadyTouched = (col: ColumnDef<TRow>) =>
-    usesExcludeOnly
-      ? (excludeFilters[col.key] ?? new Set<string>())
-      : (filters[col.key] ?? new Set<string>())
+  // A plain string column's checklist is checked-by-default, exclude-only (see
+  // docs/filter-dropdown.md's "Filter dropdown"): "checked" means "not in `excludeFilters`"
+  const usesExcludeOnly = isExcludeOnlyColumn(data, col)
+  // The set the column's model writes
+  const touched = (usesExcludeOnly ? excludeFilters : filters)[col.key]
   const matchMode = filterMatchMode(filterModes, col.key, col)
-  const cycleFilterValueSort = () =>
-    setValueSort(
-      col.type === 'date'
-        ? { ...valueSort, dir: toggleValueSortDir(valueSort.dir) }
-        : cycleValueSort(valueSort),
-    )
-  // Range/count-filtered, but not yet narrowed by the checklist's own value search — kept
-  // separate from filterDetailValues below so filterOtherValues can diff the two to find exactly
-  // what the search is currently hiding. Order relative to search doesn't matter here: range/
-  // count filtering and search are independent per-value predicates, so computing them in either
-  // order yields the same final set. Mirrors Solid's detailValuesBeforeSearch.
-  const detailValuesBeforeSearch =
-    col.type !== 'number'
-      ? filterValuesByCount(
-          // Narrowed by the date range filter (if any) — a value outside the active range never
-          // becomes a tree leaf, rather than merely being ANDed onto the final row set once
-          // ticked. A no-op for string columns (they never populate rangeFilters).
-          filterValuesByRange(allValues, rangeFilters[col.key], col.parseDate),
-          valueCounts,
-          filterAlreadyTouched(col),
-        )
-      : []
-  const filterDetailValues =
-    col.type !== 'number'
-      ? sortFilterValues(
-          filterValuesBySearch(detailValuesBeforeSearch, searchTerm),
-          valueCounts,
-          valueSort,
-          col.compare,
-        )
-      : []
-  // "Others" — the values the checklist's own value search is currently hiding (see docs/filter-dropdown.md's
-  // "Filter dropdown"). Only meaningful once a search term actually narrows the list; empty
-  // otherwise.
-  const filterOtherValues = (() => {
-    if (!searchTerm) return []
-    const shown = new Set(filterDetailValues)
-    return detailValuesBeforeSearch.filter((v) => !shown.has(v))
-  })()
-  const filterBulkState = (values: string[]) =>
-    checklistBulkState(
-      values,
-      (usesExcludeOnly ? excludeFilters : filters)[col.key],
-      usesExcludeOnly,
-    )
+  const cycleFilterValueSort = () => setValueSort(nextValueSort(col, valueSort))
+  const [filterDetailValues, filterOtherValues] = checklistValues(
+    col,
+    allValues,
+    valueCounts,
+    touched,
+    rangeFilters[col.key],
+    searchTerm,
+    valueSort,
+  )
+  const filterBulkState = (values: string[]) => checklistBulkState(values, touched, usesExcludeOnly)
   const { checked: filterAllSelected, indeterminate: filterSomeSelected } =
     filterBulkState(filterDetailValues)
   const filterOthersState = filterBulkState(filterOtherValues)

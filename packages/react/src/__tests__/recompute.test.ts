@@ -1,7 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { renderHook, act } from '@testing-library/react'
+import { createElement } from 'react'
+import { renderHook, act, render, fireEvent } from '@testing-library/react'
 import * as logic from '../../../core/src/logic'
 import { useTableState } from '../useTableState'
+import { DataTable } from '../DataTable'
 import type { ColumnDef } from '../types'
 
 // Spies on core's pure functions while keeping their real behavior, to count how often the
@@ -56,5 +58,20 @@ describe('useTableState — pipeline recomputes', () => {
 
     expect(vi.mocked(logic.groupData)).toHaveBeenCalledTimes(1)
     expect(result.current.sort.entries).toEqual([{ key: 'name', dir: 'asc' }])
+  })
+  it('a value-search keystroke in the filter pane rescans no rows', () => {
+    const { getByText, container } = render(
+      createElement(DataTable<Row>, { data: ROWS, columns: COLS, rowKey: 'id' }),
+    )
+    fireEvent.click(getByText('Filter'))
+    fireEvent.click(container.querySelector('[data-filter-col-key="name"]')!)
+    expect(vi.mocked(logic.computeStringValues)).toHaveBeenCalled()
+    vi.mocked(logic.computeStringValues).mockClear()
+
+    const search = container.querySelector<HTMLInputElement>('input[data-dd-value-search]')!
+    fireEvent.change(search, { target: { value: 'n1' } })
+
+    expect(vi.mocked(logic.computeStringValues)).not.toHaveBeenCalled()
+    expect(container.querySelectorAll('input[data-dd-value-row]')).toHaveLength(11)
   })
 })

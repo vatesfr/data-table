@@ -82,6 +82,7 @@ import {
   reorderSort,
   sortFilterValues,
   cycleValueSort,
+  nextValueSort,
   toggleSortDir,
   getValueSortIcon,
   getDateSortIcon,
@@ -2176,6 +2177,21 @@ describe('cycleValueSort', () => {
     expect(sort).toEqual({ by: 'count', dir: 'asc' })
     sort = cycleValueSort(sort)
     expect(sort).toEqual({ by: 'alpha', dir: 'asc' })
+  })
+})
+
+describe('nextValueSort', () => {
+  it('cycles a checklist and only flips the date tree', () => {
+    expect(nextValueSort({ key: 's', label: 'S' }, { by: 'alpha', dir: 'desc' })).toEqual({
+      by: 'count',
+      dir: 'desc',
+    })
+    expect(
+      nextValueSort({ key: 'd', label: 'D', type: 'date' }, { by: 'alpha', dir: 'desc' }),
+    ).toEqual({
+      by: 'alpha',
+      dir: 'asc',
+    })
   })
 })
 

@@ -1,6 +1,10 @@
-import type { ColumnDefBase, DateTreeNode } from './types'
+import type { ColumnDefBase, DateTreeNode, RangeFilter, ValueSort } from './types'
 import {
   computeStringValues,
+  filterValuesByCount,
+  filterValuesByRange,
+  filterValuesBySearch,
+  sortFilterValues,
   findDateTreeNode,
   getDateTreeNodeState,
   isMultiValueColumn,
@@ -19,6 +23,36 @@ export interface ChecklistFilterActions {
   clearExcludeValues(key: string, values: string[]): void
   setExcludeValues(key: string, values: string[], excluded: boolean): void
   toggleExcludeAll(key: string, values: string[]): void
+}
+
+/**
+ * The filter pane's values, `[shown, others]`: `allValues` (a memoized `computeStringValues`)
+ * narrowed by a date column's `range` and by facet counts, keeping `touched` ones (the set the
+ * column's model writes), then by the value `search` and sorted (`shown`); `others` are what the
+ * search hides.
+ */
+export function checklistValues<TRow extends object>(
+  col: ColumnDefBase<TRow>,
+  allValues: string[],
+  counts: Map<string, number>,
+  touched: ReadonlySet<string> | undefined,
+  range: RangeFilter | undefined,
+  search: string,
+  sort: ValueSort,
+): [shown: string[], others: string[]] {
+  const beforeSearch = filterValuesByCount(
+    col.type === 'date' ? filterValuesByRange(allValues, range, col.parseDate) : allValues,
+    counts,
+    touched,
+  )
+  const shown = sortFilterValues(
+    filterValuesBySearch(beforeSearch, search),
+    counts,
+    sort,
+    col.compare,
+  )
+  const shownSet = new Set(shown)
+  return [shown, search ? beforeSearch.filter((v) => !shownSet.has(v)) : []]
 }
 
 /**
