@@ -1037,7 +1037,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
             <button
               v-if="groupBy.length > 0"
               type="button"
-              class="dt-btn-clear"
+              class="dt-btn-clear dt-btn-clear--groups"
               :title="L.clearGroups"
               :aria-label="L.clearGroups"
               @click="clearGroups"
@@ -1152,7 +1152,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
             <button
               v-if="sorts.length > 0"
               type="button"
-              class="dt-btn-clear"
+              class="dt-btn-clear dt-btn-clear--sorts"
               :title="L.clearSorts"
               :aria-label="L.clearSorts"
               @click="clearSorts"
@@ -1343,7 +1343,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
             <button
               v-if="activeFilterCount > 0"
               type="button"
-              class="dt-btn-clear"
+              class="dt-btn-clear dt-btn-clear--filters"
               :title="L.clearFilters"
               :aria-label="L.clearFilters"
               @click="clearFilters"

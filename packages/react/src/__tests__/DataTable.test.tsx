@@ -1528,6 +1528,27 @@ describe('DataTable — sort dropdown', () => {
     expect(names).toEqual(['Alice', 'Bob']) // original order, no longer sorted
   })
 
+  it('names what each toolbar clear button clears in a modifier class, for locale-proof styling', () => {
+    const { container } = render(
+      <DataTable
+        data={ROWS}
+        columns={COLS.map((c) => ({ ...c, groupable: true }))}
+        rowKey="id"
+        initialViewState={{
+          groupBy: ['name'],
+          sorts: [{ key: 'score', dir: 'asc' }],
+          filters: { name: ['Alice'] },
+        }}
+      />,
+    )
+    const classes = [...container.querySelectorAll('.dt-btn-clear')].map((b) => b.classList[1])
+    expect(classes).toEqual([
+      'dt-btn-clear--groups',
+      'dt-btn-clear--sorts',
+      'dt-btn-clear--filters',
+    ])
+  })
+
   it('the Sort toolbar button has no clear-sorts button until a sort is active', () => {
     const { queryByTitle } = render(<DataTable data={ROWS} columns={SORT_COLS} rowKey="id" />)
     expect(queryByTitle('Clear sorts')).toBeNull()

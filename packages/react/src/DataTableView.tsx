@@ -778,14 +778,19 @@ export function DataTableView<TRow extends object>({
       />
     </div>
   )
-  const clearButton = (show: boolean, label: string, onClear: () => void) =>
+  const clearButton = (
+    kind: 'groups' | 'sorts' | 'filters',
+    show: boolean,
+    label: string,
+    onClear: () => void,
+  ) =>
     show && (
       <button
         type="button"
         onClick={onClear}
         title={label}
         aria-label={label}
-        className="dt-btn-clear"
+        className={`dt-btn-clear dt-btn-clear--${kind}`}
       >
         ×
       </button>
@@ -967,7 +972,7 @@ export function DataTableView<TRow extends object>({
                 open={openDD === 'group'}
                 setOpen={ddSetters.group}
                 trigger={<ToolbarBtn active={groupBy.length > 0}>{L.group}</ToolbarBtn>}
-                extraTrigger={clearButton(groupBy.length > 0, L.clearGroups, clearGroups)}
+                extraTrigger={clearButton('groups', groupBy.length > 0, L.clearGroups, clearGroups)}
                 onDragOver={onGroupRowsDragOver}
                 onDrop={onGroupRowsDrop}
               >
@@ -1047,7 +1052,7 @@ export function DataTableView<TRow extends object>({
                 open={openDD === 'sort'}
                 setOpen={ddSetters.sort}
                 trigger={<ToolbarBtn active={sorts.length > 0}>{L.sort}</ToolbarBtn>}
-                extraTrigger={clearButton(sorts.length > 0, L.clearSorts, clearSorts)}
+                extraTrigger={clearButton('sorts', sorts.length > 0, L.clearSorts, clearSorts)}
                 onDragOver={onSortRowsDragOver}
                 onDrop={onSortRowsDrop}
               >
@@ -1225,7 +1230,12 @@ export function DataTableView<TRow extends object>({
                 open={openDD === 'filter'}
                 setOpen={ddSetters.filter}
                 trigger={<ToolbarBtn active={activeFilterCount > 0}>{L.filter}</ToolbarBtn>}
-                extraTrigger={clearButton(activeFilterCount > 0, L.clearFilters, clearFilters)}
+                extraTrigger={clearButton(
+                  'filters',
+                  activeFilterCount > 0,
+                  L.clearFilters,
+                  clearFilters,
+                )}
               >
                 <div
                   className={`dt-filter-panel${narrowFilter ? ' dt-filter-panel--narrow' : ''}`}

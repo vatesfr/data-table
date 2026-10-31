@@ -104,12 +104,17 @@ export function DropdownSearchRow(props: {
 }
 
 /** Sort/Group/Filter's toolbar `×` clear button, a `Dropdown` `extraTrigger` (docs/toolbar.md) */
-export function DropdownClearButton(props: { show: boolean; label: string; onClear: () => void }) {
+export function DropdownClearButton(props: {
+  kind: 'groups' | 'sorts' | 'filters'
+  show: boolean
+  label: string
+  onClear: () => void
+}) {
   return (
     <Show when={props.show}>
       <button
         type="button"
-        class="dt-btn-clear"
+        class={`dt-btn-clear dt-btn-clear--${props.kind}`}
         title={props.label}
         aria-label={props.label}
         onClick={props.onClear}

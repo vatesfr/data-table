@@ -80,6 +80,7 @@ export function SortDropdown<TRow extends object>(props: SortDropdownProps<TRow>
       }
       extraTrigger={
         <DropdownClearButton
+          kind="sorts"
           show={table.sort.entries().length > 0}
           label={table.labels().clearSorts}
           onClear={table.sort.clear}

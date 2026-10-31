@@ -57,6 +57,7 @@ export function GroupDropdown<TRow extends object>(props: GroupDropdownProps<TRo
       }
       extraTrigger={
         <DropdownClearButton
+          kind="groups"
           show={table.group.by().length > 0}
           label={table.labels().clearGroups}
           onClear={table.group.clear}

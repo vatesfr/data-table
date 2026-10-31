@@ -59,6 +59,24 @@ describe('createDataTable', () => {
     container.remove()
   })
 
+  it('names what each toolbar clear button clears in a modifier class, for locale-proof styling', () => {
+    createDataTable(container, {
+      data: ROWS,
+      columns: COLS,
+      initialViewState: {
+        groupBy: ['dept'],
+        sorts: [{ key: 'score', dir: 'asc' }],
+        filters: { name: ['Alice'] },
+      },
+    })
+    const classes = [...container.querySelectorAll('.dt-btn-clear')].map((b) => b.classList[1])
+    expect(classes).toEqual([
+      'dt-btn-clear--groups',
+      'dt-btn-clear--sorts',
+      'dt-btn-clear--filters',
+    ])
+  })
+
   // --- style injection ---
 
   it('injects a <style> tag with light and dark mode CSS variables', () => {

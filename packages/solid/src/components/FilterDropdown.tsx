@@ -231,6 +231,7 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
       }
       extraTrigger={
         <DropdownClearButton
+          kind="filters"
           show={table.filter.activeCount() > 0}
           label={table.labels().clearFilters}
           onClear={table.filter.clear}
