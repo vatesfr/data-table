@@ -20,6 +20,15 @@ test('flags a repeated or unknown subsection, and a missing Unreleased', () => {
   ])
 })
 
+test('flags a BREAKING entry without its ⚠️ marker', () => {
+  assert.deepEqual(
+    structureProblems(
+      changelog('\n### Changed\n\n- ⚠️ **BREAKING (Vue):** a\n- **BREAKING:** b\n'),
+    ),
+    ['a "**BREAKING:**" entry lacks its "⚠️ " prefix'],
+  )
+})
+
 test('source changes outside tests need an entry', () => {
   assert.equal(missingEntry(['packages/core/src/sort.ts']), true)
   assert.equal(missingEntry(['demo/vue/src/App.vue']), true)

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// Fails the commit if the staged CHANGELOG.md's Unreleased section repeats a subsection or uses one
-// outside Keep a Changelog's, or if source changes aren't accompanied by a CHANGELOG.md update.
+// Fails the commit if the staged CHANGELOG.md's Unreleased section repeats a subsection, uses one
+// outside Keep a Changelog's or has a BREAKING entry without its ⚠️ prefix, or if source changes aren't accompanied by a CHANGELOG.md update.
 // Bypass the latter for a genuinely changelog-exempt commit with `SKIP_CHANGELOG=1 git commit`.
 import { execFileSync } from 'node:child_process'
 import console from 'node:console'
@@ -19,6 +19,9 @@ export function structureProblems(changelog) {
     ...headings
       .filter((h) => !SECTIONS.includes(h))
       .map((h) => `"### ${h}" isn't one of ${SECTIONS.join(', ')}`),
+    ...[...unreleased[1].matchAll(/^- (\*\*BREAKING[^*]*\*\*)/gm)].map(
+      (m) => `a "${m[1]}" entry lacks its "⚠️ " prefix`,
+    ),
   ]
 }
 
