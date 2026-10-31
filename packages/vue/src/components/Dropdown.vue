@@ -1,12 +1,9 @@
 <script setup lang="ts">
 import { computed, ref, watch, onMounted, onUnmounted } from 'vue'
 import {
-  computeDropdownClampOffset,
   ddNavFocusables,
-  ddOpenFocusTarget,
-  keepDropdownClamped,
+  openDropdownPanel,
   rovingFocusTarget,
-  viewportWidth,
 } from '@vates/data-table-core/internal'
 
 // Listeners like @dragover/@drop passed to <Dropdown> are meant for the menu panel itself (so a
@@ -48,7 +45,6 @@ const menuRef = ref<HTMLElement | null>(null)
 const triggerWrapRef = ref<HTMLElement | null>(null)
 const localOpen = ref(false)
 const isOpen = computed(() => props.open ?? localOpen.value)
-const flipUp = ref(false)
 
 function setOpen(open: boolean) {
   localOpen.value = open
@@ -68,44 +64,12 @@ function onMousedown(e: MouseEvent) {
 onMounted(() => document.addEventListener('mousedown', onMousedown))
 onUnmounted(() => document.removeEventListener('mousedown', onMousedown))
 
-// The menu is destroyed/recreated by v-if on every open (see template), so each open starts
-// from a fresh, unclamped node — `flush: 'post'` runs this after that node is actually in the
-// DOM. Flip-up is the `flipUp` ref (the `dt-dd--up` class); the translateX nudge is written to the
-// node's style directly, mirroring the React clamp. A translateX offset is used for the horizontal case instead of
-// flipping left:0 -> right:0, since the overflow is relative to the viewport, not to the
-// trigger.
+// The menu is destroyed/recreated by v-if on every open, so each open starts from a fresh,
+// unclamped node — `flush: 'post'` runs this once that node is in the DOM
 watch(
   isOpen,
   (open, _, onCleanup) => {
-    if (!open) {
-      flipUp.value = false
-      return
-    }
-    const menu = menuRef.value
-    if (!menu) return
-    const rect = menu.getBoundingClientRect()
-    flipUp.value = computeDropdownClampOffset(rect, viewportWidth(), window.innerHeight).flipUp
-    let dx = 0
-    onCleanup(
-      keepDropdownClamped(
-        menu,
-        () => dx,
-        (next) => {
-          dx = next
-          menu.style.transform = next ? `translateX(${next}px)` : ''
-        },
-      ),
-    )
-    // Focus follows open, rather than leaving it on the trigger button — otherwise every open
-    // still needs an extra Tab press before typing into a search box or using arrow-key nav does
-    // anything. `[data-dd-search]` is a generic marker a consumer puts on whichever input should
-    // be the default entry point, checked *ahead of* plain DOM order — deliberately, since e.g.
-    // the Sort/Group dropdowns render their active-entries section *above* the search box, but
-    // the search box is still the intended first stop. Falling back to the first focusable
-    // descendant covers a dropdown with no search box at all (e.g. Sort when every column is
-    // already sorted, so there's no addable section to search). On a touch screen, the first row
-    // regardless, so the keyboard doesn't pop up (see ddOpenFocusTarget).
-    ddOpenFocusTarget(menu)?.focus()
+    if (open && menuRef.value) onCleanup(openDropdownPanel(menuRef.value))
   },
   { flush: 'post' },
 )
@@ -159,14 +123,7 @@ function onPanelKeydown(e: KeyboardEvent): void {
       -->
       <slot name="extra-trigger" />
     </span>
-    <div
-      v-if="isOpen"
-      ref="menuRef"
-      class="dt-dd"
-      :class="{ 'dt-dd--up': flipUp }"
-      v-bind="$attrs"
-      @keydown="onPanelKeydown"
-    >
+    <div v-if="isOpen" ref="menuRef" class="dt-dd" v-bind="$attrs" @keydown="onPanelKeydown">
       <slot />
     </div>
   </div>

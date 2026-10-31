@@ -7,12 +7,9 @@ import {
   type ReactNode,
 } from 'react'
 import {
-  computeDropdownClampOffset,
   ddNavFocusables,
-  ddOpenFocusTarget,
-  keepDropdownClamped,
+  openDropdownPanel,
   rovingFocusTarget,
-  viewportWidth,
 } from '@vates/data-table-core/internal'
 
 export interface DropdownProps {
@@ -64,35 +61,9 @@ export function Dropdown({
   }, [setOpen])
 
   // The panel unmounts entirely when closed, so each open is a fresh DOM node at its natural
-  // (unclamped) position — this mutates that node's class and style directly rather than going
-  // through React state (which would need a setState-in-effect, flagged as a cascading-render risk
-  // by this project's eslint-plugin-react-hooks config). A translateX offset is used for the
-  // horizontal case instead of flipping left:0 -> right:0, since the overflow is relative to
-  // the viewport, not to the trigger (see vanilla's Dropdown clamp for the reasoning).
+  // (unclamped) position; core writes its flip class and clamp directly, not through React state
   useLayoutEffect(() => {
-    if (!open) return
-    const panel = panelRef.current
-    if (!panel) return
-    const rect = panel.getBoundingClientRect()
-    const { flipUp } = computeDropdownClampOffset(rect, viewportWidth(), window.innerHeight)
-    if (flipUp) panel.classList.add('dt-dd--up')
-    let dx = 0
-    const stopClamping = keepDropdownClamped(
-      panel,
-      () => dx,
-      (next) => {
-        dx = next
-        panel.style.transform = next ? `translateX(${next}px)` : ''
-      },
-    )
-    // Opening a dropdown should hand it focus immediately — its own search box if it has one
-    // (preferred regardless of where it sits in the DOM, e.g. Sort/Group's search box renders
-    // *after* the active-entries section but is still the preferred landing spot, matching
-    // vanilla's focusFirstInDropdown), else the first row (e.g. Sort with every column already
-    // sorted has no addable section and therefore no search box). On a touch screen, the first
-    // row regardless, so the keyboard doesn't pop up (see ddOpenFocusTarget).
-    ddOpenFocusTarget(panel)?.focus()
-    return stopClamping
+    if (open && panelRef.current) return openDropdownPanel(panelRef.current)
   }, [open])
 
   // Roving Up/Down/Home/End/Escape navigation across this panel's own search box + rows — see

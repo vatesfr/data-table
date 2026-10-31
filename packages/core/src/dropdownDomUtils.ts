@@ -90,21 +90,22 @@ export function computeDropdownClampOffset(
 }
 
 /**
- * Clamps an open panel horizontally now, after every DOM change and whenever it resizes: its
- * trigger can move while the panel is open (a filter count badge widens the Filter button, the
- * toolbar rewraps). `getDx`/`setDx` read and apply the panel's `translateX`. Returns the function
- * stopping it.
+ * Sets up a dropdown panel just opened: flips it up (`dt-dd--up`) when it would overflow the
+ * viewport bottom, clamps it horizontally now, after every DOM change and whenever it resizes (its
+ * trigger can move while it's open: a filter count badge widens the Filter button, the toolbar
+ * rewraps), then focuses `ddOpenFocusTarget`. Returns the function stopping the clamp.
  */
-export function keepDropdownClamped(
-  panel: HTMLElement,
-  getDx: () => number,
-  setDx: (dx: number) => void,
-): () => void {
+export function openDropdownPanel(panel: HTMLElement): () => void {
+  if (
+    computeDropdownClampOffset(panel.getBoundingClientRect(), viewportWidth(), window.innerHeight)
+      .flipUp
+  )
+    panel.classList.add('dt-dd--up')
+  let current = 0
   const clamp = () => {
     const rect = panel.getBoundingClientRect()
     // Not laid out (jsdom, hidden): the rect ignores the translateX, so each write would grow it
     if (!rect.width) return
-    const current = getDx()
     // The rect shows the rendered offset, which lags the requested one while a transition runs
     const rendered = new DOMMatrixReadOnly(getComputedStyle(panel).transform).m41
     const { dx } = computeDropdownClampOffset(
@@ -118,7 +119,9 @@ export function keepDropdownClamped(
       window.innerHeight,
     )
     // Sub-pixel noise would otherwise re-trigger this observer through the style write
-    if (Math.abs(dx - current) >= 0.5) setDx(dx)
+    if (Math.abs(dx - current) < 0.5) return
+    current = dx
+    panel.style.transform = dx ? `translateX(${dx}px)` : ''
   }
   clamp()
   const observer = new MutationObserver(clamp)
@@ -131,6 +134,7 @@ export function keepDropdownClamped(
   // A stylesheet or a transition can resize the panel with no DOM change (U29)
   const resized = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(clamp)
   resized?.observe(panel)
+  ddOpenFocusTarget(panel)?.focus()
   return () => {
     observer.disconnect()
     resized?.disconnect()

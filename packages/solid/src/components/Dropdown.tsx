@@ -1,11 +1,8 @@
-import { type JSX, Show, createSignal, onCleanup, onMount } from 'solid-js'
+import { type JSX, Show, onCleanup, onMount } from 'solid-js'
 import {
-  computeDropdownClampOffset,
   ddNavFocusables,
-  ddOpenFocusTarget,
-  keepDropdownClamped,
+  openDropdownPanel,
   rovingFocusTarget,
-  viewportWidth,
 } from '@vates/data-table-core/internal'
 
 interface DropdownProps {
@@ -45,8 +42,6 @@ interface DropdownProps {
 export function Dropdown(props: DropdownProps) {
   let wrapRef: HTMLDivElement | undefined
   let panelRef: HTMLDivElement | undefined
-  const [flipUp, setFlipUp] = createSignal(false)
-  const [translateX, setTranslateX] = createSignal(0)
 
   function handleDocClick(e: MouseEvent): void {
     // Every Columns/Sort/Group/Filter dropdown mounts its own Dropdown instance simultaneously,
@@ -100,11 +95,6 @@ export function Dropdown(props: DropdownProps) {
     onCleanup(() => document.removeEventListener('click', handleDocClick, true))
   })
 
-  function clampToViewport(el: HTMLDivElement): void {
-    const rect = el.getBoundingClientRect()
-    setFlipUp(computeDropdownClampOffset(rect, viewportWidth(), window.innerHeight).flipUp)
-  }
-
   return (
     <div class="dt-dd-wrap" ref={wrapRef} onKeyDown={handleKeyDown}>
       <span style={{ display: 'inline-flex' }}>
@@ -113,7 +103,7 @@ export function Dropdown(props: DropdownProps) {
       </span>
       <Show when={props.isOpen}>
         <div
-          class={`dt-dd${flipUp() ? ' dt-dd--up' : ''}`}
+          class="dt-dd"
           ref={(el) => {
             panelRef = el
             // Registered here: the microtask below runs outside this branch's owner
@@ -130,22 +120,11 @@ export function Dropdown(props: DropdownProps) {
             // underlying reason the viewport-clamp measurement below already needs to wait a
             // microtask, just for DOM presence instead of layout.
             queueMicrotask(() => {
-              if (!panelRef || closed) return
-              // Opening a dropdown should hand it focus immediately — its own search box if it
-              // has one (preferred regardless of where it sits in the DOM, e.g. Sort/Group's
-              // search box renders *after* the active-entries section but is still the preferred
-              // landing spot), else the first row (e.g. Sort with every column already sorted has
-              // no addable section and therefore no search box). On a touch screen, the first row
-              // regardless, so the keyboard doesn't pop up (see ddOpenFocusTarget).
-              // Measure after the panel's real content is laid out — same microtask, since both
-              // depend on the same "children actually exist" precondition. Clamp first: focusing a
-              // field still past the viewport's edge scrolls the whole page sideways (phones).
-              clampToViewport(panelRef)
-              stopClamping = keepDropdownClamped(panelRef, translateX, setTranslateX)
-              ddOpenFocusTarget(panelRef)?.focus()
+              // Clamp before focusing (inside openDropdownPanel): focusing a field still past the
+              // viewport's edge scrolls the whole page sideways (phones)
+              if (panelRef && !closed) stopClamping = openDropdownPanel(panelRef)
             })
           }}
-          style={{ transform: translateX() ? `translateX(${translateX()}px)` : undefined }}
         >
           {props.children}
         </div>
