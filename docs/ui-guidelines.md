@@ -1,6 +1,6 @@
 # UI guidelines
 
-<!-- check-docs-ignore: aria-sort -->
+<!-- check-docs-ignore:  -->
 
 How the table's UI should behave where the feature docs are silent; what `ux-review` judges taste against. Conventions, not hard rules: a design that breaks one says why in its feature doc.
 

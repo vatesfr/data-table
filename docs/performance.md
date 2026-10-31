@@ -56,4 +56,4 @@ From a 2026-10 review: the huge-dataset demos (200k rows, production builds) dri
 - **Solid and vanilla trail React and Vue by 10–40%** on sort, search and grouping, and hold ~4 MB more heap after mounting the 200k-row table (38 against 34 MB).
 - No leak found: 40 dropdown open/close cycles and 20 remount and data-replacement cycles grow neither DOM nodes nor listeners; the remaining heap growth is V8 compiled code (heap snapshot diff).
 
-<!-- check-docs-ignore: console Float64Array Intl Collator ad32721 d82d348 emma instructions valueMap -->
+<!-- check-docs-ignore: Float64Array Intl Collator ad32721 d82d348 emma valueMap cate -->

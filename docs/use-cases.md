@@ -181,3 +181,5 @@ What people do with a table built on this library, end to end — the yardstick 
 **Edges**: on a phone (no shift-click, no hover); from the keyboard; a narrow column; a column that can't be filtered or grouped (offers only what applies).
 
 **Docs**: [sorting](sorting.md), [filter dropdown](filter-dropdown.md), [grouped columns](grouped-columns.md), [columns](columns.md)
+
+<!-- check-docs-ignore: Text -->

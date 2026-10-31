@@ -59,4 +59,4 @@ At **1440×900**, then **390×844**, following its steps as a user would — mou
 - Publish the report as an Artifact when the tool is available: the same table, each finding with its screenshot cropped to the problem, so whoever picks fixes sees them.
 - The user picks what to fix (`ux-fix`); commit the improvements.md update only when asked.
 
-<!-- check-docs-ignore: run_in_background curl ux-UC magick crop newContext severity -->
+<!-- check-docs-ignore: run_in_background curl ux-UC magick crop severity -->

@@ -41,4 +41,4 @@ Custom cell renders (React/Solid `render`, Vue `#cell-*` slots) that put clickab
 - Not the focus target: keyboard focus moves while the side panel's row stays put.
 - **Vue** compares through `toRaw`: a row held in a consumer's `ref` is a reactive proxy, never `===` the raw row the table renders.
 
-<!-- check-docs-ignore: UnwrapRefSimple -->
+<!-- check-docs-ignore: UnwrapRefSimple marker -->

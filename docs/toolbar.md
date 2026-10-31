@@ -95,4 +95,4 @@ Header, group header rows, aggregate rows, and the odd-row stripe used to all sh
 - The odd-row stripe now uses `--dt-stripe-background`, defaulting to `color-mix(in srgb, var(--color-background-secondary) 45%, transparent)`, instead of the token at full strength, so plain alternating rows read as a subtle texture rather than competing with group rows for the same gray. Hover (`onRowClick` set) and selection stay at full strength, so they still read as a stronger, more "active" cue than the passive stripe. `--dt-stripe-background: transparent` turns striping off (see [pinned column](columns.md#pinned-column)).
 - Aggregate rows are intentionally left unchanged (still muted `--color-text-secondary`, `font-weight: 500`) — once the group row above it went bold/primary, the contrast between "section title" and "summary line" falls out for free with no separate change needed.
 
-<!-- check-docs-ignore: toolbarSearch dt-toolbar-search dt-chips dd-footer showSort showGroup showFilter important -->
+<!-- check-docs-ignore: toolbarSearch dt-toolbar-search dt-chips dd-footer showSort showGroup showFilter -->
