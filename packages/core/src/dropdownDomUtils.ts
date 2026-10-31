@@ -281,6 +281,30 @@ export function rovingFocusTarget<T extends Element>(
 }
 
 /**
+ * Keyboard for the Columns/Sort/Group active rows: Alt+↑/↓ calls `move` (absent on a row that
+ * can't move), Delete/Backspace matches the row's × button, Enter/Space activates. Handled keys
+ * are preventDefault'ed (Space would scroll the panel out from under the focused row), except a
+ * move returning false (no neighbor).
+ */
+export function activeRowKeyDown(
+  e: { key: string; altKey: boolean; preventDefault(): void },
+  move: ((delta: number) => boolean | void) | undefined,
+  remove: () => void,
+  activate?: () => void,
+): void {
+  const { key } = e
+  if (e.altKey && (key === 'ArrowUp' || key === 'ArrowDown')) {
+    if (move && move(key === 'ArrowUp' ? -1 : 1) !== false) e.preventDefault()
+  } else if (key === 'Delete' || key === 'Backspace') {
+    e.preventDefault()
+    remove()
+  } else if (key === 'Enter' || key === ' ') {
+    e.preventDefault()
+    activate?.()
+  }
+}
+
+/**
  * Where focus lands when a dropdown opens: its search box (`input[data-dd-search]`), else its
  * current row (`aria-current`, e.g. the column the Filter pane shows), else its first row. On a
  * touch screen (`pointer: coarse`) a row even when there's a search box: focusing a text field

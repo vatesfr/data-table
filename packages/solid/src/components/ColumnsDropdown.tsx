@@ -1,5 +1,5 @@
 import { For, Show, createMemo, createSignal } from 'solid-js'
-import { columnsDropdownLists } from '@vates/data-table-core/internal'
+import { activeRowKeyDown, columnsDropdownLists } from '@vates/data-table-core/internal'
 import type { TableState } from '../createTableState'
 import type { ColumnDef } from '../types'
 import { Dropdown } from './Dropdown'
@@ -142,33 +142,17 @@ export function ColumnsDropdown<TRow extends object>(props: ColumnsDropdownProps
               data-col-row-key={col.key}
               onDragStart={() => onRowDragStart(col.key)}
               onDragEnd={onRowDragEnd}
-              onKeyDown={(e) => {
-                if (e.altKey && e.key === 'ArrowUp') {
-                  e.preventDefault()
-                  // Focus drops to <body> after this reorder without an explicit refocus (same
-                  // empirically-confirmed behavior as Sort/GroupDropdown's own Alt+Arrow handlers).
-                  withPanelRefocus(e.currentTarget, `[data-col-row-key="${col.key}"]`, () =>
-                    table.columns.moveVisibleBy(col.key, -1, reorderEligible()),
-                  )
-                } else if (e.altKey && e.key === 'ArrowDown') {
-                  e.preventDefault()
-                  withPanelRefocus(e.currentTarget, `[data-col-row-key="${col.key}"]`, () =>
-                    table.columns.moveVisibleBy(col.key, 1, reorderEligible()),
-                  )
-                } else if (e.key === 'Delete' || e.key === 'Backspace') {
-                  // Keyboard equivalent of this row's own × button — matches the Filter
-                  // dropdown's identical Delete/Backspace-on-a-focused-active-row shortcut.
-                  e.preventDefault()
-                  hideColumn(e.currentTarget, col)
-                } else if (e.key === 'Enter' || e.key === ' ') {
-                  // No click action of its own (unlike Sort's active rows, which toggle
-                  // direction) — but still needs to preventDefault, or Space's native default
-                  // action scrolls the nearest scrollable ancestor (this panel, or the whole page
-                  // once the panel itself has nothing left to scroll) out from under the still-
-                  // focused row, which reads as "focus was lost" even though it wasn't.
-                  e.preventDefault()
-                }
-              }}
+              onKeyDown={(e) =>
+                activeRowKeyDown(
+                  e,
+                  (delta) =>
+                    // Focus drops to <body> after this reorder without an explicit refocus
+                    withPanelRefocus(e.currentTarget, `[data-col-row-key="${col.key}"]`, () =>
+                      table.columns.moveVisibleBy(col.key, delta, reorderEligible()),
+                    ),
+                  () => hideColumn(e.currentTarget, col),
+                )
+              }
             >
               <span class="dt-dd-drag-handle" aria-hidden="true">
                 ⠿

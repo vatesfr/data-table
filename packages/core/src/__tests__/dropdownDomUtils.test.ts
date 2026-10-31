@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import {
+  activeRowKeyDown,
   computeMenuPosition,
   computeSubmenuPosition,
   rovingFocusTarget,
@@ -91,5 +92,42 @@ describe('rovingFocusTarget', () => {
     expect(rovingFocusTarget('Enter', all, a)).toBeNull()
     expect(rovingFocusTarget('ArrowDown', all, document.createElement('div'))).toBeNull()
     expect(rovingFocusTarget('ArrowDown', all, null)).toBeNull()
+  })
+})
+
+describe('activeRowKeyDown', () => {
+  const press = (key: string, altKey = false) => ({ key, altKey, preventDefault: vi.fn() })
+
+  it('Alt+↑/↓ moves by ∓1 and prevents the default', () => {
+    const move = vi.fn()
+    const e = press('ArrowDown', true)
+    activeRowKeyDown(e, move, vi.fn())
+    expect(move).toHaveBeenCalledWith(1)
+    expect(e.preventDefault).toHaveBeenCalled()
+  })
+
+  it("Alt+↑ doesn't prevent the default when the row can't move or has no neighbor", () => {
+    const e = press('ArrowUp', true)
+    activeRowKeyDown(e, undefined, vi.fn())
+    activeRowKeyDown(e, () => false, vi.fn())
+    expect(e.preventDefault).not.toHaveBeenCalled()
+  })
+
+  it('Delete/Backspace removes, Enter/Space activates, all default-prevented', () => {
+    const remove = vi.fn()
+    const activate = vi.fn()
+    for (const key of ['Delete', 'Backspace', 'Enter', ' ']) {
+      const e = press(key)
+      activeRowKeyDown(e, undefined, remove, activate)
+      expect(e.preventDefault).toHaveBeenCalled()
+    }
+    expect(remove).toHaveBeenCalledTimes(2)
+    expect(activate).toHaveBeenCalledTimes(2)
+  })
+
+  it('ignores a plain arrow key', () => {
+    const e = press('ArrowUp')
+    activeRowKeyDown(e, vi.fn(), vi.fn())
+    expect(e.preventDefault).not.toHaveBeenCalled()
   })
 })

@@ -1642,6 +1642,19 @@ describe('DataTable — sort dropdown', () => {
     // (see their own equivalent tests/fix).
     expect(document.activeElement).toBe(after[0])
   })
+
+  it("Alt+ArrowUp on the first active sort row isn't default-prevented (no neighbor)", () => {
+    const { getByText, getAllByText, container } = render(
+      <DataTable data={ROWS} columns={SORT_COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Sort'))
+    fireEvent.click(ddCopyOf(getAllByText, 'Name').closest('button')!)
+    fireEvent.click(ddCopyOf(getAllByText, 'Score').closest('button')!)
+
+    expect(fireEvent.keyDown(draggableRows(container)[0], { key: 'ArrowUp', altKey: true })).toBe(
+      true,
+    )
+  })
 })
 
 // The table header and the dropdown's own copy of a column label share text, so pick the one

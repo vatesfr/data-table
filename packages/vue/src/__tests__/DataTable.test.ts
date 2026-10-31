@@ -1969,6 +1969,25 @@ describe('DataTable — sort dropdown', () => {
     expect(after[0].text()).toContain('Score')
     expect(after[1].text()).toContain('Name')
   })
+  it("Alt+ArrowUp on the first active sort row isn't default-prevented (no neighbor)", async () => {
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: SORT_COLS, rowKey: 'id' } })
+    await wrapper
+      .findAll('button')
+      .find((b) => b.text() === 'Sort')!
+      .trigger('click')
+    await wrapper
+      .findAll('.dt-dd-item--click')
+      .find((el) => el.text() === 'Name')!
+      .trigger('click')
+    await wrapper
+      .findAll('.dt-dd-item--click')
+      .find((el) => el.text() === 'Score')!
+      .trigger('click')
+
+    const event = new KeyboardEvent('keydown', { key: 'ArrowUp', altKey: true, cancelable: true })
+    wrapper.findAll('.dt-dd-item--sortrow')[0].element.dispatchEvent(event)
+    expect(event.defaultPrevented).toBe(false)
+  })
 })
 
 function headerOf(wrapper: ReturnType<typeof mount>, label: string) {

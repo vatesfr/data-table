@@ -28,6 +28,7 @@ import {
   pageSizeOptions,
   showsPager,
   planRowNav,
+  activeRowKeyDown,
   getSortIndex as getHeaderSortIndex,
   getSortIcon as getHeaderSortIcon,
   summarizeFilterValues,
@@ -165,28 +166,6 @@ function RemoveButton({ label, onClick }: { label: string; onClick: MouseEventHa
       ×
     </button>
   )
-}
-
-// Keyboard for the Columns/Sort/Group active rows: Alt+↑/↓ reorders, Delete/Backspace matches the
-// row's × button, Enter/Space activates — always preventDefault'ed, or Space scrolls the panel out
-// from under the still-focused row.
-function activeRowKeyDown(
-  e: KeyboardEvent,
-  move: ((delta: number) => void) | undefined,
-  remove: () => void,
-  activate?: () => void,
-): void {
-  if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
-    if (!move) return
-    e.preventDefault()
-    move(e.key === 'ArrowUp' ? -1 : 1)
-  } else if (e.key === 'Delete' || e.key === 'Backspace') {
-    e.preventDefault()
-    remove()
-  } else if (e.key === 'Enter' || e.key === ' ') {
-    e.preventDefault()
-    activate?.()
-  }
 }
 
 /**
@@ -1188,10 +1167,11 @@ export function DataTableView<TRow extends object>({
                             activeRowKeyDown(
                               e,
                               (delta) => {
-                                // Swap within this non-group subset (by key), not the raw sorts
-                                // array, where a group entry can sit between two non-group ones
+                                // Swap within this non-group subset, not the raw sorts array, where
+                                // a group entry can sit between two non-group ones
                                 const neighbor = nonGroupSortEntries[i + delta]
-                                if (neighbor) moveSort(entry.key, neighbor.key, delta > 0)
+                                if (!neighbor) return false
+                                moveSort(entry.key, neighbor.key, delta > 0)
                               },
                               () => {
                                 pendingSortFocusKey.current = entry.key

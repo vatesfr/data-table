@@ -17,6 +17,7 @@ import {
   chipRemovalFocusTarget,
   filterDetailFocusTarget,
   planRowNav,
+  activeRowKeyDown,
   getSortIndex as getHeaderSortIndex,
   getSortIcon as getHeaderSortIcon,
   summarizeFilterValues,
@@ -705,34 +706,21 @@ const {
   onDragOver: onSortRowsDragOver,
   onDrop: onSortRowsDrop,
 } = useDropdownReorder('data-sort-key', moveSort)
-// Alt+↑/↓ mirrors the drag gesture for keyboard-only reorder; Enter/Space mirrors the row's own
-// click (toggle direction) since a plain div gets no free keyboard activation the way a real
-// <button> would (unlike the add-list, which renders real buttons and needs no handler here).
-// The Alt+↑/↓ branch reuses `activateAndFocus`/`sortRowRefs` above — unlike activate/remove, the
-// row stays in the *same* v-for list across a reorder, but Vue's keyed reconciliation still drops
-// focus when it moves the DOM node to its new position (confirmed empirically), so an explicit
-// refocus is needed here too, not just when a row crosses between lists.
-function onSortRowKeyDown(event: KeyboardEvent, key: string): void {
-  if (event.key === 'Enter' || event.key === ' ') {
-    event.preventDefault()
-    toggleSortDir(key)
-  } else if (event.altKey && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {
-    event.preventDefault()
-    // Swap with the neighbor within the non-group subset (by key, via moveSort/reorderSort), not
-    // the raw sorts-array neighbor (moveSortBy) — a group entry can sit between two non-group
-    // ones in the underlying array, and swapping with it would silently do nothing visible in
-    // this section (only non-group entries render here — see nonGroupSortEntries).
-    const list = nonGroupSortEntries.value
-    const delta = event.key === 'ArrowUp' ? -1 : 1
-    const idx = list.findIndex((s) => s.key === key)
-    const neighbor = list[idx + delta]
-    if (neighbor) activateAndFocus(() => moveSort(key, neighbor.key, delta > 0), sortRowRefs, key)
-  } else if (event.key === 'Delete' || event.key === 'Backspace') {
-    // Keyboard equivalent of this row's own × button — matches the Filter dropdown's identical
-    // Delete/Backspace-on-a-focused-active-row shortcut.
-    event.preventDefault()
-    onRemoveSortClick(key)
-  }
+// Keyboard reorder/remove/toggle (activeRowKeyDown, core). Vue's keyed reconciliation drops focus
+// when a reorder moves the row's DOM node, hence the `activateAndFocus` refocus.
+// Alt+↑/↓ swaps within the non-group subset, not the raw sorts array, where a group entry can sit
+// between two non-group ones.
+function onSortRowKeyDown(event: KeyboardEvent, key: string, i: number): void {
+  activeRowKeyDown(
+    event,
+    (delta) => {
+      const neighbor = nonGroupSortEntries.value[i + delta]
+      if (!neighbor) return false
+      activateAndFocus(() => moveSort(key, neighbor.key, delta > 0), sortRowRefs, key)
+    },
+    () => onRemoveSortClick(key),
+    () => toggleSortDir(key),
+  )
 }
 
 // Same as above, for the Group dropdown's active entries — a group entry has nothing to toggle
@@ -746,22 +734,13 @@ const {
   onDrop: onGroupRowsDrop,
 } = useDropdownReorder('data-group-key', moveGroup)
 function onGroupRowKeyDown(event: KeyboardEvent, key: string): void {
-  if (event.altKey && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {
-    event.preventDefault()
-    const delta = event.key === 'ArrowUp' ? -1 : 1
-    activateAndFocus(() => moveGroupBy(key, delta), groupRowRefs, key)
-  } else if (event.key === 'Delete' || event.key === 'Backspace') {
-    // Keyboard equivalent of this row's own × button — matches the Filter dropdown's identical
-    // Delete/Backspace-on-a-focused-active-row shortcut.
-    event.preventDefault()
-    onRemoveGroupClick(key)
-  } else if (event.key === 'Enter' || event.key === ' ') {
-    // No click action of its own (unlike Sort's active rows, which toggle direction) — but still
-    // needs to preventDefault, or Space's native default action scrolls the nearest scrollable
-    // ancestor (this panel, or the whole page once the panel itself has nothing left to scroll)
-    // out from under the still-focused row, which reads as "focus was lost" even though it wasn't.
-    event.preventDefault()
-  }
+  activeRowKeyDown(
+    event,
+    (delta) => {
+      activateAndFocus(() => moveGroupBy(key, delta), groupRowRefs, key)
+    },
+    () => onRemoveGroupClick(key),
+  )
 }
 
 // Drag-and-drop reordering for the Columns dropdown's Visible rows — replaces the old ▲▼ buttons.
@@ -815,25 +794,17 @@ async function hideColumn(col: ColumnDef<TRow>): Promise<void> {
   else addableColRefs.get(col.key)?.focus()
 }
 function onColRowKeyDown(event: KeyboardEvent, key: string, col: ColumnDef<TRow>): void {
-  if (event.altKey && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {
-    event.preventDefault()
-    const delta = event.key === 'ArrowUp' ? -1 : 1
-    activateAndFocus(
-      () => moveVisibleColumnBy(key, delta, colsReorderEligible.value),
-      colRowRefs,
-      key,
-    )
-  } else if (event.key === 'Delete' || event.key === 'Backspace') {
-    // Keyboard equivalent of this row's own × button — matches the Filter dropdown's identical
-    // Delete/Backspace-on-a-focused-active-row shortcut.
-    event.preventDefault()
-    hideColumn(col)
-  } else if (event.key === 'Enter' || event.key === ' ') {
-    // No click action of its own — but still needs to preventDefault, or Space's native default
-    // action scrolls the nearest scrollable ancestor out from under the still-focused row, which
-    // reads as "focus was lost" even though it wasn't (see onGroupRowKeyDown's identical comment).
-    event.preventDefault()
-  }
+  activeRowKeyDown(
+    event,
+    (delta) => {
+      activateAndFocus(
+        () => moveVisibleColumnBy(key, delta, colsReorderEligible.value),
+        colRowRefs,
+        key,
+      )
+    },
+    () => hideColumn(col),
+  )
 }
 
 const searchInputRef = ref<HTMLInputElement | null>(null)
@@ -1316,19 +1287,12 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
               tabindex="0"
               @click="toggleSortDir(entry.key)"
               @keydown="
-                (e: KeyboardEvent) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault()
-                    toggleSortDir(entry.key)
-                  } else if (e.key === 'Delete' || e.key === 'Backspace') {
-                    // Keyboard equivalent of this row's own × button — matches the Filter
-                    // dropdown's identical Delete/Backspace-on-a-focused-active-row shortcut.
-                    // This row isn't draggable/reorderable, but removing its sort entry still
-                    // needs the same focus hand-off as any other (see onRemoveSortClick).
-                    e.preventDefault()
-                    onRemoveSortClick(entry.key)
-                  }
-                }
+                activeRowKeyDown(
+                  $event,
+                  undefined,
+                  () => onRemoveSortClick(entry.key),
+                  () => toggleSortDir(entry.key),
+                )
               "
             >
               <span class="dt-sort-idx">{{ i + 1 }}</span>
@@ -1372,7 +1336,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
               draggable="true"
               tabindex="0"
               @click="toggleSortDir(entry.key)"
-              @keydown="onSortRowKeyDown($event, entry.key)"
+              @keydown="onSortRowKeyDown($event, entry.key, i)"
               @dragstart="onSortDragStart(entry.key)"
               @dragend="onSortDragEnd"
             >

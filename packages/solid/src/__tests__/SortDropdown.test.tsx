@@ -438,6 +438,22 @@ describe('SortDropdown', () => {
     dispose()
   })
 
+  it("Alt+ArrowUp on the first active entry isn't default-prevented (no neighbor)", () => {
+    const { container, table, dispose } = mount()
+    table.sort.toggle('name')
+    table.sort.appendOrToggle('score')
+    const event = new KeyboardEvent('keydown', {
+      key: 'ArrowUp',
+      altKey: true,
+      bubbles: true,
+      cancelable: true,
+    })
+    container.querySelector('[data-sort-key="name"]')!.dispatchEvent(event)
+    expect(event.defaultPrevented).toBe(false)
+    expect(table.sort.entries().map((s) => s.key)).toEqual(['name', 'score'])
+    dispose()
+  })
+
   it('drag-and-drop reorders active entries', () => {
     const { container, table, dispose } = mount()
     table.sort.toggle('name')
