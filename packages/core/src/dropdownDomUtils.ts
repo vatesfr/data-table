@@ -1,8 +1,8 @@
 // This file's functions only ever run in a browser — they operate directly on `DOMRect`/`clientY`/
 // `window` values — unlike the rest of `packages/core`, which targets a DOM-free `lib` so it can
-// also run in Node/SSR (see `view.ts`'s hand-rolled base64url, `viewPersistence.ts`'s own note). A
-// file-scoped `lib="dom"` reference pulls in just the ambient types this file needs (`DOMRect`,
-// `HTMLElement`) without adding "dom" to the whole package's `tsconfig.json` `lib` array.
+// also run in Node/SSR (see `viewPersistence.ts`'s own note). A file-scoped `lib="dom"` reference
+// pulls in just the ambient types this file needs (`DOMRect`, `HTMLElement`) without adding "dom"
+// to the whole package's `tsconfig.json` `lib` array.
 // `preserve` keeps it in the emitted `.d.ts`, which API Extractor needs to resolve those types.
 /// <reference lib="dom" preserve="true" />
 
@@ -90,21 +90,22 @@ export function computeDropdownClampOffset(
 }
 
 /**
- * Clamps an open panel horizontally now, after every DOM change and whenever it resizes: its
- * trigger can move while the panel is open (a filter count badge widens the Filter button, the
- * toolbar rewraps). `getDx`/`setDx` read and apply the panel's `translateX`. Returns the function
- * stopping it.
+ * Sets up a dropdown panel just opened: flips it up (`dt-dd--up`) when it would overflow the
+ * viewport bottom, clamps it horizontally now, after every DOM change and whenever it resizes (its
+ * trigger can move while it's open: a filter count badge widens the Filter button, the toolbar
+ * rewraps), then focuses `ddOpenFocusTarget`. Returns the function stopping the clamp.
  */
-export function keepDropdownClamped(
-  panel: HTMLElement,
-  getDx: () => number,
-  setDx: (dx: number) => void,
-): () => void {
+export function openDropdownPanel(panel: HTMLElement): () => void {
+  if (
+    computeDropdownClampOffset(panel.getBoundingClientRect(), viewportWidth(), window.innerHeight)
+      .flipUp
+  )
+    panel.classList.add('dt-dd--up')
+  let current = 0
   const clamp = () => {
     const rect = panel.getBoundingClientRect()
     // Not laid out (jsdom, hidden): the rect ignores the translateX, so each write would grow it
     if (!rect.width) return
-    const current = getDx()
     // The rect shows the rendered offset, which lags the requested one while a transition runs
     const rendered = new DOMMatrixReadOnly(getComputedStyle(panel).transform).m41
     const { dx } = computeDropdownClampOffset(
@@ -118,7 +119,9 @@ export function keepDropdownClamped(
       window.innerHeight,
     )
     // Sub-pixel noise would otherwise re-trigger this observer through the style write
-    if (Math.abs(dx - current) >= 0.5) setDx(dx)
+    if (Math.abs(dx - current) < 0.5) return
+    current = dx
+    panel.style.transform = dx ? `translateX(${dx}px)` : ''
   }
   clamp()
   const observer = new MutationObserver(clamp)
@@ -131,6 +134,7 @@ export function keepDropdownClamped(
   // A stylesheet or a transition can resize the panel with no DOM change (U29)
   const resized = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(clamp)
   resized?.observe(panel)
+  ddOpenFocusTarget(panel)?.focus()
   return () => {
     observer.disconnect()
     resized?.disconnect()
@@ -239,7 +243,7 @@ export const DD_NAV_SELECTOR = 'input[data-dd-search], [data-dd-row]'
  * `[tabindex]`) or wraps its actual focusable target as a descendant (e.g. a column checkbox row,
  * whose own checkbox — not the row `<div>` — is the real Tab stop).
  */
-export function ddFocusableFor(el: HTMLElement): HTMLElement | null {
+function ddFocusableFor(el: HTMLElement): HTMLElement | null {
   return el.matches('input, button, [tabindex]')
     ? el
     : el.querySelector<HTMLElement>('input, button, [tabindex]')
@@ -253,6 +257,55 @@ export function ddNavFocusables(panel: HTMLElement): HTMLElement[] {
   return Array.from(panel.querySelectorAll<HTMLElement>(DD_NAV_SELECTOR))
     .map(ddFocusableFor)
     .filter((el): el is HTMLElement => el !== null)
+}
+
+/**
+ * Where ↑/↓/Home/End moves focus in a roving list: `active`'s neighbor in `all` (no wrap), or the
+ * first/last of `homeEnd`. Null for other keys, when `active` isn't in `all`, or when focus stays.
+ */
+export function rovingFocusTarget<T extends Element>(
+  key: string,
+  all: T[],
+  active: Element | null,
+  homeEnd: T[] = all,
+): T | null {
+  const i = all.indexOf(active as T)
+  if (i === -1) return null
+  const next =
+    key === 'Home'
+      ? homeEnd[0]
+      : key === 'End'
+        ? homeEnd[homeEnd.length - 1]
+        : key === 'ArrowDown'
+          ? all[i + 1]
+          : key === 'ArrowUp'
+            ? all[i - 1]
+            : undefined
+  return next && next !== active ? next : null
+}
+
+/**
+ * Keyboard for the Columns/Sort/Group active rows: Alt+↑/↓ calls `move` (absent on a row that
+ * can't move), Delete/Backspace matches the row's × button, Enter/Space activates. Handled keys
+ * are preventDefault'ed (Space would scroll the panel out from under the focused row), except a
+ * move returning false (no neighbor).
+ */
+export function activeRowKeyDown(
+  e: { key: string; altKey: boolean; preventDefault(): void },
+  move: ((delta: number) => boolean | void) | undefined,
+  remove: () => void,
+  activate?: () => void,
+): void {
+  const { key } = e
+  if (e.altKey && (key === 'ArrowUp' || key === 'ArrowDown')) {
+    if (move && move(key === 'ArrowUp' ? -1 : 1) !== false) e.preventDefault()
+  } else if (key === 'Delete' || key === 'Backspace') {
+    e.preventDefault()
+    remove()
+  } else if (key === 'Enter' || key === ' ') {
+    e.preventDefault()
+    activate?.()
+  }
 }
 
 /**

@@ -1,10 +1,8 @@
-import { type JSX, Show, createSignal, onCleanup, onMount } from 'solid-js'
+import { type JSX, Show, onCleanup, onMount } from 'solid-js'
 import {
-  computeDropdownClampOffset,
   ddNavFocusables,
-  ddOpenFocusTarget,
-  keepDropdownClamped,
-  viewportWidth,
+  openDropdownPanel,
+  rovingFocusTarget,
 } from '@vates/data-table-core/internal'
 
 interface DropdownProps {
@@ -44,8 +42,6 @@ interface DropdownProps {
 export function Dropdown(props: DropdownProps) {
   let wrapRef: HTMLDivElement | undefined
   let panelRef: HTMLDivElement | undefined
-  const [flipUp, setFlipUp] = createSignal(false)
-  const [translateX, setTranslateX] = createSignal(0)
 
   function handleDocClick(e: MouseEvent): void {
     // Every Columns/Sort/Group/Filter dropdown mounts its own Dropdown instance simultaneously,
@@ -64,7 +60,7 @@ export function Dropdown(props: DropdownProps) {
   // above), plus Escape. A distinct concern from any Alt+↑/↓ reorder or Enter/Space toggle a row
   // itself implements — those don't stopPropagation, so this still runs after them via bubbling,
   // but its own `e.altKey` guard keeps it from ever acting on their modifier combo. Scoped to
-  // elements this panel actually recognizes (`focusables.indexOf(active) !== -1`) so it never
+  // elements this panel actually recognizes (see `rovingFocusTarget`) so it never
   // interferes with unrelated controls elsewhere in the panel (e.g. the Filter dropdown's
   // right-hand detail pane, which implements its own nav — see FilterDropdown.tsx — including
   // native Left/Right/Up/Down/Home/End on its own range inputs/slider that must keep working
@@ -80,7 +76,6 @@ export function Dropdown(props: DropdownProps) {
       return
     }
     if (e.altKey) return
-    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Home' && e.key !== 'End') return
     if (!panelRef) return
     // A CategorySubmenu (see that file) renders as a real descendant of this panel and implements
     // its own independent Up/Down/Home/End nav, scoped to its own rows and stopping propagation —
@@ -89,30 +84,16 @@ export function Dropdown(props: DropdownProps) {
     // this list.
     const focusables = ddNavFocusables(panelRef).filter((el) => !el.closest('.dt-dd-submenu'))
     const rowFocusables = focusables.filter((el) => !el.matches('input[data-dd-search]'))
-    const active = document.activeElement as HTMLElement | null
-    if (!active || focusables.indexOf(active) === -1) return
-    if (e.key === 'Home' || e.key === 'End') {
-      if (rowFocusables.length === 0) return
-      e.preventDefault()
-      ;(e.key === 'Home' ? rowFocusables[0] : rowFocusables[rowFocusables.length - 1]).focus()
-      return
-    }
-    const idx = focusables.indexOf(active)
-    const nextIdx = e.key === 'ArrowDown' ? idx + 1 : idx - 1
-    if (nextIdx < 0 || nextIdx >= focusables.length) return
+    const target = rovingFocusTarget(e.key, focusables, document.activeElement, rowFocusables)
+    if (!target) return
     e.preventDefault()
-    focusables[nextIdx].focus()
+    target.focus()
   }
 
   onMount(() => {
     document.addEventListener('click', handleDocClick, true)
     onCleanup(() => document.removeEventListener('click', handleDocClick, true))
   })
-
-  function clampToViewport(el: HTMLDivElement): void {
-    const rect = el.getBoundingClientRect()
-    setFlipUp(computeDropdownClampOffset(rect, viewportWidth(), window.innerHeight).flipUp)
-  }
 
   return (
     <div class="dt-dd-wrap" ref={wrapRef} onKeyDown={handleKeyDown}>
@@ -122,7 +103,7 @@ export function Dropdown(props: DropdownProps) {
       </span>
       <Show when={props.isOpen}>
         <div
-          class={`dt-dd${flipUp() ? ' dt-dd--up' : ''}`}
+          class="dt-dd"
           ref={(el) => {
             panelRef = el
             // Registered here: the microtask below runs outside this branch's owner
@@ -139,22 +120,11 @@ export function Dropdown(props: DropdownProps) {
             // underlying reason the viewport-clamp measurement below already needs to wait a
             // microtask, just for DOM presence instead of layout.
             queueMicrotask(() => {
-              if (!panelRef || closed) return
-              // Opening a dropdown should hand it focus immediately — its own search box if it
-              // has one (preferred regardless of where it sits in the DOM, e.g. Sort/Group's
-              // search box renders *after* the active-entries section but is still the preferred
-              // landing spot), else the first row (e.g. Sort with every column already sorted has
-              // no addable section and therefore no search box). On a touch screen, the first row
-              // regardless, so the keyboard doesn't pop up (see ddOpenFocusTarget).
-              // Measure after the panel's real content is laid out — same microtask, since both
-              // depend on the same "children actually exist" precondition. Clamp first: focusing a
-              // field still past the viewport's edge scrolls the whole page sideways (phones).
-              clampToViewport(panelRef)
-              stopClamping = keepDropdownClamped(panelRef, translateX, setTranslateX)
-              ddOpenFocusTarget(panelRef)?.focus()
+              // Clamp before focusing (inside openDropdownPanel): focusing a field still past the
+              // viewport's edge scrolls the whole page sideways (phones)
+              if (panelRef && !closed) stopClamping = openDropdownPanel(panelRef)
             })
           }}
-          style={{ transform: translateX() ? `translateX(${translateX()}px)` : undefined }}
         >
           {props.children}
         </div>

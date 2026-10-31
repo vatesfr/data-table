@@ -16,7 +16,8 @@ import {
   tableStatus,
   chipRemovalFocusTarget,
   filterDetailFocusTarget,
-  getCrossPageFocusTarget,
+  planRowNav,
+  activeRowKeyDown,
   getSortIndex as getHeaderSortIndex,
   getSortIcon as getHeaderSortIcon,
   summarizeFilterValues,
@@ -27,11 +28,10 @@ import {
   columnHasActiveFilter,
   filterOpenState,
   applyColumnOrderSnapshot,
-  alphabetizedByLabel,
+  addableLists,
+  columnsDropdownLists,
   columnMatchesSearch,
   groupColumnsByCategory,
-  categorizedAlphabetizedByLabel,
-  moveVisibleColumnBy as _moveVisibleColumnBy,
   type PagedGroup,
   type VisibleItem,
   watchMedia,
@@ -42,25 +42,22 @@ import {
   injectStyles,
 } from '@vates/data-table-core/internal'
 import { type SortEntry } from '@vates/data-table-core'
-import type { ColumnDef, DataTableViewInternalProps } from './types'
+import type { ColumnDef, DataTableViewProps } from './types'
 import Dropdown from './components/Dropdown.vue'
-import CategorySubmenu from './components/CategorySubmenu.vue'
+import AddableColumnList from './components/AddableColumnList.vue'
 import HeaderMenu from './components/HeaderMenu.vue'
 import FilterPane from './components/FilterPane.vue'
 import ToolbarBtn from './components/ToolbarBtn.vue'
 import { vIndeterminate } from './directives/vIndeterminate'
 import { useDropdownReorder } from './composables/useDropdownReorder'
-import { useSelfDetectedListener } from './composables/useSelfDetectedListener'
 
 // Vue casts an absent boolean prop with no explicit default to `false`, not `undefined` — an
 // explicit `true` default is required here so an omitted `showSearch` still shows the search box
 // (same gotcha `<DataTable>`'s own `defaultGroupsCollapsed` default works around).
-const props = withDefaults(defineProps<DataTableViewInternalProps<TRow>>(), {
+const props = withDefaults(defineProps<DataTableViewProps<TRow>>(), {
   rowKey: 'id',
   showSearch: true,
   showColumns: true,
-  // Absent must stay undefined, not cast to false, so a direct @row-click listener is detected
-  rowClickable: undefined,
 })
 
 // The shared stylesheet, without tokens: Vue apps define the --color-* tokens themselves
@@ -68,33 +65,13 @@ injectStyles()
 
 const emit = defineEmits<{
   selectionChange: [rows: TRow[]]
-  rowClick: [row: TRow, event: MouseEvent | KeyboardEvent]
 }>()
 
 const slots = useSlots()
 
-// vnode.props holds the raw incoming listeners regardless of the emits declaration above
-// (declared emits are stripped from $attrs), so this is the only reliable way to detect
-// whether the caller passed a @row-click listener directly on this component. The
-// `<DataTable>` wrapper always forwards the row-click emit itself (so clicks still fire
-// regardless of listener presence, matching the underlying emit's own semantics) and instead
-// passes its own listener-presence check through explicitly via `rowClickable` — falling back
-// to self-detection here only when `<DataTableView>` is used directly, with no such prop.
-//
-// See useSelfDetectedListener for why this needs onUpdated rather than a plain computed over
-// vnode.props directly.
-const selfDetectedRowClickable = useSelfDetectedListener('onRowClick')
-const isRowClickable = computed(() => props.rowClickable ?? selfDetectedRowClickable.value)
+const isRowClickable = computed(() => !!props.onRowClick)
 
-function handleRowClick(row: TRow, event: MouseEvent | KeyboardEvent) {
-  emit('rowClick', row, event)
-}
-
-// `props.table`'s own fields are namespaced by concern (see docs/table-state.md's "Namespaced TableState")
-// — destructured here into the same bare local names this file's script and template already
-// use throughout, so nothing below this block (including every `<template>` binding, since
-// `<script setup>` auto-exposes top-level `const`s to the template) needed to change when the
-// namespacing landed.
+// Bare local names for `table`'s namespaced fields (docs/table-state.md), also exposed to the template
 const { processedData, groupedData, visibleItems, labels: L, clearAll } = props.table
 const {
   visible: visibleCols,
@@ -144,10 +121,6 @@ const {
 } = props.table.selection
 const { page, pageSize, numPages, setPage, setPageSize } = props.table.pagination
 const { query: searchQuery, setQuery: setSearchQuery } = props.table.search
-// `focusTarget`/`setFocusTarget` used to be local `shallowRef`/function here — lifted to
-// `useTableState` (`table.focus.target`/`setTarget`) so it's reachable/settable from outside the
-// rendered table (see `focus.moveTo`'s own doc comment there); everything below still reads/
-// writes it through these same bare local names.
 const { target: focusTarget, setTarget: setFocusTarget } = props.table.focus
 
 // Split for the Sort dropdown's active list and the active-bar chips (see "Auto-syncing group
@@ -218,10 +191,6 @@ function focusItem(target: VisibleItem<TRow>): void {
   rowRefs.get(refKey)?.focus()
 }
 
-// Arrow-key/Ctrl+Home/Ctrl+End navigation can target an item that isn't on the current page —
-// `visibleItems` (from `table`) already covers the *full* filtered/grouped dataset, so crossing
-// to an arbitrary page's first/last item is core's `getCrossPageFocusTarget` (shared with React).
-
 // Changing `page` re-renders asynchronously, so an item on the new page can't be focused until
 // after that render commits — this records the target and the `watch` below (flush: 'post',
 // i.e. after the DOM update) picks it up.
@@ -269,93 +238,29 @@ watch(
 )
 
 function handleKeyDown(event: KeyboardEvent, target: VisibleItem<TRow>): void {
-  const items = navigableItems.value
-  const idx = indexOfVisibleItem(items, target)
-  switch (event.key) {
-    case 'ArrowDown':
-    case 'ArrowUp': {
-      const delta = event.key === 'ArrowDown' ? 1 : -1
-      const nextIdx = idx + delta
-      if (nextIdx >= 0 && nextIdx < items.length) {
-        const next = items[nextIdx]
-        event.preventDefault()
-        if (event.shiftKey && props.selectable && next.kind === 'row')
-          toggleRowSelection(next.row, true)
-        focusItem(next)
-      } else {
-        const crossing = getCrossPageFocusTarget(
-          visibleItems.value,
-          page.value,
-          numPages.value,
-          pageSize.value,
-          { kind: 'edge', delta },
-          isRowNavEnabled.value,
-        )
-        if (crossing) {
-          event.preventDefault()
-          if (event.shiftKey && props.selectable && crossing.item.kind === 'row')
-            toggleRowSelection(crossing.item.row, true)
-          pendingFocusTarget = crossing.item
-          setPage(crossing.targetPage)
-        }
-      }
-      break
-    }
-    case 'Home':
-    case 'End': {
-      if (event.ctrlKey || event.metaKey) {
-        const crossing = getCrossPageFocusTarget(
-          visibleItems.value,
-          page.value,
-          numPages.value,
-          pageSize.value,
-          { kind: 'jump', toEnd: event.key === 'End' },
-          isRowNavEnabled.value,
-        )
-        if (crossing) {
-          event.preventDefault()
-          if (event.shiftKey && props.selectable && crossing.item.kind === 'row')
-            toggleRowSelection(crossing.item.row, true)
-          if (crossing.targetPage === page.value) {
-            focusItem(crossing.item)
-          } else {
-            pendingFocusTarget = crossing.item
-            setPage(crossing.targetPage)
-          }
-        }
-        break
-      }
-      const next = items[event.key === 'Home' ? 0 : items.length - 1]
-      if (next && !isSameVisibleItem(next, target)) {
-        event.preventDefault()
-        if (event.shiftKey && props.selectable && next.kind === 'row')
-          toggleRowSelection(next.row, true)
-        focusItem(next)
-      }
-      break
-    }
-    case ' ':
-      if (target.kind === 'group') {
-        if (props.selectable) {
-          event.preventDefault()
-          const group = groupedData.value.find((g) => g.key === target.key)
-          if (group) toggleSelectAll(group.rows)
-        }
-      } else if (props.selectable) {
-        event.preventDefault()
-        toggleRowSelection(target.row, event.shiftKey)
-      }
-      break
-    case 'Enter':
-      if (target.kind === 'group') {
-        event.preventDefault()
-        toggleGroupCollapse(target.key)
-      } else if (isRowClickable.value) {
-        event.preventDefault()
-        handleRowClick(target.row, event)
-      }
-      break
-  }
+  const plan = planRowNav(event, target, {
+    visibleItems: visibleItems.value,
+    navigableItems: navigableItems.value,
+    page: page.value,
+    numPages: numPages.value,
+    pageSize: pageSize.value,
+    selectable: props.selectable,
+    rowClickable: isRowClickable.value,
+  })
+  if (!plan) return
+  event.preventDefault()
+  if (plan.kind === 'focus') {
+    if (plan.extend) toggleRowSelection(plan.extend, true)
+    if (plan.page) {
+      pendingFocusTarget = plan.item
+      setPage(plan.page)
+    } else focusItem(plan.item)
+  } else if (plan.kind === 'toggleRow') toggleRowSelection(plan.row, event.shiftKey)
+  else if (plan.kind === 'toggleGroupSelection') {
+    const group = groupedData.value.find((g) => g.key === plan.key)
+    if (group) toggleSelectAll(group.rows)
+  } else if (plan.kind === 'toggleCollapse') toggleGroupCollapse(plan.key)
+  else props.onRowClick?.(plan.row, event)
 }
 
 const allSelected = computed(
@@ -405,50 +310,27 @@ function makeDdEscapeClearable(dd: string): () => boolean {
 const colsEscapeClearable = makeDdEscapeClearable('cols')
 const sortEscapeClearable = makeDdEscapeClearable('sort')
 const groupEscapeClearable = makeDdEscapeClearable('group')
-// Columns dropdown: the search box is pinned at the top and, unlike Sort/Group, narrows *both*
-// "Visible columns" (visibleCols, not activeColumns, so a column merely hidden *by grouping*
-// still counts as visible here) and "Available columns" (hidden columns, click to show) — a
-// column you already show is just as often what you're hunting for (to hide/reorder it) as one
-// you don't. Available stays bucketed by category but deliberately NOT alphabetized when not
-// searching: this dropdown's whole identity is "shows real column/definition order," unlike
-// Sort/Group's addable lists (see categorizedAlphabetizedByLabel above). While searching, a
-// category match is flattened into a plain, category-tagged row instead — see
-// searchedFlatAvailableCols below — since hiding a single match behind an extra hover/click
-// defeats the point of searching (same reasoning as Sort/Group's own flatten-on-search).
-const isColsSearching = computed(() => ddSearchTerm('cols').trim() !== '')
-const visibleOrderedColumns = computed(() =>
-  orderedColumns.value.filter((c) => visibleCols.value.has(c.key)),
+// Columns dropdown lists: see columnsDropdownLists (core).
+const colsLists = computed(() =>
+  columnsDropdownLists(orderedColumns.value, visibleCols.value, ddSearchTerm('cols')),
 )
-const searchedVisibleOrderedColumns = computed(() =>
-  visibleOrderedColumns.value.filter((c) => columnMatchesSearch(c, ddSearchTerm('cols'))),
-)
-// Alt+↑/↓'s neighbor-eligibility set for moveVisibleColumnBy (see useTableState.ts's own comment
-// on its 3rd param): the real visible-columns set when not searching (today's behavior,
-// unchanged), or narrowed to just the currently-shown-and-matching keys while searching, so a
-// search-filtered-out column is never chosen as a swap partner.
-const colsReorderEligible = computed<ReadonlySet<string> | undefined>(() =>
-  isColsSearching.value
-    ? new Set(searchedVisibleOrderedColumns.value.map((c) => c.key))
-    : undefined,
-)
-const availableColumns = computed(() =>
-  orderedColumns.value.filter((c) => !visibleCols.value.has(c.key)),
-)
-// Only bucketed by category while *not* searching — see categorizedAvailableCols' own use below.
-const categorizedAvailableCols = computed(() => groupColumnsByCategory(availableColumns.value))
-const searchedFlatAvailableCols = computed(() =>
-  availableColumns.value.filter((c) => columnMatchesSearch(c, ddSearchTerm('cols'))),
-)
-// Declared here (rather than alongside its sibling groupDropdownRef further down) because the
-// watch right below needs it, and `<script setup>` top-level consts execute in source order —
-// referencing it before this point would hit the TDZ.
-const filterDropdownRef = ref<InstanceType<typeof Dropdown> | null>(null)
+const isColsSearching = computed(() => colsLists.value[0])
+const searchedVisibleOrderedColumns = computed(() => colsLists.value[1])
+const searchedFlatAvailableCols = computed(() => colsLists.value[2])
+const categorizedAvailableCols = computed(() => colsLists.value[3])
+const colsReorderEligible = computed(() => colsLists.value[4])
+// One open toolbar dropdown per table, as in React and Solid: opening one closes the others (U33)
+type DdId = 'cols' | 'sort' | 'filter' | 'group'
+const openDD = ref<DdId | null>(null)
+function setDDOpen(id: DdId, open: boolean): void {
+  if (open) openDD.value = id
+  else if (openDD.value === id) openDD.value = null
+}
 // Snapshot of the Filter dropdown's left-pane column order, taken only at the moment the
 // dropdown opens — active-filter columns first, then the rest (see `orderFilterColumnsByActive`'s
 // own doc comment, core, for why this is a snapshot rather than a live sort: reordering while a
 // filter is toggled with the panel still open would move a row out from under the pointer
-// mid-interaction). `filterDropdownRef.value?.isOpen` is watched (rather than hoisting `isOpen`
-// itself here) since Dropdown.vue already owns that state — see its own `isOpen` export.
+// mid-interaction).
 const filterColOrderKeys = ref<string[] | null>(null)
 // Which categories are collapsed (see docs/columns.md's "Column categories"). Seeded the same way as
 // filterColOrderKeys above — a snapshot taken only on the closed→open transition, not recomputed
@@ -465,7 +347,7 @@ function toggleCategoryCollapsed(name: string): void {
   collapsedCategories.value = next
 }
 watch(
-  () => filterDropdownRef.value?.isOpen,
+  () => openDD.value === 'filter',
   (open, prevOpen) => {
     if (open && !prevOpen) {
       filterShowValues.value = false
@@ -597,7 +479,7 @@ function setFilterColRef(key: string, el: Element | null): void {
 // right thing on the very first render, before focus even lands on the button — and neither the
 // column search nor a collapsed category can hide its button (U25).
 async function onOpenFilterCol(key: string): Promise<void> {
-  filterDropdownRef.value?.open()
+  openDD.value = 'filter'
   filterActiveCol.value = key
   setDdSearchTerm('filter', '')
   const category = filterableCols.value.find((c) => c.key === key)?.category
@@ -715,38 +597,22 @@ function onHeaderSortClick(col: ColumnDef<TRow>, event: MouseEvent): void {
 }
 
 // Sort/Group dropdowns split into an "active" section (priority order, reorderable) and an
-// "add" section (everything else) — reordering only ever makes sense among active entries.
-const addableSortCols = computed(() =>
-  sortableCols.value.filter((c) => getSortIndex(c.key) === null),
+// "add" section (everything else) — reordering only ever makes sense among active entries; see
+// addableLists (core).
+const sortLists = computed(() =>
+  addableLists(sortableCols.value, (key) => getSortIndex(key) !== null, ddSearchTerm('sort')),
 )
-const addableGroupCols = computed(() =>
-  groupableCols.value.filter((c) => !groupBy.value.includes(c.key)),
+const groupLists = computed(() =>
+  addableLists(groupableCols.value, (key) => groupBy.value.includes(key), ddSearchTerm('group')),
 )
-// Search narrows each addable list only — the active-entries section above keeps its own
-// priority order and is never hidden by a search term, since it's a short, already-visible list
-// with its own remove/reorder controls. The addable list itself carries no ordering meaning (none
-// of these are sorted/grouped yet), so it's alphabetized instead of raw column-definition order —
-// and, via `categorizedAlphabetizedByLabel` (core, which also matches by category), bucketed by
-// `ColumnDefBase.category`: a category collapses into a `CategorySubmenu` flyout trigger instead
-// of a flat run of individual rows (see docs/columns.md's "Column categories").
-const categorizedAddableSortCols = computed(() =>
-  categorizedAlphabetizedByLabel(addableSortCols.value, ddSearchTerm('sort')),
-)
-const categorizedAddableGroupCols = computed(() =>
-  categorizedAlphabetizedByLabel(addableGroupCols.value, ddSearchTerm('group')),
-)
-// While searching, a category match is flattened into a plain, category-tagged row instead of
-// bucketed behind a CategorySubmenu trigger — see Columns' isColsSearching/searchedFlatAvailableCols
-// above for the identical reasoning. Plain alphabetize+search (no bucketing) covers this, since
-// the addable list already has no ordering meaning of its own to preserve.
-const isSortSearching = computed(() => ddSearchTerm('sort').trim() !== '')
-const isGroupSearching = computed(() => ddSearchTerm('group').trim() !== '')
-const searchedFlatAddableSortCols = computed(() =>
-  alphabetizedByLabel(addableSortCols.value, ddSearchTerm('sort')),
-)
-const searchedFlatAddableGroupCols = computed(() =>
-  alphabetizedByLabel(addableGroupCols.value, ddSearchTerm('group')),
-)
+const addableSortCols = computed(() => sortLists.value[0])
+const isSortSearching = computed(() => sortLists.value[1])
+const searchedFlatAddableSortCols = computed(() => sortLists.value[2])
+const categorizedAddableSortCols = computed(() => sortLists.value[3])
+const addableGroupCols = computed(() => groupLists.value[0])
+const isGroupSearching = computed(() => groupLists.value[1])
+const searchedFlatAddableGroupCols = computed(() => groupLists.value[2])
+const categorizedAddableGroupCols = computed(() => groupLists.value[3])
 // Which category submenu is open, one independent value per dropdown — a single shared ref (not
 // one per CategorySubmenu instance) so opening one always closes any other that was open in the
 // same dropdown, see CategorySubmenu.vue's own doc.
@@ -815,11 +681,9 @@ function onRemoveGroupClick(key: string): Promise<void> {
 // direction is for a sort chip (the sort chip's body just calls toggleSortDir directly in the
 // template — Vue's keyed reconciliation keeps that same <button> in place across the re-render,
 // so it needs no explicit refocus at all, unlike this one), so opening the dropdown straight to
-// it is the most useful available action. `groupDropdownRef` is read from plain script here (not
-// a template expression), so `.value` is needed, unlike a template expression referencing the
-// same top-level ref, which Vue's `<script setup>` compiler auto-unwraps.
+// it is the most useful available action.
 function onOpenGroupEntry(key: string): Promise<void> {
-  return activateAndFocus(() => groupDropdownRef.value?.open(), groupRowRefs, key)
+  return activateAndFocus(() => (openDD.value = 'group'), groupRowRefs, key)
 }
 
 // Drag-and-drop reordering for the Sort dropdown's active entries — kept as its own independent
@@ -833,34 +697,21 @@ const {
   onDragOver: onSortRowsDragOver,
   onDrop: onSortRowsDrop,
 } = useDropdownReorder('data-sort-key', moveSort)
-// Alt+↑/↓ mirrors the drag gesture for keyboard-only reorder; Enter/Space mirrors the row's own
-// click (toggle direction) since a plain div gets no free keyboard activation the way a real
-// <button> would (unlike the add-list, which renders real buttons and needs no handler here).
-// The Alt+↑/↓ branch reuses `activateAndFocus`/`sortRowRefs` above — unlike activate/remove, the
-// row stays in the *same* v-for list across a reorder, but Vue's keyed reconciliation still drops
-// focus when it moves the DOM node to its new position (confirmed empirically), so an explicit
-// refocus is needed here too, not just when a row crosses between lists.
-function onSortRowKeyDown(event: KeyboardEvent, key: string): void {
-  if (event.key === 'Enter' || event.key === ' ') {
-    event.preventDefault()
-    toggleSortDir(key)
-  } else if (event.altKey && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {
-    event.preventDefault()
-    // Swap with the neighbor within the non-group subset (by key, via moveSort/reorderSort), not
-    // the raw sorts-array neighbor (moveSortBy) — a group entry can sit between two non-group
-    // ones in the underlying array, and swapping with it would silently do nothing visible in
-    // this section (only non-group entries render here — see nonGroupSortEntries).
-    const list = nonGroupSortEntries.value
-    const delta = event.key === 'ArrowUp' ? -1 : 1
-    const idx = list.findIndex((s) => s.key === key)
-    const neighbor = list[idx + delta]
-    if (neighbor) activateAndFocus(() => moveSort(key, neighbor.key, delta > 0), sortRowRefs, key)
-  } else if (event.key === 'Delete' || event.key === 'Backspace') {
-    // Keyboard equivalent of this row's own × button — matches the Filter dropdown's identical
-    // Delete/Backspace-on-a-focused-active-row shortcut.
-    event.preventDefault()
-    onRemoveSortClick(key)
-  }
+// Keyboard reorder/remove/toggle (activeRowKeyDown, core). Vue's keyed reconciliation drops focus
+// when a reorder moves the row's DOM node, hence the `activateAndFocus` refocus.
+// Alt+↑/↓ swaps within the non-group subset, not the raw sorts array, where a group entry can sit
+// between two non-group ones.
+function onSortRowKeyDown(event: KeyboardEvent, key: string, i: number): void {
+  activeRowKeyDown(
+    event,
+    (delta) => {
+      const neighbor = nonGroupSortEntries.value[i + delta]
+      if (!neighbor) return false
+      activateAndFocus(() => moveSort(key, neighbor.key, delta > 0), sortRowRefs, key)
+    },
+    () => onRemoveSortClick(key),
+    () => toggleSortDir(key),
+  )
 }
 
 // Same as above, for the Group dropdown's active entries — a group entry has nothing to toggle
@@ -874,22 +725,13 @@ const {
   onDrop: onGroupRowsDrop,
 } = useDropdownReorder('data-group-key', moveGroup)
 function onGroupRowKeyDown(event: KeyboardEvent, key: string): void {
-  if (event.altKey && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {
-    event.preventDefault()
-    const delta = event.key === 'ArrowUp' ? -1 : 1
-    activateAndFocus(() => moveGroupBy(key, delta), groupRowRefs, key)
-  } else if (event.key === 'Delete' || event.key === 'Backspace') {
-    // Keyboard equivalent of this row's own × button — matches the Filter dropdown's identical
-    // Delete/Backspace-on-a-focused-active-row shortcut.
-    event.preventDefault()
-    onRemoveGroupClick(key)
-  } else if (event.key === 'Enter' || event.key === ' ') {
-    // No click action of its own (unlike Sort's active rows, which toggle direction) — but still
-    // needs to preventDefault, or Space's native default action scrolls the nearest scrollable
-    // ancestor (this panel, or the whole page once the panel itself has nothing left to scroll)
-    // out from under the still-focused row, which reads as "focus was lost" even though it wasn't.
-    event.preventDefault()
-  }
+  activeRowKeyDown(
+    event,
+    (delta) => {
+      activateAndFocus(() => moveGroupBy(key, delta), groupRowRefs, key)
+    },
+    () => onRemoveGroupClick(key),
+  )
 }
 
 // Drag-and-drop reordering for the Columns dropdown's Visible rows — replaces the old ▲▼ buttons.
@@ -943,25 +785,17 @@ async function hideColumn(col: ColumnDef<TRow>): Promise<void> {
   else addableColRefs.get(col.key)?.focus()
 }
 function onColRowKeyDown(event: KeyboardEvent, key: string, col: ColumnDef<TRow>): void {
-  if (event.altKey && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {
-    event.preventDefault()
-    const delta = event.key === 'ArrowUp' ? -1 : 1
-    activateAndFocus(
-      () => moveVisibleColumnBy(key, delta, colsReorderEligible.value),
-      colRowRefs,
-      key,
-    )
-  } else if (event.key === 'Delete' || event.key === 'Backspace') {
-    // Keyboard equivalent of this row's own × button — matches the Filter dropdown's identical
-    // Delete/Backspace-on-a-focused-active-row shortcut.
-    event.preventDefault()
-    hideColumn(col)
-  } else if (event.key === 'Enter' || event.key === ' ') {
-    // No click action of its own — but still needs to preventDefault, or Space's native default
-    // action scrolls the nearest scrollable ancestor out from under the still-focused row, which
-    // reads as "focus was lost" even though it wasn't (see onGroupRowKeyDown's identical comment).
-    event.preventDefault()
-  }
+  activeRowKeyDown(
+    event,
+    (delta) => {
+      activateAndFocus(
+        () => moveVisibleColumnBy(key, delta, colsReorderEligible.value),
+        colRowRefs,
+        key,
+      )
+    },
+    () => hideColumn(col),
+  )
 }
 
 const searchInputRef = ref<HTMLInputElement | null>(null)
@@ -995,23 +829,6 @@ function clearSearchAndFilters(): void {
 // escape-clear callback (colsEscapeClearable/sortEscapeClearable/groupEscapeClearable above,
 // filterEscapeClearable below) and, for the Filter dropdown only, the extra pane-crossing nav
 // that Dropdown's own generic base nav doesn't cover (see onFilterDropdownKeydown below).
-// `groupDropdownRef`'s own component instance is still needed here — not for Escape/nav anymore,
-// but for the active-bar group chip's "open straight to this entry" action (onOpenGroupEntry).
-const groupDropdownRef = ref<InstanceType<typeof Dropdown> | null>(null)
-const colsDropdownRef = ref<InstanceType<typeof Dropdown> | null>(null)
-const sortDropdownRef = ref<InstanceType<typeof Dropdown> | null>(null)
-// One open toolbar dropdown per table, as in Solid: opening one closes the others (U33)
-const toolbarDropdowns = [colsDropdownRef, groupDropdownRef, sortDropdownRef, filterDropdownRef]
-watch(
-  () => toolbarDropdowns.map((d) => !!d.value?.isOpen),
-  (open, wasOpen) => {
-    const opened = open.findIndex((o, i) => o && !wasOpen[i])
-    if (opened !== -1)
-      toolbarDropdowns.forEach((d, i) => i !== opened && open[i] && d.value?.close())
-  },
-)
-// filterDropdownRef itself is declared much earlier (see the filterColOrderKeys watch above) —
-// this comment marks where it'd otherwise sit, alongside its sibling above.
 
 // The Filter dropdown's own Escape callback for its left-pane column search (FilterPane handles
 // Escape in its own value search).
@@ -1105,7 +922,8 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
              for Visible, since submenu rows can't also be a drag surface) creates no conflict. -->
         <Dropdown
           v-if="showColumns && columns.length >= 2"
-          ref="colsDropdownRef"
+          :open="openDD === 'cols'"
+          @update:open="setDDOpen('cols', $event)"
           @dragover="onColRowsDragOver"
           @drop="onColRowsDrop"
           :on-escape-clearable="colsEscapeClearable"
@@ -1113,13 +931,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
           <template #trigger>
             <ToolbarBtn>{{ L.columns }}</ToolbarBtn>
           </template>
-          <!--
-            Pinned at the top and always mounted (never conditionally rendered based on match
-            count — an earlier version unmounted this whole box once Available's filtered list
-            hit zero, which dropped focus out from under whoever was mid-typing). Narrows *both*
-            Visible and Available now, unlike Sort/Group (search there narrows only what's being
-            added) — a column you already show is just as often what you're hunting for.
-          -->
+          <!-- Always mounted: a search matching nothing must not unmount the box and drop focus -->
           <div class="dt-dd-search-row">
             <span class="dt-dd-search-wrap">
               <input
@@ -1191,56 +1003,15 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
           </div>
           <template v-if="searchedFlatAvailableCols.length > 0">
             <div class="dt-dd-section">{{ L.availableColumnsSection }}</div>
-            <template v-if="isColsSearching">
-              <button
-                v-for="col in searchedFlatAvailableCols"
-                :key="col.key"
-                :ref="(el) => setAddableColRef(col.key, el as Element | null)"
-                type="button"
-                class="dt-dd-item dt-dd-item--click"
-                data-dd-row
-                @click="showColumn(col.key)"
-              >
-                <span class="dt-flex1">{{ col.label }}</span>
-                <span v-if="col.category" class="dt-dd-item-category">{{ col.category }}</span>
-              </button>
-            </template>
-            <template v-else>
-              <button
-                v-for="col in categorizedAvailableCols.uncategorized"
-                :key="col.key"
-                :ref="(el) => setAddableColRef(col.key, el as Element | null)"
-                type="button"
-                class="dt-dd-item dt-dd-item--click"
-                data-dd-row
-                @click="showColumn(col.key)"
-              >
-                <span class="dt-flex1">{{ col.label }}</span>
-              </button>
-              <CategorySubmenu
-                v-for="category in categorizedAvailableCols.categories"
-                :key="category.name"
-                :ref="(el) => setCategorySubmenuRef(category.name, el)"
-                :name="category.name"
-                :is-open="openColsCategory === category.name"
-                @open="openColsCategory = category.name"
-                @close="
-                  openColsCategory = openColsCategory === category.name ? null : openColsCategory
-                "
-              >
-                <button
-                  v-for="col in category.columns"
-                  :key="col.key"
-                  :ref="(el) => setAddableColRef(col.key, el as Element | null)"
-                  type="button"
-                  class="dt-dd-item dt-dd-item--click"
-                  data-dd-row
-                  @click="showColumn(col.key)"
-                >
-                  <span class="dt-flex1">{{ col.label }}</span>
-                </button>
-              </CategorySubmenu>
-            </template>
+            <AddableColumnList
+              v-model:open-category="openColsCategory"
+              :searching="isColsSearching"
+              :flat="searchedFlatAvailableCols"
+              :categorized="categorizedAvailableCols"
+              :set-row-ref="setAddableColRef"
+              :set-category-ref="setCategorySubmenuRef"
+              @activate="showColumn"
+            />
           </template>
         </Dropdown>
 
@@ -1251,7 +1022,8 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
              divider below. -->
         <Dropdown
           v-if="groupableCols.length > 0"
-          ref="groupDropdownRef"
+          :open="openDD === 'group'"
+          @update:open="setDDOpen('group', $event)"
           @dragover="onGroupRowsDragOver"
           @drop="onGroupRowsDrop"
           :on-escape-clearable="groupEscapeClearable"
@@ -1346,62 +1118,22 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
             >
               {{ L.noMatchingColumns }}
             </div>
-            <template v-if="isGroupSearching">
-              <button
-                v-for="col in searchedFlatAddableGroupCols"
-                :key="col.key"
-                :ref="(el) => setAddableGroupRef(col.key, el as Element | null)"
-                type="button"
-                class="dt-dd-item dt-dd-item--click"
-                data-dd-row
-                @click="onAddGroup(col.key)"
-              >
-                <span class="dt-flex1">{{ col.label }}</span>
-                <span v-if="col.category" class="dt-dd-item-category">{{ col.category }}</span>
-              </button>
-            </template>
-            <template v-else>
-              <button
-                v-for="col in categorizedAddableGroupCols.uncategorized"
-                :key="col.key"
-                :ref="(el) => setAddableGroupRef(col.key, el as Element | null)"
-                type="button"
-                class="dt-dd-item dt-dd-item--click"
-                data-dd-row
-                @click="onAddGroup(col.key)"
-              >
-                <span class="dt-flex1">{{ col.label }}</span>
-              </button>
-              <CategorySubmenu
-                v-for="category in categorizedAddableGroupCols.categories"
-                :key="category.name"
-                :name="category.name"
-                :is-open="openGroupCategory === category.name"
-                @open="openGroupCategory = category.name"
-                @close="
-                  openGroupCategory = openGroupCategory === category.name ? null : openGroupCategory
-                "
-              >
-                <button
-                  v-for="col in category.columns"
-                  :key="col.key"
-                  :ref="(el) => setAddableGroupRef(col.key, el as Element | null)"
-                  type="button"
-                  class="dt-dd-item dt-dd-item--click"
-                  data-dd-row
-                  @click="onAddGroup(col.key)"
-                >
-                  <span class="dt-flex1">{{ col.label }}</span>
-                </button>
-              </CategorySubmenu>
-            </template>
+            <AddableColumnList
+              v-model:open-category="openGroupCategory"
+              :searching="isGroupSearching"
+              :flat="searchedFlatAddableGroupCols"
+              :categorized="categorizedAddableGroupCols"
+              :set-row-ref="setAddableGroupRef"
+              @activate="onAddGroup"
+            />
           </template>
         </Dropdown>
 
         <!-- Sort -->
         <Dropdown
           v-if="sortableCols.length > 0"
-          ref="sortDropdownRef"
+          :open="openDD === 'sort'"
+          @update:open="setDDOpen('sort', $event)"
           @dragover="onSortRowsDragOver"
           @drop="onSortRowsDrop"
           :on-escape-clearable="sortEscapeClearable"
@@ -1444,19 +1176,12 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
               tabindex="0"
               @click="toggleSortDir(entry.key)"
               @keydown="
-                (e: KeyboardEvent) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault()
-                    toggleSortDir(entry.key)
-                  } else if (e.key === 'Delete' || e.key === 'Backspace') {
-                    // Keyboard equivalent of this row's own × button — matches the Filter
-                    // dropdown's identical Delete/Backspace-on-a-focused-active-row shortcut.
-                    // This row isn't draggable/reorderable, but removing its sort entry still
-                    // needs the same focus hand-off as any other (see onRemoveSortClick).
-                    e.preventDefault()
-                    onRemoveSortClick(entry.key)
-                  }
-                }
+                activeRowKeyDown(
+                  $event,
+                  undefined,
+                  () => onRemoveSortClick(entry.key),
+                  () => toggleSortDir(entry.key),
+                )
               "
             >
               <span class="dt-sort-idx">{{ i + 1 }}</span>
@@ -1500,7 +1225,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
               draggable="true"
               tabindex="0"
               @click="toggleSortDir(entry.key)"
-              @keydown="onSortRowKeyDown($event, entry.key)"
+              @keydown="onSortRowKeyDown($event, entry.key, i)"
               @dragstart="onSortDragStart(entry.key)"
               @dragend="onSortDragEnd"
             >
@@ -1562,55 +1287,14 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
               for free — no manual tabindex/keydown wiring needed, unlike the active rows above
               (which need custom keyboard handling anyway for Alt+↑/↓ reorder).
             -->
-            <template v-if="isSortSearching">
-              <button
-                v-for="col in searchedFlatAddableSortCols"
-                :key="col.key"
-                :ref="(el) => setAddableSortRef(col.key, el as Element | null)"
-                type="button"
-                class="dt-dd-item dt-dd-item--click"
-                data-dd-row
-                @click="onAddSort(col.key)"
-              >
-                <span class="dt-flex1">{{ col.label }}</span>
-                <span v-if="col.category" class="dt-dd-item-category">{{ col.category }}</span>
-              </button>
-            </template>
-            <template v-else>
-              <button
-                v-for="col in categorizedAddableSortCols.uncategorized"
-                :key="col.key"
-                :ref="(el) => setAddableSortRef(col.key, el as Element | null)"
-                type="button"
-                class="dt-dd-item dt-dd-item--click"
-                data-dd-row
-                @click="onAddSort(col.key)"
-              >
-                <span class="dt-flex1">{{ col.label }}</span>
-              </button>
-              <CategorySubmenu
-                v-for="category in categorizedAddableSortCols.categories"
-                :key="category.name"
-                :name="category.name"
-                :is-open="openSortCategory === category.name"
-                @open="openSortCategory = category.name"
-                @close="
-                  openSortCategory = openSortCategory === category.name ? null : openSortCategory
-                "
-              >
-                <button
-                  v-for="col in category.columns"
-                  :key="col.key"
-                  :ref="(el) => setAddableSortRef(col.key, el as Element | null)"
-                  type="button"
-                  class="dt-dd-item dt-dd-item--click"
-                  data-dd-row
-                  @click="onAddSort(col.key)"
-                >
-                  <span class="dt-flex1">{{ col.label }}</span>
-                </button>
-              </CategorySubmenu>
-            </template>
+            <AddableColumnList
+              v-model:open-category="openSortCategory"
+              :searching="isSortSearching"
+              :flat="searchedFlatAddableSortCols"
+              :categorized="categorizedAddableSortCols"
+              :set-row-ref="setAddableSortRef"
+              @activate="onAddSort"
+            />
           </template>
         </Dropdown>
 
@@ -1645,7 +1329,8 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
         <!-- Filter -->
         <Dropdown
           v-if="filterableCols.length > 0"
-          ref="filterDropdownRef"
+          :open="openDD === 'filter'"
+          @update:open="setDDOpen('filter', $event)"
           @keydown="onFilterDropdownKeydown"
           :on-escape-clearable="filterEscapeClearable"
         >
@@ -1865,30 +1550,8 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
       </div>
     </div>
 
-    <!--
-      ── Active state bar ──
-      Always rendered (even with nothing active) rather than only appearing once a filter is
-      set — this gives the row-count stats a single stable home instead of bouncing between "end
-      of the toolbar row" and nowhere, and means toggling a sort/filter/group never changes the
-      toolbar's height. Shows one chip per active sort entry, group column, and filter column —
-      sort/group chips were previously only visible as a bare count on their toolbar button (see
-      above); giving them the same at-a-glance chip treatment filters already had removes that
-      asymmetry. Sort/group chips reuse the plain neutral `.dt-chip` look (the same one the
-      removed count badges used) — filter chips keep their existing blue `.dt-chip--filter` tint,
-      the one deliberate color accent in this bar, since filters already carried that "this is
-      narrowing your view" meaning before this change.
-    -->
-    <!--
-      Each chip's body is now a real, focusable <button> (a sibling of its × remove button, not
-      nested inside it — a <button> can't contain another interactive element, the same reasoning
-      already used for the toolbar's grouped clear buttons) rather than a plain, inert <span>:
-      clicking (or Enter/Space-activating) it does something specific to that chip's own kind of
-      active state, so tweaking an already-active sort/group/filter no longer requires reopening
-      its dropdown and re-navigating to the same entry — see "Active-bar chip click actions".
-      Sort's body toggles direction in place (no dropdown needed for the single most common
-      tweak); Group's/Filter's open their dropdown straight to that entry/column, since neither
-      has an equally obvious single inline toggle the way direction is for sort.
-    -->
+    <!-- ── Active state bar ── always rendered so the stats keep one home; chip bodies are buttons
+         (docs/toolbar.md's "Active-bar chip click actions") -->
     <div class="dt-active-bar">
       <!-- Group chips render before sort chips — matches the Sort dropdown's own "Group order"
            section coming before "Active sorts", since grouping is the structural, primary
@@ -2193,7 +1856,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                   },
                   rowClass?.(row),
                 ]"
-                @click="handleRowClick(row, $event)"
+                @click="onRowClick?.(row, $event)"
                 @keydown="handleKeyDown($event, { kind: 'row', row })"
                 @focusin="setFocusTarget({ kind: 'row', row })"
               >

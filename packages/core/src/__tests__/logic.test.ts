@@ -13,7 +13,7 @@ import {
   getVisibleRows,
   paginateVisibleGroups,
   paginateVisibleItems,
-  getCrossPageFocusTarget,
+  planRowNav,
   pageSizeOptions,
   showsPager,
   isSameVisibleItem,
@@ -44,7 +44,6 @@ import {
   appendOrToggleSort,
   toggleFilterAll,
   setFilterValues,
-  setExcludeValues,
   toggleExcludeAll,
   cycleFilterValue,
   clearExcludeValues,
@@ -72,9 +71,9 @@ import {
   countActiveFilters,
   getOrderedColumns,
   groupColumnsByCategory,
-  categorizedAlphabetizedByLabel,
+  addableLists,
+  columnsDropdownLists,
   columnMatchesSearch,
-  alphabetizedByLabel,
   reconcileVisibleColumns,
   reorderColumn,
   moveColumnBy,
@@ -83,6 +82,7 @@ import {
   reorderSort,
   sortFilterValues,
   cycleValueSort,
+  nextValueSort,
   toggleSortDir,
   getValueSortIcon,
   getDateSortIcon,
@@ -103,6 +103,7 @@ import {
   rangePresetFilter,
   rangeChipText,
 } from '../logic'
+import type { VisibleItem } from '../logic'
 
 interface Row {
   id: number
@@ -1516,54 +1517,103 @@ describe('paginateVisibleItems', () => {
   })
 })
 
-// ─── getCrossPageFocusTarget ────────────────────────────────────────────────────
+// ─── planRowNav ───────────────────────────────────────────────────────────────
 
-describe('getCrossPageFocusTarget', () => {
-  // 6 plain rows, ungrouped, pageSize 2 -> 3 pages of [A,B] [C,D] [E,F].
-  const visible: ReturnType<typeof getVisibleRows> = [
-    { kind: 'row', row: ROWS[0], groupKey: null },
-    { kind: 'row', row: ROWS[1], groupKey: null },
-    { kind: 'row', row: ROWS[2], groupKey: null },
-    { kind: 'row', row: ROWS[3], groupKey: null },
-    { kind: 'row', row: ROWS[0], groupKey: null },
-    { kind: 'row', row: ROWS[1], groupKey: null },
+describe('planRowNav', () => {
+  // Group G with rows a, b, c; pageSize 2 -> pages [G, a] [b, c] (page 2 gets a continued G).
+  const [a, b, c] = [{ n: 'a' }, { n: 'b' }, { n: 'c' }]
+  const G = { kind: 'group', key: 'G' } as const
+  const visible: VisibleItem<{ n: string }>[] = [
+    G,
+    { kind: 'row', row: a, groupKey: 'G' },
+    { kind: 'row', row: b, groupKey: 'G' },
+    { kind: 'row', row: c, groupKey: 'G' },
   ]
+  const ctx = (page: number, over: Partial<Parameters<typeof planRowNav>[2]> = {}) => ({
+    visibleItems: visible,
+    navigableItems: paginateVisibleItems(visible, page, 2),
+    page,
+    numPages: 2,
+    pageSize: 2,
+    selectable: true,
+    rowClickable: false,
+    ...over,
+  })
+  const key = (
+    k: string,
+    mods: { shiftKey?: boolean; ctrlKey?: boolean; metaKey?: boolean } = {},
+  ) => ({
+    key: k,
+    shiftKey: false,
+    ctrlKey: false,
+    metaKey: false,
+    ...mods,
+  })
+  const row = (r: { n: string }) => ({ kind: 'row', row: r }) as const
 
-  it("edge/+1 steps to the next page's first item", () => {
-    const result = getCrossPageFocusTarget(visible, 1, 3, 2, { kind: 'edge', delta: 1 }, true)
-    expect(result).toEqual({ targetPage: 2, item: visible[2] })
+  it('ArrowDown focuses the next item, Shift extending the selection to it', () => {
+    expect(planRowNav(key('ArrowDown', { shiftKey: true }), G, ctx(1))).toEqual({
+      kind: 'focus',
+      item: visible[1],
+      page: undefined,
+      extend: a,
+    })
   })
 
-  it("edge/-1 steps to the previous page's last item", () => {
-    const result = getCrossPageFocusTarget(visible, 2, 3, 2, { kind: 'edge', delta: -1 }, true)
-    expect(result).toEqual({ targetPage: 1, item: visible[1] })
+  it("an arrow at a page's edge crosses to the adjacent page's near end", () => {
+    expect(planRowNav(key('ArrowDown'), row(a), ctx(1))).toEqual({
+      kind: 'focus',
+      item: G, // page 2 repeats the continued group's header
+      page: 2,
+      extend: undefined,
+    })
+    expect(planRowNav(key('ArrowUp'), G, ctx(2))).toMatchObject({ item: visible[1], page: 1 })
   })
 
-  it('edge/+1 returns null on the last page', () => {
-    expect(getCrossPageFocusTarget(visible, 3, 3, 2, { kind: 'edge', delta: 1 }, true)).toBeNull()
+  it('crosses to no page whose items are all non-navigable rows', () => {
+    const rows: VisibleItem<{ n: string }>[] = [a, b].map((r) => ({ kind: 'row', row: r }))
+    const plain = { visibleItems: rows, numPages: 2, pageSize: 1, selectable: false }
+    const nav = { ...plain, navigableItems: [], page: 1, rowClickable: false }
+    expect(planRowNav(key('ArrowDown'), rows[0], nav)).toBeNull()
   })
 
-  it('edge/-1 returns null on the first page', () => {
-    expect(getCrossPageFocusTarget(visible, 1, 3, 2, { kind: 'edge', delta: -1 }, true)).toBeNull()
+  it('returns null where there is nowhere to go, so the page keeps the key', () => {
+    expect(planRowNav(key('ArrowUp'), G, ctx(1))).toBeNull()
+    expect(planRowNav(key('Home'), G, ctx(1))).toBeNull()
+    expect(planRowNav(key('Home', { ctrlKey: true }), G, ctx(1))).toBeNull()
+    expect(planRowNav(key('ArrowDown'), row(c), ctx(2))).toBeNull()
   })
 
-  it('jump/toEnd=false targets the true first item on page 1, regardless of current page', () => {
-    const result = getCrossPageFocusTarget(visible, 3, 3, 2, { kind: 'jump', toEnd: false }, true)
-    expect(result).toEqual({ targetPage: 1, item: visible[0] })
+  it('plain End stays on the page; Ctrl+End crosses to the last page', () => {
+    expect(planRowNav(key('End'), G, ctx(1))).toMatchObject({ item: visible[1], page: undefined })
+    expect(planRowNav(key('End', { ctrlKey: true }), G, ctx(1))).toMatchObject({
+      item: visible[3],
+      page: 2,
+    })
+    expect(planRowNav(key('Home', { metaKey: true }), row(c), ctx(2))).toMatchObject({
+      item: G,
+      page: 1,
+    })
   })
 
-  it('jump/toEnd=true targets the true last item on the last page', () => {
-    const result = getCrossPageFocusTarget(visible, 1, 3, 2, { kind: 'jump', toEnd: true }, true)
-    expect(result).toEqual({ targetPage: 3, item: visible[5] })
+  it('Shift extends nothing when rows are not selectable', () => {
+    const plan = planRowNav(key('End', { shiftKey: true }), G, ctx(1, { selectable: false }))
+    expect(plan).toMatchObject({ kind: 'focus', extend: undefined })
   })
 
-  it('jump when already on the target page still resolves (caller decides whether a page change is needed)', () => {
-    const result = getCrossPageFocusTarget(visible, 1, 3, 2, { kind: 'jump', toEnd: false }, true)
-    expect(result?.targetPage).toBe(1)
+  it('Space toggles a row or a group selection, only when selectable', () => {
+    expect(planRowNav(key(' '), row(a), ctx(1))).toEqual({ kind: 'toggleRow', row: a })
+    expect(planRowNav(key(' '), G, ctx(1))).toEqual({ kind: 'toggleGroupSelection', key: 'G' })
+    expect(planRowNav(key(' '), row(a), ctx(1, { selectable: false }))).toBeNull()
   })
 
-  it('rowNavEnabled=false filters out row items, so an all-row target page resolves to null', () => {
-    expect(getCrossPageFocusTarget(visible, 1, 3, 2, { kind: 'edge', delta: 1 }, false)).toBeNull()
+  it('Enter collapses a group, or clicks a row only when rows are clickable', () => {
+    expect(planRowNav(key('Enter'), G, ctx(1))).toEqual({ kind: 'toggleCollapse', key: 'G' })
+    expect(planRowNav(key('Enter'), row(a), ctx(1))).toBeNull()
+    expect(planRowNav(key('Enter'), row(a), ctx(1, { rowClickable: true }))).toEqual({
+      kind: 'rowClick',
+      row: a,
+    })
   })
 })
 
@@ -2127,6 +2177,21 @@ describe('cycleValueSort', () => {
     expect(sort).toEqual({ by: 'count', dir: 'asc' })
     sort = cycleValueSort(sort)
     expect(sort).toEqual({ by: 'alpha', dir: 'asc' })
+  })
+})
+
+describe('nextValueSort', () => {
+  it('cycles a checklist and only flips the date tree', () => {
+    expect(nextValueSort({ key: 's', label: 'S' }, { by: 'alpha', dir: 'desc' })).toEqual({
+      by: 'count',
+      dir: 'desc',
+    })
+    expect(
+      nextValueSort({ key: 'd', label: 'D', type: 'date' }, { by: 'alpha', dir: 'desc' }),
+    ).toEqual({
+      by: 'alpha',
+      dir: 'asc',
+    })
   })
 })
 
@@ -2738,29 +2803,6 @@ describe('setFilterValues', () => {
   it('preserves other keys', () => {
     const initial = { name: new Set(['Alice']) }
     const result = setFilterValues(initial, 'dept', ['Eng'], true)
-    expect(result['name'].has('Alice')).toBe(true)
-  })
-})
-
-describe('setExcludeValues', () => {
-  it('adds all given values to the exclude set when excluded is true', () => {
-    const result = setExcludeValues({}, 'dept', ['Eng', 'HR'], true)
-    expect([...result['dept']].sort()).toEqual(['Eng', 'HR'])
-  })
-
-  it('removes all given values when excluded is false, regardless of prior state', () => {
-    const result = setExcludeValues(
-      { dept: new Set(['Eng', 'HR', 'Sales']) },
-      'dept',
-      ['Eng', 'HR'],
-      false,
-    )
-    expect([...result['dept']]).toEqual(['Sales'])
-  })
-
-  it('preserves other keys', () => {
-    const initial = { name: new Set(['Alice']) }
-    const result = setExcludeValues(initial, 'dept', ['Eng'], true)
     expect(result['name'].has('Alice')).toBe(true)
   })
 })
@@ -3395,29 +3437,67 @@ describe('groupColumnsByCategory', () => {
   })
 })
 
-describe('categorizedAlphabetizedByLabel', () => {
+describe('addableLists', () => {
   const COLS = [
     { key: 'id', label: 'ID' },
     { key: 'name', label: 'Name', category: 'Info' },
     { key: 'score', label: 'Score', category: 'Numbers' },
     { key: 'salary', label: 'Salary', category: 'Numbers' },
+    { key: 'age', label: 'Age', category: 'Info' },
   ]
+  const isActive = (key: string) => key === 'name'
 
-  it('alphabetizes uncategorized columns and categories both', () => {
-    const result = categorizedAlphabetizedByLabel(COLS, '')
-    expect(result.uncategorized.map((c) => c.key)).toEqual(['id'])
-    expect(result.categories.map((c) => c.name)).toEqual(['Info', 'Numbers'])
-    expect(result.categories[1].columns.map((c) => c.key)).toEqual(['salary', 'score'])
+  it('drops active columns, alphabetizes uncategorized columns and categories both', () => {
+    const [addable, searching, shown, categorized] = addableLists(COLS, isActive, '')
+    expect(addable.map((c) => c.key)).toEqual(['id', 'score', 'salary', 'age'])
+    expect(searching).toBe(false)
+    expect(shown.map((c) => c.key)).toEqual(['age', 'id', 'salary', 'score'])
+    expect(categorized.uncategorized.map((c) => c.key)).toEqual(['id'])
+    expect(categorized.categories.map((c) => c.name)).toEqual(['Info', 'Numbers'])
+    expect(categorized.categories[1].columns.map((c) => c.key)).toEqual(['salary', 'score'])
   })
 
-  it('filters by search term first (label or category), same as alphabetizedByLabel', () => {
-    const result = categorizedAlphabetizedByLabel(COLS, 'Numbers')
-    expect(result.uncategorized).toEqual([])
-    expect(result.categories.map((c) => c.name)).toEqual(['Numbers'])
+  it('narrows the shown list by label or category, keeping every addable column', () => {
+    const [addable, searching, shown] = addableLists(COLS, isActive, ' numbers ')
+    expect(addable).toHaveLength(4)
+    expect(searching).toBe(true)
+    expect(shown.map((c) => c.key)).toEqual(['salary', 'score'])
   })
 })
 
-// ─── columnMatchesSearch / alphabetizedByLabel ───────────────────────────────
+describe('columnsDropdownLists', () => {
+  const COLS = [
+    { key: 'name', label: 'Name' },
+    { key: 'salary', label: 'Salary', category: 'Work' },
+    { key: 'dept', label: 'Dept', category: 'Work' },
+    { key: 'age', label: 'Age' },
+  ]
+  const VISIBLE = new Set(['name', 'dept'])
+
+  it('splits visible and available columns in column order, bucketing available ones', () => {
+    const [searching, visible, available, categorized, eligible] = columnsDropdownLists(
+      COLS,
+      VISIBLE,
+      '',
+    )
+    expect(searching).toBe(false)
+    expect(visible.map((c) => c.key)).toEqual(['name', 'dept'])
+    expect(available.map((c) => c.key)).toEqual(['salary', 'age'])
+    expect(categorized.uncategorized.map((c) => c.key)).toEqual(['age'])
+    expect(categorized.categories.map((c) => c.name)).toEqual(['Work'])
+    expect(eligible).toBeUndefined()
+  })
+
+  it('narrows both lists while searching, eligible holding the shown visible keys', () => {
+    const [searching, visible, available, , eligible] = columnsDropdownLists(COLS, VISIBLE, 'work')
+    expect(searching).toBe(true)
+    expect(visible.map((c) => c.key)).toEqual(['dept'])
+    expect(available.map((c) => c.key)).toEqual(['salary'])
+    expect([...eligible!]).toEqual(['dept'])
+  })
+})
+
+// ─── columnMatchesSearch ──────────────────────────────────────────────────────
 
 describe('columnMatchesSearch', () => {
   it('matches by label', () => {
@@ -3437,22 +3517,6 @@ describe('columnMatchesSearch', () => {
   it('an empty/whitespace-only term always matches', () => {
     expect(columnMatchesSearch({ label: 'Salary' }, '')).toBe(true)
     expect(columnMatchesSearch({ label: 'Salary' }, '   ')).toBe(true)
-  })
-})
-
-describe('alphabetizedByLabel', () => {
-  const COLS = [
-    { label: 'Dept', category: 'Work' },
-    { label: 'Name' },
-    { label: 'Salary', category: 'Work' },
-  ]
-
-  it('filters and alphabetizes by label', () => {
-    expect(alphabetizedByLabel(COLS, 'a').map((c) => c.label)).toEqual(['Name', 'Salary'])
-  })
-
-  it('filters by category too, even when no column label matches the term', () => {
-    expect(alphabetizedByLabel(COLS, 'Work').map((c) => c.label)).toEqual(['Dept', 'Salary'])
   })
 })
 

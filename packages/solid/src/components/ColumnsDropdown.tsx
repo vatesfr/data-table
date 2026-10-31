@@ -1,5 +1,5 @@
 import { For, Show, createMemo, createSignal } from 'solid-js'
-import { columnMatchesSearch, groupColumnsByCategory } from '@vates/data-table-core/internal'
+import { activeRowKeyDown, columnsDropdownLists } from '@vates/data-table-core/internal'
 import type { TableState } from '../createTableState'
 import type { ColumnDef } from '../types'
 import { Dropdown } from './Dropdown'
@@ -43,7 +43,7 @@ interface ColumnsDropdownProps<TRow extends object> {
 // categories are NOT re-sorted after groupColumnsByCategory — this dropdown has never alphabetized
 // anything (its whole identity is "shows real column/definition order"), so Available keeps that
 // same principle instead of adopting Sort/Group's own alphabetical convention (see
-// categorizedAlphabetizedByLabel, core — the shared helper Sort/Group use instead of this).
+// addableLists, core — the shared helper Sort/Group use instead of this).
 //
 // The search box is pinned at the very top and, unlike Sort/Group, narrows *both* sections — a
 // column you already show is just as often what you're hunting for (to hide/reorder it) as one
@@ -65,38 +65,20 @@ export function ColumnsDropdown<TRow extends object>(props: ColumnsDropdownProps
   const {
     dragOverKey,
     dragOverAfter,
-    setContainer,
     onRowDragStart,
     onRowDragEnd,
     onDragOver: handleDragOver,
     onDrop: handleDrop,
   } = createDragReorder('data-col-row-key', table.columns.move)
 
-  const isSearching = createMemo(() => searchTerm().trim().length > 0)
-  const orderedColumns = createMemo(() => table.columns.ordered())
-  const visibleColumns = createMemo(() =>
-    orderedColumns().filter((c) => table.columns.visible().has(c.key)),
+  const lists = createMemo(() =>
+    columnsDropdownLists(table.columns.ordered(), table.columns.visible(), searchTerm()),
   )
-  const searchedVisible = createMemo(() =>
-    visibleColumns().filter((c) => columnMatchesSearch(c, searchTerm())),
-  )
-  // Alt+↑/↓'s neighbor-eligibility set: the real visible-columns set when not searching (today's
-  // behavior, unchanged), or narrowed to just the currently-shown-and-matching keys while
-  // searching, so a search-filtered-out column is never chosen as a swap partner.
-  const reorderEligible = createMemo<ReadonlySet<string> | undefined>(() =>
-    isSearching() ? new Set(searchedVisible().map((c) => c.key)) : undefined,
-  )
-
-  const availableColumns = createMemo(() =>
-    orderedColumns().filter((c) => !table.columns.visible().has(c.key)),
-  )
-  const searchedAvailable = createMemo(() =>
-    availableColumns().filter((c) => columnMatchesSearch(c, searchTerm())),
-  )
-  // Only bucketed by category while *not* searching — once a search term narrows a category down
-  // to one or two matches, keeping them behind a submenu trigger would force an extra hover/click
-  // right when the search was supposed to shortcut that. See categorizedAvailable's own use below.
-  const categorizedAvailable = createMemo(() => groupColumnsByCategory(availableColumns()))
+  const isSearching = () => lists()[0]
+  const searchedVisible = () => lists()[1]
+  const searchedAvailable = () => lists()[2]
+  const categorizedAvailable = () => lists()[3]
+  const reorderEligible = () => lists()[4]
 
   // Hides `col`, refocusing whatever it reappears as in Available — shared by a visible row's own
   // × button and its Delete/Backspace keyboard equivalent, since both need the same
@@ -144,7 +126,7 @@ export function ColumnsDropdown<TRow extends object>(props: ColumnsDropdownProps
       <Show when={searchedVisible().length > 0}>
         <div class="dt-dd-section">{table.labels().columnsSection}</div>
       </Show>
-      <div ref={setContainer} onDragOver={handleDragOver} onDrop={handleDrop}>
+      <div onDragOver={handleDragOver} onDrop={handleDrop}>
         <For each={searchedVisible()}>
           {(col) => (
             <div
@@ -159,33 +141,17 @@ export function ColumnsDropdown<TRow extends object>(props: ColumnsDropdownProps
               data-col-row-key={col.key}
               onDragStart={() => onRowDragStart(col.key)}
               onDragEnd={onRowDragEnd}
-              onKeyDown={(e) => {
-                if (e.altKey && e.key === 'ArrowUp') {
-                  e.preventDefault()
-                  // Focus drops to <body> after this reorder without an explicit refocus (same
-                  // empirically-confirmed behavior as Sort/GroupDropdown's own Alt+Arrow handlers).
-                  withPanelRefocus(e.currentTarget, `[data-col-row-key="${col.key}"]`, () =>
-                    table.columns.moveVisibleBy(col.key, -1, reorderEligible()),
-                  )
-                } else if (e.altKey && e.key === 'ArrowDown') {
-                  e.preventDefault()
-                  withPanelRefocus(e.currentTarget, `[data-col-row-key="${col.key}"]`, () =>
-                    table.columns.moveVisibleBy(col.key, 1, reorderEligible()),
-                  )
-                } else if (e.key === 'Delete' || e.key === 'Backspace') {
-                  // Keyboard equivalent of this row's own × button — matches the Filter
-                  // dropdown's identical Delete/Backspace-on-a-focused-active-row shortcut.
-                  e.preventDefault()
-                  hideColumn(e.currentTarget, col)
-                } else if (e.key === 'Enter' || e.key === ' ') {
-                  // No click action of its own (unlike Sort's active rows, which toggle
-                  // direction) — but still needs to preventDefault, or Space's native default
-                  // action scrolls the nearest scrollable ancestor (this panel, or the whole page
-                  // once the panel itself has nothing left to scroll) out from under the still-
-                  // focused row, which reads as "focus was lost" even though it wasn't.
-                  e.preventDefault()
-                }
-              }}
+              onKeyDown={(e) =>
+                activeRowKeyDown(
+                  e,
+                  (delta) =>
+                    // Focus drops to <body> after this reorder without an explicit refocus
+                    withPanelRefocus(e.currentTarget, `[data-col-row-key="${col.key}"]`, () =>
+                      table.columns.moveVisibleBy(col.key, delta, reorderEligible()),
+                    ),
+                  () => hideColumn(e.currentTarget, col),
+                )
+              }
             >
               <span class="dt-dd-drag-handle" aria-hidden="true">
                 ⠿

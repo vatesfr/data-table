@@ -1642,6 +1642,19 @@ describe('DataTable — sort dropdown', () => {
     // (see their own equivalent tests/fix).
     expect(document.activeElement).toBe(after[0])
   })
+
+  it("Alt+ArrowUp on the first active sort row isn't default-prevented (no neighbor)", () => {
+    const { getByText, getAllByText, container } = render(
+      <DataTable data={ROWS} columns={SORT_COLS} rowKey="id" />,
+    )
+    fireEvent.click(getByText('Sort'))
+    fireEvent.click(ddCopyOf(getAllByText, 'Name').closest('button')!)
+    fireEvent.click(ddCopyOf(getAllByText, 'Score').closest('button')!)
+
+    expect(fireEvent.keyDown(draggableRows(container)[0], { key: 'ArrowUp', altKey: true })).toBe(
+      true,
+    )
+  })
 })
 
 // The table header and the dropdown's own copy of a column label share text, so pick the one
@@ -2560,11 +2573,12 @@ describe('DataTable — keyboard navigation', () => {
     expect(document.activeElement).toBe(second)
   })
 
-  it('ArrowUp on the first row is a no-op (clamped at the boundary)', () => {
+  it('ArrowUp/Home on the first row is a no-op, leaving the key to the page', () => {
     const { container } = render(<DataTable data={ROWS3} columns={COLS} rowKey="id" selectable />)
     const [first] = dataRows(container)
     first.focus()
-    fireEvent.keyDown(first, { key: 'ArrowUp' })
+    expect(fireEvent.keyDown(first, { key: 'ArrowUp' })).toBe(true)
+    expect(fireEvent.keyDown(first, { key: 'Home' })).toBe(true)
     expect(first.getAttribute('tabindex')).toBe('0')
     expect(document.activeElement).toBe(first)
   })

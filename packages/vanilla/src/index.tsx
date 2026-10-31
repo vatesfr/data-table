@@ -1,19 +1,7 @@
 import { render } from 'solid-js/web'
 import { createRoot, createEffect, createSignal, on } from 'solid-js'
+import type { Accessor } from 'solid-js'
 import { createTableState, DataTableView } from '@vates/data-table-solid'
-import {
-  bucketNumericRange,
-  formatNumericRange,
-  numericRangeGroup,
-  bucketDatePart,
-  formatDatePart,
-  datePartGroup,
-  bucketLogRange,
-  formatLogRange,
-  logRangeGroup,
-  compareMissingLast,
-} from '@vates/data-table-core'
-import type { GetRowId } from '@vates/data-table-core'
 import type { ColumnDef, DataTableOptions, DataTableInstance } from './types'
 
 export type { ColumnDef, DataTableOptions, DataTableInstance }
@@ -45,11 +33,17 @@ export {
   bucketLogRange,
   formatLogRange,
   logRangeGroup,
-}
+} from '@vates/data-table-core'
 // Ready-made compare for pinning a value (missing data, by default) last regardless of sort
 // direction — see `ColumnDefBase.compare` in the docs.
-export { compareMissingLast }
+export { compareMissingLast } from '@vates/data-table-core'
 export type { DatePart, LogRangeOptions } from '@vates/data-table-core'
+
+// Solid setters treat a function argument as an updater, and several of these values are functions.
+function prop<T>(initial: T): [Accessor<T>, (value: T) => void] {
+  const [get, set] = createSignal(initial)
+  return [get, (value) => set(() => value)]
+}
 
 // --- Factory ---
 
@@ -76,31 +70,18 @@ export function createDataTable<TRow extends object>(
   const selectionChangeListeners = new Set<(rows: TRow[]) => void>()
   if (options.onSelectionChange) selectionChangeListeners.add(options.onSelectionChange)
 
-  // Each of these six options is now backed by its own signal, so it can be changed after
-  // construction (via the matching `setXxx` returned below) without recreating the table —
-  // `rowKey`/`selectable`/`onRowClick` because `DataTableView`/`TableBody` already read their
-  // own props lazily (a signal call passed directly as a JSX prop stays live through Solid's
-  // compiled prop getters, the same mechanism that already keeps `table` itself live), and
-  // `labels`/`defaultGroupsCollapsed`/`getRowId` because `createTableState` now accepts its whole
-  // `options` argument as an Accessor (see that package's own doc comment). `initialViewState`
-  // stays a plain, one-time value — `createTableState` only ever seeds from it once regardless,
-  // matching every other adapter's documented frozen behavior for it.
-  const [rowKey, setRowKeySignal] = createSignal(options.rowKey)
-  const [selectable, setSelectableSignal] = createSignal(options.selectable ?? false)
-  const [showSearch, setShowSearchSignal] = createSignal(options.showSearch ?? true)
-  const [showColumns, setShowColumnsSignal] = createSignal(options.showColumns ?? true)
-  const [toolbarEnd, setToolbarEndSignal] = createSignal(options.toolbarEnd ?? null)
-  const [currentRow, setCurrentRowSignal] = createSignal(options.currentRow ?? null)
-  // `onRowClick`/`rowClass`/`getRowId` are themselves functions, so Solid's setter overloads can't tell them
-  // apart from a functional updater — wrap each write in a thunk, the same workaround
-  // `createTableState`'s own `selectionAnchor` signal already uses for the same reason.
-  const [onRowClick, setOnRowClickSignal] = createSignal(options.onRowClick)
-  const [rowClass, setRowClassSignal] = createSignal(options.rowClass)
-  const [labels, setLabelsSignal] = createSignal(options.labels)
-  const [defaultGroupsCollapsed, setDefaultGroupsCollapsedSignal] = createSignal(
-    options.defaultGroupsCollapsed,
-  )
-  const [getRowId, setGetRowIdSignal] = createSignal(options.getRowId)
+  // Settable after construction; see docs/packages.md's "Vanilla package".
+  const [rowKey, setRowKey] = prop(options.rowKey)
+  const [selectable, setSelectable] = prop(options.selectable ?? false)
+  const [showSearch, setShowSearch] = prop(options.showSearch ?? true)
+  const [showColumns, setShowColumns] = prop(options.showColumns ?? true)
+  const [toolbarEnd, setToolbarEnd] = prop(options.toolbarEnd ?? null)
+  const [currentRow, setCurrentRow] = prop(options.currentRow ?? null)
+  const [onRowClick, setOnRowClick] = prop(options.onRowClick)
+  const [rowClass, setRowClass] = prop(options.rowClass)
+  const [labels, setLabels] = prop(options.labels)
+  const [defaultGroupsCollapsed, setDefaultGroupsCollapsed] = prop(options.defaultGroupsCollapsed)
+  const [getRowId, setGetRowId] = prop(options.getRowId)
 
   createRoot((d) => {
     dispose = d
@@ -183,23 +164,17 @@ export function createDataTable<TRow extends object>(
     // (see docs/packages.md's "Vanilla package" for why this adapter flattens every namespaced group).
     focusRow: (row: TRow, options?: { focus?: boolean }) => table.focus.moveTo(row, options),
     clearAll: () => table.clearAll(),
-    // Wrapped in a thunk even though `key` is never actually a function: TS can't prove a
-    // generic `keyof TRow & string` excludes `Function` structurally, so Solid's setter overload
-    // resolution rejects a bare value here — same generic-signal friction as `getRowId`/
-    // `onRowClick` above, just for a type-system reason rather than a real runtime ambiguity.
-    setRowKey: (key: keyof TRow & string) => setRowKeySignal(() => key),
-    setSelectable: (value: boolean) => setSelectableSignal(value),
-    setShowSearch: (value: boolean) => setShowSearchSignal(value),
-    setShowColumns: (value: boolean) => setShowColumnsSignal(value),
-    setToolbarEnd: (node: Node | null) => setToolbarEndSignal(() => node),
-    setOnRowClick: (cb: ((row: TRow, event: MouseEvent | KeyboardEvent) => void) | undefined) =>
-      setOnRowClickSignal(() => cb),
-    setCurrentRow: (row: TRow | null) => setCurrentRowSignal(() => row),
-    setRowClass: (fn: ((row: TRow) => string | undefined) | undefined) =>
-      setRowClassSignal(() => fn),
-    setLabels: (next: DataTableOptions<TRow>['labels']) => setLabelsSignal(next),
-    setDefaultGroupsCollapsed: (value: boolean) => setDefaultGroupsCollapsedSignal(value),
-    setGetRowId: (next: GetRowId<TRow> | undefined) => setGetRowIdSignal(() => next),
+    setRowKey,
+    setSelectable,
+    setShowSearch,
+    setShowColumns,
+    setToolbarEnd,
+    setOnRowClick,
+    setCurrentRow,
+    setRowClass,
+    setLabels,
+    setDefaultGroupsCollapsed,
+    setGetRowId,
     destroy: () => {
       disposeView()
       dispose()

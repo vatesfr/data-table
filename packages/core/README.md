@@ -186,7 +186,7 @@ getVisibleRows(groups, collapsedGroups, defaultCollapsed?) // flatten groupData'
 isSameVisibleItem(a, b) // whether a and b are the same navigable target — rows by object identity, groups by key
 indexOfVisibleItem(items, target) // index of target within items, or -1 if target is null/absent
 paginateVisibleItems(visibleItems, page, pageSize) // per-page slice of visibleItems for keyboard nav, with a synthetic continuation header prepended when the page starts mid-group
-getCrossPageFocusTarget(visibleItems, currentPage, numPages, pageSize, mode, rowNavEnabled) // { targetPage, item } to focus when row-nav keyboard crosses a page boundary (an edge Arrow step, or a Ctrl/Cmd+Home/End jump), or null if there's nowhere to go
+planRowNav(e, target, ctx) // the action for a key on a row or group header (focus, possibly on another page; toggle; collapse; row click), or null to leave the key to the page
 ```
 
 See [docs/keyboard-navigation.md](../../docs/keyboard-navigation.md) for the roving-tabindex mechanism and per-adapter wiring. See also [docs/dropdown-keyboard-nav.md](../../docs/dropdown-keyboard-nav.md) for the separate dropdown-panel (Columns/Sort/Group/Filter) keyboard nav.

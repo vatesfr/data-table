@@ -1,6 +1,6 @@
 # Backlog
 
-<!-- check-docs-ignore: vflow optimize planRowNav rovingFocusTarget checklistNavIndex checklistValues nextValueSort columnsDropdownLists addableLists nonGroupSortNeighbor openDropdownPanel TextDecoder atob fromCharCode defineModel AddableColumnList ENOENT eslint-plugin-vue -->
+<!-- check-docs-ignore: vflow optimize planRowNav rovingFocusTarget checklistNavIndex checklistValues nextValueSort columnsDropdownLists addableLists nonGroupSortNeighbor openDropdownPanel TextDecoder atob fromCharCode defineModel AddableColumnList ENOENT eslint-plugin-vue comparableFromKeyPart getComparableValue _dir useSelfDetectedListener vnode onUpdated -->
 
 Code health items (simplicity, duplication, maintainability, dev loop) from `vflow:optimize` reviews; UX items live in [improvements](improvements.md). A fix closes its item in one commit naming its `B<n>`, and removes it here. Line counts are reviewer estimates.
 

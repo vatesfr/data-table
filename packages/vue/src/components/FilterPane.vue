@@ -11,17 +11,15 @@ import {
   computeStringValueCounts,
   isMultiValueColumnCached,
   formatFilterValue,
-  filterValuesBySearch,
-  filterValuesByCount,
-  filterValuesByRange,
   computeValueBounds,
   computeRangeSliderGeometry,
   formatRangeBound,
   rangeInputProps,
   matchingRangePreset,
-  sortFilterValues,
-  cycleValueSort,
-  toggleSortDir,
+  nextValueSort,
+  checklistValues,
+  isExcludeOnlyColumn,
+  toggleCollapse,
   getValueSortIcon,
   getDateSortIcon,
   computeDateTree,
@@ -33,6 +31,9 @@ import {
   deferCheckboxCorrection,
   computeVirtualRange,
   getVirtualScrollTarget,
+  rovingFocusTarget,
+  checklistNavIndex,
+  FILTER_DETAIL_NAV_SELECTOR,
   type DateTreeNode,
   filterMatchMode,
 } from '@vates/data-table-core/internal'
@@ -95,41 +96,27 @@ const valueCounts = computed(() =>
 // Any/all match mode — only for a column whose values are actually arrays (see
 // isMultiValueColumn), and only for the string checklist.
 const isMultiValue = computed(() => isMultiValueColumnCached(props.data, props.col))
-// A non-multi-value string column uses a checked-by-default, exclude-only model (see
+// A plain string column's checklist is checked-by-default, exclude-only (see
 // docs/filter-dropdown.md's "Filter dropdown"): "checked" means "not in `excludeFilters`".
-const usesExcludeOnly = computed(
-  () => props.col.type !== 'date' && props.col.type !== 'number' && !isMultiValue.value,
-)
+const usesExcludeOnly = computed(() => isExcludeOnlyColumn(props.data, props.col))
 const matchMode = computed(() => filterMatchMode(filterModes.value, props.col.key, props.col))
 
-// The set a value must be in to stay visible even at a 0 facet count (see filterValuesByCount).
-const alreadyTouched = computed(() =>
-  usesExcludeOnly.value
-    ? (excludeFilters.value[props.col.key] ?? new Set<string>())
-    : (filters.value[props.col.key] ?? new Set<string>()),
-)
-// Range/count-filtered, not yet narrowed by the value search — `otherValues` diffs the two.
-const beforeSearchValues = computed(() =>
-  filterValuesByCount(
-    filterValuesByRange(allValues.value, rangeFilters.value[props.col.key], props.col.parseDate),
+// The set the column's model writes
+const touched = () => (usesExcludeOnly.value ? excludeFilters.value : filters.value)[props.col.key]
+const checklist = computed(() =>
+  checklistValues(
+    props.col,
+    allValues.value,
     valueCounts.value,
-    alreadyTouched.value,
-  ),
-)
-const values = computed(() =>
-  sortFilterValues(
-    filterValuesBySearch(beforeSearchValues.value, searchTerm.value),
-    valueCounts.value,
+    touched(),
+    rangeFilters.value[props.col.key],
+    searchTerm.value,
     valueSort.value,
-    props.col.compare,
   ),
 )
+const values = computed(() => checklist.value[0])
 // "Others": the values the value search is hiding; empty without a search.
-const otherValues = computed(() => {
-  if (!searchTerm.value) return []
-  const shown = new Set(values.value)
-  return beforeSearchValues.value.filter((v) => !shown.has(v))
-})
+const otherValues = computed(() => checklist.value[1])
 
 function isValueChecked(value: string): boolean {
   return usesExcludeOnly.value
@@ -156,7 +143,6 @@ function onExcludeClick(value: string): void {
 }
 
 // Select-all and "Others" state and clicks: shared logic in core
-const touched = () => (usesExcludeOnly.value ? excludeFilters.value : filters.value)[props.col.key]
 const allState = computed(() => checklistBulkState(values.value, touched(), usesExcludeOnly.value))
 const othersState = computed(() =>
   checklistBulkState(otherValues.value, touched(), usesExcludeOnly.value),
@@ -190,10 +176,7 @@ function onValueClick(value: string, event: MouseEvent): void {
 }
 
 function cycleSort(): void {
-  valueSort.value =
-    props.col.type === 'date'
-      ? { ...valueSort.value, dir: toggleSortDir(valueSort.value.dir) }
-      : cycleValueSort(valueSort.value)
+  valueSort.value = nextValueSort(props.col, valueSort.value)
 }
 
 // Bounds over the full, unfiltered data so the slider doesn't shift under a mid-drag user.
@@ -227,10 +210,7 @@ const dateTree = computed(() =>
     : [],
 )
 function toggleExpand(path: string): void {
-  const next = new Set(expanded.value)
-  if (next.has(path)) next.delete(path)
-  else next.add(path)
-  expanded.value = next
+  expanded.value = toggleCollapse(expanded.value, path)
 }
 function onDateNodeClick(node: DateTreeNode, event: MouseEvent): void {
   clickDateTreeNode(props.table.filter, props.col.key, node, event.shiftKey, {
@@ -281,6 +261,7 @@ async function onKeydown(event: KeyboardEvent): Promise<void> {
     pane.querySelector<HTMLElement>('input.dt-dd-search')?.focus()
     return
   }
+  if (event.altKey) return
   // ←/→ cross between a value's checkbox and its ≠ button; ← from the checkbox leaves the pane
   const target = event.target as HTMLElement
   const partner = (selector: string) =>
@@ -299,73 +280,48 @@ async function onKeydown(event: KeyboardEvent): Promise<void> {
     partner('input[data-dd-value-row]')?.focus()
     return
   }
-  if (event.altKey || !['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return
   const pane = event.currentTarget as HTMLElement
   // Only the value search joins the vertical chain; select-all and the sort button sit beside it
-  const headerControls = Array.from(pane.querySelectorAll<HTMLElement>('input.dt-dd-search'))
-  const rowInputs = Array.from(
-    pane.querySelectorAll<HTMLInputElement>(
-      '.dt-dd-item input[type="checkbox"], .dt-date-tree-item input[type="checkbox"]',
-    ),
-  )
-  const focusables = [...headerControls, ...rowInputs]
+  const focusables = Array.from(pane.querySelectorAll<HTMLElement>(FILTER_DETAIL_NAV_SELECTOR))
+  const rows = focusables.filter((el) => !el.matches('input[data-dd-value-search]'))
   const active = document.activeElement as HTMLElement | null
   // Up/Down from a ≠ button stays in the ≠ column
   const onExclude = !!active?.matches('[data-dd-value-exclude]')
-  if (!active || (focusables.indexOf(active) === -1 && !onExclude)) return
+  if (!active || (!focusables.includes(active) && !onExclude)) return
 
   // The flat checklist is virtualized: reaching a logical row outside the mounted window (or
   // Home/End) scrolls first, then focuses once Vue re-renders the window.
   const checklistEl = pane.querySelector<HTMLElement>('.dt-filter-list')
-  if (checklistEl) {
-    const vals = values.value
-    const activeValue =
-      onExclude || (active instanceof HTMLInputElement && rowInputs.includes(active))
-        ? active.dataset.value
-        : undefined
-    let targetIdx: number | null = null
-    if (event.key === 'Home') targetIdx = 0
-    else if (event.key === 'End') targetIdx = vals.length - 1
-    else if (activeValue !== undefined) {
-      const curIdx = vals.indexOf(activeValue)
-      targetIdx = event.key === 'ArrowDown' ? curIdx + 1 : curIdx - 1
-    }
-    // Up out of the first row falls through to the plain nav below, back to the search box
-    if (targetIdx !== null && !(targetIdx < 0 && event.key === 'ArrowUp' && activeValue)) {
-      event.preventDefault()
-      if (targetIdx < 0 || targetIdx >= vals.length) return
-      const next =
-        getVirtualScrollTarget(
-          scrollTop.value,
-          FILTER_LIST_VIEWPORT_HEIGHT,
-          FILTER_LIST_ITEM_HEIGHT,
-          targetIdx,
-        ) ?? scrollTop.value
-      scrollTop.value = next
-      if (listRef.value) listRef.value.scrollTop = next
-      const targetValue = vals[targetIdx]
-      await nextTick()
-      const selector = onExclude ? '[data-dd-value-exclude]' : 'input[type="checkbox"]'
-      for (const el of checklistEl.querySelectorAll<HTMLElement>(selector)) {
-        if (el.dataset.value === targetValue) {
-          el.focus()
-          break
-        }
-      }
-      return
-    }
-  }
-
-  if (event.key === 'Home' || event.key === 'End') {
-    if (rowInputs.length === 0) return
+  const vals = values.value
+  const i = checklistEl ? checklistNavIndex(event.key, vals, active.dataset.value) : null
+  if (checklistEl && i !== null) {
     event.preventDefault()
-    ;(event.key === 'Home' ? rowInputs[0] : rowInputs[rowInputs.length - 1]).focus()
+    const targetValue = vals[i]
+    if (targetValue === undefined) return
+    const top =
+      getVirtualScrollTarget(
+        scrollTop.value,
+        FILTER_LIST_VIEWPORT_HEIGHT,
+        FILTER_LIST_ITEM_HEIGHT,
+        i,
+      ) ?? scrollTop.value
+    scrollTop.value = top
+    if (listRef.value) listRef.value.scrollTop = top
+    await nextTick()
+    const selector = onExclude ? '[data-dd-value-exclude]' : 'input[data-dd-value-row]'
+    for (const el of checklistEl.querySelectorAll<HTMLElement>(selector)) {
+      if (el.dataset.value === targetValue) {
+        el.focus()
+        break
+      }
+    }
     return
   }
-  const nextIdx = focusables.indexOf(active) + (event.key === 'ArrowDown' ? 1 : -1)
-  if (nextIdx < 0 || nextIdx >= focusables.length) return
+
+  const next = rovingFocusTarget(event.key, focusables, active, rows)
+  if (!next) return
   event.preventDefault()
-  focusables[nextIdx].focus()
+  next.focus()
 }
 </script>
 

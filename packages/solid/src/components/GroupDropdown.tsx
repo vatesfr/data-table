@@ -1,8 +1,5 @@
 import { For, Show, createMemo, createSignal } from 'solid-js'
-import {
-  alphabetizedByLabel,
-  categorizedAlphabetizedByLabel,
-} from '@vates/data-table-core/internal'
+import { activeRowKeyDown, addableLists } from '@vates/data-table-core/internal'
 import type { TableState } from '../createTableState'
 import type { ColumnDef } from '../types'
 import { Dropdown } from './Dropdown'
@@ -34,23 +31,20 @@ export function GroupDropdown<TRow extends object>(props: GroupDropdownProps<TRo
   const {
     dragOverKey,
     dragOverAfter,
-    setContainer,
     onRowDragStart,
     onRowDragEnd,
     onDragOver: handleDragOver,
     onDrop: handleDrop,
   } = createDragReorder('data-group-key', table.group.move)
 
-  const isSearching = createMemo(() => searchTerm().trim().length > 0)
-  const addableCols = createMemo(() => {
+  const lists = createMemo(() => {
     const groupBy = table.group.by()
-    return props.groupableCols.filter((c) => !groupBy.includes(c.key))
+    return addableLists(props.groupableCols, (key) => groupBy.includes(key), searchTerm())
   })
-  // While searching, category matches are flattened into plain, category-tagged rows instead of
-  // bucketed behind a submenu — see docs/columns.md's "Column categories"/ColumnsDropdown.tsx's identical
-  // fix: hiding a single search match behind an extra hover/click defeats the point of searching.
-  const searchedFlatAddableCols = createMemo(() => alphabetizedByLabel(addableCols(), searchTerm()))
-  const categorizedAddableCols = createMemo(() => categorizedAlphabetizedByLabel(addableCols(), ''))
+  const addableCols = () => lists()[0]
+  const isSearching = () => lists()[1]
+  const searchedFlatAddableCols = () => lists()[2]
+  const categorizedAddableCols = () => lists()[3]
 
   return (
     <Dropdown
@@ -83,7 +77,7 @@ export function GroupDropdown<TRow extends object>(props: GroupDropdownProps<TRo
     >
       <Show when={table.group.by().length > 0}>
         <div class="dt-dd-section">{table.labels().activeGroupsSection}</div>
-        <div ref={setContainer} onDragOver={handleDragOver} onDrop={handleDrop}>
+        <div onDragOver={handleDragOver} onDrop={handleDrop}>
           <For each={table.group.by()}>
             {(key, i) => {
               const col = () => props.groupableCols.find((c) => c.key === key)
@@ -100,35 +94,20 @@ export function GroupDropdown<TRow extends object>(props: GroupDropdownProps<TRo
                   data-group-key={key}
                   onDragStart={() => onRowDragStart(key)}
                   onDragEnd={onRowDragEnd}
-                  onKeyDown={(e) => {
-                    if (e.altKey && e.key === 'ArrowUp') {
-                      e.preventDefault()
-                      // Focus drops to <body> after this reorder without an explicit refocus
-                      // (confirmed empirically).
-                      withPanelRefocus(e.currentTarget, `[data-group-key="${key}"]`, () =>
-                        table.group.moveBy(key, -1),
-                      )
-                    } else if (e.altKey && e.key === 'ArrowDown') {
-                      e.preventDefault()
-                      withPanelRefocus(e.currentTarget, `[data-group-key="${key}"]`, () =>
-                        table.group.moveBy(key, 1),
-                      )
-                    } else if (e.key === 'Delete' || e.key === 'Backspace') {
-                      // Keyboard equivalent of this row's own × button — matches the Filter
-                      // dropdown's identical Delete/Backspace-on-a-focused-active-row shortcut.
-                      e.preventDefault()
-                      withPanelRefocus(e.currentTarget, `[data-col-key="${key}"]`, () =>
-                        table.group.remove(key),
-                      )
-                    } else if (e.key === 'Enter' || e.key === ' ') {
-                      // No click action of its own (unlike Sort's active rows, which toggle
-                      // direction) — but still needs to preventDefault, or Space's native default
-                      // action scrolls the nearest scrollable ancestor (this panel, or the whole
-                      // page once the panel itself has nothing left to scroll) out from under the
-                      // still-focused row, which reads as "focus was lost" even though it wasn't.
-                      e.preventDefault()
-                    }
-                  }}
+                  onKeyDown={(e) =>
+                    activeRowKeyDown(
+                      e,
+                      (delta) =>
+                        // Focus drops to <body> after this reorder without an explicit refocus
+                        withPanelRefocus(e.currentTarget, `[data-group-key="${key}"]`, () =>
+                          table.group.moveBy(key, delta),
+                        ),
+                      () =>
+                        withPanelRefocus(e.currentTarget, `[data-col-key="${key}"]`, () =>
+                          table.group.remove(key),
+                        ),
+                    )
+                  }
                 >
                   <span class="dt-dd-drag-handle" aria-hidden="true">
                     ⠿

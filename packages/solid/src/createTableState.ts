@@ -35,7 +35,6 @@ import {
   setFilterValues as _setFilterValues,
   cycleFilterValue as _cycleFilterValue,
   clearExcludeValues as _clearExcludeValues,
-  setExcludeValues as _setExcludeValues,
   toggleExcludeAll as _toggleExcludeAll,
   setFilterMode as _setFilterMode,
   getSelectedRows,
@@ -439,7 +438,7 @@ export function createTableState<TRow extends object>(
       setExcludeValues: (key: string, values: string[], excluded: boolean) => {
         setFilterState((prev) => ({
           ...prev,
-          excludeFilters: _setExcludeValues(prev.excludeFilters, key, values, excluded),
+          excludeFilters: _setFilterValues(prev.excludeFilters, key, values, excluded),
         }))
         setPageState(1)
       },

@@ -7,11 +7,9 @@ import {
   type ReactNode,
 } from 'react'
 import {
-  computeDropdownClampOffset,
   ddNavFocusables,
-  ddOpenFocusTarget,
-  keepDropdownClamped,
-  viewportWidth,
+  openDropdownPanel,
+  rovingFocusTarget,
 } from '@vates/data-table-core/internal'
 
 export interface DropdownProps {
@@ -63,35 +61,9 @@ export function Dropdown({
   }, [setOpen])
 
   // The panel unmounts entirely when closed, so each open is a fresh DOM node at its natural
-  // (unclamped) position — this mutates that node's class and style directly rather than going
-  // through React state (which would need a setState-in-effect, flagged as a cascading-render risk
-  // by this project's eslint-plugin-react-hooks config). A translateX offset is used for the
-  // horizontal case instead of flipping left:0 -> right:0, since the overflow is relative to
-  // the viewport, not to the trigger (see vanilla's Dropdown clamp for the reasoning).
+  // (unclamped) position; core writes its flip class and clamp directly, not through React state
   useLayoutEffect(() => {
-    if (!open) return
-    const panel = panelRef.current
-    if (!panel) return
-    const rect = panel.getBoundingClientRect()
-    const { flipUp } = computeDropdownClampOffset(rect, viewportWidth(), window.innerHeight)
-    if (flipUp) panel.classList.add('dt-dd--up')
-    let dx = 0
-    const stopClamping = keepDropdownClamped(
-      panel,
-      () => dx,
-      (next) => {
-        dx = next
-        panel.style.transform = next ? `translateX(${next}px)` : ''
-      },
-    )
-    // Opening a dropdown should hand it focus immediately — its own search box if it has one
-    // (preferred regardless of where it sits in the DOM, e.g. Sort/Group's search box renders
-    // *after* the active-entries section but is still the preferred landing spot, matching
-    // vanilla's focusFirstInDropdown), else the first row (e.g. Sort with every column already
-    // sorted has no addable section and therefore no search box). On a touch screen, the first
-    // row regardless, so the keyboard doesn't pop up (see ddOpenFocusTarget).
-    ddOpenFocusTarget(panel)?.focus()
-    return stopClamping
+    if (open && panelRef.current) return openDropdownPanel(panelRef.current)
   }, [open])
 
   // Roving Up/Down/Home/End/Escape navigation across this panel's own search box + rows — see
@@ -99,7 +71,7 @@ export function Dropdown({
   // row itself implements (see the Sort/Group active rows in DataTableView.tsx): those don't
   // stopPropagation, so this still runs after them via bubbling, but its own `!e.altKey` guard
   // keeps it from ever acting on their modifier combo. Scoped to elements this panel actually
-  // recognizes (`focusables.indexOf(active) !== -1`) so it never interferes with unrelated
+  // recognizes (see `rovingFocusTarget`) so it never interferes with unrelated
   // controls elsewhere in the panel (e.g. the Filter dropdown's right-hand detail pane, which
   // implements its own nav — see handleFilterPanelKeyDown in DataTableView.tsx — including native
   // Left/Right/Up/Down/Home/End on its own range inputs/slider that must keep working unmolested).
@@ -111,7 +83,6 @@ export function Dropdown({
       ref.current?.querySelector<HTMLElement>('button')?.focus()
       return
     }
-    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Home' && e.key !== 'End') return
     const panel = panelRef.current
     if (!panel) return
     // A CategorySubmenu (see that file) renders as a real descendant of this panel and implements
@@ -121,19 +92,10 @@ export function Dropdown({
     // this list.
     const focusables = ddNavFocusables(panel).filter((el) => !el.closest('[data-category-submenu]'))
     const rowFocusables = focusables.filter((el) => !el.matches('input[data-dd-search]'))
-    const active = document.activeElement as HTMLElement | null
-    if (!active || focusables.indexOf(active) === -1) return
-    if (e.key === 'Home' || e.key === 'End') {
-      if (rowFocusables.length === 0) return
-      e.preventDefault()
-      ;(e.key === 'Home' ? rowFocusables[0] : rowFocusables[rowFocusables.length - 1]).focus()
-      return
-    }
-    const idx = focusables.indexOf(active)
-    const nextIdx = e.key === 'ArrowDown' ? idx + 1 : idx - 1
-    if (nextIdx < 0 || nextIdx >= focusables.length) return
+    const target = rovingFocusTarget(e.key, focusables, document.activeElement, rowFocusables)
+    if (!target) return
     e.preventDefault()
-    focusables[nextIdx].focus()
+    target.focus()
   }
 
   return (

@@ -2,7 +2,7 @@
 
 Symptom first, then cause and fix. Delete entries once obsolete.
 
-<!-- check-docs-ignore: exceeded journalctl memory Killed chromium-browse Failed oom-kill _vts invoker timed Cannot uptime python3 curl ENOSPC fatal unable TS2307 -->
+<!-- check-docs-ignore: exceeded journalctl memory Killed chromium-browse Failed oom-kill _vts invoker timed Cannot uptime python3 curl ENOSPC fatal unable TS2307 determine -->
 
 ## Unit tests time out on a busy machine
 
@@ -78,7 +78,7 @@ Symptom first, then cause and fix. Delete entries once obsolete.
 ## Vue boolean prop silently `false` when omitted
 
 - Cause: Vue casts an absent boolean prop with no `withDefaults` default to `false`, not `undefined`.
-- Fix: spell out the default in `withDefaults` in both `DataTable.vue` and `DataTableView.vue` (e.g. `showSearch: true`, `defaultGroupsCollapsed`); `undefined` keeps a tri-state prop absent (`rowClickable`).
+- Fix: spell out the default in `withDefaults` in both `DataTable.vue` and `DataTableView.vue` (e.g. `showSearch: true`, `defaultGroupsCollapsed`). A function prop (`onRowClick`) stays `undefined` when absent.
 
 ## Vue demo: "Property … was accessed during render but is not defined on instance"
 

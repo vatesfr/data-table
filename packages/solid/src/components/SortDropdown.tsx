@@ -1,8 +1,8 @@
 import { For, Show, createMemo, createSignal } from 'solid-js'
 import type { SortEntry } from '@vates/data-table-core'
 import {
-  alphabetizedByLabel,
-  categorizedAlphabetizedByLabel,
+  activeRowKeyDown,
+  addableLists,
   getSortIcon,
   getSortIndex,
 } from '@vates/data-table-core/internal'
@@ -45,23 +45,24 @@ export function SortDropdown<TRow extends object>(props: SortDropdownProps<TRow>
   const {
     dragOverKey,
     dragOverAfter,
-    setContainer,
     onRowDragStart,
     onRowDragEnd,
     onDragOver: handleDragOver,
     onDrop: handleDrop,
   } = createDragReorder('data-sort-key', table.sort.move)
 
-  const isSearching = createMemo(() => searchTerm().trim().length > 0)
-  const addableCols = createMemo(() => {
+  const lists = createMemo(() => {
     const sorts = table.sort.entries()
-    return props.columns.filter((c) => c.sortable !== false && getSortIndex(sorts, c.key) === null)
+    return addableLists(
+      props.columns.filter((c) => c.sortable !== false),
+      (key) => getSortIndex(sorts, key) !== null,
+      searchTerm(),
+    )
   })
-  // While searching, category matches are flattened into plain, category-tagged rows instead of
-  // bucketed behind a submenu — see docs/columns.md's "Column categories"/ColumnsDropdown.tsx's identical
-  // fix: hiding a single search match behind an extra hover/click defeats the point of searching.
-  const searchedFlatAddableCols = createMemo(() => alphabetizedByLabel(addableCols(), searchTerm()))
-  const categorizedAddableCols = createMemo(() => categorizedAlphabetizedByLabel(addableCols(), ''))
+  const addableCols = () => lists()[0]
+  const isSearching = () => lists()[1]
+  const searchedFlatAddableCols = () => lists()[2]
+  const categorizedAddableCols = () => lists()[3]
 
   // Split the active list in two: entries matching a currently grouped column always govern
   // nesting order (`sortWithinGroups` reads that off `groupBy`'s own order, never off drag
@@ -127,19 +128,17 @@ export function SortDropdown<TRow extends object>(props: SortDropdownProps<TRow>
                 tabIndex={0}
                 data-dd-row
                 onClick={() => table.sort.toggleDir(entry.key)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault()
-                    table.sort.toggleDir(entry.key)
-                  } else if (e.key === 'Delete' || e.key === 'Backspace') {
-                    // Keyboard equivalent of this row's own × button — matches the Filter
-                    // dropdown's identical Delete/Backspace-on-a-focused-active-row shortcut.
-                    e.preventDefault()
-                    withPanelRefocus(e.currentTarget, `[data-col-key="${entry.key}"]`, () =>
-                      table.sort.remove(entry.key),
-                    )
-                  }
-                }}
+                onKeyDown={(e) =>
+                  activeRowKeyDown(
+                    e,
+                    undefined,
+                    () =>
+                      withPanelRefocus(e.currentTarget, `[data-col-key="${entry.key}"]`, () =>
+                        table.sort.remove(entry.key),
+                      ),
+                    () => table.sort.toggleDir(entry.key),
+                  )
+                }
               >
                 <span class="dt-sort-idx">{i() + 1}</span>
                 <span class="dt-flex1">{col()?.label ?? entry.key}</span>
@@ -168,7 +167,7 @@ export function SortDropdown<TRow extends object>(props: SortDropdownProps<TRow>
       </Show>
       <Show when={nonGroupEntries().length > 0}>
         <div class="dt-dd-section">{table.labels().activeSortsSection}</div>
-        <div ref={setContainer} onDragOver={handleDragOver} onDrop={handleDrop}>
+        <div onDragOver={handleDragOver} onDrop={handleDrop}>
           <For each={nonGroupEntries()}>
             {(entry: SortEntry, i) => {
               const col = () => props.columns.find((c) => c.key === entry.key)
@@ -186,32 +185,26 @@ export function SortDropdown<TRow extends object>(props: SortDropdownProps<TRow>
                   onDragStart={() => onRowDragStart(entry.key)}
                   onDragEnd={onRowDragEnd}
                   onClick={() => table.sort.toggleDir(entry.key)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault()
-                      table.sort.toggleDir(entry.key)
-                    } else if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
-                      e.preventDefault()
-                      // Swap with the neighbor within this non-group subset (by key, via
-                      // reorderSort), not the raw sorts-array neighbor (moveSortBy) — a group
-                      // entry can sit between two non-group ones in the underlying array, and
-                      // swapping with it would silently do nothing visible in this section.
-                      const list = nonGroupEntries()
-                      const delta = e.key === 'ArrowUp' ? -1 : 1
-                      const neighbor = list[i() + delta]
-                      if (!neighbor) return
-                      withPanelRefocus(e.currentTarget, `[data-sort-key="${entry.key}"]`, () =>
-                        table.sort.move(entry.key, neighbor.key, delta > 0),
-                      )
-                    } else if (e.key === 'Delete' || e.key === 'Backspace') {
-                      // Keyboard equivalent of this row's own × button — matches the Filter
-                      // dropdown's identical Delete/Backspace-on-a-focused-active-row shortcut.
-                      e.preventDefault()
-                      withPanelRefocus(e.currentTarget, `[data-col-key="${entry.key}"]`, () =>
-                        table.sort.remove(entry.key),
-                      )
-                    }
-                  }}
+                  onKeyDown={(e) =>
+                    activeRowKeyDown(
+                      e,
+                      (delta) => {
+                        // Swap within this non-group subset, not the raw sorts array, where a
+                        // group entry can sit between two non-group ones
+                        const neighbor = nonGroupEntries()[i() + delta]
+                        if (!neighbor) return false
+                        // Focus drops to <body> after this reorder without an explicit refocus
+                        withPanelRefocus(e.currentTarget, `[data-sort-key="${entry.key}"]`, () =>
+                          table.sort.move(entry.key, neighbor.key, delta > 0),
+                        )
+                      },
+                      () =>
+                        withPanelRefocus(e.currentTarget, `[data-col-key="${entry.key}"]`, () =>
+                          table.sort.remove(entry.key),
+                        ),
+                      () => table.sort.toggleDir(entry.key),
+                    )
+                  }
                 >
                   <span class="dt-dd-drag-handle" aria-hidden="true">
                     ⠿
