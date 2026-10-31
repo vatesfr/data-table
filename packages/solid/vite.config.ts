@@ -33,11 +33,18 @@ export default defineConfig({
       // the *consuming app's own* solid-js instance — two separate bundled copies wouldn't just
       // cost bytes, Solid's reactivity tracking is module-scoped, so a signal created by one copy
       // is invisible to a computation running in the other. solid-js must stay a real peer/external
-      // dependency here, same as react/react-dom in packages/react.
-      external: ['solid-js', '@vates/data-table-core', '@vates/data-table-core/internal'],
+      // dependency here, same as react/react-dom in packages/react — sub-paths included, or
+      // solid-js/web's browser build gets bundled (and touches `window` on import under Node).
+      external: [
+        'solid-js',
+        'solid-js/web',
+        '@vates/data-table-core',
+        '@vates/data-table-core/internal',
+      ],
       output: {
         globals: {
           'solid-js': 'Solid',
+          'solid-js/web': 'SolidWeb',
           '@vates/data-table-core': 'DataTableCore',
           '@vates/data-table-core/internal': 'DataTableCore',
         },
