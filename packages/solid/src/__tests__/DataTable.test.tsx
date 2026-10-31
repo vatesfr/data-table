@@ -5,7 +5,7 @@ import { DataTable } from '../DataTable'
 import { DataTableView } from '../DataTableView'
 import { createTableState } from '../createTableState'
 import type { ColumnDef } from '../types'
-import { stubMatchMedia } from './stubMatchMedia'
+import { stubMatchMedia } from '../../../core/src/__tests__/stubMatchMedia'
 
 interface Row {
   id: number

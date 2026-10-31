@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import DataTableRaw from '../DataTable.vue'
 import type { ColumnDef } from '../types'
-import { stubMatchMedia } from './stubMatchMedia'
+import { stubMatchMedia } from '../../../core/src/__tests__/stubMatchMedia'
 
 // vue-tsc can't carry the SFC's `generic="TRow extends object"` parameter through
 // to consumers, so `mount()` sees props typed for the unbounded default — cast once

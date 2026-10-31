@@ -2,7 +2,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, cleanup, fireEvent, screen } from '@testing-library/react'
 import { DataTable } from '../DataTable'
 import type { ColumnDef } from '../types'
-import { stubMatchMedia } from './stubMatchMedia'
+import { stubMatchMedia } from '../../../core/src/__tests__/stubMatchMedia'
 
 interface Row {
   id: number

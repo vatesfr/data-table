@@ -5,7 +5,7 @@ import { useTableState } from '../useTableState'
 import DataTableViewRaw from '../DataTableView.vue'
 import type { ColumnDef } from '../types'
 import type { TableViewState } from '@vates/data-table-core'
-import { stubMatchMedia } from './stubMatchMedia'
+import { stubMatchMedia } from '../../../core/src/__tests__/stubMatchMedia'
 
 const DataTableView = DataTableViewRaw as unknown as new () => { $props: Record<string, unknown> }
 

@@ -4,7 +4,7 @@ import { render } from 'solid-js/web'
 import { createTableState } from '../createTableState'
 import { FilterDropdown } from '../components/FilterDropdown'
 import type { ColumnDef } from '../types'
-import { stubMatchMedia } from './stubMatchMedia'
+import { stubMatchMedia } from '../../../core/src/__tests__/stubMatchMedia'
 
 interface Row {
   id: number

@@ -5,7 +5,7 @@ import { DataTable } from '../DataTable'
 import { createTableState } from '../createTableState'
 import { GroupDropdown } from '../components/GroupDropdown'
 import type { ColumnDef } from '../types'
-import { stubMatchMedia } from './stubMatchMedia'
+import { stubMatchMedia } from '../../../core/src/__tests__/stubMatchMedia'
 
 // Mirrors packages/react/src/__tests__/dropdownSearchNav.test.tsx's own fixture/coverage, scoped
 // to what's implemented in Solid so far (see docs/filter-dropdown.md's "Filter dropdown"/keyboard-nav docs for
