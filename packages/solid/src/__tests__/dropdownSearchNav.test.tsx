@@ -386,6 +386,24 @@ describe('DataTable — filter dropdown left/right pane navigation', () => {
     dispose()
   })
 
+  it('Alt+ArrowDown on a checklist row does nothing', () => {
+    const { container, dispose } = mount()
+    clickButtonByText(container, 'Filter')
+    container.querySelector<HTMLElement>('[data-filter-col-key="name"]')!.click()
+    const rows = [...container.querySelectorAll<HTMLInputElement>('input[data-dd-value-row]')]
+    rows[0].focus()
+    const e = new KeyboardEvent('keydown', {
+      key: 'ArrowDown',
+      altKey: true,
+      bubbles: true,
+      cancelable: true,
+    })
+    rows[0].dispatchEvent(e)
+    expect(document.activeElement).toBe(rows[0])
+    expect(e.defaultPrevented).toBe(false)
+    dispose()
+  })
+
   it('Home/End jump to the first/last checklist row, skipping the value-search box', () => {
     const { container, dispose } = mount()
     clickButtonByText(container, 'Filter')

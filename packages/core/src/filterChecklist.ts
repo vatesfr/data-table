@@ -22,6 +22,23 @@ export interface ChecklistFilterActions {
 }
 
 /**
+ * Index in the virtualized checklist's `values` that ↑/↓/Home/End moves to from `activeValue`
+ * (undefined on the value search); null when the plain DOM-order nav takes the key instead (↑ off
+ * the first value, ↑/↓ from the search box). An index out of range means: stay, but take the key.
+ */
+export function checklistNavIndex(
+  key: string,
+  values: string[],
+  activeValue: string | undefined,
+): number | null {
+  if (key === 'Home') return 0
+  if (key === 'End') return values.length - 1
+  if (activeValue === undefined || (key !== 'ArrowDown' && key !== 'ArrowUp')) return null
+  const i = values.indexOf(activeValue) + (key === 'ArrowDown' ? 1 : -1)
+  return i < 0 ? null : i
+}
+
+/**
  * The select-all or "Others" checkbox state over `values`. `touched` is the set the column's model
  * writes: its exclusions for an exclude-only (checked-by-default) column, its inclusions otherwise.
  */

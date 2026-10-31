@@ -37,6 +37,8 @@ import {
   computeVirtualRange,
   getVirtualScrollTarget,
   rovingFocusTarget,
+  checklistNavIndex,
+  FILTER_DETAIL_NAV_SELECTOR,
   filterMatchMode,
   formatFilterValue,
   toggleCollapse,
@@ -437,60 +439,33 @@ export function FilterPane<TRow extends object>({
       partner('input[data-dd-value-row]')?.focus()
       return
     }
-    if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Home' || e.key === 'End') {
-      // Only the value-search box joins the vertical Up/Down chain, mirroring every other
-      // dropdown's "search input, then rows" pattern — the select-all checkbox and sort-order
-      // button sit beside it on the *same* row (filterSearchRow), not above the rows, so
-      // stepping Down/Up through all three before reaching the list would move focus somewhere
-      // that doesn't visually correspond to "down". They stay reachable via Tab/click as before.
-      const headerControls = Array.from(
-        filterDetailEl.querySelectorAll<HTMLElement>('input[data-dd-value-search]'),
-      )
-      const rowInputs = Array.from(
-        filterDetailEl.querySelectorAll<HTMLInputElement>('input[data-dd-value-row]'),
-      )
-      const focusables = [...headerControls, ...rowInputs]
-      const active = document.activeElement as HTMLElement | null
-      // Up/Down from a ≠ button stays in the ≠ column
-      const onExclude = !!active?.matches('[data-dd-value-exclude]')
-      if (!active || (focusables.indexOf(active) === -1 && !onExclude)) return
+    // Only the value search joins the vertical chain; select-all and the sort button sit beside it
+    const focusables = Array.from(
+      filterDetailEl.querySelectorAll<HTMLElement>(FILTER_DETAIL_NAV_SELECTOR),
+    )
+    const rows = focusables.filter((el) => !el.matches('input[data-dd-value-search]'))
+    const active = document.activeElement as HTMLElement | null
+    // Up/Down from a ≠ button stays in the ≠ column
+    const onExclude = !!active?.matches('[data-dd-value-exclude]')
+    if (!active || (!focusables.includes(active) && !onExclude)) return
 
-      // The flat checklist is virtualized — crossing out of the rendered window, or Home/End
-      // (which must reach the *logical* first/last value, not just whatever's currently
-      // rendered), needs the scroll-then-focus dance in focusChecklistIndex above. The date tree
-      // has no such window (every currently-expanded row is already in the DOM), so it falls
-      // straight through to the plain DOM-order nav below.
-      if (filterListRef.current && col.type !== 'date') {
-        const activeValue = active.dataset.value
-        let targetIdx: number | null = null
-        if (e.key === 'Home') targetIdx = 0
-        else if (e.key === 'End') targetIdx = filterDetailValues.length - 1
-        else if (activeValue !== undefined) {
-          const curIdx = filterDetailValues.indexOf(activeValue)
-          targetIdx = e.key === 'ArrowDown' ? curIdx + 1 : curIdx - 1
-        }
-        if (targetIdx !== null) {
-          // Falls through to the plain header-control nav below in two cases: moving Up out of
-          // the checklist's very first row (there's no row above it — the previous stop is the
-          // value-search box instead), and Home/End on an empty list.
-          const fallsThrough = targetIdx < 0 && e.key === 'ArrowUp' && activeValue !== undefined
-          if (!fallsThrough) {
-            e.preventDefault()
-            e.stopPropagation()
-            if (targetIdx >= 0 && targetIdx < filterDetailValues.length) {
-              focusChecklistIndex(targetIdx, onExclude)
-            }
-            return
-          }
-        }
+    // The flat checklist is virtualized: a value outside the rendered window (or Home/End) needs
+    // focusChecklistIndex's scroll-then-focus; the date tree is fully mounted, so DOM order works
+    if (filterListRef.current && col.type !== 'date') {
+      const i = checklistNavIndex(e.key, filterDetailValues, active.dataset.value)
+      if (i !== null) {
+        e.preventDefault()
+        e.stopPropagation()
+        focusChecklistIndex(i, onExclude)
+        return
       }
-
-      const next = rovingFocusTarget(e.key, focusables, active, rowInputs)
-      if (!next) return
-      e.preventDefault()
-      e.stopPropagation()
-      next.focus()
     }
+
+    const next = rovingFocusTarget(e.key, focusables, active, rows)
+    if (!next) return
+    e.preventDefault()
+    e.stopPropagation()
+    next.focus()
   }
 
   const filterDetailTree =

@@ -18,6 +18,7 @@ import {
   computeVirtualRange,
   getVirtualScrollTarget,
   rovingFocusTarget,
+  checklistNavIndex,
   checklistBulkState,
   clickChecklistValue,
   toggleChecklistExclude,
@@ -367,6 +368,7 @@ export function FilterPane<TRow extends object>(props: FilterPaneProps<TRow>) {
         ?.focus()
       return
     }
+    if (e.altKey) return
     // ←/→ cross between a value's checkbox and its ≠ button; ← from the checkbox leaves the pane
     const target = e.target as HTMLElement
     const partner = (selector: string) =>
@@ -385,52 +387,29 @@ export function FilterPane<TRow extends object>(props: FilterPaneProps<TRow>) {
       partner('input[data-dd-value-row]')?.focus()
       return
     }
-    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Home' && e.key !== 'End') return
+    // Only the value search joins the vertical chain; select-all and the sort button sit beside it
+    const focusables = detailFocusables(e.currentTarget as HTMLElement)
+    const rows = focusables.filter((el) => !el.matches('input[data-dd-value-search]'))
+    const active = document.activeElement as HTMLElement | null
+    // Up/Down from a ≠ button stays in the ≠ column
+    const onExclude = !!active?.matches('[data-dd-value-exclude]')
+    if (!active || (!focusables.includes(active) && !onExclude)) return
 
-    // The flat checklist is virtualized (see "Checklist virtualization" below) — only a
-    // scrolled-into-view window of rows actually exists in the DOM, so Up/Down/Home/End need to
-    // reach a *logical* value that isn't necessarily mounted, via filterDetailValues() (the full
-    // narrowed list) rather than a DOM query. Falls through to the generic DOM-order nav below in
-    // two cases, same as React/Vue's own version: moving Up out of the very first row (there's no
-    // row above it — the previous stop is the search box instead, itself always mounted so plain
-    // DOM order already gets there), and starting from the search box itself (ArrowDown to row 0
-    // is likewise always mounted). The date tree has no such window, so it always uses the
-    // generic path.
+    // The flat checklist is virtualized (see "Checklist virtualization" below): a value outside
+    // the mounted window (or Home/End) needs focusChecklistIndex's scroll-then-focus; the date
+    // tree is fully mounted, so DOM order works
     const col = activeCol()
     if (col.type !== 'date' && col.type !== 'number') {
       const values = filterDetailValues()
-      const active = document.activeElement
-      const activeValue =
-        active instanceof HTMLElement &&
-        active.matches('input[data-dd-value-row], [data-dd-value-exclude]')
-          ? active.dataset.value
-          : undefined
-      // Up/Down from a ≠ button stays in the ≠ column
-      const onExclude = active instanceof HTMLElement && active.matches('[data-dd-value-exclude]')
-      let targetIdx: number | null = null
-      if (e.key === 'Home') targetIdx = 0
-      else if (e.key === 'End') targetIdx = values.length - 1
-      else if (activeValue !== undefined) {
-        const curIdx = values.indexOf(activeValue)
-        targetIdx = e.key === 'ArrowDown' ? curIdx + 1 : curIdx - 1
-      }
-      if (targetIdx !== null) {
-        const fallsThrough = targetIdx < 0 && e.key === 'ArrowUp' && activeValue !== undefined
-        if (!fallsThrough) {
-          if (targetIdx < 0 || targetIdx >= values.length) {
-            e.preventDefault()
-            return
-          }
-          e.preventDefault()
-          focusChecklistIndex(targetIdx, values, onExclude)
-          return
-        }
+      const i = checklistNavIndex(e.key, values, active.dataset.value)
+      if (i !== null) {
+        e.preventDefault()
+        focusChecklistIndex(i, values, onExclude)
+        return
       }
     }
 
-    const focusables = detailFocusables(e.currentTarget as HTMLElement)
-    const rowFocusables = focusables.filter((el) => !el.matches('input[data-dd-value-search]'))
-    const next = rovingFocusTarget(e.key, focusables, document.activeElement, rowFocusables)
+    const next = rovingFocusTarget(e.key, focusables, active, rows)
     if (!next) return
     e.preventDefault()
     next.focus()
@@ -443,6 +422,7 @@ export function FilterPane<TRow extends object>(props: FilterPaneProps<TRow>) {
   // pending-ref/effect indirection is needed: set scrollTop, then focus, in the same tick.
   function focusChecklistIndex(targetIdx: number, values: string[], onExclude = false): void {
     const value = values[targetIdx]
+    if (value === undefined) return
     const nextScrollTop = getVirtualScrollTarget(
       scrollTop(),
       FILTER_LIST_VIEWPORT_HEIGHT,

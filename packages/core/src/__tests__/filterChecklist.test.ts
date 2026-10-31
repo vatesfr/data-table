@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   checklistBulkState,
+  checklistNavIndex,
   clickChecklistValue,
   clickDateTreeNode,
   toggleChecklistExclude,
@@ -216,5 +217,26 @@ describe('isExcludeOnlyColumn', () => {
     expect(isExcludeOnlyColumn(data, { key: 'dept', label: 'Dept' })).toBe(true)
     expect(isExcludeOnlyColumn(data, { key: 'skills', label: 'Skills' })).toBe(false)
     expect(isExcludeOnlyColumn(data, { key: 'n', label: 'N', type: 'number' })).toBe(false)
+  })
+})
+
+describe('checklistNavIndex', () => {
+  const values = ['a', 'b', 'c']
+
+  it('steps ↑/↓ from the focused value, staying put (out of range) past the last', () => {
+    expect(checklistNavIndex('ArrowDown', values, 'a')).toBe(1)
+    expect(checklistNavIndex('ArrowUp', values, 'c')).toBe(1)
+    expect(checklistNavIndex('ArrowDown', values, 'c')).toBe(3)
+  })
+
+  it('Home/End reach the logical first/last value from anywhere', () => {
+    expect(checklistNavIndex('Home', values, 'c')).toBe(0)
+    expect(checklistNavIndex('End', values, undefined)).toBe(2)
+  })
+
+  it('leaves ↑ off the first value, the search box and other keys to DOM-order nav', () => {
+    expect(checklistNavIndex('ArrowUp', values, 'a')).toBeNull()
+    expect(checklistNavIndex('ArrowDown', values, undefined)).toBeNull()
+    expect(checklistNavIndex('Enter', values, 'a')).toBeNull()
   })
 })

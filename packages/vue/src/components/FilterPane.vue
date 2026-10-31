@@ -34,6 +34,8 @@ import {
   computeVirtualRange,
   getVirtualScrollTarget,
   rovingFocusTarget,
+  checklistNavIndex,
+  FILTER_DETAIL_NAV_SELECTOR,
   type DateTreeNode,
   filterMatchMode,
 } from '@vates/data-table-core/internal'
@@ -282,6 +284,7 @@ async function onKeydown(event: KeyboardEvent): Promise<void> {
     pane.querySelector<HTMLElement>('input.dt-dd-search')?.focus()
     return
   }
+  if (event.altKey) return
   // ←/→ cross between a value's checkbox and its ≠ button; ← from the checkbox leaves the pane
   const target = event.target as HTMLElement
   const partner = (selector: string) =>
@@ -300,64 +303,45 @@ async function onKeydown(event: KeyboardEvent): Promise<void> {
     partner('input[data-dd-value-row]')?.focus()
     return
   }
-  if (event.altKey || !['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return
   const pane = event.currentTarget as HTMLElement
   // Only the value search joins the vertical chain; select-all and the sort button sit beside it
-  const headerControls = Array.from(pane.querySelectorAll<HTMLElement>('input.dt-dd-search'))
-  const rowInputs = Array.from(
-    pane.querySelectorAll<HTMLInputElement>(
-      '.dt-dd-item input[type="checkbox"], .dt-date-tree-item input[type="checkbox"]',
-    ),
-  )
-  const focusables = [...headerControls, ...rowInputs]
+  const focusables = Array.from(pane.querySelectorAll<HTMLElement>(FILTER_DETAIL_NAV_SELECTOR))
+  const rows = focusables.filter((el) => !el.matches('input[data-dd-value-search]'))
   const active = document.activeElement as HTMLElement | null
   // Up/Down from a ≠ button stays in the ≠ column
   const onExclude = !!active?.matches('[data-dd-value-exclude]')
-  if (!active || (focusables.indexOf(active) === -1 && !onExclude)) return
+  if (!active || (!focusables.includes(active) && !onExclude)) return
 
   // The flat checklist is virtualized: reaching a logical row outside the mounted window (or
   // Home/End) scrolls first, then focuses once Vue re-renders the window.
   const checklistEl = pane.querySelector<HTMLElement>('.dt-filter-list')
-  if (checklistEl) {
-    const vals = values.value
-    const activeValue =
-      onExclude || (active instanceof HTMLInputElement && rowInputs.includes(active))
-        ? active.dataset.value
-        : undefined
-    let targetIdx: number | null = null
-    if (event.key === 'Home') targetIdx = 0
-    else if (event.key === 'End') targetIdx = vals.length - 1
-    else if (activeValue !== undefined) {
-      const curIdx = vals.indexOf(activeValue)
-      targetIdx = event.key === 'ArrowDown' ? curIdx + 1 : curIdx - 1
-    }
-    // Up out of the first row falls through to the plain nav below, back to the search box
-    if (targetIdx !== null && !(targetIdx < 0 && event.key === 'ArrowUp' && activeValue)) {
-      event.preventDefault()
-      if (targetIdx < 0 || targetIdx >= vals.length) return
-      const next =
-        getVirtualScrollTarget(
-          scrollTop.value,
-          FILTER_LIST_VIEWPORT_HEIGHT,
-          FILTER_LIST_ITEM_HEIGHT,
-          targetIdx,
-        ) ?? scrollTop.value
-      scrollTop.value = next
-      if (listRef.value) listRef.value.scrollTop = next
-      const targetValue = vals[targetIdx]
-      await nextTick()
-      const selector = onExclude ? '[data-dd-value-exclude]' : 'input[type="checkbox"]'
-      for (const el of checklistEl.querySelectorAll<HTMLElement>(selector)) {
-        if (el.dataset.value === targetValue) {
-          el.focus()
-          break
-        }
+  const vals = values.value
+  const i = checklistEl ? checklistNavIndex(event.key, vals, active.dataset.value) : null
+  if (checklistEl && i !== null) {
+    event.preventDefault()
+    const targetValue = vals[i]
+    if (targetValue === undefined) return
+    const top =
+      getVirtualScrollTarget(
+        scrollTop.value,
+        FILTER_LIST_VIEWPORT_HEIGHT,
+        FILTER_LIST_ITEM_HEIGHT,
+        i,
+      ) ?? scrollTop.value
+    scrollTop.value = top
+    if (listRef.value) listRef.value.scrollTop = top
+    await nextTick()
+    const selector = onExclude ? '[data-dd-value-exclude]' : 'input[data-dd-value-row]'
+    for (const el of checklistEl.querySelectorAll<HTMLElement>(selector)) {
+      if (el.dataset.value === targetValue) {
+        el.focus()
+        break
       }
-      return
     }
+    return
   }
 
-  const next = rovingFocusTarget(event.key, focusables, active, rowInputs)
+  const next = rovingFocusTarget(event.key, focusables, active, rows)
   if (!next) return
   event.preventDefault()
   next.focus()
