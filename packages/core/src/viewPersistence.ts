@@ -1,6 +1,6 @@
 // This file's own functions only ever run in a browser (as with every adapter's persistence
-// helpers this replaces) — the rest of `packages/core` targets a DOM-free `lib` (see `view.ts`'s
-// hand-rolled base64url) so it can also run in Node/SSR, but that constraint doesn't apply here.
+// helpers this replaces) — the rest of `packages/core` targets a DOM-free `lib` so it can also
+// run in Node/SSR, but that constraint doesn't apply here.
 // A file-scoped `lib="dom"` reference pulls in just the ambient types this file needs
 // (`localStorage`, `URLSearchParams`, `window`) without adding "dom" to the whole package's
 // `tsconfig.json` `lib` array.

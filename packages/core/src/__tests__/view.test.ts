@@ -65,6 +65,23 @@ describe('encodeViewState / decodeViewState', () => {
     expect(encoded.length).toBeLessThan(40)
   })
 
+  // Captured from the original encoder: existing links and stored views must still decode.
+  it.each<[TableViewState, string]>([
+    [{ searchQuery: 'a' }, 'eyJxIjoiYSJ9'],
+    [{ searchQuery: 'ab' }, 'eyJxIjoiYWIifQ'],
+    [{ searchQuery: 'abc' }, 'eyJxIjoiYWJjIn0'],
+    [{ searchQuery: 'café ✓ 🚀' }, 'eyJxIjoiY2Fmw6kg4pyTIPCfmoAifQ'],
+    [{ searchQuery: '>?~' }, 'eyJxIjoiPj9-In0'],
+    [{ searchQuery: '???' }, 'eyJxIjoiPz8_In0'],
+    [
+      { sorts: [{ key: 'name', dir: 'desc' }], filters: { tags: ['Ünïcode', '日本'] }, page: 3 },
+      'eyJzIjpbWyJuYW1lIiwxXV0sImYiOltbInRhZ3MiLFsiw5xuw69jb2RlIiwi5pel5pysIl1dXSwicCI6M30',
+    ],
+  ])('encodes %j as a stable string', (view, encoded) => {
+    expect(encodeViewState(view)).toBe(encoded)
+    expect(decodeViewState(encoded)).toEqual(view)
+  })
+
   it('returns undefined for malformed input', () => {
     expect(decodeViewState('not valid base64url!!!')).toBeUndefined()
     expect(decodeViewState('')).toBeUndefined()

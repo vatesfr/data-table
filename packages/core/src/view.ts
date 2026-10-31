@@ -1,3 +1,7 @@
+// `TextEncoder`/`btoa` are in browsers and Node; the DOM lib types them without adding "dom" to the
+// whole package. `preserve` keeps the reference in the emitted `.d.ts` (see docs/pitfalls.md).
+/// <reference lib="dom" preserve="true" />
+
 import type { SortEntry, RangeFilter, ColumnDefBase } from './types'
 import { clampInt, getDefaultSortDir, insertGroupSort } from './logic'
 
@@ -98,96 +102,21 @@ function fromWire(wire: WireViewState): TableViewState {
   return view
 }
 
-const BASE64_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
-
-// Hand-rolled UTF-8 <-> base64url instead of btoa/TextEncoder: core targets ES2020 with no DOM
-// or Node lib, and must run identically in browsers, Node (SSR), and the vanilla adapter.
-function utf8Encode(str: string): number[] {
-  const bytes: number[] = []
-  for (const ch of str) {
-    const code = ch.codePointAt(0) as number
-    if (code < 0x80) {
-      bytes.push(code)
-    } else if (code < 0x800) {
-      bytes.push(0xc0 | (code >> 6), 0x80 | (code & 0x3f))
-    } else if (code < 0x10000) {
-      bytes.push(0xe0 | (code >> 12), 0x80 | ((code >> 6) & 0x3f), 0x80 | (code & 0x3f))
-    } else {
-      bytes.push(
-        0xf0 | (code >> 18),
-        0x80 | ((code >> 12) & 0x3f),
-        0x80 | ((code >> 6) & 0x3f),
-        0x80 | (code & 0x3f),
-      )
-    }
-  }
-  return bytes
+function toBase64Url(str: string): string {
+  let bin = ''
+  // A byte loop: spreading a large view's bytes into `String.fromCharCode` overflows the stack.
+  for (const byte of new TextEncoder().encode(str)) bin += String.fromCharCode(byte)
+  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
 }
 
-function utf8Decode(bytes: number[]): string {
-  let str = ''
-  let i = 0
-  while (i < bytes.length) {
-    const b0 = bytes[i]
-    if (b0 < 0x80) {
-      str += String.fromCodePoint(b0)
-      i += 1
-    } else if (b0 < 0xe0) {
-      str += String.fromCodePoint(((b0 & 0x1f) << 6) | (bytes[i + 1] & 0x3f))
-      i += 2
-    } else if (b0 < 0xf0) {
-      str += String.fromCodePoint(
-        ((b0 & 0x0f) << 12) | ((bytes[i + 1] & 0x3f) << 6) | (bytes[i + 2] & 0x3f),
-      )
-      i += 3
-    } else {
-      str += String.fromCodePoint(
-        ((b0 & 0x07) << 18) |
-          ((bytes[i + 1] & 0x3f) << 12) |
-          ((bytes[i + 2] & 0x3f) << 6) |
-          (bytes[i + 3] & 0x3f),
-      )
-      i += 4
-    }
-  }
-  return str
-}
-
-function bytesToBase64Url(bytes: number[]): string {
-  let out = ''
-  for (let i = 0; i < bytes.length; i += 3) {
-    const b0 = bytes[i]
-    const b1 = bytes[i + 1]
-    const b2 = bytes[i + 2]
-    const triplet = (b0 << 16) | ((b1 ?? 0) << 8) | (b2 ?? 0)
-    out += BASE64_CHARS[(triplet >> 18) & 0x3f]
-    out += BASE64_CHARS[(triplet >> 12) & 0x3f]
-    out += b1 !== undefined ? BASE64_CHARS[(triplet >> 6) & 0x3f] : ''
-    out += b2 !== undefined ? BASE64_CHARS[triplet & 0x3f] : ''
-  }
-  return out.replace(/\+/g, '-').replace(/\//g, '_')
-}
-
-function base64UrlToBytes(encoded: string): number[] {
-  const b64 = encoded.replace(/-/g, '+').replace(/_/g, '/')
-  const bytes: number[] = []
-  for (let i = 0; i < b64.length; i += 4) {
-    const c0 = BASE64_CHARS.indexOf(b64[i])
-    const c1 = BASE64_CHARS.indexOf(b64[i + 1])
-    const c2 = i + 2 < b64.length ? BASE64_CHARS.indexOf(b64[i + 2]) : -1
-    const c3 = i + 3 < b64.length ? BASE64_CHARS.indexOf(b64[i + 3]) : -1
-    if (c0 < 0 || c1 < 0) throw new Error('Invalid base64url input')
-    const triplet = (c0 << 18) | (c1 << 12) | ((c2 & 0x3f) << 6) | (c3 & 0x3f)
-    bytes.push((triplet >> 16) & 0xff)
-    if (c2 >= 0) bytes.push((triplet >> 8) & 0xff)
-    if (c3 >= 0) bytes.push(triplet & 0xff)
-  }
-  return bytes
+function fromBase64Url(encoded: string): string {
+  const bin = atob(encoded.replace(/-/g, '+').replace(/_/g, '/'))
+  return new TextDecoder().decode(Uint8Array.from(bin, (c) => c.charCodeAt(0)))
 }
 
 /** Serializes a view to a compact, URL-safe string (base64url of a shortened JSON shape). */
 export function encodeViewState(view: TableViewState): string {
-  return bytesToBase64Url(utf8Encode(JSON.stringify(toWire(view))))
+  return toBase64Url(JSON.stringify(toWire(view)))
 }
 
 /**
@@ -196,7 +125,7 @@ export function encodeViewState(view: TableViewState): string {
  */
 export function decodeViewState(encoded: string): TableViewState | undefined {
   try {
-    return fromWire(JSON.parse(utf8Decode(base64UrlToBytes(encoded))) as WireViewState)
+    return fromWire(JSON.parse(fromBase64Url(encoded)) as WireViewState)
   } catch {
     return undefined
   }

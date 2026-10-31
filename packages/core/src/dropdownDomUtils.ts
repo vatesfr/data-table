@@ -1,8 +1,8 @@
 // This file's functions only ever run in a browser — they operate directly on `DOMRect`/`clientY`/
 // `window` values — unlike the rest of `packages/core`, which targets a DOM-free `lib` so it can
-// also run in Node/SSR (see `view.ts`'s hand-rolled base64url, `viewPersistence.ts`'s own note). A
-// file-scoped `lib="dom"` reference pulls in just the ambient types this file needs (`DOMRect`,
-// `HTMLElement`) without adding "dom" to the whole package's `tsconfig.json` `lib` array.
+// also run in Node/SSR (see `viewPersistence.ts`'s own note). A file-scoped `lib="dom"` reference
+// pulls in just the ambient types this file needs (`DOMRect`, `HTMLElement`) without adding "dom"
+// to the whole package's `tsconfig.json` `lib` array.
 // `preserve` keeps it in the emitted `.d.ts`, which API Extractor needs to resolve those types.
 /// <reference lib="dom" preserve="true" />
 
