@@ -9,7 +9,8 @@
     "demo/*"
   ],
   "scripts": {
-    "build": "npm run build -w packages/core && npm run build -w packages/react && npm run build -w packages/vue && npm run build -w packages/solid && npm run build -w packages/vanilla",
+    "build": "npm run build -w packages/core && npm run build:adapters && npm run build -w packages/vanilla",
+    "build:adapters": "npm run build -w packages/react & r=$!; npm run build -w packages/vue & v=$!; npm run build -w packages/solid & s=$!; wait $r; a=$?; wait $v; b=$?; wait $s; exit $((a | b | $?))",
     "dev:react": "npm run dev -w demo/react",
     "dev:vue": "npm run dev -w demo/vue",
     "dev:solid": "npm run dev -w demo/solid",

@@ -9,6 +9,6 @@ Packages and demo apps resolve each other without a build step via:
 
 - **`demo/vanilla`** also aliases `@vates/data-table-solid` to `packages/solid/src`, which `packages/vanilla/src` imports; without it the demo ran Solid's last build, so it showed stale Solid code and reloaded mid-check after each rebuild.
 
-In production, `npm run build` must run `core` before `react`, `vue`, and `solid` (all three import from its `dist/`), and `solid` before `vanilla` (which bundles `@vates/data-table-solid`'s own `dist/` into its own).
+In production, `npm run build` must run `core` before `react`, `vue`, and `solid` (all three import from its `dist/`), and `solid` before `vanilla` (which bundles `@vates/data-table-solid`'s own `dist/` into its own). `react`, `vue` and `solid` build in parallel (`build:adapters`).
 
 Root `package.json` pins `typescript` via `overrides` — see [pitfalls](pitfalls.md#empty-distindexdts-after-a-dependency-bump).
