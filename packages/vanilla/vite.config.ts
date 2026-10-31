@@ -18,21 +18,10 @@ export default defineConfig({
     }),
   ],
   build: {
-    // This is the one package where bundle size is actually budgeted (see package.json's
-    // "size-limit" section) — it bundles solid-js + the whole @vates/data-table-solid adapter as
-    // internal implementation details (see the `external` comment below), unlike core/react/vue/
-    // solid, which stay on Vite's default esbuild minifier (fast, and their own consumers install
-    // solid-js/react/vue themselves rather than this package's dist/ carrying the weight). Terser
-    // trims another ~2.5 KB gzipped off this specific bundle vs. esbuild's minifier (property
-    // mangling is deliberately left off — safe for local variable/function names, not for object
-    // keys without auditing every dynamic property access first).
+    // Terser: smaller gzipped output than esbuild; no property mangling (object keys unaudited)
     minify: 'terser',
     lib: {
-      // Only the main entry point here — a UMD/IIFE build (needed so this package still works as a
-      // plain <script> global, unlike core/react/vue/solid which only ever ship es+cjs) can't have
-      // more than one entry point (Rollup restriction), so the `/theme` sub-path re-export is built
-      // by a separate `vite.theme.config.ts` pass instead (es+cjs only, no umd) — see that file and
-      // this package.json's `build` script.
+      // A UMD build allows one entry: `/theme` builds via ../vite.theme.config.mts
       entry: resolve(import.meta.dirname, 'src/index.tsx'),
       name: 'DataTableVanilla',
       fileName: 'data-table-vanilla',

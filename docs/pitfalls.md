@@ -38,7 +38,7 @@ Symptom first, then cause and fix. Delete entries once obsolete.
 
 - Symptom: up to 0.16.0, `dist/theme.d.ts` was missing from the adapters though `exports["./theme"].types` points at it; with `vite-plugin-dts` 5 and `insertTypesEntry`, the theme pass overwrites `dist/index.d.ts` with the theme re-export.
 - Cause: `insertTypesEntry` names the entry `index.d.ts`, and without `entryRoot` the declaration lands under `dist/<pkg>/src/` (`rootDir` is `..`).
-- Fix: `vite.theme.config.ts` emits without bundling, with `entryRoot: 'src'`, producing `dist/theme.d.ts`.
+- Fix: `packages/vite.theme.config.mts` emits without bundling, with `entryRoot: 'src'`, producing `dist/theme.d.ts`.
 
 ## Checkbox stays checked in the browser, test passes in jsdom
 

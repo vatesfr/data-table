@@ -30,7 +30,7 @@
 ## Architecture
 
 - `@vates/data-table-core` exists only so adapters share code. Its main entry is a small deliberate **public** surface that every adapter re-exports identically; everything else lives behind `@vates/data-table-core/internal`, imported only by adapter source. An ESLint `no-restricted-imports` rule fails if a demo imports core directly. Authoritative list: `packages/core/README.md`'s "Public API surface".
-- Core sub-paths `/locales` and `/theme` are re-exported by every adapter (its own `/theme` sub-path, built by a separate `vite.theme.config.ts` pass because UMD/IIFE builds allow one entry).
+- Core sub-paths `/locales` and `/theme` are re-exported by every adapter (its own `/theme` sub-path, built by a separate pass with the shared `packages/vite.theme.config.mts`, because UMD/IIFE builds allow one entry).
 - Each adapter has a state hook (`useTableState`/`createTableState`) returning a namespaced `TableState`, a render layer `DataTableView` taking it as a `table` prop, and a thin `DataTable` wrapper combining the two.
 - Pre-1.0: breaking changes ship as hard cuts, no compat shims.
 
