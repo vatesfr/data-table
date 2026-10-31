@@ -22,12 +22,6 @@ Symptom first, then cause and fix. Delete entries once obsolete.
 - Cause: unlike `git commit`, `git merge -F` doesn't read the message from stdin.
 - Fix: write the message to a file and pass its path to `-F`.
 
-## `git worktree add` prints "fatal: bad object 0000000…"
-
-- Symptom: `fatal: bad object 0000000000000000000000000000000000000000` after `git worktree add`; the worktree is created anyway, without `node_modules`.
-- Cause: on a new checkout, git passes the null commit as the previous HEAD to `.husky/post-checkout`, whose `git diff` against it fails, so its `npm ci` never runs.
-- Fix: harmless; run `npm ci` in the new worktree.
-
 ## Empty `dist/index.d.ts` after a dependency bump
 
 - Symptom: `packages/{react,vue,solid,vanilla}/dist/index.d.ts` is empty; `build` still exits 0; `check:dist-types` catches it.
