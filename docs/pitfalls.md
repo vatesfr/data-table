@@ -2,7 +2,7 @@
 
 Symptom first, then cause and fix. Delete entries once obsolete.
 
-<!-- check-docs-ignore: exceeded journalctl memory Killed chromium-browse Failed oom-kill _vts invoker timed Cannot uptime python3 curl ENOSPC fatal unable -->
+<!-- check-docs-ignore: exceeded journalctl memory Killed chromium-browse Failed oom-kill _vts invoker timed Cannot uptime python3 curl ENOSPC fatal unable TS2307 -->
 
 ## Unit tests time out on a busy machine
 
@@ -58,11 +58,11 @@ Symptom first, then cause and fix. Delete entries once obsolete.
 - Cause: pages opened by `browser_run_code_unsafe` scripts and never closed (a step threw before `close()`) piled up to ~12 GB of Chromium; each held `#huge-dataset`'s 200k rows, which the demos now build only once that section scrolls into view.
 - Fix: close pages in `try/finally` (`scripts/ux-measure.mjs` and `scripts/ux-step.mjs` do), reuse one page, and don't run several browser-driving agents at once.
 
-## Demo type-check: "has no exported member" from a core sub-path
+## Demo type-check: "has no exported member" from a workspace sub-path
 
-- Symptom: `npm run type-check` fails in `demo/*` with `Module '"@vates/data-table-core/internal"' has no exported member …` for a new core export, while every package type-checks.
-- Cause: a demo's `tsconfig.json` `paths` lacked that sub-path, so the adapter source it compiles resolved it through core's stale built `dist/`.
-- Fix: each demo maps every `@vates/data-table-core` sub-path (and vanilla's `@vates/data-table-solid`) to source; add new sub-paths there too.
+- Symptom: `npm run type-check` fails in `demo/*` with `Module '"@vates/data-table-…"' has no exported member …` for a new export, while every package type-checks.
+- Cause: a `tsconfig.json` `paths` entry was missing, so the import resolved through that package's stale built `dist/`. Demos map core sub-paths through a `@vates/data-table-core/*` wildcard; adapter entries (`@vates/data-table-solid`, the `/theme` sub-paths) and the packages' core entries are listed one by one.
+- Fix: map the missing specifier to source. Don't give the packages the wildcard: their declaration emit then names inferred core types by file (`import { PagedGroup } from '@vates/data-table-core/logic'`), which the published `exports` reject, and `check:dist-types` fails with `TS2307`.
 
 ## Pre-commit `size` passes locally, fails in CI
 
