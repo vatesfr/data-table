@@ -52,7 +52,7 @@ table.setColumns(newColumns)
 table.destroy()
 ```
 
-CSS is injected automatically into `<head>` on the first `createDataTable` call. This includes all color tokens and dark-mode overrides that activate automatically via `prefers-color-scheme: dark`. The injected `<style>` tag is placed before any existing `<head>` children, so a stylesheet you define yourself (see [Theming](#theming)) always wins the cascade regardless of import order.
+CSS is injected automatically into `<head>` on the first `createDataTable` call. This includes all color tokens and dark-mode overrides that activate automatically via `prefers-color-scheme: dark`. The injected `<style>` tag is placed before any existing `<head>` children, so a stylesheet you define yourself (see [Theming](#theming)) wins the cascade regardless of import order, unless it's in a CSS `@layer` (see [below](#overrides-inside-a-css-layer-have-no-effect)).
 
 ## Theming
 
@@ -91,6 +91,10 @@ To override individual tokens, define the custom property in your own stylesheet
 | `--color-border-tertiary`      | `#eeedea` | `#333029` |
 | `--color-border-info`          | `#b8d6f5` | `#1a4070` |
 | `--color-border-warning`       | `#f0d4a8` | `#4a2c00` |
+
+### Overrides inside a CSS `@layer` have no effect
+
+Your `.dt-*` overrides or `--color-*` tokens inside an `@layer` (including Tailwind v4's `@layer base`/`components`/`utilities`) are ignored: the table's injected styles are unlayered, and unlayered styles beat every layer whatever the specificity. Put those overrides in an unlayered stylesheet instead. The table's styles stay unlayered on purpose: in a layer, they would lose to unlayered global resets such as Tailwind v3's preflight (`button { background-color: transparent }`).
 
 ## Cell customization
 
