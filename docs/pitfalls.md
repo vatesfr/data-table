@@ -2,7 +2,7 @@
 
 Symptom first, then cause and fix. Delete entries once obsolete.
 
-<!-- check-docs-ignore: exceeded journalctl memory Killed chromium-browse Failed oom-kill _vts invoker timed Cannot uptime python3 curl ENOSPC -->
+<!-- check-docs-ignore: exceeded journalctl memory Killed chromium-browse Failed oom-kill _vts invoker timed Cannot uptime python3 curl ENOSPC fatal unable -->
 
 ## Unit tests time out on a busy machine
 
@@ -135,3 +135,9 @@ Symptom first, then cause and fix. Delete entries once obsolete.
 
 - Cause: jsdom 30 needs Node `^22.22.2 || ^24.15.0 || >=26` (its undici, `>=22.19.0`); CI ran an older Node.
 - Fix: workflows take Node from the root `package.json`'s `engines.node` (`node-version-file`); keep that range in line with jsdom's.
+
+## Pre-commit: "fatal: unable to read e69de29…", stray files in the index
+
+- Symptom: `lint-staged failed due to a git error`, then `git status` fails with `fatal: unable to read <sha>`; `git ls-files` lists files from a test's scratch repo.
+- Cause: git hooks export `GIT_INDEX_FILE`; a `scripts/__tests__` test running `git` in a temp repo inherits it and writes the commit's index.
+- Fix: such a test deletes the `GIT_*` variables from `process.env` first (see `check-docs.test.mjs`); repair with `git rm --cached` on the stray paths.
