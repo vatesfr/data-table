@@ -2611,14 +2611,20 @@ describe('DataTable — keyboard navigation', () => {
     wrapper.unmount()
   })
 
-  it('ArrowUp on the first row is a no-op (clamped at the boundary)', async () => {
+  it('ArrowUp/Home on the first row is a no-op, leaving the key to the page', async () => {
     const wrapper = mount(DataTable, {
       props: { data: ROWS3, columns: COLS, rowKey: 'id', selectable: true },
       attachTo: document.body,
     })
     const [first] = dataRows(wrapper)
     ;(first.element as HTMLElement).focus()
-    await first.trigger('keydown', { key: 'ArrowUp' })
+    for (const key of ['ArrowUp', 'Home'])
+      expect(
+        first.element.dispatchEvent(
+          new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }),
+        ),
+      ).toBe(true)
+    await flushPromises()
     expect(first.attributes('tabindex')).toBe('0')
     expect(document.activeElement).toBe(first.element)
     wrapper.unmount()

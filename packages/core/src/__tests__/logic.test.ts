@@ -13,7 +13,6 @@ import {
   getVisibleRows,
   paginateVisibleGroups,
   paginateVisibleItems,
-  getCrossPageFocusTarget,
   planRowNav,
   pageSizeOptions,
   showsPager,
@@ -1517,57 +1516,6 @@ describe('paginateVisibleItems', () => {
   })
 })
 
-// ─── getCrossPageFocusTarget ────────────────────────────────────────────────────
-
-describe('getCrossPageFocusTarget', () => {
-  // 6 plain rows, ungrouped, pageSize 2 -> 3 pages of [A,B] [C,D] [E,F].
-  const visible: ReturnType<typeof getVisibleRows> = [
-    { kind: 'row', row: ROWS[0], groupKey: null },
-    { kind: 'row', row: ROWS[1], groupKey: null },
-    { kind: 'row', row: ROWS[2], groupKey: null },
-    { kind: 'row', row: ROWS[3], groupKey: null },
-    { kind: 'row', row: ROWS[0], groupKey: null },
-    { kind: 'row', row: ROWS[1], groupKey: null },
-  ]
-
-  it("edge/+1 steps to the next page's first item", () => {
-    const result = getCrossPageFocusTarget(visible, 1, 3, 2, { kind: 'edge', delta: 1 }, true)
-    expect(result).toEqual({ targetPage: 2, item: visible[2] })
-  })
-
-  it("edge/-1 steps to the previous page's last item", () => {
-    const result = getCrossPageFocusTarget(visible, 2, 3, 2, { kind: 'edge', delta: -1 }, true)
-    expect(result).toEqual({ targetPage: 1, item: visible[1] })
-  })
-
-  it('edge/+1 returns null on the last page', () => {
-    expect(getCrossPageFocusTarget(visible, 3, 3, 2, { kind: 'edge', delta: 1 }, true)).toBeNull()
-  })
-
-  it('edge/-1 returns null on the first page', () => {
-    expect(getCrossPageFocusTarget(visible, 1, 3, 2, { kind: 'edge', delta: -1 }, true)).toBeNull()
-  })
-
-  it('jump/toEnd=false targets the true first item on page 1, regardless of current page', () => {
-    const result = getCrossPageFocusTarget(visible, 3, 3, 2, { kind: 'jump', toEnd: false }, true)
-    expect(result).toEqual({ targetPage: 1, item: visible[0] })
-  })
-
-  it('jump/toEnd=true targets the true last item on the last page', () => {
-    const result = getCrossPageFocusTarget(visible, 1, 3, 2, { kind: 'jump', toEnd: true }, true)
-    expect(result).toEqual({ targetPage: 3, item: visible[5] })
-  })
-
-  it('jump when already on the target page still resolves (caller decides whether a page change is needed)', () => {
-    const result = getCrossPageFocusTarget(visible, 1, 3, 2, { kind: 'jump', toEnd: false }, true)
-    expect(result?.targetPage).toBe(1)
-  })
-
-  it('rowNavEnabled=false filters out row items, so an all-row target page resolves to null', () => {
-    expect(getCrossPageFocusTarget(visible, 1, 3, 2, { kind: 'edge', delta: 1 }, false)).toBeNull()
-  })
-})
-
 // ─── planRowNav ───────────────────────────────────────────────────────────────
 
 describe('planRowNav', () => {
@@ -1590,7 +1538,10 @@ describe('planRowNav', () => {
     rowClickable: false,
     ...over,
   })
-  const key = (k: string, mods: { shiftKey?: boolean; ctrlKey?: boolean } = {}) => ({
+  const key = (
+    k: string,
+    mods: { shiftKey?: boolean; ctrlKey?: boolean; metaKey?: boolean } = {},
+  ) => ({
     key: k,
     shiftKey: false,
     ctrlKey: false,
@@ -1608,8 +1559,21 @@ describe('planRowNav', () => {
     })
   })
 
-  it("ArrowDown at a page's end crosses to the next page", () => {
-    expect(planRowNav(key('ArrowDown'), row(a), ctx(1))).toMatchObject({ kind: 'focus', page: 2 })
+  it("an arrow at a page's edge crosses to the adjacent page's near end", () => {
+    expect(planRowNav(key('ArrowDown'), row(a), ctx(1))).toEqual({
+      kind: 'focus',
+      item: G, // page 2 repeats the continued group's header
+      page: 2,
+      extend: undefined,
+    })
+    expect(planRowNav(key('ArrowUp'), G, ctx(2))).toMatchObject({ item: visible[1], page: 1 })
+  })
+
+  it('crosses to no page whose items are all non-navigable rows', () => {
+    const rows: VisibleItem<{ n: string }>[] = [a, b].map((r) => ({ kind: 'row', row: r }))
+    const plain = { visibleItems: rows, numPages: 2, pageSize: 1, selectable: false }
+    const nav = { ...plain, navigableItems: [], page: 1, rowClickable: false }
+    expect(planRowNav(key('ArrowDown'), rows[0], nav)).toBeNull()
   })
 
   it('returns null where there is nowhere to go, so the page keeps the key', () => {
@@ -1624,6 +1588,10 @@ describe('planRowNav', () => {
     expect(planRowNav(key('End', { ctrlKey: true }), G, ctx(1))).toMatchObject({
       item: visible[3],
       page: 2,
+    })
+    expect(planRowNav(key('Home', { metaKey: true }), row(c), ctx(2))).toMatchObject({
+      item: G,
+      page: 1,
     })
   })
 

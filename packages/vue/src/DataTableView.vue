@@ -16,7 +16,7 @@ import {
   tableStatus,
   chipRemovalFocusTarget,
   filterDetailFocusTarget,
-  getCrossPageFocusTarget,
+  planRowNav,
   getSortIndex as getHeaderSortIndex,
   getSortIcon as getHeaderSortIcon,
   summarizeFilterValues,
@@ -218,10 +218,6 @@ function focusItem(target: VisibleItem<TRow>): void {
   rowRefs.get(refKey)?.focus()
 }
 
-// Arrow-key/Ctrl+Home/Ctrl+End navigation can target an item that isn't on the current page —
-// `visibleItems` (from `table`) already covers the *full* filtered/grouped dataset, so crossing
-// to an arbitrary page's first/last item is core's `getCrossPageFocusTarget` (shared with React).
-
 // Changing `page` re-renders asynchronously, so an item on the new page can't be focused until
 // after that render commits — this records the target and the `watch` below (flush: 'post',
 // i.e. after the DOM update) picks it up.
@@ -269,93 +265,29 @@ watch(
 )
 
 function handleKeyDown(event: KeyboardEvent, target: VisibleItem<TRow>): void {
-  const items = navigableItems.value
-  const idx = indexOfVisibleItem(items, target)
-  switch (event.key) {
-    case 'ArrowDown':
-    case 'ArrowUp': {
-      const delta = event.key === 'ArrowDown' ? 1 : -1
-      const nextIdx = idx + delta
-      if (nextIdx >= 0 && nextIdx < items.length) {
-        const next = items[nextIdx]
-        event.preventDefault()
-        if (event.shiftKey && props.selectable && next.kind === 'row')
-          toggleRowSelection(next.row, true)
-        focusItem(next)
-      } else {
-        const crossing = getCrossPageFocusTarget(
-          visibleItems.value,
-          page.value,
-          numPages.value,
-          pageSize.value,
-          { kind: 'edge', delta },
-          isRowNavEnabled.value,
-        )
-        if (crossing) {
-          event.preventDefault()
-          if (event.shiftKey && props.selectable && crossing.item.kind === 'row')
-            toggleRowSelection(crossing.item.row, true)
-          pendingFocusTarget = crossing.item
-          setPage(crossing.targetPage)
-        }
-      }
-      break
-    }
-    case 'Home':
-    case 'End': {
-      if (event.ctrlKey || event.metaKey) {
-        const crossing = getCrossPageFocusTarget(
-          visibleItems.value,
-          page.value,
-          numPages.value,
-          pageSize.value,
-          { kind: 'jump', toEnd: event.key === 'End' },
-          isRowNavEnabled.value,
-        )
-        if (crossing) {
-          event.preventDefault()
-          if (event.shiftKey && props.selectable && crossing.item.kind === 'row')
-            toggleRowSelection(crossing.item.row, true)
-          if (crossing.targetPage === page.value) {
-            focusItem(crossing.item)
-          } else {
-            pendingFocusTarget = crossing.item
-            setPage(crossing.targetPage)
-          }
-        }
-        break
-      }
-      const next = items[event.key === 'Home' ? 0 : items.length - 1]
-      if (next && !isSameVisibleItem(next, target)) {
-        event.preventDefault()
-        if (event.shiftKey && props.selectable && next.kind === 'row')
-          toggleRowSelection(next.row, true)
-        focusItem(next)
-      }
-      break
-    }
-    case ' ':
-      if (target.kind === 'group') {
-        if (props.selectable) {
-          event.preventDefault()
-          const group = groupedData.value.find((g) => g.key === target.key)
-          if (group) toggleSelectAll(group.rows)
-        }
-      } else if (props.selectable) {
-        event.preventDefault()
-        toggleRowSelection(target.row, event.shiftKey)
-      }
-      break
-    case 'Enter':
-      if (target.kind === 'group') {
-        event.preventDefault()
-        toggleGroupCollapse(target.key)
-      } else if (isRowClickable.value) {
-        event.preventDefault()
-        handleRowClick(target.row, event)
-      }
-      break
-  }
+  const plan = planRowNav(event, target, {
+    visibleItems: visibleItems.value,
+    navigableItems: navigableItems.value,
+    page: page.value,
+    numPages: numPages.value,
+    pageSize: pageSize.value,
+    selectable: props.selectable,
+    rowClickable: isRowClickable.value,
+  })
+  if (!plan) return
+  event.preventDefault()
+  if (plan.kind === 'focus') {
+    if (plan.extend) toggleRowSelection(plan.extend, true)
+    if (plan.page) {
+      pendingFocusTarget = plan.item
+      setPage(plan.page)
+    } else focusItem(plan.item)
+  } else if (plan.kind === 'toggleRow') toggleRowSelection(plan.row, event.shiftKey)
+  else if (plan.kind === 'toggleGroupSelection') {
+    const group = groupedData.value.find((g) => g.key === plan.key)
+    if (group) toggleSelectAll(group.rows)
+  } else if (plan.kind === 'toggleCollapse') toggleGroupCollapse(plan.key)
+  else handleRowClick(plan.row, event)
 }
 
 const allSelected = computed(

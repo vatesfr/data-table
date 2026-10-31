@@ -27,7 +27,7 @@ import {
   paginateVisibleItems,
   pageSizeOptions,
   showsPager,
-  getCrossPageFocusTarget,
+  planRowNav,
   getSortIndex as getHeaderSortIndex,
   getSortIcon as getHeaderSortIcon,
   summarizeFilterValues,
@@ -487,10 +487,6 @@ export function DataTableView<TRow extends object>({
     rowRefs.current.get(refKey)?.focus()
   }
 
-  // Arrow-key/Ctrl+Home/Ctrl+End navigation can target an item that isn't on the current page —
-  // `visibleItems` (from `table`) already covers the *full* filtered/grouped dataset, so crossing
-  // to an arbitrary page's first/last item is core's `getCrossPageFocusTarget` (shared with Vue).
-
   // Changing `page` re-renders asynchronously, so an item on the new page can't be focused until
   // after that render commits — this records the target and a `useEffect` below picks it up.
   const pendingFocusTarget = useRef<VisibleItem<TRow> | null>(null)
@@ -533,89 +529,29 @@ export function DataTableView<TRow extends object>({
   }, [focusTarget, page, collapsedGroups, consumeDomFocus])
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTableRowElement>, target: VisibleItem<TRow>) => {
-    const idx = indexOfVisibleItem(navigableItems, target)
-    switch (e.key) {
-      case 'ArrowDown':
-      case 'ArrowUp': {
-        const delta = e.key === 'ArrowDown' ? 1 : -1
-        const nextIdx = idx + delta
-        if (nextIdx >= 0 && nextIdx < navigableItems.length) {
-          const next = navigableItems[nextIdx]
-          e.preventDefault()
-          if (e.shiftKey && selectable && next.kind === 'row') toggleRowSelection(next.row, true)
-          focusItem(next)
-        } else {
-          const crossing = getCrossPageFocusTarget(
-            visibleItems,
-            page,
-            numPages,
-            pageSize,
-            { kind: 'edge', delta },
-            rowNavEnabled,
-          )
-          if (crossing) {
-            e.preventDefault()
-            if (e.shiftKey && selectable && crossing.item.kind === 'row')
-              toggleRowSelection(crossing.item.row, true)
-            pendingFocusTarget.current = crossing.item
-            setPage(crossing.targetPage)
-          }
-        }
-        break
-      }
-      case 'Home':
-      case 'End': {
-        if (e.ctrlKey || e.metaKey) {
-          const crossing = getCrossPageFocusTarget(
-            visibleItems,
-            page,
-            numPages,
-            pageSize,
-            { kind: 'jump', toEnd: e.key === 'End' },
-            rowNavEnabled,
-          )
-          if (crossing) {
-            e.preventDefault()
-            if (e.shiftKey && selectable && crossing.item.kind === 'row')
-              toggleRowSelection(crossing.item.row, true)
-            if (crossing.targetPage === page) focusItem(crossing.item)
-            else {
-              pendingFocusTarget.current = crossing.item
-              setPage(crossing.targetPage)
-            }
-          }
-          break
-        }
-        const next = navigableItems[e.key === 'Home' ? 0 : navigableItems.length - 1]
-        if (next && !isSameVisibleItem(next, target)) {
-          e.preventDefault()
-          if (e.shiftKey && selectable && next.kind === 'row') toggleRowSelection(next.row, true)
-          focusItem(next)
-        }
-        break
-      }
-      case ' ':
-        if (target.kind === 'group') {
-          if (selectable) {
-            e.preventDefault()
-            const group = groupedData.find((g) => g.key === target.key)
-            if (group) toggleSelectAll(group.rows)
-          }
-        } else if (selectable) {
-          e.preventDefault()
-          toggleRowSelection(target.row, e.shiftKey)
-        }
-        break
-      case 'Enter':
-        if (target.kind === 'group') {
-          e.preventDefault()
-          toggleGroupCollapse(target.key)
-        } else if (onRowClick) {
-          e.preventDefault()
-          onRowClick(target.row, e)
-        }
-        break
-    }
+    const plan = planRowNav(e, target, {
+      visibleItems,
+      navigableItems,
+      page,
+      numPages,
+      pageSize,
+      selectable: !!selectable,
+      rowClickable: !!onRowClick,
+    })
+    if (!plan) return
+    e.preventDefault()
+    if (plan.kind === 'focus') {
+      if (plan.extend) toggleRowSelection(plan.extend, true)
+      if (plan.page) {
+        pendingFocusTarget.current = plan.item
+        setPage(plan.page)
+      } else focusItem(plan.item)
+    } else if (plan.kind === 'toggleRow') toggleRowSelection(plan.row, e.shiftKey)
+    else if (plan.kind === 'toggleGroupSelection') {
+      const group = groupedData.find((g) => g.key === plan.key)
+      if (group) toggleSelectAll(group.rows)
+    } else if (plan.kind === 'toggleCollapse') toggleGroupCollapse(plan.key)
+    else onRowClick?.(plan.row, e)
   }
 
   const filterableCols = columns.filter((c) => c.filterable !== false)

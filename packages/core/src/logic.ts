@@ -2228,47 +2228,6 @@ export function paginateVisibleItems<TRow extends object>(
   return pageItems
 }
 
-/**
- * Computes the item to focus when row-nav keyboard navigation crosses a page boundary — either
- * stepping to the adjacent page (an Arrow key at the current page's first/last item) or jumping
- * via Ctrl/Cmd+Home/End to the true first/last item across *all* pages. Shared by every adapter's
- * row-level keyboard nav (see "Keyboard navigation" -> "Crossing page boundaries" in the docs) —
- * previously duplicated near-verbatim between React's and Vue's own `DataTableView`.
- *
- * Returns `null` when there's nowhere to go: already on the first/last page for an `'edge'` step,
- * or the target page's own slice happens to be empty (e.g. every row on it is filtered out of
- * nav — see `rowNavEnabled`). `rowNavEnabled` mirrors the same "hide rows when the table isn't
- * otherwise interactive" filter every adapter already applies to its own `navigableItems`.
- */
-export function getCrossPageFocusTarget<TRow extends object>(
-  visibleItems: VisibleItem<TRow>[],
-  currentPage: number,
-  numPages: number,
-  pageSize: number,
-  mode: { kind: 'edge'; delta: 1 | -1 } | { kind: 'jump'; toEnd: boolean },
-  rowNavEnabled: boolean,
-): { targetPage: number; item: VisibleItem<TRow> } | null {
-  const itemsForPage = (p: number): VisibleItem<TRow>[] =>
-    paginateVisibleItems(visibleItems, p, pageSize).filter(
-      (item) => item.kind === 'group' || rowNavEnabled,
-    )
-  if (mode.kind === 'edge') {
-    if (mode.delta === 1) {
-      if (currentPage >= numPages) return null
-      const item = itemsForPage(currentPage + 1)[0]
-      return item ? { targetPage: currentPage + 1, item } : null
-    }
-    if (currentPage <= 1) return null
-    const items = itemsForPage(currentPage - 1)
-    const item = items[items.length - 1]
-    return item ? { targetPage: currentPage - 1, item } : null
-  }
-  const targetPage = mode.toEnd ? numPages : 1
-  const items = itemsForPage(targetPage)
-  const item = mode.toEnd ? items[items.length - 1] : items[0]
-  return item ? { targetPage, item } : null
-}
-
 /** What a key press on a table-body row or group header does; see `planRowNav`. */
 export type RowNavAction<TRow> =
   // `page`: only when the item is on another page. `extend`: Shift-extend the selection to it first.
@@ -2295,37 +2254,34 @@ export function planRowNav<TRow extends object>(
     rowClickable: boolean
   },
 ): RowNavAction<TRow> | null {
-  const items = ctx.navigableItems
-  let item: VisibleItem<TRow> | undefined
-  let page: number | undefined
   switch (e.key) {
     case 'ArrowDown':
     case 'ArrowUp':
     case 'Home':
     case 'End': {
-      const delta = e.key === 'ArrowDown' || e.key === 'End' ? 1 : -1
+      const forward = e.key === 'ArrowDown' || e.key === 'End'
       const jump = e.key === 'Home' || e.key === 'End'
-      if (jump && !e.ctrlKey && !e.metaKey) item = items[delta > 0 ? items.length - 1 : 0]
-      else {
-        if (!jump) item = items[indexOfVisibleItem(items, target) + delta]
-        const crossing =
-          !item &&
-          getCrossPageFocusTarget(
-            ctx.visibleItems,
-            ctx.page,
-            ctx.numPages,
-            ctx.pageSize,
-            jump ? { kind: 'jump', toEnd: delta > 0 } : { kind: 'edge', delta },
-            ctx.selectable || ctx.rowClickable,
-          )
-        if (crossing) {
-          item = crossing.item
-          if (crossing.targetPage !== ctx.page) page = crossing.targetPage
-        }
+      let items = ctx.navigableItems
+      let item = jump ? undefined : items[indexOfVisibleItem(items, target) + (forward ? 1 : -1)]
+      let page = ctx.page
+      // Ctrl/Cmd+Home/End: the first/last page; an arrow at the page's edge: the adjacent one
+      if (jump && (e.ctrlKey || e.metaKey)) page = forward ? ctx.numPages : 1
+      else if (!jump && !item) page += forward ? 1 : -1
+      if (page !== ctx.page) {
+        if (page < 1 || page > ctx.numPages) return null
+        items = paginateVisibleItems(ctx.visibleItems, page, ctx.pageSize).filter(
+          (i) => i.kind === 'group' || ctx.selectable || ctx.rowClickable,
+        )
       }
-      if (!item || (page === undefined && isSameVisibleItem(item, target))) return null
-      const extend = e.shiftKey && ctx.selectable && item.kind === 'row' ? item.row : undefined
-      return { kind: 'focus', item, page, extend }
+      // A jump lands on the far end in its direction, a page crossing on the near end
+      item ??= items[forward === jump ? items.length - 1 : 0]
+      if (!item || (page === ctx.page && isSameVisibleItem(item, target))) return null
+      return {
+        kind: 'focus',
+        item,
+        page: page === ctx.page ? undefined : page,
+        extend: e.shiftKey && ctx.selectable && item.kind === 'row' ? item.row : undefined,
+      }
     }
     case ' ':
       if (!ctx.selectable) return null

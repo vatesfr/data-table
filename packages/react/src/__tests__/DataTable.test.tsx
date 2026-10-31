@@ -2560,11 +2560,12 @@ describe('DataTable — keyboard navigation', () => {
     expect(document.activeElement).toBe(second)
   })
 
-  it('ArrowUp on the first row is a no-op (clamped at the boundary)', () => {
+  it('ArrowUp/Home on the first row is a no-op, leaving the key to the page', () => {
     const { container } = render(<DataTable data={ROWS3} columns={COLS} rowKey="id" selectable />)
     const [first] = dataRows(container)
     first.focus()
-    fireEvent.keyDown(first, { key: 'ArrowUp' })
+    expect(fireEvent.keyDown(first, { key: 'ArrowUp' })).toBe(true)
+    expect(fireEvent.keyDown(first, { key: 'Home' })).toBe(true)
     expect(first.getAttribute('tabindex')).toBe('0')
     expect(document.activeElement).toBe(first)
   })
