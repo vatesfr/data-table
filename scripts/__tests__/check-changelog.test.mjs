@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { missingEntry, structureProblems } from '../check-changelog.mjs'
+import { missingEntry, releaseChangelog, structureProblems } from '../check-changelog.mjs'
 
 const changelog = (unreleased) =>
   `# Changelog\n\n## [Unreleased]\n${unreleased}\n## [0.1.0] - 2026-01-01\n\n### Docs\n\n- old\n`
@@ -26,4 +26,14 @@ test('source changes outside tests need an entry', () => {
   assert.equal(missingEntry(['packages/core/src/sort.ts', 'CHANGELOG.md']), false)
   assert.equal(missingEntry(['packages/core/src/__tests__/sort.test.ts']), false)
   assert.equal(missingEntry(['scripts/check.mjs', 'docs/sorting.md']), false)
+})
+
+test('a release dates Unreleased and points the compare links at its tag', () => {
+  const repo = 'https://github.com/o/r'
+  const before = `## [Unreleased]\n\n- a\n\n## [0.1.0] - 2026-01-01\n\n[Unreleased]: ${repo}/compare/v0.1.0...HEAD\n[0.1.0]: ${repo}/releases/tag/v0.1.0\n`
+  assert.equal(
+    releaseChangelog(before, '0.2.0', '2026-02-02'),
+    `## [Unreleased]\n\n## [0.2.0] - 2026-02-02\n\n- a\n\n## [0.1.0] - 2026-01-01\n\n[Unreleased]: ${repo}/compare/v0.2.0...HEAD\n[0.2.0]: ${repo}/compare/v0.1.0...v0.2.0\n[0.1.0]: ${repo}/releases/tag/v0.1.0\n`,
+  )
+  assert.throws(() => releaseChangelog('## [Unreleased]\n', '0.2.0', '2026-02-02'), /link/)
 })

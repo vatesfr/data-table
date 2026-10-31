@@ -9,32 +9,29 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Changed
 
-- **Faster search** (Solid, React, Vue, vanilla): a search keystroke no longer re-sorts the rows nor re-reads every cell; on 200,000 sorted rows, each keystroke after the first went from ~190 ms to ~120 ms (the first, which indexes the rows, stays ~300 ms). Plain ASCII text also skips diacritic stripping, in the index and the Filter checklist search: indexing 500k rows is ~1.2x faster.
-- **Faster grouping** (Solid, React, Vue, vanilla): grouping rows by plain (non-array) values takes ~4× fewer instructions and allocates ~4× less; in Solid and vanilla, picking a group-by column also grouped the rows twice and now groups once (~470 ms to ~370 ms on 200,000 rows).
 - **BREAKING (Vue):** `onRowClick` is now a prop of `<DataTable>` and `<DataTableView>` instead of a `rowClick` emit. `@row-click` keeps working; a test reading `wrapper.emitted('rowClick')` no longer sees calls: pass `onRowClick: vi.fn()` instead.
 - **BREAKING (Solid, React, Vue):** `table.filter.clearColumn(key)` without a kind now clears the column's include, exclude and range filters at once; it cleared only the include set.
-- **`computeStringValueCounts` (core internal) counts one column**: it takes that column and returns its `Map`, replacing the multi-column `targetKeys` mode no adapter used.
-- **BREAKING (Solid, React, Vue):** `table.filter.valueMap` is removed: the filter pane computes its column's values itself, only while open.
-- **Changing a filter no longer re-sorts** (Solid, React, Vue, vanilla): rows are sorted once per sort or data change, then searched and filtered; an ungrouped table also stops sorting every row twice, making a sort click ~20–30% faster on the 200k-row demo. In exchange, a sort or data change sorts every row, not just the filtered ones (a sort click with a narrow filter: ~16 ms → ~140–185 ms), so a column's `value`, `parseDate` or `compare` now also runs on rows the filters drop.
-- **Changing a filter while searching no longer re-runs the search** (Solid, React, Vue, vanilla): the search result is kept apart from the filters, saving a pass over the rows on each filter click.
+- **BREAKING (Solid, React, Vue):** `table.filter.valueMap` is removed, with no replacement: the filter pane computes its column's values itself, only while open.
+- **Sorting covers every row**: a sort or data change now sorts all rows, not just the filtered ones, so a column's `value`, `parseDate` or `compare` also runs on rows the filters drop, and a sort click under a narrow filter is slower (~16 ms → ~140–185 ms on 200,000 rows). In exchange, changing a filter or the search no longer re-sorts.
+- **Faster search, filters, sorting and grouping**, on 200,000 rows: a search keystroke ~190 → ~120 ms (the first, which indexes the rows, stays ~300 ms); a sort click without a filter ~20–30% faster; a filter click while searching no longer re-runs the search; picking a group-by column in Solid and vanilla ~470 → ~370 ms.
 
 ### Fixed
 
-- **Dropdowns fit a short viewport** (Solid, React, Vue, vanilla): opened near the bottom of a window too short for it on either side, a dropdown flipped up past the top edge, hiding its search box; it now opens on the side with more room, capped to that room, and scrolls (U37).
-- **Aggregates ignore empty cells** (Solid, React, Vue, vanilla): `avg`/`min`/`max` counted a `null`, `undefined` or `''` cell as 0 (10, empty, 20 averaged 10 instead of 15), and `min`/`max` threw "Maximum call stack size exceeded" on a group of ~200,000 rows.
+- **Dropdowns fit a short viewport**: opened near the bottom of a window too short for it on either side, a dropdown flipped up past the top edge, hiding its search box; it now opens on the side with more room, capped to that room, and scrolls.
+- **Aggregates ignore empty cells**: `avg`/`min`/`max` counted a `null`, `undefined` or `''` cell as 0 (10, empty, 20 averaged 10 instead of 15), and `min`/`max` threw "Maximum call stack size exceeded" on a group of ~200,000 rows.
 - **Shift+arrow keys no longer select rows in a non-selectable table** (Solid, vanilla): with only `onRowClick` set, Shift+↑/↓/Home/End selected the rows they moved to; they now just move focus, as in React and Vue.
 - **Row keys at the table's edges** (Solid, vanilla): ↑/↓/Home/End with nowhere to move no longer swallow the key (the page can scroll again), Shift+Home/End on the row already at that end no longer toggles its selection, and Shift+↓/↑ from a group header selects the row it lands on, as in React and Vue.
 - **Alt+arrow keys in the Filter value list** (Solid, Vue, vanilla): Alt+↑/↓/Home/End (Solid, vanilla) and Alt+←/→ (Solid, Vue, vanilla) moved focus instead of being left to the browser, as in React. ↑/↓ in Vue's list also skip the "Others" row, as in the other adapters.
 - **Ctrl/Cmd+Home/End on the item already at that end** (React, Vue): no longer swallows the key nor, with Shift, toggles that row's selection, matching plain Home/End.
-- **Alt+↑/↓ on the first or last active sort** (Solid, React, Vue, vanilla): with no neighbor to swap with, the key is no longer swallowed.
+- **Alt+↑/↓ on the first or last active sort**: with no neighbor to swap with, the key is no longer swallowed.
 - **Columns search keeps definition order** (Vue): matching hidden columns were listed alphabetically; they now keep the table's column order, as in Solid, React and vanilla.
-- **Filter value rows show a hover background** (Solid, React, Vue, vanilla), like the column rows in the left pane (U35).
-- **Dropdowns stay on screen when they resize** (Solid, React, Vue, vanilla): an open dropdown whose size changed without a DOM change (a stylesheet, an animated `min-width`) kept its old position and could end past the right edge on a phone; it now re-clamps on every resize (U29).
-- **Clicking an open submenu keeps it open** (Solid, React, Vue, vanilla): the header menu's "Filter ▸" and the category submenus open on hover, so the click that usually follows closed them again; a click now only opens (U34).
-- **One open dropdown at a time** (React, Vue): opening a toolbar dropdown from the keyboard while another was still open (focus had left it with Tab) left both open, overlapping; the first now closes, as in Solid and vanilla (U33).
-- **→ from a Filter column lands on the value search** (React, Vue): it focused the "Select all" checkbox, where ↓/↑ did nothing and Space toggled every value; it now matches Solid and vanilla (U32).
-- **Removing a chip keeps your place** (Solid, React, Vue, vanilla): its × moves focus to the next chip, else the previous one, else the search box, instead of dropping it to the page (U30).
-- **Screen readers hear the results** (Solid, React, Vue, vanilla): after a search, a filter or a page change, a polite status region announces the row count and page, or that no row matches (U31).
+- **Filter value rows show a hover background**, like the column rows in the left pane.
+- **Dropdowns stay on screen when they resize**: an open dropdown whose size changed without a DOM change (a stylesheet, an animated `min-width`) kept its old position and could end past the right edge on a phone; it now re-clamps on every resize.
+- **Clicking an open submenu keeps it open**: the header menu's "Filter ▸" and the category submenus open on hover, so the click that usually follows closed them again; a click now only opens.
+- **One open dropdown at a time** (React, Vue): opening a toolbar dropdown from the keyboard while another was still open (focus had left it with Tab) left both open, overlapping; the first now closes, as in Solid and vanilla.
+- **→ from a Filter column lands on the value search** (React, Vue): it focused the "Select all" checkbox, where ↓/↑ did nothing and Space toggled every value; it now matches Solid and vanilla.
+- **Removing a chip keeps your place**: its × moves focus to the next chip, else the previous one, else the search box, instead of dropping it to the page.
+- **Screen readers hear the results**: after a search, a filter or a page change, a polite status region announces the row count and page, or that no row matches.
 - **No storage writes on unrelated renders** (React): `usePersistedView`/`useUrlView` wrote `localStorage` and the URL on every render, e.g. each focus move or selection click; they now write only when the view changes.
 - **No lag on data updates** (Solid, React, vanilla): changing `data` no longer rebuilds every filterable column's checklist values while no filter pane is open; with 1,200 rows and 16 string columns held in a Solid store, that was ~140 ms per update.
 
@@ -198,7 +195,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Added
 
-- **Column categories** (core, Solid, React, Vue): opt-in `ColumnDefBase.category?: string` groups columns for discoverability in the Columns/Sort/Group/Filter dropdowns' column lists instead of one long flat run of rows. `groupColumnsByCategory`/`columnMatchesSearch`/`categorizedAlphabetizedByLabel` (core) are the shared building blocks. Sort/Group render a category as a hover-intent flyout submenu (`CategorySubmenu`, portaled to `document.body`/root to escape the panel's own scroll clipping); the Filter dropdown's left pane instead renders a category as an inline collapsible section (submenus aren't an option there — `ArrowRight` is already taken for left-pane→detail-pane crossing), collapsed by default except a category holding an active filter at the moment the dropdown opens. Each dropdown's search box now also matches a column's category name, not just its own label. See CLAUDE.md's "Column categories" section for full detail.
+- **Column categories** (core, Solid, React, Vue): opt-in `ColumnDefBase.category?: string` groups columns for discoverability in the Columns/Sort/Group/Filter dropdowns' column lists instead of one long flat run of rows. `groupColumnsByCategory`/`columnMatchesSearch`/`categorizedAlphabetizedByLabel` (core) are the shared building blocks. Sort/Group render a category as a hover-intent flyout submenu (`CategorySubmenu`, portaled to `document.body`/root to escape the panel's own scroll clipping); the Filter dropdown's left pane instead renders a category as an inline collapsible section (submenus aren't an option there — `ArrowRight` is already taken for left-pane→detail-pane crossing), collapsed by default except a category holding an active filter at the moment the dropdown opens. Each dropdown's search box now also matches a column's category name, not just its own label. See [docs/columns.md](docs/columns.md#column-categories) for full detail.
 - **Columns dropdown redesign** (Solid, React, Vue): replaces the single flat all-columns-with-a-checkbox list with a "Visible columns" section (every shown column, draggable/Alt+↑↓-reorderable) above an "Available columns" section (hidden columns, click to show; a categorized one collapses into a `CategorySubmenu`). New core helper `moveVisibleColumnBy` (Alt+↑/↓ within Visible skips over hidden columns, unlike the plain `moveColumnBy`). New locale key `availableColumnsSection` (all 5 languages); `columnsSection`'s text changed from "Display" to "Visible columns".
 - **Delete/Backspace-to-remove + hover/focus background on active rows** (Solid, React, Vue): a focused/hovered Sort active-sort/"Group order" row, Group active row, or Columns Visible row now gets a background tint (not just the native focus outline), and Delete/Backspace removes/hides it — the keyboard equivalent of clicking that row's own `×` — matching the Filter dropdown's pre-existing equivalents.
 - Vanilla: `getProcessedData()` on `DataTableInstance` — the current search+filter+sort row order (pre-grouping/pagination), mirroring React/Vue/Solid's `TableState.processedData`, so a consumer no longer has to reach into `@vates/data-table-core/internal` directly (#22).
@@ -255,7 +252,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Changed
 
-- **BREAKING (React, Vue, Solid):** `useTableState`/`createTableState`'s returned `TableState` is now namespaced by concern instead of one flat ~45-field object — `table.columns`, `table.sort`, `table.filter`, `table.group`, `table.selection`, `table.pagination`, `table.search`, each holding that area's own state/actions with the redundant prefix dropped (e.g. `toggleSort` → `sort.toggle`, `moveGroupBy` → `group.moveBy`). `processedData`/`pagedData`/`groupedData`/`visibleItems`/`labels`/`getViewState`/`setViewState`/`clearAll` stay top-level. See `CLAUDE.md`'s "Namespaced TableState" section for the full field mapping. No compatibility shim — pre-1.0, so this ships as a hard cut. `@vates/data-table-vanilla` is unaffected, since it always exposed its own distinct `DataTableInstance` method names rather than `TableState` directly.
+- **BREAKING (React, Vue, Solid):** `useTableState`/`createTableState`'s returned `TableState` is now namespaced by concern instead of one flat ~45-field object — `table.columns`, `table.sort`, `table.filter`, `table.group`, `table.selection`, `table.pagination`, `table.search`, each holding that area's own state/actions with the redundant prefix dropped (e.g. `toggleSort` → `sort.toggle`, `moveGroupBy` → `group.moveBy`). `processedData`/`pagedData`/`groupedData`/`visibleItems`/`labels`/`getViewState`/`setViewState`/`clearAll` stay top-level. See [docs/table-state.md](docs/table-state.md#namespaced-tablestate) for the full field mapping. No compatibility shim — pre-1.0, so this ships as a hard cut. `@vates/data-table-vanilla` is unaffected, since it always exposed its own distinct `DataTableInstance` method names rather than `TableState` directly.
 - **BREAKING (Solid):** `TableState.labels` is now an `Accessor` (call it as `table.labels()`), not a plain object, since it must itself react to a changed `labels` option now that `labels`/`defaultGroupsCollapsed`/`getRowId` are live options on `createTableState` (previously frozen at construction — the one adapter where they were, unlike React/Vue).
 - **BREAKING (core):** `calcTotalPages` renamed to `computeTotalPages`, and `selectedRowsOf` renamed to `getSelectedRows` — naming-consistency fixes (`calc*` was the only outlier among `compute*`-prefixed helpers; `selectedRowsOf` broke the verb-first convention its siblings use). Pure renames, same signature and behavior.
 - **BREAKING (core):** `columns` is now a required parameter of `processData`, `groupData`, and `sortWithinGroups` (previously optional, defaulting to `[]`) — for consistency with sibling functions that already required it, and because silently treating a missing `columns` as "no columns known" was a footgun that dropped computed/`value`/`groupValue` column support with no error. Every adapter already passes `columns` at every call site, so this only affects direct core callers relying on the old default.
@@ -445,3 +442,25 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - Computed columns via a `value` accessor function, decoupling a column's cell value from its `key`
 - Grouped columns automatically hide from the table header and reappear when grouping is cleared
 - View persistence and sharing: `getViewState`/`setViewState` snapshot sort/filter/group/page/search state; `usePersistedView`/`persistViewToLocalStorage` and `useUrlView`/`syncViewToUrl` helpers for localStorage and shareable-URL persistence
+
+[Unreleased]: https://github.com/vatesfr/data-table/compare/v0.20.0...HEAD
+[0.20.0]: https://github.com/vatesfr/data-table/compare/v0.19.0...v0.20.0
+[0.19.0]: https://github.com/vatesfr/data-table/compare/v0.18.0...v0.19.0
+[0.18.0]: https://github.com/vatesfr/data-table/compare/v0.17.0...v0.18.0
+[0.17.0]: https://github.com/vatesfr/data-table/compare/v0.16.0...v0.17.0
+[0.16.0]: https://github.com/vatesfr/data-table/compare/v0.15.0...v0.16.0
+[0.15.0]: https://github.com/vatesfr/data-table/compare/v0.14.0...v0.15.0
+[0.14.0]: https://github.com/vatesfr/data-table/compare/v0.13.0...v0.14.0
+[0.13.0]: https://github.com/vatesfr/data-table/compare/v0.12.0...v0.13.0
+[0.12.0]: https://github.com/vatesfr/data-table/compare/v0.11.0...v0.12.0
+[0.11.0]: https://github.com/vatesfr/data-table/compare/v0.10.0...v0.11.0
+[0.10.0]: https://github.com/vatesfr/data-table/compare/v0.9.0...v0.10.0
+[0.9.0]: https://github.com/vatesfr/data-table/compare/v0.8.0...v0.9.0
+[0.8.0]: https://github.com/vatesfr/data-table/compare/v0.7.0...v0.8.0
+[0.7.0]: https://github.com/vatesfr/data-table/compare/v0.6.0...v0.7.0
+[0.6.0]: https://github.com/vatesfr/data-table/compare/v0.5.0...v0.6.0
+[0.5.0]: https://github.com/vatesfr/data-table/compare/v0.4.0...v0.5.0
+[0.4.0]: https://github.com/vatesfr/data-table/compare/v0.3.0...v0.4.0
+[0.3.0]: https://github.com/vatesfr/data-table/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/vatesfr/data-table/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/vatesfr/data-table/releases/tag/v0.1.0

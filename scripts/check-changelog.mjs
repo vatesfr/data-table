@@ -22,6 +22,19 @@ export function structureProblems(changelog) {
   ]
 }
 
+// Dates `## [Unreleased]` as <version> and points the compare links at its tag.
+export function releaseChangelog(changelog, version, date) {
+  const link = changelog.match(/^\[Unreleased\]: (.+)\/compare\/(v\S+)\.\.\.HEAD$/m)
+  if (!link) throw new Error('CHANGELOG.md has no "[Unreleased]: …/compare/vX...HEAD" link')
+  const [line, repo, previous] = link
+  return changelog
+    .replace('## [Unreleased]\n', `## [Unreleased]\n\n## [${version}] - ${date}\n`)
+    .replace(
+      line,
+      `[Unreleased]: ${repo}/compare/v${version}...HEAD\n[${version}]: ${repo}/compare/${previous}...v${version}`,
+    )
+}
+
 export const missingEntry = (files) =>
   !files.includes('CHANGELOG.md') && files.some((f) => SOURCE.test(f))
 
