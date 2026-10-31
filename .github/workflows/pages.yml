@@ -1,17 +1,16 @@
 name: Deploy demo to GitHub Pages
 
+# Only deploy commits that passed CI; workflow_run has no paths filter, so every green main push
+# redeploys (the demo builds take seconds).
 on:
-  push:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
     branches: [main]
-    paths:
-      - 'demo/**'
-      - 'packages/**'
   workflow_dispatch:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: pages
@@ -19,19 +18,26 @@ concurrency:
 
 jobs:
   build:
+    # `event == 'push'` excludes PR runs whose head branch is also named main (forks)
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          persist-credentials: false
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: package.json
           cache: npm
 
       - run: npm ci
 
-      - run: npm run build -w packages/core
-
+      # Demos alias the packages' src (see docs/build.md), so no package build is needed.
       - name: Build React demo
         run: npm run build -w demo/react
         env:

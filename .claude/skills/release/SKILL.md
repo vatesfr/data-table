@@ -11,6 +11,7 @@ Pushing the tag publishes to npm — confirm with the user before step 4.
 2. `node scripts/release.mjs X.Y.Z --dry-run` lists the packages it would bump and why; check it makes sense, then rerun without `--dry-run`. It bumps versions and cross-package ranges, dates `## [Unreleased]` in `CHANGELOG.md` and refreshes `package-lock.json`.
 3. Commit as `chore(release): X.Y.Z`; the pre-commit hook runs the full checks.
 4. Tag `vX.Y.Z` and push both: `git tag vX.Y.Z && git push origin main vX.Y.Z`. `.github/workflows/publish.yml` triggers only on a pushed `v*` tag — pushing the commit alone publishes nothing.
+5. After its `check` job passes, the `publish` job waits for a reviewer to approve the `npm` environment: tell the user to approve it in the run's page (`gh run watch` shows when it's waiting).
 
 ## Version pool
 
