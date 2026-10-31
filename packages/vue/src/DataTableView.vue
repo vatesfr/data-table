@@ -328,16 +328,18 @@ const searchedVisibleOrderedColumns = computed(() => colsLists.value[1])
 const searchedFlatAvailableCols = computed(() => colsLists.value[2])
 const categorizedAvailableCols = computed(() => colsLists.value[3])
 const colsReorderEligible = computed(() => colsLists.value[4])
-// Declared here (rather than alongside its sibling groupDropdownRef further down) because the
-// watch right below needs it, and `<script setup>` top-level consts execute in source order —
-// referencing it before this point would hit the TDZ.
-const filterDropdownRef = ref<InstanceType<typeof Dropdown> | null>(null)
+// One open toolbar dropdown per table, as in React and Solid: opening one closes the others (U33)
+type DdId = 'cols' | 'sort' | 'filter' | 'group'
+const openDD = ref<DdId | null>(null)
+function setDDOpen(id: DdId, open: boolean): void {
+  if (open) openDD.value = id
+  else if (openDD.value === id) openDD.value = null
+}
 // Snapshot of the Filter dropdown's left-pane column order, taken only at the moment the
 // dropdown opens — active-filter columns first, then the rest (see `orderFilterColumnsByActive`'s
 // own doc comment, core, for why this is a snapshot rather than a live sort: reordering while a
 // filter is toggled with the panel still open would move a row out from under the pointer
-// mid-interaction). `filterDropdownRef.value?.isOpen` is watched (rather than hoisting `isOpen`
-// itself here) since Dropdown.vue already owns that state — see its own `isOpen` export.
+// mid-interaction).
 const filterColOrderKeys = ref<string[] | null>(null)
 // Which categories are collapsed (see docs/columns.md's "Column categories"). Seeded the same way as
 // filterColOrderKeys above — a snapshot taken only on the closed→open transition, not recomputed
@@ -354,7 +356,7 @@ function toggleCategoryCollapsed(name: string): void {
   collapsedCategories.value = next
 }
 watch(
-  () => filterDropdownRef.value?.isOpen,
+  () => openDD.value === 'filter',
   (open, prevOpen) => {
     if (open && !prevOpen) {
       filterShowValues.value = false
@@ -486,7 +488,7 @@ function setFilterColRef(key: string, el: Element | null): void {
 // right thing on the very first render, before focus even lands on the button — and neither the
 // column search nor a collapsed category can hide its button (U25).
 async function onOpenFilterCol(key: string): Promise<void> {
-  filterDropdownRef.value?.open()
+  openDD.value = 'filter'
   filterActiveCol.value = key
   setDdSearchTerm('filter', '')
   const category = filterableCols.value.find((c) => c.key === key)?.category
@@ -688,11 +690,9 @@ function onRemoveGroupClick(key: string): Promise<void> {
 // direction is for a sort chip (the sort chip's body just calls toggleSortDir directly in the
 // template — Vue's keyed reconciliation keeps that same <button> in place across the re-render,
 // so it needs no explicit refocus at all, unlike this one), so opening the dropdown straight to
-// it is the most useful available action. `groupDropdownRef` is read from plain script here (not
-// a template expression), so `.value` is needed, unlike a template expression referencing the
-// same top-level ref, which Vue's `<script setup>` compiler auto-unwraps.
+// it is the most useful available action.
 function onOpenGroupEntry(key: string): Promise<void> {
-  return activateAndFocus(() => groupDropdownRef.value?.open(), groupRowRefs, key)
+  return activateAndFocus(() => (openDD.value = 'group'), groupRowRefs, key)
 }
 
 // Drag-and-drop reordering for the Sort dropdown's active entries — kept as its own independent
@@ -838,23 +838,6 @@ function clearSearchAndFilters(): void {
 // escape-clear callback (colsEscapeClearable/sortEscapeClearable/groupEscapeClearable above,
 // filterEscapeClearable below) and, for the Filter dropdown only, the extra pane-crossing nav
 // that Dropdown's own generic base nav doesn't cover (see onFilterDropdownKeydown below).
-// `groupDropdownRef`'s own component instance is still needed here — not for Escape/nav anymore,
-// but for the active-bar group chip's "open straight to this entry" action (onOpenGroupEntry).
-const groupDropdownRef = ref<InstanceType<typeof Dropdown> | null>(null)
-const colsDropdownRef = ref<InstanceType<typeof Dropdown> | null>(null)
-const sortDropdownRef = ref<InstanceType<typeof Dropdown> | null>(null)
-// One open toolbar dropdown per table, as in Solid: opening one closes the others (U33)
-const toolbarDropdowns = [colsDropdownRef, groupDropdownRef, sortDropdownRef, filterDropdownRef]
-watch(
-  () => toolbarDropdowns.map((d) => !!d.value?.isOpen),
-  (open, wasOpen) => {
-    const opened = open.findIndex((o, i) => o && !wasOpen[i])
-    if (opened !== -1)
-      toolbarDropdowns.forEach((d, i) => i !== opened && open[i] && d.value?.close())
-  },
-)
-// filterDropdownRef itself is declared much earlier (see the filterColOrderKeys watch above) —
-// this comment marks where it'd otherwise sit, alongside its sibling above.
 
 // The Filter dropdown's own Escape callback for its left-pane column search (FilterPane handles
 // Escape in its own value search).
@@ -948,7 +931,8 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
              for Visible, since submenu rows can't also be a drag surface) creates no conflict. -->
         <Dropdown
           v-if="showColumns && columns.length >= 2"
-          ref="colsDropdownRef"
+          :open="openDD === 'cols'"
+          @update:open="setDDOpen('cols', $event)"
           @dragover="onColRowsDragOver"
           @drop="onColRowsDrop"
           :on-escape-clearable="colsEscapeClearable"
@@ -1053,7 +1037,8 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
              divider below. -->
         <Dropdown
           v-if="groupableCols.length > 0"
-          ref="groupDropdownRef"
+          :open="openDD === 'group'"
+          @update:open="setDDOpen('group', $event)"
           @dragover="onGroupRowsDragOver"
           @drop="onGroupRowsDrop"
           :on-escape-clearable="groupEscapeClearable"
@@ -1162,7 +1147,8 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
         <!-- Sort -->
         <Dropdown
           v-if="sortableCols.length > 0"
-          ref="sortDropdownRef"
+          :open="openDD === 'sort'"
+          @update:open="setDDOpen('sort', $event)"
           @dragover="onSortRowsDragOver"
           @drop="onSortRowsDrop"
           :on-escape-clearable="sortEscapeClearable"
@@ -1358,7 +1344,8 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
         <!-- Filter -->
         <Dropdown
           v-if="filterableCols.length > 0"
-          ref="filterDropdownRef"
+          :open="openDD === 'filter'"
+          @update:open="setDDOpen('filter', $event)"
           @keydown="onFilterDropdownKeydown"
           :on-escape-clearable="filterEscapeClearable"
         >

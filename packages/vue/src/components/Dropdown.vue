@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, onMounted, onUnmounted } from 'vue'
+import { computed, ref, watch, onMounted, onUnmounted } from 'vue'
 import {
   computeDropdownClampOffset,
   ddNavFocusables,
@@ -24,52 +24,44 @@ defineOptions({ inheritAttrs: false })
 // Rows reached by the roving nav carry `data-dd-row`, the dropdown's own search box
 // `data-dd-search` (core's DD_NAV_SELECTOR). The Filter dropdown's detail pane uses its own
 // `data-dd-value-*` markers and nav (see FilterPane.vue), so this nav never sweeps it up.
-const props = defineProps<{
-  // Escape clears a non-empty search term first (focus stays put), only closing the dropdown on
-  // a second press or when there was nothing to clear — each consumer wires its own search-clear
-  // action here (it may own more than one search box, e.g. the Filter dropdown's column search
-  // and its per-column value search; the callback itself decides which applies). Returns whether
-  // it actually cleared something. Omitted for a panel with no search box at all (there's always
-  // one here today, but the prop stays optional for a future dropdown that might not have one).
-  onEscapeClearable?: () => boolean
-}>()
+const props = withDefaults(
+  defineProps<{
+    // Bound by the toolbar, which keeps one dropdown open at a time; local state when unbound
+    open?: boolean
+    // Escape clears a non-empty search term first (focus stays put), only closing the dropdown on
+    // a second press or when there was nothing to clear — each consumer wires its own search-clear
+    // action here (it may own more than one search box, e.g. the Filter dropdown's column search
+    // and its per-column value search; the callback itself decides which applies). Returns whether
+    // it actually cleared something. Omitted for a panel with no search box at all (there's always
+    // one here today, but the prop stays optional for a future dropdown that might not have one).
+    onEscapeClearable?: () => boolean
+  }>(),
+  // Vue casts an absent boolean prop to false, which would read as bound
+  { open: undefined },
+)
+const emit = defineEmits<{ 'update:open': [open: boolean] }>()
 
 const containerRef = ref<HTMLElement | null>(null)
 const menuRef = ref<HTMLElement | null>(null)
 // The trigger content is caller-provided via the #trigger slot, so this wraps it just to give
-// `focusTrigger` (see defineExpose below) something to query into after Escape closes the menu.
+// `focusTrigger` something to query into after Escape closes the menu.
 const triggerWrapRef = ref<HTMLElement | null>(null)
-const isOpen = ref(false)
+const localOpen = ref(false)
+const isOpen = computed(() => props.open ?? localOpen.value)
 const flipUp = ref(false)
 
-function toggle() {
-  isOpen.value = !isOpen.value
+function setOpen(open: boolean) {
+  localOpen.value = open
+  emit('update:open', open)
 }
 
 function focusTrigger() {
   triggerWrapRef.value?.querySelector<HTMLElement>('button, [tabindex]')?.focus()
 }
 
-// Exposed so a consumer's own code (e.g. the active-bar chips — see "Active-bar chip click
-// actions") can open/close this dropdown and return focus to its trigger without needing to hoist
-// `isOpen` itself into the parent. `isOpen` itself is also exposed (read-only in spirit — no
-// consumer should assign it directly, `open`/`close` exist for that) so a consumer can `watch` it
-// reactively, e.g. the Filter dropdown's column-ordering snapshot (DataTableView.vue), which needs
-// to know exactly when the dropdown transitions closed→open without hoisting the state itself.
-defineExpose({
-  isOpen,
-  open: () => {
-    isOpen.value = true
-  },
-  close: () => {
-    isOpen.value = false
-  },
-  focusTrigger,
-})
-
 function onMousedown(e: MouseEvent) {
-  if (containerRef.value && !containerRef.value.contains(e.target as Node)) {
-    isOpen.value = false
+  if (isOpen.value && containerRef.value && !containerRef.value.contains(e.target as Node)) {
+    setOpen(false)
   }
 }
 
@@ -131,7 +123,7 @@ function onPanelKeydown(e: KeyboardEvent): void {
   if (e.key === 'Escape') {
     e.preventDefault()
     if (props.onEscapeClearable?.()) return
-    isOpen.value = false
+    setOpen(false)
     focusTrigger()
     return
   }
@@ -155,7 +147,7 @@ function onPanelKeydown(e: KeyboardEvent): void {
 <template>
   <div ref="containerRef" class="dt-dd-wrap">
     <span style="display: inline-flex">
-      <span ref="triggerWrapRef" style="display: contents" @click="toggle">
+      <span ref="triggerWrapRef" style="display: contents" @click="setOpen(!isOpen)">
         <slot name="trigger" />
       </span>
       <!--

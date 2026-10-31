@@ -3575,6 +3575,22 @@ describe('DataTable — one open dropdown', () => {
     const sortWrap = wrapper.findAll('.dt-dd-wrap').find((w) => w.text().startsWith('Sort'))!
     expect(sortWrap.find('.dt-dd').exists()).toBe(true)
   })
+
+  it('a pointer click on another trigger closes the open dropdown and opens that one', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS, columns: COLS, rowKey: 'id' },
+      attachTo: document.body,
+    })
+    await openDdByLabel(wrapper, 'Columns')
+    const sortBtn = wrapper.findAll('button').find((b) => b.text() === 'Sort')!
+    await sortBtn.trigger('mousedown')
+    await sortBtn.trigger('click')
+    await flushPromises()
+    expect(wrapper.findAll('.dt-dd')).toHaveLength(1)
+    const sortWrap = wrapper.findAll('.dt-dd-wrap').find((w) => w.text().startsWith('Sort'))!
+    expect(sortWrap.find('.dt-dd').exists()).toBe(true)
+    wrapper.unmount()
+  })
 })
 
 function openDdByLabel(wrapper: ReturnType<typeof mount>, label: string) {
