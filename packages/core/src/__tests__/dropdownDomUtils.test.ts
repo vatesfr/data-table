@@ -2,11 +2,53 @@
 import { describe, it, expect, vi } from 'vitest'
 import {
   activeRowKeyDown,
+  computeDropdownClampOffset,
+  computeDropdownFlip,
   computeMenuPosition,
   computeSubmenuPosition,
   rovingFocusTarget,
   watchMedia,
 } from '../dropdownDomUtils'
+
+describe('computeDropdownClampOffset', () => {
+  it('shifts a panel overflowing the right edge back inside the margin', () => {
+    expect(computeDropdownClampOffset({ left: 300, right: 420 }, 400)).toBe(-28)
+  })
+
+  it('never shifts it past the left margin', () => {
+    expect(computeDropdownClampOffset({ left: 20, right: 520 }, 400)).toBe(-12)
+  })
+})
+
+describe('computeDropdownFlip', () => {
+  // A 20 px trigger, the panel opened 4 px below it
+  const at = (triggerTop: number, height: number) => ({
+    rect: { top: triggerTop + 24, bottom: triggerTop + 24 + height },
+    trigger: { top: triggerTop, bottom: triggerTop + 20 },
+  })
+
+  it('stays below, uncapped, when it fits', () => {
+    const { rect, trigger } = at(100, 300)
+    expect(computeDropdownFlip(rect, trigger, 800)).toEqual({ flipUp: false, maxHeight: undefined })
+  })
+
+  it('flips up when it overflows the bottom and fits above', () => {
+    const { rect, trigger } = at(600, 300)
+    expect(computeDropdownFlip(rect, trigger, 800)).toEqual({ flipUp: true, maxHeight: undefined })
+  })
+
+  it('U37: caps the height to the room above when neither side fits', () => {
+    const { rect, trigger } = at(410, 420)
+    // above: 410 - 4 - 8 = 398; below: 500 - 8 - 434 = 58
+    expect(computeDropdownFlip(rect, trigger, 500)).toEqual({ flipUp: true, maxHeight: 398 })
+  })
+
+  it('stays below, capped, when there is more room below', () => {
+    const { rect, trigger } = at(50, 420)
+    // below: 400 - 8 - 74 = 318; above: 50 - 4 - 8 = 38
+    expect(computeDropdownFlip(rect, trigger, 400)).toEqual({ flipUp: false, maxHeight: 318 })
+  })
+})
 
 describe('computeMenuPosition', () => {
   const anchor = { top: 100, bottom: 120, left: 200, right: 280 }

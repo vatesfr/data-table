@@ -12,7 +12,8 @@ const stubLayout = () => {
     this: HTMLElement,
   ) {
     if (!this.querySelector(':scope > [data-body]'))
-      return { top: 0, bottom: 0, left: 0, right: 0 } as DOMRect
+      // The trigger (the panel's wrap), 4 px above the panel
+      return { top: naturalTop - 24, bottom: naturalTop - 4, left: 0, right: 0 } as DOMRect
     const left = naturalLeft + translateX(this.style.transform)
     return {
       top: naturalTop,

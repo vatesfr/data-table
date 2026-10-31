@@ -67,26 +67,39 @@ export function resolveDropRow(
 
 /**
  * Computes how far a dropdown panel needs to shift horizontally (`dx`, for a `translateX`) to
- * stay within `[margin, viewportWidth - margin]`, and whether it should flip to render above its
- * trigger instead of below (`flipUp`) when it would otherwise overflow the bottom of the viewport.
- * A horizontal `translateX` offset is used instead of flipping the anchor side (`left:0` ->
- * `right:0`) since the overflow is relative to the *viewport*, not the trigger — flipping the
- * anchor on a trigger near one edge would just push a wide panel off the opposite side instead.
- *
- * `rect` only needs `top`/`right`/`bottom`/`left` here — typed as an inline shape rather than
- * `DOMRect` for the same declaration-rollup reason as `RectLike` above.
+ * stay within `[margin, viewportWidth - margin]`. A horizontal `translateX` offset is used instead
+ * of flipping the anchor side (`left:0` -> `right:0`) since the overflow is relative to the
+ * *viewport*, not the trigger — flipping the anchor on a trigger near one edge would just push a
+ * wide panel off the opposite side instead.
  */
 export function computeDropdownClampOffset(
-  rect: { top: number; right: number; bottom: number; left: number },
+  rect: { right: number; left: number },
   viewportWidth: number,
-  viewportHeight: number,
   margin = 8,
-): { dx: number; flipUp: boolean } {
+): number {
   let dx = 0
   if (rect.right > viewportWidth - margin) dx = viewportWidth - margin - rect.right
   if (rect.left + dx < margin) dx = margin - rect.left
-  const flipUp = rect.bottom > viewportHeight - margin
-  return { dx, flipUp }
+  return dx
+}
+
+/**
+ * Where a panel just opened below its trigger fits: above it (`flipUp`) when it overflows the
+ * viewport bottom and there's more room above, and capped to that side's room (`maxHeight`) when
+ * neither side fits it whole (U37).
+ */
+export function computeDropdownFlip(
+  rect: { top: number; bottom: number },
+  trigger: { top: number; bottom: number },
+  viewportHeight: number,
+  margin = 8,
+): { flipUp: boolean; maxHeight?: number } {
+  const below = viewportHeight - margin - rect.top
+  // Opened up, the panel keeps its gap to the trigger
+  const above = trigger.top - (rect.top - trigger.bottom) - margin
+  const flipUp = rect.bottom - rect.top > below && above > below
+  const room = flipUp ? above : below
+  return { flipUp, maxHeight: rect.bottom - rect.top > room ? room : undefined }
 }
 
 /**
@@ -96,11 +109,13 @@ export function computeDropdownClampOffset(
  * rewraps), then focuses `ddOpenFocusTarget`. Returns the function stopping the clamp.
  */
 export function openDropdownPanel(panel: HTMLElement): () => void {
-  if (
-    computeDropdownClampOffset(panel.getBoundingClientRect(), viewportWidth(), window.innerHeight)
-      .flipUp
+  const { flipUp, maxHeight } = computeDropdownFlip(
+    panel.getBoundingClientRect(),
+    panel.parentElement!.getBoundingClientRect(),
+    window.innerHeight,
   )
-    panel.classList.add('dt-dd--up')
+  if (flipUp) panel.classList.add('dt-dd--up')
+  if (maxHeight !== undefined) panel.style.maxHeight = `${maxHeight}px`
   let current = 0
   const clamp = () => {
     const rect = panel.getBoundingClientRect()
@@ -108,15 +123,9 @@ export function openDropdownPanel(panel: HTMLElement): () => void {
     if (!rect.width) return
     // The rect shows the rendered offset, which lags the requested one while a transition runs
     const rendered = new DOMMatrixReadOnly(getComputedStyle(panel).transform).m41
-    const { dx } = computeDropdownClampOffset(
-      {
-        top: rect.top,
-        bottom: rect.bottom,
-        left: rect.left - rendered,
-        right: rect.right - rendered,
-      },
+    const dx = computeDropdownClampOffset(
+      { left: rect.left - rendered, right: rect.right - rendered },
       viewportWidth(),
-      window.innerHeight,
     )
     // Sub-pixel noise would otherwise re-trigger this observer through the style write
     if (Math.abs(dx - current) < 0.5) return
@@ -149,7 +158,7 @@ export function openDropdownPanel(panel: HTMLElement): () => void {
  * horizontally otherwise grows that ancestor's own scrollable region instead of visually escaping
  * it, clipping the flyout and adding a spurious horizontal scrollbar to the panel), so this
  * computes real `position: fixed` viewport coordinates rather than a relative offset the way
- * `computeDropdownClampOffset`'s `dx`/`flipUp` do for the (non-portaled) top-level panel.
+ * `computeDropdownClampOffset`/`computeDropdownFlip` do for the (non-portaled) top-level panel.
  *
  * Opens to the right of the trigger by default; flips to its left when the trigger's own right
  * edge already leaves less than `submenuSize.width` of room before the viewport's right edge — a
