@@ -41,13 +41,13 @@ describe('DataTable — row checkbox name', () => {
 })
 
 describe('DataTable — rowClick', () => {
-  it('emits rowClick with the row and the click event', async () => {
+  it('calls onRowClick with the row and the click event', async () => {
+    const onRowClick = vi.fn()
     const wrapper = mount(DataTable, {
-      props: { data: ROWS, columns: COLS, rowKey: 'id' },
+      props: { data: ROWS, columns: COLS, rowKey: 'id', onRowClick },
     })
     await wrapper.find('tbody tr').trigger('click')
-    expect(wrapper.emitted('rowClick')).toBeTruthy()
-    expect(wrapper.emitted('rowClick')![0][0]).toEqual(ROWS[0])
+    expect(onRowClick).toHaveBeenCalledWith(ROWS[0], expect.any(MouseEvent))
   })
 
   it('does not add the clickable class when no rowClick listener is attached', () => {
@@ -64,19 +64,16 @@ describe('DataTable — rowClick', () => {
     expect(wrapper.find('tbody tr').classes()).toContain('dt-tr--clickable')
   })
 
-  it('clicking the selection checkbox does not emit rowClick', async () => {
+  it('clicking the selection checkbox does not call onRowClick', async () => {
+    const onRowClick = vi.fn()
     const wrapper = mount(DataTable, {
-      props: { data: ROWS, columns: COLS, rowKey: 'id', selectable: true },
+      props: { data: ROWS, columns: COLS, rowKey: 'id', selectable: true, onRowClick },
     })
     await wrapper.find('tbody tr input[type="checkbox"]').trigger('click')
-    expect(wrapper.emitted('rowClick')).toBeFalsy()
+    expect(onRowClick).not.toHaveBeenCalled()
   })
 
-  it('adds the clickable class once a rowClick listener is attached after mount, on the next render', async () => {
-    // isRowClickable used to be a one-time `getCurrentInstance()?.vnode.props?.onRowClick` read,
-    // frozen forever after setup — see the audit's "Vue rowClickable reactivity" finding. It's now
-    // re-derived in onUpdated, so a listener attached post-mount is picked up on the next render
-    // rather than staying frozen at whatever was true at mount time.
+  it('adds the clickable class once a rowClick listener is attached after mount', async () => {
     const wrapper = mount(DataTable, {
       props: { data: ROWS, columns: COLS, rowKey: 'id' },
     })
@@ -1606,15 +1603,16 @@ describe('DataTable — checkbox cells as hit areas', () => {
     el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, shiftKey }))
 
   it("a click anywhere in a row's checkbox cell toggles it; shift-click selects the range", async () => {
+    const onRowClick = vi.fn()
     const wrapper = mount(DataTable, {
-      props: { data: ROWS3, columns: COLS, rowKey: 'id', selectable: true },
+      props: { data: ROWS3, columns: COLS, rowKey: 'id', selectable: true, onRowClick },
     })
     click(cellOf(wrapper, 'Select row Alice'))
     await wrapper.vm.$nextTick()
     click(cellOf(wrapper, 'Select row Clara'), true)
     await wrapper.vm.$nextTick()
     expect(lastSelection(wrapper)).toEqual([ROWS3])
-    expect(wrapper.emitted('rowClick')).toBeUndefined()
+    expect(onRowClick).not.toHaveBeenCalled()
   })
 
   it("the select-all checkbox's cell selects all", async () => {
@@ -2675,15 +2673,15 @@ describe('DataTable — keyboard navigation', () => {
     wrapper.unmount()
   })
 
-  it('Enter emits rowClick with the row and the keyboard event', async () => {
+  it('Enter calls onRowClick with the row and the keyboard event', async () => {
+    const onRowClick = vi.fn()
     const wrapper = mount(DataTable, {
-      props: { data: ROWS3, columns: COLS, rowKey: 'id', onRowClick: vi.fn() },
+      props: { data: ROWS3, columns: COLS, rowKey: 'id', onRowClick },
     })
     const [first] = dataRows(wrapper)
     ;(first.element as HTMLElement).focus()
     await first.trigger('keydown', { key: 'Enter' })
-    expect(wrapper.emitted('rowClick')).toBeTruthy()
-    expect(wrapper.emitted('rowClick')![0][0]).toEqual(ROWS3[0])
+    expect(onRowClick).toHaveBeenCalledWith(ROWS3[0], expect.any(KeyboardEvent))
   })
 })
 

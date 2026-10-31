@@ -38,6 +38,11 @@ export interface DataTableViewProps<TRow extends object = Record<string, unknown
    */
   rowClass?: (row: TRow) => string | undefined
   /**
+   * Called when a data row is clicked or activated with Enter (`@row-click`); setting it also
+   * makes rows look clickable and keyboard-focusable.
+   */
+  onRowClick?: (row: TRow, event: MouseEvent | KeyboardEvent) => void
+  /**
    * Shows/hides the toolbar's search box. Defaults to `true`. Unlike the Sort/Group/Filter
    * dropdowns (which already hide themselves when no column qualifies for them), search always
    * applies regardless of column config — there's no equivalent auto-hide signal for it, so this
@@ -54,19 +59,6 @@ export interface DataTableViewProps<TRow extends object = Record<string, unknown
    * mirrors `showSearch`'s reasoning rather than adding a `showable`-style column flag.
    */
   showColumns?: boolean
-}
-
-// `<DataTableView>`'s actual runtime props, plus `rowClickable` — an internal wiring detail (see
-// DataTableView.vue's own comment) that only `<DataTable>` ever sets, to forward its own
-// listener-presence check through since it always forwards the `row-click` emit itself
-// regardless. Deliberately not part of `DataTableViewProps` (the type consumers see/import from
-// this package's index) nor re-exported from `index.ts` — a consumer using `<DataTableView>`
-// directly should never see this prop, let alone be tempted to set it themselves; that usage
-// self-detects clickability from its own `@row-click` listener instead.
-export interface DataTableViewInternalProps<
-  TRow extends object = Record<string, unknown>,
-> extends DataTableViewProps<TRow> {
-  rowClickable?: boolean
 }
 
 export interface DataTableProps<TRow extends object = Record<string, unknown>> extends Omit<

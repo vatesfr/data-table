@@ -7,6 +7,7 @@ export const props: DataTableProps<Row> = {
   data: [],
   columns: [{ key: 'name', label: 'Name' }],
   labels: LABELS_FR,
+  onRowClick: (row, event) => void (row.name + event.type),
 }
 // @ts-expect-error columns must be typed, not `any`
 export const bad: DataTableProps<Row> = { data: [], columns: 'name' }

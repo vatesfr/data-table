@@ -42,7 +42,7 @@ import {
   injectStyles,
 } from '@vates/data-table-core/internal'
 import { type SortEntry } from '@vates/data-table-core'
-import type { ColumnDef, DataTableViewInternalProps } from './types'
+import type { ColumnDef, DataTableViewProps } from './types'
 import Dropdown from './components/Dropdown.vue'
 import CategorySubmenu from './components/CategorySubmenu.vue'
 import HeaderMenu from './components/HeaderMenu.vue'
@@ -50,17 +50,14 @@ import FilterPane from './components/FilterPane.vue'
 import ToolbarBtn from './components/ToolbarBtn.vue'
 import { vIndeterminate } from './directives/vIndeterminate'
 import { useDropdownReorder } from './composables/useDropdownReorder'
-import { useSelfDetectedListener } from './composables/useSelfDetectedListener'
 
 // Vue casts an absent boolean prop with no explicit default to `false`, not `undefined` — an
 // explicit `true` default is required here so an omitted `showSearch` still shows the search box
 // (same gotcha `<DataTable>`'s own `defaultGroupsCollapsed` default works around).
-const props = withDefaults(defineProps<DataTableViewInternalProps<TRow>>(), {
+const props = withDefaults(defineProps<DataTableViewProps<TRow>>(), {
   rowKey: 'id',
   showSearch: true,
   showColumns: true,
-  // Absent must stay undefined, not cast to false, so a direct @row-click listener is detected
-  rowClickable: undefined,
 })
 
 // The shared stylesheet, without tokens: Vue apps define the --color-* tokens themselves
@@ -68,27 +65,11 @@ injectStyles()
 
 const emit = defineEmits<{
   selectionChange: [rows: TRow[]]
-  rowClick: [row: TRow, event: MouseEvent | KeyboardEvent]
 }>()
 
 const slots = useSlots()
 
-// vnode.props holds the raw incoming listeners regardless of the emits declaration above
-// (declared emits are stripped from $attrs), so this is the only reliable way to detect
-// whether the caller passed a @row-click listener directly on this component. The
-// `<DataTable>` wrapper always forwards the row-click emit itself (so clicks still fire
-// regardless of listener presence, matching the underlying emit's own semantics) and instead
-// passes its own listener-presence check through explicitly via `rowClickable` — falling back
-// to self-detection here only when `<DataTableView>` is used directly, with no such prop.
-//
-// See useSelfDetectedListener for why this needs onUpdated rather than a plain computed over
-// vnode.props directly.
-const selfDetectedRowClickable = useSelfDetectedListener('onRowClick')
-const isRowClickable = computed(() => props.rowClickable ?? selfDetectedRowClickable.value)
-
-function handleRowClick(row: TRow, event: MouseEvent | KeyboardEvent) {
-  emit('rowClick', row, event)
-}
+const isRowClickable = computed(() => !!props.onRowClick)
 
 // `props.table`'s own fields are namespaced by concern (see docs/table-state.md's "Namespaced TableState")
 // — destructured here into the same bare local names this file's script and template already
@@ -287,7 +268,7 @@ function handleKeyDown(event: KeyboardEvent, target: VisibleItem<TRow>): void {
     const group = groupedData.value.find((g) => g.key === plan.key)
     if (group) toggleSelectAll(group.rows)
   } else if (plan.kind === 'toggleCollapse') toggleGroupCollapse(plan.key)
-  else handleRowClick(plan.row, event)
+  else props.onRowClick?.(plan.row, event)
 }
 
 const allSelected = computed(
@@ -2125,7 +2106,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                   },
                   rowClass?.(row),
                 ]"
-                @click="handleRowClick(row, $event)"
+                @click="onRowClick?.(row, $event)"
                 @keydown="handleKeyDown($event, { kind: 'row', row })"
                 @focusin="setFocusTarget({ kind: 'row', row })"
               >

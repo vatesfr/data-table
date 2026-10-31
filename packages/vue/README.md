@@ -298,7 +298,7 @@ With `getRowId` set, a selected id is remapped to its fresh object reference whe
 
 ▶ [Try it in the demo](https://vatesfr.github.io/data-table/vue/#row-click)
 
-Listen to `@row-click` to react to a data row being clicked — it receives the full row object and the native event, no key lookup needed. Group header rows, the aggregate row, and the selection checkbox cell never trigger it. A focused row also fires it on `Enter` (see "Keyboard navigation" above), so the event is `MouseEvent | KeyboardEvent`, not just `MouseEvent`.
+Pass `@row-click` (the `onRowClick` prop) to react to a data row being clicked — it receives the full row object and the native event, no key lookup needed. Group header rows, the aggregate row, and the selection checkbox cell never trigger it. A focused row also fires it on `Enter` (see "Keyboard navigation" above), so the event is `MouseEvent | KeyboardEvent`, not just `MouseEvent`.
 
 ```vue
 <DataTable
@@ -327,7 +327,7 @@ Table rows use a **roving tabindex**: exactly one row — a data row or a group 
 - `ArrowUp`/`ArrowDown` move focus, crossing page boundaries when paginated.
 - `Home`/`End` jump within the current page; `Ctrl`/`Cmd+Home`/`End` jump across all pages.
 - `Space` toggles the focused row's/group's selection (when `selectable`).
-- `Enter` fires `rowClick` on a data row, or toggles a group header's collapsed state.
+- `Enter` calls `onRowClick` on a data row, or toggles a group header's collapsed state.
 - `Shift+ArrowUp/Down/Home/End` range-selects from the last-clicked/focused anchor, same as shift-click.
 
 ## Column reordering
@@ -338,22 +338,23 @@ Drag a column header to reorder it, or drag a row (or press Alt+ArrowUp/Alt+Arro
 
 ## `DataTable` props
 
-| Prop                     | Type                                 | Default | Description                                                                                                                                    |
-| ------------------------ | ------------------------------------ | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| `data`                   | `TRow[]`                             | —       | Row data                                                                                                                                       |
-| `columns`                | `ColumnDef<TRow>[]`                  | —       | Column definitions                                                                                                                             |
-| `rowKey`                 | `string`                             | —       | Vue `:key` only — not selection identity                                                                                                       |
-| `labels`                 | `Partial<DataTableLabels>`           | English | UI string overrides                                                                                                                            |
-| `defaultGroupsCollapsed` | `boolean`                            | `true`  | Whether newly-grouped groups start collapsed                                                                                                   |
-| `initialViewState`       | `TableViewState`                     | `{}`    | Construction-time defaults for columns/sort/filters/grouping/page/search — also what `resetView` restores                                      |
-| `getRowId`               | `(row: TRow) => string \| number`    | —       | Opt-in id-based selection identity (see "Row selection" above)                                                                                 |
-| `selectable`             | `boolean`                            | `false` | Show checkbox column for row selection                                                                                                         |
-| `currentRow`             | `TRow \| null`                       | —       | Row to mark as current (e.g. open in a side panel): `aria-current="true"` and the `dt-tr--current` class, unstyled. Matched by object identity |
-| `rowClass`               | `(row: TRow) => string \| undefined` | —       | Extra classes for a data row, after the built-in `dt-tr*` ones (e.g. to dim an expired row)                                                    |
-| `page`                   | `number`                             | —       | `v-model:page` — the table's current page                                                                                                      |
-| `searchQuery`            | `string`                             | —       | `v-model:search-query` — the global search box's value                                                                                         |
-| `showSearch`             | `boolean`                            | `true`  | Shows/hides the toolbar's search box (Sort/Group/Filter already auto-hide when no column qualifies)                                            |
-| `showColumns`            | `boolean`                            | `true`  | Shows/hides the Columns toolbar button; also auto-hides when `columns.length < 2`                                                              |
+| Prop                     | Type                                                      | Default | Description                                                                                                                                    |
+| ------------------------ | --------------------------------------------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `data`                   | `TRow[]`                                                  | —       | Row data                                                                                                                                       |
+| `columns`                | `ColumnDef<TRow>[]`                                       | —       | Column definitions                                                                                                                             |
+| `rowKey`                 | `string`                                                  | —       | Vue `:key` only — not selection identity                                                                                                       |
+| `labels`                 | `Partial<DataTableLabels>`                                | English | UI string overrides                                                                                                                            |
+| `defaultGroupsCollapsed` | `boolean`                                                 | `true`  | Whether newly-grouped groups start collapsed                                                                                                   |
+| `initialViewState`       | `TableViewState`                                          | `{}`    | Construction-time defaults for columns/sort/filters/grouping/page/search — also what `resetView` restores                                      |
+| `getRowId`               | `(row: TRow) => string \| number`                         | —       | Opt-in id-based selection identity (see "Row selection" above)                                                                                 |
+| `selectable`             | `boolean`                                                 | `false` | Show checkbox column for row selection                                                                                                         |
+| `currentRow`             | `TRow \| null`                                            | —       | Row to mark as current (e.g. open in a side panel): `aria-current="true"` and the `dt-tr--current` class, unstyled. Matched by object identity |
+| `rowClass`               | `(row: TRow) => string \| undefined`                      | —       | Extra classes for a data row, after the built-in `dt-tr*` ones (e.g. to dim an expired row)                                                    |
+| `onRowClick`             | `(row: TRow, event: MouseEvent \| KeyboardEvent) => void` | —       | Called when a data row is clicked or activated via Enter; bind it as `@row-click`. Makes rows clickable and focusable                          |
+| `page`                   | `number`                                                  | —       | `v-model:page` — the table's current page                                                                                                      |
+| `searchQuery`            | `string`                                                  | —       | `v-model:search-query` — the global search box's value                                                                                         |
+| `showSearch`             | `boolean`                                                 | `true`  | Shows/hides the toolbar's search box (Sort/Group/Filter already auto-hide when no column qualifies)                                            |
+| `showColumns`            | `boolean`                                                 | `true`  | Shows/hides the Columns toolbar button; also auto-hides when `columns.length < 2`                                                              |
 
 All props accept `MaybeRefOrGetter` — you can pass refs, computed values, or plain values.
 
@@ -377,12 +378,11 @@ Omit either prop entirely to just let `<DataTable>` manage its own state, as bef
 
 ## Events
 
-| Event                | Payload                                           | Description                                                                                  |
-| -------------------- | ------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| `selectionChange`    | `TRow[]`                                          | Emitted when selection changes; payload is the selected rows present in the filtered dataset |
-| `rowClick`           | `[row: TRow, event: MouseEvent \| KeyboardEvent]` | Emitted when a data row is clicked or activated via Enter                                    |
-| `update:page`        | `number`                                          | Emitted whenever the current page changes — pair with `v-model:page`                         |
-| `update:searchQuery` | `string`                                          | Emitted whenever the search query changes — pair with `v-model:search-query`                 |
+| Event                | Payload  | Description                                                                                  |
+| -------------------- | -------- | -------------------------------------------------------------------------------------------- |
+| `selectionChange`    | `TRow[]` | Emitted when selection changes; payload is the selected rows present in the filtered dataset |
+| `update:page`        | `number` | Emitted whenever the current page changes — pair with `v-model:page`                         |
+| `update:searchQuery` | `string` | Emitted whenever the search query changes — pair with `v-model:search-query`                 |
 
 ## Column definition
 
