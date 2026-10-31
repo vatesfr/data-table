@@ -350,6 +350,25 @@ describe('computeAggregate', () => {
     }
     expect(computeAggregate(col, ROWS)).toBe(330)
   })
+
+  it('ignores missing values instead of counting them as 0', () => {
+    const rows = [{ n: 10 }, { n: null }, { n: '' }, { n: undefined }, { n: 20 }]
+    const agg = (aggregate: 'avg' | 'min' | 'max') =>
+      computeAggregate({ key: 'n' as const, label: 'N', aggregate }, rows)
+    expect(agg('avg')).toBe(15)
+    expect(agg('min')).toBe(10)
+    expect(agg('max')).toBe(20)
+  })
+
+  it('handles groups too large to spread into Math.min/max', () => {
+    const rows = Array.from({ length: 300_000 }, (_, i) => ({ n: i }))
+    expect(
+      computeAggregate({ key: 'n' as const, label: 'N', aggregate: 'min' as const }, rows),
+    ).toBe(0)
+    expect(
+      computeAggregate({ key: 'n' as const, label: 'N', aggregate: 'max' as const }, rows),
+    ).toBe(299_999)
+  })
 })
 
 // ─── compareMissingLast ────────────────────────────────────────────────────────

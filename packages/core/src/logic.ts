@@ -2388,17 +2388,23 @@ export function computeAggregate<TRow extends object>(
   if (!col.aggregate) return undefined
   if (typeof col.aggregate === 'function') return col.aggregate(rows)
   if (col.aggregate === 'count') return rows.length
-  const nums = rows.map((r) => Number(getColumnValue(col, r))).filter((n) => !isNaN(n))
+  // Number(null) and Number('') are 0: skip missing cells so they don't skew avg/min
+  const nums = rows
+    .map((r) => getColumnValue(col, r))
+    .filter((v) => v != null && v !== '')
+    .map(Number)
+    .filter((n) => !isNaN(n))
   if (nums.length === 0) return undefined
   switch (col.aggregate) {
     case 'sum':
       return nums.reduce((a, b) => a + b, 0)
     case 'avg':
       return nums.reduce((a, b) => a + b, 0) / nums.length
+    // reduce, not Math.min(...nums): spreading a large group overflows the call stack
     case 'min':
-      return Math.min(...nums)
+      return nums.reduce((a, b) => Math.min(a, b))
     case 'max':
-      return Math.max(...nums)
+      return nums.reduce((a, b) => Math.max(a, b))
   }
 }
 
