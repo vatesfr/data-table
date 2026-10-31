@@ -110,7 +110,6 @@ export function DataTableView<TRow extends object>(props: DataTableViewProps<TRo
             <Show when={showColumns()}>
               <ColumnsDropdown
                 table={table}
-                columns={table.columns.list()}
                 isOpen={openDropdown() === 'cols'}
                 onToggle={() => toggleDd('cols')}
                 onClose={() => setOpenDropdown(null)}

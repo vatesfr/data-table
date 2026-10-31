@@ -277,7 +277,6 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
   return (
     <Dropdown
       isOpen={props.isOpen}
-      onToggle={props.onToggle}
       onClose={props.onClose}
       trigger={
         <DropdownTriggerButton

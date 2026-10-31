@@ -43,7 +43,7 @@ describe('Dropdown viewport clamping', () => {
     document.body.appendChild(container)
     dispose = render(
       () => (
-        <Dropdown isOpen trigger={<button>Open</button>} onToggle={() => {}} onClose={() => {}}>
+        <Dropdown isOpen trigger={<button>Open</button>} onClose={() => {}}>
           <div data-body>Items</div>
         </Dropdown>
       ),

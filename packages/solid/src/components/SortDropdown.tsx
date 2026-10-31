@@ -86,7 +86,6 @@ export function SortDropdown<TRow extends object>(props: SortDropdownProps<TRow>
   return (
     <Dropdown
       isOpen={props.isOpen}
-      onToggle={props.onToggle}
       onClose={props.onClose}
       trigger={
         <DropdownTriggerButton

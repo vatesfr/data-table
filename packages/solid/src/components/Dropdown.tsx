@@ -9,7 +9,6 @@ import {
 
 interface DropdownProps {
   isOpen: boolean
-  onToggle: () => void
   onClose: () => void
   trigger: JSX.Element
   /** Rendered as a sibling of `trigger`, inside the same outside-click boundary — see the
