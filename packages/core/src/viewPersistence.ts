@@ -1,19 +1,9 @@
-// This file's own functions only ever run in a browser (as with every adapter's persistence
-// helpers this replaces) — the rest of `packages/core` targets a DOM-free `lib` so it can also
-// run in Node/SSR, but that constraint doesn't apply here.
-// A file-scoped `lib="dom"` reference pulls in just the ambient types this file needs
-// (`localStorage`, `URLSearchParams`, `window`) without adding "dom" to the whole package's
-// `tsconfig.json` `lib` array.
+// Browser-only; the file-scoped DOM lib keeps "dom" out of the package's `lib`.
 /// <reference lib="dom" />
 
 import { encodeViewState, decodeViewState, type TableViewState } from './view'
 
-// Framework-agnostic building blocks shared by every adapter's own `persistence.ts`
-// (react/vue/solid's `usePersistedView`/`useUrlView`/`usePersistence`, vanilla's
-// `persistViewToLocalStorage`/`syncViewToUrl`/`persistView`) — see docs/view-persistence.md's "View persistence".
-// These only ever touch `TableViewState`/`localStorage`/`URLSearchParams`/`window.history`; the
-// reactive glue (effects, watchers, `popstate` subscriptions) stays adapter-local since it's tied
-// to each framework's own lifecycle, not something a pure function can express.
+// Storage and URL helpers behind every adapter's persistence (docs/view-persistence.md); the reactive glue stays per adapter.
 
 export interface ViewStateApi {
   getViewState(): TableViewState
@@ -32,10 +22,8 @@ export function loadViewFromStorage(storageKey: string | undefined): TableViewSt
 }
 
 /**
- * Saves `view` to `localStorage`, or removes the key entirely when `view` is back at its
- * construction-time defaults (empty object) — rather than storing an encoded-but-empty blob, so
- * `resetView`'s own `removeItem` (or a plain "clear all" that lands back on the defaults) isn't
- * immediately undone by the next save. No-ops when `storageKey` is `undefined`.
+ * Saves `view` to `localStorage`, removing the key for an empty (default) view so a reset isn't
+ * undone by the next save. No-ops when `storageKey` is `undefined`.
  */
 export function saveOrClearViewInStorage(
   storageKey: string | undefined,
@@ -47,11 +35,8 @@ export function saveOrClearViewInStorage(
 }
 
 /**
- * Reads and decodes a view from the given query string parameter in `window.location.search`.
- * Returns `undefined` when the param is absent or fails to decode — an absent/malformed param
- * leaves whatever state is already there alone, rather than forcing a reset to defaults (this
- * matters when composing with storage persistence: a plain reload with no URL param should keep
- * the localStorage-restored view, not clobber it with an empty one).
+ * Reads and decodes a view from `paramName` in the query string; `undefined` when absent or
+ * malformed, so a plain reload keeps the storage-restored view.
  */
 export function readViewFromUrlParam(paramName: string): TableViewState | undefined {
   const encoded = new URLSearchParams(window.location.search).get(paramName)
@@ -60,10 +45,8 @@ export function readViewFromUrlParam(paramName: string): TableViewState | undefi
 }
 
 /**
- * Writes `view` to the given query string parameter via `history.replaceState` (not `pushState`,
- * so per-change tweaks don't spam browser history), or deletes the param entirely when `view` is
- * back at its construction-time defaults (empty object) — mirroring
- * `saveOrClearViewInStorage`'s own empty-view handling.
+ * Writes `view` to `paramName` with `replaceState` (no history entry per change), deleting the
+ * param for an empty (default) view.
  */
 export function writeViewToUrlParam(paramName: string, view: TableViewState): void {
   const params = new URLSearchParams(window.location.search)

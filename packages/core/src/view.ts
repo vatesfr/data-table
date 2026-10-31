@@ -131,9 +131,7 @@ export function decodeViewState(encoded: string): TableViewState | undefined {
   }
 }
 
-// --- Equality helpers for buildViewStateSnapshot's "omit if it matches what a reset would
-// restore" checks below. All order-sensitive except the Set-based ones (visibleCols/
-// collapsedGroups/filter value lists have no meaningful order of their own).
+// Equality helpers for buildViewStateSnapshot's "matches what a reset restores" checks
 
 function sameStringArray(a: string[], b: string[]): boolean {
   return a.length === b.length && a.every((v, i) => v === b[i])
@@ -177,12 +175,8 @@ export interface ViewStateSnapshotInput<
 }
 
 /**
- * Builds a `TableViewState` snapshot from a bag of current plain state values, omitting any
- * field that's already back at what a reset would restore it to — shared by every adapter's
- * `getViewState()`. Reuses `resolveViewState({}, columns, initialViewState)` to compute that
- * "reset-to" bag rather than re-deriving each field's default independently, so a field showing
- * up here always means "differs from what `resetView` would produce", never a second, subtly
- * different notion of default.
+ * `getViewState()`'s snapshot, omitting every field at what `resetView` would restore (computed
+ * by `resolveViewState({}, …)`, so both share one notion of default).
  */
 export function buildViewStateSnapshot<TRow extends object = Record<string, unknown>>(
   input: ViewStateSnapshotInput<TRow>,
@@ -258,16 +252,8 @@ const entries =
       : undefined
 
 /**
- * Applies the same "grouping a column inserts a matching sort entry, ahead of whatever else is
- * grouped, unless one already exists" invariant interactive `group.toggle` maintains (see
- * `insertGroupSort`) — for the specific case that motivated this: `groupBy` resolved from
- * `initialViewState` (construction, `resetView`, or a `setViewState(view)` call that leaves
- * `view.groupBy` unset) rather than from an explicit `view.groupBy`. Deliberately scoped this
- * way rather than run unconditionally on every `resolveViewState` call: a caller that explicitly
- * passes `view.groupBy` (restoring a stored/shared view, say) already gets whatever `sorts` that
- * same view specifies — or deliberately none — and forcing a sync there would silently insert an
- * entry the caller never asked for and the pre-existing `setViewState` contract never promised.
- * Idempotent — already-consistent input comes back with the same effective order.
+ * Inserts each grouped column's sort entry, as `group.toggle` does (`insertGroupSort`). Only for a
+ * `groupBy` taken from `initialViewState`: an explicit `view.groupBy` keeps its own `sorts`.
  */
 function syncGroupSorts<TRow extends object>(
   sorts: SortEntry[],
@@ -284,15 +270,9 @@ function syncGroupSorts<TRow extends object>(
 }
 
 /**
- * Resolves a partial `TableViewState` (as passed to `setViewState`) plus the current `columns`
- * and optional construction-time `initialViewState` into the fully-defaulted plain values each
- * adapter writes back into its own state — shared by every adapter's `setViewState(view)`, and
- * (via `resolveViewState({}, columns, initialViewState)`) by `buildViewStateSnapshot` above and
- * by `resetView`/construction-time seeding, since both are just "apply an empty/absent view".
- * Any field `view` omits falls back to `initialViewState`'s own value for it, then to that
- * field's ordinary empty default — so `initialViewState` is simultaneously "what a fresh table
- * starts at" and "what a reset restores". `groupBy` falling back this way also gets `sorts`
- * synced via `syncGroupSorts` (see its own doc comment) — an explicit `view.groupBy` does not.
+ * Resolves a partial `TableViewState` into every adapter's fully-defaulted state values: an
+ * omitted field falls back to `initialViewState`'s, then to its empty default, so construction,
+ * `resetView` and `getViewState` all resolve `{}`. A fallback `groupBy` also syncs `sorts`.
  */
 export function resolveViewState<TRow extends object = Record<string, unknown>>(
   view: TableViewState,
