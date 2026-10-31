@@ -108,6 +108,7 @@ for (const n of SIZES) {
     TIMEOUT,
   )
 
+  const category = benchColumns.find((c) => c.key === 'category')!
   test(
     `filter facets @ ${n.toLocaleString()} rows`,
     async ({ bench }) => {
@@ -116,21 +117,17 @@ for (const n of SIZES) {
           for (const col of benchColumns)
             if (col.type !== 'number' && col.filterable !== false) computeStringValues(data, col)
         }),
-        bench('computeStringValueCounts, no active filters (all filterable columns)', () => {
-          computeStringValueCounts(data, {}, {}, benchColumns)
+        bench('computeStringValueCounts, no active filters', () => {
+          computeStringValueCounts(data, category, {}, {}, benchColumns)
         }),
-        bench('computeStringValueCounts, 2 active filters (all filterable columns)', () => {
+        bench('computeStringValueCounts, 2 active filters', () => {
           computeStringValueCounts(
             data,
+            category,
             { status: new Set(['active']), region: new Set(['EMEA']) },
             {},
             benchColumns,
           )
-        }),
-        bench('computeStringValueCounts, single column only (proposed target shape)', () => {
-          computeStringValueCounts(data, {}, {}, [
-            benchColumns.find((c) => c.key === 'category')!,
-          ] as typeof benchColumns)
         }),
         opts,
       )

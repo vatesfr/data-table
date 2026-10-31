@@ -167,24 +167,18 @@ export function FilterPane<TRow extends object>(props: FilterPaneProps<TRow>) {
   const [anchorValue, setAnchor] = createSignal<string>()
   const [expanded, setExpanded] = createSignal(new Set<string>())
 
-  // Scoped via targetKeys to just the active column — see docs/performance.md's "Performance": computing
-  // this for every filterable column on every change is the single biggest cost this library has
-  // measured (~15-17x at 500k rows), and only one column's checklist is ever shown at a time.
-  const stringValueCounts = createMemo(() => {
-    const col = activeCol()
-    return (
-      computeStringValueCounts(
-        table.data(),
-        table.filter.include(),
-        table.filter.ranges(),
-        table.columns.list(),
-        table.labels().emptyValue,
-        [col.key],
-        table.filter.exclude(),
-        table.filter.modes(),
-      )[col.key] ?? new Map()
-    )
-  })
+  const stringValueCounts = createMemo(() =>
+    computeStringValueCounts(
+      table.data(),
+      activeCol(),
+      table.filter.include(),
+      table.filter.ranges(),
+      table.columns.list(),
+      table.labels().emptyValue,
+      table.filter.exclude(),
+      table.filter.modes(),
+    ),
+  )
 
   const bounds = createMemo(() => {
     const col = activeCol()

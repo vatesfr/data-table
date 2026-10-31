@@ -78,21 +78,18 @@ const valueSort = ref<ValueSort>(props.col.defaultValueSort ?? DEFAULT_VALUE_SOR
 const anchor = ref<string | null>(null)
 const expanded = ref(new Set<string>())
 
-// Scoped to this one column (computeStringValueCounts's targetKeys) — computing it for every
-// filterable column is this library's single biggest measured cost.
 const allValues = computed(() => computeStringValues(props.data, props.col, L.value.emptyValue))
-const valueCounts = computed(
-  () =>
-    computeStringValueCounts(
-      props.data,
-      filters.value,
-      rangeFilters.value,
-      props.columns,
-      L.value.emptyValue,
-      [props.col.key],
-      excludeFilters.value,
-      filterModes.value,
-    )[props.col.key] ?? new Map<string, number>(),
+const valueCounts = computed(() =>
+  computeStringValueCounts(
+    props.data,
+    props.col,
+    filters.value,
+    rangeFilters.value,
+    props.columns,
+    L.value.emptyValue,
+    excludeFilters.value,
+    filterModes.value,
+  ),
 )
 
 // Any/all match mode — only for a column whose values are actually arrays (see

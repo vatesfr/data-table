@@ -38,7 +38,13 @@ const CASES = {
       C.find((c) => c.key === 'name'),
     ),
   valueCounts: (d, L, C) =>
-    L.computeStringValueCounts(d, {}, {}, [C.find((c) => c.key === 'category')]),
+    L.computeStringValueCounts(
+      d,
+      C.find((c) => c.key === 'category'),
+      {},
+      {},
+      C,
+    ),
   dateTree: (d, L) => L.computeDateTree([...new Set(d.map((r) => r.createdAt))]),
 }
 
