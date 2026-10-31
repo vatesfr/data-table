@@ -33,6 +33,7 @@ import {
   deferCheckboxCorrection,
   computeVirtualRange,
   getVirtualScrollTarget,
+  rovingFocusTarget,
   type DateTreeNode,
   filterMatchMode,
 } from '@vates/data-table-core/internal'
@@ -356,16 +357,10 @@ async function onKeydown(event: KeyboardEvent): Promise<void> {
     }
   }
 
-  if (event.key === 'Home' || event.key === 'End') {
-    if (rowInputs.length === 0) return
-    event.preventDefault()
-    ;(event.key === 'Home' ? rowInputs[0] : rowInputs[rowInputs.length - 1]).focus()
-    return
-  }
-  const nextIdx = focusables.indexOf(active) + (event.key === 'ArrowDown' ? 1 : -1)
-  if (nextIdx < 0 || nextIdx >= focusables.length) return
+  const next = rovingFocusTarget(event.key, focusables, active, rowInputs)
+  if (!next) return
   event.preventDefault()
-  focusables[nextIdx].focus()
+  next.focus()
 }
 </script>
 

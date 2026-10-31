@@ -36,6 +36,7 @@ import {
   toggleChecklistValues,
   computeVirtualRange,
   getVirtualScrollTarget,
+  rovingFocusTarget,
   filterMatchMode,
   formatFilterValue,
   toggleCollapse,
@@ -484,19 +485,11 @@ export function FilterPane<TRow extends object>({
         }
       }
 
-      if (e.key === 'Home' || e.key === 'End') {
-        if (rowInputs.length === 0) return
-        e.preventDefault()
-        e.stopPropagation()
-        ;(e.key === 'Home' ? rowInputs[0] : rowInputs[rowInputs.length - 1]).focus()
-        return
-      }
-      const idx = focusables.indexOf(active)
-      const nextIdx = e.key === 'ArrowDown' ? idx + 1 : idx - 1
-      if (nextIdx < 0 || nextIdx >= focusables.length) return
+      const next = rovingFocusTarget(e.key, focusables, active, rowInputs)
+      if (!next) return
       e.preventDefault()
       e.stopPropagation()
-      focusables[nextIdx].focus()
+      next.focus()
     }
   }
 

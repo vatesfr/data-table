@@ -256,6 +256,31 @@ export function ddNavFocusables(panel: HTMLElement): HTMLElement[] {
 }
 
 /**
+ * Where ↑/↓/Home/End moves focus in a roving list: `active`'s neighbor in `all` (no wrap), or the
+ * first/last of `homeEnd`. Null for other keys, when `active` isn't in `all`, or when focus stays.
+ */
+export function rovingFocusTarget<T extends Element>(
+  key: string,
+  all: T[],
+  active: Element | null,
+  homeEnd: T[] = all,
+): T | null {
+  const i = all.indexOf(active as T)
+  if (i === -1) return null
+  const next =
+    key === 'Home'
+      ? homeEnd[0]
+      : key === 'End'
+        ? homeEnd[homeEnd.length - 1]
+        : key === 'ArrowDown'
+          ? all[i + 1]
+          : key === 'ArrowUp'
+            ? all[i - 1]
+            : undefined
+  return next && next !== active ? next : null
+}
+
+/**
  * Where focus lands when a dropdown opens: its search box (`input[data-dd-search]`), else its
  * current row (`aria-current`, e.g. the column the Filter pane shows), else its first row. On a
  * touch screen (`pointer: coarse`) a row even when there's a search box: focusing a text field

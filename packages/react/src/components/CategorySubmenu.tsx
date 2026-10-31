@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode }
 import {
   computeSubmenuPosition,
   ddNavFocusables,
+  rovingFocusTarget,
   viewportWidth,
 } from '@vates/data-table-core/internal'
 
@@ -163,23 +164,13 @@ export function CategorySubmenu(props: CategorySubmenuProps) {
       closeNow(true)
       return
     }
-    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Home' && e.key !== 'End') return
     const submenu = submenuRef.current
     if (!submenu) return
-    const focusables = ddNavFocusables(submenu)
-    const active = document.activeElement as HTMLElement | null
-    const idx = active ? focusables.indexOf(active) : -1
-    if (idx === -1) return
-    e.stopPropagation()
-    if (e.key === 'Home' || e.key === 'End') {
-      e.preventDefault()
-      ;(e.key === 'Home' ? focusables[0] : focusables[focusables.length - 1])?.focus()
-      return
-    }
-    const nextIdx = e.key === 'ArrowDown' ? idx + 1 : idx - 1
-    if (nextIdx < 0 || nextIdx >= focusables.length) return
+    const target = rovingFocusTarget(e.key, ddNavFocusables(submenu), document.activeElement)
+    if (!target) return
     e.preventDefault()
-    focusables[nextIdx]?.focus()
+    e.stopPropagation()
+    target.focus()
   }
 
   return (

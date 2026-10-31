@@ -17,6 +17,7 @@ import {
   formatFilterValue,
   computeVirtualRange,
   getVirtualScrollTarget,
+  rovingFocusTarget,
   checklistBulkState,
   clickChecklistValue,
   toggleChecklistExclude,
@@ -428,20 +429,11 @@ export function FilterPane<TRow extends object>(props: FilterPaneProps<TRow>) {
     }
 
     const focusables = detailFocusables(e.currentTarget as HTMLElement)
-    const active = document.activeElement as HTMLElement | null
-    const idx = active ? focusables.indexOf(active) : -1
-    if (idx === -1) return
-    if (e.key === 'Home' || e.key === 'End') {
-      const rowFocusables = focusables.filter((el) => !el.matches('input[data-dd-value-search]'))
-      if (rowFocusables.length === 0) return
-      e.preventDefault()
-      ;(e.key === 'Home' ? rowFocusables[0] : rowFocusables[rowFocusables.length - 1]).focus()
-      return
-    }
-    const nextIdx = e.key === 'ArrowDown' ? idx + 1 : idx - 1
-    if (nextIdx < 0 || nextIdx >= focusables.length) return
+    const rowFocusables = focusables.filter((el) => !el.matches('input[data-dd-value-search]'))
+    const next = rovingFocusTarget(e.key, focusables, document.activeElement, rowFocusables)
+    if (!next) return
     e.preventDefault()
-    focusables[nextIdx].focus()
+    next.focus()
   }
 
   // Scrolls (if needed) and focuses the checklist row at `values[targetIdx]` — the scroll-then-

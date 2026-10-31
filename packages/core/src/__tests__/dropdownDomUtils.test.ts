@@ -1,5 +1,11 @@
+// @vitest-environment jsdom
 import { describe, it, expect } from 'vitest'
-import { computeMenuPosition, computeSubmenuPosition, watchMedia } from '../dropdownDomUtils'
+import {
+  computeMenuPosition,
+  computeSubmenuPosition,
+  rovingFocusTarget,
+  watchMedia,
+} from '../dropdownDomUtils'
 
 describe('computeMenuPosition', () => {
   const anchor = { top: 100, bottom: 120, left: 200, right: 280 }
@@ -53,5 +59,37 @@ describe('watchMedia', () => {
     const stop = watchMedia('(max-width: 479px)', (m) => seen.push(m))
     expect(seen).toEqual([false])
     stop()
+  })
+})
+
+describe('rovingFocusTarget', () => {
+  const [search, a, b, c] = ['input', 'button', 'button', 'button'].map((t) =>
+    document.createElement(t),
+  )
+  const all = [search, a, b, c]
+  const rows = [a, b, c]
+
+  it('moves to the neighbor on ↑/↓', () => {
+    expect(rovingFocusTarget('ArrowDown', all, a)).toBe(b)
+    expect(rovingFocusTarget('ArrowUp', all, a)).toBe(search)
+  })
+
+  it("doesn't wrap at either end", () => {
+    expect(rovingFocusTarget('ArrowUp', all, search)).toBeNull()
+    expect(rovingFocusTarget('ArrowDown', all, c)).toBeNull()
+  })
+
+  it('Home/End jump within homeEnd, skipping the search box', () => {
+    expect(rovingFocusTarget('Home', all, c, rows)).toBe(a)
+    expect(rovingFocusTarget('End', all, search, rows)).toBe(c)
+    expect(rovingFocusTarget('Home', all, c)).toBe(search)
+  })
+
+  it('returns null when focus stays, for other keys, or for a foreign element', () => {
+    expect(rovingFocusTarget('Home', all, a, rows)).toBeNull()
+    expect(rovingFocusTarget('End', all, search, [])).toBeNull()
+    expect(rovingFocusTarget('Enter', all, a)).toBeNull()
+    expect(rovingFocusTarget('ArrowDown', all, document.createElement('div'))).toBeNull()
+    expect(rovingFocusTarget('ArrowDown', all, null)).toBeNull()
   })
 })

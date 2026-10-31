@@ -5,6 +5,7 @@ import {
   ddNavFocusables,
   ddOpenFocusTarget,
   keepDropdownClamped,
+  rovingFocusTarget,
   viewportWidth,
 } from '@vates/data-table-core/internal'
 
@@ -122,7 +123,7 @@ watch(
 // onSortRowKeyDown/onGroupRowKeyDown/onColRowKeyDown) — those don't stopPropagation, so this still
 // runs after them via bubbling, but its own `e.altKey` guard keeps it from ever acting on their
 // modifier combo. Scoped to elements this panel actually recognizes
-// (`all.indexOf(active) !== -1`) so it never interferes with unrelated controls elsewhere in the
+// (see `rovingFocusTarget`) so it never interferes with unrelated controls elsewhere in the
 // panel (e.g. the Filter dropdown's right-hand detail pane, which implements its own nav — see
 // onFilterDropdownKeydown in DataTableView.vue — including native Left/Right/Up/Down/Home/End on
 // its own range inputs/slider that must keep working unmolested).
@@ -135,7 +136,6 @@ function onPanelKeydown(e: KeyboardEvent): void {
     return
   }
   if (e.altKey) return
-  if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Home' && e.key !== 'End') return
   const menu = menuRef.value
   if (!menu) return
   // A CategorySubmenu (see that file) renders as a real descendant of this panel and implements
@@ -145,19 +145,10 @@ function onPanelKeydown(e: KeyboardEvent): void {
   // this list.
   const all = ddNavFocusables(menu).filter((el) => !el.closest('[data-category-submenu]'))
   const rows = all.filter((el) => !el.hasAttribute('data-dd-search'))
-  const active = document.activeElement as HTMLElement | null
-  if (!active || all.indexOf(active) === -1) return
-  if (e.key === 'Home' || e.key === 'End') {
-    if (rows.length === 0) return
-    e.preventDefault()
-    ;(e.key === 'Home' ? rows[0] : rows[rows.length - 1]).focus()
-    return
-  }
-  const idx = all.indexOf(active)
-  const nextIdx = e.key === 'ArrowDown' ? idx + 1 : idx - 1
-  if (nextIdx < 0 || nextIdx >= all.length) return
+  const target = rovingFocusTarget(e.key, all, document.activeElement, rows)
+  if (!target) return
   e.preventDefault()
-  all[nextIdx].focus()
+  target.focus()
 }
 </script>
 

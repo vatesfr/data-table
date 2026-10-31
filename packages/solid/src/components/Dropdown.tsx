@@ -4,6 +4,7 @@ import {
   ddNavFocusables,
   ddOpenFocusTarget,
   keepDropdownClamped,
+  rovingFocusTarget,
   viewportWidth,
 } from '@vates/data-table-core/internal'
 
@@ -64,7 +65,7 @@ export function Dropdown(props: DropdownProps) {
   // above), plus Escape. A distinct concern from any Alt+↑/↓ reorder or Enter/Space toggle a row
   // itself implements — those don't stopPropagation, so this still runs after them via bubbling,
   // but its own `e.altKey` guard keeps it from ever acting on their modifier combo. Scoped to
-  // elements this panel actually recognizes (`focusables.indexOf(active) !== -1`) so it never
+  // elements this panel actually recognizes (see `rovingFocusTarget`) so it never
   // interferes with unrelated controls elsewhere in the panel (e.g. the Filter dropdown's
   // right-hand detail pane, which implements its own nav — see FilterDropdown.tsx — including
   // native Left/Right/Up/Down/Home/End on its own range inputs/slider that must keep working
@@ -80,7 +81,6 @@ export function Dropdown(props: DropdownProps) {
       return
     }
     if (e.altKey) return
-    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Home' && e.key !== 'End') return
     if (!panelRef) return
     // A CategorySubmenu (see that file) renders as a real descendant of this panel and implements
     // its own independent Up/Down/Home/End nav, scoped to its own rows and stopping propagation —
@@ -89,19 +89,10 @@ export function Dropdown(props: DropdownProps) {
     // this list.
     const focusables = ddNavFocusables(panelRef).filter((el) => !el.closest('.dt-dd-submenu'))
     const rowFocusables = focusables.filter((el) => !el.matches('input[data-dd-search]'))
-    const active = document.activeElement as HTMLElement | null
-    if (!active || focusables.indexOf(active) === -1) return
-    if (e.key === 'Home' || e.key === 'End') {
-      if (rowFocusables.length === 0) return
-      e.preventDefault()
-      ;(e.key === 'Home' ? rowFocusables[0] : rowFocusables[rowFocusables.length - 1]).focus()
-      return
-    }
-    const idx = focusables.indexOf(active)
-    const nextIdx = e.key === 'ArrowDown' ? idx + 1 : idx - 1
-    if (nextIdx < 0 || nextIdx >= focusables.length) return
+    const target = rovingFocusTarget(e.key, focusables, document.activeElement, rowFocusables)
+    if (!target) return
     e.preventDefault()
-    focusables[nextIdx].focus()
+    target.focus()
   }
 
   onMount(() => {
