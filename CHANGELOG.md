@@ -7,6 +7,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Fixed
+
+- **Date range filters keep rows dated on a bound in every time zone**: a min or max date now covers that whole local day, so "Released ≤ today" no longer drops today's rows west of UTC (nor min east of UTC). The range inputs and slider show the right day east of UTC, a `YYYY-MM-DD` value sits on its own day in the date filter tree, and a month group reads its own month west of UTC. A custom `parseDate` should return local time to match. (#46)
+
 ## [0.21.0] - 2026-10-31
 
 ### Added

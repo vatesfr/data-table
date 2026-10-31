@@ -12,9 +12,36 @@ function asRecord(row: object): Record<string, unknown> {
   return row as Record<string, unknown>
 }
 
-/** Default `type: 'date'` value parser, shared by sort, `computeDateTree`, and `selectDateRange`. */
+const ISO_DAY = /^(\d{4})-(\d{2})-(\d{2})$/
+
+/**
+ * Default `type: 'date'` value parser, shared by sort, `computeDateTree`, `selectDateRange` and
+ * range bounds: `new Date(v)`, except that `YYYY-MM-DD` is local midnight, like every other
+ * date-only format, rather than UTC midnight.
+ */
 function defaultParseDate(v: string): number {
-  return new Date(v).getTime()
+  const iso = ISO_DAY.exec(v)
+  if (!iso) return new Date(v).getTime()
+  const [y, m, day] = [Number(iso[1]), Number(iso[2]) - 1, Number(iso[3])]
+  const d = new Date(y, m, day)
+  return d.getMonth() === m && d.getDate() === day ? d.getTime() : NaN
+}
+
+/** Start of the local day `days` days after the one `t` falls in */
+function startOfDay(t: number, days = 0): number {
+  const d = new Date(t)
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate() + days).getTime()
+}
+
+/** A range filter as a predicate on cell numbers; a date `max` covers its whole local day. */
+function inRange(range: RangeFilter, isDate: boolean): (t: number) => boolean {
+  const parse = isDate ? defaultParseDate : Number
+  const min = range.min === '' ? -Infinity : parse(range.min)
+  if (range.max === '') return (t) => t >= min
+  const max = parse(range.max)
+  if (!isDate) return (t) => t >= min && t <= max
+  const end = startOfDay(max, 1)
+  return (t) => t >= min && t < end
 }
 
 /** Reads a column's cell value from a row per its `value` accessor (or `row[key]` if unset). */
@@ -275,20 +302,13 @@ export function filterData<TRow extends object>(
   }
 
   for (const [key, range] of Object.entries(rangeFilters)) {
+    if (range.min === '' && range.max === '') continue
     const col = colByKey.get(key)
     // Bounds come from the range filter's native <input type="date">s, always ISO
     // `YYYY-MM-DD` — parsed with the default parser, not `col.parseDate`, since a column's
     // custom parser is for its own raw value format, not this input's fixed ISO one.
-    const parseBound = col?.type === 'date' ? defaultParseDate : Number
-    const cellNumber = (r: TRow) => cellToNumber(col, resolveValue(col, r, key))
-    if (range.min !== '') {
-      const min = parseBound(range.min)
-      result = result.filter((r) => cellNumber(r) >= min)
-    }
-    if (range.max !== '') {
-      const max = parseBound(range.max)
-      result = result.filter((r) => cellNumber(r) <= max)
-    }
+    const matches = inRange(range, col?.type === 'date')
+    result = result.filter((r) => matches(cellToNumber(col, resolveValue(col, r, key))))
   }
 
   return result
@@ -499,7 +519,7 @@ export function formatDatePart(
 ): (keyPart: string) => string {
   return (keyPart: string) => {
     if (keyPart === '') return missingLabel
-    const d = new Date(keyPart)
+    const d = new Date(defaultParseDate(keyPart))
     if (isNaN(d.getTime())) return keyPart
     if (part === 'year') return String(d.getFullYear())
     if (part === 'month') return d.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
@@ -919,8 +939,9 @@ export function addableLists<T extends { key: string; label: string; category?: 
 
 /**
  * A column's value bounds over the full, unfiltered `data` (so the slider doesn't shrink
- * mid-drag when another filter narrows rows); dates via `parseDate`, else `Number`. `null` when
- * no value parses: callers hide the slider.
+ * mid-drag when another filter narrows rows); dates via `parseDate` and floored to their local
+ * day, so the slider's one-day steps land on days; else `Number`. `null` when no value parses:
+ * callers hide the slider.
  */
 export function computeValueBounds<TRow extends object>(
   data: TRow[],
@@ -934,7 +955,8 @@ export function computeValueBounds<TRow extends object>(
     if (t < min) min = t
     if (t > max) max = t
   }
-  return min <= max ? { min, max } : null
+  if (min > max) return null
+  return col.type === 'date' ? { min: startOfDay(min), max: startOfDay(max) } : { min, max }
 }
 
 /** Converts a bound (epoch ms for `type: 'date'`, a plain number otherwise) back into the string
@@ -942,7 +964,10 @@ export function computeValueBounds<TRow extends object>(
  * min/max inputs' default-to-bounds display — both consumers of a column's numeric/date bounds,
  * so they'd otherwise drift out of sync with each other. */
 export function formatRangeBound<TRow extends object>(n: number, col: ColumnDefBase<TRow>): string {
-  return col.type === 'date' ? new Date(n).toISOString().slice(0, 10) : String(n)
+  if (col.type !== 'date') return String(n)
+  // The nearest local midnight: a slider's 24 h steps drift an hour across a DST change.
+  const { y, m, day } = datePartsOf(new Date(n + 12 * 3_600_000))
+  return `${y}-${m}-${day}`
 }
 
 type RangePreset = NonNullable<ColumnDefBase['rangePresets']>[number]
@@ -1020,7 +1045,7 @@ export function computeRangeSliderGeometry(
   bounds: { min: number; max: number },
   isDate: boolean,
 ): { low: number; high: number; step: number | 'any'; pctLo: number; pctHi: number } {
-  const toNum = (v: string) => (isDate ? new Date(v).getTime() : Number(v))
+  const toNum = isDate ? defaultParseDate : Number
   const rawLow = range?.min ? toNum(range.min) : bounds.min
   const rawHigh = range?.max ? toNum(range.max) : bounds.max
   const low = Math.min(rawLow, rawHigh)
@@ -1043,12 +1068,8 @@ export function filterValuesByRange(
   parseDate: (value: string) => number = defaultParseDate,
 ): string[] {
   if (!range || (range.min === '' && range.max === '')) return values
-  const min = range.min !== '' ? defaultParseDate(range.min) : -Infinity
-  const max = range.max !== '' ? defaultParseDate(range.max) : Infinity
-  return values.filter((v) => {
-    const t = parseDate(v)
-    return !isNaN(t) && t >= min && t <= max
-  })
+  const matches = inRange(range, true)
+  return values.filter((v) => matches(parseDate(v)))
 }
 
 /**
@@ -1106,8 +1127,8 @@ export function getDateSortIcon(dir: SortDir): string {
  * Groups a `type: 'date'` column's checklist values (from `computeStringValues`) into a
  * Year › Month › Day tree, mirroring spreadsheet-style date autofilters — a high-cardinality
  * date column becomes navigable by year/month instead of one flat per-day checklist. Each
- * value is parsed with `parseDate` (default `new Date(v)`); values that don't parse are
- * collected under a single `emptyLabel` leaf alongside the year nodes rather than silently
+ * value is parsed with `parseDate` (default: `new Date(v)`, `YYYY-MM-DD` as local midnight);
+ * values that don't parse are collected under a single `emptyLabel` leaf alongside the year nodes rather than silently
  * dropped. `dir` orders the year/month/day nodes at every level chronologically ascending
  * (default) or descending; the trailing `emptyLabel` leaf always stays last regardless of `dir`.
  */

@@ -2,7 +2,13 @@
 
 Symptom first, then cause and fix. Delete entries once obsolete.
 
-<!-- check-docs-ignore: exceeded journalctl Killed chromium-browse Failed oom-kill _vts invoker Cannot uptime python3 curl ENOSPC fatal unable TS2307 determine semantic Module EnterWorktree Port ERR_CONNECTION_REFUSED ipv4 ip_local_port_range TIME-WAIT -->
+<!-- check-docs-ignore: exceeded journalctl Killed chromium-browse Failed oom-kill _vts invoker Cannot uptime python3 curl ENOSPC fatal unable TS2307 determine semantic Module EnterWorktree Port ERR_CONNECTION_REFUSED ipv4 ip_local_port_range TIME-WAIT Kiritimati Pago_Pago -->
+
+## Date tests pass here and fail in another time zone
+
+- Symptom: a date filter, tree or bound test passes locally but fails for a contributor or user elsewhere, often off by one day.
+- Cause: tests run in the machine's time zone, and `new Date('YYYY-MM-DD')` or a `...Z` timestamp is UTC while other date formats are local.
+- Fix: write expectations with local constructors (`new Date(y, m, d)`, `'2023-05-14T18:00'`); for zone-dependent logic, `vi.stubEnv('TZ', …)` per `describe` (see the "date-only values in %s" block in core's `logic.test.ts`); check with `TZ=Pacific/Kiritimati npx vitest run` and `TZ=Pacific/Pago_Pago npx vitest run`.
 
 ## Unit tests time out on a busy machine
 

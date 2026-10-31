@@ -1487,11 +1487,9 @@ describe('DataTable — date filter tree', () => {
     await filterBtn.trigger('click')
     const thumbs = wrapper.findAll('.dt-range-slider-thumb')
     expect(thumbs).toHaveLength(2)
-    expect(Number((thumbs[0].element as HTMLInputElement).min)).toBe(
-      new Date('2021-01-02').getTime(),
-    )
+    expect(Number((thumbs[0].element as HTMLInputElement).min)).toBe(new Date(2021, 0, 2).getTime())
     expect(Number((thumbs[0].element as HTMLInputElement).max)).toBe(
-      new Date('2023-05-20').getTime(),
+      new Date(2023, 4, 20).getTime(),
     )
   })
 

@@ -1243,8 +1243,8 @@ describe('DataTable — date filter tree', () => {
     fireEvent.click(getByText('Filter'))
     const thumbs = container.querySelectorAll<HTMLInputElement>('input[type="range"]')
     expect(thumbs).toHaveLength(2)
-    expect(Number(thumbs[0].min)).toBe(new Date('2021-01-02').getTime())
-    expect(Number(thumbs[0].max)).toBe(new Date('2023-05-20').getTime())
+    expect(Number(thumbs[0].min)).toBe(new Date(2021, 0, 2).getTime())
+    expect(Number(thumbs[0].max)).toBe(new Date(2023, 4, 20).getTime())
   })
 
   it('marks the date column with a clear button and an active-bar chip once a range filter is set, with no checkbox ticked', () => {

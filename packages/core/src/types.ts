@@ -32,7 +32,8 @@ export interface ColumnDefBase<TRow extends object = Record<string, unknown>> {
    * Parses a `type: 'date'` column's raw string value to a comparable epoch number, used by
    * sorting, the date filter tree (`computeDateTree`), and its range selection
    * (`selectDateRange`) — all three otherwise disagree on ambiguous formats (e.g. `MM/DD` vs
-   * `DD/MM`) since `new Date(v)` guesses. Default: `(v) => new Date(v).getTime()`.
+   * `DD/MM`) since `new Date(v)` guesses. Return local time: range filter bounds are local days.
+   * Default: `new Date(v).getTime()`, except `YYYY-MM-DD` is local midnight, not UTC.
    */
   parseDate?: (value: string) => number
   /**

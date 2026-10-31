@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest'
 import type { SortEntry } from '../types'
 import { LABELS_EN } from '../locales'
 import {
@@ -102,6 +102,8 @@ import {
   matchingRangePreset,
   rangePresetFilter,
   rangeChipText,
+  formatRangeBound,
+  computeRangeSliderGeometry,
 } from '../logic'
 import type { VisibleItem } from '../logic'
 
@@ -1285,7 +1287,7 @@ describe('bucketDatePart', () => {
 describe('formatDatePart', () => {
   it('formats a month bucket key as a human month/year label', () => {
     expect(formatDatePart('month')('2024-05-01')).toBe(
-      new Date('2024-05-01').toLocaleDateString(undefined, { month: 'long', year: 'numeric' }),
+      new Date(2024, 4, 1).toLocaleDateString(undefined, { month: 'long', year: 'numeric' }),
     )
   })
 
@@ -1308,7 +1310,7 @@ describe('datePartGroup', () => {
     const { groupValue, groupFormat } = datePartGroup('month')
     expect(groupValue('2024-05-14')).toBe('2024-05-01')
     expect(groupFormat(groupValue('2024-05-14') as string)).toBe(
-      new Date('2024-05-01').toLocaleDateString(undefined, { month: 'long', year: 'numeric' }),
+      new Date(2024, 4, 1).toLocaleDateString(undefined, { month: 'long', year: 'numeric' }),
     )
     expect(groupValue(null)).toBeNull()
     expect(groupFormat('')).toBe('(none)')
@@ -2060,8 +2062,8 @@ describe('computeValueBounds', () => {
       { id: 3, d: '2021-03-10' },
     ]
     expect(computeValueBounds(rows, col)).toEqual({
-      min: new Date('2019-01-01').getTime(),
-      max: new Date('2021-03-10').getTime(),
+      min: new Date(2019, 0, 1).getTime(),
+      max: new Date(2021, 2, 10).getTime(),
     })
   })
 
@@ -2087,8 +2089,8 @@ describe('computeValueBounds', () => {
       max: 30,
     })
     expect(computeValueBounds(rows, { key: 'd', label: 'D', type: 'date' })).toEqual({
-      min: new Date('2020-01-01').getTime(),
-      max: new Date('2021-01-01').getTime(),
+      min: new Date(2020, 0, 1).getTime(),
+      max: new Date(2021, 0, 1).getTime(),
     })
   })
 
@@ -2311,9 +2313,10 @@ describe('computeDateTree', () => {
   })
 
   it('groups multiple raw values landing on the same day under one day leaf', () => {
-    const tree = computeDateTree(['2023-05-14T09:00:00.000Z', '2023-05-14T18:00:00.000Z'])
+    // Local times: a UTC 18:00 is the next day east of UTC+6.
+    const tree = computeDateTree(['2023-05-14T09:00', '2023-05-14T18:00'])
     const day = tree[0].children[0].children[0]
-    expect(day.values).toEqual(['2023-05-14T09:00:00.000Z', '2023-05-14T18:00:00.000Z'])
+    expect(day.values).toEqual(['2023-05-14T09:00', '2023-05-14T18:00'])
   })
 
   it('buckets unparseable values under a trailing emptyLabel leaf instead of dropping them', () => {
@@ -3983,7 +3986,13 @@ describe('rangeInputProps', () => {
 
   it('shows a date bound as the value, with no placeholder', () => {
     expect(
-      rangeInputProps(day, 'min', undefined, { min: Date.UTC(2024, 0, 2), max: 0 }, 'Min'),
+      rangeInputProps(
+        day,
+        'min',
+        undefined,
+        { min: new Date(2024, 0, 2).getTime(), max: 0 },
+        'Min',
+      ),
     ).toEqual({
       value: '2024-01-02',
       placeholder: undefined,
@@ -4023,5 +4032,68 @@ describe('range presets', () => {
   it('words an open-ended range as a single bound', () => {
     expect(rangeChipText(played, { min: '5', max: '' }, '(none)')).toBe('≥ 5 h')
     expect(rangeChipText(played, { min: '', max: '20' }, '(none)')).toBe('≤ 20 h')
+  })
+})
+
+// A date-only bound or value is a local day, whatever the time zone (GitHub issue #46).
+describe.each(['America/New_York', 'UTC', 'Europe/Paris'])('date-only values in %s', (tz) => {
+  beforeAll(() => {
+    vi.stubEnv('TZ', tz)
+  })
+  afterAll(() => {
+    vi.unstubAllEnvs()
+  })
+
+  const col = { key: 'd' as const, label: 'Date', type: 'date' as const }
+  const rows = [
+    { id: 1, d: 'Oct 23, 2026' },
+    { id: 2, d: '2026-10-23' },
+    { id: 3, d: '2026-10-23T23:30' },
+  ]
+  const kept = (min: string, max: string) =>
+    filterData(rows, {}, { d: { min, max } }, [col]).map((r) => r.id)
+
+  it('keeps rows dated on a min or max bound, the max covering its whole day', () => {
+    expect(kept('', '2026-10-23')).toEqual([1, 2, 3])
+    expect(kept('2026-10-23', '')).toEqual([1, 2, 3])
+    expect(kept('2026-10-24', '')).toEqual([])
+    expect(kept('', '2026-10-22')).toEqual([])
+  })
+
+  it('narrows date-tree values the same way', () => {
+    const values = rows.map((r) => r.d)
+    expect(filterValuesByRange(values, { min: '2026-10-23', max: '2026-10-23' })).toEqual(values)
+  })
+
+  it('puts a YYYY-MM-DD value on its own day in the date tree', () => {
+    const [year] = computeDateTree(['2026-10-23'])
+    expect(year.children[0].children[0].key).toBe('23')
+  })
+
+  it('formats a bound as the local day it falls on', () => {
+    expect(formatRangeBound(new Date(2026, 9, 23).getTime(), col)).toBe('2026-10-23')
+  })
+
+  it('floors date bounds to local days, so a slider step lands on a day across DST', () => {
+    const bounds = computeValueBounds([{ d: '2026-10-20T18:00' }, { d: '2026-11-02T09:00' }], col)
+    expect(bounds).toEqual({
+      min: new Date(2026, 9, 20).getTime(),
+      max: new Date(2026, 10, 2).getTime(),
+    })
+    // 10 one-day steps from min cross Europe's and the US's DST ends.
+    expect(formatRangeBound(bounds!.min + 10 * 86_400_000, col)).toBe('2026-10-30')
+    expect(formatRangeBound(bounds!.min + 13 * 86_400_000, col)).toBe('2026-11-02')
+  })
+
+  it("places slider thumbs on the bounds' local days", () => {
+    const bounds = { min: new Date(2026, 9, 1).getTime(), max: new Date(2026, 9, 31).getTime() }
+    const geo = computeRangeSliderGeometry({ min: '2026-10-01', max: '2026-10-31' }, bounds, true)
+    expect([geo.low, geo.high]).toEqual([bounds.min, bounds.max])
+  })
+
+  it('labels a bucket key with its own month', () => {
+    expect(formatDatePart('month')('2024-05-01')).toBe(
+      new Date(2024, 4, 1).toLocaleDateString(undefined, { month: 'long', year: 'numeric' }),
+    )
   })
 })
