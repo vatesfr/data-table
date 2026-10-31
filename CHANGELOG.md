@@ -9,6 +9,8 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Changed
 
+- **Faster search** (Solid, React, Vue, vanilla): a search keystroke no longer re-sorts the rows nor re-reads every cell; on 200,000 sorted rows, each keystroke after the first went from ~190 ms to ~120 ms (the first, which indexes the rows, stays ~300 ms). Plain ASCII text also skips diacritic stripping, in the index and the Filter checklist search: indexing 500k rows is ~1.2x faster.
+- **Faster grouping** (Solid, React, Vue, vanilla): grouping rows by plain (non-array) values takes ~4× fewer instructions and allocates ~4× less; in Solid and vanilla, picking a group-by column also grouped the rows twice and now groups once (~470 ms to ~370 ms on 200,000 rows).
 - **BREAKING (Vue):** `onRowClick` is now a prop of `<DataTable>` and `<DataTableView>` instead of a `rowClick` emit. `@row-click` keeps working; a test reading `wrapper.emitted('rowClick')` no longer sees calls: pass `onRowClick: vi.fn()` instead.
 - **BREAKING (Solid, React, Vue):** `table.filter.clearColumn(key)` without a kind now clears the column's include, exclude and range filters at once; it cleared only the include set.
 - **`computeStringValueCounts` (core internal) counts one column**: it takes that column and returns its `Map`, replacing the multi-column `targetKeys` mode no adapter used.
@@ -33,9 +35,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - **→ from a Filter column lands on the value search** (React, Vue): it focused the "Select all" checkbox, where ↓/↑ did nothing and Space toggled every value; it now matches Solid and vanilla (U32).
 - **Removing a chip keeps your place** (Solid, React, Vue, vanilla): its × moves focus to the next chip, else the previous one, else the search box, instead of dropping it to the page (U30).
 - **Screen readers hear the results** (Solid, React, Vue, vanilla): after a search, a filter or a page change, a polite status region announces the row count and page, or that no row matches (U31).
-- **Faster search** (Solid, React, Vue, vanilla): a search keystroke no longer re-sorts the rows nor re-reads every cell; on 200,000 sorted rows, each keystroke after the first went from ~190 ms to ~120 ms (the first, which indexes the rows, stays ~300 ms). Plain ASCII text also skips diacritic stripping, in the index and the Filter checklist search: indexing 500k rows is ~1.2x faster.
 - **No storage writes on unrelated renders** (React): `usePersistedView`/`useUrlView` wrote `localStorage` and the URL on every render, e.g. each focus move or selection click; they now write only when the view changes.
-- **Faster grouping** (Solid, React, Vue, vanilla): grouping rows by plain (non-array) values takes ~4× fewer instructions and allocates ~4× less; in Solid and vanilla, picking a group-by column also grouped the rows twice and now groups once (~470 ms to ~370 ms on 200,000 rows).
 - **No lag on data updates** (Solid, React, vanilla): changing `data` no longer rebuilds every filterable column's checklist values while no filter pane is open; with 1,200 rows and 16 string columns held in a Solid store, that was ~140 ms per update.
 
 ## [0.20.0] - 2026-10-23
