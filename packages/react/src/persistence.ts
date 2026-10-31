@@ -13,10 +13,8 @@ import {
 export type { ViewStateApi, ResetViewOptions }
 
 /**
- * Loads a persisted view from `localStorage` on mount and saves it back on every change.
- * `table` is typically the object returned by `useTableState`. `storageKey` may be `undefined` to
- * no-op — this lets `usePersistence` below call this hook unconditionally (required by the Rules
- * of Hooks) regardless of whether storage persistence is actually wanted.
+ * Loads a persisted view from `localStorage` on mount and saves it back on every change. An
+ * `undefined` `storageKey` no-ops, so `usePersistence` can call it unconditionally.
  */
 export function usePersistedView(table: ViewStateApi, storageKey: string | undefined): void {
   const skipNextSave = useRef(true)
@@ -62,10 +60,7 @@ export function useUrlView(table: ViewStateApi, options?: UseUrlViewOptions): vo
   const encoded = encodeViewState(view)
 
   useEffect(() => {
-    // Only acts when the param is actually present — an absent (or malformed) param leaves
-    // whatever state is already there alone, rather than forcing a reset to defaults. This
-    // matters when combined with usePersistedView: a plain reload with no `view` param should
-    // keep the localStorage-restored view, not clobber it with an empty one.
+    // An absent or malformed param keeps the current (e.g. storage-restored) view
     function applyFromUrl(): void {
       const view = readViewFromUrlParam(paramName)
       if (view) table.setViewState(view)
@@ -87,9 +82,8 @@ export function useUrlView(table: ViewStateApi, options?: UseUrlViewOptions): vo
 }
 
 /**
- * Resets a table to its construction-time defaults and clears whatever `usePersistedView`/
- * `useUrlView` persisted for it — pass the same `storageKey`/`paramName` you gave those hooks
- * (both optional, since a consumer may use only one, or neither).
+ * Resets a table to its construction-time defaults and clears what `usePersistedView`/`useUrlView`
+ * stored, given the same `storageKey`/`paramName`.
  */
 export function resetView(table: ViewStateApi, options?: ResetViewOptions): void {
   resetViewCore(table, options)
@@ -98,11 +92,8 @@ export function resetView(table: ViewStateApi, options?: ResetViewOptions): void
 export type UsePersistenceOptions = ResetViewOptions
 
 /**
- * Combines `usePersistedView` + `useUrlView` behind one options object, so `storageKey`/
- * `paramName` are written down once instead of separately at three call sites (`usePersistedView`,
- * `useUrlView`, and `resetView` all need the *same* values — a typo'd/forgotten key at any one of
- * them is a silent bug). Returns a `reset()` bound to those same options, equivalent to calling
- * `resetView(table, options)` yourself.
+ * `usePersistedView` + `useUrlView` sharing one `storageKey`/`paramName`, plus a `reset()` bound to
+ * them.
  */
 export function usePersistence(
   table: ViewStateApi,

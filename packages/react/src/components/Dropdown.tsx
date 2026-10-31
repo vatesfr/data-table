@@ -17,28 +17,12 @@ export interface DropdownProps {
   children: ReactNode
   open: boolean
   setOpen: (open: boolean) => void
-  // Bound to the panel itself (not per-row) so a drag-and-drop reorder list inside can resolve
-  // a drop that lands past its last row / in unrelated dead space — see the Sort/Group/Columns
-  // dropdown drag handlers in DataTableView.tsx.
+  // On the panel, so a reorder drop past the last row still resolves
   onDragOver?: (e: DragEvent<HTMLDivElement>) => void
   onDrop?: (e: DragEvent<HTMLDivElement>) => void
-  // Rendered as a sibling of the trigger — inside the same outside-click boundary as the trigger
-  // and panel (so clicking it doesn't spuriously close the dropdown via the "click outside"
-  // handler below), but outside the trigger's own onClick toggle (so it never opens/closes the
-  // dropdown itself). Used for the Sort/Group/Filter toolbar's adjoining × clear button (see
-  // DataTableView.tsx), visually merged into one pill with the trigger via shared CSS.
+  // Beside the trigger, inside the outside-click boundary but outside its toggle (the toolbar's × clear button)
   extraTrigger?: ReactNode
 }
-
-// The panel's roving Up/Down/Home/End nav (see the keydown handler below) and its focus-on-open
-// behavior (see the layout effect below) both need the same "ordered list of this panel's own
-// focusable row/search elements" — `ddNavFocusables` (core's `dropdownDomUtils`, using its default
-// `DD_NAV_SELECTOR`) provides this, shared with Solid's identical usage. `data-dd-search` marks a
-// dropdown's own column-search input (Columns/Sort/Group's addable list/Filter's left pane, see
-// DataTableView.tsx); `data-dd-row` marks every other row this nav should reach (a column
-// checkbox row, a Sort/Group active or addable entry, a Filter column-selector button). This is
-// deliberately generic — Dropdown has no idea which concrete dropdown it's rendering, only that
-// its children may carry these two markers.
 
 export function Dropdown({
   trigger,
@@ -66,15 +50,7 @@ export function Dropdown({
     if (open && panelRef.current) return openDropdownPanel(panelRef.current)
   }, [open])
 
-  // Roving Up/Down/Home/End/Escape navigation across this panel's own search box + rows — see
-  // DD_NAV_SELECTOR above. A distinct concern from any Alt+↑/↓ reorder or Enter/Space toggle a
-  // row itself implements (see the Sort/Group active rows in DataTableView.tsx): those don't
-  // stopPropagation, so this still runs after them via bubbling, but its own `!e.altKey` guard
-  // keeps it from ever acting on their modifier combo. Scoped to elements this panel actually
-  // recognizes (see `rovingFocusTarget`) so it never interferes with unrelated
-  // controls elsewhere in the panel (e.g. the Filter dropdown's right-hand detail pane, which
-  // implements its own nav — see handleFilterPanelKeyDown in DataTableView.tsx — including native
-  // Left/Right/Up/Down/Home/End on its own range inputs/slider that must keep working unmolested).
+  // Roving ↑/↓/Home/End/Escape over the panel's marked rows (`DD_NAV_SELECTOR`); Alt is left to row reordering
   const handlePanelKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     if (e.altKey) return
     if (e.key === 'Escape') {
@@ -85,11 +61,7 @@ export function Dropdown({
     }
     const panel = panelRef.current
     if (!panel) return
-    // A CategorySubmenu (see that file) renders as a real descendant of this panel and implements
-    // its own independent Up/Down/Home/End nav, scoped to its own rows and stopping propagation —
-    // excluding its rows here keeps this panel-wide nav exactly as if the submenu weren't open,
-    // rather than letting it wander into a floating submenu whose rows aren't visually part of
-    // this list.
+    // An open CategorySubmenu runs its own nav
     const focusables = ddNavFocusables(panel).filter((el) => !el.closest('[data-category-submenu]'))
     const rowFocusables = focusables.filter((el) => !el.matches('input[data-dd-search]'))
     const target = rovingFocusTarget(e.key, focusables, document.activeElement, rowFocusables)

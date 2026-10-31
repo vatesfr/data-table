@@ -25,10 +25,6 @@ export function persistViewToLocalStorage(table: ViewStateApi, storageKey: strin
   if (view) table.setViewState(view)
 
   return table.onViewChange((view) => {
-    // Mirrors syncViewToUrl's own empty-view handling below: a view back at its construction-time
-    // defaults removes the key entirely rather than storing an encoded-but-empty blob, so
-    // `resetView`'s own `removeItem` (or a plain "clear all" that lands back on the defaults)
-    // isn't immediately undone by this listener's next fire.
     saveOrClearViewInStorage(storageKey, view)
   })
 }
@@ -46,10 +42,7 @@ export interface SyncViewToUrlOptions {
 export function syncViewToUrl(table: ViewStateApi, options?: SyncViewToUrlOptions): () => void {
   const paramName = options?.paramName ?? 'view'
 
-  // Only acts when the param is actually present — an absent (or malformed) param leaves
-  // whatever state is already there alone, rather than forcing a reset to defaults. This
-  // matters when combined with persistViewToLocalStorage: a plain reload with no `view` param
-  // should keep the localStorage-restored view, not clobber it with an empty one.
+  // An absent or malformed param keeps the current (e.g. storage-restored) view
   function applyFromUrl(): void {
     const view = readViewFromUrlParam(paramName)
     if (view) table.setViewState(view)
@@ -69,10 +62,8 @@ export function syncViewToUrl(table: ViewStateApi, options?: SyncViewToUrlOption
 }
 
 /**
- * Resets a table to its construction-time defaults and clears whatever
- * `persistViewToLocalStorage`/`syncViewToUrl` persisted for it — pass the same
- * `storageKey`/`paramName` you gave those functions (both optional, since a consumer may use
- * only one, or neither).
+ * Resets a table to its construction-time defaults and clears what
+ * `persistViewToLocalStorage`/`syncViewToUrl` stored, given the same `storageKey`/`paramName`.
  */
 export function resetView(table: ViewStateApi, options?: ResetViewOptions): void {
   resetViewCore(table, options)
@@ -81,12 +72,8 @@ export function resetView(table: ViewStateApi, options?: ResetViewOptions): void
 export type PersistViewOptions = ResetViewOptions
 
 /**
- * Combines `persistViewToLocalStorage` + `syncViewToUrl` behind one options object, so
- * `storageKey`/`paramName` are written down once instead of separately at three call sites
- * (`persistViewToLocalStorage`, `syncViewToUrl`, and `resetView` all need the *same* values — a
- * typo'd/forgotten key at any one of them is a silent bug). Returns a `reset()` bound to those
- * same options (equivalent to calling `resetView(table, options)` yourself) alongside a combined
- * `unsubscribe()` — call it alongside `table.destroy()`, same as the two functions it wraps.
+ * `persistViewToLocalStorage` + `syncViewToUrl` sharing one `storageKey`/`paramName`, plus a
+ * `reset()` bound to them and an `unsubscribe()` to call alongside `table.destroy()`.
  */
 export function persistView(
   table: ViewStateApi,

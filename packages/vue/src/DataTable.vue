@@ -4,9 +4,7 @@ import { useTableState } from './useTableState'
 import DataTableView from './DataTableView.vue'
 import type { DataTableProps } from './types'
 
-// Vue casts an absent boolean prop with no explicit default to `false`, not `undefined` — an
-// explicit default here is required so an omitted `defaultGroupsCollapsed` still falls through to
-// useTableState's own `?? true` default instead of being silently forced to `false`.
+// Vue casts an absent boolean prop to `false`; the default keeps `defaultGroupsCollapsed` at `true`
 const props = withDefaults(defineProps<DataTableProps<TRow>>(), {
   rowKey: 'id',
   defaultGroupsCollapsed: true,
@@ -20,10 +18,7 @@ const emit = defineEmits<{
   'update:searchQuery': [query: string]
 }>()
 
-// Forwards every slot passed to <DataTable> straight through to DataTableView, so consumers
-// using #cell-{key}/#filter-{key}/#group-{key} don't need to know about this wrapper. The
-// explicit `Slots` annotation avoids self-referential `any`/generic-erasure errors that vue-tsc's
-// isolated declaration-emit pass (used when building .d.ts files) hits with generic SFCs.
+// Forwards every slot to DataTableView; the `Slots` annotation avoids vue-tsc declaration-emit errors on generic SFCs
 const slots: Slots = useSlots()
 
 const table = useTableState(
@@ -37,14 +32,7 @@ const table = useTableState(
   }),
 )
 
-// v-model:page / v-model:search-query — the two pieces of <DataTable>'s internal state that,
-// unlike selection (already observable via selectionChange/onSelectionChange), otherwise have no
-// way to be read from outside at all, let alone set. `props.page`/`props.searchQuery` stay
-// `undefined` unless the caller actually binds v-model:page/v-model:search-query, in which case
-// these two watch pairs re-sync useTableState's own state whenever the bound value changes
-// externally (immediate: true also applies it once at mount, not just on later changes) and emit
-// the table's own value back out on every change (immediate: true here too, so a freshly-bound
-// v-model reflects the table's real initial value even before any user interaction).
+// v-model:page / v-model:search-query: sync the bound value in and emit the table's out, both immediate
 watch(
   () => props.page,
   (page) => {

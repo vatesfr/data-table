@@ -5,9 +5,7 @@ import {
   sumDateTreeNodeCount,
   type DateTreeNode,
 } from '@vates/data-table-core/internal'
-// Recursive component: self-imported so each nesting level (year → month → day) can render its
-// own children the same way, regardless of whether Vue's filename-based self-reference applies
-// to this build setup.
+// Self-imported for recursion, whatever the build's filename-based self-reference support
 import DateTreeItem from './DateTreeItem.vue'
 import { vIndeterminate } from '../directives/vIndeterminate'
 

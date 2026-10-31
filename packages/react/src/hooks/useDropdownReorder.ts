@@ -2,12 +2,8 @@ import { useState, type DragEvent } from 'react'
 import { resolveDropRow } from '@vates/data-table-core/internal'
 
 /**
- * Resolves a drag-and-drop reorder gesture inside a dropdown panel's list (Columns/Sort/Group) to
- * a specific row under the cursor, and whether the dragged item should land before or after it —
- * a thin adapter over core's `resolveDropRow` (see its own doc comment for the actual hit-test
- * behavior, including the dead-zone rejection). `root` is the dropdown panel (`e.currentTarget`
- * from a handler bound there, not per-row) so it can see every row via `attr`, a `data-*` attribute
- * unique to that list's rows (e.g. `data-sort-key`).
+ * Core's `resolveDropRow` over a dropdown panel's rows marked with `attr` (e.g. `data-sort-key`),
+ * hit-tested by the event target first.
  */
 export function resolveDropdownDragRow(
   root: HTMLElement,
@@ -24,15 +20,9 @@ export function resolveDropdownDragRow(
 }
 
 /**
- * Drag state + handlers for one dropdown panel's reorderable list (Columns/Sort/Group active
- * rows) — the same trio of state (`dragKey`/`dragOverKey`/`dragOverAfter`) and near-identical
- * `onDragOver`/`onDrop` pair built on `resolveDropdownDragRow` used to be hand-copied once per
- * dropdown. `attr` is the `data-*` attribute unique to that list's rows (e.g. `data-sort-key`);
- * `move` is the core reorder action to call on drop (`moveColumn`/`moveSort`/`moveGroup`).
- *
- * `onDragOver`/`onDrop` are meant for the dropdown panel itself (`Dropdown`'s own `onDragOver`/
- * `onDrop` props) so a drop past the last row still resolves to a valid target; `onRowDragStart`/
- * `onRowDragEnd` go on each individual row's own `draggable` element.
+ * Drag state and handlers for one dropdown's reorderable list: `onDragOver`/`onDrop` go on the
+ * panel (so a drop past the last row resolves), the row handlers on each draggable row; `move` is
+ * the core reorder action.
  */
 export function useDropdownReorder(
   attr: string,

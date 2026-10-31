@@ -16,4 +16,4 @@ Actually writing a view to `localStorage` or the URL is opt-in, via separate hel
 
 Both URL helpers only apply state when the param is actually present and decodes successfully — an absent or malformed param leaves whatever state is already there alone rather than forcing a reset to defaults. This matters when composing both helpers (as the demos do): on a plain reload with no `view` param, the URL helper's hydration step must not clobber the localStorage-restored view with an empty one. For the same reason, once a view returns to its construction-time defaults, `usePersistedView`/`persistViewToLocalStorage` removes the `localStorage` key entirely rather than writing an encoded-but-empty value — matching `useUrlView`/`syncViewToUrl`'s existing behavior of deleting the query param in that case, so `resetView`'s own `removeItem` can't be immediately undone by a persistence hook's next save.
 
-<!-- check-docs-ignore: encodeURIComponent -->
+<!-- check-docs-ignore: encodeURIComponent defaultVisibleColumns defaultPageSize -->

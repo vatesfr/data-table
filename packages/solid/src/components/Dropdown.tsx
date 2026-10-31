@@ -14,57 +14,25 @@ interface DropdownProps {
   extraTrigger?: JSX.Element
   children: JSX.Element
   /**
-   * Escape clears a non-empty search term first (focus stays put), only closing the dropdown on
-   * a second press or when there was nothing to clear — each dropdown wires its own search-clear
-   * action here (it may own more than one search box, e.g. the Filter dropdown's column search
-   * and its per-column value search; the callback itself decides which one Escape's own moment
-   * actually applies to, checking `document.activeElement`). Returns whether it actually cleared
-   * something. Omitted for a panel with no search box at all.
+   * Escape clears a search term first, closing on a second press; returns whether it cleared
+   * something. Omitted for a panel with no search box.
    */
   onEscapeClearable?: () => boolean
 }
 
-// `data-dd-search` marks a dropdown's own column-search `<input>` (Columns/Sort/Group's addable
-// list, Filter's left pane); `data-dd-row` marks every other row this nav should reach (a column
-// checkbox row, a Sort/Group active or addable entry, a Filter column-selector button). Handled by
-// core's `ddNavFocusables` (`@vates/data-table-core/dropdownDomUtils`, using its default
-// `DD_NAV_SELECTOR`), shared with react/components/Dropdown.tsx's identical usage — deliberately
-// generic, since Dropdown has no idea which concrete dropdown it's rendering, only that its
-// children may carry these two markers. The Filter dropdown's own right-pane value search/checklist
-// get separate `data-dd-value-search`/`data-dd-value-row` markers instead (see FilterDropdown.tsx)
-// — a distinct focusable-set with its own nav, not covered by this one.
-
-// Generic dropdown shell shared by Columns/Sort/Group/Filter — mirrors react/components/Dropdown.tsx
-// and vue/components/Dropdown.vue's role. Handles: open/close, outside-click-to-close,
-// Escape-clears-search-then-closes, focus-follows-open, roving Up/Down/Home/End nav across the
-// panel's own search box + rows, and viewport clamping (translateX so a wide panel opened near
-// the right edge doesn't render off-screen — see docs/toolbar.md's "Dropdown viewport clamping").
+// Dropdown shell shared by Columns/Sort/Group/Filter: open/close, outside click, Escape, focus on
+// open, roving ↑/↓/Home/End over its `DD_NAV_SELECTOR` rows, viewport clamping (docs/toolbar.md)
 export function Dropdown(props: DropdownProps) {
   let wrapRef: HTMLDivElement | undefined
   let panelRef: HTMLDivElement | undefined
 
   function handleDocClick(e: MouseEvent): void {
-    // Every Columns/Sort/Group/Filter dropdown mounts its own Dropdown instance simultaneously,
-    // each with its own document-level capture listener. Without this `props.isOpen` guard, a
-    // click anywhere inside the *currently open* dropdown's own panel would still be treated as
-    // "outside" by every *other*, currently-closed dropdown's listener — and since all four share
-    // one `openDropdown` signal, any of their `onClose()` calls closes whichever one actually is
-    // open, immediately after the click reaches its real target. (Found via the full
-    // createDataTable integration tests: it never surfaced in a single-component test, since
-    // there's no sibling dropdown there to falsely fire.)
+    // Every dropdown's listener is mounted at once: a closed one must not close the open one
     if (!props.isOpen) return
     if (wrapRef && !wrapRef.contains(e.target as Node)) props.onClose()
   }
 
-  // Roving Up/Down/Home/End nav across the panel's own search box + rows (see DD_NAV_SELECTOR
-  // above), plus Escape. A distinct concern from any Alt+↑/↓ reorder or Enter/Space toggle a row
-  // itself implements — those don't stopPropagation, so this still runs after them via bubbling,
-  // but its own `e.altKey` guard keeps it from ever acting on their modifier combo. Scoped to
-  // elements this panel actually recognizes (see `rovingFocusTarget`) so it never
-  // interferes with unrelated controls elsewhere in the panel (e.g. the Filter dropdown's
-  // right-hand detail pane, which implements its own nav — see FilterDropdown.tsx — including
-  // native Left/Right/Up/Down/Home/End on its own range inputs/slider that must keep working
-  // unmolested).
+  // Alt is left to row reordering; the Filter detail pane and range inputs keep their own keys
   function handleKeyDown(e: KeyboardEvent): void {
     if (e.key === 'Escape') {
       e.stopPropagation()
@@ -77,11 +45,7 @@ export function Dropdown(props: DropdownProps) {
     }
     if (e.altKey) return
     if (!panelRef) return
-    // A CategorySubmenu (see that file) renders as a real descendant of this panel and implements
-    // its own independent Up/Down/Home/End nav, scoped to its own rows and stopping propagation —
-    // excluding its rows here keeps this panel-wide nav exactly as if the submenu weren't open,
-    // rather than letting it wander into a floating submenu whose rows aren't visually part of
-    // this list.
+    // An open CategorySubmenu runs its own nav
     const focusables = ddNavFocusables(panelRef).filter((el) => !el.closest('.dt-dd-submenu'))
     const rowFocusables = focusables.filter((el) => !el.matches('input[data-dd-search]'))
     const target = rovingFocusTarget(e.key, focusables, document.activeElement, rowFocusables)
@@ -113,12 +77,7 @@ export function Dropdown(props: DropdownProps) {
               closed = true
               stopClamping?.()
             })
-            // A ref callback fires at this element's own insertion time — before `props.children`
-            // (passed down from Columns/Sort/Group/Filter, several component boundaries away) has
-            // actually been resolved and appended underneath it. Querying for a search box/row
-            // synchronously here found nothing every time (confirmed by a failing test) — same
-            // underlying reason the viewport-clamp measurement below already needs to wait a
-            // microtask, just for DOM presence instead of layout.
+            // A microtask: the ref fires before `props.children` is appended (docs/dropdown-keyboard-nav.md)
             queueMicrotask(() => {
               // Clamp before focusing (inside openDropdownPanel): focusing a field still past the
               // viewport's edge scrolls the whole page sideways (phones)

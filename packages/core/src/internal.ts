@@ -1,16 +1,4 @@
-// `@vates/data-table-core/internal` — everything core exposes that exists solely so the adapter
-// packages (`@vates/data-table-react`/`-vue`/`-solid`/`-vanilla`) can share implementation code
-// with each other while building their own `useTableState`/`createTableState`/persistence
-// implementations. This is NOT a supported public API: a consumer of one of the adapter packages
-// should get everything they need from that adapter directly, not from this sub-path. See
-// `index.ts` for the small, deliberate public surface, and this package's README ("Public API
-// surface") for the full split rationale.
-//
-// `dropdownDomUtils.ts` is re-exported wholesale (`export *`) rather than folded into this file's
-// own body, so its file-scoped `/// <reference lib="dom" />` (see that file's own top comment for
-// why it's needed, and why it's scoped to just that file instead of the whole package) stays
-// exactly where it is — this avoids duplicating that reasoning/reference here while still folding
-// its contents into `/internal`'s reachable surface, per docs/packages.md.
+// Shared adapter implementation, not a public API: see `index.ts` and the README's "Public API surface".
 
 export * from './logic'
 export * from './dropdownDomUtils'
@@ -18,9 +6,7 @@ export * from './headerMenu'
 export * from './filterChecklist'
 export * from './checkboxSync'
 export * from './styles'
-// `DateTreeNode` (types.ts) isn't produced by any exported `types.ts` re-export elsewhere — the
-// date-tree filter (computeDateTree/getDateTreeNodeState/etc., all internal) is the only thing
-// that needs it, and every adapter's own date-tree component types against it.
+// Only the internal date-tree filter and the adapters' date-tree components need it
 export type { DateTreeNode } from './types'
 
 export { encodeViewState, decodeViewState, buildViewStateSnapshot, resolveViewState } from './view'

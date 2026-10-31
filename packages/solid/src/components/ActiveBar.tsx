@@ -39,22 +39,12 @@ function chipValues<TRow extends object>(
   )
 }
 
-// Always rendered (even with nothing active) so the row-count stats have a single stable home and
-// toggling a sort/filter/group never shifts the toolbar's height — see docs/toolbar.md's "Toolbar
-// layout (shape/find clusters, active state bar)". One chip per active sort entry, group column,
-// and filter (include/exclude/range each get their own, since a column can carry more than one at
-// once), followed by row-count/group-count stats pinned at the far right.
-//
-// A group/filter chip's body opens the relevant dropdown (via onOpenGroup/onOpenFilter) *and*
-// focuses that specific entry's row inside it — see DataTableView.tsx's own onOpenGroup/
-// onOpenFilter handlers for how (a queueMicrotask, queued after Dropdown's own already-scheduled
-// focus-on-open microtask so this one runs last and wins — see Dropdown.tsx's own comment on why
-// that can't be done synchronously).
 // Before a chip's × removes it, so focus doesn't drop to the page (U30)
 function focusChipNeighbor(e: MouseEvent & { currentTarget: HTMLElement }): void {
   chipRemovalFocusTarget(e.currentTarget)?.focus()
 }
 
+// Always rendered, so toggling state never shifts the toolbar's height (docs/toolbar.md)
 export function ActiveBar<TRow extends object>(props: ActiveBarProps<TRow>) {
   const { table } = props
 
@@ -68,9 +58,7 @@ export function ActiveBar<TRow extends object>(props: ActiveBarProps<TRow>) {
 
   return (
     <div class="dt-active-bar">
-      {/* Group chips render before the plain (non-group) sort chips — matches the Sort dropdown's
-          own "Group order" section coming before "Active sorts" (see SortDropdown.tsx), since
-          grouping is the structural, primary concern and tie-break sorting is secondary. */}
+      {/* Group chips first, as in the Sort dropdown: grouping is the primary order */}
       <For each={table.group.by()}>
         {(key) => {
           const label = () => props.groupableCols.find((c) => c.key === key)?.label ?? key

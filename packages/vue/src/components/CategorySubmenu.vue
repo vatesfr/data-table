@@ -7,45 +7,15 @@ import {
   viewportWidth,
 } from '@vates/data-table-core/internal'
 
-// Hover-intent delays (see docs/columns.md's "Column categories") — a native OS/app-menu-style flyout
-// opens on hover once its parent menu is already open. OPEN_DELAY avoids a flicker-open while the
-// pointer merely sweeps across a category row on its way to something else; CLOSE_DELAY is
-// longer, giving the pointer room to travel diagonally from the trigger into the submenu itself
-// without the gap between them (however narrow) closing it prematurely. Click opens immediately
-// (no delay) and never closes (hover usually opened it already, U34); ArrowRight/Enter open and
-// Escape closes — matches Solid/React's identical component.
+// Hover-intent delays: no flicker-open on a passing pointer, room to travel diagonally into the flyout (docs/columns.md's "Column categories")
 const OPEN_DELAY = 100
 const CLOSE_DELAY = 250
 
-// Positioned with `position: fixed` at viewport coordinates computed from the trigger's own rect
-// (`computeSubmenuPosition`, core), but rendered as a plain sibling of the trigger — NOT
-// teleported to `document.body`, and NOT `position: absolute` either. Solid's own first version
-// used `position: absolute` and hit a real bug: `.dt-dd`'s `overflow-y: auto` (see Dropdown.vue's
-// panel style) means an absolutely positioned descendant that overflows a scrollable ancestor
-// horizontally still grows that ancestor's own scrollable region even though it's out of normal
-// flow — clipping the flyout and adding a spurious horizontal scrollbar to the whole panel. A
-// `<Teleport to="body">` was tried next and does dodge that, but comes with a real cost: a
-// teleported node is no longer a DOM descendant of whatever ancestor a consumer scopes theme CSS
-// custom properties to (if that ancestor is narrower than `<body>`), so the submenu silently falls
-// back to the library's baked-in default colors instead of inheriting the consumer's theme
-// (GitHub issue #23). `position: fixed` alone turns out to solve the original overflow problem on
-// its own, with no teleport needed: a fixed element's containing block is the *viewport*, not any
-// scrolling ancestor, unless that ancestor sets `transform`/`filter`/`perspective`/
-// `will-change: transform` (none of `.dt-dd`'s chrome does) — so a fixed submenu never
-// contributes to `.dt-dd`'s scrollable area in the first place, teleport or not.
-//
-// Because the submenu is a real DOM descendant of the panel again, its rows *are* reachable by
-// Dropdown.vue's own generic panel-wide roving nav — which is exactly why that nav explicitly
-// excludes anything inside `[data-category-submenu]` (see its own comment): `onSubmenuKeydown`
-// below is still what should drive Up/Down/Home/End while the submenu is open, not the panel's.
-// It calls `stopPropagation()` so Dropdown.vue's own panel-level handler never double-handles the
-// same keydown.
+// A fixed, non-teleported flyout with its own ↑/↓ nav (docs/columns.md's "Column categories")
 
 const props = defineProps<{
   name: string
-  // Controlled, not self-managed: the parent (Sort/Group/Columns' own DataTableView.vue block)
-  // owns one shared "which category is open" value across every CategorySubmenu in its list, so
-  // opening one always closes any other that was open in the same dropdown.
+  // Controlled: the parent's single open-category value closes any sibling
   isOpen: boolean
   /** Names the flyout as a group (the header menu's filter controls) */
   groupLabel?: string
@@ -93,9 +63,7 @@ function openNow(focusFirst: boolean): void {
   cancelClose()
   if (!props.isOpen) {
     if (triggerRef.value) {
-      // Initial guess (right of the trigger, top-aligned) — corrected by the position-fixing
-      // watcher below once the submenu's real size is known. Avoids a 0,0-positioned flash before
-      // that measurement lands.
+      // Initial guess, corrected once the submenu is measured
       const rect = triggerRef.value.getBoundingClientRect()
       left.value = rect.right
       top.value = rect.top
@@ -127,9 +95,7 @@ function scheduleClose(): void {
   }, CLOSE_DELAY)
 }
 
-// Corrects the initial guess above once the submenu's real size is known — a ref callback fires
-// before this div's own children (the slotted rows) are appended, so the measurement needs to
-// wait a tick, same as Dropdown.vue's own viewport-clamp watcher.
+// Measures a tick later: the ref callback fires before the slotted rows are appended
 function onSubmenuMounted(el: Element | null): void {
   submenuRef.value = el as HTMLDivElement | null
   if (!submenuRef.value) return

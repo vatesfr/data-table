@@ -1,45 +1,14 @@
-// This file's functions only ever run in a browser — they operate directly on `DOMRect`/`clientY`/
-// `window` values — unlike the rest of `packages/core`, which targets a DOM-free `lib` so it can
-// also run in Node/SSR (see `viewPersistence.ts`'s own note). A file-scoped `lib="dom"` reference
-// pulls in just the ambient types this file needs (`DOMRect`, `HTMLElement`) without adding "dom"
-// to the whole package's `tsconfig.json` `lib` array.
-// `preserve` keeps it in the emitted `.d.ts`, which API Extractor needs to resolve those types.
+// Browser-only; the file-scoped DOM lib keeps "dom" out of the package's `lib` (see docs/pitfalls.md).
 /// <reference lib="dom" preserve="true" />
 
-// Framework-agnostic (DOM-touching, but non-reactive) geometry helpers shared by every adapter's
-// own dropdown drag-and-drop / viewport-clamping / roving-nav code (React's `useDropdownReorder.ts`
-// + `components/Dropdown.tsx`, Vue's `composables/useDropdownReorder.ts` + `components/Dropdown.vue`,
-// Solid's `components/dragReorder.ts` + `components/Dropdown.tsx`). Each adapter keeps its own way
-// of gathering DOM state (querying the DOM vs. tracked refs/signals) and its own reactive state
-// machine — only the pure math moves here. Not part of the main `index.ts` barrel (DOM-dependent,
-// not table logic) — reachable via its own `@vates/data-table-core/dropdownDomUtils` sub-path
-// export, the same pattern as `/locales` and `/theme`.
+// Non-reactive dropdown geometry and focus helpers shared by every adapter's dropdowns.
 
 /**
- * Resolves a drag-and-drop reorder gesture inside a dropdown panel's list (Columns/Sort/Group) to
- * a specific row under the cursor, and whether the dragged item should land before or after it.
- * Cursor position within the hovered row's own bounds decides before/after (top half vs bottom
- * half) so a row can be a valid "insert after" target too — including the *last* row, which
- * "insert before" alone could never reach. When the cursor is above the first row or below the
- * last row, it snaps to that edge row instead of rejecting the drop; anywhere else that isn't
- * directly over a row's own bounds (a dead-zone gap between non-adjacent rows) returns `null`,
- * rejecting the drop rather than guessing.
- *
- * `hitKey` is an optional pre-resolved "which row is the real DOM event target actually inside"
- * hint — React/Vue compute this themselves via `(e.target as HTMLElement).closest(selector)`,
- * since a DOM-ancestry hit test is more precise than a rect containment check (e.g. it still
- * finds the right row when the row's content overflows its own layout box). When given and it
- * matches one of `rows`, it's used directly instead of scanning by `clientY`; the row's own rect
- * is still used to compute `after`, and the edge-snap/dead-zone logic below is unchanged. Solid's
- * usage doesn't have (or need) an event target to check, so it omits this and relies purely on the
- * `clientY`-vs-`rect` scan.
- *
- * `rect` is typed as this module's own minimal `RectLike` (just the `top`/`bottom`/`height` fields
- * actually read) rather than the ambient DOM `DOMRect` type — a real `getBoundingClientRect()`
- * result satisfies it structurally, but keeping the *exported* signature free of an ambient DOM
- * type sidesteps an internal `vite-plugin-dts`/API Extractor crash ("Unable to follow symbol for
- * DOMRect") when rolling up this package's declaration files, since `packages/core`'s own
- * `tsconfig.json` doesn't include `"DOM"` in `lib` (see this file's own top-of-file comment).
+ * Resolves a dropdown list drag to the row under the cursor and whether to drop after it (lower
+ * half). Snaps to the first/last row past the list's ends; `null` in a gap between rows. `hitKey`,
+ * the row containing the event target, wins over the `clientY` scan (see docs/column-reordering.md).
+ * `RectLike` rather than `DOMRect`: an ambient DOM type in the exported signature crashed API
+ * Extractor ("Unable to follow symbol for DOMRect").
  */
 export interface RectLike {
   top: number
@@ -67,26 +36,39 @@ export function resolveDropRow(
 
 /**
  * Computes how far a dropdown panel needs to shift horizontally (`dx`, for a `translateX`) to
- * stay within `[margin, viewportWidth - margin]`, and whether it should flip to render above its
- * trigger instead of below (`flipUp`) when it would otherwise overflow the bottom of the viewport.
- * A horizontal `translateX` offset is used instead of flipping the anchor side (`left:0` ->
- * `right:0`) since the overflow is relative to the *viewport*, not the trigger — flipping the
- * anchor on a trigger near one edge would just push a wide panel off the opposite side instead.
- *
- * `rect` only needs `top`/`right`/`bottom`/`left` here — typed as an inline shape rather than
- * `DOMRect` for the same declaration-rollup reason as `RectLike` above.
+ * stay within `[margin, viewportWidth - margin]`. A horizontal `translateX` offset is used instead
+ * of flipping the anchor side (`left:0` -> `right:0`) since the overflow is relative to the
+ * *viewport*, not the trigger — flipping the anchor on a trigger near one edge would just push a
+ * wide panel off the opposite side instead.
  */
 export function computeDropdownClampOffset(
-  rect: { top: number; right: number; bottom: number; left: number },
+  rect: { right: number; left: number },
   viewportWidth: number,
-  viewportHeight: number,
   margin = 8,
-): { dx: number; flipUp: boolean } {
+): number {
   let dx = 0
   if (rect.right > viewportWidth - margin) dx = viewportWidth - margin - rect.right
   if (rect.left + dx < margin) dx = margin - rect.left
-  const flipUp = rect.bottom > viewportHeight - margin
-  return { dx, flipUp }
+  return dx
+}
+
+/**
+ * Where a panel just opened below its trigger fits: above it (`flipUp`) when it overflows the
+ * viewport bottom and there's more room above, and capped to that side's room (`maxHeight`) when
+ * neither side fits it whole (U37).
+ */
+export function computeDropdownFlip(
+  rect: { top: number; bottom: number },
+  trigger: { top: number; bottom: number },
+  viewportHeight: number,
+  margin = 8,
+): { flipUp: boolean; maxHeight?: number } {
+  const below = viewportHeight - margin - rect.top
+  // Opened up, the panel keeps its gap to the trigger
+  const above = trigger.top - (rect.top - trigger.bottom) - margin
+  const flipUp = rect.bottom - rect.top > below && above > below
+  const room = flipUp ? above : below
+  return { flipUp, maxHeight: rect.bottom - rect.top > room ? room : undefined }
 }
 
 /**
@@ -96,11 +78,13 @@ export function computeDropdownClampOffset(
  * rewraps), then focuses `ddOpenFocusTarget`. Returns the function stopping the clamp.
  */
 export function openDropdownPanel(panel: HTMLElement): () => void {
-  if (
-    computeDropdownClampOffset(panel.getBoundingClientRect(), viewportWidth(), window.innerHeight)
-      .flipUp
+  const { flipUp, maxHeight } = computeDropdownFlip(
+    panel.getBoundingClientRect(),
+    panel.parentElement!.getBoundingClientRect(),
+    window.innerHeight,
   )
-    panel.classList.add('dt-dd--up')
+  if (flipUp) panel.classList.add('dt-dd--up')
+  if (maxHeight !== undefined) panel.style.maxHeight = `${maxHeight}px`
   let current = 0
   const clamp = () => {
     const rect = panel.getBoundingClientRect()
@@ -108,15 +92,9 @@ export function openDropdownPanel(panel: HTMLElement): () => void {
     if (!rect.width) return
     // The rect shows the rendered offset, which lags the requested one while a transition runs
     const rendered = new DOMMatrixReadOnly(getComputedStyle(panel).transform).m41
-    const { dx } = computeDropdownClampOffset(
-      {
-        top: rect.top,
-        bottom: rect.bottom,
-        left: rect.left - rendered,
-        right: rect.right - rendered,
-      },
+    const dx = computeDropdownClampOffset(
+      { left: rect.left - rendered, right: rect.right - rendered },
       viewportWidth(),
-      window.innerHeight,
     )
     // Sub-pixel noise would otherwise re-trigger this observer through the style write
     if (Math.abs(dx - current) < 0.5) return
@@ -142,26 +120,10 @@ export function openDropdownPanel(panel: HTMLElement): () => void {
 }
 
 /**
- * Computes a category submenu's (see `ColumnDefBase.category`) fixed-viewport `left`/`top`,
- * flying out from `triggerRow`'s own rect. Rendered via a portal (straight to `document.body`,
- * not nested under the trigger's own scrollable dropdown panel — see `CategorySubmenu.tsx`'s own
- * top comment for why: an absolutely-positioned descendant that overflows its scrollable ancestor
- * horizontally otherwise grows that ancestor's own scrollable region instead of visually escaping
- * it, clipping the flyout and adding a spurious horizontal scrollbar to the panel), so this
- * computes real `position: fixed` viewport coordinates rather than a relative offset the way
- * `computeDropdownClampOffset`'s `dx`/`flipUp` do for the (non-portaled) top-level panel.
- *
- * Opens to the right of the trigger by default; flips to its left when the trigger's own right
- * edge already leaves less than `submenuSize.width` of room before the viewport's right edge — a
- * side flip, not a slide-back translate, since sliding a flyout backward far enough to fit would
- * visually overlap the very trigger row it's anchored to (unlike `computeDropdownClampOffset`'s
- * top-level panel, which has no "opposite side" to flip to and so slides via `dx` instead). `top`
- * is clamped to `[margin, viewportHeight - margin - height]`, top-aligned with the trigger by
- * default.
- *
- * `submenuSize` is the *already-rendered* submenu's own `width`/`height` — not knowable before it
- * exists in the DOM (see `CategorySubmenu.tsx`'s "measure after mount" comment, same reasoning as
- * `computeDropdownClampOffset`'s own caller).
+ * A category submenu's fixed-viewport `left`/`top`, flying out of `triggerRow`: to its right, or
+ * flipped to its left when the right lacks room (sliding back would cover the trigger); `top`
+ * clamped into the viewport. Fixed because the submenu is portaled (see `CategorySubmenu`), and
+ * `submenuSize` is measured after mount.
  */
 export function computeSubmenuPosition(
   triggerRect: { top: number; right: number; bottom: number; left: number },
@@ -228,14 +190,7 @@ export function computeMenuPosition(
   return { left, top }
 }
 
-/**
- * The roving Up/Down/Home/End nav shared by every Columns/Sort/Group dropdown panel (and the
- * Filter dropdown's left column pane) needs an ordered list of that panel's own focusable
- * row/search elements. `DD_NAV_SELECTOR` matches the `data-*` markers every adapter renders
- * (`data-dd-search` on a dropdown's own column-search input, `data-dd-row` on every other row this
- * nav should reach) — deliberately generic, since no adapter's dropdown knows which concrete
- * dropdown it's rendering, only that its children may carry these two markers.
- */
+/** The rows and search box a dropdown panel's roving ↑/↓/Home/End nav reaches, by their `data-*` markers */
 export const DD_NAV_SELECTOR = 'input[data-dd-search], [data-dd-row]'
 
 /**

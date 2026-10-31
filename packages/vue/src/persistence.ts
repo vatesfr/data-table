@@ -12,12 +12,8 @@ import {
 export type { ViewStateApi, ResetViewOptions }
 
 /**
- * Loads a persisted view from `localStorage` on mount and saves it back on every change.
- * `table` is typically the object returned by `useTableState`. Relies on `watch` only firing
- * in response to an actual reactive change, so — unlike a render-driven effect — there's no
- * risk of saving pre-hydration state: hydration itself is the change that triggers the first save.
- * `storageKey` may be `undefined` to no-op — this lets `usePersistence` below call this
- * unconditionally regardless of whether storage persistence is actually wanted.
+ * Loads a persisted view from `localStorage` on mount and saves it back on every change (`watch`
+ * fires only on change, so pre-hydration state is never saved). An `undefined` `storageKey` no-ops.
  */
 export function usePersistedView(table: ViewStateApi, storageKey: string | undefined): void {
   if (!storageKey) return
@@ -30,10 +26,6 @@ export function usePersistedView(table: ViewStateApi, storageKey: string | undef
   watch(
     () => table.getViewState(),
     (view) => {
-      // Mirrors useUrlView's own empty-view handling below: a view back at its construction-time
-      // defaults removes the key entirely rather than storing an encoded-but-empty blob, so
-      // `resetView`'s own `removeItem` (or a plain "clear all" that lands back on the defaults)
-      // isn't immediately undone by this watcher's next run.
       saveOrClearViewInStorage(storageKey, view)
     },
     { deep: true },
@@ -52,10 +44,7 @@ export interface UseUrlViewOptions {
 export function useUrlView(table: ViewStateApi, options?: UseUrlViewOptions): void {
   const paramName = options?.paramName ?? 'view'
 
-  // Only acts when the param is actually present — an absent (or malformed) param leaves
-  // whatever state is already there alone, rather than forcing a reset to defaults. This
-  // matters when combined with usePersistedView: a plain reload with no `view` param should
-  // keep the localStorage-restored view, not clobber it with an empty one.
+  // An absent or malformed param keeps the current (e.g. storage-restored) view
   function applyFromUrl(): void {
     const view = readViewFromUrlParam(paramName)
     if (view) table.setViewState(view)
@@ -77,9 +66,8 @@ export function useUrlView(table: ViewStateApi, options?: UseUrlViewOptions): vo
 }
 
 /**
- * Resets a table to its construction-time defaults and clears whatever `usePersistedView`/
- * `useUrlView` persisted for it — pass the same `storageKey`/`paramName` you gave those hooks
- * (both optional, since a consumer may use only one, or neither).
+ * Resets a table to its construction-time defaults and clears what `usePersistedView`/`useUrlView`
+ * stored, given the same `storageKey`/`paramName`.
  */
 export function resetView(table: ViewStateApi, options?: ResetViewOptions): void {
   resetViewCore(table, options)
@@ -88,11 +76,8 @@ export function resetView(table: ViewStateApi, options?: ResetViewOptions): void
 export type UsePersistenceOptions = ResetViewOptions
 
 /**
- * Combines `usePersistedView` + `useUrlView` behind one options object, so `storageKey`/
- * `paramName` are written down once instead of separately at three call sites (`usePersistedView`,
- * `useUrlView`, and `resetView` all need the *same* values — a typo'd/forgotten key at any one of
- * them is a silent bug). Returns a `reset()` bound to those same options, equivalent to calling
- * `resetView(table, options)` yourself.
+ * `usePersistedView` + `useUrlView` sharing one `storageKey`/`paramName`, plus a `reset()` bound to
+ * them.
  */
 export function usePersistence(
   table: ViewStateApi,

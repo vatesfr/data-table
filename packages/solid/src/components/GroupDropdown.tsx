@@ -22,9 +22,7 @@ interface GroupDropdownProps<TRow extends object> {
   onClose: () => void
 }
 
-// Same active/add split as SortDropdown, but a group entry has no click action of its own (no
-// direction to toggle) — the row is draggable/focusable for reordering only, with × as the sole
-// button. See docs/grouped-columns.md's "Grouped columns"/"Column reordering".
+// Like SortDropdown, but a group row only reorders and removes (docs/grouped-columns.md)
 export function GroupDropdown<TRow extends object>(props: GroupDropdownProps<TRow>) {
   const { table } = props
   const [searchTerm, setSearchTerm] = createSignal('')
@@ -65,10 +63,7 @@ export function GroupDropdown<TRow extends object>(props: GroupDropdownProps<TRo
         />
       }
       onEscapeClearable={() => {
-        // Scoped to focus actually being in the search box — see ColumnsDropdown.tsx's identical
-        // comment (and the Filter dropdown's own onEscapeClearable, the original source of this
-        // fix): without this, Escape pressed while focused on a row still silently cleared a
-        // non-empty search term instead of closing the dropdown on the first press.
+        // Only from the search box: Escape on a row closes rather than clearing the search
         if (!document.activeElement?.matches?.('.dt-dd-search')) return false
         if (!searchTerm()) return false
         setSearchTerm('')

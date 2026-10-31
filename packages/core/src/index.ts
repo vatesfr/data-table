@@ -1,9 +1,4 @@
-// Public API surface for `@vates/data-table-core` — small and deliberate, for a consumer using
-// this package directly. The bulk of core's logic exists purely so the adapter packages
-// (`@vates/data-table-react`/`-vue`/`-solid`/`-vanilla`) can build their own `useTableState`/
-// `createTableState`/persistence implementations, and lives instead in
-// `@vates/data-table-core/internal` — NOT part of this barrel. See `internal.ts`'s own top
-// comment and this package's README ("Public API surface") for the full reasoning.
+// Public API surface: small and deliberate; adapter-only code lives in `/internal` (see the README's "Public API surface").
 
 export type {
   DataTableLabels,
@@ -32,12 +27,7 @@ export {
 export type { TableViewState } from './view'
 
 export { LABELS_EN as DEFAULT_LABELS } from './locales'
-// Locales module only contains public locale objects (no internal helpers), so a wildcard
-// re-export here is safe and matches this barrel's pre-existing behavior.
+// Locales hold only public locale objects
 export * from './locales'
 
-// `theme` (LIGHT_THEME/DARK_THEME/renderThemeCss) is design tokens: Solid/vanilla inject them with
-// the shared rules (`styles.ts`), React/Vue apps define their own. Deliberately not
-// re-exported from the main barrel so React/Vue consumers importing this package directly don't
-// see irrelevant theme APIs in their autocomplete; it's still reachable via the dedicated
-// `@vates/data-table-core/theme` sub-path export, same pattern as `/locales`.
+// Theme tokens stay on the `/theme` sub-path, out of React/Vue consumers' autocomplete.

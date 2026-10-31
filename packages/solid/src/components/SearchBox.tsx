@@ -5,15 +5,6 @@ interface SearchBoxProps<TRow extends object> {
   table: TableState<TRow>
 }
 
-// First real Solid component of the migration (see docs/solid-package.md's "Solid + TSX migration" note) —
-// deliberately the smallest self-contained toolbar slice, to validate createTableState.ts through
-// an actual component before building the larger dropdown/table-body pieces.
-//
-// Markup/classes match the existing string-built toolbar exactly (dt-search-wrap/dt-search-input/
-// dt-search-clear) so core's DT_STYLES applies unchanged. Unlike the old render(), there is no
-// data-focus-key/selection-range restore here at all — Solid reuses this same <input> DOM node
-// across every re-render (it's the direct fix for the numeric-range caret bug from earlier: the
-// same class of issue can no longer occur here, by construction).
 // Focus target after a clear button unmounts itself: the search box, else the first toolbar button.
 // Takes the table root, looked up before clearing: Solid detaches the button synchronously.
 export function focusSearch(root: Element | null): void {

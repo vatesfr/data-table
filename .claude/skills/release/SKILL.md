@@ -18,3 +18,5 @@ Pushing the tag publishes to npm — confirm with the user before step 4.
 - A release bumps and publishes only the packages that changed (test-only changes don't count) or depend on one that did, all to the same new number. Others keep their last published version.
 - Versions therefore drift apart; a lagging package touched again jumps straight to the pool's current number, skipping the ones in between — expected.
 - Cross-package dependency ranges (e.g. `"@vates/data-table-core": "^0.10.0"`) reference the dependency's actual last-published version, not the release's number.
+
+<!-- check-docs-ignore: chore -->

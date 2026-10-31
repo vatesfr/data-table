@@ -234,10 +234,7 @@ export function DataTableView<TRow extends object>({
   const [dragOverColKey, setDragOverColKey] = useState<string | null>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const [filterActiveCol, setFilterActiveCol] = useState<string | null>(null)
-  // Narrows the *column list* itself in the Columns/Sort/Group dropdowns and the Filter
-  // dropdown's left column pane — a separate concern from `filterSearchTerms` above, which
-  // narrows one column's *values* in the Filter dropdown's right detail pane. Keyed by dropdown
-  // id ('cols'/'sort'/'group'/'filter'), same ephemeral-UI-state category as `filterActiveCol`.
+  // Column-list search per dropdown id; FilterPane keeps its own value search
   const [ddSearchTerms, setDdSearchTerms] = useState<Record<string, string>>({})
   // Root ref purely so the two pending-focus effects below can scope their DOM queries to *this*
   // table instance — a plain `document.querySelector` by column key would risk matching another
@@ -1236,13 +1233,7 @@ export function DataTableView<TRow extends object>({
                 >
                   {(!narrowFilter || !filterShowValues) && (
                     <div className="dt-filter-cols" data-filter-cols>
-                      {/* Narrows the column list itself — separate from filterSearchTerms, which
-                      narrows the *values* shown in the right-hand detail pane for whichever
-                      column is currently selected. Order follows filterColOrderKeys (a snapshot
-                      taken when the dropdown opens — active-filter columns first, then the rest,
-                      alphabetized within each group) instead of a plain alphabetize, since
-                      active-filter columns are the ones most worth finding at a glance in a long
-                      list. */}
+                      {/* Order: filterColOrderKeys, snapshotted on open (active filters first) */}
                       <DdSearchInput
                         value={ddSearchTerms.filter ?? ''}
                         onChange={(v) => setDdSearchTerms({ ...ddSearchTerms, filter: v })}

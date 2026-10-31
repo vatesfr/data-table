@@ -63,3 +63,5 @@ A grouped column always carries its own sort entry, so the active bar shows two 
 ---
 
 _Part of the `@vates/data-table` architecture docs — see [CLAUDE.md](../CLAUDE.md) for the project overview._
+
+<!-- check-docs-ignore: Roguelike Deckbuilder -->

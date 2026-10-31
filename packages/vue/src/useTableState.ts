@@ -60,25 +60,14 @@ export interface UseTableStateOptions<TRow extends object = Record<string, unkno
   /** Whether newly-grouped groups start collapsed. Defaults to `true`; pass `false` to start expanded. */
   defaultGroupsCollapsed?: boolean
   /**
-   * Construction-time defaults for every other view concern (visible columns, column order,
-   * sort, filters, grouping, page/pageSize, search) — a fresh table starts here, and `resetView`
-   * restores it. Any field left unset falls back to that field's own ordinary empty default (all
-   * columns visible, no sort, page 1, etc). Grouping a column with no matching sort entry here
-   * gets one inserted automatically (the same thing interactive grouping already does), so
-   * `initialViewState: { groupBy: ['status'] }` alone is enough for a deterministic group order.
-   * Seed-only (read once, untracked) — same as `defaultVisibleColumns`/`defaultPageSize` were
-   * before this replaced them, unlike `labels`/`defaultGroupsCollapsed`/`getRowId`, which stay
-   * live/reactive.
+   * The view a fresh table starts at and `resetView` restores; unset fields take their empty
+   * default. A grouped column gets a matching sort entry, as interactive grouping does. Read once.
    */
   initialViewState?: TableViewState
   /**
-   * Opt-in row identity for selection. By default, selection tracks rows by object identity — a
-   * refetch or re-map of `data` that produces new row objects (even with identical content)
-   * silently drops selection, since a `Set` can only ever match by reference. Supplying `getRowId`
-   * switches selection to match by id instead, so it survives that kind of refresh: whenever
-   * `data` changes, currently-selected ids are looked up in the new array and remapped to their
-   * fresh object references (an id no longer present is dropped from selection). Omit this to
-   * keep today's exact default behavior.
+   * Opt-in row identity for selection, which otherwise tracks row objects and so drops rows
+   * replaced by a refetch. With it, selected ids are remapped to the new `data`'s rows (missing
+   * ones dropped).
    */
   getRowId?: GetRowId<TRow>
 }
@@ -100,42 +89,23 @@ export function useTableState<TRow extends object>(
 
   const defaultSortDirFor = (key: string) => getDefaultSortDir(columns.value, key)
 
-  // Computed once at setup (plain `const`, not reactive) rather than re-derived per field below
-  // — the same `resolveViewState({}, ...)` call `resetView`/`setViewState({})` make, so "what a
-  // fresh table starts at" and "what a reset restores" can never drift apart. Read once and not
-  // recomputed on a later `columns`/`options` change, matching `initialViewState`'s own seed-only
-  // contract above.
+  // Seed-only, from the same `resolveViewState({}, …)` a reset uses
   const initial = resolveViewState({}, columns.value, options.value.initialViewState)
 
-  // shallowRef, not ref: every write below replaces the whole Set/array wholesale (never mutated
-  // in place), the same "always replaced" pattern that already justifies `selection`/
-  // `selectionAnchor` using shallowRef further down — no need to pay for Vue's deep-reactive Proxy
-  // wrapping on every `.value` access when nothing ever reads/writes through nested reactivity.
+  // shallowRef throughout: every write replaces the value, so deep reactivity would be wasted
   const visibleCols = shallowRef<Set<string>>(initial.visibleCols)
 
-  // Reconciles visibleCols (via core's reconcileVisibleColumns — see its own doc comment for the
-  // full reasoning) whenever `columns` itself changes to a different key set. Needed because
-  // useTableState is only called once per component instance (unlike React's own useTableState,
-  // re-invoked with fresh arguments on every render) — `watch` here is Vue's equivalent of that
-  // re-invocation for just this one piece of state. `watch` is lazy by default (no `immediate`),
-  // so this never runs on the initial `columns.value` that seeded `visibleCols` above, only on a
-  // genuine later change.
+  // A changed column key set reconciles visibleCols (docs/table-state.md); lazy, so not on the seed
   watch(columns, (nextColumns, prevColumns) => {
     visibleCols.value = reconcileVisibleColumns(prevColumns, nextColumns, visibleCols.value)
   })
 
-  // All shallowRef, same "always replaced wholesale, never mutated in place" reasoning as
-  // `visibleCols` above.
   const columnOrder = shallowRef<string[]>(initial.columnOrder)
   const sorts = shallowRef<SortEntry[]>(initial.sorts)
   const filters = shallowRef<Record<string, Set<string>>>(initial.filters)
-  // "Not one of these values" filters for multi-value columns — see `cycleFilterValue`. Kept as
-  // a separate Set per column, mutually exclusive with `filters` (a value is never in both at
-  // once) by `cycleFilterValue`/`clearExcludeValues`.
+  // Mutually exclusive with `filters`
   const excludeFilters = shallowRef<Record<string, Set<string>>>(initial.excludeFilters)
-  // Per-column runtime override of `col.multiMode` ("any"/"all" checklist match) — see
-  // `setFilterMode`. Kept as its own ref rather than folded into `filters`/`excludeFilters`
-  // above: no action ever needs to read both this and them together to decide its next value.
+  // Per-column override of `col.multiMode`
   const filterModes = shallowRef<Record<string, 'and' | 'or'>>(initial.filterModes)
   const rangeFilters = shallowRef<Record<string, RangeFilter>>(initial.rangeFilters)
   const groupBy = shallowRef<string[]>(initial.groupBy)
@@ -145,27 +115,12 @@ export function useTableState<TRow extends object>(
   const selection = shallowRef<Set<TRow>>(new Set())
   const selectionAnchor = shallowRef<TRow | null>(null)
   const searchQuery = ref(initial.searchQuery)
-  // The roving-tabindex "current" item (a data row or a group header) — ephemeral UI state, same
-  // category as `selectionAnchor` above, not part of `TableViewState`. Lifted up here (rather than
-  // staying local to DataTableView, where it lived before) so it's reachable as `focus.target`/
-  // `focus.row` and settable via `focus.moveTo` from outside the rendered table — see "External
-  // row focus" in the docs. `setTarget` is the low-level setter DataTableView's own keyboard
-  // handling uses directly; most external callers want `moveTo` instead. shallowRef for the same
-  // reason as `selection` above — `VisibleItem<TRow>` embeds a `TRow` field.
+  // Roving-tabindex item, lifted here for `focus.moveTo` (docs/keyboard-navigation.md's "External row focus")
   const focusTarget = shallowRef<VisibleItem<TRow> | null>(null)
-  // Set by `moveTo(row, { focus: true })` right before `focusTarget.value` is written,
-  // read-and-cleared by DataTableView's own scroll-into-view watcher once the target row actually
-  // mounts — the render layer is what owns the DOM row refs, so it's the only place that can call
-  // real `.focus()`. A plain closure variable (not a `ref`) — nothing needs to react to it, it's
-  // only ever read once, synchronously, from the watcher that already fires off `focusTarget`.
+  // Set by `moveTo(row, { focus: true })`, consumed by DataTableView once the row mounts, as only it holds row refs
   let wantsDomFocus = false
 
-  // Reconciles `selection`'s stored row references whenever `data` changes — same trigger as
-  // visibleCols' own reconciliation above (a `watch`, since useTableState is only called once per
-  // component instance). Only actually does anything when `getRowId` is set (reconcileSelection
-  // is a no-op passthrough otherwise, so this costs nothing for the default object-identity
-  // behavior). `watch` is lazy by default, so this never runs against the very same `data.value`
-  // that already seeded things above it.
+  // Remaps selection to a changed `data` (only with `getRowId`)
   watch(data, (nextData) => {
     if (getRowId.value)
       selection.value = reconcileSelection(nextData, selection.value, getRowId.value)
@@ -198,9 +153,7 @@ export function useTableState<TRow extends object>(
     ),
   )
 
-  // Grouping runs over the *full* filtered/sorted data, not a page's slice, so pagination (below)
-  // can budget page size across header rows and data rows together instead of paginating data
-  // rows first and grouping whatever lands on that page afterward — see "Pagination" in the docs.
+  // Grouped over all rows, so pages budget header and data rows together (docs/pagination.md)
   const groupedFull = computed(() =>
     sortWithinGroups(
       groupData(processedData.value, groupBy.value, columns.value, L.value.emptyValue),
@@ -280,13 +233,7 @@ export function useTableState<TRow extends object>(
         const base = columnOrder.value.length ? columnOrder.value : columns.value.map((c) => c.key)
         columnOrder.value = _moveColumnBy(base, key, delta)
       },
-      // See moveVisibleColumnBy's own doc comment (core) — the Columns dropdown's "Visible
-      // columns" section's own Alt+↑/↓, which must skip over hidden columns rather than swap with
-      // whichever key is textually adjacent in columnOrder. The optional 3rd `eligible` param lets
-      // a caller narrow which keys count as a swappable neighbor below the real `visibleCols` —
-      // the Columns dropdown passes its own search-filtered key set while a search term is active,
-      // so Alt+↑/↓ only ever reorders among the rows currently shown in the list, leaving anything
-      // hidden by the filter (or by real column visibility) pinned at its own position.
+      // Alt+↑/↓ in Visible columns: skips hidden columns, and those outside `eligible` (the search matches)
       moveVisibleBy: (key: string, delta: number, eligible?: ReadonlySet<string>) => {
         const base = columnOrder.value.length ? columnOrder.value : columns.value.map((c) => c.key)
         columnOrder.value = _moveVisibleColumnBy(base, eligible ?? visibleCols.value, key, delta)
@@ -335,13 +282,7 @@ export function useTableState<TRow extends object>(
         filterModes.value = _setFilterMode(filterModes.value, key, mode)
       },
       toggleAll: (key: string, values: string[]) => {
-        // The master checkbox's own checked/indeterminate state reflects `filters` only (no
-        // visual concept of exclusion) — so only the "select all ON" branch should ever touch
-        // `excludeFilters`, and only because it must: every listed value is about to become
-        // included, and a value can't be in both sets at once (see `cycleValue`). The
-        // "deselect all" branch leaves `excludeFilters` completely alone — it only clears values
-        // the checkbox showed as selected, which by that same invariant can never include an
-        // already-excluded value.
+        // Only selecting all touches `excludeFilters` (a value can't be in both sets)
         const next = toggleAllFilterState(filters.value, excludeFilters.value, key, values)
         filters.value = next.filters
         excludeFilters.value = next.excludeFilters
@@ -351,10 +292,7 @@ export function useTableState<TRow extends object>(
         filters.value = _setFilterValues(filters.value, key, values, selected)
         page.value = 1
       },
-      // Cycles a single checklist value neutral → include → exclude → neutral. Shift-range
-      // selection (`setValues` above) stays include-only by design — see the docs — so a caller
-      // extending a range that should also clear a swept value's exclusion calls
-      // `clearExcludeValues` alongside it, same as `toggleAll` above.
+      // Neutral → include → exclude → neutral; shift-range stays include-only
       cycleValue: (key: string, value: string) => {
         const next = _cycleFilterValue(filters.value, excludeFilters.value, key, value)
         filters.value = next.filters
@@ -364,9 +302,7 @@ export function useTableState<TRow extends object>(
       clearExcludeValues: (key: string, values: string[]) => {
         excludeFilters.value = _clearExcludeValues(excludeFilters.value, key, values)
       },
-      // Checked-by-default, exclude-only checklist model for a non-multi-value column (see
-      // docs/filter-dropdown.md's "Filter dropdown") — `filters` is never touched for such a column, so these
-      // two go straight to `excludeFilters` instead of routing through `cycleValue`/`toggleAll`.
+      // Exclude-only checklist of a non-multi-value column (docs/filter-dropdown.md)
       setExcludeValues: (key: string, values: string[], excluded: boolean) => {
         excludeFilters.value = _setFilterValues(excludeFilters.value, key, values, excluded)
         page.value = 1
@@ -489,16 +425,7 @@ export function useTableState<TRow extends object>(
         wantsDomFocus = false
         focusTarget.value = item
       },
-      // Brings `row` into view from outside the table: expands whichever group(s) it belongs to
-      // if collapsed, jumps to the page containing it, and sets it as the roving-tabindex target
-      // — so it's highlighted and scrolled into view (DataTableView reacts to `focus.target`), and
-      // the very next Tab/arrow-key press lands there. Never moves real DOM focus itself by
-      // default — only an actual keyboard interaction does that — so calling this from e.g. an
-      // external lightbox's prev/next never steals focus away from it. Pass `{ focus: true }` to
-      // opt into real DOM focus too (e.g. a consumer that wants the row visibly focused even while
-      // DOM focus was elsewhere) — DataTableView calls the real `.focus()` once the row mounts, so
-      // no internal DOM class name/attribute needs to be public API for this. No-ops if `row` isn't
-      // part of the table's current (filtered/sorted) data.
+      // Reveals `row` as the roving target (expands groups, jumps page); real focus only with `{ focus: true }`
       moveTo: (row: TRow, options?: { focus?: boolean }) => {
         const resolved = resolveFocusTarget(
           groupedFull.value,
@@ -513,9 +440,7 @@ export function useTableState<TRow extends object>(
         wantsDomFocus = options?.focus === true
         focusTarget.value = resolved.item
       },
-      // Internal wiring for DataTableView's own scroll/focus watcher — reads and clears the
-      // pending "the last `moveTo` call wanted real DOM focus" flag. Not meant for typical
-      // external use (same category as `setTarget` above).
+      // Internal: DataTableView's focus watcher
       consumeDomFocus: () => {
         const wanted = wantsDomFocus
         wantsDomFocus = false

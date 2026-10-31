@@ -1,46 +1,12 @@
 // The table's style rules, shared by every adapter. Theme tokens (`renderThemeCss()`) stay out:
-// Solid/vanilla inject them alongside these rules, React/Vue apps define their own; every `var()`
-// here has a fallback so the rules render without them. CSS comments would ship in the bundle, so
-// the non-obvious rules are explained here instead:
-//
-// .dt-filter-cols-search-wrap is also a .dt-dd-search-wrap (see FilterDropdown.tsx) — declared
-// after it so this rule's own position:sticky wins the cascade over the shared class's
-// position:relative (same specificity, so declaration order decides); sticky still works fine as
-// the containing block its own clear button needs, same as relative would.
-//
-// Sort/Group/Columns' active rows only ever got the browser's native focus outline, no background
-// — unlike the Filter dropdown's own left-pane column row, which tints its background on selection
-// (see .dt-filter-col-row--active further down) as well as outlining the focused button inside it.
-// Matches that here for the same reason: an outline alone is a much fainter "this is the currently
-// focused row" cue than a filled background, and these three should read the same way Filter's own
-// selected-row treatment already does. Kept alongside (not replacing) the native outline, not
-// instead of it — this is additive polish, not an a11y regression. --grouprow/--colrow had no
-// hover feedback at all before this either (grab-cursor rows, no --click), gaining both.
-//
-// A "Group order" row (see SortDropdown.tsx) is still clickable to toggle direction, just not
-// draggable/Alt+Arrow-reorderable — its own section heading + hint text already explain why, so
-// this only needs to cancel --sortrow's hover highlight (a cue that dragging would do something
-// here, which it wouldn't), not restyle the row into looking disabled. Must come after
-// .dt-dd-item--sortrow:hover above to win the cascade on the shared hover background.
-//
-// .dt-pinned: with border-collapse the table paints row borders, which a sticky cell's opaque
-// background hides once scrolled, so its ::after redraws its border-bottom (and the shadow, kept
-// off box-shadow so the header's drag-over line survives). Its header sits one level above the
-// pinned body cells: the header menu panel lives inside that th's stacking context. Every pinned
-// rule stays at or below the row-state selectors' specificity, so app row-state overrides win.
-// The odd-row stripe is a layer over the pinned base, so `--dt-stripe-background: transparent`
-// turns striping off on pinned cells too.
-//
-// Full-width panels (.dt-filter-panel--narrow, .dt-th-menu-panel) leave 17 px: twice the
-// viewport clamp's 8 px margin (computeDropdownClampOffset, computeMenuPosition) plus the .5 px
-// borders, so the clamp leaves equal gutters. The fixed header menu uses 100%, which excludes a
-// classic scrollbar; the narrow Filter panel's 100vw doesn't, so in a desktop window under 480 px
-// its last few pixels sit under that scrollbar.
-//
-// Row focus ring: :focus-visible, since a click focuses the row too and would ring every clicked
-// row; inset so the scroll wrapper doesn't clip it. A pinned cell paints above the row's outline,
-// so it redraws the ring's top and bottom edges (no left edge: unscrolled, it sits mid-row), and
-// drops its redrawn row border, which would cover the bottom one.
+// Solid/vanilla inject them, React/Vue apps define their own; every `var()` has a fallback. CSS
+// comments would ship in the bundle, so the non-obvious rules are explained here:
+// - .dt-filter-cols-search-wrap comes after .dt-dd-search-wrap so its position:sticky wins.
+// - Sort/Group/Columns active rows tint on focus like Filter's .dt-filter-col-row--active, on top of the native outline.
+// - A "Group order" row cancels --sortrow's hover (it can't be dragged); it must follow .dt-dd-item--sortrow:hover.
+// - .dt-pinned's ::after redraws the border hidden by its opaque background (shadow kept off box-shadow for the drag-over line); pinned rules stay at or below row-state specificity so app overrides win; the stripe layers over the pinned base.
+// - Full-width panels leave 17 px: twice the 8 px viewport clamp margin plus borders; the narrow Filter panel's 100vw includes a classic scrollbar.
+// - Row focus ring: :focus-visible (a click focuses the row), inset (the scroll wrapper clips); a pinned cell redraws its top and bottom edges and drops its row border.
 export const DT_STYLES = `
 .dt{font-family:inherit;font-size:var(--font-size-lg,14px);color:var(--color-text-primary,#1a1916)}
 .dt-toolbar{padding:12px 0;border-bottom:.5px solid var(--color-border-tertiary,#eeedea)}
@@ -202,10 +168,7 @@ export const DT_STYLES = `
 .dt-agg-row .dt-pinned{background:inherit}
 `
 
-// Injects the rules, and the theme tokens when given, into <head> at most once per page each, so a
-// Solid table still gets its tokens after a React/Vue table injected the rules alone. Checks the
-// DOM rather than a module flag so two copies of core (duplicate installs) don't inject twice.
-// Inserted first so app stylesheets win the cascade.
+// Injects rules and tokens into <head> once each (checked in the DOM, so duplicate core copies don't), first so app styles win
 export function injectStyles(themeCss = ''): void {
   if (typeof document === 'undefined') return
   injectOnce('data-dt-styles', DT_STYLES)

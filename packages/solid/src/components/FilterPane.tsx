@@ -39,11 +39,7 @@ interface FilterPaneProps<TRow extends object> {
 }
 
 const DEFAULT_VALUE_SORT: ValueSort = { by: 'alpha', dir: 'asc' }
-// Checklist virtualization (see "Checklist virtualization" below): a fixed per-row height so the
-// windowing math is exact, and an assumed viewport height safe because `.dt-filter-panel`'s own
-// `max-height: 380px` bounds how much taller the checklist can ever grow past this default —
-// comfortably inside the 5-row/160px overscan `computeVirtualRange` already renders each side, so
-// the mounted window always covers the real visible box. Matches React/Vue's own constants.
+// Fixed row height so windowing is exact; the assumed list height stays within the overscan of the real one
 const FILTER_LIST_ITEM_HEIGHT = 32
 const FILTER_LIST_VIEWPORT_HEIGHT = 260
 
@@ -58,13 +54,7 @@ interface FilterSearchRowProps {
   sortIcon: string
   sortLabel: string
   onSortClick: () => void
-  // Any/all match-mode control — only meaningful for a genuinely array-valued column (see
-  // `isMultiValueColumn`), so the caller passes these only when that's the case; omitted
-  // entirely (rather than always rendered and disabled) for a plain scalar column, where
-  // "match all selected values" could never match more than one value at a time anyway.
-  // Rendered as two buttons rather than one cycling button — see FilterDropdown's own comment
-  // on `matchMode`/`onSetMatchMode` for why "Any"/"All" both need to be visible, equal-weight
-  // options rather than one being a default/passive non-state.
+  // Any/all match buttons, passed only for an array-valued column
   matchMode?: 'and' | 'or'
   matchAnyLabel?: string
   matchAllLabel?: string
@@ -72,12 +62,7 @@ interface FilterSearchRowProps {
   clearSearchLabel: string
 }
 
-// Select-all checkbox + value search input + sort-order toggle — shared by the string checklist
-// and the date tree (the date branch had been missing this entirely at first; see docs/filter-dropdown.md's
-// "Filter dropdown" section). Both narrow/select over the same filterDetailValues() pipeline
-// regardless of which control (checklist or tree) renders those values, so this row's own
-// behavior is identical either way — only the sort icon function differs (alpha/count vs.
-// chronological), passed in by the caller.
+// Select-all checkbox, value search and sort toggle, shared by the checklist and the date tree
 function FilterSearchRow(props: FilterSearchRowProps) {
   return (
     <div class="dt-filter-search-row">
@@ -152,10 +137,8 @@ function detailFocusables(detailEl: Element): HTMLElement[] {
   return Array.from(detailEl.querySelectorAll<HTMLElement>(FILTER_DETAIL_NAV_SELECTOR))
 }
 
-// One column's filter controls — checklist (string, virtualized — see "Checklist virtualization"
-// below), range + slider (number), or a Year›Month›Day tree + range + slider (date). Shown by the
-// Filter dropdown's right pane and the header menu's Filter flyout; its view state (value search,
-// value order, shift-click anchor, expanded date nodes) lives here, so render it keyed by column.
+// One column's filter controls (checklist, range + slider, or date tree), shown by the Filter
+// dropdown and the header menu; owns its view state, so render it keyed by column.
 export function FilterPane<TRow extends object>(props: FilterPaneProps<TRow>) {
   const { table } = props
   const activeCol = () => props.col
@@ -226,16 +209,10 @@ export function FilterPane<TRow extends object>(props: FilterPaneProps<TRow>) {
     )
   })
 
-  // --- Checklist virtualization ---
-  // A column with thousands of distinct values (a customer name, an order ID) would otherwise
-  // mount one <label>/<input> per value regardless of scroll position — see docs/performance.md's
-  // "Performance" and "The flat checklist is virtualized in React and Vue" in the docs. Solid's
-  // own version of this, windowing filterDetailValues() the same way.
+  // --- Checklist virtualization (docs/filter-dropdown.md) ---
   let filterListEl: HTMLDivElement | undefined
   const [scrollTop, setScrollTop] = createSignal(0)
-  // Resets scroll to 0 whenever the active column or its search term changes — matches React/
-  // Vue's own reset trigger (a stale scroll position from a previous column/search makes no
-  // sense against a freshly-narrowed list).
+  // Back to the top when the search changes what row 0 is
   createEffect(() => {
     void searchTerm()
     setScrollTop(0)
@@ -280,9 +257,7 @@ export function FilterPane<TRow extends object>(props: FilterPaneProps<TRow>) {
   }
   function handleSelectAll(): void {
     toggleChecklistValues(table.filter, activeCol().key, filterDetailValues(), usesExcludeOnly())
-    // No preventDefault() here (this checkbox is a plain two-state toggle, not tri-state), but
-    // the native pre-click activation can still race Solid's own synchronous write on rare
-    // event-ordering — deferring a correction alongside the state update is cheap insurance.
+    // Cheap insurance against the native click racing Solid's write
     deferCheckboxCorrection(selectAllEl, () => selectAllState())
   }
   const selectAllState = createMemo(() =>
@@ -355,9 +330,7 @@ export function FilterPane<TRow extends object>(props: FilterPaneProps<TRow>) {
     const onExclude = !!active?.matches('[data-dd-value-exclude]')
     if (!active || (!focusables.includes(active) && !onExclude)) return
 
-    // The flat checklist is virtualized (see "Checklist virtualization" below): a value outside
-    // the mounted window (or Home/End) needs focusChecklistIndex's scroll-then-focus; the date
-    // tree is fully mounted, so DOM order works
+    // A value outside the mounted window (or Home/End) needs focusChecklistIndex; the date tree is all mounted
     const col = activeCol()
     if (col.type !== 'date' && col.type !== 'number') {
       const values = filterDetailValues()
@@ -375,11 +348,7 @@ export function FilterPane<TRow extends object>(props: FilterPaneProps<TRow>) {
     next.focus()
   }
 
-  // Scrolls (if needed) and focuses the checklist row at `values[targetIdx]` — the scroll-then-
-  // focus dance a virtualized list needs when the target isn't in the currently-mounted window.
-  // Solid's DOM update for the new window is synchronous within this same call (same reasoning
-  // as the Sort/Group activate/remove focus retention elsewhere in this codebase), so no
-  // pending-ref/effect indirection is needed: set scrollTop, then focus, in the same tick.
+  // Scrolls `values[targetIdx]` into the window and focuses it: Solid updates the DOM synchronously
   function focusChecklistIndex(targetIdx: number, values: string[], onExclude = false): void {
     const value = values[targetIdx]
     if (value === undefined) return
@@ -430,9 +399,7 @@ export function FilterPane<TRow extends object>(props: FilterPaneProps<TRow>) {
                   onSetMatchMode={(mode) => table.filter.setMode(col().key, mode)}
                   clearSearchLabel={table.labels().clearSearch}
                 />
-                {/* Bulk (de)select everything the value search above is currently hiding
-                        — see docs/filter-dropdown.md's "Filter dropdown". Only rendered once a search term
-                        actually narrows the list. */}
+                {/* Bulk (de)select what the value search hides (docs/filter-dropdown.md) */}
                 <Show when={otherValues().length > 0}>
                   <label class="dt-dd-item dt-filter-others">
                     <input
@@ -457,9 +424,7 @@ export function FilterPane<TRow extends object>(props: FilterPaneProps<TRow>) {
                   ref={filterListEl}
                   onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
                 >
-                  {/* Spacer sized to the *full* (unwindowed) list so the real scrollbar
-                          still reports the true item count's size; the inner div positions
-                          just the mounted window at its real offset within that spacer. */}
+                  {/* Full-height spacer for a true scrollbar; the inner div holds the mounted window */}
                   <div
                     style={{
                       height: `${filterListVirtualRange().totalHeight}px`,
