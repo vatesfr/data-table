@@ -520,14 +520,6 @@ const filterDetailCol = computed(
 function hasActiveColFilter(col: ColumnDef<TRow>): boolean {
   return columnHasActiveFilter(col.key, filters.value, excludeFilters.value, rangeFilters.value)
 }
-// Clears every kind at once — the left pane's clear button (and Delete/Backspace, see
-// onFilterDropdownKeydown) means "drop this column's filter entirely", unlike the active-bar's
-// own per-kind chips.
-function clearColFilter(key: string): void {
-  clearColumnFilter(key, 'include')
-  clearColumnFilter(key, 'exclude')
-  clearColumnFilter(key, 'range')
-}
 const exclusionKeys = computed(() =>
   exclusionValueKeys(props.data, props.columns, excludeFilters.value),
 )
@@ -1059,7 +1051,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
       const col = key && filterableCols.value.find((c) => c.key === key)
       if (col && hasActiveColFilter(col)) {
         event.preventDefault()
-        clearColFilter(col.key)
+        clearColumnFilter(col.key)
       }
       return
     }
@@ -1756,7 +1748,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                     class="dt-filter-col-clear"
                     :title="L.clearColumnFilter"
                     :aria-label="L.clearColumnFilter"
-                    @click.stop="clearColFilter(col.key)"
+                    @click.stop="clearColumnFilter(col.key)"
                   >
                     ×
                   </button>
@@ -1822,7 +1814,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                       class="dt-filter-col-clear"
                       :title="L.clearColumnFilter"
                       :aria-label="L.clearColumnFilter"
-                      @click.stop="clearColFilter(col.key)"
+                      @click.stop="clearColumnFilter(col.key)"
                     >
                       ×
                     </button>

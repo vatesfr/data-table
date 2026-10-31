@@ -296,6 +296,18 @@ describe('createTableState — filtering', () => {
     })
   })
 
+  it('clearColumnFilter with no kind drops include, exclude and range together', () => {
+    withRoot(() => {
+      const table = createTableState(ROWS, COLS)
+      table.filter.cycleValue('score', '90')
+      table.filter.cycleValue('score', '60')
+      table.filter.cycleValue('score', '60') // -> exclude
+      table.filter.setRange('score', 'min', '70')
+      table.filter.clearColumn('score')
+      expect(table.filter.activeCount()).toBe(0)
+    })
+  })
+
   it('activeFilterCount reflects include, exclude, and range filters together', () => {
     withRoot(() => {
       const table = createTableState(ROWS, COLS)

@@ -110,9 +110,7 @@ function onPaneKeydown(e: KeyboardEvent): void {
 function act(item: Exclude<HeaderMenuItem, 'filter'>): void {
   const restoreFocus = triggerRef.value && keepHeaderMenuFocus(triggerRef.value)
   close(true)
-  if (item === 'clear')
-    for (const kind of ['include', 'exclude', 'range'] as const)
-      props.table.filter.clearColumn(props.col.key, kind)
+  if (item === 'clear') props.table.filter.clearColumn(props.col.key)
   else if (item === 'group' || item === 'ungroup') props.table.group.toggle(props.col.key)
   else props.table.columns.toggleVisibility(props.col.key)
   if (restoreFocus) void nextTick(restoreFocus)

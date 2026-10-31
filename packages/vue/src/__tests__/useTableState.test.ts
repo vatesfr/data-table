@@ -779,6 +779,17 @@ describe('useTableState — cycleFilterValue (exclude filters)', () => {
     cycleFilterValue('name', 'Alice') // include -> exclude
     expect(activeFilterCount.value).toBe(1)
   })
+
+  it('clearColumn with no kind drops include, exclude and range together', () => {
+    const table = useTableState(ROWS, COLS)
+    const { cycleValue, setRange, clearColumn, activeCount } = table.filter
+    cycleValue('score', '90')
+    cycleValue('score', '60')
+    cycleValue('score', '60') // include -> exclude
+    setRange('score', 'min', '70')
+    clearColumn('score')
+    expect(activeCount.value).toBe(0)
+  })
 })
 
 describe('useTableState — toggleFilterAll and exclude filters', () => {

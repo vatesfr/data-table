@@ -457,17 +457,20 @@ export function createTableState<TRow extends object>(
         }))
         setPageState(1)
       },
-      clearColumn: (key: string, kind: 'include' | 'exclude' | 'range' = 'include') => {
-        if (kind === 'exclude')
-          setFilterState((prev) => ({
-            ...prev,
-            excludeFilters: { ...prev.excludeFilters, [key]: new Set() },
-          }))
-        else if (kind === 'range')
-          setRangeFilters((prev) => ({ ...prev, [key]: { min: '', max: '' } }))
-        else setFilterState((prev) => ({ ...prev, filters: { ...prev.filters, [key]: new Set() } }))
-        setPageState(1)
-      },
+      // A column can hold include, exclude and range filters at once: `kind` clears one, none clears all
+      clearColumn: (key: string, kind?: 'include' | 'exclude' | 'range') =>
+        batch(() => {
+          if (!kind || kind === 'include')
+            setFilterState((prev) => ({ ...prev, filters: { ...prev.filters, [key]: new Set() } }))
+          if (!kind || kind === 'exclude')
+            setFilterState((prev) => ({
+              ...prev,
+              excludeFilters: { ...prev.excludeFilters, [key]: new Set() },
+            }))
+          if (!kind || kind === 'range')
+            setRangeFilters((prev) => ({ ...prev, [key]: { min: '', max: '' } }))
+          setPageState(1)
+        }),
       clear: () => {
         setFilterState({ filters: {}, excludeFilters: {} })
         setFilterModes({})

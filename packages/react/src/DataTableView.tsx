@@ -1605,9 +1605,7 @@ export function DataTableView<TRow extends object>({
               e.stopPropagation()
               // Clears every kind at once — this button means "drop this column's filter
               // entirely", unlike the active-bar's own per-kind chips.
-              clearColumnFilter(col.key, 'include')
-              clearColumnFilter(col.key, 'exclude')
-              clearColumnFilter(col.key, 'range')
+              clearColumnFilter(col.key)
             }}
           >
             ×
@@ -1640,9 +1638,7 @@ export function DataTableView<TRow extends object>({
       const col = key && filterableCols.find((c) => c.key === key)
       if (col && columnHasActiveFilter(col.key, filters, excludeFilters, rangeFilters)) {
         e.preventDefault()
-        clearColumnFilter(col.key, 'include')
-        clearColumnFilter(col.key, 'exclude')
-        clearColumnFilter(col.key, 'range')
+        clearColumnFilter(col.key)
       }
       return
     }
@@ -2570,9 +2566,7 @@ export function DataTableView<TRow extends object>({
                             <FilterPane table={table} data={data} columns={columns} col={col} />
                           }
                           onClearFilter={() => {
-                            clearColumnFilter(col.key, 'include')
-                            clearColumnFilter(col.key, 'exclude')
-                            clearColumnFilter(col.key, 'range')
+                            clearColumnFilter(col.key)
                           }}
                           onGroup={() => toggleGroup(col.key)}
                           onHide={() => toggleColVisibility(col.key)}

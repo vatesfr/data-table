@@ -206,9 +206,7 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
       const col = key && filterableCols().find((c) => c.key === key)
       if (col && hasActiveFilter(col)) {
         e.preventDefault()
-        table.filter.clearColumn(col.key, 'include')
-        table.filter.clearColumn(col.key, 'exclude')
-        table.filter.clearColumn(col.key, 'range')
+        table.filter.clearColumn(col.key)
       }
       return
     }
@@ -266,9 +264,7 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
               e.stopPropagation()
               // Clears every kind at once — this button means "drop this column's filter
               // entirely", unlike the active-bar's own per-kind chips.
-              table.filter.clearColumn(col.key, 'include')
-              table.filter.clearColumn(col.key, 'exclude')
-              table.filter.clearColumn(col.key, 'range')
+              table.filter.clearColumn(col.key)
             }}
           >
             ×
