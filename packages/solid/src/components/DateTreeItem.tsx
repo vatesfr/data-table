@@ -14,32 +14,21 @@ interface DateTreeItemProps {
   selected: Set<string>
   counts: Map<string, number>
   expanded: Set<string>
-  // Force-expanded regardless of `expanded`/click history whenever the column's own search term
-  // is non-empty — the already-narrowed list is small enough to show in full (see docs/filter-dropdown.md's
-  // date-tree section: "a node with an active search term for its column is force-expanded
-  // regardless of click history").
+  // Force-expands every node while the column's value search is active
   searchActive: boolean
   onToggleExpand: (path: string) => void
   onToggleNode: (node: DateTreeNode, shiftKey: boolean) => void
 }
 
-// Recursive Year › Month › Day tree node (see docs/filter-dropdown.md's date-tree section). Self-imports for
-// recursion — mirrors vue/components/DateTreeItem.vue's own self-import pattern (safer than
-// filename-based self-reference across build setups).
+// Recursive Year › Month › Day node (docs/filter-dropdown.md), self-imported like Vue's DateTreeItem
 export function DateTreeItem(props: DateTreeItemProps) {
   const isLeaf = () => props.node.children.length === 0
   const state = () => getDateTreeNodeState(props.node, props.selected)
   const expanded = () => props.searchActive || props.expanded.has(props.node.path)
   const count = () => sumDateTreeNodeCount(props.node, props.counts)
-  // Year nodes (depth 0) are plain 4-digit numbers; month nodes (depth 1) render as a localized
-  // long month name ("May", not "05"); day nodes (depth 2) as a plain (non-zero-padded) number —
-  // matches the old vanilla renderer's own depth-based formatting. Anything deeper, or a
-  // non-numeric key (the emptyLabel leaf for unparseable values), is left as its raw key.
   const label = () => formatDateTreeLabel(props.node.key, props.depth)
 
-  // `.indeterminate` has no JSX/attribute equivalent — it's a DOM-only imperative property, so
-  // it needs an effect re-applying it whenever `state()` changes, not a one-shot ref callback
-  // (which only runs once at mount and would freeze on the tree's initial checked state).
+  // An effect, not a ref callback: `.indeterminate` is a DOM property that must follow `state()`
   let checkboxEl: HTMLInputElement | undefined
   createEffect(() => {
     applyCheckboxState(checkboxEl, state() === 'checked', state() === 'indeterminate')

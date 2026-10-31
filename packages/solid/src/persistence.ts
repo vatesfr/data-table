@@ -9,20 +9,13 @@ import {
   type ResetViewOptions,
 } from '@vates/data-table-core/internal'
 
-// Solid's own equivalent of react/vue's usePersistedView/useUrlView/usePersistence, built on the
-// exact same getViewState()/setViewState() primitive this package's own createTableState also
-// exposes — see docs/view-persistence.md's "View persistence" for the shared design across all three adapters.
-// Named to match react/vue's own hooks (rather than a Solid-conventional `createXxx` name) since
-// these are the same concept under the same API — cross-adapter consistency wins here over strict
-// per-framework naming convention.
+// React/Vue's persistence hooks for Solid, same names for cross-adapter consistency (docs/view-persistence.md)
 
 export type { ViewStateApi, ResetViewOptions }
 
 /**
- * Loads a persisted view from `localStorage` once and saves it back on every subsequent change.
- * `table` is typically the object returned by `createTableState`. `storageKey` may be `undefined`
- * to no-op — this lets `usePersistence` below call this unconditionally regardless of whether
- * storage persistence is actually wanted.
+ * Loads a persisted view from `localStorage` once and saves it back on every later change. An
+ * `undefined` `storageKey` no-ops.
  */
 export function usePersistedView(table: ViewStateApi, storageKey: string | undefined): void {
   if (!storageKey) return
@@ -36,10 +29,6 @@ export function usePersistedView(table: ViewStateApi, storageKey: string | undef
     on(
       () => table.getViewState(),
       (v) => {
-        // Mirrors useUrlView's own empty-view handling below: a view back at its
-        // construction-time defaults removes the key entirely rather than storing an
-        // encoded-but-empty blob, so resetView's own removeItem isn't immediately undone by
-        // this effect's next run.
         saveOrClearViewInStorage(storageKey, v)
       },
       { defer: true },
@@ -59,10 +48,7 @@ export interface UseUrlViewOptions {
 export function useUrlView(table: ViewStateApi, options?: UseUrlViewOptions): void {
   const paramName = options?.paramName ?? 'view'
 
-  // Only acts when the param is actually present — an absent (or malformed) param leaves whatever
-  // state is already there alone, rather than forcing a reset to defaults. This matters when
-  // composing with usePersistedView above: a plain reload with no `view` param should keep the
-  // localStorage-restored view, not clobber it with an empty one.
+  // An absent or malformed param keeps the current (e.g. storage-restored) view
   function applyFromUrl(): void {
     const view = readViewFromUrlParam(paramName)
     if (view) table.setViewState(view)
@@ -93,11 +79,8 @@ export function resetView(table: ViewStateApi, options?: ResetViewOptions): void
 export type UsePersistenceOptions = ResetViewOptions
 
 /**
- * Combines `usePersistedView` + `useUrlView` behind one options object, so `storageKey`/
- * `paramName` are written down once instead of separately at three call sites (`usePersistedView`,
- * `useUrlView`, and `resetView` all need the *same* values — a typo'd/forgotten key at any one of
- * them is a silent bug). Returns a `reset()` bound to those same options, equivalent to calling
- * `resetView(table, options)` yourself.
+ * `usePersistedView` + `useUrlView` sharing one `storageKey`/`paramName`, plus a `reset()` bound to
+ * them.
  */
 export function usePersistence(
   table: ViewStateApi,

@@ -19,11 +19,8 @@ import { Pagination } from './components/Pagination'
 export interface DataTableViewProps<TRow extends object> {
   table: TableState<TRow>
   /**
-   * A row property used as a stable DOM key for table rows (falls back to array index when
-   * omitted). Purely a rendering-identity hint — it is **not** used for selection, which is
-   * tracked by object identity instead (see `TableState.selection.all`/`.toggle`) and
-   * works correctly with no `rowKey` at all. Unlike most table libraries' "row key" prop, this
-   * one has no bearing on selection/sort/filter state.
+   * A row property used as a stable DOM key (default: the index). Not used for selection, which
+   * tracks rows by object identity (or `getRowId`).
    */
   rowKey?: keyof TRow & string
   selectable?: boolean
@@ -39,26 +36,16 @@ export interface DataTableViewProps<TRow extends object> {
    */
   rowClass?: (row: TRow) => string | undefined
   /**
-   * Shows/hides the toolbar's search box. Defaults to `true`. Unlike the Sort/Group/Filter
-   * dropdowns (which already hide themselves when no column qualifies for them), search always
-   * applies regardless of column config — there's no equivalent auto-hide signal for it, so this
-   * is the one toolbar control that needs an explicit opt-out (e.g. when the page already has its
-   * own search input and the toolbar's own box would just duplicate it).
+   * Shows the toolbar's search box. Default: `true`. Opt out when the page has its own search.
    */
   showSearch?: boolean
   /**
-   * Shows/hides the Columns toolbar button. Defaults to `true`, but auto-hides regardless once
-   * `columns.length < 2` — reordering/toggling the visibility of a single column has nothing
-   * meaningful to act on. Unlike Sort/Group/Filter (which derive their own auto-hide from a
-   * per-column flag), Columns has no such per-column signal — hiding/showing a column is a
-   * table-level preference, not something a column def opts into — so this explicit opt-out
-   * mirrors `showSearch`'s reasoning rather than adding a `showable`-style column flag.
+   * Shows the Columns toolbar button. Default: `true`; hidden anyway with fewer than 2 columns.
    */
   showColumns?: boolean
   /**
-   * Consumer content rendered at the end of the toolbar's action row (after "Clear all"), inside
-   * a right-aligned `.dt-toolbar-end` wrapper — e.g. "Share view"/"Reset view" buttons. Omitted:
-   * no wrapper is rendered at all.
+   * Content at the end of the toolbar's action row, in a right-aligned `.dt-toolbar-end`, e.g.
+   * "Share view" buttons. Omitted: no wrapper.
    */
   // `JSXElement`, not `JSX.Element`: the d.ts rollup (vite:dts) can't follow solid-js's `JSX` namespace.
   toolbarEnd?: JSXElement
@@ -66,11 +53,7 @@ export interface DataTableViewProps<TRow extends object> {
 
 type DropdownId = 'cols' | 'sort' | 'group' | 'filter'
 
-// Top-level render layer, taking a `table: TableState<TRow>` (createTableState's return) as a
-// prop instead of calling createTableState itself — mirrors react/vue's own DataTableView split
-// (see docs/packages.md's "DataTableView — reaching state that <DataTable> can't expose"), so a consumer
-// with imperative needs (usePersistedView-equivalent, etc.) can build a table and pass it in
-// directly instead of only ever going through the createDataTable(container, options) wrapper.
+// Render layer taking a `table` from `createTableState` (docs/packages.md's DataTableView split)
 export function DataTableView<TRow extends object>(props: DataTableViewProps<TRow>) {
   injectStyles(renderThemeCss())
   const { table } = props
@@ -115,9 +98,7 @@ export function DataTableView<TRow extends object>(props: DataTableViewProps<TRo
                 onClose={() => setOpenDropdown(null)}
               />
             </Show>
-            {/* Group before Sort — data is grouped first, then ordered (groups themselves, then
-              rows within them), matching the Sort dropdown's own "Group order" section coming
-              before "Active sorts" and the active bar's group-chips-before-sort-chips order. */}
+            {/* Group before Sort: data is grouped, then ordered */}
             <Show when={groupableCols().length > 0}>
               <GroupDropdown
                 table={table}
@@ -181,14 +162,7 @@ export function DataTableView<TRow extends object>(props: DataTableViewProps<TRo
         totalRows={table.data().length}
         onOpenGroup={(key) => {
           setOpenDropdown('group')
-          // Dropdown's own focus-on-open runs in a queueMicrotask (not synchronously — see
-          // Dropdown.tsx's own comment), since its panel's ref callback fires before
-          // `props.children` exists underneath it. This override has to run in a *later*-queued
-          // microtask of its own, or Dropdown's already-scheduled one would win the race and
-          // steal focus back to the search box/first row after this line runs. Scoped globally
-          // rather than to this table's own root (no existing ref for that) — a practically
-          // negligible risk of matching a different table's dropdown, only if two tables' Group
-          // dropdowns were opened this way at the exact same instant with an overlapping key.
+          // Queued after Dropdown's own focus-on-open microtask, so this focus wins
           queueMicrotask(() => {
             document.querySelector<HTMLElement>(`[data-group-key="${key}"]`)?.focus()
           })

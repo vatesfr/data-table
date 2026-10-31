@@ -19,46 +19,7 @@ interface ColumnsDropdownProps<TRow extends object> {
   onClose: () => void
 }
 
-// Mirrors docs/columns.md's "Columns dropdown": a "Visible columns" section (every column the user has
-// chosen to show — table.columns.visible(), not table.columns.active(), so a column merely hidden
-// *by grouping* still counts as visible here — draggable/Alt+↑↓-reorderable, exactly the flat
-// list this dropdown always was) above an "Available columns" section (hidden columns, click to
-// show; a categorized one collapses into a CategorySubmenu — see that file's own doc). This is the
-// same active/addable split Sort/Group already use, replacing the single all-columns-with-a-
-// checkbox list this dropdown used before category submenus existed — a checkbox no longer fit
-// once "shown" and "hidden" needed visually distinct rows (draggable + remove vs. plain click-to-
-// add), the same reason Sort/Group never used one either.
-//
-// Reordering only ever happens within Visible — Available is click-only, so nesting it into
-// category submenus (impossible for Visible, since submenu rows can't also be a drag surface —
-// see CategorySubmenu.tsx) creates no conflict. A newly-shown column reappears in Visible at
-// whatever position table.columns.ordered() already puts it — its last dragged position, or
-// definition order if never dragged — with no new logic needed: columnOrder never actually
-// changes when visibility toggles, only when something is dragged/Alt+↑↓'d. The one thing this
-// drops versus the old single-list UI: pre-positioning a *hidden* column by dragging it before
-// ever showing it. That's an intentionally accepted tradeoff, not an oversight — Sort/Group never
-// supported "reorder before adding" either.
-//
-// Unlike Sort/Group's addable lists, Available is deliberately NOT alphabetized, and its
-// categories are NOT re-sorted after groupColumnsByCategory — this dropdown has never alphabetized
-// anything (its whole identity is "shows real column/definition order"), so Available keeps that
-// same principle instead of adopting Sort/Group's own alphabetical convention (see
-// addableLists, core — the shared helper Sort/Group use instead of this).
-//
-// The search box is pinned at the very top and, unlike Sort/Group, narrows *both* sections — a
-// column you already show is just as often what you're hunting for (to hide/reorder it) as one
-// you don't. It's mounted unconditionally (never wrapped in a `<Show>` keyed off the filtered
-// result count) so it can never unmount itself out from under an actively-focused, mid-typing
-// user — the bug the previous "search only narrows Available, and only renders once Available's
-// *filtered* list is non-empty" version had: typing a query with zero matches unmounted the input
-// itself, dropping focus to <body> with no way back short of Escape.
-//
-// Reordering (drag and Alt+↑/↓) stays fully live while searching rather than being disabled —
-// drag already only ever operates on rows the user can see (you can't drag or drop a row that
-// isn't rendered), and Alt+↑/↓'s neighbor lookup is scoped to the same search-filtered key set via
-// `moveVisibleBy`'s optional 3rd param, so it only ever swaps two currently-shown rows. A column
-// hidden by the search filter (or by real column visibility) is never touched — not even nudged
-// in relative order — regardless of what gets reordered around it.
+// The Columns dropdown: Visible and Available sections, see docs/columns.md's "Columns dropdown"
 export function ColumnsDropdown<TRow extends object>(props: ColumnsDropdownProps<TRow>) {
   const { table } = props
   const [searchTerm, setSearchTerm] = createSignal('')
@@ -80,16 +41,9 @@ export function ColumnsDropdown<TRow extends object>(props: ColumnsDropdownProps
   const categorizedAvailable = () => lists()[3]
   const reorderEligible = () => lists()[4]
 
-  // Hides `col`, refocusing whatever it reappears as in Available — shared by a visible row's own
-  // × button and its Delete/Backspace keyboard equivalent, since both need the same
-  // search/category-aware selector (see the inline comment on that selector below for why it
-  // isn't always the same one).
+  // Hides `col` and refocuses what it reappears as in Available (× and Delete/Backspace)
   function hideColumn(el: HTMLElement, col: ColumnDef<TRow>): void {
-    // The column reappears in Available either as its own addable row — its usual spot, or (while
-    // searching) its flattened-out-of-category spot, see categorizedAvailable above — or, when
-    // categorized and *not* currently searching, inside a closed submenu with no addable row of
-    // its own rendered yet, so the submenu's own trigger is the right thing to focus instead (see
-    // CategorySubmenu.tsx's own comment on this data attribute).
+    // Categorized and not searching: it lands in a closed submenu, so focus that submenu's trigger
     const selector =
       col.category && !isSearching()
         ? `.dt-dd-category-trigger[data-category-name="${col.category}"]`
@@ -107,10 +61,7 @@ export function ColumnsDropdown<TRow extends object>(props: ColumnsDropdownProps
         </button>
       }
       onEscapeClearable={() => {
-        // Scoped to focus actually being in the search box — without this, Escape pressed while
-        // focused on a row (e.g. after arrowing down into the list) would still silently clear a
-        // non-empty search term instead of closing the dropdown on the first press, the same
-        // fix already applied to the Filter dropdown's own onEscapeClearable.
+        // Only from the search box: Escape on a row closes rather than clearing the search
         if (!document.activeElement?.matches?.('.dt-dd-search')) return false
         if (!searchTerm()) return false
         setSearchTerm('')
@@ -204,11 +155,6 @@ export function ColumnsDropdown<TRow extends object>(props: ColumnsDropdownProps
               <AddableColumnRow
                 col={col}
                 onClick={() => {
-                  // See DropdownParts.tsx's AddableColumnRow / SortDropdown.tsx's identical
-                  // comment: a document-wide query rather than a `.closest('.dt-dd')`-scoped one —
-                  // simplest to just keep it that way even now that CategorySubmenu no longer
-                  // portals (see that file's own comment), since a scoped lookup would work too
-                  // but buys nothing here.
                   table.columns.toggleVisibility(col.key)
                   document.querySelector<HTMLElement>(`[data-col-row-key="${col.key}"]`)?.focus()
                 }}

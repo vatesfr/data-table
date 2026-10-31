@@ -12,23 +12,8 @@ interface RangeSliderProps<TRow extends object> {
   onCommit: (min: string, max: string) => void
 }
 
-// "2 inputs + a slider" range control (see docs/filter-dropdown.md's "type: 'number'/'type: 'date' range
-// filters get a slider") — two overlapping native <input type="range"> thumbs sharing one visual
-// track (core's DT_STYLES makes only the thumb itself a hit target). Both thumbs share one onInput:
-// the actual applied min/max is always Math.min/Math.max of both thumbs' live values, so dragging
-// one thumb past the other just swaps their visual roles instead of needing cross-clamping.
-//
-// Unlike the old vanilla code (which had to split range-slider handling across `input`/`change`
-// events specifically to avoid destroying the dragged thumb mid-drag via a full innerHTML
-// rebuild), Solid's controlled inputs update the same DOM node in place — dragging is never
-// disturbed by a state-driven re-render, so every tick can commit directly. Same simplification
-// React/Vue's own equivalents already got for free.
-//
-// The "no bounds" (or degenerate min>=max) case is a reactive <Show>, not an early `return null`
-// in the setup body — this component's props can change identity (switching the active filter
-// column between two number/date columns) while the JSX position that renders it stays the same,
-// so Solid keeps this same instance mounted rather than remounting a fresh one; an early return
-// evaluated once at setup time would freeze on whatever the first column's bounds happened to be.
+// The range control's slider: two overlapping native range inputs on one track, applying the min/max
+// of both thumbs on every tick. A <Show>, not an early return: the instance survives a column switch.
 export function RangeSlider<TRow extends object>(props: RangeSliderProps<TRow>) {
   const isDate = () => props.col.type === 'date'
   const geo = () =>

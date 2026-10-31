@@ -62,10 +62,7 @@ import {
 } from '@vates/data-table-core/internal'
 import type { ColumnDef } from './types'
 
-// Resolves a value that may be given either directly or as a reactive accessor — the same
-// "value or getter" duality Vue's own useTableState accepts via MaybeRefOrGetter, here expressed
-// the Solid way. Safe to discriminate on `typeof value === 'function'`: neither `TRow[]` nor
-// `ColumnDef<TRow>[]` (the only two types this is ever called with) can themselves be a function.
+// A value or its accessor; neither data nor columns can themselves be functions
 function access<T>(value: T | Accessor<T>): T {
   return typeof value === 'function' ? (value as Accessor<T>)() : value
 }
@@ -75,85 +72,30 @@ export interface CreateTableStateOptions<TRow extends object = Record<string, un
   /** Whether newly-grouped groups start collapsed. Defaults to `true`; pass `false` to start expanded. */
   defaultGroupsCollapsed?: boolean
   /**
-   * Construction-time defaults for every other view concern (visible columns, column order,
-   * sort, filters, grouping, page/pageSize, search) — a fresh table starts here, and `resetView`
-   * restores it. Any field left unset falls back to that field's own ordinary empty default (all
-   * columns visible, no sort, page 1, etc). Grouping a column with no matching sort entry here
-   * gets one inserted automatically (the same thing interactive grouping already does), so
-   * `initialViewState: { groupBy: ['status'] }` alone is enough for a deterministic group order.
-   * Seed-only: read once at construction, regardless of whether `options` itself is given as an
-   * Accessor. See `labels`/`defaultGroupsCollapsed`/`getRowId` below for the fields that *do*
-   * stay live in that case.
+   * The view a fresh table starts at and `resetView` restores; unset fields take their empty
+   * default. A grouped column gets a matching sort entry, as interactive grouping does. Read once.
    */
   initialViewState?: TableViewState
   /**
-   * Opt-in row identity for selection. By default, selection tracks rows by object identity — a
-   * refetch or re-map of `data` that produces new row objects (even with identical content)
-   * silently drops selection, since a `Set` can only ever match by reference. Supplying `getRowId`
-   * switches selection to match by id instead, so it survives that kind of refresh: whenever
-   * `data` changes, currently-selected ids are looked up in the new array and remapped to their
-   * fresh object references (an id no longer present is dropped from selection). Omit this to
-   * keep today's exact default behavior.
+   * Opt-in row identity for selection, which otherwise tracks row objects and so drops rows
+   * replaced by a refetch. With it, selected ids are remapped to the new `data`'s rows (missing
+   * ones dropped).
    */
   getRowId?: GetRowId<TRow>
 }
 
 export type TableState<TRow extends object> = ReturnType<typeof createTableState<TRow>>
 
-// Solid port of react/useTableState.ts & vue/useTableState.ts — see docs/solid-package.md's "Solid + TSX
-// migration" note for why. Internal state/action logic mirrors those two field-for-field (same
-// signal names, same core functions called), so a change made to one adapter's state logic has an
-// obvious equivalent here — only the *returned object's shape* is namespaced (`table.sort.*`,
-// `table.filter.*`, `table.group.*`, `table.selection.*`, `table.pagination.*`, `table.search.*`,
-// `table.columns.*`, plus `processedData`/`pagedData`/`groupedData`/`visibleItems`/`labels` and
-// `getViewState`/`setViewState`/`clearAll` staying top-level) rather than the ~45-field flat object
-// every adapter used to return — see docs/table-state.md's "Namespaced TableState" for the full reasoning;
-// Solid is the first adapter migrated to this shape, with React/Vue to follow the same grouping.
-// The one structural difference from React/Vue: `data`/`columns` are themselves signals with
-// public `setData`/`columns.set` setters, because vanilla's `createDataTable(container, options)`
-// is a factory called once — there's no consumer-owned render loop re-invoking this with fresh
-// `data`/`columns` arguments the way React re-invokes `useTableState` on every render, so this
-// module has to own that mutability itself.
-//
-// `initialData`/`initialColumns` each accept a plain value *or* an `Accessor` (mirroring Vue's
-// own `MaybeRefOrGetter` support) — passing an accessor sets up an internal `createEffect` that
-// keeps `data`/`columns` tracking it for the table's whole lifetime, removing the need for the
-// caller to write that effect by hand (as `@vates/data-table-vanilla`'s own `createDataTable`
-// wrapper, and the `<DataTable>` component in this package, both would otherwise have to). A
-// plain array, by contrast, is only ever a one-time initial value — exactly today's existing
-// behavior — fully decoupled after construction, with `setData`/`columns.set` the only way to
-// change it from then on. Calling `setData`/`columns.set` manually on an accessor-backed table
-// still works, but is only a temporary override: the internal effect re-applies the accessor's
-// value the next time it re-runs, the same "controlled input" trade-off as Vue's own `computed`.
-//
-// Ephemeral, UI-only state that React/Vue keep in their *view* layer rather than in
-// `useTableState` (openDropdown, filterActiveCol, ddSearchTerms, drag state, etc. — see "Filter
-// dropdown"/"Keyboard navigation" in the docs) is deliberately NOT here either; it belongs in
-// DataTableView.tsx instead. The roving-tabindex `focusTarget` is the one exception — it's lifted
-// up here (as `focus.target`/`row`/`setTarget`/`moveTo`) so it's reachable/settable from outside
-// the rendered table, same as React/Vue's own `useTableState` — see "External row focus" in the
-// docs.
+// Solid port of React/Vue's state hooks: see docs/solid-package.md for its accessor inputs and
+// `setData`/`columns.set`, and docs/table-state.md for the namespaced shape.
 export function createTableState<TRow extends object>(
   initialData: TRow[] | Accessor<TRow[]>,
   initialColumns: ColumnDef<TRow>[] | Accessor<ColumnDef<TRow>[]>,
   options?: CreateTableStateOptions<TRow> | Accessor<CreateTableStateOptions<TRow> | undefined>,
 ) {
-  // `options` may be given directly or as a reactive Accessor, same duality as `initialData`/
-  // `initialColumns` above — but unlike those two, `labels`/`defaultGroupsCollapsed`/`getRowId`
-  // can't each independently accept "value or Accessor" the same way: `getRowId` is itself a
-  // function, indistinguishable at runtime from an Accessor that *returns* one, which is exactly
-  // the ambiguity `access`'s own doc comment rules out. Lifting reactivity to the whole options
-  // object sidesteps that: a plain `CreateTableStateOptions` object is never itself a function, so
-  // `access` safely discriminates "the whole options accessor" from "the options object", and
-  // reading `getOptions().getRowId` (etc.) after that is just ordinary property access — same
-  // approach Vue's own `useTableState` takes with its whole `options` argument.
+  // Reactive as a whole: `getRowId` is a function, so fields can't each be "value or accessor"
   const getOptions = (): CreateTableStateOptions<TRow> => access(options) ?? {}
-  // `initialViewState` stays seed-only regardless of whether `options` is reactive — read once,
-  // untracked, right now, to build each signal's initial value (the same
-  // `resolveViewState({}, ...)` call `resetView`/`setViewState({})` make, so "what a fresh table
-  // starts at" and "what a reset restores" can never drift apart). `labels`/
-  // `defaultGroupsCollapsed`/`getRowId` (read via `getOptions()` at their own use sites below,
-  // inside a memo or fresh at each call) are the fields that actually stay live.
+  // Seed-only, from the same `resolveViewState({}, …)` a reset uses; the other options stay live
   const { initialViewState } = getOptions()
 
   const resolvedInitialColumns = access(initialColumns)
@@ -166,33 +108,19 @@ export function createTableState<TRow extends object>(
   const [visibleCols, setVisibleCols] = createSignal<Set<string>>(initial.visibleCols)
   const [selection, setSelection] = createSignal<Set<TRow>>(new Set())
   const [selectionAnchor, setSelectionAnchor] = createSignal<TRow | null>(null)
-  // The roving-tabindex "current" item (a data row or a group header) — ephemeral UI state, same
-  // category as `selectionAnchor` above, not part of `TableViewState`. See "External row focus"
-  // in the docs.
+  // Roving-tabindex item (docs/keyboard-navigation.md's "External row focus")
   const [focusTarget, setFocusTarget] = createSignal<VisibleItem<TRow> | null>(null)
-  // Set by `moveTo(row, { focus: true })` right before `setFocusTarget`, read-and-cleared by
-  // TableBody's own scroll-into-view effect once the target row actually mounts — the render
-  // layer is what owns the DOM row refs, so it's the only place that can call real `.focus()`. A
-  // plain closure variable (not a signal) — nothing needs to react to it, it's only ever read
-  // once, synchronously, from the effect that already fires off `focusTarget`.
+  // Set by `moveTo(row, { focus: true })`, consumed by TableBody once the row mounts, as only it holds row refs
   let wantsDomFocus = false
 
-  // Wraps the raw `data` signal setter to reconcile `selection`'s stored row references (see
-  // core's `reconcileSelection` for the full reasoning) whenever `getRowId` is set — a no-op
-  // passthrough otherwise, so this costs nothing for the default object-identity behavior.
-  // Declared here (rather than inline in the returned object below) so the accessor-tracking
-  // effect just below can call it too.
+  // Remaps selection to the new rows (only with `getRowId`)
   const setData = (rows: TRow[]) => {
     _setData(rows)
     const rowId = getOptions().getRowId
     if (rowId) setSelection((prev) => reconcileSelection(rows, prev, rowId))
   }
 
-  // Wraps the raw `columns` signal setter to reconcile `visibleCols` against the new key set via
-  // core's `reconcileVisibleColumns` (see its own doc comment for the full reasoning — a plain
-  // passthrough setter would leave `visibleCols` holding stale keys after a schema change).
-  // Declared here (rather than inline in the returned object below) so the accessor-tracking
-  // effect just below can call it too.
+  // Reconciles visibleCols with the new key set (docs/table-state.md)
   const setColumns = (cols: ColumnDef<TRow>[]) => {
     // Untracked: the accessor effect below calls this, and tracking `columns` there re-ran it on
     // its own write — forever, for an accessor returning a new array per read (inline JSX)
@@ -201,12 +129,7 @@ export function createTableState<TRow extends object>(
     setVisibleCols((prevVisible) => reconcileVisibleColumns(prevColumns, cols, prevVisible))
   }
 
-  // See this function's own doc comment above for why: an accessor keeps tracking its source for
-  // the table's whole lifetime instead of only seeding the initial value. `createRenderEffect`
-  // (not `createEffect`) specifically — a plain `createEffect` only re-runs in a microtask after
-  // the triggering signal write, so `data()`/`columns()` would lag one tick behind the source
-  // accessor; `createRenderEffect` re-runs synchronously in the same update flush, the same
-  // timing a JSX binding reading the accessor directly would get.
+  // A render effect, not `createEffect`, so `data()`/`columns()` don't lag a tick behind the accessor
   if (typeof initialData === 'function') {
     createRenderEffect(() => setData((initialData as Accessor<TRow[]>)()))
   }
@@ -216,20 +139,14 @@ export function createTableState<TRow extends object>(
 
   const [columnOrder, setColumnOrder] = createSignal<string[]>(initial.columnOrder)
   const [sorts, setSorts] = createSignal<SortEntry[]>(initial.sorts)
-  // `filters` (include) and `excludeFilters` ("not one of these values", see `cycleFilterValue`)
-  // are combined into one signal rather than two independent ones, for the same reason as React's
-  // `useTableState`: several actions need to read *both* current maps together to decide the next
-  // state, and one signal means one updater always sees the latest committed value of both.
+  // One signal: actions read both include and exclude sets together
   const [filterState, setFilterState] = createSignal<{
     filters: Record<string, Set<string>>
     excludeFilters: Record<string, Set<string>>
   }>({ filters: initial.filters, excludeFilters: initial.excludeFilters })
   const filters = () => filterState().filters
   const excludeFilters = () => filterState().excludeFilters
-  // Per-column runtime override of `col.multiMode` ("any"/"all" checklist match) — see
-  // `setFilterMode`. Kept as its own signal rather than folded into `filterState` above:
-  // unlike `filters`/`excludeFilters`, no action ever needs to read both this and them together
-  // to decide its next value.
+  // Per-column override of `col.multiMode`
   const [filterModes, setFilterModes] = createSignal<Record<string, 'and' | 'or'>>(
     initial.filterModes,
   )
@@ -268,9 +185,7 @@ export function createTableState<TRow extends object>(
     ),
   )
 
-  // Grouping runs over the *full* filtered/sorted data, not a page's slice, so pagination (below)
-  // can budget page size across header rows and data rows together instead of paginating data
-  // rows first and grouping whatever lands on that page afterward — see "Pagination" in the docs.
+  // Grouped over all rows, so pages budget header and data rows together (docs/pagination.md)
   const groupedFull = createMemo(() =>
     sortWithinGroups(
       groupData(processedData(), groupBy(), columns(), L().emptyValue),
@@ -360,13 +275,7 @@ export function createTableState<TRow extends object>(
         setColumnOrder((prev) =>
           _moveColumnBy(prev.length ? prev : columns().map((c) => c.key), key, delta),
         ),
-      // See moveVisibleColumnBy's own doc comment (core) — the Columns dropdown's "Visible
-      // columns" section's own Alt+↑/↓, which must skip over hidden columns rather than swap with
-      // whichever key is textually adjacent in columnOrder. The optional 3rd `eligible` param lets
-      // a caller narrow which keys count as a swappable neighbor below the real `visibleCols()` —
-      // the Columns dropdown passes its own search-filtered key set while a search term is active,
-      // so Alt+↑/↓ only ever reorders among the rows currently shown in the list, leaving anything
-      // hidden by the filter (or by real column visibility) pinned at its own position.
+      // Alt+↑/↓ in Visible columns: skips hidden columns, and those outside `eligible` (the search matches)
       moveVisibleBy: (key: string, delta: number, eligible?: ReadonlySet<string>) =>
         setColumnOrder((prev) =>
           _moveVisibleColumnBy(
@@ -407,9 +316,7 @@ export function createTableState<TRow extends object>(
       setMode: (key: string, mode: 'and' | 'or') =>
         setFilterModes((prev) => _setFilterMode(prev, key, mode)),
       toggleAll: (key: string, values: string[]) => {
-        // Only the "select all ON" branch touches excludeFilters (every listed value is about to
-        // become included, and a value can't be in both sets at once) — "deselect all" only
-        // clears what the checkbox actually showed as selected.
+        // Only selecting all touches excludeFilters (a value can't be in both sets)
         setFilterState((prev) =>
           toggleAllFilterState(prev.filters, prev.excludeFilters, key, values),
         )
@@ -432,9 +339,7 @@ export function createTableState<TRow extends object>(
           excludeFilters: _clearExcludeValues(prev.excludeFilters, key, values),
         }))
       },
-      // Exclude-only checklist model for a non-multi-value column (see docs/filter-dropdown.md's "Filter
-      // dropdown"): `filters` is never touched for such a column, so these two go straight to
-      // `excludeFilters` instead of routing through `cycleFilterValue`/`toggleAllFilterState`.
+      // Exclude-only checklist of a non-multi-value column (docs/filter-dropdown.md)
       setExcludeValues: (key: string, values: string[], excluded: boolean) => {
         setFilterState((prev) => ({
           ...prev,
@@ -521,9 +426,7 @@ export function createTableState<TRow extends object>(
         setSelection((prev) =>
           toggleSelectionShiftAware(prev, row, shiftKey, selectionAnchor(), processedData(), rowId),
         )
-        // Solid's Setter overloads can't tell `row` (typed TRow, whose `object` constraint
-        // structurally overlaps Function) apart from a functional updater — the standard Solid
-        // workaround is wrapping the plain value in a thunk.
+        // A thunk: Solid's setter would take a row (an object) for an updater function
         setSelectionAnchor(() => row)
       },
       toggleAll: (rows: TRow[]) =>
@@ -532,12 +435,7 @@ export function createTableState<TRow extends object>(
         setSelection(new Set<TRow>())
         setSelectionAnchor(null)
       },
-      // Replaces the selection outright, by object identity — backs @vates/data-table-vanilla's
-      // imperative `DataTableInstance.setSelection(rows)` (see docs/selection-and-row-click.md's "Row selection" ->
-      // "Vanilla's imperative selection API"), since that wrapper has no reactive `selection.all`
-      // value of its own to mutate directly. A consumer using this package's own `createTableState`
-      // directly has no need for a separate "replace everything" method — this mainly exists for
-      // that wrapper's sake.
+      // Replaces the selection, by object identity: backs vanilla's `setSelection(rows)`
       setAll: (rows: TRow[]) => {
         setSelection(new Set(rows))
         setSelectionAnchor(null)
@@ -578,16 +476,7 @@ export function createTableState<TRow extends object>(
         wantsDomFocus = false
         setFocusTarget(item)
       },
-      // Brings `row` into view from outside the table: expands whichever group(s) it belongs to
-      // if collapsed, jumps to the page containing it, and sets it as the roving-tabindex target
-      // — so it's highlighted and scrolled into view (DataTableView reacts to `focus.target`), and
-      // the very next Tab/arrow-key press lands there. Never moves real DOM focus itself by
-      // default — only an actual keyboard interaction does that — so calling this from e.g. an
-      // external lightbox's prev/next never steals focus away from it. Pass `{ focus: true }` to
-      // opt into real DOM focus too (e.g. a consumer that wants the row visibly focused even while
-      // DOM focus was elsewhere) — TableBody calls the real `.focus()` once the row mounts, so no
-      // internal DOM class name/attribute needs to be public API for this. No-ops if `row` isn't
-      // part of the table's current (filtered/sorted) data.
+      // Reveals `row` as the roving target (expands groups, jumps page); real focus only with `{ focus: true }`
       moveTo: (row: TRow, options?: { focus?: boolean }) => {
         const resolved = resolveFocusTarget(
           groupedFull(),
@@ -602,9 +491,7 @@ export function createTableState<TRow extends object>(
         wantsDomFocus = options?.focus === true
         setFocusTarget(resolved.item)
       },
-      // Internal wiring for TableBody's own scroll/focus effect — reads and clears the pending
-      // "the last `moveTo` call wanted real DOM focus" flag. Not meant for typical external use
-      // (same category as `setTarget` above).
+      // Internal: TableBody's focus effect
       consumeDomFocus: () => {
         const wanted = wantsDomFocus
         wantsDomFocus = false

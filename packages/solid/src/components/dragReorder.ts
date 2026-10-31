@@ -1,23 +1,10 @@
 import { createSignal } from 'solid-js'
 import { resolveDropRow } from '@vates/data-table-core/internal'
 
-// Shared drag-and-drop row resolution for the Sort/Group/Columns dropdown lists (see docs/column-reordering.md's
-// "Drag-and-drop reordering inside the Sort/Group/Columns dropdown lists") lives in core's
-// `resolveDropRow` (`@vates/data-table-core/dropdownDomUtils`) now — see its own doc comment for
-// the hit-test behavior, including the dead-zone rejection (a row not directly under the cursor,
-// and outside the first/last row's own edge, rejects the drop instead of guessing).
-
 /**
- * Drag state + handlers for one dropdown panel's reorderable list (Columns/Sort/Group rows) —
- * the same row query + drag signals + `handleDragOver`/`handleDrop`
- * scaffolding built on `resolveDropRow` used to be hand-copied once per dropdown component.
- * `attr` is the `data-*` attribute unique to that list's rows (e.g. `data-sort-key`); `move` is
- * the core reorder action to call on drop (`table.sort.move`/`table.group.move`/
- * `table.columns.move`).
- *
- * `onDragOver`/`onDrop` go on the list's own wrapping element, so a drop past the last row still
- * resolves to a valid target; `onRowDragStart`/
- * `onRowDragEnd` go on each individual row's own `draggable` element.
+ * Drag state and handlers for one dropdown's reorderable list: `onDragOver`/`onDrop` go on the
+ * list's wrapper (so a drop past the last row resolves), the row handlers on each draggable row;
+ * `move` is the reorder action.
  */
 export function createDragReorder(
   attr: string,

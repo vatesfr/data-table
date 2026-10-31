@@ -29,22 +29,13 @@ interface TableBodyProps<TRow extends object> {
   rowClass?: (row: TRow) => string | undefined
 }
 
-// A multi-value (array) column's raw value has no natural single-string representation, so it's
-// joined with ", " rather than falling through to Array.prototype.toString's bare comma-join —
-// matches React/Vue's own cellValue/formatValue.
+// Joins an array value with ", ", as React/Vue do
 function stringifyValue(v: unknown): string {
   if (Array.isArray(v)) return v.join(', ')
   return String(v ?? '')
 }
 
-// Cell rendering priority (see docs/packages.md's "Cell rendering priority"), applied uniformly to data
-// cells, group-header cells, and aggregate cells: col.render(value, contextRow) → col.format(...)
-// → fallback(value). col.render returns a real DOM Node — Solid can render an arbitrary Node as
-// a JSX child directly, so (unlike the old innerHTML-string version) no placeholder-and-patch
-// mechanism is needed at all here: this is a clean simplification the Solid migration gets for
-// free. `fallback` defaults to `stringifyValue` (joins array values with ", "); the group-header
-// caller below passes a plain `String(v ?? '')` instead, since its own `value` is already
-// resolved to a single string keyPart rather than a possibly-array raw value.
+// Cell rendering priority (docs/packages.md): col.render → col.format → `fallback` (`stringifyValue`, or `String` for a group key)
 function renderCell<TRow extends object>(
   col: ColumnDef<TRow>,
   value: unknown,
@@ -77,20 +68,11 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
   const rowNavEnabled = createMemo(() => !!props.selectable || !!props.onRowClick)
   const hasAgg = createMemo(() => table.columns.active().some((c) => c.aggregate))
 
-  // Lifted to `createTableState` (`table.focus.target`/`setTarget`) so it's reachable/settable
-  // from outside the rendered table — see `focus.moveTo`'s own doc comment there.
+  // In `createTableState` so `focus.moveTo` reaches it from outside
   const focusTarget = table.focus.target
   const setFocusTarget = table.focus.setTarget
   const rowRefs = new Map<TRow | string, HTMLElement>()
-  // Registers a row/group-header's DOM node and prunes it again once that row/header component
-  // instance is disposed (filtered out, replaced by setData, or its group collapsed away) — a
-  // long-lived table that periodically calls setData with fresh row objects (see docs/keyboard-navigation.md's
-  // scroll/focus-restore design, written with exactly that streaming/live-update use case in
-  // mind) would otherwise accumulate one Map entry, pinning a detached DOM node and the old row
-  // object, for every row ever seen over the table's lifetime. `onCleanup` here ties to whichever
-  // component is actually mounting at call time (DataRow/GroupHeaderRow's own instance, not
-  // TableBody's) since Solid's owner tracking is dynamic, not lexically scoped to where this
-  // function was defined.
+  // Pruned on the row's disposal, or a table fed fresh rows would keep every detached node
   function trackRowRef(key: TRow | string, el: HTMLElement): void {
     rowRefs.set(key, el)
     onCleanup(() => {
@@ -126,13 +108,7 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
     rowRefs.get(refKey(item))?.focus()
   }
 
-  // Scrolls `focus.target` into view whenever it changes to a row — the counterpart to
-  // `focusItem`'s `.focus()` above, but for `table.focus.moveTo`, which (unlike keyboard nav)
-  // never calls real DOM `.focus()` itself — see its own doc comment in `createTableState.ts`.
-  // Runs on every `focusTarget` change (a keyboard-driven one already scrolled synchronously via
-  // `focusItem`, so this is a harmless no-op re-scroll for that case); Solid's synchronous
-  // reactivity means a `moveTo` that had to expand a group or cross a page already has the row
-  // mounted by the time this effect runs, no pending-ref/retry indirection needed.
+  // Scrolls `focus.target` into view for `moveTo`, which doesn't focus; the row is mounted by now
   let lastScrolledFocusTarget: VisibleItem<TRow> | null = null
   createEffect(() => {
     const target = focusTarget()
@@ -140,9 +116,7 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
       const el = rowRefs.get(target.row)
       if (el) {
         el.scrollIntoView?.({ block: 'nearest' })
-        // `moveTo(row, { focus: true })` — real `.focus()` in addition to the scroll, done here
-        // (not in createTableState) since this is the one place that actually holds the row's DOM
-        // node. `preventScroll` avoids a redundant second scroll on top of the line above.
+        // `moveTo(row, { focus: true })`: only this layer holds the row's node
         if (table.focus.consumeDomFocus()) el.focus({ preventScroll: true })
         lastScrolledFocusTarget = target
       }
@@ -203,10 +177,7 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
     setDragColKey(null)
     setDragOverColKey(null)
   }
-  // Header reordering is horizontal (columns, not rows) — resolveDropRow is row-height-based, so
-  // this is a small horizontal variant: nearest column by clientX, always inserting before it
-  // (matching the old vanilla behavior's deliberate "always insert before" simplification for
-  // header drag specifically — see docs/column-reordering.md's "Column reordering").
+  // Header drop target: the column under clientX, always inserting before it (docs/column-reordering.md)
   function resolveDropRowHorizontal(
     clientX: number,
     cells: { key: string; el: HTMLElement }[],
@@ -230,12 +201,7 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
   const someSelected = createMemo(
     () => !allSelected() && table.processedData().some((r) => table.selection.all().has(r)),
   )
-  // Unconditionally rewrites both .checked and .indeterminate (not just a plain JSX `checked`
-  // binding) — Solid's compiled setter only writes `.checked` when the *tracked value* changes,
-  // but a native checkbox click's own pre-click activation can flip `.checked` on its own even
-  // when `allSelected()` doesn't change (e.g. clearing a partial selection: allSelected() is
-  // false both before and after), leaving the DOM out of sync with the empty selection. See
-  // checkboxSync.ts.
+  // Rewrites both properties: a native click can flip `.checked` while `allSelected()` stays put (checkboxSync.ts)
   let selectAllEl: HTMLInputElement | undefined
   createEffect(() => {
     applyCheckboxState(selectAllEl, allSelected(), someSelected())
@@ -341,14 +307,7 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
           </tr>
         </thead>
         <tbody>
-          {/* Index, not For: paginateVisibleGroups/groupedData() returns fresh PagedGroup object
-              references on every recompute (even when only a group's collapsed state changed),
-              which would make For — keyed by item reference — remount every group's header/rows
-              on any collapse toggle, dropping DOM focus to <body> along the way. Index instead
-              tracks by array position, so the same slot (and the same GroupHeaderRow/DataRow
-              component instances) is reused whenever the group count/order is unchanged, exactly
-              the case for a plain collapse/expand. `group` becomes an accessor (`group()`) here,
-              per Index's signature. */}
+          {/* Index, not For: groups are fresh objects on every recompute, and remounting drops focus on collapse */}
           <Index each={table.groupedData()}>
             {(group) => (
               <Show
@@ -491,9 +450,7 @@ function GroupHeaderRow<TRow extends object>(props: GroupHeaderRowProps<TRow>) {
   const groupSomeSelected = createMemo(
     () => !groupAllSelected() && props.group.rows.some((r) => table.selection.all().has(r)),
   )
-  // See the header select-all checkbox's own comment above (same fix, same reason): unconditional
-  // rewrite of both properties, not just indeterminate, so a native click's own pre-click
-  // activation can't leave `.checked` out of sync with an unchanged `groupAllSelected()`.
+  // Both properties, as for the header select-all
   let cbEl: HTMLInputElement | undefined
   createEffect(() => {
     applyCheckboxState(cbEl, groupAllSelected(), groupSomeSelected())
@@ -597,11 +554,7 @@ function GroupHeaderRow<TRow extends object>(props: GroupHeaderRowProps<TRow>) {
   )
 }
 
-// A group header's value can't just go through the normal cellValue(col, row) pipeline: for a
-// multi-value column (a row fanned out into several groups, see "Grouped columns"), the row's own
-// real value is the whole array, but the group it's rendered under is just one of that array's
-// entries (keyPart) — so `value` below substitutes keyPart in exactly that case, same as the old
-// vanilla code's own `Array.isArray(raw) ? keyParts[gi] : raw`.
+// A multi-value column's group header shows the group's own entry (keyPart), not the row's whole array
 function renderGroupCellValue<TRow extends object>(
   col: ColumnDef<TRow> | undefined,
   sampleRow: TRow,

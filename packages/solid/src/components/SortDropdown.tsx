@@ -28,17 +28,7 @@ interface SortDropdownProps<TRow extends object> {
   onClose: () => void
 }
 
-// Mirrors the Sort dropdown described in docs/sorting.md's "Header click sorting"/"Column reordering":
-// active entries (priority order, reorderable, direction-toggle-on-click) above a search-narrowed,
-// alphabetized "add" list below. Drag-and-drop reordering of active entries is the first real test
-// of native HTML5 DnD against Solid's reactivity (see the migration plan's flagged risk) — it
-// works the same way it will for the Columns dropdown later: drag feedback (drag-over highlight)
-// is applied directly via a signal read by the dragged/hovered rows' own `classList`-equivalent
-// (Solid's `classList`/`class` binding), and the actual reorder only commits on `drop`, exactly
-// like the old vanilla code's own "don't destroy the dragged node mid-drag" rule — except here
-// Solid's diffing means a mid-drag re-render was never going to destroy the node in the first
-// place; the drop-only commit is kept anyway purely to match drag semantics (you don't want the
-// list order visibly jumping around before the user has committed to a position).
+// Sort dropdown (docs/sorting.md): active entries above an alphabetized add list; a drag commits only on drop
 export function SortDropdown<TRow extends object>(props: SortDropdownProps<TRow>) {
   const { table } = props
   const [searchTerm, setSearchTerm] = createSignal('')
@@ -64,14 +54,7 @@ export function SortDropdown<TRow extends object>(props: SortDropdownProps<TRow>
   const searchedFlatAddableCols = () => lists()[2]
   const categorizedAddableCols = () => lists()[3]
 
-  // Split the active list in two: entries matching a currently grouped column always govern
-  // nesting order (`sortWithinGroups` reads that off `groupBy`'s own order, never off drag
-  // position within `sorts` — see docs/grouped-columns.md's "Auto-syncing group order with sort") and entries
-  // for everything else, which is the actual freely-reorderable tie-break priority stack. Mixing
-  // both into one flat draggable list made it look like dragging a tie-break column above a
-  // group column changed something when it never could — see issue #17's follow-up. `groupEntries`
-  // is in `groupBy`'s own order (skipping a grouped column with no matching sort entry — nothing
-  // to show there), matching what actually governs nesting.
+  // Grouped columns' entries, in `groupBy` order, are listed apart: drag position never changes nesting (docs/grouped-columns.md)
   const groupEntries = createMemo(() => {
     const sorts = table.sort.entries()
     return table.group
@@ -103,10 +86,7 @@ export function SortDropdown<TRow extends object>(props: SortDropdownProps<TRow>
         />
       }
       onEscapeClearable={() => {
-        // Scoped to focus actually being in the search box — see ColumnsDropdown.tsx's identical
-        // comment (and the Filter dropdown's own onEscapeClearable, the original source of this
-        // fix): without this, Escape pressed while focused on a row still silently cleared a
-        // non-empty search term instead of closing the dropdown on the first press.
+        // Only from the search box: Escape on a row closes rather than clearing the search
         if (!document.activeElement?.matches?.('.dt-dd-search')) return false
         if (!searchTerm()) return false
         setSearchTerm('')
@@ -120,9 +100,7 @@ export function SortDropdown<TRow extends object>(props: SortDropdownProps<TRow>
           {(entry: SortEntry, i) => {
             const col = () => props.columns.find((c) => c.key === entry.key)
             return (
-              // Not draggable, no Alt+Arrow reorder — nesting order always follows groupBy's own
-              // order (see the Group dropdown), so reordering here would be a no-op; direction is
-              // still toggleable/removable in place, same as any other sort entry.
+              // Not reorderable: nesting follows groupBy; direction still toggles
               <div
                 class="dt-dd-item dt-dd-item--col dt-dd-item--sortrow dt-dd-item--locked"
                 tabIndex={0}
@@ -271,11 +249,6 @@ export function SortDropdown<TRow extends object>(props: SortDropdownProps<TRow>
               <AddableColumnRow
                 col={col}
                 onClick={() => {
-                  // See DropdownParts.tsx's AddableColumnRow / GroupDropdown.tsx's identical
-                  // comment: a document-wide query rather than a `.closest('.dt-dd')`-scoped one —
-                  // simplest to just keep it that way even now that CategorySubmenu no longer
-                  // portals (see that file's own comment), since a scoped lookup would work too
-                  // but buys nothing here.
                   table.sort.toggle(col.key)
                   document.querySelector<HTMLElement>(`[data-sort-key="${col.key}"]`)?.focus()
                 }}

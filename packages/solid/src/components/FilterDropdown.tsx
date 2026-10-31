@@ -37,22 +37,11 @@ interface FilterDropdownProps<TRow extends object> {
   ref?: (handle: FilterDropdownHandle) => void
 }
 
-// Master-detail filter panel (see docs/filter-dropdown.md's "Filter dropdown"): a left pane listing every
-// filterable column (dot-marked when active), a right pane showing the selected column's
-// controls — checklist (string, virtualized — see "Checklist virtualization" above), range +
-// slider (number), or a Year›Month›Day tree + range + slider (date, never virtualized — every
-// currently-expanded row is already naturally hierarchical/collapsed by default).
-//
-// Implements pane-crossing (ArrowRight/ArrowLeft between the left column list and the right
-// detail pane), right-pane Up/Down/Home/End nav, and focus-follows-selection, at parity with
-// React/Vue — see `handlePanelKeyDown`/`focusChecklistIndex` below and the `onFocusIn` on
-// `.dt-filter-cols`.
+// Master-detail filter panel (docs/filter-dropdown.md): filterable columns on the left, the chosen one's FilterPane on the right
 export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<TRow>) {
   const { table } = props
   const filterableCols = createMemo(() => props.columns.filter((c) => c.filterable !== false))
 
-  // Whether `col` currently has any active filter — shared by the left-pane per-row clear
-  // button below and the open-time ordering snapshot (see `orderKeys` below).
   function hasActiveFilter(col: ColumnDef<TRow>): boolean {
     return columnHasActiveFilter(
       col.key,
@@ -63,21 +52,13 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
   }
 
   const [activeKey, setActiveKey] = createSignal<string | null>(null)
-  // Narrows the left pane's *column list* — a separate concern from `searchTerms` below, which
-  // narrows the active column's *values* in the right detail pane (see docs/dropdown-keyboard-nav.md's "Dropdown
-  // column search and keyboard navigation").
+  // Narrows the column list; FilterPane has its own value search
   const [colSearchTerm, setColSearchTerm] = createSignal('')
   const isColSearching = createMemo(() => colSearchTerm().trim().length > 0)
 
-  // Snapshot of the left pane's column order, captured only at the moment the dropdown opens —
-  // see `orderFilterColumnsByActive`'s own doc comment (core) for why this is a snapshot rather
-  // than a live sort. `null` while closed/never opened, meaning "no snapshot yet, fall back to
-  // plain alpha order" (see `applyColumnOrderSnapshot`).
+  // Column order snapshot taken on open (see `orderFilterColumnsByActive`); null: alphabetical
   const [orderKeys, setOrderKeys] = createSignal<string[] | null>(null)
-  // Which categories are collapsed. Seeded on open (see the createRenderEffect right below) and
-  // otherwise only ever changed by the user directly toggling a header — never recomputed live
-  // just because some filter elsewhere changes while the panel stays open. Session-local UI
-  // state, not persisted (same tier as `filterActiveCol`).
+  // Collapsed categories: seeded on open, then changed only by the user
   const [collapsedCategories, setCollapsedCategories] = createSignal<Set<string>>(new Set())
   function toggleCategoryCollapsed(name: string): void {
     setCollapsedCategories((prev) => {
@@ -88,10 +69,6 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
     })
   }
   let wasOpen = false
-  // createRenderEffect (not createEffect): must resolve synchronously in the same update flush
-  // that flips the panel's `<Show>` open, so the very first render of the left-pane list already
-  // reads the fresh snapshot instead of one stale tick of plain alpha order — same reasoning as
-  // `data`/`columns`' own accessor-tracking effects in createTableState.ts.
   // Narrow screen (U16): one pane at a time — the column list, or the chosen column's values
   const [narrow, setNarrow] = createSignal(false)
   onCleanup(watchMedia(FILTER_NARROW_QUERY, setNarrow))
@@ -108,13 +85,12 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
     return !!first
   }
 
+  // A render effect, so the first render of the opened list reads the new snapshot
   createRenderEffect(() => {
     const open = props.isOpen
     if (open && !wasOpen) {
       setShowValues(false)
-      // Untracked: this must not re-run (and thus can't accidentally reorder mid-session) just
-      // because a filter changes while the panel is open — only `props.isOpen`'s own transition
-      // to `true` should ever produce a new snapshot.
+      // Untracked: only opening takes a new snapshot, not a filter change while open
       untrack(() => {
         const state = filterOpenState(
           filterableCols(),
@@ -139,36 +115,14 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
     return applyColumnOrderSnapshot(cols, orderKeys())
   })
 
-  // Buckets the (already searched/ordered) left-pane column list by `ColumnDefBase.category` —
-  // see docs/columns.md's "Column categories" section. Uncategorized columns render as plain rows,
-  // exactly as before this feature existed; each category renders as its own collapsible
-  // section instead of a flyout submenu (unlike Columns/Sort/Group) — a submenu would need
-  // ArrowRight, already taken here for left-pane→detail-pane crossing (see `handlePanelKeyDown`).
-  //
-  // Deliberately NOT re-sorted alphabetically afterward, unlike Sort/Group's own categorized
-  // addable lists (which do re-sort — see their identical `categorizedAddableCols` comment):
-  // `searchedFilterableCols()` is already ordered by `orderFilterColumnsByActive` (active-filtered
-  // columns first, then alphabetical — not purely alphabetical the way Sort/Group's
-  // never-yet-active lists are, since those have no "already active" concept to bubble up).
-  // `groupColumnsByCategory`'s first-appearance ordering already reflects that: a category
-  // containing an active-filtered column naturally lands early because its first member does.
-  // Re-sorting categories alphabetically on top of this would undo exactly that — a category's
-  // alphabetical position has no relationship to whether it contains the column the user is
-  // actively filtering on, so an active filter's own category could jump arbitrarily far down the
-  // list the moment its name doesn't happen to sort first.
+  // Collapsible category sections, not submenus (→ crosses panes), kept in the active-first order (docs/columns.md)
   const categorizedFilterCols = createMemo(() => groupColumnsByCategory(searchedFilterableCols()))
   const activeCol = createMemo(
     () => filterableCols().find((c) => c.key === activeKey()) ?? filterableCols()[0] ?? null,
   )
 
   // --- Left/right pane-crossing (FilterPane handles its own row nav) ---
-  // A separate handler from Dropdown.tsx's own generic roving nav (which only ever reaches this
-  // panel's left-pane `.dt-filter-col-item` buttons via `data-dd-row`) — this one needs to reach
-  // into filter-specific DOM (the right pane) that the generic handler knows
-  // nothing about. Bound on `.dt-filter-panel` itself, a descendant of Dropdown's own panel, so it
-  // runs *before* the generic handler via bubbling — deliberately not calling
-  // preventDefault/stopPropagation for a key it doesn't itself handle, so a plain ArrowUp/Down/
-  // Home/End on a left-pane button still reaches Dropdown.tsx's own handler untouched.
+  // Runs before Dropdown's nav, which still gets the keys it leaves alone
   let panelEl: HTMLDivElement | undefined
 
   // Selects by state, so neither the column search nor a collapsed category can hide the column
@@ -197,10 +151,7 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
   function handlePanelKeyDown(e: KeyboardEvent): void {
     if (!panelEl) return
     const target = e.target as HTMLElement
-    // Delete/Backspace on a focused left-pane column row clears that column's filter — the
-    // keyboard equivalent of clicking its `×` clear button (see `hasActiveFilter`/the render
-    // below). Guarded to an actually-active column so pressing it on an inert row is a true no-op
-    // (no page-reset churn from `table.filter.clearColumn`'s unconditional `setPageState(1)`).
+    // Delete/Backspace clears the focused column's filter, if it has one (no needless page reset)
     if ((e.key === 'Delete' || e.key === 'Backspace') && target.matches('.dt-filter-col-item')) {
       const key = target.dataset.filterColKey
       const col = key && filterableCols().find((c) => c.key === key)
@@ -229,11 +180,7 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
     const hasActive = createMemo(() => hasActiveFilter(col))
     const isSelected = createMemo(() => activeCol()?.key === col.key)
     return (
-      // The row (not just the item button) carries the selected/hover background, so the
-      // highlight spans the clear button too instead of stopping short of it —
-      // `.dt-filter-col-item--active` stays on the button as well, purely so
-      // `handlePanelKeyDown`'s ArrowLeft refocus lookup and the button's own font-weight bump
-      // still have something to key off.
+      // The row carries the highlight so it spans the clear button; the button's class keys the ← refocus
       <div class={`dt-filter-col-row${isSelected() ? ' dt-filter-col-row--active' : ''}`}>
         <button
           type="button"
@@ -250,10 +197,7 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
         >
           <span>{col.label}</span>
         </button>
-        {/* Replaces the plain active-filter dot: a one-click way to drop this column's filter
-            without opening it first, matching the toolbar's own per-dropdown × buttons — see
-            docs/toolbar.md's "Toolbar clear buttons". A sibling of the column button rather than
-            nested inside it, since a <button> can't contain another interactive element. */}
+        {/* Clears this column's filter; a sibling, as buttons can't nest (docs/toolbar.md) */}
         <Show when={hasActive()}>
           <button
             type="button"
@@ -311,10 +255,7 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
           <div
             class="dt-filter-cols"
             data-filter-cols
-            // Listbox/radiogroup-style: focusing a column button by any means (click, Tab, the
-            // arrow-nav above) drives which column's detail pane shows — not just an explicit
-            // click/activate step. `focusin` (unlike `focus`) bubbles, so one delegated listener
-            // here covers every column button without per-row wiring.
+            // Focusing a column by any means shows it; `focusin` bubbles, so one listener covers all
             onFocusIn={(e) => {
               const key = (e.target as HTMLElement).closest<HTMLElement>('.dt-filter-col-item')
                 ?.dataset.filterColKey
@@ -351,12 +292,7 @@ export function FilterDropdown<TRow extends object>(props: FilterDropdownProps<T
             </For>
             <For each={categorizedFilterCols().categories}>
               {(category) => {
-                // While searching, a category only ever renders here at all when it has a matching
-                // column (categorizedFilterCols buckets the already-searched list) — so force it
-                // open rather than let a stale collapsed snapshot hide the very match the search
-                // just surfaced, with no visible sign it's there. `collapsedCategories` itself is
-                // left untouched: clearing the search reverts to whatever collapse state the user
-                // had (manually toggled, or the open-time snapshot), exactly as before this fix.
+                // Force-open while searching so a stale collapse can't hide a match; `collapsedCategories` is kept
                 const isCollapsed = createMemo(
                   () => !isColSearching() && collapsedCategories().has(category.name),
                 )
