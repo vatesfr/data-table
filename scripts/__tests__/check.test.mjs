@@ -2,15 +2,17 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { stepsFor } from '../check.mjs'
 
-test('a full run lints and ends with e2e alone', () => {
+test('a full run lints, checks formatting and ends with e2e alone', () => {
   const stages = stepsFor('full')
   assert.ok(stages[0].includes('lint'))
+  assert.ok(stages[0].includes('format:check'))
   assert.deepEqual(stages.at(-1), ['e2e'])
 })
 
-test('a commit skips lint and e2e', () => {
+test('a commit skips lint, format:check and e2e', () => {
   const steps = stepsFor('staged', ['packages/core/src/index.ts']).flat()
   assert.ok(!steps.includes('lint'))
+  assert.ok(!steps.includes('format:check'))
   assert.ok(!steps.includes('e2e'))
   assert.ok(steps.includes('build'))
 })

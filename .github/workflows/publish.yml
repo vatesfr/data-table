@@ -12,6 +12,7 @@ concurrency:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: read
       id-token: write # for OIDC trusted publishing and npm provenance
@@ -30,12 +31,8 @@ jobs:
       - run: npm ci
 
       # Run the full CI suite before publishing
-      - run: npm run lint
-      - run: npm run format:check
-      - run: npm run test
-      - run: npm run type-check
-      - run: npm run build
-      - run: npm run check:dist-types
+      - run: npx playwright install --with-deps chromium
+      - run: npm run check
 
       # A release bumps only the packages that changed (see the `release` skill's "Version
       # pool"), so a package whose version is already on the registry is skipped rather than
