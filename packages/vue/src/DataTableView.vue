@@ -437,7 +437,7 @@ const availableColumns = computed(() =>
 // Only bucketed by category while *not* searching — see categorizedAvailableCols' own use below.
 const categorizedAvailableCols = computed(() => groupColumnsByCategory(availableColumns.value))
 const searchedFlatAvailableCols = computed(() =>
-  alphabetizedByLabel(availableColumns.value, ddSearchTerm('cols')),
+  availableColumns.value.filter((c) => columnMatchesSearch(c, ddSearchTerm('cols'))),
 )
 // Declared here (rather than alongside its sibling groupDropdownRef further down) because the
 // watch right below needs it, and `<script setup>` top-level consts execute in source order —

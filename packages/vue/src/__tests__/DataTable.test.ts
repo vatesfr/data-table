@@ -4180,6 +4180,24 @@ describe('DataTable — Columns dropdown Visible/Available split', () => {
     expect(visibleLabels(wrapper)).toEqual(['Score']) // Visible is narrowed too now
   })
 
+  it('search keeps Available in definition order, not alphabetized', async () => {
+    const cols: ColumnDef<VRow>[] = [
+      { key: 'id', label: 'ID' },
+      { key: 'score', label: 'Score' },
+      { key: 'name', label: 'Name' },
+    ]
+    const wrapper = mount(DataTable, { props: { data: VROWS, columns: cols, rowKey: 'id' } })
+    await openDdByLabel(wrapper, 'Columns')
+    await wrapper.find('[data-col-row-key="score"] .dt-item-remove').trigger('click')
+    await wrapper.find('[data-col-row-key="name"] .dt-item-remove').trigger('click')
+
+    await wrapper.find('input[data-dd-search]').setValue('e')
+    expect(wrapper.findAll('button.dt-dd-item--click').map((b) => b.text())).toEqual([
+      'Score',
+      'Name',
+    ])
+  })
+
   it('a category match is flattened into a plain, category-tagged row while searching', async () => {
     const categorized: ColumnDef<VRow>[] = [
       { key: 'id', label: 'ID' },
