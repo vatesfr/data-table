@@ -2,7 +2,7 @@
 
 Symptom first, then cause and fix. Delete entries once obsolete.
 
-<!-- check-docs-ignore: exceeded journalctl memory Killed chromium-browse Failed oom-kill _vts invoker timed Cannot uptime python3 curl ENOSPC fatal unable TS2307 determine -->
+<!-- check-docs-ignore: exceeded journalctl Killed chromium-browse Failed oom-kill _vts invoker Cannot uptime python3 curl ENOSPC fatal unable TS2307 determine semantic Module -->
 
 ## Unit tests time out on a busy machine
 

@@ -1,6 +1,6 @@
 # Backlog
 
-<!-- check-docs-ignore: vflow optimize resolveDropdownDragRow -->
+<!-- check-docs-ignore: vflow optimize -->
 
 Code health items (simplicity, duplication, maintainability, dev loop) from `vflow:optimize` reviews; UX items live in [improvements](improvements.md). A fix closes its item in one commit naming its `B<n>`, and removes it here. Line counts are reviewer estimates.
 

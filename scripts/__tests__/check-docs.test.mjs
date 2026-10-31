@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import process from 'node:process'
 import { test } from 'node:test'
-import { headingSlugs, repoFiles, staleRefs } from '../check-docs.mjs'
+import { codeNames, headingSlugs, repoFiles, staleRefs } from '../check-docs.mjs'
 
 const files = {
   'docs/a.md': '# Title\n\n## `toolbarEnd` / slots (#18)\n\n## Title\n\n```\n# not a heading\n```',
@@ -74,4 +74,11 @@ test('repo files skip a tracked file deleted but not staged', (t) => {
   git('add', 'kept.ts', 'gone.ts')
   rmSync(join(dir, 'gone.ts'))
   assert.deepEqual(repoFiles(dir).sort(), ['kept.ts', 'new.ts'])
+})
+
+test('code names are whole identifiers, hyphenated runs split at their hyphens', () => {
+  const names = codeNames("const anchored = 'dt-dd--up'\nimport x from './scripts/check-docs.mjs'")
+  assert.equal(names.has('chore'), false)
+  for (const n of ['anchored', 'dt-dd--up', 'dt-dd', 'dd--up', 'check-docs', 'scripts'])
+    assert.ok(names.has(n), n)
 })

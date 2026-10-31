@@ -79,6 +79,18 @@ export function staleRefs(doc, text, ctx) {
   return stale
 }
 
+// Identifiers in `corpus`, whole: a `chore` inside `anchored` doesn't count. A hyphenated run
+// (`dt-dd--up`, `check-docs`) also yields each hyphen-joined slice of it, so `dt-dd` counts.
+export function codeNames(corpus) {
+  const names = new Set()
+  for (const [run] of corpus.matchAll(/[\w$-]+/g)) {
+    const parts = run.split('-')
+    for (let i = 0; i < parts.length; i++)
+      for (let j = i + 1; j <= parts.length; j++) names.add(parts.slice(i, j).join('-'))
+  }
+  return names
+}
+
 // Tracked and untracked non-ignored paths under `cwd`, minus tracked ones deleted but not staged.
 export const repoFiles = (cwd = '.') =>
   execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard'], {
@@ -92,10 +104,12 @@ export const repoFiles = (cwd = '.') =>
 if (import.meta.main) {
   const tracked = repoFiles()
   // Every non-ignored path counts too, so a doc can name a file (e.g. `solidScaffold`, `pitfalls`).
-  const corpus = [
-    ...tracked,
-    ...tracked.filter((p) => CODE_EXT.test(p)).map((p) => readFileSync(p, 'utf8')),
-  ].join('\n')
+  const corpus = codeNames(
+    [
+      ...tracked,
+      ...tracked.filter((p) => CODE_EXT.test(p)).map((p) => readFileSync(p, 'utf8')),
+    ].join('\n'),
+  )
 
   const docs = [
     'CLAUDE.md',
@@ -131,7 +145,7 @@ if (import.meta.main) {
       for (const line of stripFences(text).split('\n')) {
         for (const [, , span] of line.matchAll(/(`+)(.+?)\1(?!`)/g)) {
           for (const [name] of span.matchAll(/[A-Za-z_$][\w$-]{3,}/g)) {
-            if (!ignored.has(name) && !corpus.includes(name)) missing.add(name)
+            if (!ignored.has(name) && !corpus.has(name)) missing.add(name)
           }
         }
       }
