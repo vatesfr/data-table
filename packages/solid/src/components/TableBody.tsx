@@ -172,6 +172,7 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
   // signal write updates the new page's DOM within this same call stack (same reasoning as the
   // Sort/Group activate/remove focus retention elsewhere in this codebase).
   function moveFocus(delta: number, shiftKey = false): void {
+    shiftKey &&= !!props.selectable // Shift extends a selection, so only when rows are selectable
     const items = navigableItems()
     const idx = items.findIndex((i) => isSameVisibleItem(i, effectiveFocusTarget()!))
     const next = items[idx + delta]
@@ -198,6 +199,7 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
   // to the true first/last item across *all* pages instead (matching the spreadsheet/ARIA-grid
   // convention) — same cross-page mechanism and reasoning as moveFocus above.
   function jumpFocus(toEnd: boolean, shiftKey = false, ctrlOrMeta = false): void {
+    shiftKey &&= !!props.selectable
     if (ctrlOrMeta) {
       const crossing = getCrossPageFocusTarget(
         table.visibleItems(),

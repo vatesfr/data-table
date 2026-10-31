@@ -40,8 +40,6 @@ function Icon(props: { d: string }) {
   )
 }
 
-const FILTER_KINDS = ['include', 'exclude', 'range'] as const
-
 // A header's ▾ menu. `position: fixed` (like CategorySubmenu) so the table's scrolling wrapper
 // doesn't clip it; it closes on any scroll rather than tracking its header.
 export function HeaderMenu<TRow extends object>(props: HeaderMenuProps<TRow>) {
@@ -109,7 +107,7 @@ export function HeaderMenu<TRow extends object>(props: HeaderMenuProps<TRow>) {
   function act(item: Exclude<HeaderMenuItem, 'filter'>): void {
     const restoreFocus = triggerRef && keepHeaderMenuFocus(triggerRef)
     close(true)
-    if (item === 'clear') for (const kind of FILTER_KINDS) table.filter.clearColumn(key(), kind)
+    if (item === 'clear') table.filter.clearColumn(key())
     else if (item === 'group' || item === 'ungroup') table.group.toggle(key())
     else table.columns.toggleVisibility(key())
     if (restoreFocus) queueMicrotask(restoreFocus)

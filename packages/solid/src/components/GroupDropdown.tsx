@@ -55,7 +55,6 @@ export function GroupDropdown<TRow extends object>(props: GroupDropdownProps<TRo
   return (
     <Dropdown
       isOpen={props.isOpen}
-      onToggle={props.onToggle}
       onClose={props.onClose}
       trigger={
         <DropdownTriggerButton

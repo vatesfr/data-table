@@ -14,7 +14,6 @@ import { withPanelRefocus } from './dropdownRowActions'
 
 interface ColumnsDropdownProps<TRow extends object> {
   table: TableState<TRow>
-  columns: ColumnDef<TRow>[]
   isOpen: boolean
   onToggle: () => void
   onClose: () => void
@@ -119,7 +118,6 @@ export function ColumnsDropdown<TRow extends object>(props: ColumnsDropdownProps
   return (
     <Dropdown
       isOpen={props.isOpen}
-      onToggle={props.onToggle}
       onClose={props.onClose}
       trigger={
         <button type="button" class="dt-btn" onClick={props.onToggle}>

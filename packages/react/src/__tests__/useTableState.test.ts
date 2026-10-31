@@ -970,6 +970,20 @@ describe('useTableState — clearColumnFilter kinds', () => {
     expect(result.current.filter.exclude['name']?.size ?? 0).toBe(0)
     expect(result.current.filter.include['name']?.has('Bob')).toBe(true)
   })
+
+  it('clearing with no kind drops include, exclude and range together', () => {
+    const { result } = renderHook(() => useTableState(ROWS, COLS))
+    act(() => {
+      result.current.filter.cycleValue('score', '90')
+      result.current.filter.cycleValue('score', '60')
+      result.current.filter.cycleValue('score', '60') // include -> exclude
+      result.current.filter.setRange('score', 'min', '70')
+    })
+    act(() => {
+      result.current.filter.clearColumn('score')
+    })
+    expect(result.current.filter.activeCount).toBe(0)
+  })
 })
 
 describe('useTableState — setFilterValues', () => {

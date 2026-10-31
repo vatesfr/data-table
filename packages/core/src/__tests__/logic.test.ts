@@ -350,6 +350,25 @@ describe('computeAggregate', () => {
     }
     expect(computeAggregate(col, ROWS)).toBe(330)
   })
+
+  it('ignores missing values instead of counting them as 0', () => {
+    const rows = [{ n: 10 }, { n: null }, { n: '' }, { n: undefined }, { n: 20 }]
+    const agg = (aggregate: 'avg' | 'min' | 'max') =>
+      computeAggregate({ key: 'n' as const, label: 'N', aggregate }, rows)
+    expect(agg('avg')).toBe(15)
+    expect(agg('min')).toBe(10)
+    expect(agg('max')).toBe(20)
+  })
+
+  it('handles groups too large to spread into Math.min/max', () => {
+    const rows = Array.from({ length: 300_000 }, (_, i) => ({ n: i }))
+    expect(
+      computeAggregate({ key: 'n' as const, label: 'N', aggregate: 'min' as const }, rows),
+    ).toBe(0)
+    expect(
+      computeAggregate({ key: 'n' as const, label: 'N', aggregate: 'max' as const }, rows),
+    ).toBe(299_999)
+  })
 })
 
 // ─── compareMissingLast ────────────────────────────────────────────────────────
@@ -1717,142 +1736,117 @@ describe('computeStringValueCounts', () => {
     { key: 'dept' as const, label: 'Dept', type: 'string' as const },
     { key: 'salary' as const, label: 'Salary', type: 'number' as const },
   ]
+  const [NAME, DEPT, SALARY] = COLS
+  const TAGS = { key: 'tags' as const, label: 'Tags' }
+  const GAME_NAME = { key: 'name' as const, label: 'Name' }
+  const RELEASED = { key: 'released' as const, label: 'Released', type: 'date' as const }
 
   it('counts how many rows have each value, with no filters active', () => {
-    const result = computeStringValueCounts(ROWS, {}, {}, COLS)
-    expect(result['dept']?.get('Eng')).toBe(2)
-    expect(result['dept']?.get('HR')).toBe(2)
+    const result = computeStringValueCounts(ROWS, DEPT, {}, {}, COLS)
+    expect(result.get('Eng')).toBe(2)
+    expect(result.get('HR')).toBe(2)
   })
 
-  it('excludes numeric columns from the map', () => {
-    const result = computeStringValueCounts(ROWS, {}, {}, COLS)
-    expect(result['salary']).toBeUndefined()
+  it('returns no counts for a numeric column', () => {
+    expect(computeStringValueCounts(ROWS, SALARY, {}, {}, COLS).size).toBe(0)
   })
 
   it("does not narrow a column's own counts by its own active filter", () => {
     const filters = { dept: new Set(['Eng']) }
-    const result = computeStringValueCounts(ROWS, filters, {}, COLS)
-    expect(result['dept']?.get('Eng')).toBe(2)
-    expect(result['dept']?.get('HR')).toBe(2)
+    const result = computeStringValueCounts(ROWS, DEPT, filters, {}, COLS)
+    expect(result.get('Eng')).toBe(2)
+    expect(result.get('HR')).toBe(2)
   })
 
   it("narrows a column's counts by other columns' active filters (faceted)", () => {
     const filters = { dept: new Set(['Eng']) }
-    const result = computeStringValueCounts(ROWS, filters, {}, COLS)
+    const result = computeStringValueCounts(ROWS, NAME, filters, {}, COLS)
     // Only Alice/Clara (Eng) remain when computing name counts, since dept's filter is "other".
-    expect(result['name']?.get('Alice')).toBe(1)
-    expect(result['name']?.get('Bob')).toBeUndefined()
+    expect(result.get('Alice')).toBe(1)
+    expect(result.get('Bob')).toBeUndefined()
   })
 
   it('flattens and dedupes array-valued columns, tallying per item', () => {
-    const cols = [{ key: 'tags' as const, label: 'Tags' }]
-    const result = computeStringValueCounts(GAMES, {}, {}, cols)
-    expect(result['tags']?.get('Action')).toBe(2)
-    expect(result['tags']?.get('RPG')).toBe(2)
-    expect(result['tags']?.get('Adventure')).toBe(1)
+    const result = computeStringValueCounts(GAMES, TAGS, {}, {}, [TAGS])
+    expect(result.get('Action')).toBe(2)
+    expect(result.get('RPG')).toBe(2)
+    expect(result.get('Adventure')).toBe(1)
   })
 
   it('counts rows with an empty array under the emptyLabel bucket', () => {
-    const cols = [{ key: 'tags' as const, label: 'Tags' }]
-    const result = computeStringValueCounts(GAMES_WITH_EMPTY, {}, {}, cols, 'N/A')
-    expect(result['tags']?.get('N/A')).toBe(1)
+    const result = computeStringValueCounts(GAMES_WITH_EMPTY, TAGS, {}, {}, [TAGS], 'N/A')
+    expect(result.get('N/A')).toBe(1)
   })
 
   it('includes date columns', () => {
-    const cols = [{ key: 'released' as const, label: 'Released', type: 'date' as const }]
     const games = [{ released: '2023-05-14' }, { released: '2023-05-14' }]
-    const result = computeStringValueCounts(games, {}, {}, cols)
-    expect(result['released']?.get('2023-05-14')).toBe(2)
-  })
-
-  it('with targetKeys, only computes counts for the given columns', () => {
-    const result = computeStringValueCounts(ROWS, {}, {}, COLS, '(none)', ['dept'])
-    expect(result['dept']?.get('Eng')).toBe(2)
-    expect(result['name']).toBeUndefined()
-  })
-
-  it('targetKeys still resolves other filters against the full columns list', () => {
-    const filters = { dept: new Set(['Eng']) }
-    const result = computeStringValueCounts(ROWS, filters, {}, COLS, '(none)', ['name'])
-    expect(result['name']?.get('Alice')).toBe(1)
-    expect(result['name']?.get('Bob')).toBeUndefined()
-    expect(result['dept']).toBeUndefined()
+    const result = computeStringValueCounts(games, RELEASED, {}, {}, [RELEASED])
+    expect(result.get('2023-05-14')).toBe(2)
   })
 
   it("does not narrow a column's own counts by its own excludeFilters entry", () => {
-    const cols = [{ key: 'tags' as const, label: 'Tags' }]
-    const result = computeStringValueCounts(GAMES, {}, {}, cols, '(none)', undefined, {
+    const result = computeStringValueCounts(GAMES, TAGS, {}, {}, [TAGS], '(none)', {
       tags: new Set(['RPG']),
     })
-    expect(result['tags']?.get('RPG')).toBe(2)
+    expect(result.get('RPG')).toBe(2)
   })
 
   it("narrows a column's counts by other columns' excludeFilters (faceted)", () => {
-    const cols = [
-      { key: 'name' as const, label: 'Name' },
-      { key: 'tags' as const, label: 'Tags' },
-    ]
     // Excluding 'RPG' drops Game A and Game C, leaving only Game B for name counts.
-    const result = computeStringValueCounts(GAMES, {}, {}, cols, '(none)', ['name'], {
+    const result = computeStringValueCounts(GAMES, GAME_NAME, {}, {}, [GAME_NAME, TAGS], '(none)', {
       tags: new Set(['RPG']),
     })
-    expect(result['name']?.get('Game B')).toBe(1)
-    expect(result['name']?.get('Game A')).toBeUndefined()
+    expect(result.get('Game B')).toBe(1)
+    expect(result.get('Game A')).toBeUndefined()
   })
 
   it("narrows a column's counts by another column's filterModes override (faceted)", () => {
-    const cols = [
-      { key: 'name' as const, label: 'Name' },
-      { key: 'tags' as const, label: 'Tags' },
-    ]
+    const cols = [GAME_NAME, TAGS]
     const filters = { tags: new Set(['Action', 'RPG']) }
     // Default 'or': every game has at least one of Action/RPG, so all three remain.
-    const orResult = computeStringValueCounts(GAMES, filters, {}, cols, '(none)', ['name'])
-    expect(orResult['name']?.get('Game A')).toBe(1)
-    expect(orResult['name']?.get('Game B')).toBe(1)
-    expect(orResult['name']?.get('Game C')).toBe(1)
+    const orResult = computeStringValueCounts(GAMES, GAME_NAME, filters, {}, cols)
+    expect(orResult.get('Game A')).toBe(1)
+    expect(orResult.get('Game B')).toBe(1)
+    expect(orResult.get('Game C')).toBe(1)
     // filterModes overrides tags to 'and': only Game A has both, so it's the only one left.
     const andResult = computeStringValueCounts(
       GAMES,
+      GAME_NAME,
       filters,
       {},
       cols,
       '(none)',
-      ['name'],
       {},
       {
         tags: 'and',
       },
     )
-    expect(andResult['name']?.get('Game A')).toBe(1)
-    expect(andResult['name']?.get('Game B')).toBeUndefined()
-    expect(andResult['name']?.get('Game C')).toBeUndefined()
+    expect(andResult.get('Game A')).toBe(1)
+    expect(andResult.get('Game B')).toBeUndefined()
+    expect(andResult.get('Game C')).toBeUndefined()
   })
 
   it("does not narrow a date column's own counts by its own active rangeFilters entry", () => {
-    const cols = [{ key: 'released' as const, label: 'Released', type: 'date' as const }]
     const games = [{ released: '2023-05-14' }, { released: '2024-01-01' }]
     const rangeFilters = { released: { min: '2023-01-01', max: '2023-12-31' } }
-    const result = computeStringValueCounts(games, {}, rangeFilters, cols)
-    // Both dates would still show a count of 1 even though the range only covers 2023 —
-    // the column's own range must not narrow its own checklist.
-    expect(result['released']?.get('2023-05-14')).toBe(1)
-    expect(result['released']?.get('2024-01-01')).toBe(1)
+    const result = computeStringValueCounts(games, RELEASED, {}, rangeFilters, [RELEASED])
+    // The column's own range must not narrow its own checklist.
+    expect(result.get('2023-05-14')).toBe(1)
+    expect(result.get('2024-01-01')).toBe(1)
   })
 
   it("narrows a column's counts by another column's active rangeFilters entry (faceted)", () => {
-    const cols = [
-      { key: 'name' as const, label: 'Name' },
-      { key: 'released' as const, label: 'Released', type: 'date' as const },
-    ]
     const games = [
       { name: 'Game A', released: '2023-05-14' },
       { name: 'Game B', released: '2024-01-01' },
     ]
     const rangeFilters = { released: { min: '2023-01-01', max: '2023-12-31' } }
-    const result = computeStringValueCounts(games, {}, rangeFilters, cols, '(none)', ['name'])
-    expect(result['name']?.get('Game A')).toBe(1)
-    expect(result['name']?.get('Game B')).toBeUndefined()
+    const result = computeStringValueCounts(games, GAME_NAME, {}, rangeFilters, [
+      GAME_NAME,
+      RELEASED,
+    ])
+    expect(result.get('Game A')).toBe(1)
+    expect(result.get('Game B')).toBeUndefined()
   })
 })
 

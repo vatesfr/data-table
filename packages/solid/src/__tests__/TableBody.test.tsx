@@ -486,6 +486,19 @@ describe('TableBody — keyboard navigation', () => {
     dispose()
   })
 
+  it('Shift+ArrowDown/End select nothing when rows are only clickable, not selectable', () => {
+    const { container, table, dispose } = mount({ onRowClick: () => {} })
+    const firstRow = container.querySelector<HTMLElement>('tbody tr[data-row-key="1"]')!
+    firstRow.focus()
+    for (const key of ['ArrowDown', 'End'])
+      (document.activeElement as HTMLElement).dispatchEvent(
+        new KeyboardEvent('keydown', { key, shiftKey: true, bubbles: true, cancelable: true }),
+      )
+    expect(document.activeElement).toBe(container.querySelector('tbody tr[data-row-key="3"]'))
+    expect(table.selection.rows()).toEqual([])
+    dispose()
+  })
+
   it('collapsing a group via Enter does not drop DOM focus (group rows keep stable identity)', () => {
     const { container, table, dispose } = mount({ defaultGroupsCollapsed: false })
     table.group.toggle('dept')

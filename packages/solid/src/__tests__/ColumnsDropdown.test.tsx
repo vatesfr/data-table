@@ -39,13 +39,7 @@ function mount(cols: ColumnDef<Row>[] = COLS) {
     const [isOpen] = createSignal(true)
     disposeView = render(
       () => (
-        <ColumnsDropdown
-          table={table}
-          columns={cols}
-          isOpen={isOpen()}
-          onToggle={() => {}}
-          onClose={() => {}}
-        />
+        <ColumnsDropdown table={table} isOpen={isOpen()} onToggle={() => {}} onClose={() => {}} />
       ),
       container,
     )
@@ -86,7 +80,6 @@ function mountWithCloseSpy() {
       () => (
         <ColumnsDropdown
           table={table}
-          columns={COLS}
           isOpen={isOpen()}
           onToggle={() => {}}
           onClose={() => {

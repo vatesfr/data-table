@@ -387,19 +387,13 @@ export function useTableState<TRow extends object>(
         }
         page.value = 1
       },
-      // A column can carry an include set, an exclude set, and a range filter all at once (a
-      // date column, or any multi-value column with both an include and an exclude selection) —
-      // `kind` says which one to clear, so removing one doesn't silently drop the others too.
-      // This used to be a single unconditional "full per-column reset" (clearing every kind
-      // together), which read as an acceptable simplification back when a column could carry at
-      // most an include set *or* a range filter as alternatives — but once include/exclude
-      // became two states a column can hold at once, that stopped reading as a reset and started
-      // reading as a bug: removing one active-bar chip silently cleared a sibling chip too.
-      clearColumn: (key: string, kind: 'include' | 'exclude' | 'range' = 'include') => {
-        if (kind === 'exclude') excludeFilters.value = { ...excludeFilters.value, [key]: new Set() }
-        else if (kind === 'range')
+      // A column can hold include, exclude and range filters at once: `kind` clears one, none clears all
+      clearColumn: (key: string, kind?: 'include' | 'exclude' | 'range') => {
+        if (!kind || kind === 'include') filters.value = { ...filters.value, [key]: new Set() }
+        if (!kind || kind === 'exclude')
+          excludeFilters.value = { ...excludeFilters.value, [key]: new Set() }
+        if (!kind || kind === 'range')
           rangeFilters.value = { ...rangeFilters.value, [key]: { min: '', max: '' } }
-        else filters.value = { ...filters.value, [key]: new Set() }
         page.value = 1
       },
       clear: () => {

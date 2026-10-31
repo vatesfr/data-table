@@ -9,12 +9,17 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Changed
 
+- **BREAKING (Solid, React, Vue):** `table.filter.clearColumn(key)` without a kind now clears the column's include, exclude and range filters at once; it cleared only the include set.
+- **`computeStringValueCounts` (core internal) counts one column**: it takes that column and returns its `Map`, replacing the multi-column `targetKeys` mode no adapter used.
 - **BREAKING (Solid, React, Vue):** `table.filter.valueMap` is removed: the filter pane computes its column's values itself, only while open.
 - **Changing a filter no longer re-sorts** (Solid, React, Vue, vanilla): rows are sorted once per sort or data change, then searched and filtered; an ungrouped table also stops sorting every row twice, making a sort click ~20–30% faster on the 200k-row demo. In exchange, a sort or data change sorts every row, not just the filtered ones (a sort click with a narrow filter: ~16 ms → ~140–185 ms), so a column's `value`, `parseDate` or `compare` now also runs on rows the filters drop.
 - **Changing a filter while searching no longer re-runs the search** (Solid, React, Vue, vanilla): the search result is kept apart from the filters, saving a pass over the rows on each filter click.
 
 ### Fixed
 
+- **Aggregates ignore empty cells** (Solid, React, Vue, vanilla): `avg`/`min`/`max` counted a `null`, `undefined` or `''` cell as 0 (10, empty, 20 averaged 10 instead of 15), and `min`/`max` threw "Maximum call stack size exceeded" on a group of ~200,000 rows.
+- **Shift+arrow keys no longer select rows in a non-selectable table** (Solid, vanilla): with only `onRowClick` set, Shift+↑/↓/Home/End selected the rows they moved to; they now just move focus, as in React and Vue.
+- **Columns search keeps definition order** (Vue): matching hidden columns were listed alphabetically; they now keep the table's column order, as in Solid, React and vanilla.
 - **Filter value rows show a hover background** (Solid, React, Vue, vanilla), like the column rows in the left pane (U35).
 - **Dropdowns stay on screen when they resize** (Solid, React, Vue, vanilla): an open dropdown whose size changed without a DOM change (a stylesheet, an animated `min-width`) kept its old position and could end past the right edge on a phone; it now re-clamps on every resize (U29).
 - **Clicking an open submenu keeps it open** (Solid, React, Vue, vanilla): the header menu's "Filter ▸" and the category submenus open on hover, so the click that usually follows closed them again; a click now only opens (U34).

@@ -782,11 +782,8 @@ export function computeStringValues<TRow extends object>(
  * (but not that column's own filter), so ticking a box in one checklist updates the counts
  * shown in another, while a column's own counts stay stable as its own boxes are ticked.
  *
- * `targetKeys`, if given, restricts which columns counts are actually computed for — the master-
- * detail filter dropdown only ever displays one column's checklist at a time, so callers can pass
- * `[activeColumnKey]` to avoid the O(filterableColumns × rows) cost of computing counts for every
- * column when only one is ever read. `columns` must still be the *full* column list even when
- * narrowing via `targetKeys`, since it's also used to resolve each *other* filter's accessor.
+ * `columns` is the *full* column list: it resolves each *other* filter's accessor. A `number`
+ * column has no checklist, so no counts.
  *
  * `excludeFilters` (see `cycleFilterValue`) is excluded from the facet baseline the same way as
  * `filters` — a column's own exclude selections don't narrow its own counts, only every other
@@ -806,45 +803,37 @@ export function computeStringValues<TRow extends object>(
  */
 export function computeStringValueCounts<TRow extends object>(
   data: TRow[],
+  col: ColumnDefBase<TRow>,
   filters: Record<string, Set<string>>,
   rangeFilters: Record<string, RangeFilter>,
   columns: ColumnDefBase<TRow>[],
   emptyLabel = '(none)',
-  targetKeys?: string[],
   excludeFilters: Record<string, Set<string>> = {},
   filterModes: Record<string, 'and' | 'or'> = {},
-): Record<string, Map<string, number>> {
-  const map: Record<string, Map<string, number>> = {}
-  let cols = columns.filter((c) => c.type !== 'number' && c.filterable !== false)
-  if (targetKeys) {
-    const keySet = new Set(targetKeys)
-    cols = cols.filter((c) => keySet.has(c.key))
-  }
-  for (const col of cols) {
-    const otherFilters = { ...filters }
-    delete otherFilters[col.key]
-    const otherExcludeFilters = { ...excludeFilters }
-    delete otherExcludeFilters[col.key]
-    const otherRangeFilters = { ...rangeFilters }
-    delete otherRangeFilters[col.key]
-    const rows = filterData(
-      data,
-      otherFilters,
-      otherRangeFilters,
-      columns,
-      emptyLabel,
-      otherExcludeFilters,
-      filterModes,
-    )
-    const counts = new Map<string, number>()
-    for (const row of rows) {
-      for (const v of multiValues(getColumnValue(col, row), emptyLabel)) {
-        counts.set(v, (counts.get(v) ?? 0) + 1)
-      }
+): Map<string, number> {
+  const counts = new Map<string, number>()
+  if (col.type === 'number') return counts
+  const otherFilters = { ...filters }
+  delete otherFilters[col.key]
+  const otherExcludeFilters = { ...excludeFilters }
+  delete otherExcludeFilters[col.key]
+  const otherRangeFilters = { ...rangeFilters }
+  delete otherRangeFilters[col.key]
+  const rows = filterData(
+    data,
+    otherFilters,
+    otherRangeFilters,
+    columns,
+    emptyLabel,
+    otherExcludeFilters,
+    filterModes,
+  )
+  for (const row of rows) {
+    for (const v of multiValues(getColumnValue(col, row), emptyLabel)) {
+      counts.set(v, (counts.get(v) ?? 0) + 1)
     }
-    map[col.key] = counts
   }
-  return map
+  return counts
 }
 
 // Printable ASCII (and `buildSearchIndex`'s NUL separator) has no diacritics: skipping NFD +
@@ -2388,17 +2377,23 @@ export function computeAggregate<TRow extends object>(
   if (!col.aggregate) return undefined
   if (typeof col.aggregate === 'function') return col.aggregate(rows)
   if (col.aggregate === 'count') return rows.length
-  const nums = rows.map((r) => Number(getColumnValue(col, r))).filter((n) => !isNaN(n))
+  // Number(null) and Number('') are 0: skip missing cells so they don't skew avg/min
+  const nums = rows
+    .map((r) => getColumnValue(col, r))
+    .filter((v) => v != null && v !== '')
+    .map(Number)
+    .filter((n) => !isNaN(n))
   if (nums.length === 0) return undefined
   switch (col.aggregate) {
     case 'sum':
       return nums.reduce((a, b) => a + b, 0)
     case 'avg':
       return nums.reduce((a, b) => a + b, 0) / nums.length
+    // reduce, not Math.min(...nums): spreading a large group overflows the call stack
     case 'min':
-      return Math.min(...nums)
+      return nums.reduce((a, b) => Math.min(a, b))
     case 'max':
-      return Math.max(...nums)
+      return nums.reduce((a, b) => Math.max(a, b))
   }
 }
 

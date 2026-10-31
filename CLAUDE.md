@@ -30,7 +30,7 @@
 ## Architecture
 
 - `@vates/data-table-core` exists only so adapters share code. Its main entry is a small deliberate **public** surface that every adapter re-exports identically; everything else lives behind `@vates/data-table-core/internal`, imported only by adapter source. An ESLint `no-restricted-imports` rule fails if a demo imports core directly. Authoritative list: `packages/core/README.md`'s "Public API surface".
-- Core sub-paths `/locales` and `/theme` are re-exported by every adapter (its own `/theme` sub-path, built by a separate `vite.theme.config.ts` pass because UMD/IIFE builds allow one entry).
+- Core sub-paths `/locales` and `/theme` are re-exported by every adapter (its own `/theme` sub-path, built by a separate pass with the shared `packages/vite.theme.config.mts`, because UMD/IIFE builds allow one entry).
 - Each adapter has a state hook (`useTableState`/`createTableState`) returning a namespaced `TableState`, a render layer `DataTableView` taking it as a `table` prop, and a thin `DataTable` wrapper combining the two.
 - Pre-1.0: breaking changes ship as hard cuts, no compat shims.
 
@@ -59,6 +59,7 @@ Read the relevant doc before changing that area.
 - `docs/use-cases.md` — end-user journeys, the yardstick for UX reviews
 - `docs/ui-guidelines.md` — UI conventions where feature docs are silent
 - `docs/improvements.md` — UX backlog (`U<n>` items)
+- `docs/backlog.md` — code health backlog (`B<n>` items)
 - `docs/pitfalls.md` — surprising behaviors, misleading errors, failures and their fixes; check it when something fails or behaves unexpectedly
 
 Load-bearing: the core public/internal split above (enforced by ESLint for demos) and the `typescript` override in `docs/pitfalls.md` (not enforced — a regression builds fine with empty `.d.ts` files).

@@ -338,13 +338,13 @@ function FilterPane<TRow extends object>({
     () => (col.type !== 'number' ? computeStringValues(data, col, L.emptyValue) : []),
     [data, col, L.emptyValue],
   )
-  const stringValueCounts = computeStringValueCounts(
+  const valueCounts = computeStringValueCounts(
     data,
+    col,
     filters,
     rangeFilters,
     columns,
     L.emptyValue,
-    [col.key],
     excludeFilters,
     filterModes,
   )
@@ -473,7 +473,7 @@ function FilterPane<TRow extends object>({
           // becomes a tree leaf, rather than merely being ANDed onto the final row set once
           // ticked. A no-op for string columns (they never populate rangeFilters).
           filterValuesByRange(allValues, rangeFilters[col.key], col.parseDate),
-          stringValueCounts[col.key] ?? new Map(),
+          valueCounts,
           filterAlreadyTouched(col),
         )
       : []
@@ -481,7 +481,7 @@ function FilterPane<TRow extends object>({
     col.type !== 'number'
       ? sortFilterValues(
           filterValuesBySearch(detailValuesBeforeSearch, searchTerm),
-          stringValueCounts[col.key] ?? new Map(),
+          valueCounts,
           valueSort,
           col.compare,
         )
@@ -728,7 +728,7 @@ function FilterPane<TRow extends object>({
             />
             <span className="dt-flex1">{label}</span>
             <span className="dt-filter-count" aria-hidden="true">
-              {sumDateTreeNodeCount(node, stringValueCounts[colKey] ?? new Map())}
+              {sumDateTreeNodeCount(node, valueCounts)}
             </span>
           </label>
           {!isLeaf && expanded && renderDateTreeNodes(node.children, colKey, depth + 1, parseDate)}
@@ -939,7 +939,7 @@ function FilterPane<TRow extends object>({
                                     : formatFilterValue(col, v, L.emptyValue)}
                                 </span>
                                 <span className="dt-filter-count" aria-hidden="true">
-                                  {stringValueCounts[col.key]?.get(v) ?? 0}
+                                  {valueCounts.get(v) ?? 0}
                                 </span>
                               </label>
                               {!usesExcludeOnly && (
@@ -1605,9 +1605,7 @@ export function DataTableView<TRow extends object>({
               e.stopPropagation()
               // Clears every kind at once — this button means "drop this column's filter
               // entirely", unlike the active-bar's own per-kind chips.
-              clearColumnFilter(col.key, 'include')
-              clearColumnFilter(col.key, 'exclude')
-              clearColumnFilter(col.key, 'range')
+              clearColumnFilter(col.key)
             }}
           >
             ×
@@ -1640,9 +1638,7 @@ export function DataTableView<TRow extends object>({
       const col = key && filterableCols.find((c) => c.key === key)
       if (col && columnHasActiveFilter(col.key, filters, excludeFilters, rangeFilters)) {
         e.preventDefault()
-        clearColumnFilter(col.key, 'include')
-        clearColumnFilter(col.key, 'exclude')
-        clearColumnFilter(col.key, 'range')
+        clearColumnFilter(col.key)
       }
       return
     }
@@ -2570,9 +2566,7 @@ export function DataTableView<TRow extends object>({
                             <FilterPane table={table} data={data} columns={columns} col={col} />
                           }
                           onClearFilter={() => {
-                            clearColumnFilter(col.key, 'include')
-                            clearColumnFilter(col.key, 'exclude')
-                            clearColumnFilter(col.key, 'range')
+                            clearColumnFilter(col.key)
                           }}
                           onGroup={() => toggleGroup(col.key)}
                           onHide={() => toggleColVisibility(col.key)}

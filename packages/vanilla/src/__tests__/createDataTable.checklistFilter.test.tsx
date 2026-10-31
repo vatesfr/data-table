@@ -5,6 +5,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { createDataTable } from '../index'
 import type { ColumnDef, DataTableOptions } from '../types'
+import { click, setInput, shiftClick } from './helpers'
 
 // --- Fixtures (mirrors the top of the legacy file) ---
 
@@ -60,19 +61,6 @@ const DATE_ROWS: GameRow[] = [
 ]
 
 // --- DOM helpers ---
-
-function click(el: Element): void {
-  el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
-}
-
-function shiftClick(el: Element): void {
-  el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, shiftKey: true }))
-}
-
-function setInput(el: HTMLInputElement, value: string): void {
-  el.value = value
-  el.dispatchEvent(new Event('input', { bubbles: true }))
-}
 
 let containers: HTMLElement[] = []
 

@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest'
 import { createDataTable } from '../index'
 import type { ColumnDef } from '../types'
 import type { TableViewState } from '@vates/data-table-core'
+import { click, findButton, groupHeaderRows, shiftClick } from './helpers'
 
 interface Row {
   id: number
@@ -32,14 +33,6 @@ const ROWS6: Row[] = [
   { id: 6, name: 'Frank', score: 40, dept: 'HR' },
 ]
 
-function click(el: Element): void {
-  el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
-}
-
-function shiftClick(el: Element): void {
-  el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, shiftKey: true }))
-}
-
 function keydown(
   el: Element,
   key: string,
@@ -50,14 +43,6 @@ function keydown(
 
 function dataRows(el: HTMLElement): HTMLElement[] {
   return [...el.querySelectorAll<HTMLElement>('.dt-tr[data-proc-idx]')]
-}
-
-function groupHeaderRows(el: HTMLElement): HTMLElement[] {
-  return [...el.querySelectorAll<HTMLElement>('.dt-group-row[data-gkey]')]
-}
-
-function findButton(container: HTMLElement, text: string): HTMLButtonElement {
-  return [...container.querySelectorAll('button')].find((b) => b.textContent === text)!
 }
 
 function rowCheckbox(container: HTMLElement, procIdx: number): HTMLInputElement {

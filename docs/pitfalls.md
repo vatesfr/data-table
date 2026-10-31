@@ -38,13 +38,13 @@ Symptom first, then cause and fix. Delete entries once obsolete.
 
 - Symptom: up to 0.16.0, `dist/theme.d.ts` was missing from the adapters though `exports["./theme"].types` points at it; with `vite-plugin-dts` 5 and `insertTypesEntry`, the theme pass overwrites `dist/index.d.ts` with the theme re-export.
 - Cause: `insertTypesEntry` names the entry `index.d.ts`, and without `entryRoot` the declaration lands under `dist/<pkg>/src/` (`rootDir` is `..`).
-- Fix: `vite.theme.config.ts` emits without bundling, with `entryRoot: 'src'`, producing `dist/theme.d.ts`.
+- Fix: `packages/vite.theme.config.mts` emits without bundling, with `entryRoot: 'src'`, producing `dist/theme.d.ts`.
 
 ## Checkbox stays checked in the browser, test passes in jsdom
 
 - Symptom: clicking a filter checkbox applies the filter but the box keeps its old state; the adapter's test of the same click passes.
 - Cause: a click handler calling `preventDefault()` makes the browser revert `.checked` after the click — after React's or Vue's DOM update, so the stale value sticks. jsdom never reverts, so tests can't see it.
-- Fix: don't cancel the click when the binding can follow it (React: `readOnly`, no `preventDefault`), or re-apply the state after the revert with core's `deferCheckboxCorrection` (Solid, Vue). Tests simulate the revert: set `.checked` back after the framework's update, then assert after a macrotask. jsdom also lacks `matchMedia`: use each package's `stubMatchMedia`.
+- Fix: don't cancel the click when the binding can follow it (React: `readOnly`, no `preventDefault`), or re-apply the state after the revert with core's `deferCheckboxCorrection` (Solid, Vue). Tests simulate the revert: set `.checked` back after the framework's update, then assert after a macrotask. jsdom also lacks `matchMedia`: use core's test helper `stubMatchMedia`.
 
 ## Vue test: a key event on a just-opened menu does nothing, sometimes
 
@@ -85,11 +85,6 @@ Symptom first, then cause and fix. Delete entries once obsolete.
 - Symptom: a prop just added to `packages/vue/src/types.ts` is ignored in the running Vue demo, with that warning in the dev-server log; unit tests pass.
 - Cause: `defineProps<T>()` resolves imported types at SFC compile time, and Vite doesn't recompile the SFC when only the imported type file changes.
 - Fix: restart the dev server (`npm run dev:vue`).
-
-## New `DataTableViewProps` field inert through `<DataTable>` (React/Solid)
-
-- Cause: `DataTable.tsx` forwards props explicitly, not via spread.
-- Fix: add a matching line at each `<DataTable>` wrapper's `<DataTableView>` call site; test through `<DataTable>`, not only `<DataTableView>`.
 
 ## React test grabs the wrong search box
 

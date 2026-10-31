@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createDataTable, bucketNumericRange, formatNumericRange } from '../index'
 import type { ColumnDef } from '../types'
+import { click, colHeaders, setInput } from './helpers'
 
 interface Row {
   id: number
@@ -21,21 +22,6 @@ const ROWS: Row[] = [
   { id: 3, name: 'Clara', score: 80, dept: 'Eng' },
   { id: 4, name: 'David', score: 70, dept: 'HR' },
 ]
-
-function click(el: Element): void {
-  el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
-}
-
-function setInput(el: HTMLInputElement, value: string): void {
-  el.value = value
-  el.dispatchEvent(new Event('input', { bubbles: true }))
-}
-
-function colHeaders(container: HTMLElement): string[] {
-  return [...container.querySelectorAll('th.dt-th')].map((th) =>
-    th.textContent!.replace(/[↕↑↓0-9]/g, '').trim(),
-  )
-}
 
 // Finds a <button> (or other element via `selector`) whose trimmed text matches exactly —
 // used throughout since the new markup has no `data-action`/`data-dd` attributes to query by,

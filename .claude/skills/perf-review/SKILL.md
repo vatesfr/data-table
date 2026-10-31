@@ -25,7 +25,7 @@ Measures, never guesses. Prefer numbers machine load can't move (instructions, b
 
 - Rank by cost × frequency: per keystroke > per click > once. Thresholds at 200k rows: a keystroke > 50 ms, a click > 100 ms, retained memory well above the dataset's own, any steady growth per leak cycle.
 - Each finding: what, where (`file:line`), the numbers and how they were taken.
-- Findings left open go in `docs/performance.md`'s "Open findings"; a fix moves its entry to a bullet above it, with before/after numbers, also in its commit body.
+- Findings left open go in [performance's Open leads](../../../docs/performance.md#open-leads); a fix moves its entry to a bullet above it, with before/after numbers, also in its commit body.
 
 ## Fix
 
