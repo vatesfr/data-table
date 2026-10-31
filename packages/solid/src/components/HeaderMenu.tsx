@@ -76,7 +76,8 @@ export function HeaderMenu<TRow extends object>(props: HeaderMenuProps<TRow>) {
     setOpen(true)
     props.onOpenChange(true)
     stopDismiss = onMenuDismiss(
-      () => [menuRef, triggerRef],
+      () => triggerRef,
+      () => menuRef,
       () => close(false),
     )
     queueMicrotask(() => {

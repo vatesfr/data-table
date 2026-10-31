@@ -105,7 +105,8 @@ export function HeaderMenu({
   useEffect(() => {
     if (!open) return
     return onMenuDismiss(
-      () => [menuRef.current, triggerRef.current],
+      () => triggerRef.current,
+      () => menuRef.current,
       () => {
         setOpen(false)
         setFilterOpen(false)

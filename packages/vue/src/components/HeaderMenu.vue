@@ -71,7 +71,8 @@ async function openMenu(): Promise<void> {
   open.value = true
   emit('openChange', true)
   stopDismiss = onMenuDismiss(
-    () => [menuRef.value, triggerRef.value],
+    () => triggerRef.value,
+    () => menuRef.value,
     () => close(false),
   )
   await nextTick()

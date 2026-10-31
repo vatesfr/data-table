@@ -74,15 +74,25 @@ export function keepHeaderMenuFocus(trigger: HTMLElement): () => void {
 }
 
 /**
- * Calls `close` on a mousedown outside the `inside` elements or on any scroll outside them (a
- * fixed menu doesn't follow its header); returns the function removing those listeners.
+ * Calls `close` on a mousedown outside the menu and its trigger, or on a scroll outside the menu
+ * that moved the trigger (a fixed menu doesn't follow it); returns the function removing those
+ * listeners. Scroll events arrive after the scroll, so one that brought the trigger into view
+ * just before opening (on click or focus) would otherwise close the menu it opened.
  */
 export function onMenuDismiss(
-  inside: () => (Element | null | undefined)[],
+  trigger: () => Element | null | undefined,
+  menu: () => Element | null | undefined,
   close: () => void,
 ): () => void {
+  const pos = () => {
+    const r = trigger()?.getBoundingClientRect()
+    return `${r?.left},${r?.top}`
+  }
+  const at = pos()
   const outside = (e: Event) => {
-    if (!inside().some((el) => el?.contains(e.target as Node))) close()
+    const scroll = e.type === 'scroll'
+    if ([menu(), scroll ? null : trigger()].some((el) => el?.contains(e.target as Node))) return
+    if (!scroll || pos() !== at) close()
   }
   document.addEventListener('mousedown', outside)
   window.addEventListener('scroll', outside, true)
