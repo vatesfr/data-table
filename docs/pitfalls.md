@@ -2,7 +2,7 @@
 
 Symptom first, then cause and fix. Delete entries once obsolete.
 
-<!-- check-docs-ignore: exceeded journalctl Killed chromium-browse Failed oom-kill _vts invoker Cannot uptime python3 curl ENOSPC fatal unable TS2307 determine semantic Module -->
+<!-- check-docs-ignore: exceeded journalctl Killed chromium-browse Failed oom-kill _vts invoker Cannot uptime python3 curl ENOSPC fatal unable TS2307 determine semantic Module EnterWorktree Port ERR_CONNECTION_REFUSED ipv4 ip_local_port_range TIME-WAIT -->
 
 ## Unit tests time out on a busy machine
 
@@ -141,3 +141,15 @@ Symptom first, then cause and fix. Delete entries once obsolete.
 - Symptom: `lint-staged failed due to a git error`, then `git status` fails with `fatal: unable to read <sha>`; `git ls-files` lists files from a test's scratch repo.
 - Cause: git hooks export `GIT_INDEX_FILE`; a `scripts/__tests__` test running `git` in a temp repo inherits it and writes the commit's index.
 - Fix: such a test deletes the `GIT_*` variables from `process.env` first (see `check-docs.test.mjs`); repair with `git rm --cached` on the stray paths.
+
+## React tests or build: "Cannot find package '@vitejs/plugin-react'" in a new worktree
+
+- Symptom: in a worktree made by Claude Code's `EnterWorktree`, `npm run check` fails `test` and `build` with `Cannot find package '@vitejs/plugin-react'`, while core tests pass.
+- Cause: that tool creates the worktree without running git hooks, so `post-checkout`'s `npm ci` never runs and the worktree has no `node_modules`; Node then resolves packages from the main checkout's root `node_modules` (the worktree sits inside it), which lacks the adapters' own nested deps. A plain `git worktree add` runs the hook.
+- Fix: run `npm ci` in the worktree before any check.
+
+## Demo server: "Port 5898x is already in use", but nothing listens on it
+
+- Symptom: `npm run dev:vue` (or another demo) fails with `Error: Port 58982 is already in use`, `ss -ltn` shows no listener and the browser gets `ERR_CONNECTION_REFUSED`.
+- Cause: the demo ports fall in Linux's ephemeral range (`/proc/sys/net/ipv4/ip_local_port_range`, 32768–60999 by default): an outgoing connection that used the port lingers in `TIME-WAIT` (`ss -tan | grep 58982`).
+- Fix: wait for it to clear (about a minute), then start the server again.
