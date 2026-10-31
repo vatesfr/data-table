@@ -102,10 +102,7 @@ function NoMatchingColumns({ label }: { label: string }) {
  * close the dropdown itself). Columns/Sort/Group wrap it in a `.dt-dd-search-row`; the Filter
  * dropdown's left pane passes `filterCols` instead, making the input+clear-button pair itself
  * sticky (`.dt-filter-cols-search-wrap`).
- *
- * Also carries its own × clear button (shown only once `value` is non-empty) — previously Escape
- * was the only way to clear it, with no click target for a mouse-only user, unlike the toolbar's
- * own global search box (same idea, reusing the same `clearSearch` label).
+ * Its × clear button gives mouse users what Escape gives keyboard users.
  */
 function DdSearchInput({
   value,
@@ -224,14 +221,6 @@ export function DataTableView<TRow extends object>({
       group: setter('group'),
     }
   }, [])
-  const openColsDD = openDD === 'cols'
-  const setOpenColsDD = ddSetters.cols
-  const openSortDD = openDD === 'sort'
-  const setOpenSortDD = ddSetters.sort
-  const openFilterDD = openDD === 'filter'
-  const setOpenFilterDD = ddSetters.filter
-  const openGroupDD = openDD === 'group'
-  const setOpenGroupDD = ddSetters.group
   // Narrow screen (U16): the Filter dropdown shows one pane at a time — columns, or values
   const [narrowFilter, setNarrowFilter] = useState(false)
   useEffect(() => watchMedia(FILTER_NARROW_QUERY, setNarrowFilter), [])
@@ -317,9 +306,7 @@ export function DataTableView<TRow extends object>({
   const [openSortCategory, setOpenSortCategory] = useState<string | null>(null)
   const [openGroupCategory, setOpenGroupCategory] = useState<string | null>(null)
   const [openColsCategory, setOpenColsCategory] = useState<string | null>(null)
-  // `table`'s own fields are namespaced by concern (see docs/table-state.md's "Namespaced TableState") —
-  // destructured here into the same bare local names this component's ~2600 lines already use
-  // throughout, so nothing below this block needed to change when the namespacing landed.
+  // Bare local names for `table`'s namespaced fields (docs/table-state.md)
   const { processedData, groupedData, visibleItems, labels: L, clearAll } = table
   const {
     visible: visibleCols,
@@ -366,10 +353,6 @@ export function DataTableView<TRow extends object>({
     toggleCollapse: toggleGroupCollapse,
     clear: clearGroups,
   } = table.group
-  // `focusTarget`/`setFocusTarget` used to be local state here — lifted to `useTableState`
-  // (`table.focus.target`/`setTarget`) so it's reachable/settable from outside the rendered
-  // table (see `focus.moveTo`'s own doc comment there); everything below still reads/writes it
-  // through these same bare local names.
   const { target: focusTarget, setTarget: setFocusTarget, consumeDomFocus } = table.focus
 
   // Split for the Sort dropdown's active list (see "Auto-syncing group order with sort" in
@@ -561,7 +544,7 @@ export function DataTableView<TRow extends object>({
   // — active-filter columns first, then the rest (see `orderFilterColumnsByActive`'s own doc
   // comment, core, for why this is a snapshot rather than a live sort: reordering while a filter
   // is toggled with the panel still open would move a row out from under the pointer
-  // mid-interaction). Comparing `openFilterDD` against the previous render is React's own
+  // mid-interaction). Comparing `openDD` against the previous render is React's own
   // documented pattern for "adjust state when a prop changes" — same shape as
   // `filterListResetKey`/`prevColumnKeys` elsewhere in this file — rather than an effect, so the
   // very first render with the panel open already has the fresh snapshot.
@@ -591,12 +574,12 @@ export function DataTableView<TRow extends object>({
         next.delete(category)
         return next
       })
-    setOpenFilterDD(true)
+    ddSetters.filter(true)
   }
-  const [prevOpenFilterDD, setPrevOpenFilterDD] = useState(openFilterDD)
-  if (openFilterDD !== prevOpenFilterDD) {
-    setPrevOpenFilterDD(openFilterDD)
-    if (openFilterDD) {
+  const [prevOpenDD, setPrevOpenDD] = useState(openDD)
+  if (openDD !== prevOpenDD) {
+    setPrevOpenDD(openDD)
+    if (openDD === 'filter') {
       setFilterShowValues(false)
       const state = filterOpenState(
         filterableCols,
@@ -908,17 +891,13 @@ export function DataTableView<TRow extends object>({
               for Visible, since submenu rows can't also be a drag surface) creates no conflict. */}
             {showColumns !== false && columns.length >= 2 && (
               <Dropdown
-                open={openColsDD}
-                setOpen={setOpenColsDD}
+                open={openDD === 'cols'}
+                setOpen={ddSetters.cols}
                 trigger={<ToolbarBtn>{L.columns}</ToolbarBtn>}
                 onDragOver={onColRowsDragOver}
                 onDrop={onColRowsDrop}
               >
-                {/* Pinned at the very top and always mounted (never conditionally rendered based on
-                match count) — narrows both this section and Available below. Mounting it
-                unconditionally is what fixes a real bug the old Available-only, gated-on-results
-                version had: a search term matching nothing used to unmount the box itself,
-                dropping focus with no way back short of Escape. */}
+                {/* Always mounted: a search matching nothing must not unmount the box and drop focus */}
                 {searchRow('cols')}
                 {searchedVisibleColumns.length > 0 && (
                   <div className="dt-dd-section">{L.columnsSection}</div>
@@ -988,8 +967,8 @@ export function DataTableView<TRow extends object>({
               divider below. */}
             {groupableCols.length > 0 && (
               <Dropdown
-                open={openGroupDD}
-                setOpen={setOpenGroupDD}
+                open={openDD === 'group'}
+                setOpen={ddSetters.group}
                 trigger={<ToolbarBtn active={groupBy.length > 0}>{L.group}</ToolbarBtn>}
                 extraTrigger={clearButton(groupBy.length > 0, L.clearGroups, clearGroups)}
                 onDragOver={onGroupRowsDragOver}
@@ -1068,8 +1047,8 @@ export function DataTableView<TRow extends object>({
             {/* Sort */}
             {sortableCols.length > 0 && (
               <Dropdown
-                open={openSortDD}
-                setOpen={setOpenSortDD}
+                open={openDD === 'sort'}
+                setOpen={ddSetters.sort}
                 trigger={<ToolbarBtn active={sorts.length > 0}>{L.sort}</ToolbarBtn>}
                 extraTrigger={clearButton(sorts.length > 0, L.clearSorts, clearSorts)}
                 onDragOver={onSortRowsDragOver}
@@ -1246,8 +1225,8 @@ export function DataTableView<TRow extends object>({
             {/* Filter */}
             {filterableCols.length > 0 && (
               <Dropdown
-                open={openFilterDD}
-                setOpen={setOpenFilterDD}
+                open={openDD === 'filter'}
+                setOpen={ddSetters.filter}
                 trigger={<ToolbarBtn active={activeFilterCount > 0}>{L.filter}</ToolbarBtn>}
                 extraTrigger={clearButton(activeFilterCount > 0, L.clearFilters, clearFilters)}
               >
@@ -1280,9 +1259,7 @@ export function DataTableView<TRow extends object>({
                         // matching column (categorizedFilterCols buckets the already-searched list)
                         // — so force it open rather than let a stale collapsed snapshot hide the very
                         // match the search just surfaced, with no visible sign it's there.
-                        // collapsedCategories itself is left untouched: clearing the search reverts
-                        // to whatever collapse state the user had (manually toggled, or the open-time
-                        // snapshot), exactly as before this fix.
+                        // collapsedCategories is untouched, so clearing the search restores it.
                         const isCollapsed =
                           !isFilterColSearching && collapsedCategories.has(category.name)
                         return (
@@ -1356,23 +1333,12 @@ export function DataTableView<TRow extends object>({
         </div>
       )}
 
-      {/* Active state bar — always rendered (even with nothing active) rather than only
-          appearing once a filter is set — this gives the row-count stats a single stable home
-          instead of bouncing between "end of the toolbar row" and nowhere, and means toggling a
-          sort/filter/group never changes the toolbar's height. Shows one chip per active sort
-          entry, group column, and filter column — sort/group chips were previously only visible
-          as a bare count on their toolbar button (see above); giving them the same at-a-glance
-          chip treatment filters already had removes that asymmetry. Sort/group chips reuse the
-          plain neutral `.dt-chip` look (the same one the removed count badges used) — filter
-          chips keep their existing blue `.dt-chip--filter` tint, the one deliberate color accent in
-          this bar, since filters already carried that "this is narrowing your view" meaning
-          before this change. */}
+      {/* Active state bar, always rendered so the stats keep one home (docs/toolbar.md) */}
       <div className="dt-active-bar">
         {/* Each chip's body is a real <button> (a sibling of the × button, not nested inside it —
             a <button> can't contain another interactive element, same reasoning as the toolbar's
             grouped clear buttons above) that does something specific to that chip's own kind of
-            active state, so tweaking an already-active sort/group/filter no longer requires
-            reopening its dropdown and re-navigating to the same entry. */}
+            active state (docs/toolbar.md's "Active-bar chip click actions"). */}
         {/* Group chips render before sort chips — matches the Sort dropdown's own "Group order"
             section coming before "Active sorts", since grouping is the structural, primary
             concern and tie-break sorting is secondary. */}
@@ -1389,7 +1355,7 @@ export function DataTableView<TRow extends object>({
                 type="button"
                 onClick={() => {
                   pendingGroupFocusKey.current = key
-                  setOpenGroupDD(true)
+                  ddSetters.group(true)
                 }}
                 className="dt-chip-body"
                 aria-label={L.groupedBy(col?.label ?? key)}
