@@ -6,7 +6,6 @@ export default defineConfig({
   plugins: [solid()],
   resolve: {
     alias: {
-      '@vates/data-table-core/internal': resolve(import.meta.dirname, '../core/src/internal.ts'),
       '@vates/data-table-core': resolve(import.meta.dirname, '../core/src'),
     },
     // vite-plugin-solid needs the "solid" export condition resolved to solid-js's client-side
@@ -16,7 +15,6 @@ export default defineConfig({
   },
   test: {
     environment: 'jsdom',
-    globals: true,
     include: ['src/**/*.test.{ts,tsx}'],
   },
 })
