@@ -59,6 +59,7 @@ Read the relevant doc before changing that area.
 - `docs/use-cases.md` — end-user journeys, the yardstick for UX reviews
 - `docs/ui-guidelines.md` — UI conventions where feature docs are silent
 - `docs/improvements.md` — UX backlog (`U<n>` items)
+- `docs/backlog.md` — code health backlog (`B<n>` items)
 - `docs/pitfalls.md` — surprising behaviors, misleading errors, failures and their fixes; check it when something fails or behaves unexpectedly
 
 Load-bearing: the core public/internal split above (enforced by ESLint for demos) and the `typescript` override in `docs/pitfalls.md` (not enforced — a regression builds fine with empty `.d.ts` files).
