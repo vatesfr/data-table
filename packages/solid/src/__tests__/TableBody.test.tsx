@@ -499,6 +499,51 @@ describe('TableBody — keyboard navigation', () => {
     dispose()
   })
 
+  it('Shift+ArrowDown from a group header selects the row it lands on', () => {
+    const { container, table, dispose } = mount({ selectable: true, defaultGroupsCollapsed: false })
+    table.group.toggle('dept')
+    const groupRow = container.querySelector<HTMLElement>('.dt-group-row[data-gkey="Eng"]')!
+    groupRow.focus()
+    groupRow.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'ArrowDown',
+        shiftKey: true,
+        bubbles: true,
+        cancelable: true,
+      }),
+    )
+    expect(table.selection.rows().map((r) => r.name)).toEqual(['Alice'])
+    dispose()
+  })
+
+  it('Home on the first row leaves the key to the page', () => {
+    const { container, dispose } = mount({ selectable: true })
+    const firstRow = container.querySelector<HTMLElement>('tbody tr[data-row-key="1"]')!
+    firstRow.focus()
+    const notPrevented = firstRow.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Home', bubbles: true, cancelable: true }),
+    )
+    expect(notPrevented).toBe(true)
+    dispose()
+  })
+
+  it('Shift+Home on the first row leaves the selection unchanged', () => {
+    const { container, table, dispose } = mount({ selectable: true })
+    const firstRow = container.querySelector<HTMLElement>('tbody tr[data-row-key="1"]')!
+    firstRow.focus()
+    table.selection.toggle(ROWS[0])
+    firstRow.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'Home',
+        shiftKey: true,
+        bubbles: true,
+        cancelable: true,
+      }),
+    )
+    expect(table.selection.rows().map((r) => r.name)).toEqual(['Alice'])
+    dispose()
+  })
+
   it('collapsing a group via Enter does not drop DOM focus (group rows keep stable identity)', () => {
     const { container, table, dispose } = mount({ defaultGroupsCollapsed: false })
     table.group.toggle('dept')
@@ -560,6 +605,17 @@ describe('TableBody — keyboard navigation across pages', () => {
     )
     expect(table.pagination.page()).toBe(2)
     expect(document.activeElement).toBe(row3)
+    dispose()
+  })
+
+  it("ArrowUp on page 1's first row leaves the key to the page", () => {
+    const { container, dispose } = mount({ selectable: true, initialViewState: { pageSize: 2 } })
+    const row1 = container.querySelector<HTMLElement>('tbody tr[data-row-key="1"]')!
+    row1.focus()
+    const notPrevented = row1.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true, cancelable: true }),
+    )
+    expect(notPrevented).toBe(true)
     dispose()
   })
 

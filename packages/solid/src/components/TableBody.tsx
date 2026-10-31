@@ -9,7 +9,8 @@ import {
   getSortIndex,
   isGroupCollapsed,
   isSameVisibleItem,
-  getCrossPageFocusTarget,
+  paginateVisibleItems,
+  planRowNav,
   type VisibleItem,
   applyCheckboxState,
 } from '@vates/data-table-core/internal'
@@ -69,14 +70,8 @@ function aggValue<TRow extends object>(
 }
 
 // Table header + body: sortable/draggable header cells, group headers (collapse toggle,
-// select-all, aggregate row), data rows (selection, row click), and a page-scoped roving-tabindex
-// keyboard nav (see docs/keyboard-navigation.md's "Keyboard navigation") — ArrowUp/ArrowDown/Home/End move focus,
-// Shift+ArrowUp/Down/Home/End additionally extend row selection to the target first (mirroring a
-// shift-click, via the same toggleRowSelection(row, true) anchor/range logic). ArrowUp/ArrowDown
-// at the current page's first/last item cross into the adjacent page's last/first item; Ctrl/
-// Cmd+Home/End jump to the true first/last item across *all* pages (plain Home/End stay scoped to
-// the current page) — see "Crossing page boundaries" in the docs, and core's
-// `getCrossPageFocusTarget` (shared with React/Vue) for the underlying page-slicing decision.
+// select-all, aggregate row), data rows (selection, row click), and a roving-tabindex keyboard
+// nav planned by core's `planRowNav` (see docs/keyboard-navigation.md).
 export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
   const { table } = props
   const rowNavEnabled = createMemo(() => !!props.selectable || !!props.onRowClick)
@@ -103,17 +98,13 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
     })
   }
 
-  const navigableItems = createMemo(() => {
-    const items: VisibleItem<TRow>[] = []
-    for (const g of table.groupedData()) {
-      if (g.key !== null) items.push({ kind: 'group', key: g.key })
-      const collapsed =
-        g.key !== null &&
-        isGroupCollapsed(table.group.collapsed(), g.key, table.group.defaultCollapsed())
-      if (!collapsed || g.key === null) for (const row of g.rows) items.push({ kind: 'row', row })
-    }
-    return items.filter((item) => item.kind === 'group' || rowNavEnabled())
-  })
+  const navigableItems = createMemo(() =>
+    paginateVisibleItems(
+      table.visibleItems(),
+      table.pagination.page(),
+      table.pagination.pageSize(),
+    ).filter((item) => item.kind === 'group' || rowNavEnabled()),
+  )
 
   const effectiveFocusTarget = createMemo(() => {
     const items = navigableItems()
@@ -158,69 +149,29 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
     }
   })
 
-  // Shift+Arrow/Home/End additionally extends row selection to the target before moving focus —
-  // `toggleRowSelection(row, true)` reuses the exact same shift-click anchor/range logic already
-  // used for a mouse shift-click (see createTableState's toggleRowSelection), just fed a
-  // keyboard-derived target instead of a click target. Only applies when the target is a row —
-  // landing on a group header via a shift-key press just moves focus, since a header isn't a
-  // rangeable selection unit.
-  //
-  // Crossing a page boundary (an Arrow at the current page's first/last item — see jumpFocus
-  // below for the Ctrl/Cmd+Home/End case) calls `table.pagination.setPage` then focuses the
-  // target row synchronously, right after — no pending-ref/effect indirection needed the way
-  // React's `pendingFocusTarget`/`useEffect([page])` or Vue's `nextTick` require, since Solid's
-  // signal write updates the new page's DOM within this same call stack (same reasoning as the
-  // Sort/Group activate/remove focus retention elsewhere in this codebase).
-  function moveFocus(delta: number, shiftKey = false): void {
-    shiftKey &&= !!props.selectable // Shift extends a selection, so only when rows are selectable
-    const items = navigableItems()
-    const idx = items.findIndex((i) => isSameVisibleItem(i, effectiveFocusTarget()!))
-    const next = items[idx + delta]
-    if (next) {
-      if (shiftKey && next.kind === 'row') table.selection.toggle(next.row, true)
-      focusItem(next)
-      return
-    }
-    const crossing = getCrossPageFocusTarget(
-      table.visibleItems(),
-      table.pagination.page(),
-      table.pagination.numPages(),
-      table.pagination.pageSize(),
-      { kind: 'edge', delta: delta > 0 ? 1 : -1 },
-      rowNavEnabled(),
-    )
-    if (!crossing) return
-    if (shiftKey && crossing.item.kind === 'row') table.selection.toggle(crossing.item.row, true)
-    table.pagination.setPage(crossing.targetPage)
-    focusItem(crossing.item)
-  }
-
-  // Home/End jump to the first/last navigable item *of the current page*; Ctrl/Cmd+Home/End jump
-  // to the true first/last item across *all* pages instead (matching the spreadsheet/ARIA-grid
-  // convention) — same cross-page mechanism and reasoning as moveFocus above.
-  function jumpFocus(toEnd: boolean, shiftKey = false, ctrlOrMeta = false): void {
-    shiftKey &&= !!props.selectable
-    if (ctrlOrMeta) {
-      const crossing = getCrossPageFocusTarget(
-        table.visibleItems(),
-        table.pagination.page(),
-        table.pagination.numPages(),
-        table.pagination.pageSize(),
-        { kind: 'jump', toEnd },
-        rowNavEnabled(),
-      )
-      if (!crossing) return
-      if (shiftKey && crossing.item.kind === 'row') table.selection.toggle(crossing.item.row, true)
-      if (crossing.targetPage !== table.pagination.page())
-        table.pagination.setPage(crossing.targetPage)
-      focusItem(crossing.item)
-      return
-    }
-    const items = navigableItems()
-    const next = toEnd ? items[items.length - 1] : items[0]
-    if (!next) return
-    if (shiftKey && next.kind === 'row') table.selection.toggle(next.row, true)
-    focusItem(next)
+  // Solid's signal writes mount the new page before `setPage` returns, so focus can follow at once
+  function handleKeyDown(e: KeyboardEvent, target: VisibleItem<TRow>): void {
+    const plan = planRowNav(e, target, {
+      visibleItems: table.visibleItems(),
+      navigableItems: navigableItems(),
+      page: table.pagination.page(),
+      numPages: table.pagination.numPages(),
+      pageSize: table.pagination.pageSize(),
+      selectable: !!props.selectable,
+      rowClickable: !!props.onRowClick,
+    })
+    if (!plan) return
+    e.preventDefault()
+    if (plan.kind === 'focus') {
+      if (plan.extend) table.selection.toggle(plan.extend, true)
+      if (plan.page) table.pagination.setPage(plan.page)
+      focusItem(plan.item)
+    } else if (plan.kind === 'toggleRow') table.selection.toggle(plan.row, e.shiftKey)
+    else if (plan.kind === 'toggleGroupSelection') {
+      const group = table.groupedData().find((g) => g.key === plan.key)
+      if (group) table.selection.toggleAll(group.rows)
+    } else if (plan.kind === 'toggleCollapse') table.group.toggleCollapse(plan.key)
+    else props.onRowClick?.(plan.row, e)
   }
 
   const procIdxMap = createMemo(() => new Map(table.processedData().map((r, i) => [r, i])))
@@ -424,10 +375,7 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
                             : undefined
                         }
                         onFocusRow={() => setFocusTarget({ kind: 'row', row })}
-                        onArrow={(delta, shiftKey) => moveFocus(delta, shiftKey)}
-                        onJump={(toEnd, shiftKey, ctrlOrMeta) =>
-                          jumpFocus(toEnd, shiftKey, ctrlOrMeta)
-                        }
+                        onKeyDown={handleKeyDown}
                         registerRef={(el) => trackRowRef(row, el)}
                       />
                     )}
@@ -442,8 +390,7 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
                   hasAgg={hasAgg()}
                   tabIndex={isFocusTarget({ kind: 'group', key: group().key! }) ? 0 : -1}
                   onFocusGroup={() => setFocusTarget({ kind: 'group', key: group().key! })}
-                  onArrow={(delta) => moveFocus(delta)}
-                  onJump={(toEnd, ctrlOrMeta) => jumpFocus(toEnd, false, ctrlOrMeta)}
+                  onKeyDown={handleKeyDown}
                   registerRef={(el) => trackRowRef(`group:${group().key}`, el)}
                 />
                 <Show
@@ -477,10 +424,7 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
                             : undefined
                         }
                         onFocusRow={() => setFocusTarget({ kind: 'row', row })}
-                        onArrow={(delta, shiftKey) => moveFocus(delta, shiftKey)}
-                        onJump={(toEnd, shiftKey, ctrlOrMeta) =>
-                          jumpFocus(toEnd, shiftKey, ctrlOrMeta)
-                        }
+                        onKeyDown={handleKeyDown}
                         registerRef={(el) => trackRowRef(row, el)}
                       />
                     )}
@@ -531,8 +475,7 @@ interface GroupHeaderRowProps<TRow extends object> {
   hasAgg: boolean
   tabIndex: number
   onFocusGroup: () => void
-  onArrow: (delta: number) => void
-  onJump: (toEnd: boolean, ctrlOrMeta: boolean) => void
+  onKeyDown: (e: KeyboardEvent, item: VisibleItem<TRow>) => void
   registerRef: (el: HTMLElement) => void
 }
 
@@ -566,27 +509,7 @@ function GroupHeaderRow<TRow extends object>(props: GroupHeaderRowProps<TRow>) {
         ref={(el) => props.registerRef(el)}
         onClick={() => table.group.toggleCollapse(props.group.key!)}
         onFocus={props.onFocusGroup}
-        onKeyDown={(e) => {
-          if (e.key === 'ArrowDown') {
-            e.preventDefault()
-            props.onArrow(1)
-          } else if (e.key === 'ArrowUp') {
-            e.preventDefault()
-            props.onArrow(-1)
-          } else if (e.key === 'Home') {
-            e.preventDefault()
-            props.onJump(false, e.ctrlKey || e.metaKey)
-          } else if (e.key === 'End') {
-            e.preventDefault()
-            props.onJump(true, e.ctrlKey || e.metaKey)
-          } else if (e.key === 'Enter') {
-            e.preventDefault()
-            table.group.toggleCollapse(props.group.key!)
-          } else if (e.key === ' ' && props.selectable) {
-            e.preventDefault()
-            table.selection.toggleAll(props.group.rows)
-          }
-        }}
+        onKeyDown={(e) => props.onKeyDown(e, { kind: 'group', key: props.group.key! })}
       >
         <Show when={props.selectable}>
           <td
@@ -704,8 +627,7 @@ interface DataRowProps<TRow extends object> {
   extraClass?: string
   tabIndex?: number
   onFocusRow: () => void
-  onArrow: (delta: number, shiftKey: boolean) => void
-  onJump: (toEnd: boolean, shiftKey: boolean, ctrlOrMeta: boolean) => void
+  onKeyDown: (e: KeyboardEvent, item: VisibleItem<TRow>) => void
   registerRef: (el: HTMLElement) => void
 }
 
@@ -735,27 +657,7 @@ function DataRow<TRow extends object>(props: DataRowProps<TRow>) {
       ref={(el) => props.registerRef(el)}
       onClick={handleClick}
       onFocus={props.onFocusRow}
-      onKeyDown={(e) => {
-        if (e.key === 'ArrowDown') {
-          e.preventDefault()
-          props.onArrow(1, e.shiftKey)
-        } else if (e.key === 'ArrowUp') {
-          e.preventDefault()
-          props.onArrow(-1, e.shiftKey)
-        } else if (e.key === 'Home') {
-          e.preventDefault()
-          props.onJump(false, e.shiftKey, e.ctrlKey || e.metaKey)
-        } else if (e.key === 'End') {
-          e.preventDefault()
-          props.onJump(true, e.shiftKey, e.ctrlKey || e.metaKey)
-        } else if (e.key === ' ' && props.selectable) {
-          e.preventDefault()
-          table.selection.toggle(row, e.shiftKey)
-        } else if (e.key === 'Enter' && props.onRowClick) {
-          e.preventDefault()
-          props.onRowClick(row, e)
-        }
-      }}
+      onKeyDown={(e) => props.onKeyDown(e, { kind: 'row', row })}
     >
       <Show when={props.selectable}>
         <td

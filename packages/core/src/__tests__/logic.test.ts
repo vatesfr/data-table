@@ -14,6 +14,7 @@ import {
   paginateVisibleGroups,
   paginateVisibleItems,
   getCrossPageFocusTarget,
+  planRowNav,
   pageSizeOptions,
   showsPager,
   isSameVisibleItem,
@@ -102,6 +103,7 @@ import {
   rangePresetFilter,
   rangeChipText,
 } from '../logic'
+import type { VisibleItem } from '../logic'
 
 interface Row {
   id: number
@@ -1563,6 +1565,86 @@ describe('getCrossPageFocusTarget', () => {
 
   it('rowNavEnabled=false filters out row items, so an all-row target page resolves to null', () => {
     expect(getCrossPageFocusTarget(visible, 1, 3, 2, { kind: 'edge', delta: 1 }, false)).toBeNull()
+  })
+})
+
+// ─── planRowNav ───────────────────────────────────────────────────────────────
+
+describe('planRowNav', () => {
+  // Group G with rows a, b, c; pageSize 2 -> pages [G, a] [b, c] (page 2 gets a continued G).
+  const [a, b, c] = [{ n: 'a' }, { n: 'b' }, { n: 'c' }]
+  const G = { kind: 'group', key: 'G' } as const
+  const visible: VisibleItem<{ n: string }>[] = [
+    G,
+    { kind: 'row', row: a, groupKey: 'G' },
+    { kind: 'row', row: b, groupKey: 'G' },
+    { kind: 'row', row: c, groupKey: 'G' },
+  ]
+  const ctx = (page: number, over: Partial<Parameters<typeof planRowNav>[2]> = {}) => ({
+    visibleItems: visible,
+    navigableItems: paginateVisibleItems(visible, page, 2),
+    page,
+    numPages: 2,
+    pageSize: 2,
+    selectable: true,
+    rowClickable: false,
+    ...over,
+  })
+  const key = (k: string, mods: { shiftKey?: boolean; ctrlKey?: boolean } = {}) => ({
+    key: k,
+    shiftKey: false,
+    ctrlKey: false,
+    metaKey: false,
+    ...mods,
+  })
+  const row = (r: { n: string }) => ({ kind: 'row', row: r }) as const
+
+  it('ArrowDown focuses the next item, Shift extending the selection to it', () => {
+    expect(planRowNav(key('ArrowDown', { shiftKey: true }), G, ctx(1))).toEqual({
+      kind: 'focus',
+      item: visible[1],
+      page: undefined,
+      extend: a,
+    })
+  })
+
+  it("ArrowDown at a page's end crosses to the next page", () => {
+    expect(planRowNav(key('ArrowDown'), row(a), ctx(1))).toMatchObject({ kind: 'focus', page: 2 })
+  })
+
+  it('returns null where there is nowhere to go, so the page keeps the key', () => {
+    expect(planRowNav(key('ArrowUp'), G, ctx(1))).toBeNull()
+    expect(planRowNav(key('Home'), G, ctx(1))).toBeNull()
+    expect(planRowNav(key('Home', { ctrlKey: true }), G, ctx(1))).toBeNull()
+    expect(planRowNav(key('ArrowDown'), row(c), ctx(2))).toBeNull()
+  })
+
+  it('plain End stays on the page; Ctrl+End crosses to the last page', () => {
+    expect(planRowNav(key('End'), G, ctx(1))).toMatchObject({ item: visible[1], page: undefined })
+    expect(planRowNav(key('End', { ctrlKey: true }), G, ctx(1))).toMatchObject({
+      item: visible[3],
+      page: 2,
+    })
+  })
+
+  it('Shift extends nothing when rows are not selectable', () => {
+    const plan = planRowNav(key('End', { shiftKey: true }), G, ctx(1, { selectable: false }))
+    expect(plan).toMatchObject({ kind: 'focus', extend: undefined })
+  })
+
+  it('Space toggles a row or a group selection, only when selectable', () => {
+    expect(planRowNav(key(' '), row(a), ctx(1))).toEqual({ kind: 'toggleRow', row: a })
+    expect(planRowNav(key(' '), G, ctx(1))).toEqual({ kind: 'toggleGroupSelection', key: 'G' })
+    expect(planRowNav(key(' '), row(a), ctx(1, { selectable: false }))).toBeNull()
+  })
+
+  it('Enter collapses a group, or clicks a row only when rows are clickable', () => {
+    expect(planRowNav(key('Enter'), G, ctx(1))).toEqual({ kind: 'toggleCollapse', key: 'G' })
+    expect(planRowNav(key('Enter'), row(a), ctx(1))).toBeNull()
+    expect(planRowNav(key('Enter'), row(a), ctx(1, { rowClickable: true }))).toEqual({
+      kind: 'rowClick',
+      row: a,
+    })
   })
 })
 

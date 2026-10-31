@@ -2269,6 +2269,76 @@ export function getCrossPageFocusTarget<TRow extends object>(
   return item ? { targetPage, item } : null
 }
 
+/** What a key press on a table-body row or group header does; see `planRowNav`. */
+export type RowNavAction<TRow> =
+  // `page`: only when the item is on another page. `extend`: Shift-extend the selection to it first.
+  | { kind: 'focus'; item: VisibleItem<TRow>; page?: number; extend?: TRow }
+  | { kind: 'toggleRow'; row: TRow }
+  | { kind: 'toggleGroupSelection'; key: string }
+  | { kind: 'toggleCollapse'; key: string }
+  | { kind: 'rowClick'; row: TRow }
+
+/**
+ * Row keyboard nav (see docs/keyboard-navigation.md): the action for a key pressed on `target`, or
+ * `null` when the table doesn't handle it, so the caller leaves it to the page (no `preventDefault`).
+ */
+export function planRowNav<TRow extends object>(
+  e: { key: string; shiftKey: boolean; ctrlKey: boolean; metaKey: boolean },
+  target: VisibleItem<TRow>,
+  ctx: {
+    visibleItems: VisibleItem<TRow>[]
+    navigableItems: VisibleItem<TRow>[]
+    page: number
+    numPages: number
+    pageSize: number
+    selectable: boolean
+    rowClickable: boolean
+  },
+): RowNavAction<TRow> | null {
+  const items = ctx.navigableItems
+  let item: VisibleItem<TRow> | undefined
+  let page: number | undefined
+  switch (e.key) {
+    case 'ArrowDown':
+    case 'ArrowUp':
+    case 'Home':
+    case 'End': {
+      const delta = e.key === 'ArrowDown' || e.key === 'End' ? 1 : -1
+      const jump = e.key === 'Home' || e.key === 'End'
+      if (jump && !e.ctrlKey && !e.metaKey) item = items[delta > 0 ? items.length - 1 : 0]
+      else {
+        if (!jump) item = items[indexOfVisibleItem(items, target) + delta]
+        const crossing =
+          !item &&
+          getCrossPageFocusTarget(
+            ctx.visibleItems,
+            ctx.page,
+            ctx.numPages,
+            ctx.pageSize,
+            jump ? { kind: 'jump', toEnd: delta > 0 } : { kind: 'edge', delta },
+            ctx.selectable || ctx.rowClickable,
+          )
+        if (crossing) {
+          item = crossing.item
+          if (crossing.targetPage !== ctx.page) page = crossing.targetPage
+        }
+      }
+      if (!item || (page === undefined && isSameVisibleItem(item, target))) return null
+      const extend = e.shiftKey && ctx.selectable && item.kind === 'row' ? item.row : undefined
+      return { kind: 'focus', item, page, extend }
+    }
+    case ' ':
+      if (!ctx.selectable) return null
+      return target.kind === 'group'
+        ? { kind: 'toggleGroupSelection', key: target.key }
+        : { kind: 'toggleRow', row: target.row }
+    case 'Enter':
+      if (target.kind === 'group') return { kind: 'toggleCollapse', key: target.key }
+      return ctx.rowClickable ? { kind: 'rowClick', row: target.row } : null
+  }
+  return null
+}
+
 /**
  * The "Rows per page" dropdown's option list, guaranteed to include `pageSize` itself — a plain
  * `<select>` bound to a value absent from its own `<option>`s (e.g. `initialViewState: { pageSize:

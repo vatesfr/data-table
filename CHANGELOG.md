@@ -19,6 +19,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 - **Aggregates ignore empty cells** (Solid, React, Vue, vanilla): `avg`/`min`/`max` counted a `null`, `undefined` or `''` cell as 0 (10, empty, 20 averaged 10 instead of 15), and `min`/`max` threw "Maximum call stack size exceeded" on a group of ~200,000 rows.
 - **Shift+arrow keys no longer select rows in a non-selectable table** (Solid, vanilla): with only `onRowClick` set, Shift+↑/↓/Home/End selected the rows they moved to; they now just move focus, as in React and Vue.
+- **Row keys at the table's edges** (Solid, vanilla): ↑/↓/Home/End with nowhere to move no longer swallow the key (the page can scroll again), Shift+Home/End on the row already at that end no longer toggles its selection, and Shift+↓/↑ from a group header selects the row it lands on, as in React and Vue.
 - **Columns search keeps definition order** (Vue): matching hidden columns were listed alphabetically; they now keep the table's column order, as in Solid, React and vanilla.
 - **Filter value rows show a hover background** (Solid, React, Vue, vanilla), like the column rows in the left pane (U35).
 - **Dropdowns stay on screen when they resize** (Solid, React, Vue, vanilla): an open dropdown whose size changed without a DOM change (a stylesheet, an animated `min-width`) kept its old position and could end past the right edge on a phone; it now re-clamps on every resize (U29).
