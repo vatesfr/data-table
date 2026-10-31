@@ -7,31 +7,35 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Added
+
+- **Screen readers hear the results**: after a search, a filter or a page change, a polite status region announces the row count and page, or that no row matches.
+
 ### Changed
 
 - **BREAKING (Vue):** `onRowClick` is now a prop of `<DataTable>` and `<DataTableView>` instead of a `rowClick` emit. `@row-click` keeps working; a test reading `wrapper.emitted('rowClick')` no longer sees calls: pass `onRowClick: vi.fn()` instead.
-- **BREAKING (Solid, React, Vue):** `table.filter.clearColumn(key)` without a kind now clears the column's include, exclude and range filters at once; it cleared only the include set.
+- **BREAKING (Solid, React, Vue):** `table.filter.clearColumn(key)` without a kind now clears the column's include, exclude and range filters at once; it cleared only the include set. Pass `'include'` to keep the old behavior.
 - **BREAKING (Solid, React, Vue):** `table.filter.valueMap` is removed, with no replacement: the filter pane computes its column's values itself, only while open.
 - **Sorting covers every row**: a sort or data change now sorts all rows, not just the filtered ones, so a column's `value`, `parseDate` or `compare` also runs on rows the filters drop, and a sort click under a narrow filter is slower (~16 ms → ~140–185 ms on 200,000 rows). In exchange, changing a filter or the search no longer re-sorts.
 - **Faster search, filters, sorting and grouping**, on 200,000 rows: a search keystroke ~190 → ~120 ms (the first, which indexes the rows, stays ~300 ms); a sort click without a filter ~20–30% faster; a filter click while searching no longer re-runs the search; picking a group-by column in Solid and vanilla ~470 → ~370 ms.
+- **Filter value rows show a hover background**, like the column rows in the left pane.
 
 ### Fixed
 
 - **Dropdowns fit a short viewport**: opened near the bottom of a window too short for it on either side, a dropdown flipped up past the top edge, hiding its search box; it now opens on the side with more room, capped to that room, and scrolls.
 - **Aggregates ignore empty cells**: `avg`/`min`/`max` counted a `null`, `undefined` or `''` cell as 0 (10, empty, 20 averaged 10 instead of 15), and `min`/`max` threw "Maximum call stack size exceeded" on a group of ~200,000 rows.
-- **Shift+arrow keys no longer select rows in a non-selectable table** (Solid, vanilla): with only `onRowClick` set, Shift+↑/↓/Home/End selected the rows they moved to; they now just move focus, as in React and Vue.
-- **Row keys at the table's edges** (Solid, vanilla): ↑/↓/Home/End with nowhere to move no longer swallow the key (the page can scroll again), Shift+Home/End on the row already at that end no longer toggles its selection, and Shift+↓/↑ from a group header selects the row it lands on, as in React and Vue.
-- **Alt+arrow keys in the Filter value list** (Solid, Vue, vanilla): Alt+↑/↓/Home/End (Solid, vanilla) and Alt+←/→ (Solid, Vue, vanilla) moved focus instead of being left to the browser, as in React. ↑/↓ in Vue's list also skip the "Others" row, as in the other adapters.
-- **Ctrl/Cmd+Home/End on the item already at that end** (React, Vue): no longer swallows the key nor, with Shift, toggles that row's selection, matching plain Home/End.
-- **Alt+↑/↓ on the first or last active sort**: with no neighbor to swap with, the key is no longer swallowed.
+- **Keyboard edge cases**, now consistent across adapters:
+  - In a non-selectable table (only `onRowClick` set), Shift+↑/↓/Home/End move focus without selecting rows (Solid, vanilla).
+  - A key with nowhere to go is no longer swallowed, so the page can scroll: ↑/↓/Home/End on rows (Solid, vanilla), Ctrl/Cmd+Home/End (React, Vue), Alt+↑/↓ on the first or last active sort.
+  - Shift+Home/End (Solid, vanilla) or Shift+Ctrl/Cmd+Home/End (React, Vue) on the row already at that end no longer toggles its selection.
+  - Shift+↓/↑ from a group header selects the row it lands on (Solid, vanilla).
+  - In the Filter value list, Alt+↑/↓/Home/End (Solid, vanilla) and Alt+←/→ (Solid, Vue, vanilla) are left to the browser, and Vue's ↑/↓ skip the "Others" row.
 - **Columns search keeps definition order** (Vue): matching hidden columns were listed alphabetically; they now keep the table's column order, as in Solid, React and vanilla.
-- **Filter value rows show a hover background**, like the column rows in the left pane.
 - **Dropdowns stay on screen when they resize**: an open dropdown whose size changed without a DOM change (a stylesheet, an animated `min-width`) kept its old position and could end past the right edge on a phone; it now re-clamps on every resize.
 - **Clicking an open submenu keeps it open**: the header menu's "Filter ▸" and the category submenus open on hover, so the click that usually follows closed them again; a click now only opens.
 - **One open dropdown at a time** (React, Vue): opening a toolbar dropdown from the keyboard while another was still open (focus had left it with Tab) left both open, overlapping; the first now closes, as in Solid and vanilla.
 - **→ from a Filter column lands on the value search** (React, Vue): it focused the "Select all" checkbox, where ↓/↑ did nothing and Space toggled every value; it now matches Solid and vanilla.
 - **Removing a chip keeps your place**: its × moves focus to the next chip, else the previous one, else the search box, instead of dropping it to the page.
-- **Screen readers hear the results**: after a search, a filter or a page change, a polite status region announces the row count and page, or that no row matches.
 - **No storage writes on unrelated renders** (React): `usePersistedView`/`useUrlView` wrote `localStorage` and the URL on every render, e.g. each focus move or selection click; they now write only when the view changes.
 - **No lag on data updates** (Solid, React, vanilla): changing `data` no longer rebuilds every filterable column's checklist values while no filter pane is open; with 1,200 rows and 16 string columns held in a Solid store, that was ~140 ms per update.
 
@@ -39,140 +43,140 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Added
 
-- **`rowClass`** (Solid, React, Vue, vanilla): `(row) => string | undefined` adds an app's own classes to each data row, e.g. to dim an expired row without matching cell content (which broke once that column was hidden); vanilla adds `setRowClass`.
-- **Row focus ring** (Solid, React, Vue, vanilla): a row or group header moved to with the keyboard shows an inset outline, drawn over pinned cells too; a mouse click draws none.
-- **`--dt-stripe-background`** (Solid, React, Vue, vanilla): the odd-row stripe colour, layered over pinned cells' background too, so `transparent` turns striping off everywhere in one setting.
+- **`rowClass`**: `(row) => string | undefined` adds an app's own classes to each data row, e.g. to dim an expired row without matching cell content (which broke once that column was hidden); vanilla adds `setRowClass`.
+- **Row focus ring**: a row or group header moved to with the keyboard shows an inset outline, drawn over pinned cells too; a mouse click draws none.
+- **`--dt-stripe-background`**: the odd-row stripe colour, layered over pinned cells' background too, so `transparent` turns striping off everywhere in one setting.
 
 ### Changed
 
-- **BREAKING (all four adapters):** number columns right-align by default: `type: 'number'` defaults to `align: 'end'`. Set `align: 'start'` to keep one left-aligned (e.g. a number column whose cells render text).
+- **BREAKING:** number columns right-align by default: `type: 'number'` defaults to `align: 'end'`. Set `align: 'start'` to keep one left-aligned (e.g. a number column whose cells render text).
 
 ### Fixed
 
-- **Centred Filter panel on a phone** (Solid, React, Vue, vanilla): the narrow Filter panel (and a wide header menu) sits with equal side gutters instead of 30 px left and 8 px right on a 390 px screen.
-- **No empty toolbar** (Solid, React, Vue, vanilla): a table with no toolbar control to show (no sortable, filterable or groupable column, one column, `showSearch: false`) renders no toolbar strip instead of an empty one with a lone divider; the divider only shows between controls on both sides.
-- **The Filter pane names its column** (Solid, React, Vue, vanilla): on open, the shown column's category is expanded and the column search cleared, so a visible row always says which column the pane filters; with nothing picked, a column with an active filter is shown first.
+- **Centred Filter panel on a phone**: the narrow Filter panel (and a wide header menu) sits with equal side gutters instead of 30 px left and 8 px right on a 390 px screen.
+- **No empty toolbar**: a table with no toolbar control to show (no sortable, filterable or groupable column, one column, `showSearch: false`) renders no toolbar strip instead of an empty one with a lone divider; the divider only shows between controls on both sides.
+- **The Filter pane names its column**: on open, the shown column's category is expanded and the column search cleared, so a visible row always says which column the pane filters; with nothing picked, a column with an active filter is shown first.
 
 ## [0.19.0] - 2026-10-23
 
 ### Added
 
-- **`data-col-key` on every column cell** (Solid, React, Vue, vanilla): body and aggregate cells, and React's and Vue's header cells, carry their column's key, a stable hook for app CSS (#45).
-- **Pinned column** (Solid, React, Vue, vanilla): `pinned: true` on a column keeps it at the table's left edge while the table scrolls sideways, e.g. a name column on a phone; its background follows the row's state and `--dt-pinned-background` (#45).
+- **`data-col-key` on every column cell**: body and aggregate cells, and React's and Vue's header cells, carry their column's key, a stable hook for app CSS (#45).
+- **Pinned column**: `pinned: true` on a column keeps it at the table's left edge while the table scrolls sideways, e.g. a name column on a phone; its background follows the row's state and `--dt-pinned-background` (#45).
 
 ### Changed
 
-- **Header ▾ button easier to spot** (Solid, React, Vue, vanilla): it shows a 14 px SVG chevron, drawn like the filtered funnel, instead of a `▾` character a few pixels wide.
+- **Header ▾ button easier to spot**: it shows a 14 px SVG chevron, drawn like the filtered funnel, instead of a `▾` character a few pixels wide.
 
 ### Fixed
 
-- **A wrongly typed view field no longer crashes the table** (Solid, React, Vue, vanilla): a hand-edited or stale `?view=` link, a stored view, or a `setViewState`/`initialViewState` value of the wrong type (e.g. `filters: { name: 5 }`) is ignored instead of throwing on mount; the view's other fields still apply (#44).
+- **A wrongly typed view field no longer crashes the table**: a hand-edited or stale `?view=` link, a stored view, or a `setViewState`/`initialViewState` value of the wrong type (e.g. `filters: { name: 5 }`) is ignored instead of throwing on mount; the view's other fields still apply (#44).
 
 ## [0.18.0] - 2026-10-19
 
 ### Added
 
-- **"No matching columns"** (Solid, React, Vue, vanilla): a Columns, Group, Sort or Filter column search that matches nothing says so instead of leaving the list blank. New `noMatchingColumns` label in every locale.
-- **Column alignment** (Solid, React, Vue, vanilla): `align: 'end'` on a column right-aligns its header, cells and aggregate cells, so a number column's digits line up. The demos right-align their number columns.
-- **Font tokens** (Solid, React, Vue, vanilla): font sizes and weights go through `--font-size-2xs`…`--font-size-xl` and `--font-weight-normal`…`--font-weight-bold`, defaulting to today's values, so an app can bring the table onto its own type scale. See the README's Theming section.
+- **"No matching columns"**: a Columns, Group, Sort or Filter column search that matches nothing says so instead of leaving the list blank. New `noMatchingColumns` label in every locale.
+- **Column alignment**: `align: 'end'` on a column right-aligns its header, cells and aggregate cells, so a number column's digits line up. The demos right-align their number columns.
+- **Font tokens**: font sizes and weights go through `--font-size-2xs`…`--font-size-xl` and `--font-weight-normal`…`--font-weight-bold`, defaulting to today's values, so an app can bring the table onto its own type scale. See the README's Theming section.
 
 ### Changed
 
-- **BREAKING (all four adapters):** `removeSort` and `removeGroup` labels are functions of the column label ("Remove sort: Salary"), so a screen reader can tell each chip's and dropdown row's × apart. New `groupedBy` names a group chip ("Grouped by Department"); new `ungroupColumn` holds the header menu's "Remove group" text.
-- **Separate group and sort chips** (Solid, React, Vue, vanilla): a column both grouped and sorted shows a `⊞ Department ×` group chip and a `↑ Department ×` sort chip, instead of one chip with two identical × removing different things.
-- **BREAKING (all four adapters):** the `openGroupDropdown` label is removed, along with the merged chip's ⊞ button it named.
-- **One dropdown panel class** (Solid, React, Vue, vanilla): every Columns, Sort, Group and Filter panel carries `dt-dd`, so app CSS can target it in any adapter; Vue's panel loses its `dropdown__menu` class. Solid's panels take the 220 px minimum width and 4 px top and bottom padding React and Vue already had, so their search box no longer touches the panel's top border.
+- **BREAKING:** `removeSort` and `removeGroup` labels are functions of the column label ("Remove sort: Salary"), so a screen reader can tell each chip's and dropdown row's × apart. New `groupedBy` names a group chip ("Grouped by Department"); new `ungroupColumn` holds the header menu's "Remove group" text.
+- **Separate group and sort chips**: a column both grouped and sorted shows a `⊞ Department ×` group chip and a `↑ Department ×` sort chip, instead of one chip with two identical × removing different things.
+- **BREAKING:** the `openGroupDropdown` label is removed, along with the merged chip's ⊞ button it named.
+- **One dropdown panel class**: every Columns, Sort, Group and Filter panel carries `dt-dd`, so app CSS can target it in any adapter; Vue's panel loses its `dropdown__menu` class. Solid's panels take the 220 px minimum width and 4 px top and bottom padding React and Vue already had, so their search box no longer touches the panel's top border.
 - **BREAKING (Vue):** class names take Solid's `dt-` prefix instead of `dt__` (`dt__td` → `dt-td`, `dt__tr--current` → `dt-tr--current`, …), so app CSS targets the same classes in every adapter. Renamed to Solid's names: `toolbar-btn`/`--active`/`--grouped` → `dt-btn`/`dt-btn--active`/`dt-btn--grouped`, `dropdown` → `dt-dd-wrap`, `dt__tr--stripe` → `dt-tr--odd`, `dt__dd-item--clickable` → `dt-dd-item--click`, `dt__th-sort-icon`/`--sorted` → `dt-sort-icon`/`dt-sort-icon--active`, `dt__chip--info`/`--danger` → `dt-chip--filter`/`dt-chip--exclude`, `dt__chip-remove` → `dt-chip-x`, `dt__group-key-label` → `dt-group-colname`, `dt__rows-per-page-label` → `dt-rows-per-page`, `dt__th-menu-back` → `dt-filter-back`, `dt__th--drag-over` → `dt-dd-item--drag-over`. Dropped: `dt__dd-item--dragging`, `dt__th--dragging`, `dt__th--cb`, `dt__th-menu-label`, `dt__th-menu-arrow`, `dt__dd-category-label`, `dt__filter-col-label`, `dt__filter-select-all`, `dt__range`, `dt__range-inputs`, `dt__range-input--date`.
 - **One stylesheet for Vue and Solid** (Vue): the Vue table is styled by the same injected stylesheet as Solid and vanilla instead of its own scoped styles, so the two look alike: toolbar buttons are 2 px shorter and no longer tinted while their dropdown is merely open, "Clear all" takes the toolbar button look, header sort arrows are larger, and filter values no longer tint on hover. The stylesheet is injected at runtime: under a Content Security Policy it needs `style-src-elem 'unsafe-inline'`, and a server-rendered page shows the table unstyled until hydration.
 - **React renders the documented `dt-` classes** (React): every element of the table carries the same `dt-…` classes as Solid and vanilla, styled by one shared stylesheet injected into `<head>` (`<style data-dt-styles>`) instead of inline styles, so app CSS can target them. Under a Content Security Policy, the injected tag needs `style-src-elem 'unsafe-inline'`, and a server-rendered page shows the table unstyled until hydration. Small visual changes, matching Solid: toolbar buttons are 2 px shorter and "Clear all" uses the regular button look; the Columns button no longer stays highlighted while open; dragged dropdown rows are no longer dimmed; a Group dropdown row shows its drag handle before its position number; dropdown hover highlights and category flyouts have Solid's spacing; header sort arrows are Solid's size and show on keyboard focus only, not mouse focus; a dragged header is no longer dimmed and its drop target shows a line along its top; checkboxes keep the browser's default margin; Filter date-tree rows are 4 px shorter and checklist rows keep the default cursor.
-- **A pager only when it helps** (Solid, React, Vue, vanilla): the page buttons and "Page 1 of 1" hide when every row fits on one page, and the whole pager hides when even the smallest rows-per-page choice would fit them all (#41). The table's starting page size stays among the choices.
+- **A pager only when it helps**: the page buttons and "Page 1 of 1" hide when every row fits on one page, and the whole pager hides when even the smallest rows-per-page choice would fit them all (#41). The table's starting page size stays among the choices.
 
 ### Fixed
 
 - **Vue styles without a broken import** (Vue): the documented `@vates/data-table-vue/style.css` import pointed at a file the build never emitted. The table now injects its own styles, and the `./style.css` export is gone; drop the import.
 - **Clickable rows in a bare `DataTableView`** (Vue): a `<DataTableView>` given `@row-click` directly shows its rows as clickable (pointer cursor, hover) and lets Enter click them, as `<DataTable>` already did.
 - **Toolbar button edges** (React): the Columns, Group, Sort and Filter buttons no longer show a dark, thick right edge.
-- **The phone Filter pane names its column** (Solid, React, Vue, vanilla): its back button reads "‹ Columns · Tenure (yrs)" instead of "‹ Columns", so the pane says which column it filters.
-- **No empty section headings in the Columns search** (Solid, React, Vue, vanilla): searching the Columns dropdown hides the "Visible columns" or "Available columns" heading when none of its columns match.
-- **Open-ended range chips** (Solid, React, Vue, vanilla): a range filter with only a minimum or a maximum reads `Played (h): ≥ 5.0` or `≤ 20.0` instead of the cut-off-looking `5.0–`.
-- **No unasked keyboard on a phone** (Solid, React, Vue, vanilla): on a touch screen, opening the Columns, Sort, Group or Filter dropdown focuses its first row instead of its search box, so the on-screen keyboard only appears when you tap the search box.
-- **Filter dropdown column list** (Solid, React, Vue, vanilla): the column list no longer scrolls sideways or clips its search box. It widens to fit column names, up to 240 px.
-- **No page freeze from an animated dropdown** (Solid, React, Vue, vanilla): a Columns, Sort, Group or Filter dropdown whose `transform` has a CSS transition (a reduced-motion reset is enough) no longer freezes the page when its content changes while it's open near the viewport's edge (#43).
+- **The phone Filter pane names its column**: its back button reads "‹ Columns · Tenure (yrs)" instead of "‹ Columns", so the pane says which column it filters.
+- **No empty section headings in the Columns search**: searching the Columns dropdown hides the "Visible columns" or "Available columns" heading when none of its columns match.
+- **Open-ended range chips**: a range filter with only a minimum or a maximum reads `Played (h): ≥ 5.0` or `≤ 20.0` instead of the cut-off-looking `5.0–`.
+- **No unasked keyboard on a phone**: on a touch screen, opening the Columns, Sort, Group or Filter dropdown focuses its first row instead of its search box, so the on-screen keyboard only appears when you tap the search box.
+- **Filter dropdown column list**: the column list no longer scrolls sideways or clips its search box. It widens to fit column names, up to 240 px.
+- **No page freeze from an animated dropdown**: a Columns, Sort, Group or Filter dropdown whose `transform` has a CSS transition (a reduced-motion reset is enough) no longer freezes the page when its content changes while it's open near the viewport's edge (#43).
 - **A selected row stays tinted on hover** (Solid, vanilla): hovering a selected clickable row keeps its selected background instead of the hover one, as in React and Vue.
-- **Selection checkboxes are easier to hit** (Solid, React, Vue, vanilla): clicking or tapping anywhere in a row's, group header's or the select-all checkbox's cell now toggles it, Shift+click range selection included, instead of only the 13 px box.
+- **Selection checkboxes are easier to hit**: clicking or tapping anywhere in a row's, group header's or the select-all checkbox's cell now toggles it, Shift+click range selection included, instead of only the 13 px box.
 
 ## [0.17.0] - 2026-10-07
 
 ### Added
 
-- **Range filter presets** (Solid, React, Vue, vanilla): `rangePresets` on a number column (`{ label, min?, max? }[]`, e.g. `{ label: 'never played', max: 0 }`) adds buttons above its range filter. Picking one sets the range, and the filter chip shows the preset's label ("Played (h): never played") instead of the bounds. Fixes #30.
-- **Current row** (Solid, React, Vue, vanilla): `currentRow` on `DataTableView`/`DataTable` (vanilla: the option plus `setCurrentRow(row)`) marks a row, e.g. the one open in a side panel, with `aria-current="true"` and a `dt-tr--current` class (Vue: `dt__tr--current`), so it can be exposed and styled through sorting, paging and data updates. Fixes #40.
+- **Range filter presets**: `rangePresets` on a number column (`{ label, min?, max? }[]`, e.g. `{ label: 'never played', max: 0 }`) adds buttons above its range filter. Picking one sets the range, and the filter chip shows the preset's label ("Played (h): never played") instead of the bounds. Fixes #30.
+- **Current row**: `currentRow` on `DataTableView`/`DataTable` (vanilla: the option plus `setCurrentRow(row)`) marks a row, e.g. the one open in a side panel, with `aria-current="true"` and a `dt-tr--current` class (Vue: `dt__tr--current`), so it can be exposed and styled through sorting, paging and data updates. Fixes #40.
 
 ### Changed
 
-- **Excluding a value from a multi-value filter** (Solid, React, Vue, vanilla): each value in a multi-value column's checklist now has a ≠ button that excludes it, and its checkbox only includes. This replaces the hidden "click again to exclude" cycle. An excluded value is struck through in the exclusion colour, like its chip, instead of showing a "partly selected" checkbox. ←/→ move between a checkbox and its ≠ button. Fixes #34.
-- **Range filter inputs** (Solid, React, Vue, vanilla): a number range's inputs stay empty until a bound is set, showing the column's bounds through its `format` as placeholders ("$0" – "$180,000") instead of raw prefilled numbers. The inputs and slider thumbs are named after the column ("Salary Min", "Salary Max") instead of a bare "Min"/"Max".
-- **BREAKING (all four adapters):** the `filterValueTitle` and `filterExcludedTitle` labels are removed; the new `excludeValue(value)` label names the ≠ button. `table.filter.cycleValue` is unchanged.
+- **Excluding a value from a multi-value filter**: each value in a multi-value column's checklist now has a ≠ button that excludes it, and its checkbox only includes. This replaces the hidden "click again to exclude" cycle. An excluded value is struck through in the exclusion colour, like its chip, instead of showing a "partly selected" checkbox. ←/→ move between a checkbox and its ≠ button. Fixes #34.
+- **Range filter inputs**: a number range's inputs stay empty until a bound is set, showing the column's bounds through its `format` as placeholders ("$0" – "$180,000") instead of raw prefilled numbers. The inputs and slider thumbs are named after the column ("Salary Min", "Salary Max") instead of a bare "Min"/"Max".
+- **BREAKING:** the `filterValueTitle` and `filterExcludedTitle` labels are removed; the new `excludeValue(value)` label names the ≠ button. `table.filter.cycleValue` is unchanged.
 
 ### Fixed
 
-- **Toolbar end slot on a phone** (Solid, React, Vue, vanilla): on screens up to 479 px wide, `toolbarEnd` (Vue: `#toolbar-end`) ends the toolbar's first line, after Columns/Group/Sort, instead of wrapping onto a line of its own after the search box. Fixes #39.
-- **Dropdowns stay on screen while open** (Solid, React, Vue, vanilla): a panel whose trigger moves while it's open — checking a filter value adds a count to the Filter button — is clamped to the viewport again, instead of keeping the offset measured at open and sliding past the right edge on a phone.
-- **Types for the `/theme` sub-path** (React, Vue, Solid, vanilla): `@vates/data-table-{react,vue,solid,vanilla}/theme` now ships the `dist/theme.d.ts` its `exports` point at, so TypeScript no longer reports the import as untyped.
+- **Toolbar end slot on a phone**: on screens up to 479 px wide, `toolbarEnd` (Vue: `#toolbar-end`) ends the toolbar's first line, after Columns/Group/Sort, instead of wrapping onto a line of its own after the search box. Fixes #39.
+- **Dropdowns stay on screen while open**: a panel whose trigger moves while it's open — checking a filter value adds a count to the Filter button — is clamped to the viewport again, instead of keeping the offset measured at open and sliding past the right edge on a phone.
+- **Types for the `/theme` sub-path**: `@vates/data-table-{react,vue,solid,vanilla}/theme` now ships the `dist/theme.d.ts` its `exports` point at, so TypeScript no longer reports the import as untyped.
 
 ## [0.16.0] - 2026-10-04
 
 ### Added
 
-- **Remove group from the column menu** (Solid, React, Vue, vanilla): a grouped column that stays visible (`keepVisibleWhenGrouped`) offers "Remove group" in its ▾ menu where "Group by this column" was.
-- **Toolbar end slot** (Solid, React, Vue, vanilla): `toolbarEnd` (`JSXElement`/`ReactNode`) on `DataTableViewProps`/`DataTableProps`, Vue's `#toolbar-end` slot, and vanilla's `toolbarEnd` option + `setToolbarEnd(node)` render consumer controls (e.g. "Share view"/"Reset view") at the right end of the toolbar's action row, in a `.dt-toolbar-end` (Vue: `.dt__toolbar-end`) wrapper — instead of a separate row above the table, or DOM appended into the toolbar's internal markup.
-- **Clear filter from the column menu** (Solid, React, Vue, vanilla): a filtered column's ▾ menu offers "Clear filter" right after Filter, dropping that column's filter in one step.
+- **Remove group from the column menu**: a grouped column that stays visible (`keepVisibleWhenGrouped`) offers "Remove group" in its ▾ menu where "Group by this column" was.
+- **Toolbar end slot**: `toolbarEnd` (`JSXElement`/`ReactNode`) on `DataTableViewProps`/`DataTableProps`, Vue's `#toolbar-end` slot, and vanilla's `toolbarEnd` option + `setToolbarEnd(node)` render consumer controls (e.g. "Share view"/"Reset view") at the right end of the toolbar's action row, in a `.dt-toolbar-end` (Vue: `.dt__toolbar-end`) wrapper — instead of a separate row above the table, or DOM appended into the toolbar's internal markup.
+- **Clear filter from the column menu**: a filtered column's ▾ menu offers "Clear filter" right after Filter, dropping that column's filter in one step.
 
 ### Changed
 
-- **Filter values as the column shows them** (Solid, React, Vue, vanilla): checklist values, filter chips and range bounds go through the column's `format` ("Salary: $60,000–$100,000" instead of "60000–100000").
-- **BREAKING (all four adapters):** `ColumnDef.format`'s `row` argument is now optional (`format(value, row?)`): filter displays call it without a row, so a `format` reading `row` must handle it being absent.
-- **Header sort arrows** (Solid, React, Vue, vanilla): an unsorted column's muted ↕ now appears only on hover or keyboard focus, and never on a column that can't be sorted; sorted columns keep ↑/↓.
+- **Filter values as the column shows them**: checklist values, filter chips and range bounds go through the column's `format` ("Salary: $60,000–$100,000" instead of "60000–100000").
+- **BREAKING:** `ColumnDef.format`'s `row` argument is now optional (`format(value, row?)`): filter displays call it without a row, so a `format` reading `row` must handle it being absent.
+- **Header sort arrows**: an unsorted column's muted ↕ now appears only on hover or keyboard focus, and never on a column that can't be sorted; sorted columns keep ↑/↓.
 
 ### Fixed
 
-- **Filter chip opens its column** (Solid, React, Vue, vanilla): clicking a filter chip shows its column's values and focuses it in the Filter dropdown even when the column search or a collapsed category hid it — the search is cleared and the category expanded — instead of leaving another column's pane showing (Solid) or focus lost on a hidden button (React, Vue).
-- **Secondary text contrast** (Solid, React, Vue, vanilla): `--color-text-secondary` is darker in light mode (`#666561`, was `#6b6a66`) and lighter in dark mode (`#a6a5a1`, was `#9b9a96`), so header labels meet WCAG AA's 4.5:1 on the header background in both, instead of 4.45:1 and 4.17:1.
-- **Rows-per-page name** (Solid, React, Vue, vanilla): the rows-per-page `<select>` is labelled by its visible "Rows per page:" text, instead of a screen reader announcing only "combo box, 10".
+- **Filter chip opens its column**: clicking a filter chip shows its column's values and focuses it in the Filter dropdown even when the column search or a collapsed category hid it — the search is cleared and the category expanded — instead of leaving another column's pane showing (Solid) or focus lost on a hidden button (React, Vue).
+- **Secondary text contrast**: `--color-text-secondary` is darker in light mode (`#666561`, was `#6b6a66`) and lighter in dark mode (`#a6a5a1`, was `#9b9a96`), so header labels meet WCAG AA's 4.5:1 on the header background in both, instead of 4.45:1 and 4.17:1.
+- **Rows-per-page name**: the rows-per-page `<select>` is labelled by its visible "Rows per page:" text, instead of a screen reader announcing only "combo box, 10".
 - **Solid** (and vanilla): `<DataTable columns={[...cols, extra]}>` written inline no longer overflows the stack ("Maximum call stack size exceeded").
-- **Column menu Filter on a phone** (Solid, React, Vue, vanilla): below 480 px, Filter replaces the ▾ menu's items with the filter pane under a "‹ Genres" back row, within the screen width, instead of a flyout running past the right edge and covering the menu; it no longer raises the on-screen keyboard on open.
-- **Column menu accessibility** (Solid, React, Vue, vanilla): the ▾ menu is now a dialog named after its column ("Genres options") with its Filter controls in a group named "Filter", instead of a nameless menu wrapping controls a menu can't contain; Tab moves through all of it (it skipped Hide column) and closes it once focus leaves.
-- **All-mode filter chip** (Solid, React, Vue, vanilla): a checklist filter matching all of its values joins them with " & " ("Genres: Action & RPG"), so its chip no longer reads the same as Any mode's "Genres: Action, RPG".
-- **Row checkbox name** (Solid, React, Vue, vanilla): taken from the first column with text, so a leading picture or icon column no longer leaves every row named "Select row ".
-- **Header ▾ button size** (Solid, React, Vue, vanilla): it keeps its 24 × 24 px target in a column whose label wraps, instead of shrinking to a few pixels.
+- **Column menu Filter on a phone**: below 480 px, Filter replaces the ▾ menu's items with the filter pane under a "‹ Genres" back row, within the screen width, instead of a flyout running past the right edge and covering the menu; it no longer raises the on-screen keyboard on open.
+- **Column menu accessibility**: the ▾ menu is now a dialog named after its column ("Genres options") with its Filter controls in a group named "Filter", instead of a nameless menu wrapping controls a menu can't contain; Tab moves through all of it (it skipped Hide column) and closes it once focus leaves.
+- **All-mode filter chip**: a checklist filter matching all of its values joins them with " & " ("Genres: Action & RPG"), so its chip no longer reads the same as Any mode's "Genres: Action, RPG".
+- **Row checkbox name**: taken from the first column with text, so a leading picture or icon column no longer leaves every row named "Select row ".
+- **Header ▾ button size**: it keeps its 24 × 24 px target in a column whose label wraps, instead of shrinking to a few pixels.
 
 ## [0.15.0] - 2026-10-04
 
 ### Added
 
-- **Accessible checkbox names** (Solid, React, Vue, vanilla): the select-all, group and row checkboxes are now named "Select all", "Select group Engineering" and "Select row Alice Martin" (the row's first visible cell), instead of a bare "checkbox". New labels `selectGroup(group)`/`selectRow(row)` in all 5 locales.
-- **Sorted headers expose `aria-sort`** (Solid, React, Vue, vanilla): each sorted column header reports "ascending" or "descending" to screen readers, instead of the direction living only in the ↑/↓ glyph.
-- **Named, larger pagination buttons** (Solid, React, Vue, vanilla): «, ‹, › and » are named "First page", "Previous page", "Next page" and "Last page" for screen readers, and grow from 23 to 25 px tall to meet the 24 px minimum touch target. New labels `firstPage`/`previousPage`/`nextPage`/`lastPage` in all 5 locales.
-- **Empty table message** (Solid, React, Vue, vanilla): a search or filter matching nothing now shows "No matching rows" in the table body with a "Clear search and filters" button (sorts and groups are kept; focus moves to the search box); a table with no data says "No rows". New labels `noRows`/`noMatchingRows`/`clearSearchAndFilters` in all 5 locales.
-- **Header menu** (Solid, React, Vue, vanilla): each header's label is now a button (Enter sorts, Shift+Enter adds a sort), and a ▾ button at the header's end opens a menu to filter that column from a flyout, group by it, or hide it. A filtered column's ▾ becomes a blue funnel, named "…, filtered" for screen readers. New labels `groupByColumn`/`columnMenu(column, filtered)` in all 5 locales.
+- **Accessible checkbox names**: the select-all, group and row checkboxes are now named "Select all", "Select group Engineering" and "Select row Alice Martin" (the row's first visible cell), instead of a bare "checkbox". New labels `selectGroup(group)`/`selectRow(row)` in all 5 locales.
+- **Sorted headers expose `aria-sort`**: each sorted column header reports "ascending" or "descending" to screen readers, instead of the direction living only in the ↑/↓ glyph.
+- **Named, larger pagination buttons**: «, ‹, › and » are named "First page", "Previous page", "Next page" and "Last page" for screen readers, and grow from 23 to 25 px tall to meet the 24 px minimum touch target. New labels `firstPage`/`previousPage`/`nextPage`/`lastPage` in all 5 locales.
+- **Empty table message**: a search or filter matching nothing now shows "No matching rows" in the table body with a "Clear search and filters" button (sorts and groups are kept; focus moves to the search box); a table with no data says "No rows". New labels `noRows`/`noMatchingRows`/`clearSearchAndFilters` in all 5 locales.
+- **Header menu**: each header's label is now a button (Enter sorts, Shift+Enter adds a sort), and a ▾ button at the header's end opens a menu to filter that column from a flyout, group by it, or hide it. A filtered column's ▾ becomes a blue funnel, named "…, filtered" for screen readers. New labels `groupByColumn`/`columnMenu(column, filtered)` in all 5 locales.
 - **Demos**: a Delete button in the Row selection section's "N selected" bar removes the selected rows, to exercise the table when its data changes.
 
 ### Changed
 
-- **BREAKING (all four adapters):** `DataTableLabels` gains required labels — `selectGroup`, `selectRow`, `firstPage`, `previousPage`, `nextPage`, `lastPage`, `noRows`, `noMatchingRows`, `clearSearchAndFilters`, `groupByColumn`, `columnMenu` — so a complete custom locale must add them; partial `labels` overrides are unaffected.
-- **Filter chips** (Solid, React, Vue, vanilla): narrowing a single-value column to a few values now reads as those values ("Department: Engineering") instead of a red list of everything hidden ("Department: ≠ Design, HR, Product, +1 more").
-- **Filter dropdown** (Solid, React, Vue, vanilla): a column's value search and value order now reset when switching to another column, since that pane is now shared with the header menu's Filter flyout.
+- **BREAKING:** `DataTableLabels` gains required labels — `selectGroup`, `selectRow`, `firstPage`, `previousPage`, `nextPage`, `lastPage`, `noRows`, `noMatchingRows`, `clearSearchAndFilters`, `groupByColumn`, `columnMenu` — so a complete custom locale must add them; partial `labels` overrides are unaffected.
+- **Filter chips**: narrowing a single-value column to a few values now reads as those values ("Department: Engineering") instead of a red list of everything hidden ("Department: ≠ Design, HR, Product, +1 more").
+- **Filter dropdown**: a column's value search and value order now reset when switching to another column, since that pane is now shared with the header menu's Filter flyout.
 - **React**: `table.focus.consumeDomFocus` now keeps a stable identity across renders, so `DataTableView`'s scroll/focus effect lists it as a dependency (clears a `react-hooks/exhaustive-deps` lint warning).
 
 ### Fixed
 
-- **Chip touch targets** (Solid, React, Vue, vanilla): an active-bar chip's × and ⊞ grow from 20×23 to at least 24×24 px.
+- **Chip touch targets**: an active-bar chip's × and ⊞ grow from 20×23 to at least 24×24 px.
 - **Escape in the filter checklist** (Solid, Vue, vanilla): clearing the value search with Escape while on the "Others" row now keeps focus on the search box; focus used to drop to the page, leaving the menu or dropdown stuck open.
 - **React filter checklist**: the "Others" checkbox now follows its state when clicked (it used to stay checked while the filter applied), and React no longer logs console warnings for it or for the header menu's ▾ button.
-- **Filter dropdown on phones** (Solid, React, Vue, vanilla): below 480 px it shows the column list, then the chosen column's values with a "‹ Columns" way back, instead of a two-pane panel running off the screen. Opening any dropdown near the screen's edge no longer scrolls the page sideways (Solid, vanilla), and dropdowns and menus now account for a desktop scrollbar when keeping themselves on screen.
+- **Filter dropdown on phones**: below 480 px it shows the column list, then the chosen column's values with a "‹ Columns" way back, instead of a two-pane panel running off the screen. Opening any dropdown near the screen's edge no longer scrolls the page sideways (Solid, vanilla), and dropdowns and menus now account for a desktop scrollbar when keeping themselves on screen.
 - **Vue filter checklist**: hiding a value of a single-value column (or toggling "Others") now unchecks its checkbox; it used to stay checked while the filter applied.
-- **Category submenus on narrow screens** (Solid, React, Vue, vanilla): a submenu that fits on neither side of its row now stays on screen, overlapping the row, instead of opening past the left edge.
-- **Focus after clearing** (Solid, React, Vue, vanilla): "Clear all" and (Solid, vanilla) the search box's × no longer drop keyboard focus to the page once they disappear; it moves to the search box, or the first toolbar button when search is hidden.
+- **Category submenus on narrow screens**: a submenu that fits on neither side of its row now stays on screen, overlapping the row, instead of opening past the left edge.
+- **Focus after clearing**: "Clear all" and (Solid, vanilla) the search box's × no longer drop keyboard focus to the page once they disappear; it moves to the search box, or the first toolbar button when search is hidden.
 
 ## [0.14.0] - 2026-09-14
 
