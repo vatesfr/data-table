@@ -1,9 +1,3 @@
-<script lang="ts">
-// Per data array and column key: revisiting a column (panes are recreated per column) otherwise
-// reruns a full O(rows) scan, which never short-circuits for a scalar column. Multi-valueness is a
-// property of the data shape, stable while `data` is.
-</script>
-
 <script setup lang="ts" generic="TRow extends object">
 import { computed, nextTick, ref, watch } from 'vue'
 import {

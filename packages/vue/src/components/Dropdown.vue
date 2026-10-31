@@ -6,16 +6,7 @@ import {
   rovingFocusTarget,
 } from '@vates/data-table-core/internal'
 
-// Listeners like @dragover/@drop passed to <Dropdown> are meant for the menu panel itself (so a
-// drag-and-drop reorder list inside can resolve a drop that lands past its last row / in
-// unrelated dead space — see the Sort/Group/Columns dropdown drag handlers in
-// DataTableView.vue), not the outer wrapper — inheritAttrs is off so `v-bind="$attrs"` below can
-// target them there explicitly instead of falling through to the template's actual root element.
-// A `@keydown` passed this way (the Filter dropdown's own pane-crossing nav — see
-// onFilterDropdownKeydown in DataTableView.vue) is automatically merged by Vue with this
-// component's own `onPanelKeydown` binding below (both fire; Vue's documented behavior for a
-// fallthrough listener and an explicit template listener sharing the same event name on the same
-// element), so a caller doesn't lose the base nav/Escape handling by supplying its own on top.
+// Listeners (@dragover/@drop for reorder drops past the last row, @keydown merged with the panel's own) go to the panel via `$attrs`
 defineOptions({ inheritAttrs: false })
 
 // Rows reached by the roving nav carry `data-dd-row`, the dropdown's own search box
@@ -25,12 +16,7 @@ const props = withDefaults(
   defineProps<{
     // Bound by the toolbar, which keeps one dropdown open at a time; local state when unbound
     open?: boolean
-    // Escape clears a non-empty search term first (focus stays put), only closing the dropdown on
-    // a second press or when there was nothing to clear — each consumer wires its own search-clear
-    // action here (it may own more than one search box, e.g. the Filter dropdown's column search
-    // and its per-column value search; the callback itself decides which applies). Returns whether
-    // it actually cleared something. Omitted for a panel with no search box at all (there's always
-    // one here today, but the prop stays optional for a future dropdown that might not have one).
+    // Escape clears a search term first, closing on a second press; returns whether it cleared something
     onEscapeClearable?: () => boolean
   }>(),
   // Vue casts an absent boolean prop to false, which would read as bound
@@ -74,15 +60,7 @@ watch(
   { flush: 'post' },
 )
 
-// Roving Up/Down/Home/End nav across the panel's own search box + rows, plus Escape. A distinct concern from any Alt+↑/↓
-// reorder or Enter/Space toggle a row itself implements (see DataTableView.vue's
-// onSortRowKeyDown/onGroupRowKeyDown/onColRowKeyDown) — those don't stopPropagation, so this still
-// runs after them via bubbling, but its own `e.altKey` guard keeps it from ever acting on their
-// modifier combo. Scoped to elements this panel actually recognizes
-// (see `rovingFocusTarget`) so it never interferes with unrelated controls elsewhere in the
-// panel (e.g. the Filter dropdown's right-hand detail pane, which implements its own nav — see
-// onFilterDropdownKeydown in DataTableView.vue — including native Left/Right/Up/Down/Home/End on
-// its own range inputs/slider that must keep working unmolested).
+// Roving ↑/↓/Home/End over the panel's marked rows (`DD_NAV_SELECTOR`), plus Escape; Alt is left to row reordering
 function onPanelKeydown(e: KeyboardEvent): void {
   if (e.key === 'Escape') {
     e.preventDefault()
@@ -94,11 +72,7 @@ function onPanelKeydown(e: KeyboardEvent): void {
   if (e.altKey) return
   const menu = menuRef.value
   if (!menu) return
-  // A CategorySubmenu (see that file) renders as a real descendant of this panel and implements
-  // its own independent Up/Down/Home/End nav, scoped to its own rows and stopping propagation —
-  // excluding its rows here keeps this panel-wide nav exactly as if the submenu weren't open,
-  // rather than letting it wander into a floating submenu whose rows aren't visually part of
-  // this list.
+  // An open CategorySubmenu runs its own nav
   const all = ddNavFocusables(menu).filter((el) => !el.closest('[data-category-submenu]'))
   const rows = all.filter((el) => !el.hasAttribute('data-dd-search'))
   const target = rovingFocusTarget(e.key, all, document.activeElement, rows)
@@ -114,13 +88,7 @@ function onPanelKeydown(e: KeyboardEvent): void {
       <span ref="triggerWrapRef" style="display: contents" @click="setOpen(!isOpen)">
         <slot name="trigger" />
       </span>
-      <!--
-        Rendered as a sibling of the trigger — inside the same outside-click boundary as the
-        trigger and panel (so clicking it doesn't spuriously close the dropdown via onMousedown
-        above), but outside the trigger's own @click toggle (so it never opens/closes the dropdown
-        itself). Used for the Sort/Group/Filter toolbar's adjoining × clear button (see
-        DataTableView.vue), visually merged into one pill with the trigger via shared CSS.
-      -->
+      <!-- Beside the trigger, inside the outside-click boundary but outside its toggle (the toolbar's × clear button) -->
       <slot name="extra-trigger" />
     </span>
     <div v-if="isOpen" ref="menuRef" class="dt-dd" v-bind="$attrs" @keydown="onPanelKeydown">

@@ -1,12 +1,5 @@
 <script setup lang="ts">
-// The "2 inputs + a slider" range control's slider half — two overlapping native
-// <input type="range"> thumbs sharing one visual track (only the thumb itself is a hit target,
-// via core's ::-webkit-slider-thumb/::-moz-range-thumb rules in DT_STYLES, so grabbing either one
-// works regardless of z-order) plus a colored fill between them. `min`/`max` are the column's
-// actual data bounds (see computeValueBounds); `low`/`high` are already sorted by the caller.
-// `change` always receives already-sorted (low, high) — dragging one thumb past the other just
-// swaps their visual roles on the next render rather than needing cross-clamping, the standard
-// behavior for this two-native-inputs trick.
+// The range control's slider: two overlapping native range inputs on one track; `change` gets sorted (low, high)
 defineProps<{
   min: number
   max: number
