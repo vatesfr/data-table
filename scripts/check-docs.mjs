@@ -79,12 +79,18 @@ export function staleRefs(doc, text, ctx) {
   return stale
 }
 
-if (import.meta.main) {
-  const tracked = execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard'], {
+// Tracked and untracked non-ignored paths under `cwd`, minus tracked ones deleted but not staged.
+export const repoFiles = (cwd = '.') =>
+  execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard'], {
+    cwd,
     encoding: 'utf8',
   })
     .trim()
     .split('\n')
+    .filter((p) => existsSync(join(cwd, p)))
+
+if (import.meta.main) {
+  const tracked = repoFiles()
   // Every non-ignored path counts too, so a doc can name a file (e.g. `solidScaffold`, `pitfalls`).
   const corpus = [
     ...tracked,

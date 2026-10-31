@@ -25,10 +25,27 @@ export function scenarios(
   const sortedForGroups = L.sortData?.(data, groupSorts, columns)
   // A keystroke reuses the index built on the first one
   const searchIndex = L.buildSearchIndex?.(data, columns)
+  // A select-all on a high-cardinality checklist: guards filterData's O(1) `Set.has` per row value
+  const largeNameSet = new Set(data.slice(0, 2000).map((r) => r.name))
+  const grouped = L.groupData?.(data, ['category'], columns)
+  const visibleItems = grouped && L.getVisibleRows?.(grouped, new Set(), false)
+  const category = columns.find((c) => c.key === 'category')!
   return [
     { name: 'sort string column', run: () => L.sortData(data, sortBy('name'), columns) },
     { name: 'sort number column', run: () => L.sortData(data, sortBy('price'), columns) },
     { name: 'sort date column', run: () => L.sortData(data, sortBy('createdAt'), columns) },
+    {
+      name: 'range filter',
+      run: () => L.filterData(data, {}, { price: { min: '100', max: '5000' } }, columns),
+    },
+    {
+      name: 'include filter, 2,000 values',
+      run: () => L.filterData(data, { name: largeNameSet }, {}, columns),
+    },
+    {
+      name: 'exclude filter, 2,000 values',
+      run: () => L.filterData(data, {}, {}, columns, undefined, { name: largeNameSet }),
+    },
     { name: 'search', run: () => L.searchData(data, 'category 7', searchIndex) },
     // A query typed further: matches a few dozen rows, the common case while narrowing down
     { name: 'search, narrow query', run: () => L.searchData(data, 'zz9', searchIndex) },
@@ -43,13 +60,21 @@ export function scenarios(
         ),
     },
     { name: 'search index (first keystroke)', run: () => L.buildSearchIndex(data, columns) },
-    // Filter value lists: one column's, computed as its filter pane opens
     {
-      name: 'filter values, one column',
+      name: 'paginate groups (page 1, size 100)',
+      run: () => L.paginateVisibleGroups(grouped, visibleItems, new Set(), false, 1, 100),
+    },
+    // Filter value lists: one column's, computed as its filter pane opens
+    { name: 'filter values, one column', run: () => L.computeStringValues(data, category) },
+    {
+      name: 'value counts, 2 active filters',
       run: () =>
-        L.computeStringValues(
+        L.computeStringValueCounts(
           data,
-          columns.find((c) => c.key === 'category')!,
+          category,
+          { status: new Set(['active']), region: new Set(['EMEA']) },
+          {},
+          columns,
         ),
     },
   ]

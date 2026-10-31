@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict'
+import { execFileSync } from 'node:child_process'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import process from 'node:process'
 import { test } from 'node:test'
-import { headingSlugs, staleRefs } from '../check-docs.mjs'
+import { headingSlugs, repoFiles, staleRefs } from '../check-docs.mjs'
 
 const files = {
   'docs/a.md': '# Title\n\n## `toolbarEnd` / slots (#18)\n\n## Title\n\n```\n# not a heading\n```',
@@ -14,8 +19,7 @@ const ctx = {
   slugs: (p) => headingSlugs(files[p]),
   glob: (p) => Object.keys(files).filter((f) => new RegExp(`^${p.replace('*', '[^/]*')}$`).test(f)),
   rootScripts: new Set(['check', 'dev:react', 'dev:vue']),
-  workspaceScripts: (w) =>
-    w === 'packages/core' ? new Set(['bench']) : new Set(['bench', 'test']),
+  workspaceScripts: (w) => (w === 'packages/core' ? new Set(['size']) : new Set(['size', 'test'])),
   ignored: new Set(),
 }
 const stale = (text, extra = {}) => staleRefs('docs/b.md', text, { ...ctx, ...extra })
@@ -39,7 +43,7 @@ test('links resolve relative to the doc, directories through their README', () =
 test('npm scripts: alternatives, wildcards, workspaces and placeholder workspaces', () => {
   assert.deepEqual(
     stale(
-      '`npm run dev:react|vue` `npm run dev:<demo>` `npm run bench -w packages/core` `npm run test -w packages/X`',
+      '`npm run dev:react|vue` `npm run dev:<demo>` `npm run size -w packages/core` `npm run test -w packages/X`',
     ),
     [],
   )
@@ -57,4 +61,17 @@ test('scripts/ paths must exist, globs allowed', () => {
 test('check-docs-ignore covers link targets, script names and paths verbatim', () => {
   const ignored = new Set(['gone.md', 'dev:solid', 'scripts/check.sh'])
   assert.deepEqual(stale('[g](gone.md) `npm run dev:solid` `scripts/check.sh`', { ignored }), [])
+})
+
+test('repo files skip a tracked file deleted but not staged', (t) => {
+  const dir = mkdtempSync(join(tmpdir(), 'check-docs-'))
+  t.after(() => rmSync(dir, { recursive: true }))
+  // Under the pre-commit hook, an inherited GIT_INDEX_FILE would make `git add` write the real index.
+  for (const k of Object.keys(process.env)) if (k.startsWith('GIT_')) delete process.env[k]
+  const git = (...args) => execFileSync('git', args, { cwd: dir })
+  git('init', '-q')
+  for (const f of ['kept.ts', 'gone.ts', 'new.ts']) writeFileSync(join(dir, f), '')
+  git('add', 'kept.ts', 'gone.ts')
+  rmSync(join(dir, 'gone.ts'))
+  assert.deepEqual(repoFiles(dir).sort(), ['kept.ts', 'new.ts'])
 })

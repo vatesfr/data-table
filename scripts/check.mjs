@@ -17,11 +17,11 @@ export function stepsFor(mode, files = []) {
     return [['check:docs', 'check:use-cases']]
   const staged = mode === 'staged'
   return [
-    // lint-staged already linted a commit's files; e2e stays out of pre-commit (CI runs it).
+    // lint-staged already formatted and linted a commit's files; e2e stays out of pre-commit (CI runs it).
     [
       'check:docs',
       'check:use-cases',
-      ...(staged ? [] : ['lint']),
+      ...(staged ? [] : ['lint', 'format:check']),
       'type-check',
       'test',
       'test:scripts',
