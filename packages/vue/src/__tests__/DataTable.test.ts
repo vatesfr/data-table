@@ -3753,6 +3753,23 @@ describe('DataTable — Sort dropdown column categories', () => {
       'Numbers▸',
     ]) // restored once cleared
   })
+  it('removing a categorized sort while searching refocuses its flat, category-tagged row', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: ROWS, columns: CATEGORIZED_COLS, rowKey: 'id' },
+      attachTo: document.body,
+    })
+    await openDdByLabel(wrapper, 'Sort')
+    await wrapper.find('.dt-dd input.dt-dd-search').setValue('Score')
+    const flatRow = () =>
+      wrapper.findAll('button.dt-dd-item--click').find((b) => b.text().startsWith('Score'))
+    await flatRow()!.trigger('click')
+    await flushPromises()
+    expect(flatRow()).toBeUndefined()
+    await wrapper.find('[data-sort-key="score"] .dt-item-remove').trigger('click')
+    await flushPromises()
+    expect(document.activeElement).toBe(flatRow()!.element)
+    wrapper.unmount()
+  })
 })
 
 describe('DataTable — Group dropdown column categories', () => {

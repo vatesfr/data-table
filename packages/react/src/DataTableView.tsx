@@ -841,55 +841,37 @@ export function DataTableView<TRow extends object>({
     </span>
   )
   // Activating a row moves it into another section (a different DOM node), hence the pending
-  // refocus key — see pendingSortFocusKey.
-  const addColRow = (col: ColumnDef<TRow>, showCategory?: boolean) => (
-    <button
-      key={col.key}
-      type="button"
-      data-col-key={col.key}
-      data-dd-row
-      onClick={() => {
-        pendingColFocusKey.current = col.key
-        toggleColVisibility(col.key)
-      }}
-      className="dt-dd-item dt-dd-item--click"
-    >
-      <span className="dt-flex1">{col.label}</span>
-      {showCategory && col.category && <span className="dt-dd-item-category">{col.category}</span>}
-    </button>
-  )
-  const addGroupRow = (col: ColumnDef<TRow>, showCategory?: boolean) => (
-    <button
-      key={col.key}
-      type="button"
-      data-group-add-key={col.key}
-      data-dd-row
-      onClick={() => {
-        pendingGroupFocusKey.current = col.key
-        toggleGroup(col.key)
-      }}
-      className="dt-dd-item dt-dd-item--click"
-    >
-      <span className="dt-flex1">{col.label}</span>
-      {showCategory && col.category && <span className="dt-dd-item-category">{col.category}</span>}
-    </button>
-  )
-  const addSortRow = (col: ColumnDef<TRow>, showCategory?: boolean) => (
-    <button
-      key={col.key}
-      type="button"
-      data-sort-add-key={col.key}
-      data-dd-row
-      onClick={() => {
-        pendingSortFocusKey.current = col.key
-        toggleSort(col.key)
-      }}
-      className="dt-dd-item dt-dd-item--click"
-    >
-      <span className="dt-flex1">{col.label}</span>
-      {showCategory && col.category && <span className="dt-dd-item-category">{col.category}</span>}
-    </button>
-  )
+  // refocus key — see pendingSortFocusKey. Handler factories: react-hooks/refs rejects a ref write
+  // in a helper an inline handler calls.
+  const addableRow =
+    (attr: string, onAdd: (key: string) => () => void) =>
+    (col: ColumnDef<TRow>, showCategory?: boolean) => (
+      <button
+        key={col.key}
+        type="button"
+        {...{ [attr]: col.key }}
+        data-dd-row
+        onClick={onAdd(col.key)}
+        className="dt-dd-item dt-dd-item--click"
+      >
+        <span className="dt-flex1">{col.label}</span>
+        {showCategory && col.category && (
+          <span className="dt-dd-item-category">{col.category}</span>
+        )}
+      </button>
+    )
+  const addColRow = addableRow('data-col-key', (key) => () => {
+    pendingColFocusKey.current = key
+    toggleColVisibility(key)
+  })
+  const addGroupRow = addableRow('data-group-add-key', (key) => () => {
+    pendingGroupFocusKey.current = key
+    toggleGroup(key)
+  })
+  const addSortRow = addableRow('data-sort-add-key', (key) => () => {
+    pendingSortFocusKey.current = key
+    toggleSort(key)
+  })
   // Uncategorized columns as plain rows, each category collapsed into a CategorySubmenu
   const categorizedList = (
     { uncategorized, categories }: ReturnType<typeof groupColumnsByCategory<ColumnDef<TRow>>>,

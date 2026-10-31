@@ -45,7 +45,7 @@ import {
 import { type SortEntry } from '@vates/data-table-core'
 import type { ColumnDef, DataTableViewProps } from './types'
 import Dropdown from './components/Dropdown.vue'
-import CategorySubmenu from './components/CategorySubmenu.vue'
+import AddableColumnList from './components/AddableColumnList.vue'
 import HeaderMenu from './components/HeaderMenu.vue'
 import FilterPane from './components/FilterPane.vue'
 import ToolbarBtn from './components/ToolbarBtn.vue'
@@ -1034,56 +1034,15 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
           </div>
           <template v-if="searchedFlatAvailableCols.length > 0">
             <div class="dt-dd-section">{{ L.availableColumnsSection }}</div>
-            <template v-if="isColsSearching">
-              <button
-                v-for="col in searchedFlatAvailableCols"
-                :key="col.key"
-                :ref="(el) => setAddableColRef(col.key, el as Element | null)"
-                type="button"
-                class="dt-dd-item dt-dd-item--click"
-                data-dd-row
-                @click="showColumn(col.key)"
-              >
-                <span class="dt-flex1">{{ col.label }}</span>
-                <span v-if="col.category" class="dt-dd-item-category">{{ col.category }}</span>
-              </button>
-            </template>
-            <template v-else>
-              <button
-                v-for="col in categorizedAvailableCols.uncategorized"
-                :key="col.key"
-                :ref="(el) => setAddableColRef(col.key, el as Element | null)"
-                type="button"
-                class="dt-dd-item dt-dd-item--click"
-                data-dd-row
-                @click="showColumn(col.key)"
-              >
-                <span class="dt-flex1">{{ col.label }}</span>
-              </button>
-              <CategorySubmenu
-                v-for="category in categorizedAvailableCols.categories"
-                :key="category.name"
-                :ref="(el) => setCategorySubmenuRef(category.name, el)"
-                :name="category.name"
-                :is-open="openColsCategory === category.name"
-                @open="openColsCategory = category.name"
-                @close="
-                  openColsCategory = openColsCategory === category.name ? null : openColsCategory
-                "
-              >
-                <button
-                  v-for="col in category.columns"
-                  :key="col.key"
-                  :ref="(el) => setAddableColRef(col.key, el as Element | null)"
-                  type="button"
-                  class="dt-dd-item dt-dd-item--click"
-                  data-dd-row
-                  @click="showColumn(col.key)"
-                >
-                  <span class="dt-flex1">{{ col.label }}</span>
-                </button>
-              </CategorySubmenu>
-            </template>
+            <AddableColumnList
+              v-model:open-category="openColsCategory"
+              :searching="isColsSearching"
+              :flat="searchedFlatAvailableCols"
+              :categorized="categorizedAvailableCols"
+              :set-row-ref="setAddableColRef"
+              :set-category-ref="setCategorySubmenuRef"
+              @activate="showColumn"
+            />
           </template>
         </Dropdown>
 
@@ -1189,55 +1148,14 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
             >
               {{ L.noMatchingColumns }}
             </div>
-            <template v-if="isGroupSearching">
-              <button
-                v-for="col in searchedFlatAddableGroupCols"
-                :key="col.key"
-                :ref="(el) => setAddableGroupRef(col.key, el as Element | null)"
-                type="button"
-                class="dt-dd-item dt-dd-item--click"
-                data-dd-row
-                @click="onAddGroup(col.key)"
-              >
-                <span class="dt-flex1">{{ col.label }}</span>
-                <span v-if="col.category" class="dt-dd-item-category">{{ col.category }}</span>
-              </button>
-            </template>
-            <template v-else>
-              <button
-                v-for="col in categorizedAddableGroupCols.uncategorized"
-                :key="col.key"
-                :ref="(el) => setAddableGroupRef(col.key, el as Element | null)"
-                type="button"
-                class="dt-dd-item dt-dd-item--click"
-                data-dd-row
-                @click="onAddGroup(col.key)"
-              >
-                <span class="dt-flex1">{{ col.label }}</span>
-              </button>
-              <CategorySubmenu
-                v-for="category in categorizedAddableGroupCols.categories"
-                :key="category.name"
-                :name="category.name"
-                :is-open="openGroupCategory === category.name"
-                @open="openGroupCategory = category.name"
-                @close="
-                  openGroupCategory = openGroupCategory === category.name ? null : openGroupCategory
-                "
-              >
-                <button
-                  v-for="col in category.columns"
-                  :key="col.key"
-                  :ref="(el) => setAddableGroupRef(col.key, el as Element | null)"
-                  type="button"
-                  class="dt-dd-item dt-dd-item--click"
-                  data-dd-row
-                  @click="onAddGroup(col.key)"
-                >
-                  <span class="dt-flex1">{{ col.label }}</span>
-                </button>
-              </CategorySubmenu>
-            </template>
+            <AddableColumnList
+              v-model:open-category="openGroupCategory"
+              :searching="isGroupSearching"
+              :flat="searchedFlatAddableGroupCols"
+              :categorized="categorizedAddableGroupCols"
+              :set-row-ref="setAddableGroupRef"
+              @activate="onAddGroup"
+            />
           </template>
         </Dropdown>
 
@@ -1398,55 +1316,14 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
               for free — no manual tabindex/keydown wiring needed, unlike the active rows above
               (which need custom keyboard handling anyway for Alt+↑/↓ reorder).
             -->
-            <template v-if="isSortSearching">
-              <button
-                v-for="col in searchedFlatAddableSortCols"
-                :key="col.key"
-                :ref="(el) => setAddableSortRef(col.key, el as Element | null)"
-                type="button"
-                class="dt-dd-item dt-dd-item--click"
-                data-dd-row
-                @click="onAddSort(col.key)"
-              >
-                <span class="dt-flex1">{{ col.label }}</span>
-                <span v-if="col.category" class="dt-dd-item-category">{{ col.category }}</span>
-              </button>
-            </template>
-            <template v-else>
-              <button
-                v-for="col in categorizedAddableSortCols.uncategorized"
-                :key="col.key"
-                :ref="(el) => setAddableSortRef(col.key, el as Element | null)"
-                type="button"
-                class="dt-dd-item dt-dd-item--click"
-                data-dd-row
-                @click="onAddSort(col.key)"
-              >
-                <span class="dt-flex1">{{ col.label }}</span>
-              </button>
-              <CategorySubmenu
-                v-for="category in categorizedAddableSortCols.categories"
-                :key="category.name"
-                :name="category.name"
-                :is-open="openSortCategory === category.name"
-                @open="openSortCategory = category.name"
-                @close="
-                  openSortCategory = openSortCategory === category.name ? null : openSortCategory
-                "
-              >
-                <button
-                  v-for="col in category.columns"
-                  :key="col.key"
-                  :ref="(el) => setAddableSortRef(col.key, el as Element | null)"
-                  type="button"
-                  class="dt-dd-item dt-dd-item--click"
-                  data-dd-row
-                  @click="onAddSort(col.key)"
-                >
-                  <span class="dt-flex1">{{ col.label }}</span>
-                </button>
-              </CategorySubmenu>
-            </template>
+            <AddableColumnList
+              v-model:open-category="openSortCategory"
+              :searching="isSortSearching"
+              :flat="searchedFlatAddableSortCols"
+              :categorized="categorizedAddableSortCols"
+              :set-row-ref="setAddableSortRef"
+              @activate="onAddSort"
+            />
           </template>
         </Dropdown>
 
