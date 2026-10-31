@@ -98,15 +98,9 @@ function resolveMultiValues<TRow extends object>(
 }
 
 /**
- * Coerces an already-obtained raw value per `col.type`, so every type-aware comparison
- * (currently just sort) agrees on what a column's value *means* instead of each call site
- * guessing independently from the raw value's runtime `typeof` — the root cause behind both
- * the date/string sort mismatch (issue #10) and the same-shaped bug for numeric-string values
- * in a `type: 'number'` column. `'date'` parses via `col.parseDate` (default `new Date`),
- * `'number'` coerces via `Number`; anything else (including untyped/computed columns) passes
- * the value through unchanged, preserving numeric sort for plain numbers with no `type` set.
- * Applied to a row's cell value (`sortRows`) and to a group's already-stringified `keyPart`
- * (`sortWithinGroups`).
+ * Coerces a raw value per `col.type` (`'date'` via `col.parseDate`, `'number'` via `Number`,
+ * else unchanged) so every sort agrees on what it means (issue #10). Applied to cell values
+ * (`sortRows`) and to group `keyPart`s (`sortWithinGroups`).
  */
 function coerceByType<TRow extends object>(
   col: ColumnDefBase<TRow> | undefined,
@@ -178,16 +172,8 @@ export function compareMissingLast<T = unknown>(
 }
 
 /**
- * Sorts `rows` by `sorts`, shared by `sortData`'s global sort and `sortWithinGroups`'
- * per-bucket re-sort. Decorate-sort-undecorate: `coerceByType` (esp. a `type: 'date'`
- * column's `parseDate`) is pure per-row, but a comparator recomputes it for both sides on every
- * comparison — O(n log n) calls instead of O(n). Precomputing once per row per sort key avoids
- * re-parsing the same row's date string dozens of times during a large sort.
- *
- * A column with a `compare` (see `ColumnDefBase.compare`) skips `coerceByType`'s
- * type coercion entirely — `compare` takes the raw column value on each side and is solely
- * responsible for ordering it — and its own comparator (passed this sort key's `dir`) is used
- * in place of the default numeric-or-lexicographic one.
+ * Sorts `rows` by `sorts` for `sortData` and `sortWithinGroups`, coercing each row's values once
+ * rather than per comparison (docs/performance.md); a column's `compare` takes the raw values.
  */
 function sortRows<TRow extends object>(
   rows: TRow[],
@@ -246,19 +232,8 @@ export function filterData<TRow extends object>(
   let result = [...data]
   const colByKey = buildColByKey(columns)
 
-  // Both loops below check row-value/filter-set membership by iterating whichever side is the
-  // per-row values array (`rowValues` — typically length 1 for a scalar column, a handful for a
-  // multi-value one) and doing an O(1) `Set.has` against the *other* side, rather than spreading
-  // the filter's `Set` to an array and calling `.includes` on `rowValues` per candidate — the
-  // naive `[...vals].some((v) => rowValues.includes(v))` shape costs O(rows × vals.size ×
-  // rowValues.length) since `.includes` itself is a linear scan; with a large `vals` (e.g. a
-  // checked-by-default checklist's "select all but a few" narrowing on a column with thousands of
-  // distinct values, or an "and" mode's own `vals`) that's easily hundreds of millions of
-  // operations and a multi-second stall for a single click on a large dataset — reproduced and
-  // fixed after profiling the huge-dataset demo. `rowValueSet` is only built for "and" mode, where
-  // every one of (typically few) `vals` must be checked against `rowValues` — worth the small
-  // per-row allocation there since it turns an O(vals.size × rowValues.length) inner loop into
-  // O(vals.size + rowValues.length).
+  // Iterate the row's few values against an O(1) `Set.has`, never `.includes` per filter value
+  // (docs/performance.md); `rowValueSet` only for "and" mode.
   for (const [key, vals] of Object.entries(filters)) {
     if (vals.size === 0) continue
     const col = colByKey.get(key)
@@ -325,16 +300,8 @@ export interface GroupResult<TRow extends object> {
  * a row is fanned out into one group per array item instead of one group per whole-array
  * combination — so a row tagged ['Action', 'RPG'] appears in both the 'Action' and 'RPG' groups.
  *
- * Accumulates into a `Map`, not a plain object — a plain `Record<string, ...>`'s keys would
- * otherwise silently reorder themselves: any own key that's a canonical non-negative integer
- * string (e.g. `'40000'`, a `numericRangeGroup`-bucketed key, or a raw integer groupBy value)
- * is a JS spec-mandated "array index" key, and those always enumerate in ascending numeric
- * order ahead of every other string key, regardless of insertion order. That made an otherwise-
- * unsorted numeric-bucketed group column look permanently pre-sorted ascending — e.g. still
- * appearing "sorted by Salary" after the matching sort entry was removed — for a reason that had
- * nothing to do with `sorts`/`sortWithinGroups` at all. `Map` preserves true first-seen order
- * for every key shape, so "no matching sort → arbitrary order" (see `sortWithinGroups`) means
- * the same thing for a numeric column as it already did for a string one.
+ * Accumulates into a `Map`: a plain object would enumerate integer-like keys in numeric order
+ * (docs/grouped-columns.md).
  */
 export function groupData<TRow extends object>(
   data: TRow[],
@@ -386,32 +353,9 @@ export function groupData<TRow extends object>(
 }
 
 /**
- * Reorders `groups` and re-sorts each group's own rows, splitting `sorts` into the entries that
- * match a groupBy column (which govern the order of the *groups themselves*) and the rest (which
- * govern row order *within* each group).
- *
- * `groupData` fans a row into one bucket per individual value for a multi-value groupBy column
- * (e.g. a row tagged `['Action', 'RPG']` lands in both the 'Action' and 'RPG' buckets), but
- * `sortData`'s sort runs *before* that fan-out, over the flat row list — so a multi-value
- * column used as a sort key has no single per-row comparable value that matches any one bucket,
- * and falls back to comparing the row's whole array (`String(array)`). That comparison is
- * unrelated to either bucket a row lands in, and it determines *two* things downstream that both
- * end up wrong: which order `groupData` first encounters each value in (and therefore which order
- * the groups themselves come out in), and — since it rarely ties between two different rows — it
- * also starves any secondary sort key from ever being reached for row order within a bucket.
- *
- * This fixes both from the one well-defined comparison a group actually has available: a group's
- * own `keyParts[i]` is already the single value that group represents for `groupBy[i]` (not the
- * whole array), so comparing *that* — type-aware, like a normal column sort — gives the groups
- * array a well-defined order for free. A groupBy column's own sort entry is then dropped before
- * re-sorting rows within a bucket, since every row in one of its buckets already shares that
- * value (comparing it again would be a no-op at best, or reintroduce the same whole-array
- * comparison at worst); the next sort key becomes the effective within-group row order instead —
- * exactly as it already does for a single-value groupBy column, where the flat pre-sort happens
- * to already put same-value rows adjacent to each other.
- *
- * Sorting a multi-value column that is *not* a groupBy column keeps `sortData`'s incidental
- * whole-array comparison, unchanged — there is no per-bucket context to resolve it against.
+ * Orders `groups` by the sort entries matching a groupBy column, comparing each group's own
+ * `keyParts[i]` (not a multi-value row's whole array), and re-sorts each group's rows by the
+ * remaining entries (docs/grouped-columns.md).
  */
 export function sortWithinGroups<TRow extends object>(
   groups: GroupResult<TRow>[],
@@ -434,12 +378,7 @@ export function sortWithinGroups<TRow extends object>(
       rows: sortRows(group.rows, withinGroupSorts, colByKey),
     }))
   }
-  // Nesting priority follows `groupBy`'s own order — the same order the Group dropdown displays
-  // — not the relative order group-matching entries happen to have within `sorts`. A level with
-  // no matching entry is skipped (falls through to the next level, same as a tied `compare`
-  // result would), rather than leaving nesting undefined for it. This deliberately doesn't read
-  // `sorts`-array position at all, so reordering entries in the Sort dropdown can never desync
-  // nesting from what the Group dropdown shows for the same `groupBy` (see docs/grouped-columns.md).
+  // Nesting follows `groupBy`'s order, never position in `sorts` (docs/grouped-columns.md)
   if (dirByGroupKey.size > 0) {
     result = [...result].sort((a, b) => {
       for (let idx = 0; idx < groupBy.length; idx++) {
@@ -704,14 +643,9 @@ export type VisibleItem<TRow> =
   { kind: 'group'; key: string } | { kind: 'row'; row: TRow; groupKey?: string | null }
 
 /**
- * Flattens `groupData`'s result into the items actually rendered, in display order — a group
- * header for every group (even a collapsed one, so it stays reachable to re-expand), followed by
- * its rows unless it's collapsed, the same condition each adapter's own render already applies.
- * This is the order used for keyboard arrow-key navigation: a collapsed group's rows are not
- * valid Up/Down targets, but its header always is, and expanding/collapsing a group changes what
- * else is reachable. Called with the *full* filtered/grouped data (not a page's slice) so that
- * pagination — see `paginateVisibleGroups`/`paginateVisibleItems` — can budget page size across
- * header and data rows together, instead of paginating data rows first and grouping afterward.
+ * Flattens `groupData`'s result into rendered display order: every group header (collapsed ones
+ * too), then its rows unless collapsed — the keyboard-nav order. Called on the full data so
+ * pagination budgets headers and rows together (`paginateVisibleGroups`/`paginateVisibleItems`).
  */
 export function getVisibleRows<TRow extends object>(
   groups: GroupResult<TRow>[],
@@ -760,29 +694,10 @@ export function computeStringValues<TRow extends object>(
 }
 
 /**
- * Same value set as `computeStringValues`, paired with how many rows would match each value —
- * computed as a facet: for a given column, rows are narrowed by every *other* active filter
- * (but not that column's own filter), so ticking a box in one checklist updates the counts
- * shown in another, while a column's own counts stay stable as its own boxes are ticked.
- *
- * `columns` is the *full* column list: it resolves each *other* filter's accessor. A `number`
- * column has no checklist, so no counts.
- *
- * `excludeFilters` (see `cycleFilterValue`) is excluded from the facet baseline the same way as
- * `filters` — a column's own exclude selections don't narrow its own counts, only every other
- * column's include/exclude selections do. `rangeFilters` gets the same treatment: a `type: 'date'`
- * column can carry both a checklist (this function) and its own range filter (the two-thumb
- * slider) at once, so that column's own active range must also be excluded from its own baseline
- * — otherwise narrowing the range would shrink its own checklist counts instead of only every
- * other column's.
- *
- * `filterModes` (see `setFilterMode`) is passed straight through to the narrowing `filterData`
- * call, unfiltered by column — unlike `filters`/`excludeFilters`/`rangeFilters`, a column's own
- * any/all mode has no bearing on *its own* baseline (only whether its own selected values are
- * excluded matters, not how they'd combine), so there's nothing to delete here. It matters for
- * every *other* column's contribution to that baseline: without it, toggling some other column
- * to "all" would silently keep narrowing this column's counts as if that other column were still
- * in its default "any" mode.
+ * `computeStringValues`' values with each one's facet count: rows narrowed by every *other*
+ * column's include, exclude and range filters (under `filterModes`), never by the column's own,
+ * so its counts stay stable as its own boxes are ticked (docs/filter-dropdown.md). `columns` is
+ * the full list; a `number` column gets no counts.
  */
 export function computeStringValueCounts<TRow extends object>(
   data: TRow[],
@@ -883,10 +798,8 @@ export function filterMatchMode(
 export const chipSeparator = (mode: 'and' | 'or'): string => (mode === 'and' ? ' & ' : ', ')
 
 /**
- * Renders a filter chip's label body: the first `FILTER_CHIP_MAX` selected values joined by
- * `separator`, or — once there are more than that — those plus a `moreValues(n)`-formatted suffix for
- * the rest (`moreValues` is `DataTableLabels.moreValues`, passed in rather than imported so this
- * stays framework-agnostic pure string logic with no dependency on where labels live).
+ * A filter chip's label: the first `FILTER_CHIP_MAX` values joined by `separator`, plus a
+ * `moreValues(n)` suffix for the rest.
  */
 export function summarizeFilterValues(
   vals: Set<string>,
@@ -900,13 +813,8 @@ export function summarizeFilterValues(
 }
 
 /**
- * Whether `col` matches a dropdown column-search term — checked against both its `label` and its
- * `category` (see `ColumnDefBase.category`), so typing a category name (e.g. "Work") surfaces
- * every column filed under it, not just a column whose own label happens to contain the term. An
- * empty/whitespace-only term always matches. Shared by every column-search box that narrows a
- * *column list* (not a filter checklist's own *value* search, which is unrelated): the Columns
- * dropdown's own list, `addableLists` below (Sort/Group's addable lists), and the Filter
- * dropdown's left pane.
+ * Whether `col`'s `label` or `category` matches a column-search term (empty always matches);
+ * shared by every search box narrowing a column list.
  */
 export function columnMatchesSearch(
   col: { label: string; category?: string },
@@ -930,17 +838,8 @@ export interface CategorizedColumns<T> {
 }
 
 /**
- * Buckets `cols` by `category` (see `ColumnDefBase.category`), for the Columns/Sort/Group
- * dropdowns' column lists (rendered as a submenu per category) and the Filter dropdown's left
- * pane (rendered as a collapsible section per category). `uncategorized` holds every column with
- * no `category`, in their original relative order — these render as plain rows, unaffected by
- * this feature. `categories` lists each distinct category name in first-appearance order (the
- * order its earliest column occupies in `cols`), each with its own columns in their original
- * relative order. Deliberately opinion-free about further ordering — callers apply whatever
- * ordering they already use for the list in question (table order for the Columns dropdown,
- * alphabetical for Sort/Group-addable and Filter) to `uncategorized`, to each category's
- * `columns`, and to the `categories` array itself (e.g. `.sort()` by `name` for an alphabetical
- * list) — this only groups, it never reorders relative to `cols`' own input order.
+ * Buckets `cols` by `category`: `uncategorized` and each category's `columns` keep `cols`' order,
+ * categories come in first-appearance order. Never reorders; callers apply their own ordering.
  */
 export function groupColumnsByCategory<T extends { category?: string }>(
   cols: T[],
@@ -1015,14 +914,9 @@ export function addableLists<T extends { key: string; label: string; category?: 
 }
 
 /**
- * Numeric bounds of a column's actual values across `data` — the slider's own `min`/`max`, so it
- * always spans exactly what's in the dataset. Deliberately computed from the full, unfiltered
- * `data` rather than `processedData`, so the slider's own range doesn't shrink out from under a
- * user who's mid-drag just because another filter narrowed the row set (the same "stable handles"
- * reasoning `computeStringValueCounts` already applies to a column's own facet counts). `'date'`
- * columns coerce via `parseDate` (default/override); everything else via `Number`. Returns `null`
- * when no row has a parseable value (empty data, or every value is non-numeric/non-date) — the
- * slider has nothing to bound, so callers should hide it rather than render a degenerate 0–0 range.
+ * A column's value bounds over the full, unfiltered `data` (so the slider doesn't shrink
+ * mid-drag when another filter narrows rows); dates via `parseDate`, else `Number`. `null` when
+ * no value parses: callers hide the slider.
  */
 export function computeValueBounds<TRow extends object>(
   data: TRow[],
@@ -1116,14 +1010,8 @@ export function rangeInputProps<TRow extends object>(
 }
 
 /**
- * Pure numeric derivation for the "2 inputs + a slider" range control: given the currently active
- * `range` filter (if any) and the column's data `bounds`, resolves the slider's own `low`/`high`
- * thumb positions (already sorted — `range.min`/`.max` empty strings fall back to `bounds`),
- * `step` (one day in ms for a date column, `'any'` otherwise), and each thumb's fill percentage
- * along the track. Callers are expected to only invoke this when `bounds` is non-degenerate
- * (`bounds.min < bounds.max`) — a zero-span `bounds` falls back to `pctLo`/`pctHi` of `0` rather
- * than dividing by zero, but this case shouldn't arise in practice since every adapter hides the
- * slider entirely when the column has no real range to show.
+ * The range slider's sorted thumb positions (empty `range` bounds fall back to `bounds`), `step`
+ * (a day for dates, else `'any'`) and fill percentages; a zero-span `bounds` gives 0%.
  */
 export function computeRangeSliderGeometry(
   range: RangeFilter | undefined,
@@ -1143,14 +1031,9 @@ export function computeRangeSliderGeometry(
 }
 
 /**
- * Narrows a `type: 'date'` column's flat value list to those falling within `range`'s bounds —
- * the date-tree equivalent of `filterValuesBySearch`, so the range filter excludes out-of-range
- * dates from the tree itself instead of merely being ANDed onto the final row set once a checkbox
- * is ticked. `values` are parsed with `parseDate` (default/override, matching the column's own);
- * the bounds are always ISO `YYYY-MM-DD` from the range filter's native `<input type="date">`s,
- * so they're parsed with the default parser regardless — see `filterData`'s range-filter loop
- * for the same distinction. A value that fails to parse is dropped whenever a bound is active —
- * it isn't part of any chronological range in the first place, same reasoning as `selectDateRange`.
+ * Narrows a date column's values to `range` (the date tree's `filterValuesBySearch`): values parse
+ * with `parseDate`, the ISO bounds with the default parser; unparseable values drop once a bound
+ * is set.
  */
 export function filterValuesByRange(
   values: string[],
@@ -1167,17 +1050,9 @@ export function filterValuesByRange(
 }
 
 /**
- * Reorders a filter checklist's (already search/count-narrowed) values by alphabetical order
- * or by facet count (see `computeStringValueCounts`), ascending or descending. Default is
- * `{ by: 'alpha', dir: 'asc' }`, matching the order `computeStringValues` already produces.
- *
- * `compare` (the column's own `ColumnDefBase.compare`, when set) replaces `localeCompare` both
- * for the `'alpha'` mode itself and as count-mode's tie-break — so a column with a custom order
- * stays consistently ordered everywhere it's listed, not just alphabetically as a fallback.
- * Passed `sort.dir` for the alpha-mode comparison (so a `compareMissingLast`-style `compare` can
- * still pin values regardless of it), but a fixed `'asc'` for the count-mode tie-break, which —
- * like `computeStringValueCounts`'s existing "tie-break alphabetically" behavior — is always
- * ascending regardless of `sort.dir`, itself only ever governing the count comparison above it.
+ * Orders checklist values alphabetically or by facet count, ascending or descending (default
+ * alpha asc). The column's `compare` replaces `localeCompare` in alpha mode (given `sort.dir`)
+ * and in count mode's tie-break, which is always ascending.
  */
 export function sortFilterValues(
   values: string[],
@@ -1335,18 +1210,9 @@ export function findDateTreeNode(nodes: DateTreeNode[], path: string): DateTreeN
 }
 
 /**
- * Shift-click range selection over the date tree, computed as a chronological interval rather
- * than over the tree's rendered rows. The tree's year/month/day grouping is purely a *display*
- * concern — ranging is a flat-list operation underneath it, exactly like the plain checklist,
- * just re-expressed in terms of dates instead of list positions. Using rendered-row order instead
- * (crossing a branch row includes that whole branch) would be wrong: ranging from `2023-02` to
- * `2024-06` must select everything chronologically between those two months, but never `2024-07`
- * — even though the `2024` year row sits "between" them if the tree happens to be expanded that
- * far. `anchorNode`/`targetNode` can be a leaf (day) or a branch (year/month); the interval spans
- * the earliest to latest raw value across both nodes' own `values`, and every value in `allValues`
- * that falls inside it (by parsed date, not string order, matching `computeDateTree`'s own
- * `parseDate`) is returned — values that don't parse as dates are excluded, same as they'd never
- * match a chronological interval in the first place.
+ * Shift-click range over the date tree as a chronological interval spanning both nodes' values,
+ * not rendered-row order (an expanded year row between two months isn't in range); unparseable
+ * values are excluded.
  */
 export function selectDateRange(
   allValues: string[],
@@ -1366,13 +1232,7 @@ export function selectDateRange(
   })
 }
 
-/**
- * Looks up `key`'s `defaultSortDir` in `columns` (default `'asc'` when the column has none, or
- * isn't found at all) — the resolved 3rd `defaultDir` argument every `toggleSort`/`replaceSort`/
- * `appendOrToggleSort`/`insertGroupSort` call site needs. Every adapter's `sort.toggle`/
- * `sort.replace`/`sort.appendOrToggle`/`group.toggle` action calls this once at the call site
- * rather than repeating the inline `columns.find(...)`.
- */
+/** `key`'s `defaultSortDir`, `'asc'` when unset or the column is missing. */
 export function getDefaultSortDir<TRow extends object>(
   columns: ColumnDefBase<TRow>[],
   key: string,
@@ -1399,30 +1259,10 @@ export function toggleSort(
 }
 
 /**
- * A plain (non-shift) header click: sort by `key` alone, discarding every other sort entry —
- * unlike `toggleSort`/`appendOrToggleSort`, which both preserve the rest of `sorts`. Named
- * `replaceSort` (not `setSort`) specifically to read as distinct from those two at a glance; all
- * three sound like near-synonyms otherwise, despite very different effects on the rest of the
- * multi-sort. If `key` is already the sole active *non-group* sort, cycles its direction
- * (`defaultDir` → opposite → none) the same way `toggleSort` would; otherwise starts fresh at
- * `defaultDir` (default `'asc'`), regardless of what was sorted before.
- *
- * `groupBy` (default `[]`) exempts any entry whose key is currently grouped from the discard —
- * a grouped column normally has no header of its own to reclick (see "Grouped columns"), so
- * without this a plain click on some unrelated, still-visible column would silently wipe out
- * every grouped column's sort order (see `insertGroupSort`) with no way for the user to see why.
- * Those entries are passed through untouched, in their existing relative order, ahead of the
- * fresh `key` entry.
- *
- * If `key` itself is in `groupBy` (reachable via `keepVisibleWhenGrouped`, which keeps a grouped
- * column's header clickable), this delegates to `toggleSort` instead of the group/rest split
- * above — that split assumes `key` is never one of the entries it's re-collecting into
- * `groupSorts`, which would otherwise append a second, duplicate entry for a key already present
- * there. Cycling in place (rather than "discard everything else, start fresh") is also the
- * correct semantics here: a group column's own direction governs that group's order, and
- * resetting the rest of `sorts` makes no sense for a column that's structurally a group — every
- * other group level still needs its own entry to keep its nesting position, and there's no
- * "just this column alone" state to reset to without ungrouping.
+ * A plain header click: sort by `key` alone — cycling it when it's already the sole non-group
+ * sort, else starting at `defaultDir` — keeping grouped columns' entries ahead of it. A grouped
+ * `key` (`keepVisibleWhenGrouped`) cycles in place via `toggleSort` (docs/sorting.md,
+ * docs/grouped-columns.md).
  */
 export function replaceSort(
   sorts: SortEntry[],
@@ -1439,13 +1279,8 @@ export function replaceSort(
 }
 
 /**
- * A shift-clicked header: add `key` to the existing multi-sort (at `defaultDir`, default `'asc'`)
- * if it isn't already part of it, or just flip its direction in place if it is. Deliberately never
- * removes an entry — a shift-click's intent is "adjust the multi-sort", and cycling through "none"
- * would both surprise someone who only meant to flip direction and, on the next shift-click,
- * re-add the column at the *end* of the stack instead of restoring its original priority. Removing
- * a column from the multi-sort has its own dedicated UI (a chip's × or the Sort dropdown's remove
- * button).
+ * A shift-clicked header: append `key` at `defaultDir`, or flip it in place; never removes, so
+ * its priority survives (docs/sorting.md).
  */
 export function appendOrToggleSort(
   sorts: SortEntry[],
@@ -1467,13 +1302,7 @@ export function moveSortBy(sorts: SortEntry[], key: string, delta: number): Sort
   return next
 }
 
-/**
- * Reorders `sorts` by moving the entry for `dragKey` next to the entry for `targetKey`
- * (drag-and-drop) — before it by default, or after it when `after` is true (needed to drop a
- * dragged entry *past* `targetKey`, e.g. making it the new last entry by dropping after the
- * previously-last one, which "insert before" alone can never express). Mirrors `reorderColumn`,
- * but keyed by `.key` on `SortEntry` objects instead of plain strings.
- */
+/** `reorderColumn` for `SortEntry`s: moves `dragKey`'s entry before `targetKey`'s, or after it. */
 export function reorderSort(
   sorts: SortEntry[],
   dragKey: string,
@@ -1491,11 +1320,8 @@ export function reorderSort(
 }
 
 /**
- * Deselects all `values` for `key` if any of them are currently selected (matching Gmail's
- * select-all-checkbox convention: an indeterminate or fully-checked state clears on click),
- * selects all of them only if none are currently selected — same convention as row selection's
- * `toggleSelectAll`. `values` is typically a search-narrowed subset of the column's full
- * checklist, so this only ever affects what's currently visible.
+ * Deselects all `values` for `key` if any is selected, else selects them all (Gmail-style, like
+ * `toggleSelectAll`).
  */
 export function toggleFilterAll(
   filters: Record<string, Set<string>>,
@@ -1507,13 +1333,8 @@ export function toggleFilterAll(
 }
 
 /**
- * Sets `values` for `key` to `selected` unconditionally — unlike `toggleFilterAll`, which
- * derives the direction itself from whether all of `values` are already selected. Backs
- * shift-click range selection in the filter checklist, where the direction (select vs
- * deselect) is instead decided by the clicked checkbox's own new state, so the whole range
- * needs to move the same way regardless of the other values' prior state. Works on either map:
- * `filters` (include) or `excludeFilters` (a scalar column's checked-by-default model, where
- * "checked" is "not in `excludeFilters`").
+ * Sets `values` for `key` to `selected` regardless of prior state (shift-range in a checklist);
+ * works on `filters` or `excludeFilters`.
  */
 export function setFilterValues(
   filters: Record<string, Set<string>>,
@@ -1528,19 +1349,8 @@ export function setFilterValues(
 }
 
 /**
- * Cycles a single checklist value through neutral → include → exclude → neutral, backing "not
- * one of these" filtering for multi-value columns (e.g. "doesn't have the Action tag") — plain
- * `filters` alone can only ever narrow *down to* a set of values, never rule specific ones out.
- * Kept as two separate `Set<string>` maps (`filters` for include, `excludeFilters` for exclude)
- * rather than a single `Map<string, 'include'|'exclude'>` per value, so every existing
- * include-only call site (`filterData`'s default exclude-less overload, `computeStringValueCounts`,
- * view-state persistence, `toggleFilterAll`/`setFilterValues`) keeps working unchanged against
- * `filters` alone — only the few sites that need to know about exclusion at all take the second
- * map as a new, optional/trailing parameter.
- *
- * A value is never present in both sets at once: moving it into one always removes it from the
- * other, so `filterData`'s two filter passes (include, then exclude) never fight over the same
- * value.
+ * Cycles a checklist value neutral → include → exclude → neutral; a value is never in both
+ * `filters` and `excludeFilters` (docs/filter-dropdown.md).
  */
 export function cycleFilterValue(
   filters: Record<string, Set<string>>,
@@ -1567,21 +1377,8 @@ export function cycleFilterValue(
 }
 
 /**
- * Removes `values` from the exclude set for `key`, keeping `cycleFilterValue`'s "never in both
- * sets at once" invariant when a *batch* include action (select-all, shift-range select) moves
- * values into `filters` via `toggleFilterAll`/`setFilterValues` — both of those stay include-only
- * and unaware of `excludeFilters`, so a caller that also tracks exclusion calls this right
- * alongside them rather than those two growing an extra parameter each.
- */
-/**
- * Full "select all"/"deselect all" sequence for a filter checklist's master checkbox — computes
- * `willSelectAll` (true when none of `values` are currently included), calls `toggleFilterAll`,
- * and — only on the select-all branch, since a value can't be in both sets at once (see
- * `cycleFilterValue`) — clears `values` out of `excludeFilters` for `key` too via
- * `clearExcludeValues`. The "deselect all" branch leaves `excludeFilters` untouched: it only
- * clears what the checkbox showed as selected, which by that same invariant can never include an
- * already-excluded value. Every adapter's `filter.toggleAll` action reduces to just this call plus
- * applying the two returned records to its own state.
+ * A checklist's master checkbox: `toggleFilterAll`, also clearing `values` from `excludeFilters`
+ * on select-all (a value is never in both sets).
  */
 export function toggleAllFilterState(
   filters: Record<string, Set<string>>,
@@ -1598,6 +1395,7 @@ export function toggleAllFilterState(
   }
 }
 
+/** Removes `values` from `key`'s exclude set, after a batch include (never in both sets). */
 export function clearExcludeValues(
   excludeFilters: Record<string, Set<string>>,
   key: string,
@@ -1609,11 +1407,8 @@ export function clearExcludeValues(
 }
 
 /**
- * `toggleFilterAll`'s mirror for the exclude-only (checked-by-default) model: deselects (excludes) all of
- * `values` if any of them are currently checked (not excluded), selects all of them (clears the
- * exclusion) only when none are checked — same Gmail-style convention as `toggleFilterAll`, just
- * read through the opposite polarity ("checked" = absent from `excludeFilters`, not present in
- * `filters`).
+ * `toggleFilterAll` for the checked-by-default model, where "checked" means absent from
+ * `excludeFilters`.
  */
 export function toggleExcludeAll(
   excludeFilters: Record<string, Set<string>>,
@@ -1624,14 +1419,7 @@ export function toggleExcludeAll(
   return setFilterValues(excludeFilters, key, values, someChecked)
 }
 
-/**
- * Sets a column's runtime filter match mode to "any" (union) or "all" (intersection) — the
- * user-facing counterpart to `col.multiMode`, which only ever sets the *default*. Takes the
- * target mode directly rather than flipping whatever's current, since the UI is a two-option
- * segmented control (both "Any" and "All" always visible, exactly one shown engaged) rather than
- * a single button cycling between them — each option's own click handler already knows which
- * mode it wants, with no need to read the current one first.
- */
+/** Sets a column's runtime any/all mode (`col.multiMode` only sets the default). */
 export function setFilterMode(
   filterModes: Record<string, 'and' | 'or'>,
   key: string,
@@ -1640,12 +1428,7 @@ export function setFilterMode(
   return { ...filterModes, [key]: mode }
 }
 
-/**
- * Whether `key` currently has any active filter — a checklist include/exclude value, or a set
- * range. Shared by the Filter dropdown's left-pane clear button/indicator and
- * `orderFilterColumnsByActive` below, so all three adapters check "is this column filtered"
- * exactly one way.
- */
+/** Whether `key` has a checklist include/exclude value or a set range. */
 export function columnHasActiveFilter(
   key: string,
   filters: Record<string, Set<string>>,
@@ -1661,12 +1444,8 @@ export function columnHasActiveFilter(
 }
 
 /**
- * Orders the Filter dropdown's left-pane column list with active-filter columns first, then the
- * rest — both groups alphabetical by `label` — as a snapshot key list to apply once a dropdown
- * opens (see "column ordering" in docs/filter-dropdown.md for why this is a snapshot rather than
- * a live sort: reordering while a filter is being toggled with the panel still open would move a
- * row out from under the pointer mid-interaction, which every adapter avoids by only ever calling
- * this function at the moment the dropdown opens, not on every filter change).
+ * The Filter dropdown's column keys, active-filter columns first, each half by label — a
+ * snapshot taken on open, never live (docs/filter-dropdown.md).
  */
 export function orderFilterColumnsByActive<TRow extends object>(
   columns: ColumnDefBase<TRow>[],
@@ -1681,11 +1460,8 @@ export function orderFilterColumnsByActive<TRow extends object>(
 }
 
 /**
- * Applies an `orderFilterColumnsByActive` snapshot to a (possibly search-narrowed) column list —
- * a column absent from `orderKeys` (e.g. added to `columns` after the dropdown was opened, or no
- * snapshot taken yet) sorts after every snapshotted one, alongside its own alphabetical fallback.
- * `orderKeys: null` means "no snapshot yet" (the dropdown has never been opened this session) and
- * falls back to plain alphabetical order.
+ * Applies an `orderFilterColumnsByActive` snapshot; keys missing from it sort after, and `null`
+ * (no snapshot yet) means alphabetical.
  */
 export function applyColumnOrderSnapshot<TRow extends object>(
   columns: ColumnDefBase<TRow>[],
@@ -1728,13 +1504,7 @@ export function filterOpenState<TRow extends object>(
   return { orderKeys, shownKey: shown?.key ?? null, collapsed }
 }
 
-/**
- * Detects whether a column's values are array-shaped in at least one row of `data` — the same
- * "is this a multi-value column" question `multiValues`/`col.multiMode` answer implicitly at
- * filter/group time, exposed here so a UI can decide whether an any/all toggle is meaningful to
- * show at all: for a plain scalar column, a row can only ever carry one value, so "all selected
- * values" can only ever match zero or one row and the toggle would just be confusing dead weight.
- */
+/** Whether any row holds an array for `col`: only then is an any/all toggle meaningful. */
 export function isMultiValueColumn<TRow extends object>(
   data: TRow[],
   col: ColumnDefBase<TRow> | undefined,
@@ -1759,15 +1529,8 @@ export function selectRange<T>(items: T[], anchor: T, target: T): T[] {
 
 // --- Selection identity (opt-in getRowId) ---
 //
-// Selection is tracked as Set<TRow> by object identity by default — no `getRowId` involved, and
-// every function below is a no-op passthrough to that exact pre-existing behavior when `getRowId`
-// is omitted. That default has one real footgun: a re-fetch or re-map of `data` that produces new
-// row objects (even with identical content) silently drops selection, since a `Set` can only ever
-// match by reference. `getRowId` is the opt-in escape hatch — a consumer who supplies one gets
-// selection that survives such a refresh, matched by id instead of reference, at the cost of an
-// O(selection size) index build on each selection-membership check (`getSelectedRows`) or mutation
-// (`toggleRowInSelection`/`toggleAllInSelection`) — cheap for any selection size a user could
-// plausibly multi-select by hand, and only paid at all by a consumer who opts in.
+// Selection is a `Set<TRow>` by identity; `getRowId` matches by id instead, so it survives a
+// data refetch (docs/selection-and-row-click.md). Without it, every function below passes through.
 export type GetRowId<TRow> = (row: TRow) => string | number
 
 export function isRowSelected<TRow>(
@@ -1817,13 +1580,8 @@ export function toggleRowInSelection<TRow>(
 }
 
 /**
- * Full `selection.toggle(row, shiftKey?)` sequence shared by every adapter: a shift-click with an
- * existing `anchor` range-selects via `selectRange` over `processedData` (the full filtered/sorted
- * order, not just the current page), deciding select-vs-deselect from the clicked row's own
- * checked state before the click (`shouldSelect = !isRowSelected(...)`); anything else falls
- * through to a plain `toggleRowInSelection`. Anchor bookkeeping is deliberately NOT done here —
- * it's adapter-local state (a plain variable/signal/ref, not part of the public `TableState`), so
- * each adapter sets its own anchor to `row` after calling this.
+ * `selection.toggle(row, shiftKey?)`: with an `anchor`, shift range-selects over `processedData`
+ * to the clicked row's new state; else toggles `row`. Adapters keep and update their own anchor.
  */
 export function toggleSelectionShiftAware<TRow extends object>(
   selection: Set<TRow>,
@@ -1866,15 +1624,8 @@ export function toggleAllInSelection<TRow>(
   return next
 }
 
-// Keeps `selection`'s stored row objects pointing at `nextData`'s current references for their
-// ids — call this whenever `data` changes. Without it, a getRowId-based `isRowSelected`/
-// `getSelectedRows` check still keeps working (ids still match), but `selection` itself would
-// quietly accumulate detached row objects from every past `data` array forever, and anything
-// reading `selection` directly (not through those two helpers) would see stale references. Drops
-// an id from `selection` entirely once it no longer exists in `nextData`. A no-op passthrough
-// (returns `selection` unchanged, not even a copy) when `getRowId` is omitted, matching today's
-// behavior exactly — object-identity selection has always relied on stable references, with no
-// reconciliation step.
+// Repoints `selection` at `nextData`'s rows by id and drops vanished ids; call on every data
+// change. Returns `selection` itself without `getRowId`.
 export function reconcileSelection<TRow>(
   nextData: TRow[],
   selection: Set<TRow>,
@@ -1902,21 +1653,9 @@ export function toggleGroupBy(groupBy: string[], key: string): string[] {
 }
 
 /**
- * Inserts (or repositions) a sort entry for a column just added to `groupBy`, so a newly grouped
- * column is never left without a defined order (GitHub issue #17) with no extra step required
- * from the user. `prevGroupBy` must be `groupBy` as it was *before* adding `key` — call this
- * only from the "add" branch of a group-toggle action, never on remove: an ungrouped column's
- * sort entry (if any) is left exactly where it is and from then on behaves like any other
- * sort the user set by hand, reversible/removable the same way via the active-bar chip or the
- * Sort dropdown. That's a deliberate scope cut vs. auto-removing it on ungroup — no provenance
- * tracking (which entries are "the group's" vs. "the user's own") is needed as a result.
- *
- * The new entry is placed after every existing entry whose key is in `prevGroupBy` (so a second,
- * third, ... grouped column's sort keeps deferring to the earlier ones for group nesting order,
- * matching `groupBy`'s own append-on-toggle order) and before every other entry (so an unrelated
- * column the user already sorted by keeps acting as an intra-group tie-breaker, not the primary
- * order). If `key` already has an entry (the user had manually sorted by it before grouping),
- * only its position moves — its existing direction is kept rather than reset to `dir`.
+ * For a column just added to `groupBy` (issue #17): inserts its sort entry, or moves an existing
+ * one keeping its direction, after the `prevGroupBy` entries and before the rest. Call on add
+ * only, with `groupBy` as it was before (docs/grouped-columns.md).
  */
 export function insertGroupSort(
   sorts: SortEntry[],
@@ -1932,13 +1671,8 @@ export function insertGroupSort(
 }
 
 /**
- * Re-orders whichever `sorts` entries match a key in `groupBy` to follow `groupBy`'s own current
- * order, leaving every other entry's relative position unchanged. Call this right after `groupBy`
- * itself is reordered (`group.move`/`group.moveBy`'s drag/Alt+Arrow reorder) — without it, dragging
- * a group to a new nesting position would leave its `insertGroupSort`-inserted sort entry behind
- * at its old priority, so the visible group nesting and the actual row order it produces would
- * silently disagree. A `groupBy` key with no matching entry (removed via the Sort dropdown, or
- * never grouped-and-sorted to begin with) is simply skipped, not inserted.
+ * Reorders the `sorts` entries matching `groupBy` keys to follow `groupBy`, others untouched;
+ * call after reordering `groupBy` so nesting and row order agree.
  */
 export function reorderGroupSorts(sorts: SortEntry[], groupBy: string[]): SortEntry[] {
   const byKey = new Map(sorts.map((s) => [s.key, s]))
@@ -1968,22 +1702,8 @@ export function getOrderedColumns<TRow extends object>(
 }
 
 /**
- * Reconciles a `visibleCols` set against a replaced column list — needed anywhere a table's
- * whole column set can change independently of a fresh mount: Solid's `createTableState.
- * setColumns`, or a `columns` prop/ref changing to a different key set in React's/Vue's own
- * `useTableState` (each adapter reaches this from a different trigger — an explicit setter call
- * vs. a changed argument — but needs the identical reconciliation once it happens). `visibleCols`
- * is normally seeded once (from `initialViewState.visibleCols`, or every initial column) and
- * otherwise only ever mutated by `toggleColVisibility`; left unreconciled, a `nextColumns` with no
- * overlap in `prevColumns` (e.g. a consumer swapping to a different data schema entirely while
- * keeping the same table/component instance) would leave every column filtered out as "not
- * visible" — `activeColumns` is filtered by `visibleCols` — and the table would silently render
- * with none at all. A column present in both `prevColumns` and `nextColumns` keeps whatever
- * visibility choice it had; a column only in `nextColumns` (genuinely new) starts visible by
- * default, the same default used when no `initialViewState.visibleCols` override is given at
- * construction. This also
- * covers a fully disjoint replacement for free: with nothing carried over to preserve, every
- * column in `nextColumns` counts as "new" and ends up visible.
+ * Reconciles `visibleCols` against a replaced column list: kept columns keep their visibility,
+ * new ones start visible (docs/table-state.md).
  */
 export function reconcileVisibleColumns<TRow extends object>(
   prevColumns: ColumnDefBase<TRow>[],
@@ -2002,12 +1722,7 @@ export function reconcileVisibleColumns<TRow extends object>(
   return next
 }
 
-/**
- * Reorders `order` by moving `dragKey` next to `targetKey` (drag-and-drop) — before it by
- * default, or after it when `after` is true (needed to drop `dragKey` *past* `targetKey`, e.g.
- * making it the new last entry by dropping after the previously-last one, which "insert before"
- * alone can never express).
- */
+/** Moves `dragKey` before `targetKey` in `order`, or after it (to drop past the last one). */
 export function reorderColumn(
   order: string[],
   dragKey: string,
@@ -2033,17 +1748,8 @@ export function moveColumnBy(order: string[], key: string, delta: number): strin
 }
 
 /**
- * `moveColumnBy`'s counterpart for the Columns dropdown's "Visible columns" section (see
- * docs/columns.md's "Columns dropdown"): swaps `key` with its nearest *visible* neighbor `delta`
- * positions away, skipping over any hidden columns in between rather than swapping with
- * whichever key happens to be textually adjacent in `order`. Plain `moveColumnBy` would silently
- * swap a visible column past a hidden one sitting right next to it in `order` — a no-op as far as
- * the Visible section's own rendered list is concerned (the hidden column never appears there),
- * so an Alt+↑/↓ press would visibly do nothing despite `order` actually changing underneath it.
- * Every hidden column skipped over keeps its own exact position in `order` untouched — only the
- * two visible columns being reordered actually move, so a hidden column's eventual reappearance
- * slot (see docs/columns.md's "'Expected place' when re-enabling a column") is never disturbed by
- * reordering *around* it.
+ * `moveColumnBy` for the Columns dropdown's Visible section: swaps `key` with its nearest visible
+ * neighbor `delta` away, leaving hidden columns in place (docs/column-reordering.md).
  */
 export function moveVisibleColumnBy(
   order: string[],
@@ -2094,12 +1800,8 @@ export interface FocusMoveResult<TRow> {
 }
 
 /**
- * Resolves what `table.focus.moveTo(row)` needs: which groups (if any) `row` belongs to must be
- * force-expanded for it to be reachable at all — a multi-value groupBy column can fan `row` into
- * more than one group, so every one it's in gets expanded, not just the first found — which page
- * contains it once expanded, and its resulting `VisibleItem` (for `focusTarget`). Returns `null`
- * if `row` isn't present in `groups` at all (sorted/filtered away, or never part of this table's
- * data) — `moveTo` no-ops in that case rather than moving focus somewhere meaningless.
+ * What `focus.moveTo(row)` needs: every group holding `row` to expand, its page once expanded
+ * and its `VisibleItem`; `null` when `row` isn't in `groups`.
  */
 export function resolveFocusTarget<TRow extends object>(
   groups: GroupResult<TRow>[],
@@ -2159,14 +1861,8 @@ export function computeTotalPages(count: number, pageSize: number): number {
 }
 
 /**
- * A `GroupResult` re-chunked for one page of `paginateVisibleGroups`'s output. `continued` marks
- * a chunk whose header is a *repeat* — the group's real header rendered on an earlier page and
- * this page picks its rows back up — so the UI can show it as e.g. "Engineering (cont'd)" instead
- * of rendering headerless orphan rows. `sampleRow` is a representative row of the group (always
- * present when `key` is non-null), independent of whether `rows` happens to be empty *on this
- * page* — a header can legitimately land as the very last item of a page's budget with none of
- * its own rows following until the next page, so header rendering (which needs some row to read
- * the groupBy column's real value/format from) can't always rely on `rows[0]`.
+ * A `GroupResult` chunk for one page. `continued`: its header repeats one from an earlier page.
+ * `sampleRow` reads the header's value even when no row of the group lands on this page.
  */
 export interface PagedGroup<TRow extends object> extends GroupResult<TRow> {
   continued: boolean
@@ -2174,22 +1870,9 @@ export interface PagedGroup<TRow extends object> extends GroupResult<TRow> {
 }
 
 /**
- * Re-chunks a page's slice of `visibleItems` (the *full*, unpaginated flattening from
- * `getVisibleRows`) back into per-group chunks for rendering — undoing the flattening, scoped to
- * one page. This is what lets a page's row budget (`pageSize`) count header rows alongside data
- * rows: pagination happens once, over the whole flattened sequence, rather than the old
- * paginate-data-rows-then-group-the-slice order (which let a page silently render `pageSize` data
- * rows *plus* however many header rows landed on top of them).
- *
- * A collapsed group contributes exactly one item to `visibleItems` — its header, no rows — so it
- * can never split across a page boundary; its `rows` here are backfilled from `groupedFull`
- * instead of accumulated from the (empty) visible slice, since a collapsed group's rows never
- * entered the paginated flow and have no "this page's portion" to fall back to. This is also just
- * the more useful answer: collapsing a group is usually precisely so its aggregate/select-all
- * reflect the *whole* group, not whatever fraction happens to share the current page. An expanded
- * group's rows, by contrast, do consume page budget and may split across pages — a chunk that
- * picks up mid-group (no header item at the start of this page's slice) is marked `continued` and
- * still gets its `keyParts` from `groupedFull`, purely for the repeated-header label.
+ * Re-chunks one page's slice of `visibleItems` into per-group chunks, so header rows count toward
+ * `pageSize`; a collapsed group's rows come whole from `groupedFull`, and a group resumed
+ * mid-group is `continued` (docs/pagination.md).
  */
 export function paginateVisibleGroups<TRow extends object>(
   groupedFull: GroupResult<TRow>[],
@@ -2324,14 +2007,8 @@ export function planRowNav<TRow extends object>(
 }
 
 /**
- * The "Rows per page" dropdown's option list, guaranteed to include `pageSize` itself — a plain
- * `<select>` bound to a value absent from its own `<option>`s (e.g. `initialViewState: { pageSize:
- * 5 }` against the default choices) silently shows the wrong option as
- * selected, since the browser falls back to the first one rather than leaving nothing selected.
- * Inserting the current value keeps the dropdown honest for any custom
- * `initialViewState.pageSize`/`setPageSize` call, not just the four defaults. The table's
- * starting size stays too, or picking a larger one could leave every choice fitting the rows and
- * hide the pager under the pointer (U27).
+ * "Rows per page" options, always including `pageSize` (else the `<select>` shows the wrong one)
+ * and `initialPageSize` (else a larger pick could hide the pager under the pointer, U27).
  */
 export function pageSizeOptions(pageSize: number, initialPageSize: number): number[] {
   return [...new Set([10, 20, 50, 100, pageSize, initialPageSize])].sort((a, b) => a - b)
@@ -2429,12 +2106,8 @@ export interface VirtualRange {
 }
 
 /**
- * Computes which rows of a fixed-row-height list are visible (plus `overscan` extra rows each
- * side, to avoid a blank flash between paint and the next scroll-driven re-render) given the
- * list's current scroll position and viewport size. Used to virtualize the filter dropdown's
- * checklist (see "Filter dropdown" in the docs) — a column with thousands of distinct values
- * would otherwise mount one `<input>`/`<label>` per value regardless of how many are actually
- * scrolled into view.
+ * The mounted window of a fixed-row-height list, with `overscan` rows each side to avoid a blank
+ * flash while scrolling; virtualizes the filter checklist.
  */
 export function computeVirtualRange(
   scrollTop: number,
@@ -2458,12 +2131,8 @@ export function computeVirtualRange(
 }
 
 /**
- * Given a virtualized list's current scroll position and a target row index, returns the
- * `scrollTop` needed to bring that row into `computeVirtualRange`'s own mounted window, or `null`
- * if the target's already fully within the plain (non-overscan) viewport and no scroll is
- * needed. Shared by every adapter's virtualized-checklist keyboard nav — previously duplicated
- * in React's `focusChecklistIndex` — for the "Up/Down/Home/End must reach a value outside the
- * currently-mounted window" case (see "The flat checklist is virtualized" in the docs).
+ * The `scrollTop` bringing `targetIndex` into `computeVirtualRange`'s window, or `null` when it's
+ * already fully visible; for keyboard nav past the mounted window.
  */
 export function getVirtualScrollTarget(
   scrollTop: number,
