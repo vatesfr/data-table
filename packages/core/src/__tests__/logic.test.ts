@@ -44,7 +44,6 @@ import {
   appendOrToggleSort,
   toggleFilterAll,
   setFilterValues,
-  setExcludeValues,
   toggleExcludeAll,
   cycleFilterValue,
   clearExcludeValues,
@@ -2738,29 +2737,6 @@ describe('setFilterValues', () => {
   it('preserves other keys', () => {
     const initial = { name: new Set(['Alice']) }
     const result = setFilterValues(initial, 'dept', ['Eng'], true)
-    expect(result['name'].has('Alice')).toBe(true)
-  })
-})
-
-describe('setExcludeValues', () => {
-  it('adds all given values to the exclude set when excluded is true', () => {
-    const result = setExcludeValues({}, 'dept', ['Eng', 'HR'], true)
-    expect([...result['dept']].sort()).toEqual(['Eng', 'HR'])
-  })
-
-  it('removes all given values when excluded is false, regardless of prior state', () => {
-    const result = setExcludeValues(
-      { dept: new Set(['Eng', 'HR', 'Sales']) },
-      'dept',
-      ['Eng', 'HR'],
-      false,
-    )
-    expect([...result['dept']]).toEqual(['Sales'])
-  })
-
-  it('preserves other keys', () => {
-    const initial = { name: new Set(['Alice']) }
-    const result = setExcludeValues(initial, 'dept', ['Eng'], true)
     expect(result['name'].has('Alice')).toBe(true)
   })
 })

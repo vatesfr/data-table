@@ -105,8 +105,8 @@ function resolveMultiValues<TRow extends object>(
  * in a `type: 'number'` column. `'date'` parses via `col.parseDate` (default `new Date`),
  * `'number'` coerces via `Number`; anything else (including untyped/computed columns) passes
  * the value through unchanged, preserving numeric sort for plain numbers with no `type` set.
- * Shared by `getComparableValue` (a row's own cell value) and `comparableFromKeyPart` (a group's
- * already-stringified `keyPart`) — same coercion, different source for the raw value.
+ * Applied to a row's cell value (`sortRows`) and to a group's already-stringified `keyPart`
+ * (`sortWithinGroups`).
  */
 function coerceByType<TRow extends object>(
   col: ColumnDefBase<TRow> | undefined,
@@ -115,11 +115,6 @@ function coerceByType<TRow extends object>(
   if (col?.type === 'date') return (col.parseDate ?? defaultParseDate)(raw as string)
   if (col?.type === 'number') return Number(raw)
   return raw
-}
-
-/** Reads a column's cell value and coerces it per `col.type` — see `coerceByType`. */
-function getComparableValue<TRow extends object>(col: ColumnDefBase<TRow>, row: TRow): unknown {
-  return coerceByType(col, getColumnValue(col, row))
 }
 
 /**
@@ -133,13 +128,8 @@ function multiValues(value: unknown, emptyLabel = '(none)'): string[] {
   return value.length > 0 ? value.map((v) => String(v)) : [emptyLabel]
 }
 
-/**
- * Default value comparator: numeric when both sides are numbers, else lexicographic. Ignores
- * `dir` (unused by every caller below) — it exists only so this is directly assignable wherever
- * a `ColumnDefBase.compare` (which does take `dir`) is expected, e.g. as the fallback in
- * `sortRows`'s `compareFns`.
- */
-function defaultCompare(a: unknown, b: unknown, _dir?: SortDir): number {
+/** Default value comparator: numeric when both sides are numbers, else lexicographic. */
+function defaultCompare(a: unknown, b: unknown): number {
   if (typeof a === 'number' && typeof b === 'number' && !isNaN(a) && !isNaN(b)) return a - b
   return String(a ?? '').localeCompare(String(b ?? ''))
 }
@@ -189,12 +179,12 @@ export function compareMissingLast<T = unknown>(
 
 /**
  * Sorts `rows` by `sorts`, shared by `sortData`'s global sort and `sortWithinGroups`'
- * per-bucket re-sort. Decorate-sort-undecorate: `getComparableValue` (esp. a `type: 'date'`
+ * per-bucket re-sort. Decorate-sort-undecorate: `coerceByType` (esp. a `type: 'date'`
  * column's `parseDate`) is pure per-row, but a comparator recomputes it for both sides on every
  * comparison — O(n log n) calls instead of O(n). Precomputing once per row per sort key avoids
  * re-parsing the same row's date string dozens of times during a large sort.
  *
- * A column with a `compare` (see `ColumnDefBase.compare`) skips `getComparableValue`'s
+ * A column with a `compare` (see `ColumnDefBase.compare`) skips `coerceByType`'s
  * type coercion entirely — `compare` takes the raw column value on each side and is solely
  * responsible for ordering it — and its own comparator (passed this sort key's `dir`) is used
  * in place of the default numeric-or-lexicographic one.
@@ -211,7 +201,8 @@ function sortRows<TRow extends object>(
     values: sorts.map(({ key }) => {
       const col = colByKey.get(key)
       if (!col) return asRecord(row)[key]
-      return col.compare ? getColumnValue(col, row) : getComparableValue(col, row)
+      const raw = getColumnValue(col, row)
+      return col.compare ? raw : coerceByType(col, raw)
     }),
   }))
   decorated.sort((a, b) => {
@@ -394,14 +385,6 @@ export function groupData<TRow extends object>(
   return [...groups.entries()].map(([key, { keyParts, rows }]) => ({ key, keyParts, rows }))
 }
 
-/** Same type-aware coercion as `getComparableValue`, applied to a group's own string `keyPart` instead of a row — see `coerceByType`. */
-function comparableFromKeyPart<TRow extends object>(
-  col: ColumnDefBase<TRow> | undefined,
-  keyPart: string,
-): unknown {
-  return coerceByType(col, keyPart)
-}
-
 /**
  * Reorders `groups` and re-sorts each group's own rows, splitting `sorts` into the entries that
  * match a groupBy column (which govern the order of the *groups themselves*) and the rest (which
@@ -466,8 +449,8 @@ export function sortWithinGroups<TRow extends object>(
         const col = colByKey.get(key)
         const ka = a.keyParts[idx]
         const kb = b.keyParts[idx]
-        const va = col?.compare ? ka : comparableFromKeyPart(col, ka)
-        const vb = col?.compare ? kb : comparableFromKeyPart(col, kb)
+        const va = col?.compare ? ka : coerceByType(col, ka)
+        const vb = col?.compare ? kb : coerceByType(col, kb)
         const cmp = col?.compare ? col.compare(va, vb, dir) : defaultCompare(va, vb)
         if (cmp !== 0) return applyDir(cmp, dir)
       }
@@ -885,7 +868,7 @@ export function formatFilterValue<TRow extends object>(
 
 /** Max values shown by name on an active-bar filter chip before falling back to a "+N more"
  * suffix — see `summarizeFilterValues`. */
-export const FILTER_CHIP_MAX = 3
+const FILTER_CHIP_MAX = 3
 
 /** A column's checklist match: its runtime override, else `col.multiMode`, else "any" */
 export function filterMatchMode(
@@ -1500,7 +1483,9 @@ export function toggleFilterAll(
  * derives the direction itself from whether all of `values` are already selected. Backs
  * shift-click range selection in the filter checklist, where the direction (select vs
  * deselect) is instead decided by the clicked checkbox's own new state, so the whole range
- * needs to move the same way regardless of the other values' prior state.
+ * needs to move the same way regardless of the other values' prior state. Works on either map:
+ * `filters` (include) or `excludeFilters` (a scalar column's checked-by-default model, where
+ * "checked" is "not in `excludeFilters`").
  */
 export function setFilterValues(
   filters: Record<string, Set<string>>,
@@ -1596,29 +1581,7 @@ export function clearExcludeValues(
 }
 
 /**
- * `setFilterValues`'s exact mirror for the exclude map — sets `values` for `key` to `excluded`
- * unconditionally. Backs the checked-by-default checklist model for a non-multi-value column
- * (see docs/filter-dropdown.md's "Filter dropdown"): unlike a multi-value column's include/exclude tri-state
- * (`cycleFilterValue`), a scalar column's checklist never needs `filters` at all — "checked" is
- * simply "not in `excludeFilters`", so a plain click, a shift-range select, and the master
- * select-all/select-none checkbox can all go through this one setter instead of the tri-state
- * cycle. `filters`/`excludeFilters` still never overlap for such a column, since it's never
- * written to `filters` in the first place.
- */
-export function setExcludeValues(
-  excludeFilters: Record<string, Set<string>>,
-  key: string,
-  values: string[],
-  excluded: boolean,
-): Record<string, Set<string>> {
-  const next = new Set(excludeFilters[key] ?? [])
-  if (excluded) values.forEach((v) => next.add(v))
-  else values.forEach((v) => next.delete(v))
-  return { ...excludeFilters, [key]: next }
-}
-
-/**
- * `toggleFilterAll`'s mirror for the exclude-only model above: deselects (excludes) all of
+ * `toggleFilterAll`'s mirror for the exclude-only (checked-by-default) model: deselects (excludes) all of
  * `values` if any of them are currently checked (not excluded), selects all of them (clears the
  * exclusion) only when none are checked — same Gmail-style convention as `toggleFilterAll`, just
  * read through the opposite polarity ("checked" = absent from `excludeFilters`, not present in
@@ -1630,7 +1593,7 @@ export function toggleExcludeAll(
   values: string[],
 ): Record<string, Set<string>> {
   const someChecked = values.some((v) => !excludeFilters[key]?.has(v))
-  return setExcludeValues(excludeFilters, key, values, someChecked)
+  return setFilterValues(excludeFilters, key, values, someChecked)
 }
 
 /**

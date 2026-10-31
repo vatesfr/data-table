@@ -21,7 +21,6 @@ import {
   setFilterValues as _setFilterValues,
   cycleFilterValue as _cycleFilterValue,
   clearExcludeValues as _clearExcludeValues,
-  setExcludeValues as _setExcludeValues,
   toggleExcludeAll as _toggleExcludeAll,
   setFilterMode as _setFilterMode,
   getSelectedRows,
@@ -369,7 +368,7 @@ export function useTableState<TRow extends object>(
       // docs/filter-dropdown.md's "Filter dropdown") — `filters` is never touched for such a column, so these
       // two go straight to `excludeFilters` instead of routing through `cycleValue`/`toggleAll`.
       setExcludeValues: (key: string, values: string[], excluded: boolean) => {
-        excludeFilters.value = _setExcludeValues(excludeFilters.value, key, values, excluded)
+        excludeFilters.value = _setFilterValues(excludeFilters.value, key, values, excluded)
         page.value = 1
       },
       toggleExcludeAll: (key: string, values: string[]) => {

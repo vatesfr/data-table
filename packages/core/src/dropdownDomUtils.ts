@@ -239,7 +239,7 @@ export const DD_NAV_SELECTOR = 'input[data-dd-search], [data-dd-row]'
  * `[tabindex]`) or wraps its actual focusable target as a descendant (e.g. a column checkbox row,
  * whose own checkbox — not the row `<div>` — is the real Tab stop).
  */
-export function ddFocusableFor(el: HTMLElement): HTMLElement | null {
+function ddFocusableFor(el: HTMLElement): HTMLElement | null {
   return el.matches('input, button, [tabindex]')
     ? el
     : el.querySelector<HTMLElement>('input, button, [tabindex]')

@@ -292,5 +292,3 @@ export interface DataTableLabels {
   /** Suffix for the active-filters toolbar chip when a column has more selected values than are shown (e.g. a whole year picked via the date tree) */
   moreValues: (count: number) => string
 }
-
-export { LABELS_EN as DEFAULT_LABELS } from './locales'

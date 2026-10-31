@@ -239,19 +239,9 @@ function sameRangeMap(a: Record<string, RangeFilter>, b: Record<string, RangeFil
 }
 
 /** The bag of current plain state values `buildViewStateSnapshot` reads `getViewState()` from. */
-export interface ViewStateSnapshotInput<TRow extends object = Record<string, unknown>> {
-  visibleCols: Set<string>
-  columnOrder: string[]
-  sorts: SortEntry[]
-  filters: Record<string, Set<string>>
-  excludeFilters: Record<string, Set<string>>
-  filterModes: Record<string, 'and' | 'or'>
-  rangeFilters: Record<string, RangeFilter>
-  groupBy: string[]
-  collapsedGroups: Set<string>
-  page: number
-  pageSize: number
-  searchQuery: string
+export interface ViewStateSnapshotInput<
+  TRow extends object = Record<string, unknown>,
+> extends ResolvedViewState {
   columns: ColumnDefBase<TRow>[]
   /** Construction-time defaults — see `resolveViewState`. */
   initialViewState?: TableViewState
@@ -268,50 +258,35 @@ export interface ViewStateSnapshotInput<TRow extends object = Record<string, unk
 export function buildViewStateSnapshot<TRow extends object = Record<string, unknown>>(
   input: ViewStateSnapshotInput<TRow>,
 ): TableViewState {
-  const {
-    visibleCols,
-    columnOrder,
-    sorts,
-    filters,
-    excludeFilters,
-    filterModes,
-    rangeFilters,
-    groupBy,
-    collapsedGroups,
-    page,
-    pageSize,
-    searchQuery,
-    columns,
-    initialViewState,
-  } = input
-  const def = resolveViewState({}, columns, initialViewState)
+  const def = resolveViewState({}, input.columns, input.initialViewState)
   const view: TableViewState = {}
-  if (!sameStringSet(visibleCols, def.visibleCols)) view.visibleCols = [...visibleCols]
-  if (!sameStringArray(columnOrder, def.columnOrder)) view.columnOrder = columnOrder
-  if (!sameSorts(sorts, def.sorts)) view.sorts = sorts
-  if (!sameFilterMap(filters, def.filters))
+  if (!sameStringSet(input.visibleCols, def.visibleCols)) view.visibleCols = [...input.visibleCols]
+  if (!sameStringArray(input.columnOrder, def.columnOrder)) view.columnOrder = input.columnOrder
+  if (!sameSorts(input.sorts, def.sorts)) view.sorts = input.sorts
+  if (!sameFilterMap(input.filters, def.filters))
     view.filters = Object.fromEntries(
-      Object.entries(filters)
+      Object.entries(input.filters)
         .filter(([, v]) => v.size > 0)
         .map(([k, v]) => [k, [...v]]),
     )
-  if (!sameFilterMap(excludeFilters, def.excludeFilters))
+  if (!sameFilterMap(input.excludeFilters, def.excludeFilters))
     view.excludeFilters = Object.fromEntries(
-      Object.entries(excludeFilters)
+      Object.entries(input.excludeFilters)
         .filter(([, v]) => v.size > 0)
         .map(([k, v]) => [k, [...v]]),
     )
-  if (!sameRecord(filterModes, def.filterModes, (x, y) => x === y)) view.filterModes = filterModes
-  if (!sameRangeMap(rangeFilters, def.rangeFilters))
+  if (!sameRecord(input.filterModes, def.filterModes, (x, y) => x === y))
+    view.filterModes = input.filterModes
+  if (!sameRangeMap(input.rangeFilters, def.rangeFilters))
     view.rangeFilters = Object.fromEntries(
-      Object.entries(rangeFilters).filter(([, r]) => r.min !== '' || r.max !== ''),
+      Object.entries(input.rangeFilters).filter(([, r]) => r.min !== '' || r.max !== ''),
     )
-  if (!sameStringArray(groupBy, def.groupBy)) view.groupBy = groupBy
-  if (!sameStringSet(collapsedGroups, def.collapsedGroups))
-    view.collapsedGroups = [...collapsedGroups]
-  if (page !== def.page) view.page = page
-  if (pageSize !== def.pageSize) view.pageSize = pageSize
-  if (searchQuery !== def.searchQuery) view.searchQuery = searchQuery
+  if (!sameStringArray(input.groupBy, def.groupBy)) view.groupBy = input.groupBy
+  if (!sameStringSet(input.collapsedGroups, def.collapsedGroups))
+    view.collapsedGroups = [...input.collapsedGroups]
+  if (input.page !== def.page) view.page = input.page
+  if (input.pageSize !== def.pageSize) view.pageSize = input.pageSize
+  if (input.searchQuery !== def.searchQuery) view.searchQuery = input.searchQuery
   return view
 }
 
