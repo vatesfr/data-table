@@ -1,11 +1,24 @@
 import eslint from '@eslint/js'
 import reactHooks from 'eslint-plugin-react-hooks'
+import pluginVue from 'eslint-plugin-vue'
 import tseslint from 'typescript-eslint'
 
 export default tseslint.config(
-  { ignores: ['**/dist/**', '**/node_modules/**', '**/*.vue', '.playwright-mcp/**'] },
+  { ignores: ['**/dist/**', '**/node_modules/**', '.playwright-mcp/**'] },
   eslint.configs.recommended,
   tseslint.configs.recommended,
+  // `essential`: correctness rules only; layout is Prettier's
+  pluginVue.configs['flat/essential'],
+  {
+    files: ['**/*.vue'],
+    languageOptions: { parserOptions: { parser: tseslint.parser } },
+    // vue-tsc checks names; typescript-eslint turns this off for .ts but can't see .vue
+    rules: {
+      'no-undef': 'off',
+      // Components are imported, never registered globally, so `Dropdown` can't clash with HTML
+      'vue/multi-word-component-names': 'off',
+    },
+  },
   {
     rules: {
       '@typescript-eslint/no-explicit-any': 'warn',
@@ -41,7 +54,7 @@ export default tseslint.config(
   // this catches a demo regressing back to a direct core import (as `demo/react`/`demo/vue`
   // used to for `renderThemeCss`, before each adapter grew its own `/theme` re-export).
   {
-    files: ['demo/**/*.{ts,tsx}'],
+    files: ['demo/**/*.{ts,tsx,vue}'],
     rules: {
       'no-restricted-imports': [
         'error',

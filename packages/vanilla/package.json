@@ -58,7 +58,7 @@
       "name": "ESM bundle (gzip)",
       "path": "dist/data-table-vanilla.js",
       "gzip": true,
-      "limit": "29.39 KB"
+      "limit": "28.36 KB"
     }
   ],
   "dependencies": {
