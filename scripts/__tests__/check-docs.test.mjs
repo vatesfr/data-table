@@ -19,8 +19,7 @@ const ctx = {
   slugs: (p) => headingSlugs(files[p]),
   glob: (p) => Object.keys(files).filter((f) => new RegExp(`^${p.replace('*', '[^/]*')}$`).test(f)),
   rootScripts: new Set(['check', 'dev:react', 'dev:vue']),
-  workspaceScripts: (w) =>
-    w === 'packages/core' ? new Set(['bench']) : new Set(['bench', 'test']),
+  workspaceScripts: (w) => (w === 'packages/core' ? new Set(['size']) : new Set(['size', 'test'])),
   ignored: new Set(),
 }
 const stale = (text, extra = {}) => staleRefs('docs/b.md', text, { ...ctx, ...extra })
@@ -44,7 +43,7 @@ test('links resolve relative to the doc, directories through their README', () =
 test('npm scripts: alternatives, wildcards, workspaces and placeholder workspaces', () => {
   assert.deepEqual(
     stale(
-      '`npm run dev:react|vue` `npm run dev:<demo>` `npm run bench -w packages/core` `npm run test -w packages/X`',
+      '`npm run dev:react|vue` `npm run dev:<demo>` `npm run size -w packages/core` `npm run test -w packages/X`',
     ),
     [],
   )

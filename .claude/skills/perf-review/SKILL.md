@@ -16,7 +16,7 @@ Measures, never guesses. Prefer numbers machine load can't move (instructions, b
 ## Measure
 
 - **Core costs** — `node scripts/perf-core.mjs [--rows=200000] [--out=<f>] [--compare=<f>] [case…]`: instructions, bytes allocated and retained per call, each case in a fresh process. Compare only results from this script: other setups (CPU pinning, heap flags) shift absolute numbers. A non-zero `gcDuringCall` undercounts bytes.
-- **Speed per call** — `npm run bench -w packages/core` (Vitest bench, 10k–500k rows).
+- **Speed per call** — `npm run bench:ab -- [ref] [--rows=500000]`: core scenarios at `ref` vs the working tree, interleaved in one Node process.
 - **Recomputes** — each adapter's `recompute.test.ts` spies on core's `logic.ts` (`vi.mock(..., { spy: true })`) and counts pipeline calls per interaction. A suspected rerun gets a failing count there first.
 - **Interactions** — `node scripts/perf-browser.mjs [--runs=6] [--demo=…] [--out=<f>] [--compare=<f>] [--leak]`: production builds of the demos' 200k-row table, Event Timing per step, median [IQR]. 6 runs ≈ 4 min on a quiet machine. `--summary=<f>` re-reads saved runs.
 - **Leaks** — `--leak`: heap, DOM nodes and listeners per Filter open/close cycle against a control loop. Heap growth with flat nodes and listeners is usually V8 compiled code: confirm with a heap snapshot diff (CDP `HeapProfiler.takeHeapSnapshot`, unminified build) before calling it a leak.

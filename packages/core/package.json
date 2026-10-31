@@ -59,7 +59,6 @@
     "build": "vite build",
     "test": "vitest run",
     "test:watch": "vitest",
-    "bench": "vitest bench --run --reporter=verbose",
     "type-check": "tsc --noEmit",
     "size": "size-limit"
   },
