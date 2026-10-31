@@ -86,11 +86,6 @@ Symptom first, then cause and fix. Delete entries once obsolete.
 - Cause: `defineProps<T>()` resolves imported types at SFC compile time, and Vite doesn't recompile the SFC when only the imported type file changes.
 - Fix: restart the dev server (`npm run dev:vue`).
 
-## New `DataTableViewProps` field inert through `<DataTable>` (React/Solid)
-
-- Cause: `DataTable.tsx` forwards props explicitly, not via spread.
-- Fix: add a matching line at each `<DataTable>` wrapper's `<DataTableView>` call site; test through `<DataTable>`, not only `<DataTableView>`.
-
 ## React test grabs the wrong search box
 
 - Cause: global search and the Filter dropdown's search share the `'Search…'` placeholder; global search comes first in DOM order.

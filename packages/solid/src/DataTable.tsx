@@ -1,4 +1,4 @@
-import { createEffect, on } from 'solid-js'
+import { createEffect, on, splitProps } from 'solid-js'
 import { createTableState } from './createTableState'
 import { DataTableView, type DataTableViewProps } from './DataTableView'
 import type { ColumnDef } from './types'
@@ -66,17 +66,14 @@ export function DataTable<TRow extends object>(props: DataTableProps<TRow>) {
     createEffect(on(table.selection.rows, (rows) => onSelectionChange(rows), { defer: true }))
   }
 
-  return (
-    <DataTableView
-      table={table}
-      rowKey={props.rowKey}
-      selectable={props.selectable}
-      onRowClick={props.onRowClick}
-      currentRow={props.currentRow}
-      rowClass={props.rowClass}
-      showSearch={props.showSearch}
-      showColumns={props.showColumns}
-      toolbarEnd={props.toolbarEnd}
-    />
-  )
+  const [, viewProps] = splitProps(props, [
+    'data',
+    'columns',
+    'labels',
+    'defaultGroupsCollapsed',
+    'initialViewState',
+    'getRowId',
+    'onSelectionChange',
+  ])
+  return <DataTableView table={table} {...viewProps} />
 }
