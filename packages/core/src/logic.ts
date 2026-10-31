@@ -97,18 +97,31 @@ function resolveMultiValues<TRow extends object>(
   return multiValues(resolveValue(col, row, key), emptyLabel)
 }
 
+/** `Number(v)`, but `NaN` for a missing value, which `Number` reads as 0 (issue #47). */
+function toNumber(v: unknown): number {
+  return v == null || v === '' ? NaN : Number(v)
+}
+
+/** A number or date cell as a number (dates via `col.parseDate`); `NaN` when missing or invalid. */
+function cellToNumber<TRow extends object>(
+  col: ColumnDefBase<TRow> | undefined,
+  raw: unknown,
+): number {
+  if (col?.type !== 'date') return toNumber(raw)
+  // `new Date(null)` is 1970, not invalid
+  return raw == null || raw === '' ? NaN : (col.parseDate ?? defaultParseDate)(raw as string)
+}
+
 /**
- * Coerces a raw value per `col.type` (`'date'` via `col.parseDate`, `'number'` via `Number`,
- * else unchanged) so every sort agrees on what it means (issue #10). Applied to cell values
+ * Coerces a raw value per `col.type` (`'date'` and `'number'` via `cellToNumber`, else
+ * unchanged) so every sort agrees on what it means (issue #10). Applied to cell values
  * (`sortRows`) and to group `keyPart`s (`sortWithinGroups`).
  */
 function coerceByType<TRow extends object>(
   col: ColumnDefBase<TRow> | undefined,
   raw: unknown,
 ): unknown {
-  if (col?.type === 'date') return (col.parseDate ?? defaultParseDate)(raw as string)
-  if (col?.type === 'number') return Number(raw)
-  return raw
+  return col?.type === 'date' || col?.type === 'number' ? cellToNumber(col, raw) : raw
 }
 
 /**
@@ -263,25 +276,18 @@ export function filterData<TRow extends object>(
 
   for (const [key, range] of Object.entries(rangeFilters)) {
     const col = colByKey.get(key)
-    const rangeValue = (r: TRow) => resolveValue(col, r, key)
-    if (col?.type === 'date') {
-      // Bounds come from the range filter's native <input type="date">s, always ISO
-      // `YYYY-MM-DD` — parsed with the default parser, not `col.parseDate`, since a column's
-      // custom parser is for its own raw value format, not this input's fixed ISO one.
-      const parseDate = col.parseDate ?? defaultParseDate
-      if (range.min !== '') {
-        const min = defaultParseDate(range.min)
-        result = result.filter((r) => parseDate(String(rangeValue(r))) >= min)
-      }
-      if (range.max !== '') {
-        const max = defaultParseDate(range.max)
-        result = result.filter((r) => parseDate(String(rangeValue(r))) <= max)
-      }
-    } else {
-      if (range.min !== '')
-        result = result.filter((r) => Number(rangeValue(r)) >= Number(range.min))
-      if (range.max !== '')
-        result = result.filter((r) => Number(rangeValue(r)) <= Number(range.max))
+    // Bounds come from the range filter's native <input type="date">s, always ISO
+    // `YYYY-MM-DD` — parsed with the default parser, not `col.parseDate`, since a column's
+    // custom parser is for its own raw value format, not this input's fixed ISO one.
+    const parseBound = col?.type === 'date' ? defaultParseDate : Number
+    const cellNumber = (r: TRow) => cellToNumber(col, resolveValue(col, r, key))
+    if (range.min !== '') {
+      const min = parseBound(range.min)
+      result = result.filter((r) => cellNumber(r) >= min)
+    }
+    if (range.max !== '') {
+      const max = parseBound(range.max)
+      result = result.filter((r) => cellNumber(r) <= max)
     }
   }
 
@@ -416,8 +422,7 @@ export function sortWithinGroups<TRow extends object>(
  */
 export function bucketNumericRange(step: number): (value: unknown) => number | null {
   return (value: unknown) => {
-    if (value == null) return null
-    const n = Number(value)
+    const n = toNumber(value)
     return isNaN(n) ? null : Math.floor(n / step) * step
   }
 }
@@ -584,8 +589,7 @@ export function bucketLogRange(options: LogRangeOptions = {}): (value: unknown) 
   const { base = 10, min = 1 } = options
   const divisions = sortedDivisions(options.divisions)
   return (value: unknown) => {
-    if (value == null) return null
-    const n = Number(value)
+    const n = toNumber(value)
     if (isNaN(n)) return null
     if (n <= 0 || n < min) return BELOW_LOG_MIN
     let exp = Math.floor(Math.log(n) / Math.log(base) + LOG_RANGE_EPSILON)
@@ -922,12 +926,10 @@ export function computeValueBounds<TRow extends object>(
   data: TRow[],
   col: ColumnDefBase<TRow>,
 ): { min: number; max: number } | null {
-  const parse =
-    col.type === 'date' ? (col.parseDate ?? defaultParseDate) : (v: unknown) => Number(v)
   let min = Infinity
   let max = -Infinity
   for (const row of data) {
-    const t = parse(getColumnValue(col, row) as string)
+    const t = cellToNumber(col, getColumnValue(col, row))
     if (isNaN(t)) continue
     if (t < min) min = t
     if (t > max) max = t
@@ -2071,12 +2073,7 @@ export function computeAggregate<TRow extends object>(
   if (!col.aggregate) return undefined
   if (typeof col.aggregate === 'function') return col.aggregate(rows)
   if (col.aggregate === 'count') return rows.length
-  // Number(null) and Number('') are 0: skip missing cells so they don't skew avg/min
-  const nums = rows
-    .map((r) => getColumnValue(col, r))
-    .filter((v) => v != null && v !== '')
-    .map(Number)
-    .filter((n) => !isNaN(n))
+  const nums = rows.map((r) => toNumber(getColumnValue(col, r))).filter((n) => !isNaN(n))
   if (nums.length === 0) return undefined
   switch (col.aggregate) {
     case 'sum':

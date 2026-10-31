@@ -489,6 +489,44 @@ describe('filterData / sortData', () => {
     expect(result.map((r) => r.name)).toEqual(['Alice', 'David'])
   })
 
+  it('a range bound excludes missing values: null, undefined and empty are not 0 (issue #47)', () => {
+    const cols = [
+      { key: 'hours', label: 'Hours', type: 'number' as const },
+      { key: 'd', label: 'Date', type: 'date' as const },
+    ]
+    const rows = [
+      { name: 'zero', hours: 0, d: '2026-01-01' },
+      { name: 'null', hours: null, d: null },
+      { name: 'undefined', hours: undefined, d: undefined },
+      { name: 'empty', hours: '', d: '' },
+    ]
+    const names = (ranges: Record<string, { min: string; max: string }>) =>
+      filterData(rows, {}, ranges, cols).map((r) => r.name)
+    expect(names({ hours: { min: '', max: '5' } })).toEqual(['zero'])
+    expect(names({ hours: { min: '0', max: '' } })).toEqual(['zero'])
+    expect(names({ d: { min: '1970-01-01', max: '' } })).toEqual(['zero'])
+  })
+
+  it('sorts missing number and date values together, apart from 0 and 1970 (issue #47)', () => {
+    const cols = [
+      { key: 'n', label: 'N', type: 'number' as const },
+      { key: 'd', label: 'Date', type: 'date' as const },
+    ]
+    const rows = [
+      { id: 'null', n: null, d: null },
+      { id: 'zero', n: 0, d: '1970-01-01' },
+      { id: 'empty', n: '', d: '' },
+      { id: 'ten', n: 10, d: '2026-01-01' },
+      { id: 'undefined', n: undefined, d: undefined },
+    ]
+    const ids = (key: string, dir: 'asc' | 'desc') =>
+      sortData(rows, [{ key, dir }], cols).map((r) => r.id)
+    const missing = ['null', 'empty', 'undefined']
+    expect(ids('n', 'asc')).toEqual(['zero', 'ten', ...missing])
+    expect(ids('n', 'desc')).toEqual([...missing, 'ten', 'zero'])
+    expect(ids('d', 'asc')).toEqual(['zero', 'ten', ...missing])
+  })
+
   it('sorts ascending by string column', () => {
     const result = sortData(ROWS, [{ key: 'name', dir: 'asc' }], [])
     expect(result.map((r) => r.name)).toEqual(['Alice', 'Bob', 'Clara', 'David'])
@@ -2035,6 +2073,23 @@ describe('computeValueBounds', () => {
       { id: 3, n: '30' },
     ]
     expect(computeValueBounds(rows, col)).toEqual({ min: 10, max: 30 })
+  })
+
+  it('ignores missing values rather than reading them as 0 or 1970 (issue #47)', () => {
+    const rows = [
+      { n: 10, d: '2020-01-01' },
+      { n: null, d: null },
+      { n: '', d: '' },
+      { n: 30, d: '2021-01-01' },
+    ]
+    expect(computeValueBounds(rows, { key: 'n', label: 'N', type: 'number' })).toEqual({
+      min: 10,
+      max: 30,
+    })
+    expect(computeValueBounds(rows, { key: 'd', label: 'D', type: 'date' })).toEqual({
+      min: new Date('2020-01-01').getTime(),
+      max: new Date('2021-01-01').getTime(),
+    })
   })
 
   it('returns null when no row has a parseable value', () => {

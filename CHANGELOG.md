@@ -22,6 +22,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Fixed
 
+- **Empty number and date cells stay empty**: `null`, `undefined` and `''` were read inconsistently, `null` and `''` as 0 (a date `null` as 1970) and `undefined` as missing. They now all count as missing: a range filter with any bound set excludes them, they sort together after every value (before, when descending), and they no longer stretch the range slider down to 0 or 1970. `numericRangeGroup` and `logRangeGroup` put `''` in the "no value" group instead of the 0 bucket.
 - **Dropdowns fit a short viewport**: opened near the bottom of a window too short for it on either side, a dropdown flipped up past the top edge, hiding its search box; it now opens on the side with more room, capped to that room, and scrolls.
 - **Aggregates ignore empty cells**: `avg`/`min`/`max` counted a `null`, `undefined` or `''` cell as 0 (10, empty, 20 averaged 10 instead of 15), and `min`/`max` threw "Maximum call stack size exceeded" on a group of ~200,000 rows.
 - **Keyboard edge cases**, now consistent across adapters:
