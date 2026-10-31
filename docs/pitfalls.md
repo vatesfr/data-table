@@ -146,7 +146,7 @@ Symptom first, then cause and fix. Delete entries once obsolete.
 
 - Symptom: in a worktree made by Claude Code's `EnterWorktree`, `npm run check` fails `test` and `build` with `Cannot find package '@vitejs/plugin-react'`, while core tests pass.
 - Cause: that tool creates the worktree without running git hooks, so `post-checkout`'s `npm ci` never runs and the worktree has no `node_modules`; Node then resolves packages from the main checkout's root `node_modules` (the worktree sits inside it), which lacks the adapters' own nested deps. A plain `git worktree add` runs the hook.
-- Fix: run `npm ci` in the worktree before any check.
+- Fix: `.claude/settings.json`'s `WorktreeCreate` hook (`scripts/hooks/worktree-create.mjs`) now creates them with `git worktree add`; in a session started before it, or if its log `~/.claude/logs/worktree-create.jsonl` shows `depsInstalled: false`, run `npm ci` in the worktree.
 
 ## Demo server: "Port 5898x is already in use", but nothing listens on it
 
