@@ -2,7 +2,8 @@
 // Solid/vanilla inject them, React/Vue apps define their own; every `var()` has a fallback. CSS
 // comments would ship in the bundle, so the non-obvious rules are explained here:
 // - .dt-filter-cols-search-wrap comes after .dt-dd-search-wrap so its position:sticky wins.
-// - Sort/Group/Columns active rows tint on focus like Filter's .dt-filter-col-row--active, on top of the native outline.
+// - Sort/Group/Columns active rows tint on focus like Filter's column rows on hover, on top of the native outline.
+// - Filter's active column row (.dt-filter-col-row--active) is info-tinted, not the hover tint, so it reads as the shown column; doubled class to beat :hover.
 // - A "Group order" row cancels --sortrow's hover (it can't be dragged); it must follow .dt-dd-item--sortrow:hover.
 // - .dt-pinned's ::after redraws the border hidden by its opaque background (shadow kept off box-shadow for the drag-over line); pinned rules stay at or below row-state specificity so app overrides win; the stripe layers over the pinned base.
 // - Full-width panels leave 17 px: twice the 8 px viewport clamp margin plus borders; the narrow Filter panel's 100vw includes a classic scrollbar.
@@ -136,10 +137,11 @@ export const DT_STYLES = `
 .dt-filter-back{flex-shrink:0;font-weight:var(--font-weight-medium,500);border-bottom:.5px solid var(--color-border-tertiary,#eeedea)}
 .dt-filter-cols{width:max-content;min-width:150px;max-width:240px;flex-shrink:0;overflow-y:auto;border-right:.5px solid var(--color-border-tertiary,#eeedea);padding:4px 0}
 .dt-filter-col-row{display:flex;align-items:stretch}
-.dt-filter-col-row:hover,.dt-filter-col-row--active,.dt-filter-list .dt-dd-item:hover{background:var(--color-background-secondary,#f7f6f3)}
+.dt-filter-col-row:hover,.dt-filter-list .dt-dd-item:hover{background:var(--color-background-secondary,#f7f6f3)}
+.dt-filter-col-row.dt-filter-col-row--active{background:var(--color-background-info,#e6f1fb)}
 .dt-filter-col-item{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:7px 10px;font-size:var(--font-size-md,13px);cursor:pointer;color:var(--color-text-primary,#1a1916);border:none;background:none;font-family:inherit;text-align:left;margin:0;flex:1 1 auto;min-width:0;overflow:hidden;box-sizing:border-box}
 .dt-filter-col-item span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.dt-filter-col-item--active{font-weight:var(--font-weight-medium,500)}
+.dt-filter-col-item--active{font-weight:var(--font-weight-medium,500);color:var(--color-text-info,#185fa5)}
 .dt-filter-col-clear{flex-shrink:0;display:flex;align-items:center;padding:0 10px;font-size:var(--font-size-md,13px);line-height:1;cursor:pointer;color:var(--color-text-tertiary,#9b9a96);border:none;background:none;font-family:inherit}
 .dt-filter-col-clear:hover{color:var(--color-text-primary,#1a1916)}
 .dt-filter-category-header{display:flex;align-items:center;gap:6px;width:100%;padding:7px 10px;font-size:var(--font-size-md,13px);font-weight:var(--font-weight-medium,500);cursor:pointer;color:var(--color-text-secondary,#666561);border:none;background:none;font-family:inherit;text-align:left;margin:0;box-sizing:border-box}

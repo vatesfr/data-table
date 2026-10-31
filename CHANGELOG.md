@@ -19,6 +19,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - **Sorting covers every row**: a sort or data change now sorts all rows, not just the filtered ones, so a column's `value`, `parseDate` or `compare` also runs on rows the filters drop, and a sort click under a narrow filter is slower (~16 ms → ~140–185 ms on 200,000 rows). In exchange, changing a filter or the search no longer re-sorts.
 - **Faster search, filters, sorting and grouping**, on 200,000 rows: a search keystroke ~190 → ~120 ms (the first, which indexes the rows, stays ~300 ms); a sort click without a filter ~20–30% faster; a filter click while searching no longer re-runs the search; picking a group-by column in Solid and vanilla ~470 → ~370 ms.
 - **Filter value rows show a hover background**, like the column rows in the left pane.
+- **The Filter panel's shown column stands out**: on desktop, its row in the left pane is tinted with the theme's info colors instead of the hover gray, so it no longer looks like a hovered row.
 
 ### Fixed
 
