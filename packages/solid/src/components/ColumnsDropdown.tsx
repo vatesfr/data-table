@@ -65,7 +65,6 @@ export function ColumnsDropdown<TRow extends object>(props: ColumnsDropdownProps
   const {
     dragOverKey,
     dragOverAfter,
-    setContainer,
     onRowDragStart,
     onRowDragEnd,
     onDragOver: handleDragOver,
@@ -127,7 +126,7 @@ export function ColumnsDropdown<TRow extends object>(props: ColumnsDropdownProps
       <Show when={searchedVisible().length > 0}>
         <div class="dt-dd-section">{table.labels().columnsSection}</div>
       </Show>
-      <div ref={setContainer} onDragOver={handleDragOver} onDrop={handleDrop}>
+      <div onDragOver={handleDragOver} onDrop={handleDrop}>
         <For each={searchedVisible()}>
           {(col) => (
             <div

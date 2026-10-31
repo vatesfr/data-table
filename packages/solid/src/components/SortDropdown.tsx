@@ -45,7 +45,6 @@ export function SortDropdown<TRow extends object>(props: SortDropdownProps<TRow>
   const {
     dragOverKey,
     dragOverAfter,
-    setContainer,
     onRowDragStart,
     onRowDragEnd,
     onDragOver: handleDragOver,
@@ -168,7 +167,7 @@ export function SortDropdown<TRow extends object>(props: SortDropdownProps<TRow>
       </Show>
       <Show when={nonGroupEntries().length > 0}>
         <div class="dt-dd-section">{table.labels().activeSortsSection}</div>
-        <div ref={setContainer} onDragOver={handleDragOver} onDrop={handleDrop}>
+        <div onDragOver={handleDragOver} onDrop={handleDrop}>
           <For each={nonGroupEntries()}>
             {(entry: SortEntry, i) => {
               const col = () => props.columns.find((c) => c.key === entry.key)

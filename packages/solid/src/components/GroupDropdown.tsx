@@ -31,7 +31,6 @@ export function GroupDropdown<TRow extends object>(props: GroupDropdownProps<TRo
   const {
     dragOverKey,
     dragOverAfter,
-    setContainer,
     onRowDragStart,
     onRowDragEnd,
     onDragOver: handleDragOver,
@@ -78,7 +77,7 @@ export function GroupDropdown<TRow extends object>(props: GroupDropdownProps<TRo
     >
       <Show when={table.group.by().length > 0}>
         <div class="dt-dd-section">{table.labels().activeGroupsSection}</div>
-        <div ref={setContainer} onDragOver={handleDragOver} onDrop={handleDrop}>
+        <div onDragOver={handleDragOver} onDrop={handleDrop}>
           <For each={table.group.by()}>
             {(key, i) => {
               const col = () => props.groupableCols.find((c) => c.key === key)

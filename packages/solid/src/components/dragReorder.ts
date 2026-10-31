@@ -9,14 +9,14 @@ import { resolveDropRow } from '@vates/data-table-core/internal'
 
 /**
  * Drag state + handlers for one dropdown panel's reorderable list (Columns/Sort/Group rows) —
- * the same `rowsContainer` ref + `rowEls()` query + drag signals + `handleDragOver`/`handleDrop`
+ * the same row query + drag signals + `handleDragOver`/`handleDrop`
  * scaffolding built on `resolveDropRow` used to be hand-copied once per dropdown component.
  * `attr` is the `data-*` attribute unique to that list's rows (e.g. `data-sort-key`); `move` is
  * the core reorder action to call on drop (`table.sort.move`/`table.group.move`/
  * `table.columns.move`).
  *
- * `setContainer` is meant for the list's own wrapping element's `ref` (`onDragOver`/`onDrop` go
- * there too, so a drop past the last row still resolves to a valid target); `onRowDragStart`/
+ * `onDragOver`/`onDrop` go on the list's own wrapping element, so a drop past the last row still
+ * resolves to a valid target; `onRowDragStart`/
  * `onRowDragEnd` go on each individual row's own `draggable` element.
  */
 export function createDragReorder(
@@ -26,23 +26,19 @@ export function createDragReorder(
   const [dragKey, setDragKey] = createSignal<string | null>(null)
   const [dragOverKey, setDragOverKey] = createSignal<string | null>(null)
   const [dragOverAfter, setDragOverAfter] = createSignal(false)
-  let rowsContainer: HTMLDivElement | undefined
-
-  function rowRects(): { key: string; rect: DOMRect }[] {
-    if (!rowsContainer) return []
-    return [...rowsContainer.querySelectorAll<HTMLElement>(`[${attr}]`)].map((el) => ({
-      key: el.getAttribute(attr)!,
-      rect: el.getBoundingClientRect(),
-    }))
+  function rowRects(e: DragEvent): { key: string; rect: DOMRect }[] {
+    return [...(e.currentTarget as Element).querySelectorAll<HTMLElement>(`[${attr}]`)].map(
+      (el) => ({
+        key: el.getAttribute(attr)!,
+        rect: el.getBoundingClientRect(),
+      }),
+    )
   }
 
   return {
     dragKey,
     dragOverKey,
     dragOverAfter,
-    setContainer: (el: HTMLDivElement) => {
-      rowsContainer = el
-    },
     onRowDragStart: (key: string) => setDragKey(key),
     onRowDragEnd: () => {
       setDragKey(null)
@@ -53,7 +49,7 @@ export function createDragReorder(
       if (!from) return
       // Skip highlighting/preventDefault when the resolved target is the dragged row itself —
       // matches React/Vue's own onDragOver guard.
-      const hit = resolveDropRow(e.clientY, rowRects())
+      const hit = resolveDropRow(e.clientY, rowRects(e))
       if (!hit || hit.key === from) return
       e.preventDefault()
       setDragOverKey(hit.key)
@@ -62,7 +58,7 @@ export function createDragReorder(
     onDrop: (e: DragEvent) => {
       e.preventDefault()
       const from = dragKey()
-      const hit = resolveDropRow(e.clientY, rowRects())
+      const hit = resolveDropRow(e.clientY, rowRects(e))
       if (from && hit && hit.key !== from) move(from, hit.key, hit.after)
       setDragKey(null)
       setDragOverKey(null)
