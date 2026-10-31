@@ -7,6 +7,8 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.21.0] - 2026-10-31
+
 ### Added
 
 - **Screen readers hear the results**: after a search, a filter or a page change, a polite status region announces the row count and page, or that no row matches.
@@ -451,7 +453,8 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - Grouped columns automatically hide from the table header and reappear when grouping is cleared
 - View persistence and sharing: `getViewState`/`setViewState` snapshot sort/filter/group/page/search state; `usePersistedView`/`persistViewToLocalStorage` and `useUrlView`/`syncViewToUrl` helpers for localStorage and shareable-URL persistence
 
-[Unreleased]: https://github.com/vatesfr/data-table/compare/v0.20.0...HEAD
+[Unreleased]: https://github.com/vatesfr/data-table/compare/v0.21.0...HEAD
+[0.21.0]: https://github.com/vatesfr/data-table/compare/v0.20.0...v0.21.0
 [0.20.0]: https://github.com/vatesfr/data-table/compare/v0.19.0...v0.20.0
 [0.19.0]: https://github.com/vatesfr/data-table/compare/v0.18.0...v0.19.0
 [0.18.0]: https://github.com/vatesfr/data-table/compare/v0.17.0...v0.18.0
