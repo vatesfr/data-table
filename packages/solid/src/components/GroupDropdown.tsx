@@ -1,8 +1,5 @@
 import { For, Show, createMemo, createSignal } from 'solid-js'
-import {
-  alphabetizedByLabel,
-  categorizedAlphabetizedByLabel,
-} from '@vates/data-table-core/internal'
+import { addableLists } from '@vates/data-table-core/internal'
 import type { TableState } from '../createTableState'
 import type { ColumnDef } from '../types'
 import { Dropdown } from './Dropdown'
@@ -41,16 +38,14 @@ export function GroupDropdown<TRow extends object>(props: GroupDropdownProps<TRo
     onDrop: handleDrop,
   } = createDragReorder('data-group-key', table.group.move)
 
-  const isSearching = createMemo(() => searchTerm().trim().length > 0)
-  const addableCols = createMemo(() => {
+  const lists = createMemo(() => {
     const groupBy = table.group.by()
-    return props.groupableCols.filter((c) => !groupBy.includes(c.key))
+    return addableLists(props.groupableCols, (key) => groupBy.includes(key), searchTerm())
   })
-  // While searching, category matches are flattened into plain, category-tagged rows instead of
-  // bucketed behind a submenu — see docs/columns.md's "Column categories"/ColumnsDropdown.tsx's identical
-  // fix: hiding a single search match behind an extra hover/click defeats the point of searching.
-  const searchedFlatAddableCols = createMemo(() => alphabetizedByLabel(addableCols(), searchTerm()))
-  const categorizedAddableCols = createMemo(() => categorizedAlphabetizedByLabel(addableCols(), ''))
+  const addableCols = () => lists()[0]
+  const isSearching = () => lists()[1]
+  const searchedFlatAddableCols = () => lists()[2]
+  const categorizedAddableCols = () => lists()[3]
 
   return (
     <Dropdown

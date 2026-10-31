@@ -27,10 +27,10 @@ import {
   columnHasActiveFilter,
   filterOpenState,
   applyColumnOrderSnapshot,
-  alphabetizedByLabel,
+  addableLists,
+  columnsDropdownLists,
   columnMatchesSearch,
   groupColumnsByCategory,
-  categorizedAlphabetizedByLabel,
   moveVisibleColumnBy as _moveVisibleColumnBy,
   type PagedGroup,
   type VisibleItem,
@@ -318,40 +318,15 @@ function makeDdEscapeClearable(dd: string): () => boolean {
 const colsEscapeClearable = makeDdEscapeClearable('cols')
 const sortEscapeClearable = makeDdEscapeClearable('sort')
 const groupEscapeClearable = makeDdEscapeClearable('group')
-// Columns dropdown: the search box is pinned at the top and, unlike Sort/Group, narrows *both*
-// "Visible columns" (visibleCols, not activeColumns, so a column merely hidden *by grouping*
-// still counts as visible here) and "Available columns" (hidden columns, click to show) — a
-// column you already show is just as often what you're hunting for (to hide/reorder it) as one
-// you don't. Available stays bucketed by category but deliberately NOT alphabetized when not
-// searching: this dropdown's whole identity is "shows real column/definition order," unlike
-// Sort/Group's addable lists (see categorizedAlphabetizedByLabel above). While searching, a
-// category match is flattened into a plain, category-tagged row instead — see
-// searchedFlatAvailableCols below — since hiding a single match behind an extra hover/click
-// defeats the point of searching (same reasoning as Sort/Group's own flatten-on-search).
-const isColsSearching = computed(() => ddSearchTerm('cols').trim() !== '')
-const visibleOrderedColumns = computed(() =>
-  orderedColumns.value.filter((c) => visibleCols.value.has(c.key)),
+// Columns dropdown lists: see columnsDropdownLists (core).
+const colsLists = computed(() =>
+  columnsDropdownLists(orderedColumns.value, visibleCols.value, ddSearchTerm('cols')),
 )
-const searchedVisibleOrderedColumns = computed(() =>
-  visibleOrderedColumns.value.filter((c) => columnMatchesSearch(c, ddSearchTerm('cols'))),
-)
-// Alt+↑/↓'s neighbor-eligibility set for moveVisibleColumnBy (see useTableState.ts's own comment
-// on its 3rd param): the real visible-columns set when not searching (today's behavior,
-// unchanged), or narrowed to just the currently-shown-and-matching keys while searching, so a
-// search-filtered-out column is never chosen as a swap partner.
-const colsReorderEligible = computed<ReadonlySet<string> | undefined>(() =>
-  isColsSearching.value
-    ? new Set(searchedVisibleOrderedColumns.value.map((c) => c.key))
-    : undefined,
-)
-const availableColumns = computed(() =>
-  orderedColumns.value.filter((c) => !visibleCols.value.has(c.key)),
-)
-// Only bucketed by category while *not* searching — see categorizedAvailableCols' own use below.
-const categorizedAvailableCols = computed(() => groupColumnsByCategory(availableColumns.value))
-const searchedFlatAvailableCols = computed(() =>
-  availableColumns.value.filter((c) => columnMatchesSearch(c, ddSearchTerm('cols'))),
-)
+const isColsSearching = computed(() => colsLists.value[0])
+const searchedVisibleOrderedColumns = computed(() => colsLists.value[1])
+const searchedFlatAvailableCols = computed(() => colsLists.value[2])
+const categorizedAvailableCols = computed(() => colsLists.value[3])
+const colsReorderEligible = computed(() => colsLists.value[4])
 // Declared here (rather than alongside its sibling groupDropdownRef further down) because the
 // watch right below needs it, and `<script setup>` top-level consts execute in source order —
 // referencing it before this point would hit the TDZ.
@@ -628,38 +603,22 @@ function onHeaderSortClick(col: ColumnDef<TRow>, event: MouseEvent): void {
 }
 
 // Sort/Group dropdowns split into an "active" section (priority order, reorderable) and an
-// "add" section (everything else) — reordering only ever makes sense among active entries.
-const addableSortCols = computed(() =>
-  sortableCols.value.filter((c) => getSortIndex(c.key) === null),
+// "add" section (everything else) — reordering only ever makes sense among active entries; see
+// addableLists (core).
+const sortLists = computed(() =>
+  addableLists(sortableCols.value, (key) => getSortIndex(key) !== null, ddSearchTerm('sort')),
 )
-const addableGroupCols = computed(() =>
-  groupableCols.value.filter((c) => !groupBy.value.includes(c.key)),
+const groupLists = computed(() =>
+  addableLists(groupableCols.value, (key) => groupBy.value.includes(key), ddSearchTerm('group')),
 )
-// Search narrows each addable list only — the active-entries section above keeps its own
-// priority order and is never hidden by a search term, since it's a short, already-visible list
-// with its own remove/reorder controls. The addable list itself carries no ordering meaning (none
-// of these are sorted/grouped yet), so it's alphabetized instead of raw column-definition order —
-// and, via `categorizedAlphabetizedByLabel` (core, which also matches by category), bucketed by
-// `ColumnDefBase.category`: a category collapses into a `CategorySubmenu` flyout trigger instead
-// of a flat run of individual rows (see docs/columns.md's "Column categories").
-const categorizedAddableSortCols = computed(() =>
-  categorizedAlphabetizedByLabel(addableSortCols.value, ddSearchTerm('sort')),
-)
-const categorizedAddableGroupCols = computed(() =>
-  categorizedAlphabetizedByLabel(addableGroupCols.value, ddSearchTerm('group')),
-)
-// While searching, a category match is flattened into a plain, category-tagged row instead of
-// bucketed behind a CategorySubmenu trigger — see Columns' isColsSearching/searchedFlatAvailableCols
-// above for the identical reasoning. Plain alphabetize+search (no bucketing) covers this, since
-// the addable list already has no ordering meaning of its own to preserve.
-const isSortSearching = computed(() => ddSearchTerm('sort').trim() !== '')
-const isGroupSearching = computed(() => ddSearchTerm('group').trim() !== '')
-const searchedFlatAddableSortCols = computed(() =>
-  alphabetizedByLabel(addableSortCols.value, ddSearchTerm('sort')),
-)
-const searchedFlatAddableGroupCols = computed(() =>
-  alphabetizedByLabel(addableGroupCols.value, ddSearchTerm('group')),
-)
+const addableSortCols = computed(() => sortLists.value[0])
+const isSortSearching = computed(() => sortLists.value[1])
+const searchedFlatAddableSortCols = computed(() => sortLists.value[2])
+const categorizedAddableSortCols = computed(() => sortLists.value[3])
+const addableGroupCols = computed(() => groupLists.value[0])
+const isGroupSearching = computed(() => groupLists.value[1])
+const searchedFlatAddableGroupCols = computed(() => groupLists.value[2])
+const categorizedAddableGroupCols = computed(() => groupLists.value[3])
 // Which category submenu is open, one independent value per dropdown — a single shared ref (not
 // one per CategorySubmenu instance) so opening one always closes any other that was open in the
 // same dropdown, see CategorySubmenu.vue's own doc.

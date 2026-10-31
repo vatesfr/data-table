@@ -900,17 +900,12 @@ export function summarizeFilterValues(
 }
 
 /**
- * Narrows `cols` by label substring (case-insensitive), then alphabetizes — the shared tail of
- * the Sort/Group dropdowns' own `addableCols` (each additionally filters out columns already
- * active in the sort/group before this runs, which is why that part stays separate).
- */
-/**
  * Whether `col` matches a dropdown column-search term — checked against both its `label` and its
  * `category` (see `ColumnDefBase.category`), so typing a category name (e.g. "Work") surfaces
  * every column filed under it, not just a column whose own label happens to contain the term. An
  * empty/whitespace-only term always matches. Shared by every column-search box that narrows a
  * *column list* (not a filter checklist's own *value* search, which is unrelated): the Columns
- * dropdown's own list, `alphabetizedByLabel` below (Sort/Group's addable lists), and the Filter
+ * dropdown's own list, `addableLists` below (Sort/Group's addable lists), and the Filter
  * dropdown's left pane.
  */
 export function columnMatchesSearch(
@@ -922,18 +917,16 @@ export function columnMatchesSearch(
   return col.label.toLowerCase().includes(t) || (col.category?.toLowerCase().includes(t) ?? false)
 }
 
-export function alphabetizedByLabel<T extends { label: string; category?: string }>(
-  cols: T[],
-  term: string,
-): T[] {
-  const list = term.trim() ? cols.filter((c) => columnMatchesSearch(c, term)) : cols
-  return list.slice().sort((a, b) => a.label.localeCompare(b.label))
-}
-
 /** One `category`'s worth of columns, in `cols`' own relative order. */
 export interface ColumnCategory<T> {
   name: string
   columns: T[]
+}
+
+/** `groupColumnsByCategory`'s result. */
+export interface CategorizedColumns<T> {
+  uncategorized: T[]
+  categories: ColumnCategory<T>[]
 }
 
 /**
@@ -945,16 +938,13 @@ export interface ColumnCategory<T> {
  * order its earliest column occupies in `cols`), each with its own columns in their original
  * relative order. Deliberately opinion-free about further ordering — callers apply whatever
  * ordering they already use for the list in question (table order for the Columns dropdown,
- * `alphabetizedByLabel` for Sort/Group-addable and Filter) to `uncategorized`, to each category's
+ * alphabetical for Sort/Group-addable and Filter) to `uncategorized`, to each category's
  * `columns`, and to the `categories` array itself (e.g. `.sort()` by `name` for an alphabetical
  * list) — this only groups, it never reorders relative to `cols`' own input order.
  */
 export function groupColumnsByCategory<T extends { category?: string }>(
   cols: T[],
-): {
-  uncategorized: T[]
-  categories: ColumnCategory<T>[]
-} {
+): CategorizedColumns<T> {
   const uncategorized: T[] = []
   const categories: ColumnCategory<T>[] = []
   const byName = new Map<string, ColumnCategory<T>>()
@@ -975,23 +965,53 @@ export function groupColumnsByCategory<T extends { category?: string }>(
 }
 
 /**
- * `alphabetizedByLabel` + `groupColumnsByCategory`, with the resulting `categories` themselves
- * also re-sorted alphabetically by name — the exact "search, alphabetize, bucket by category"
- * pipeline Sort's and Group's own addable-column lists both need identically (their own dropdowns
- * have no "already active" columns left to preserve order for, unlike the Columns dropdown or
- * Filter's left pane — see those two's own reasoning for why they deliberately do *not* use this).
- * Extracted here specifically because it was duplicated byte-for-byte between
- * `SortDropdown.tsx`/`GroupDropdown.tsx`'s own `categorizedAddableCols` memos.
+ * The Columns dropdown's lists, in real column order (it doubles as the drag-to-reorder surface):
+ * whether `term` searches, the visible and available (hidden) columns it matches, the latter
+ * bucketed by category (rendered when not searching) and, while searching, the shown visible keys —
+ * Alt+↑/↓'s only swap partners (see `moveVisibleColumnBy`).
  */
-export function categorizedAlphabetizedByLabel<T extends { label: string; category?: string }>(
-  cols: T[],
+export function columnsDropdownLists<T extends { key: string; label: string; category?: string }>(
+  ordered: T[],
+  visible: ReadonlySet<string>,
   term: string,
-): { uncategorized: T[]; categories: ColumnCategory<T>[] } {
-  const { uncategorized, categories } = groupColumnsByCategory(alphabetizedByLabel(cols, term))
-  return {
-    uncategorized,
-    categories: categories.slice().sort((a, b) => a.name.localeCompare(b.name)),
-  }
+): [
+  searching: boolean,
+  shownVisible: T[],
+  shownAvailable: T[],
+  categorizedAvailable: CategorizedColumns<T>,
+  reorderEligible: Set<string> | undefined,
+] {
+  const searching = term.trim() !== ''
+  const shown = ordered.filter((c) => columnMatchesSearch(c, term))
+  const shownVisible = shown.filter((c) => visible.has(c.key))
+  const shownAvailable = shown.filter((c) => !visible.has(c.key))
+  return [
+    searching,
+    shownVisible,
+    shownAvailable,
+    groupColumnsByCategory(shownAvailable),
+    searching ? new Set(shownVisible.map((c) => c.key)) : undefined,
+  ]
+}
+
+/**
+ * Sort's/Group's "add" lists: `cols` not yet active, whether `term` searches, the ones it matches
+ * (alphabetized, shown flat while searching) and, for when it doesn't, those bucketed by category
+ * with the categories alphabetized too — none of them is sorted/grouped yet, so their definition
+ * order carries no meaning.
+ */
+export function addableLists<T extends { key: string; label: string; category?: string }>(
+  cols: T[],
+  isActive: (key: string) => boolean,
+  term: string,
+): [addable: T[], searching: boolean, shown: T[], categorized: CategorizedColumns<T>] {
+  const addable = cols.filter((c) => !isActive(c.key))
+  const shown = addable
+    .filter((c) => columnMatchesSearch(c, term))
+    .sort((a, b) => a.label.localeCompare(b.label))
+  const categorized = groupColumnsByCategory(shown)
+  categorized.categories.sort((a, b) => a.name.localeCompare(b.name))
+  return [addable, term.trim() !== '', shown, categorized]
 }
 
 /**

@@ -71,9 +71,9 @@ import {
   countActiveFilters,
   getOrderedColumns,
   groupColumnsByCategory,
-  categorizedAlphabetizedByLabel,
+  addableLists,
+  columnsDropdownLists,
   columnMatchesSearch,
-  alphabetizedByLabel,
   reconcileVisibleColumns,
   reorderColumn,
   moveColumnBy,
@@ -3437,29 +3437,67 @@ describe('groupColumnsByCategory', () => {
   })
 })
 
-describe('categorizedAlphabetizedByLabel', () => {
+describe('addableLists', () => {
   const COLS = [
     { key: 'id', label: 'ID' },
     { key: 'name', label: 'Name', category: 'Info' },
     { key: 'score', label: 'Score', category: 'Numbers' },
     { key: 'salary', label: 'Salary', category: 'Numbers' },
+    { key: 'age', label: 'Age', category: 'Info' },
   ]
+  const isActive = (key: string) => key === 'name'
 
-  it('alphabetizes uncategorized columns and categories both', () => {
-    const result = categorizedAlphabetizedByLabel(COLS, '')
-    expect(result.uncategorized.map((c) => c.key)).toEqual(['id'])
-    expect(result.categories.map((c) => c.name)).toEqual(['Info', 'Numbers'])
-    expect(result.categories[1].columns.map((c) => c.key)).toEqual(['salary', 'score'])
+  it('drops active columns, alphabetizes uncategorized columns and categories both', () => {
+    const [addable, searching, shown, categorized] = addableLists(COLS, isActive, '')
+    expect(addable.map((c) => c.key)).toEqual(['id', 'score', 'salary', 'age'])
+    expect(searching).toBe(false)
+    expect(shown.map((c) => c.key)).toEqual(['age', 'id', 'salary', 'score'])
+    expect(categorized.uncategorized.map((c) => c.key)).toEqual(['id'])
+    expect(categorized.categories.map((c) => c.name)).toEqual(['Info', 'Numbers'])
+    expect(categorized.categories[1].columns.map((c) => c.key)).toEqual(['salary', 'score'])
   })
 
-  it('filters by search term first (label or category), same as alphabetizedByLabel', () => {
-    const result = categorizedAlphabetizedByLabel(COLS, 'Numbers')
-    expect(result.uncategorized).toEqual([])
-    expect(result.categories.map((c) => c.name)).toEqual(['Numbers'])
+  it('narrows the shown list by label or category, keeping every addable column', () => {
+    const [addable, searching, shown] = addableLists(COLS, isActive, ' numbers ')
+    expect(addable).toHaveLength(4)
+    expect(searching).toBe(true)
+    expect(shown.map((c) => c.key)).toEqual(['salary', 'score'])
   })
 })
 
-// ─── columnMatchesSearch / alphabetizedByLabel ───────────────────────────────
+describe('columnsDropdownLists', () => {
+  const COLS = [
+    { key: 'name', label: 'Name' },
+    { key: 'salary', label: 'Salary', category: 'Work' },
+    { key: 'dept', label: 'Dept', category: 'Work' },
+    { key: 'age', label: 'Age' },
+  ]
+  const VISIBLE = new Set(['name', 'dept'])
+
+  it('splits visible and available columns in column order, bucketing available ones', () => {
+    const [searching, visible, available, categorized, eligible] = columnsDropdownLists(
+      COLS,
+      VISIBLE,
+      '',
+    )
+    expect(searching).toBe(false)
+    expect(visible.map((c) => c.key)).toEqual(['name', 'dept'])
+    expect(available.map((c) => c.key)).toEqual(['salary', 'age'])
+    expect(categorized.uncategorized.map((c) => c.key)).toEqual(['age'])
+    expect(categorized.categories.map((c) => c.name)).toEqual(['Work'])
+    expect(eligible).toBeUndefined()
+  })
+
+  it('narrows both lists while searching, eligible holding the shown visible keys', () => {
+    const [searching, visible, available, , eligible] = columnsDropdownLists(COLS, VISIBLE, 'work')
+    expect(searching).toBe(true)
+    expect(visible.map((c) => c.key)).toEqual(['dept'])
+    expect(available.map((c) => c.key)).toEqual(['salary'])
+    expect([...eligible!]).toEqual(['dept'])
+  })
+})
+
+// ─── columnMatchesSearch ──────────────────────────────────────────────────────
 
 describe('columnMatchesSearch', () => {
   it('matches by label', () => {
@@ -3479,22 +3517,6 @@ describe('columnMatchesSearch', () => {
   it('an empty/whitespace-only term always matches', () => {
     expect(columnMatchesSearch({ label: 'Salary' }, '')).toBe(true)
     expect(columnMatchesSearch({ label: 'Salary' }, '   ')).toBe(true)
-  })
-})
-
-describe('alphabetizedByLabel', () => {
-  const COLS = [
-    { label: 'Dept', category: 'Work' },
-    { label: 'Name' },
-    { label: 'Salary', category: 'Work' },
-  ]
-
-  it('filters and alphabetizes by label', () => {
-    expect(alphabetizedByLabel(COLS, 'a').map((c) => c.label)).toEqual(['Name', 'Salary'])
-  })
-
-  it('filters by category too, even when no column label matches the term', () => {
-    expect(alphabetizedByLabel(COLS, 'Work').map((c) => c.label)).toEqual(['Dept', 'Salary'])
   })
 })
 

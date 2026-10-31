@@ -19,8 +19,8 @@ import {
   rowText,
   groupText,
   rangeChipText,
-  categorizedAlphabetizedByLabel,
-  alphabetizedByLabel,
+  addableLists,
+  columnsDropdownLists,
   isGroupCollapsed,
   isSameVisibleItem,
   indexOfVisibleItem,
@@ -559,73 +559,25 @@ export function DataTableView<TRow extends object>({
   const sortableCols = columns.filter((c) => c.sortable !== false)
   // Sort/Group dropdowns split into an "active" section (priority order, reorderable) and an
   // "add" section (everything else) — reordering only ever makes sense among active entries.
-  const addableSortCols = sortableCols.filter((c) => getSortIndex(c.key) === null)
-  const addableGroupCols = groupableCols.filter((c) => !groupBy.includes(c.key))
-  // Narrows a dropdown's own column list by label *or category* (see `ddSearchTerms` and
-  // `columnMatchesSearch`, core — typing a category name surfaces every column filed under it,
-  // not just one whose own label contains the term) — the Columns dropdown keeps its own
-  // `orderedColumns` order untouched (it doubles as the drag-to-reorder surface, so its order
-  // carries meaning no alphabetization should disturb); Sort/Group's addable lists and the Filter
-  // dropdown's left pane have no such order to preserve (none of these columns are sorted/
-  // grouped/filtered yet), so they're alphabetized by label to make a long list easier to scan,
-  // and bucketed by category — a category collapses into a `CategorySubmenu` flyout trigger
-  // instead of a flat run of individual rows (via `categorizedAlphabetizedByLabel`, core, which
-  // already matches by category too).
-  const searchCols = <T extends { label: string; category?: string }>(
-    cols: T[],
-    term: string,
-  ): T[] => cols.filter((c) => columnMatchesSearch(c, term))
-  // Columns dropdown: "Visible columns" (every column the user has chosen to show — visibleCols,
-  // not activeColumns, so a column merely hidden *by grouping* still counts as visible here) is
-  // the draggable/Alt+↑↓-reorderable list this dropdown always was. Unlike Sort/Group, its search
-  // box narrows *both* Visible and Available — a column you already show is just as often what
-  // you're hunting for (to hide/reorder it) as one you don't, and with a typical column count
-  // Visible is usually long enough that a search box placed only below it would sit off-screen
-  // until scrolled to. "Available columns" (hidden columns, click to show) is search-narrowed and
-  // bucketed by category while *not* searching — but, unlike Sort/Group's addable lists,
-  // deliberately NOT alphabetized: this dropdown's whole identity is "shows real column/definition
-  // order," so Available keeps that same order instead of adopting Sort/Group's alphabetical
-  // convention (see categorizedAlphabetizedByLabel above, which this intentionally doesn't use).
-  const isColsSearching = (ddSearchTerms.cols ?? '').trim() !== ''
-  const visibleOrderedColumns = orderedColumns.filter((c) => visibleCols.has(c.key))
-  const searchedVisibleColumns = searchCols(visibleOrderedColumns, ddSearchTerms.cols ?? '')
-  // Alt+↑/↓'s neighbor-eligibility set: the real visible-columns set when not searching (today's
-  // behavior, unchanged), or narrowed to just the currently-shown-and-matching keys while
-  // searching, so a search-filtered-out column is never chosen as a swap partner — see
-  // moveVisibleColumnBy's own doc comment (useTableState.ts) for why this needs a real Set, not
-  // just filtering the *rendered* rows (the underlying reorder still walks the full columnOrder).
-  const colsReorderEligible = isColsSearching
-    ? new Set(searchedVisibleColumns.map((c) => c.key))
-    : undefined
-  const availableColumns = orderedColumns.filter((c) => !visibleCols.has(c.key))
-  const searchedAvailableColumns = searchCols(availableColumns, ddSearchTerms.cols ?? '')
-  // Only bucketed by category while *not* searching — once a search term narrows a category down
-  // to one or two matches, keeping them behind a submenu trigger would force an extra hover/click
-  // right when the search was supposed to shortcut that (see the flattened, category-tagged
-  // render below instead).
-  const categorizedAvailableCols = groupColumnsByCategory(availableColumns)
-  // categorizedAlphabetizedByLabel (core): search, alphabetize, bucket by category, and
-  // alphabetize the categories themselves too — Sort/Group's addable lists have no "already
-  // active" concept to preserve order for (unlike the Columns dropdown or Filter's left pane), so
-  // this pipeline's own alphabetical-everything convention applies cleanly here.
-  const categorizedAddableSortCols = categorizedAlphabetizedByLabel(
+  const [
     addableSortCols,
-    ddSearchTerms.sort ?? '',
-  )
-  const categorizedAddableGroupCols = categorizedAlphabetizedByLabel(
+    isSortSearching,
+    searchedFlatAddableSortCols,
+    categorizedAddableSortCols,
+  ] = addableLists(sortableCols, (key) => getSortIndex(key) !== null, ddSearchTerms.sort ?? '')
+  const [
     addableGroupCols,
-    ddSearchTerms.group ?? '',
-  )
-  // While searching, a category match is flattened into a plain, category-tagged row instead of
-  // staying bucketed behind a submenu trigger (see the Columns dropdown's identical fix above) —
-  // hiding a single search match behind an extra hover/click defeats the point of searching.
-  const isSortSearching = (ddSearchTerms.sort ?? '').trim() !== ''
-  const isGroupSearching = (ddSearchTerms.group ?? '').trim() !== ''
-  const searchedFlatAddableSortCols = alphabetizedByLabel(addableSortCols, ddSearchTerms.sort ?? '')
-  const searchedFlatAddableGroupCols = alphabetizedByLabel(
-    addableGroupCols,
-    ddSearchTerms.group ?? '',
-  )
+    isGroupSearching,
+    searchedFlatAddableGroupCols,
+    categorizedAddableGroupCols,
+  ] = addableLists(groupableCols, (key) => groupBy.includes(key), ddSearchTerms.group ?? '')
+  const [
+    isColsSearching,
+    searchedVisibleColumns,
+    searchedAvailableColumns,
+    categorizedAvailableCols,
+    colsReorderEligible,
+  ] = columnsDropdownLists(orderedColumns, visibleCols, ddSearchTerms.cols ?? '')
   // Snapshot of the left pane's column order, taken only at the moment the Filter dropdown opens
   // — active-filter columns first, then the rest (see `orderFilterColumnsByActive`'s own doc
   // comment, core, for why this is a snapshot rather than a live sort: reordering while a filter
@@ -682,7 +634,7 @@ export function DataTableView<TRow extends object>({
   }
   const isFilterColSearching = (ddSearchTerms.filter ?? '').trim() !== ''
   const searchedFilterableCols = applyColumnOrderSnapshot(
-    searchCols(filterableCols, ddSearchTerms.filter ?? ''),
+    filterableCols.filter((c) => columnMatchesSearch(c, ddSearchTerms.filter ?? '')),
     filterColOrderKeys,
   )
   // Buckets the (already searched/ordered) left-pane column list by category. Deliberately NOT
