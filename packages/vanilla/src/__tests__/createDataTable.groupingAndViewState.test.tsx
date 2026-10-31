@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createDataTable } from '../index'
 import type { ColumnDef } from '../types'
+import { click, colHeaders, findButton, groupHeaderRows, setInput } from './helpers'
 
 interface Row {
   id: number
@@ -41,34 +42,6 @@ const GAMES: Game[] = [
 const GAMES_WITH_EMPTY: Game[] = [...GAMES, { id: 3, name: 'Game C', tags: [] }]
 
 // --- generic helpers ---
-
-function click(el: Element): void {
-  el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
-}
-
-function setInput(el: HTMLInputElement, value: string): void {
-  el.value = value
-  el.dispatchEvent(new Event('input', { bubbles: true }))
-}
-
-function colHeaders(container: HTMLElement): string[] {
-  return [...container.querySelectorAll('th.dt-th')].map((th) =>
-    th.textContent!.replace(/[↕↑↓0-9]/g, '').trim(),
-  )
-}
-
-// Every interactive toolbar/dropdown-row element is a plain <button> with its label as
-// textContent now (no data-action attributes) — find it by exact text. Scoped to `root` so
-// callers can disambiguate between e.g. the toolbar's "Group" trigger and an addable "Dept" row.
-function findButtonByText(root: ParentNode, text: string): HTMLButtonElement {
-  const btn = [...root.querySelectorAll('button')].find((b) => b.textContent?.trim() === text)
-  if (!btn) throw new Error(`button not found: ${text}`)
-  return btn
-}
-
-function groupHeaderRows(el: HTMLElement): HTMLElement[] {
-  return [...el.querySelectorAll<HTMLElement>('.dt-group-row[data-gkey]')]
-}
 
 function pageButton(container: HTMLElement, label: string): HTMLButtonElement {
   return [...container.querySelectorAll<HTMLButtonElement>('.dt-page-btn')].find(
@@ -115,16 +88,16 @@ function clickFilterValue(container: HTMLElement, value: string, shiftKey = fals
 }
 
 function openGroupDropdown(container: HTMLElement): void {
-  click(findButtonByText(container, 'Group'))
+  click(findButton(container, 'Group'))
 }
 
 function openFilterDropdown(container: HTMLElement): void {
-  click(findButtonByText(container, 'Filter'))
+  click(findButton(container, 'Filter'))
 }
 
 function groupByDept(container: HTMLElement): void {
   openGroupDropdown(container)
-  click(findButtonByText(container, 'Dept'))
+  click(findButton(container, 'Dept'))
 }
 
 describe('createDataTable (grouping, group dropdown, pagination+grouping, search, aggregate, i18n, escaping, multi-value, computed columns, view state)', () => {
@@ -150,7 +123,7 @@ describe('createDataTable (grouping, group dropdown, pagination+grouping, search
   it('the add-group row is a real <button>, natively Tab-reachable', () => {
     createDataTable(container, { data: ROWS, columns: COLS })
     openGroupDropdown(container)
-    const addRow = findButtonByText(container, 'Dept')
+    const addRow = findButton(container, 'Dept')
     expect(addRow.tagName).toBe('BUTTON')
     expect(addRow.tabIndex).toBe(0)
     click(addRow)
@@ -190,7 +163,7 @@ describe('createDataTable (grouping, group dropdown, pagination+grouping, search
   it('the Group toolbar button carries no count badge; an active group shows a chip in the active bar', () => {
     createDataTable(container, { data: ROWS, columns: COLS })
     groupByDept(container)
-    const groupBtn = findButtonByText(container, 'Group')
+    const groupBtn = findButton(container, 'Group')
     expect(groupBtn.textContent).toBe('Group')
     // Grouping also auto-inserts a matching sort entry (issue #17): a ⊞ group chip, then its sort chip
     const bodies = () =>
@@ -206,7 +179,7 @@ describe('createDataTable (grouping, group dropdown, pagination+grouping, search
     groupByDept(container)
     click(container.querySelector<HTMLElement>('[data-group-key="dept"] .dt-item-remove')!)
     expect(container.querySelector('[data-group-key="dept"]')).toBeNull()
-    expect(findButtonByText(container, 'Dept')).toBeTruthy()
+    expect(findButton(container, 'Dept')).toBeTruthy()
     expect(colHeaders(container)).toContain('Dept')
   })
 
@@ -235,8 +208,8 @@ describe('createDataTable (grouping, group dropdown, pagination+grouping, search
     ]
     createDataTable(container, { data: ROWS, columns: cols })
     openGroupDropdown(container)
-    click(findButtonByText(container, 'Name'))
-    click(findButtonByText(container, 'Dept'))
+    click(findButton(container, 'Name'))
+    click(findButton(container, 'Dept'))
     const nameRow = container.querySelector<HTMLElement>('[data-group-key="name"]')!
     const deptRow = container.querySelector<HTMLElement>('[data-group-key="dept"]')!
     expect(nameRow.getAttribute('draggable')).toBe('true')
@@ -257,9 +230,9 @@ describe('createDataTable (grouping, group dropdown, pagination+grouping, search
     ]
     createDataTable(container, { data: ROWS, columns: cols })
     openGroupDropdown(container)
-    click(findButtonByText(container, 'Name'))
-    click(findButtonByText(container, 'Dept'))
-    click(findButtonByText(container, 'Score'))
+    click(findButton(container, 'Name'))
+    click(findButton(container, 'Dept'))
+    click(findButton(container, 'Score'))
     const nameRow = container.querySelector<HTMLElement>('[data-group-key="name"]')!
     const scoreRow = container.querySelector<HTMLElement>('[data-group-key="score"]')!
     stubRect(scoreRow, { top: 20, bottom: 40, height: 20 })
@@ -288,8 +261,8 @@ describe('createDataTable (grouping, group dropdown, pagination+grouping, search
     ]
     createDataTable(container, { data: ROWS, columns: cols })
     openGroupDropdown(container)
-    click(findButtonByText(container, 'Name'))
-    click(findButtonByText(container, 'Dept'))
+    click(findButton(container, 'Name'))
+    click(findButton(container, 'Dept'))
     const nameRow = container.querySelector<HTMLElement>('[data-group-key="name"]')!
     const deptRow = container.querySelector<HTMLElement>('[data-group-key="dept"]')!
     stubRect(deptRow, { top: 20, bottom: 40, height: 20 })
@@ -313,8 +286,8 @@ describe('createDataTable (grouping, group dropdown, pagination+grouping, search
     ]
     createDataTable(container, { data: ROWS, columns: cols })
     openGroupDropdown(container)
-    click(findButtonByText(container, 'Name'))
-    click(findButtonByText(container, 'Dept'))
+    click(findButton(container, 'Name'))
+    click(findButton(container, 'Dept'))
     const deptRow = container.querySelector<HTMLElement>('[data-group-key="dept"]')!
     deptRow.dispatchEvent(
       new KeyboardEvent('keydown', { key: 'ArrowUp', altKey: true, bubbles: true }),
@@ -332,8 +305,8 @@ describe('createDataTable (grouping, group dropdown, pagination+grouping, search
     ]
     createDataTable(container, { data: ROWS, columns: cols })
     openGroupDropdown(container)
-    click(findButtonByText(container, 'Name'))
-    click(findButtonByText(container, 'Dept'))
+    click(findButton(container, 'Name'))
+    click(findButton(container, 'Dept'))
     const nameRow = container.querySelector<HTMLElement>('[data-group-key="name"]')!
     nameRow.dispatchEvent(
       new KeyboardEvent('keydown', { key: 'ArrowUp', altKey: true, bubbles: true }),
@@ -534,7 +507,7 @@ describe('createDataTable (grouping, group dropdown, pagination+grouping, search
   it('grouping by an array column fans a row into one group per item', () => {
     createDataTable(container, { data: GAMES, columns: GAME_COLS })
     openGroupDropdown(container)
-    click(findButtonByText(container, 'Tags'))
+    click(findButton(container, 'Tags'))
     const groupTexts = [...container.querySelectorAll('.dt-group-td')].map((td) => td.textContent)
     expect(container.querySelectorAll('.dt-group-row')).toHaveLength(3)
     expect(groupTexts.some((t) => t?.includes('Tags: Action'))).toBe(true)
@@ -551,7 +524,7 @@ describe('createDataTable (grouping, group dropdown, pagination+grouping, search
   it('grouping buckets rows with an empty array under "(none)"', () => {
     createDataTable(container, { data: GAMES_WITH_EMPTY, columns: GAME_COLS })
     openGroupDropdown(container)
-    click(findButtonByText(container, 'Tags'))
+    click(findButton(container, 'Tags'))
     const groupTexts = [...container.querySelectorAll('.dt-group-td')].map((td) => td.textContent)
     expect(container.querySelectorAll('.dt-group-row')).toHaveLength(4)
     expect(groupTexts.some((t) => t?.includes('Tags: (none)'))).toBe(true)
@@ -591,7 +564,7 @@ describe('createDataTable (grouping, group dropdown, pagination+grouping, search
     ]
     createDataTable(container, { data: ROWS, columns: cols })
     openGroupDropdown(container)
-    click(findButtonByText(container, 'Grade'))
+    click(findButton(container, 'Grade'))
     const groupTexts = [...container.querySelectorAll('.dt-group-td')].map((td) => td.textContent)
     expect(groupTexts.some((t) => t?.includes('Grade: A'))).toBe(true)
     expect(groupTexts.some((t) => t?.includes('Grade: B'))).toBe(true)

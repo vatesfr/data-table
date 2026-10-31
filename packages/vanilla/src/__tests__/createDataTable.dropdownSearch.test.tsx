@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { createDataTable } from '../index'
 import type { ColumnDef, DataTableInstance } from '../types'
+import { click, findButton, setInput } from './helpers'
 
 interface Row {
   id: number
@@ -21,21 +22,6 @@ const ROWS: Row[] = [
   { id: 3, name: 'Clara', score: 80, dept: 'Eng' },
   { id: 4, name: 'David', score: 70, dept: 'HR' },
 ]
-
-function click(el: Element): void {
-  el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
-}
-
-function setInput(el: HTMLInputElement, value: string): void {
-  el.value = value
-  el.dispatchEvent(new Event('input', { bubbles: true }))
-}
-
-function findButton(container: HTMLElement, text: string): HTMLElement {
-  const btn = [...container.querySelectorAll('button')].find((b) => b.textContent?.trim() === text)
-  if (!btn) throw new Error(`button "${text}" not found`)
-  return btn
-}
 
 let container: HTMLElement
 let instance: DataTableInstance<Row> | undefined

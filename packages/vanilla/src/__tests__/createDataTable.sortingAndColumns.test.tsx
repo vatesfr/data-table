@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { createDataTable } from '../index'
 import type { ColumnDef } from '../types'
+import { click, colHeaders, findButton, shiftClick } from './helpers'
 
 interface Row {
   id: number
@@ -21,20 +22,6 @@ const ROWS: Row[] = [
   { id: 3, name: 'Clara', score: 80, dept: 'Eng' },
   { id: 4, name: 'David', score: 70, dept: 'HR' },
 ]
-
-function click(el: Element): void {
-  el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
-}
-
-function shiftClick(el: Element): void {
-  el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, shiftKey: true }))
-}
-
-function colHeaders(container: HTMLElement): string[] {
-  return [...container.querySelectorAll('th.dt-th')].map((th) =>
-    th.textContent!.replace(/[↕↑↓0-9]/g, '').trim(),
-  )
-}
 
 // Gives every matched element a deterministic, non-zero-height rect in document order, since
 // jsdom doesn't compute real layout — resolveDropRow's/resolveDropRowHorizontal's cursor-position
@@ -57,12 +44,6 @@ function stubRects(container: HTMLElement, selector: string): void {
 
 function mouseEvt(type: string, opts: { clientY?: number; clientX?: number } = {}): MouseEvent {
   return new MouseEvent(type, { bubbles: true, cancelable: true, ...opts })
-}
-
-function findButton(container: HTMLElement, text: string): HTMLButtonElement {
-  const btn = [...container.querySelectorAll('button')].find((b) => b.textContent?.trim() === text)
-  if (!btn) throw new Error(`no button with text "${text}"`)
-  return btn
 }
 
 function openDropdown(container: HTMLElement, text: string): void {

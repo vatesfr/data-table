@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { createDataTable } from '../index'
 import type { ColumnDef } from '../types'
+import { click, findButton, setInput, shiftClick } from './helpers'
 
 interface Row {
   id: number
@@ -21,24 +22,6 @@ const ROWS: Row[] = [
   { id: 3, name: 'Clara', score: 80, dept: 'Eng' },
   { id: 4, name: 'David', score: 70, dept: 'HR' },
 ]
-
-function click(el: Element): void {
-  el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
-}
-
-function shiftClick(el: Element): void {
-  el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, shiftKey: true }))
-}
-
-function setInput(el: HTMLInputElement, value: string): void {
-  el.value = value
-  el.dispatchEvent(new Event('input', { bubbles: true }))
-}
-
-// Find a toolbar/dropdown-adjacent button by its visible text.
-function findButton(container: HTMLElement, text: string): HTMLButtonElement {
-  return [...container.querySelectorAll('button')].find((b) => b.textContent?.trim() === text)!
-}
 
 function openFilterDropdown(container: HTMLElement): void {
   click(findButton(container, 'Filter'))
