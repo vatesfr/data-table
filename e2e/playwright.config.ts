@@ -21,9 +21,16 @@ export default defineConfig({
       },
     },
   ],
-  webServer: {
-    command: 'npm run dev:solid',
-    url: 'http://localhost:58983',
-    reuseExistingServer: !process.env.CI,
-  },
+  webServer: [
+    {
+      command: 'npm run dev:solid',
+      url: 'http://localhost:58983',
+      reuseExistingServer: !process.env.CI,
+    },
+    {
+      command: 'npm run dev:showcase',
+      url: 'http://localhost:58985',
+      reuseExistingServer: !process.env.CI,
+    },
+  ],
 })

@@ -110,7 +110,7 @@ const REGIONS = ['North America', 'Europe', 'Asia Pacific', 'Latin America', 'Mi
 const STATUSES = ['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled', 'Returned']
 
 /** Deterministic PRNG so the generated dataset is stable across reloads. */
-function mulberry32(seed: number): () => number {
+export function mulberry32(seed: number): () => number {
   let a = seed
   return () => {
     a |= 0

@@ -9,6 +9,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Added
 
+- **Showcase**: [six apps](https://vatesfr.github.io/data-table/showcase/) built with the library (ops console, French ledger, log viewer, store catalog, sports stats, user admin), each with its own data, interactions and style, and its source.
 - **Style one toolbar clear button**: the Group, Sort and Filter × buttons carry `dt-btn-clear--groups`, `dt-btn-clear--sorts` and `dt-btn-clear--filters`, so CSS can target one without matching its translated label.
 
 ### Fixed

@@ -286,7 +286,7 @@ Clicking a sortable column header is a single-column-sort shortcut, separate fro
 
 ## Search
 
-Pass a `searchQuery` externally, or use `table.search.query`/`table.search.setQuery` when driving the hook directly (see "`useTableState` hook" below). It matches any searchable column's string value case-insensitively before sort/filter/group run. Set `searchable: false` on a column to exclude it from this match.
+`<DataTable>` keeps the search query to itself: to read or set it from outside (e.g. your own search input, with `showSearch={false}`), build the table with `useTableState` and use `table.search.query`/`table.search.setQuery` (see "`useTableState` hook" below). It matches any searchable column's string value case-insensitively before sort/filter/group run. Set `searchable: false` on a column to exclude it from this match.
 
 ## Keyboard navigation
 
