@@ -42,9 +42,15 @@ The Sort dropdown's active list used to be one flat, draggable, numbered stack m
 - **"Group order"** (`groupOrderSection` label, plus a `groupOrderHint` pointing at the Group dropdown) — entries matching a `groupBy` key, in `groupBy`'s own order, skipping a level with no matching entry. Not draggable, no Alt+↑/↓ reorder (nesting order is never governed by anything here) — direction is still toggleable in place and the entry is still removable, exactly like any other sort.
 - **"Active sorts"** (pre-existing `activeSortsSection`) now holds only non-group entries — still fully draggable/Alt+↑/↓-reorderable, but its own Alt+↑/↓ handler had to change too: it now finds its swap neighbor within this _filtered_ non-group list (via `move`/`reorderSort`, by key) instead of the raw `sorts`-array neighbor (`moveSortBy`, by index) — a group entry can sit between two non-group ones in the underlying array, and swapping with it used to silently do nothing visible in this section, the same "looks like a no-op" problem one level down.
 
-### The active bar: one merged chip per grouped-and-sorted column
+### The active bar: a group chip and a sort chip per grouped-and-sorted column
 
 A grouped column always carries its own sort entry, so the active bar shows two chips for it: a group chip `⊞ Department ×` (body opens the Group dropdown on that entry) and a sort chip `↑ Department ×` (body toggles direction). The `⊞` glyph (`aria-hidden`) tells them apart. They were once merged into one pill with two × side by side, which read as identical buttons removing different things (U6).
+
+A merged `⊞ Department ↑ ×` pill (arrow toggles direction, one ×) was considered and rejected:
+
+- An × removing only the group makes the sort chip reappear elsewhere; one removing both leaves the sort with no one-action removal of its own ([UI guidelines](ui-guidelines.md): every active sort is removable in one action).
+- The arrow-only segment falls under the 24 px touch target, and its meaning would be tooltip-only.
+- It doesn't stop the phone-width wrap it was meant to fix: the stats take the most room (U39).
 
 **Ordering, in both the active bar and the Sort dropdown, and in the toolbar itself: group before non-group.** Group chips/the "Group order" section render before plain sort chips/"Active sorts", and the toolbar's own **Group** button sits before **Sort** (despite "Sort" alphabetically reading first) — grouping is the structural, primary concern (which bucket a row falls into, and in what order the buckets themselves appear) and tie-break sorting is secondary, so everything reads top-to-bottom as cause then effect.
 
