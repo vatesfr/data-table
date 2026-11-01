@@ -2,7 +2,7 @@
 
 Symptom first, then cause and fix. Delete entries once obsolete.
 
-<!-- check-docs-ignore: exceeded journalctl Killed chromium-browse Failed oom-kill _vts invoker Cannot uptime python3 curl ENOSPC fatal unable TS2307 determine semantic Module EnterWorktree Port ERR_CONNECTION_REFUSED ipv4 ip_local_port_range TIME-WAIT Kiritimati Pago_Pago -->
+<!-- check-docs-ignore: exceeded journalctl Killed chromium-browse Failed oom-kill _vts invoker Cannot uptime python3 curl ENOSPC ENOENT fatal unable TS2307 determine semantic Module EnterWorktree Port ERR_CONNECTION_REFUSED ipv4 ip_local_port_range TIME-WAIT Kiritimati Pago_Pago -->
 
 ## Date tests pass here and fail in another time zone
 
@@ -118,6 +118,12 @@ Symptom first, then cause and fix. Delete entries once obsolete.
 - Symptom: `npm run e2e` fails every test, or a `scripts/ux-step.mjs`/`scripts/ux-measure.mjs` script throws, with "Outdated Vite deps: restart the dev server" (before that check, each timed out finding the table). The browser got "504 (Outdated Optimize Dep)" for `node_modules/.vite/deps/…`.
 - Cause: a demo dev server left running (E2E reuses the one on 58983) whose Vite dependency cache predates an `npm ci` (or a lockfile change).
 - Fix: restart that dev server (`npm run dev:<demo>`, as the error names).
+
+## E2E run fails with ENOENT on a file under `.playwright-e2e/`
+
+- Symptom: a `npx playwright test -c e2e …` run, started while another one runs (parallel agents checking their own specs), fails with an `ENOENT` on a trace or attachment under `.playwright-e2e/`.
+- Cause: every run shares `outputDir` (`e2e/playwright.config.ts`) and empties it at start, deleting the other run's files.
+- Fix: give each concurrent run its own `--output=<dir>` (e.g. in the session's scratch directory).
 
 ## A demo still behaves like the old code, while its unit test passes
 
