@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>data-table showcase</title>
+    <link rel="icon" href="data:," />
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #fff;
+        --fg: #1a1916;
+        --muted: #666561;
+        --card: #f7f6f3;
+        --border: #dddcd8;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #141413;
+          --fg: #e8e7e4;
+          --muted: #a6a5a1;
+          --card: #1f1e1b;
+          --border: #3a3830;
+        }
+      }
+
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+        background: var(--bg);
+        color: var(--fg);
+      }
+
+      main {
+        max-width: 1080px;
+        margin: 0 auto;
+        padding: 32px 16px;
+      }
+
+      h1 {
+        margin: 0 0 8px;
+      }
+
+      .lead {
+        margin: 0 0 28px;
+        color: var(--muted);
+        max-width: 70ch;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 16px;
+        padding: 0;
+        list-style: none;
+      }
+
+      .card {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        overflow: hidden;
+        background: var(--card);
+        color: inherit;
+        text-decoration: none;
+      }
+
+      .card:hover,
+      .card:focus-visible {
+        border-color: var(--muted);
+      }
+
+      .swatch {
+        height: 56px;
+      }
+
+      .body {
+        padding: 14px 16px 16px;
+      }
+
+      .card h2 {
+        margin: 0 0 6px;
+        font-size: 1.1rem;
+      }
+
+      .card p {
+        margin: 0 0 10px;
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+
+      .features {
+        margin: 0;
+        padding-left: 18px;
+        font-size: 0.85rem;
+      }
+
+      footer {
+        margin-top: 32px;
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+
+      footer a {
+        color: inherit;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>data-table showcase</h1>
+      <p class="lead">
+        The same library in six very different apps: each page has its own data, interactions and
+        look, and shows its source. All are built with the Solid adapter; the same API exists for
+        React, Vue and plain JavaScript.
+      </p>
+      <ul class="grid">
+        <li>
+          <a class="card" href="infra/">
+            <div class="swatch" style="background: linear-gradient(90deg, #0b0f0c, #166534)"></div>
+            <div class="body">
+              <h2>Fleet console</h2>
+              <p>1,500 virtual machines, dark monospace ops console, live CPU.</p>
+              <ul class="features">
+                <li>Grouping with totals, log-scale disk buckets</li>
+                <li>Bulk actions on a selection kept across live updates</li>
+                <li>Column categories, all-of tag filter</li>
+              </ul>
+            </div>
+          </a>
+        </li>
+        <li>
+          <a class="card" href="ledger/">
+            <div class="swatch" style="background: linear-gradient(90deg, #fdfbf5, #8a7b5c)"></div>
+            <div class="body">
+              <h2>Grand livre</h2>
+              <p>Bank transactions as a printable French report.</p>
+              <ul class="features">
+                <li>French locale, monthly groups with sums</li>
+                <li>Range presets, excluded values</li>
+                <li>Read-only report styling</li>
+              </ul>
+            </div>
+          </a>
+        </li>
+        <li>
+          <a class="card" href="logs/">
+            <div class="swatch" style="background: linear-gradient(90deg, #111827, #b91c1c)"></div>
+            <div class="body">
+              <h2>Event log</h2>
+              <p>100,000 log events in a dense viewer.</p>
+              <ul class="features">
+                <li>Search and filters at scale, pagination</li>
+                <li>Shareable view in the URL</li>
+                <li>Severity ordering, error rows highlighted</li>
+              </ul>
+            </div>
+          </a>
+        </li>
+        <li>
+          <a class="card" href="catalog/">
+            <div class="swatch" style="background: linear-gradient(90deg, #fff7ed, #ea580c)"></div>
+            <div class="body">
+              <h2>Product catalog</h2>
+              <p>A store back office, airy and brand-colored.</p>
+              <ul class="features">
+                <li>The page's own search and category chips drive the table</li>
+                <li>Row click opens a detail panel</li>
+                <li>Table or card view from the same state</li>
+              </ul>
+            </div>
+          </a>
+        </li>
+        <li>
+          <a class="card" href="sports/">
+            <div class="swatch" style="background: linear-gradient(90deg, #0c4a6e, #facc15)"></div>
+            <div class="body">
+              <h2>Season stats</h2>
+              <p>Player statistics, wide and numeric.</p>
+              <ul class="features">
+                <li>Computed columns, multi-column sort</li>
+                <li>Team groups with averages and a custom aggregate</li>
+                <li>Pinned player column, sideways scrolling</li>
+              </ul>
+            </div>
+          </a>
+        </li>
+        <li>
+          <a class="card" href="users/">
+            <div class="swatch" style="background: linear-gradient(90deg, #f8fafc, #6366f1)"></div>
+            <div class="body">
+              <h2>User directory</h2>
+              <p>An admin screen for accounts and roles.</p>
+              <ul class="features">
+                <li>Saved views menu, view kept across reloads</li>
+                <li>Language switch for the table's built-in labels</li>
+                <li>Bulk actions, keyboard selection</li>
+              </ul>
+            </div>
+          </a>
+        </li>
+      </ul>
+      <footer>
+        Per-framework feature demos:
+        <a href="../react/">React</a> · <a href="../vue/">Vue</a> · <a href="../solid/">Solid</a> ·
+        <a href="../vanilla/">Vanilla</a>
+      </footer>
+    </main>
+  </body>
+</html>

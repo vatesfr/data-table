@@ -11,18 +11,18 @@
     vue/     — @vates/data-table-vue     (peer dep: vue)
     solid/   — @vates/data-table-solid   (peer dep: solid-js)
     vanilla/ — @vates/data-table-vanilla (no framework dependency; bundles @vates/data-table-solid)
-  demo/      — one Vite app per adapter, written the way a real consumer would use it
+  demo/      — one Vite app per adapter, written the way a real consumer would use it; demo/showcase: one page per real-world use case (Solid)
   dist-types/ — consumer imports type-checked against the built `dist/` types (`npm run check:dist-types`)
   docs/      — design docs, see Documentation
   ```
 - **Setup**: `npm install`; husky hooks install via `prepare`. No services needed.
 - **Build**: `npm run build` (order matters: core → react/vue/solid → vanilla); one package: `npm run build -w packages/X`.
-- **Test**: `npm run test` (~20 s) — one package: `npm run test -w packages/X` (`test:watch` for watch mode) — one file: `npx vitest run <path>` from the package dir. Tests run in jsdom with no network or external services. Benchmarks: before/after a core perf change, `npm run bench:ab -- [ref]` (plain Node, interleaved, see [performance](docs/performance.md)). E2E: `npm run e2e` — Playwright on the Solid demo at desktop and phone widths (`e2e/`, see [testing](docs/testing.md)); in `check` and CI, not pre-commit; `npm run check:use-cases` checks test titles against `docs/use-cases.md`. Scripts: `npm run test:scripts` (`node:test`, `scripts/__tests__/`).
+- **Test**: `npm run test` (~20 s) — one package: `npm run test -w packages/X` (`test:watch` for watch mode) — one file: `npx vitest run <path>` from the package dir. Tests run in jsdom with no network or external services. Benchmarks: before/after a core perf change, `npm run bench:ab -- [ref]` (plain Node, interleaved, see [performance](docs/performance.md)). E2E: `npm run e2e` — Playwright on the Solid demo and the showcase at desktop and phone widths (`e2e/`, see [testing](docs/testing.md)); in `check` and CI, not pre-commit; `npm run check:use-cases` checks test titles against `docs/use-cases.md`. Scripts: `npm run test:scripts` (`node:test`, `scripts/__tests__/`).
 - **Type-check**: `npm run type-check`.
 - **All checks**: `npm run check` (`scripts/check.mjs`: docs, use cases, lint, format, type-check, test, test:scripts and build in parallel, then dist-types and size, then e2e) — one line per step, a step's output only when it fails.
 - **Lint/format**: ESLint (`npm run lint`) + Prettier (`npm run format`); lint-staged runs both on commit. `npm run check:docs` fails when a code span in `docs/*.md`, CLAUDE.md or a skill names something absent from the code, or when those docs or a README link to a missing file or heading, or name a missing `npm run` script or `scripts/` path; list intentional mentions (removed or external names, link targets, paths) in a `<!-- check-docs-ignore: … -->` comment in that doc.
 - **Size**: per-package gzip budgets in each `package.json`'s `size-limit` (core: its public entry, and the internal entry every adapter imports, which the adapters' budgets exclude), checked by `npm run size` (after `npm run build`) and on commit; raising one needs approval, except moving bytes into core: a core budget may rise as long as no adapter's core internal + adapter total does (compare exact bytes: `node scripts/size-diff.mjs [ref]` prints each entry's before/after/delta and budget headroom against `ref`, default `HEAD`). Set a budget about 100 B above the measured size, so the next small change doesn't fail the commit. Patch updates to bundled deps (solid-js, its compiler) can grow the solid/vanilla bundles: run `npm run size` right after `npm update`.
-- **Demos**: `npm run dev:react|vue|solid|vanilla` (ports 58981–58984).
+- **Demos**: `npm run dev:react|vue|solid|vanilla|showcase` (ports 58981–58985).
 - **GitHub**: the `gh` CLI (issues, workflow runs); it works even when a GitHub MCP server doesn't.
 - **Perf**: `perf-review` measures core costs (`scripts/perf-core.mjs`), adapter recomputes (`recompute.test.ts`) and demo interaction timings (`scripts/perf-browser.mjs`); see [performance](docs/performance.md).
 - **UX**: `ux-review` walks `docs/use-cases.md` on the demos and records findings in `docs/improvements.md`; `ux-fix` fixes them, one commit each.

@@ -1,0 +1,214 @@
+/* Broadcast scoreboard: forced dark (data-theme on <html>), navy and yellow, bold and high contrast */
+/* Native controls (checkboxes, selects, scrollbars) follow the forced dark theme */
+:root {
+  color-scheme: dark;
+}
+
+body {
+  --navy-900: #06142e;
+  --navy-800: #0b1f45;
+  --navy-700: #12306a;
+  --yellow: #facc15;
+  --color-background-primary: var(--navy-900);
+  --color-background-secondary: var(--navy-800);
+  --color-background-tertiary: var(--navy-700);
+  --color-background-info: #2a2a0a;
+  --color-text-primary: #ffffff;
+  --color-text-secondary: #c7d4ee;
+  --color-text-tertiary: #93a5c9;
+  --color-text-info: var(--yellow);
+  --color-border-secondary: #1f3f80;
+  --color-border-tertiary: #13285a;
+  --color-border-info: #a68a0c;
+  --font-size-md: 14px;
+  /* Limit: B27 — headers take only the shared weight token; heavy condensed uppercase headers need .dt-th */
+  --font-weight-medium: 700;
+  --dt-stripe-background: #091a3b;
+  font-family: Inter, 'Segoe UI', system-ui, sans-serif;
+}
+
+.sc-header {
+  margin: -16px -16px 16px;
+  padding: 16px;
+  border-bottom: 4px solid var(--yellow);
+  background: linear-gradient(100deg, var(--navy-700), var(--navy-900) 70%);
+}
+
+.sc-header h1 {
+  font-family:
+    Oswald, 'Bebas Neue', 'Barlow Condensed', 'Arial Narrow', 'Nimbus Sans Narrow', sans-serif;
+  font-size: 2.5rem;
+  font-weight: 800;
+  font-stretch: condensed;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--yellow);
+}
+
+.sc-back {
+  color: var(--color-text-secondary);
+}
+
+.sc-context {
+  margin-bottom: 0;
+}
+
+/* Stat columns line their digits up */
+:is(
+  [data-col-key='age'],
+  [data-col-key='games'],
+  [data-col-key='minutes'],
+  [data-col-key='goals'],
+  [data-col-key='assists'],
+  [data-col-key='points'],
+  [data-col-key='per90'],
+  [data-col-key='shots'],
+  [data-col-key='passPct']
+) {
+  font-variant-numeric: tabular-nums;
+}
+
+td[data-col-key='points'] {
+  color: var(--yellow);
+  font-weight: 800;
+}
+
+td[data-col-key='goals'] {
+  font-weight: 700;
+}
+
+.team {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.crest {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 22px;
+  border-radius: 4px 4px 10px 10px;
+  border: 1px solid rgb(255 255 255 / 0.5);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #fff;
+  text-shadow: 0 1px 1px rgb(0 0 0 / 0.5);
+}
+
+.pos {
+  display: inline-block;
+  min-width: 30px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 800;
+  text-align: center;
+  color: var(--navy-900);
+}
+
+.pos--gk {
+  background: #fb923c;
+}
+
+.pos--df {
+  background: #60a5fa;
+}
+
+.pos--mf {
+  background: #4ade80;
+}
+
+.pos--fw {
+  background: #f87171;
+}
+
+.card {
+  display: inline-block;
+  min-width: 16px;
+  padding: 0 3px;
+  border-radius: 2px;
+  font-weight: 800;
+  text-align: center;
+  color: var(--navy-900);
+}
+
+.card--yellow {
+  background: var(--yellow);
+}
+
+.card--red {
+  background: #ef4444;
+  color: #fff;
+}
+
+.zero {
+  color: var(--color-text-tertiary);
+}
+
+.form {
+  display: inline-flex;
+  gap: 3px;
+}
+
+.form-dot {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--navy-900);
+}
+
+.form-dot--w {
+  background: #22c55e;
+}
+
+.form-dot--d {
+  background: #cbd5e1;
+}
+
+.form-dot--l {
+  background: #ef4444;
+  color: #fff;
+}
+
+td[data-col-key='name'] {
+  white-space: nowrap;
+}
+
+/* League top three by points, whatever the sort */
+.podium > td[data-col-key='name'] {
+  box-shadow: inset 4px 0 var(--yellow);
+  color: var(--yellow);
+  font-weight: 700;
+}
+
+.switch {
+  display: inline-flex;
+  border: 2px solid var(--yellow);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.switch button {
+  padding: 4px 12px;
+  border: 0;
+  font: inherit;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--yellow);
+  background: transparent;
+  cursor: pointer;
+}
+
+.switch button[aria-pressed='true'] {
+  color: var(--navy-900);
+  background: var(--yellow);
+}

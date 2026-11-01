@@ -1,0 +1,131 @@
+/* Ops console: forced dark (data-theme on <html>), green-on-black palette, monospace, no stripes */
+body {
+  color-scheme: dark;
+  --color-background-primary: #0b0f0c;
+  --color-background-secondary: #141a16;
+  --color-background-tertiary: #1d2620;
+  --color-background-info: #0f2a1a;
+  --color-text-primary: #d4e7d9;
+  --color-text-secondary: #8fa898;
+  --color-text-tertiary: #7d9384;
+  --color-text-info: #4ade80;
+  --color-border-secondary: #2b3a30;
+  --color-border-tertiary: #1a231d;
+  --color-border-info: #1f5c36;
+  /* Limit: B25 — --font-size-* work but aren't documented as public tokens */
+  --font-size-md: 12px;
+  --font-size-sm: 11px;
+  /* Limit: B26 — no token for cell padding / row height: a console wants ~3px rows */
+  --dt-stripe-background: transparent;
+  font-family: ui-monospace, 'JetBrains Mono', Menlo, Consolas, monospace;
+}
+
+.sc-header h1 {
+  font-size: 1.25rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-info);
+}
+
+.power {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.power::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.power--running {
+  color: #4ade80;
+}
+
+.power--paused {
+  color: #facc15;
+}
+
+.power--halted {
+  color: #f87171;
+}
+
+.cpu {
+  position: relative;
+  display: inline-block;
+  width: 90px;
+  height: 14px;
+  background: var(--color-background-tertiary);
+}
+
+.cpu-bar {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: #166534;
+}
+
+.cpu--warm .cpu-bar {
+  background: #854d0e;
+}
+
+.cpu--hot .cpu-bar {
+  background: #991b1b;
+}
+
+.cpu-value {
+  position: relative;
+  padding-left: 4px;
+  font-size: 11px;
+  line-height: 14px;
+}
+
+.tags {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  gap: 4px;
+}
+
+.tag {
+  padding: 0 5px;
+  border: 1px solid var(--color-border-secondary);
+  color: var(--color-text-secondary);
+}
+
+.muted {
+  color: var(--color-text-tertiary);
+}
+
+.vm-halted > td {
+  color: var(--color-text-tertiary);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.actions button {
+  font: inherit;
+  padding: 4px 8px;
+  color: var(--color-text-primary);
+  background: var(--color-background-secondary);
+  border: 1px solid var(--color-border-secondary);
+  cursor: pointer;
+}
+
+.actions button[aria-pressed='true'] {
+  color: var(--color-text-info);
+  border-color: var(--color-border-info);
+}
+
+.selected {
+  color: var(--color-text-info);
+}
+
+.nowrap {
+  white-space: nowrap;
+}

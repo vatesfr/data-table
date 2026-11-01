@@ -1,0 +1,120 @@
+/* Printable report: forced light (data-theme on <html>), warm paper, ink-black serif, no stripes */
+body {
+  color-scheme: light;
+  --color-background-primary: #fdfbf5;
+  --color-background-secondary: #f5f0e3;
+  --color-background-tertiary: #ebe3cf;
+  --color-background-info: #efe7d2;
+  --color-text-primary: #1b1813;
+  --color-text-secondary: #5c5240;
+  --color-text-tertiary: #7a6e57;
+  --color-text-info: #5a4a26;
+  --color-text-danger: #9b1c1c;
+  --color-border-secondary: #cbbf9f;
+  --color-border-tertiary: #e4dcc6;
+  --color-border-info: #8a7b5c;
+  --dt-stripe-background: transparent;
+  font-family: 'Iowan Old Style', 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif;
+  font-variant-numeric: tabular-nums;
+}
+
+.sc-shell {
+  max-width: 1100px;
+}
+
+.sc-header h1 {
+  font-size: 2.25rem;
+  font-weight: 400;
+  font-variant: small-caps;
+  letter-spacing: 0.06em;
+  border-bottom: 3px double var(--color-text-primary);
+  padding-bottom: 4px;
+}
+
+.sc-context {
+  font-style: italic;
+}
+
+.report-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px 24px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--color-text-primary);
+}
+
+.report-kicker {
+  margin: 0 0 8px;
+  font-variant: small-caps;
+  letter-spacing: 0.05em;
+  color: var(--color-text-secondary);
+}
+
+.report-totals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 32px;
+  margin: 0;
+}
+
+.report-totals dt {
+  font-size: 0.8rem;
+  font-variant: small-caps;
+  letter-spacing: 0.05em;
+  color: var(--color-text-secondary);
+}
+
+.report-totals dd {
+  margin: 0;
+  font-size: 1.35rem;
+}
+
+.report-balance {
+  font-weight: 700;
+}
+
+.report-count {
+  margin: 0;
+  font-style: italic;
+  color: var(--color-text-secondary);
+}
+
+.amount--neg {
+  color: var(--color-text-danger);
+}
+
+.check {
+  color: var(--color-text-secondary);
+}
+
+.print {
+  font: inherit;
+  padding: 3px 12px;
+  color: var(--color-text-primary);
+  background: transparent;
+  border: 1px solid var(--color-text-primary);
+  cursor: pointer;
+}
+
+.print:hover {
+  background: var(--color-background-secondary);
+}
+
+@media print {
+  body {
+    --color-background-primary: #fff;
+    font-size: 10pt;
+  }
+
+  .sc-back,
+  .sc-context,
+  .sc-source,
+  .print {
+    display: none;
+  }
+
+  /* Limit: B28 — no public way to hide the toolbar, header menus and pager on paper */
+}

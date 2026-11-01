@@ -1,0 +1,169 @@
+/* Log viewer: forced dark (data-theme on <html>), near-black slate, red accents, dense small type */
+body {
+  /* Native controls (checkboxes, selects, scrollbars, date pickers) follow the forced dark theme */
+  color-scheme: dark;
+  --color-background-primary: #0d1017;
+  --color-background-secondary: #161a23;
+  --color-background-tertiary: #222836;
+  --color-background-info: #3a1216;
+  --color-text-primary: #d7dbe3;
+  --color-text-secondary: #959cab;
+  --color-text-tertiary: #7c8496;
+  --color-text-info: #f87171;
+  --color-border-secondary: #2b3140;
+  --color-border-tertiary: #1b202b;
+  --color-border-info: #7f1d1d;
+  /* Limit: B25 — --color-*-danger are read by the table but missing from the documented token table */
+  --color-text-danger: #f87171;
+  --color-background-danger: #3a1216;
+  --color-border-danger: #7f1d1d;
+  /* Limit: B25 — --font-size-* work but are undocumented */
+  --font-size-md: 12px;
+  --font-size-sm: 11px;
+  --dt-stripe-background: #11151d;
+  font-family:
+    Inter,
+    -apple-system,
+    'Segoe UI',
+    system-ui,
+    sans-serif;
+}
+
+.sc-header h1 {
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.sc-header h1::before {
+  content: '●';
+  margin-right: 8px;
+  color: #ef4444;
+}
+
+/* Limit: B26 — no token for cell padding, so rows stay at the default 8px 12px */
+
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin-bottom: 12px;
+}
+
+.counts,
+.saved {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.count {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px 3px 4px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  background: var(--color-background-secondary);
+  border: 1px solid var(--color-border-secondary);
+  border-radius: 4px;
+}
+
+.saved button,
+.copy {
+  font: inherit;
+  font-size: 12px;
+  padding: 4px 10px;
+  color: var(--color-text-primary);
+  background: var(--color-background-secondary);
+  border: 1px solid var(--color-border-secondary);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.saved button:hover,
+.copy:hover {
+  border-color: #ef4444;
+}
+
+.saved button[aria-pressed='true'] {
+  color: #fca5a5;
+  background: var(--color-background-danger);
+  border-color: #ef4444;
+}
+
+.copy {
+  color: #fff;
+  background: #b91c1c;
+  border-color: #b91c1c;
+}
+
+.lvl {
+  display: inline-block;
+  min-width: 46px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font:
+    600 10px/1.5 ui-monospace,
+    Menlo,
+    Consolas,
+    monospace;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.lvl--debug {
+  color: #9aa3b5;
+  background: #222836;
+}
+
+.lvl--info {
+  color: #7dd3fc;
+  background: #0c2a3d;
+}
+
+.lvl--warn {
+  color: #fcd34d;
+  background: #3b2a06;
+}
+
+.lvl--error {
+  color: #fff;
+  background: #dc2626;
+}
+
+td[data-col-key='timestamp'],
+td[data-col-key='host'],
+td[data-col-key='status'],
+td[data-col-key='durationMs'],
+td[data-col-key='message'] {
+  font-family: ui-monospace, 'JetBrains Mono', Menlo, Consolas, monospace;
+  white-space: nowrap;
+}
+
+td[data-col-key='timestamp'],
+td[data-col-key='durationMs'] {
+  color: var(--color-text-secondary);
+}
+
+.msg {
+  display: block;
+  max-width: 70ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Tinted on the row itself; clearing the stripe token lets odd rows show it too */
+.log-error {
+  --dt-stripe-background: transparent;
+  background: #2a0f13;
+}
+
+.log-error > td:first-child {
+  box-shadow: inset 3px 0 0 #ef4444;
+}
+
+.log-error > td[data-col-key='message'] {
+  color: #fca5a5;
+}
