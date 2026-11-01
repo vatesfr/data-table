@@ -1,6 +1,6 @@
 # Backlog
 
-<!-- check-docs-ignore: vflow optimize colgroup -->
+<!-- check-docs-ignore: vflow optimize ORDER compareInOrder keepOnly parseFr colgroup -->
 
 Code health items (simplicity, duplication, maintainability, dev loop) from `vflow:optimize` reviews; UX items live in [improvements](improvements.md). A fix closes its item in one commit naming its `B<n>`, and removes it here. Line counts are reviewer estimates.
 
@@ -8,6 +8,18 @@ Code health items (simplicity, duplication, maintainability, dev loop) from `vfl
 
 - **B14 · S** — dropdown drag-reorder row lookup (`react/src/hooks/useDropdownReorder.ts`, `vue/src/composables/useDropdownReorder.ts`, `solid/src/dragReorder.ts`) still copied 3×. A core `resolveDropdownDragRow(root, {target, clientY}, attr)` measured core +64 B against adapters −42 to −66 B gzip, so the Vue, Solid and vanilla totals grew. Direction: retry only with a more compact signature, measured with `node scripts/size-diff.mjs`.
 - **B24 · S** — root `package.json` `test` runs 5 vitest processes in sequence. A root `vitest.config.ts` with `projects: ['packages/*/vitest.config.ts']` (not `packages/*`, which picks up `vite.theme.config.mts`) ran the test step in 12 s instead of 15–17 s with the same 2,063 tests, but stage 1 of `check.mjs --staged` stayed at 15–17 s, bound by its other parallel steps. Direction: retry once type-check or build gets faster.
+
+- **B46** — vanilla has no single-field setters: an outside search box calls `setViewState({ ...getViewState(), searchQuery })`, since `setViewState` resets every field the view leaves out.
+- **B47** — `currentRow` and `focus` match rows by object identity only: after a refetch or live update the open row loses its mark unless the app looks it up again by id, and keyboard focus drops to `<body>` on every update (showcase infra: ↓ stops working after a 2 s tick); `getRowId` covers only the selection.
+- **B48** — two tables persisted to the URL with the same `paramName` (default `view`) overwrite each other silently; nothing warns.
+- **B50** — shift-click range selection ignores `getRowId`: `selectRange` finds the anchor with `indexOf`, so after any `setData` the stale anchor misses and only the clicked row is selected (showcase infra, live updates on: check row 1, wait a tick, shift-click row 6 → "2 selected"). Pass `getRowId` through and match by id.
+- **B51** — Solid's `ColumnDef.render`/`renderFilterLabel` are typed `Node`, so every JSX cell needs `as HTMLElement` (25 casts in the showcase). Type them as `JSXElement`, like `toolbarEnd`; vanilla keeps its own copy.
+- **B52** — no helper for an ordinal `compare` (`Bronze < Silver < Gold`): 4 of 6 showcase pages hand-roll `ORDER.indexOf(a as X) - ORDER.indexOf(b as X)`. A `compareInOrder(order)` next to `compareMissingLast()`.
+- **B53** — "show only these values" on an exclude-only (single-value) column means writing the complement into `excludeFilters` (showcase catalog's chips: 20 lines of branching), and `setViewState`/`initialViewState` silently accept include `filters` there, which the checklist never shows (showcase users' views first did this: Filter → Status showed every value ticked while one was kept). A `filter.keepOnly(key, values)`, and normalize or warn on include filters for such columns.
+- **B54** — `rowKey` (view) and `getRowId` (state) name the same identity twice; let `getRowId` drive the DOM key too.
+- **B55** — the group bucketers don't see the column's `parseDate`: a non-ISO date column passes it twice (`parseDate: parseFr` and `bucketDatePart('month', parseFr)`). Default bucketing to the column's `parseDate`.
+- **B56** — the theme never sets `color-scheme`, so on a dark table (forced `data-theme="dark"`, or the OS dark preference) checkboxes, selects, scrollbars and date-input icons stay light; the Solid demo shows it too. Set `color-scheme: dark` in the dark rules (the showcase's dark pages set it themselves).
+- **B57** — after "Clear all" the URL keeps `?view=e30` (an empty view) instead of dropping the parameter.
 
 ## Showcase limits
 
