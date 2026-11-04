@@ -9,6 +9,8 @@ import {
   getSortIndex,
   isGroupCollapsed,
   isSameVisibleItem,
+  isSameRow,
+  isNewRowFocusTarget,
   paginateVisibleItems,
   planRowNav,
   type VisibleItem,
@@ -77,7 +79,15 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
     rowRefs.set(key, el)
     onCleanup(() => {
       if (rowRefs.get(key) === el) rowRefs.delete(key)
+      // `<For>` remounts a row whose object a refetch replaced: refocus the remapped target's new
+      // row once the update has mounted it
+      if (el.contains(document.activeElement)) queueMicrotask(refocusTarget)
     })
+  }
+
+  function refocusTarget(): void {
+    const target = focusTarget()
+    if (target && document.activeElement === document.body) rowRefs.get(refKey(target))?.focus()
   }
 
   const navigableItems = createMemo(() =>
@@ -112,7 +122,9 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
   let lastScrolledFocusTarget: VisibleItem<TRow> | null = null
   createEffect(() => {
     const target = focusTarget()
-    if (target && target.kind === 'row' && target !== lastScrolledFocusTarget) {
+    if (!isNewRowFocusTarget(target, lastScrolledFocusTarget, table.getRowId())) {
+      lastScrolledFocusTarget = target
+    } else {
       const el = rowRefs.get(target.row)
       if (el) {
         el.scrollIntoView?.({ block: 'nearest' })
@@ -324,7 +336,7 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
                         rowKey={props.rowKey}
                         selectable={props.selectable}
                         onRowClick={props.onRowClick}
-                        current={props.currentRow === row}
+                        current={isSameRow(row, props.currentRow, table.getRowId())}
                         extraClass={props.rowClass?.(row)}
                         tabIndex={
                           rowNavEnabled()
@@ -372,7 +384,7 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
                         rowKey={props.rowKey}
                         selectable={props.selectable}
                         onRowClick={props.onRowClick}
-                        current={props.currentRow === row}
+                        current={isSameRow(row, props.currentRow, table.getRowId())}
                         extraClass={props.rowClass?.(row)}
                         indentGroup
                         tabIndex={

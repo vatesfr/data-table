@@ -179,4 +179,22 @@ describe('DataTableView — currentRow', () => {
     const wrapper = mount(Comp)
     expect(wrapper.findAll('tbody tr[aria-current="true"]')).toHaveLength(1)
   })
+
+  it('matches the current row by getRowId after a refetch', () => {
+    const refetched = ROWS.map((r) => ({ ...r }))
+    const Comp = defineComponent({
+      setup() {
+        const table = useTableState(refetched, COLS, { getRowId: (r) => r.id })
+        return () =>
+          h(DataTableView, { table, data: refetched, columns: COLS, currentRow: ROWS[1] } as Record<
+            string,
+            unknown
+          >)
+      },
+    })
+    const wrapper = mount(Comp)
+    const marked = wrapper.findAll('tbody tr[aria-current="true"]')
+    expect(marked).toHaveLength(1)
+    expect(marked[0].text()).toContain(ROWS[1].name)
+  })
 })

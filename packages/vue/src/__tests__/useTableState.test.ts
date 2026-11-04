@@ -200,6 +200,21 @@ describe('useTableState — getRowId (selection identity)', () => {
     expect(selectedRows.value).toEqual([refetched[0]])
   })
 
+  it('with getRowId, focus.row follows its row across a refetch', async () => {
+    const getRowId = (r: Row) => r.id
+    const data = shallowRef(ROWS)
+    const table = useTableState(data, COLS, { getRowId })
+    expect(table.getRowId.value).toBe(getRowId)
+    table.focus.moveTo(ROWS[1])
+    const refetched = ROWS.map((r) => ({ ...r }))
+    data.value = refetched
+    await nextTick()
+    expect(table.focus.row.value).toBe(refetched[1])
+    data.value = refetched.filter((r) => r.id !== 2)
+    await nextTick()
+    expect(table.focus.row.value).toBeNull()
+  })
+
   it('with getRowId, shift-toggle after a refetch ranges from the remapped anchor', async () => {
     const data = shallowRef(ROWS)
     const table = useTableState(data, COLS, { getRowId: (r) => r.id })

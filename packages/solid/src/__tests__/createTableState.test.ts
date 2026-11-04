@@ -185,6 +185,20 @@ describe('createTableState — getRowId (selection identity)', () => {
     })
   })
 
+  it('with getRowId, focus.row follows its row across setData', () => {
+    withRoot(() => {
+      const getRowId = (r: Row) => r.id
+      const table = createTableState(ROWS, COLS, { getRowId })
+      expect(table.getRowId()).toBe(getRowId)
+      table.focus.moveTo(ROWS[1])
+      const refetched = ROWS.map((r) => ({ ...r }))
+      table.setData(refetched)
+      expect(table.focus.row()).toBe(refetched[1])
+      table.setData(refetched.filter((r) => r.id !== 2))
+      expect(table.focus.row()).toBeNull()
+    })
+  })
+
   it('with getRowId, shift-toggle after setData ranges from the remapped anchor', () => {
     withRoot(() => {
       const table = createTableState(ROWS, COLS, { getRowId: (r) => r.id })

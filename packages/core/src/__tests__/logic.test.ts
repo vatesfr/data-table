@@ -60,6 +60,9 @@ import {
   toggleAllInSelection,
   reconcileSelection,
   remapRow,
+  remapFocusTarget,
+  isSameRow,
+  isNewRowFocusTarget,
   selectDateRange,
   toggleGroupBy,
   insertGroupSort,
@@ -3312,6 +3315,55 @@ describe('remapRow', () => {
   it('returns null when the id is gone, or for a null row', () => {
     expect(remapRow({ id: 1, name: 'a' }, [], getRowId)).toBeNull()
     expect(remapRow(null, [], getRowId)).toBeNull()
+  })
+})
+
+describe('remapFocusTarget', () => {
+  const a: SelRow = { id: 1, name: 'a' }
+  const aRefetched: SelRow = { id: 1, name: 'a (refetched)' }
+
+  it('repoints a row target at its fresh row, and drops it once gone', () => {
+    const target = { kind: 'row', row: a, groupKey: '' } as VisibleItem<SelRow>
+    expect(remapFocusTarget(target, [aRefetched], getRowId)).toEqual({ ...target, row: aRefetched })
+    expect(remapFocusTarget(target, [], getRowId)).toBeNull()
+  })
+
+  it('keeps a group target, and any target without getRowId', () => {
+    const group = { kind: 'group', key: 'g' } as VisibleItem<SelRow>
+    const row = { kind: 'row', row: a, groupKey: '' } as VisibleItem<SelRow>
+    expect(remapFocusTarget(group, [], getRowId)).toBe(group)
+    expect(remapFocusTarget(row, [], undefined)).toBe(row)
+  })
+})
+
+describe('isSameRow', () => {
+  it('matches by reference, or by id with getRowId', () => {
+    const a: SelRow = { id: 1, name: 'a' }
+    const aRefetched: SelRow = { id: 1, name: 'a (refetched)' }
+    expect(isSameRow(a, a)).toBe(true)
+    expect(isSameRow(a, aRefetched)).toBe(false)
+    expect(isSameRow(a, aRefetched, getRowId)).toBe(true)
+    expect(isSameRow(a, null, getRowId)).toBe(false)
+  })
+})
+
+describe('isNewRowFocusTarget', () => {
+  const a: SelRow = { id: 1, name: 'a' }
+  const aRefetched: SelRow = { id: 1, name: 'a (refetched)' }
+  const b: SelRow = { id: 2, name: 'b' }
+  const item = (row: SelRow) => ({ kind: 'row', row }) as VisibleItem<SelRow>
+
+  it('is true for a new row target, including the same row moved to again', () => {
+    expect(isNewRowFocusTarget(item(a), null)).toBe(true)
+    expect(isNewRowFocusTarget(item(b), item(a), getRowId)).toBe(true)
+    expect(isNewRowFocusTarget(item(a), item(a), getRowId)).toBe(true)
+  })
+
+  it('is false for the same target, a group, or a row a refetch only remapped', () => {
+    const t = item(a)
+    expect(isNewRowFocusTarget(t, t)).toBe(false)
+    expect(isNewRowFocusTarget({ kind: 'group', key: 'g' }, null)).toBe(false)
+    expect(isNewRowFocusTarget(item(aRefetched), item(a), getRowId)).toBe(false)
   })
 })
 

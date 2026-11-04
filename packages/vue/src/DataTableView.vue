@@ -9,6 +9,8 @@ import {
   groupText,
   isGroupCollapsed,
   isSameVisibleItem,
+  isSameRow,
+  isNewRowFocusTarget,
   indexOfVisibleItem,
   paginateVisibleItems,
   pageSizeOptions,
@@ -220,7 +222,7 @@ watch(
   [focusTarget, page, collapsedGroups],
   () => {
     const target = focusTarget.value
-    if (target && target.kind === 'row' && target !== lastScrolledFocusTarget) {
+    if (isNewRowFocusTarget(target, lastScrolledFocusTarget, props.table.getRowId.value)) {
       const el = rowRefs.get(target.row)
       if (el) {
         // jsdom (used by this project's own component tests) doesn't implement
@@ -232,7 +234,7 @@ watch(
         if (props.table.focus.consumeDomFocus()) el.focus({ preventScroll: true })
         lastScrolledFocusTarget = target
       }
-    }
+    } else lastScrolledFocusTarget = target
   },
   { flush: 'post' },
 )
@@ -424,7 +426,7 @@ const exclusionChips = computed(() =>
 
 // Raw on both sides: a row held in a consumer's `ref` is a reactive proxy, never `===` the rendered one
 const currentRaw = computed(() => props.currentRow && toRaw(props.currentRow))
-const isCurrent = (row: TRow) => toRaw(row) === currentRaw.value
+const isCurrent = (row: TRow) => isSameRow(toRaw(row), currentRaw.value, props.table.getRowId.value)
 
 // Narrow screen (U16): the Filter dropdown shows one pane at a time — columns, or values
 const narrowFilter = ref(false)

@@ -30,6 +30,7 @@ import {
   toggleAllInSelection,
   reconcileSelection,
   remapRow,
+  remapFocusTarget,
   toggleGroupBy,
   insertGroupSort,
   reorderGroupSorts,
@@ -149,13 +150,14 @@ export function useTableState<TRow extends object>(
     return wanted
   }, [])
 
-  // Remaps selection and its shift anchor to a changed `data` (only with `getRowId`)
+  // Remaps selection, its shift anchor and the focus target to a changed `data` (only with `getRowId`)
   const [prevData, setPrevData] = useState(data)
   if (data !== prevData) {
     setPrevData(data)
     if (getRowId) {
       setSelection((prev) => reconcileSelection(data, prev, getRowId))
       setSelectionAnchor((prev) => remapRow(prev, data, getRowId))
+      setFocusTarget((prev) => remapFocusTarget(prev, data, getRowId))
     }
   }
 
@@ -284,6 +286,7 @@ export function useTableState<TRow extends object>(
     groupedData,
     visibleItems,
     labels: L,
+    getRowId,
 
     columns: {
       visible: visibleCols,

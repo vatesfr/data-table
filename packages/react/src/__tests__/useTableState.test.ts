@@ -224,6 +224,22 @@ describe('useTableState — getRowId (selection identity)', () => {
     expect(result.current.selection.rows).toEqual([refetched[0]])
   })
 
+  it('with getRowId, focus.row follows its row across a refetch', () => {
+    const getRowId = (r: Row) => r.id
+    const { result, rerender } = renderHook(({ data }) => useTableState(data, COLS, { getRowId }), {
+      initialProps: { data: ROWS },
+    })
+    expect(result.current.getRowId).toBe(getRowId)
+    act(() => {
+      result.current.focus.moveTo(ROWS[1])
+    })
+    const refetched = ROWS.map((r) => ({ ...r }))
+    rerender({ data: refetched })
+    expect(result.current.focus.row).toBe(refetched[1])
+    rerender({ data: refetched.filter((r) => r.id !== 2) })
+    expect(result.current.focus.row).toBeNull()
+  })
+
   it('with getRowId, shift-toggle after a refetch ranges from the remapped anchor', () => {
     const { result, rerender } = renderHook(
       ({ data }) => useTableState(data, COLS, { getRowId: (r) => r.id }),

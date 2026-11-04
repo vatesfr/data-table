@@ -42,6 +42,7 @@ import {
   toggleAllInSelection,
   reconcileSelection,
   remapRow,
+  remapFocusTarget,
   toggleGroupBy,
   insertGroupSort,
   reorderGroupSorts,
@@ -114,14 +115,17 @@ export function createTableState<TRow extends object>(
   // Set by `moveTo(row, { focus: true })`, consumed by TableBody once the row mounts, as only it holds row refs
   let wantsDomFocus = false
 
-  // Remaps selection and its shift anchor to the new rows (only with `getRowId`)
-  const setData = (rows: TRow[]) => {
-    _setData(rows)
-    const rowId = getOptions().getRowId
-    if (!rowId) return
-    setSelection((prev) => reconcileSelection(rows, prev, rowId))
-    setSelectionAnchor((prev) => remapRow(prev, rows, rowId))
-  }
+  // Remaps selection, its shift anchor and the focus target to the new rows (only with `getRowId`)
+  // Batched, so rows re-render once, already pointing at the remapped focus target
+  const setData = (rows: TRow[]) =>
+    batch(() => {
+      _setData(rows)
+      const rowId = getOptions().getRowId
+      if (!rowId) return
+      setSelection((prev) => reconcileSelection(rows, prev, rowId))
+      setSelectionAnchor((prev) => remapRow(prev, rows, rowId))
+      setFocusTarget((prev) => remapFocusTarget(prev, rows, rowId))
+    })
 
   // Reconciles visibleCols with the new key set (docs/table-state.md)
   const setColumns = (cols: ColumnDef<TRow>[]) => {
@@ -245,6 +249,7 @@ export function createTableState<TRow extends object>(
     // Top-level: the pipeline's actual output, not a "concern" of its own
     data,
     setData,
+    getRowId: () => getOptions().getRowId,
     processedData,
     pagedData,
     groupedData,

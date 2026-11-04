@@ -39,6 +39,8 @@ function mount(
     defaultGroupsCollapsed?: boolean
     initialViewState?: TableViewState
     columns?: ColumnDef<Row>[]
+    getRowId?: (r: Row) => string | number
+    currentRow?: () => Row | null
   } = {},
 ) {
   const container = document.createElement('div')
@@ -48,6 +50,7 @@ function mount(
     table = createTableState(ROWS, opts.columns ?? COLS, {
       defaultGroupsCollapsed: opts.defaultGroupsCollapsed,
       initialViewState: opts.initialViewState,
+      getRowId: opts.getRowId,
     })
     render(
       () => (
@@ -57,6 +60,7 @@ function mount(
           rowKey="id"
           selectable={opts.selectable}
           onRowClick={opts.onRowClick}
+          currentRow={opts.currentRow?.()}
         />
       ),
       container,
@@ -556,6 +560,35 @@ describe('TableBody — keyboard navigation', () => {
     // <body> (which a full remount, e.g. from a reference-keyed `<For>`, would cause).
     expect(document.activeElement).toBe(groupRow)
     expect(groupRow.getAttribute('aria-expanded')).toBe('false')
+    dispose()
+  })
+})
+
+describe('TableBody — row identity across setData (getRowId)', () => {
+  const refetch = () => ROWS.map((r) => ({ ...r }))
+
+  it('keeps DOM focus on the focused row when setData replaces its object', async () => {
+    const { container, table, dispose } = mount({ onRowClick: () => {}, getRowId: (r) => r.id })
+    const second = () => container.querySelectorAll<HTMLElement>('tbody tr.dt-tr')[1]
+    second().focus()
+    second().dispatchEvent(new FocusEvent('focusin', { bubbles: true }))
+    table.setData(refetch())
+    await Promise.resolve()
+    expect(document.activeElement).toBe(second())
+    expect(second().tabIndex).toBe(0)
+    dispose()
+  })
+
+  it('marks the current row matched by id after setData', () => {
+    const { container, table, dispose } = mount({
+      getRowId: (r) => r.id,
+      currentRow: () => ROWS[1],
+    })
+    table.setData(refetch())
+    const marked = container.querySelectorAll('tbody tr[aria-current="true"]')
+    expect([...marked].map((tr) => tr.textContent)).toEqual([
+      container.querySelectorAll('tbody tr.dt-tr')[1].textContent,
+    ])
     dispose()
   })
 })

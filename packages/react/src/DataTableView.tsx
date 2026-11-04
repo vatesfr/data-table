@@ -23,6 +23,8 @@ import {
   columnsDropdownLists,
   isGroupCollapsed,
   isSameVisibleItem,
+  isSameRow,
+  isNewRowFocusTarget,
   indexOfVisibleItem,
   paginateVisibleItems,
   pageSizeOptions,
@@ -468,11 +470,7 @@ export function DataTableView<TRow extends object>({
   // the row once it actually mounts.
   const lastScrolledFocusTarget = useRef<VisibleItem<TRow> | null>(null)
   useEffect(() => {
-    if (
-      focusTarget &&
-      focusTarget.kind === 'row' &&
-      focusTarget !== lastScrolledFocusTarget.current
-    ) {
+    if (isNewRowFocusTarget(focusTarget, lastScrolledFocusTarget.current, table.getRowId)) {
       const el = rowRefs.current.get(focusTarget.row)
       if (el) {
         // jsdom (used by this project's own component tests) doesn't implement
@@ -484,8 +482,8 @@ export function DataTableView<TRow extends object>({
         if (consumeDomFocus()) el.focus({ preventScroll: true })
         lastScrolledFocusTarget.current = focusTarget
       }
-    }
-  }, [focusTarget, page, collapsedGroups, consumeDomFocus])
+    } else lastScrolledFocusTarget.current = focusTarget
+  }, [focusTarget, page, collapsedGroups, consumeDomFocus, table.getRowId])
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTableRowElement>, target: VisibleItem<TRow>) => {
     const plan = planRowNav(e, target, {
@@ -1718,12 +1716,12 @@ export function DataTableView<TRow extends object>({
                         rowNavEnabled ? (isFocusTarget({ kind: 'row', row }) ? 0 : -1) : undefined
                       }
                       aria-selected={selectable ? selection.has(row) : undefined}
-                      aria-current={row === currentRow ? 'true' : undefined}
+                      aria-current={isSameRow(row, currentRow, table.getRowId) ? 'true' : undefined}
                       className={trClass(
                         !!selectable && selection.has(row),
                         ri % 2 !== 0,
                         !!onRowClick,
-                        row === currentRow,
+                        isSameRow(row, currentRow, table.getRowId),
                         rowClass?.(row),
                       )}
                       onKeyDown={

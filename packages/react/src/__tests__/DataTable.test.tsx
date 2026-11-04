@@ -1353,6 +1353,16 @@ describe('DataTable — currentRow', () => {
     expect(container.querySelector('.dt-tr--current')).toBeNull()
   })
 
+  it('matches the current row by getRowId after a refetch', () => {
+    const refetched = ROWS.map((r) => ({ ...r }))
+    const { container } = render(
+      <DataTable data={refetched} columns={COLS} getRowId={(r) => r.id} currentRow={ROWS[1]} />,
+    )
+    const marked = [...container.querySelectorAll('tbody tr[aria-current="true"]')]
+    expect(marked).toHaveLength(1)
+    expect(marked[0].textContent).toContain(ROWS[1].name)
+  })
+
   it('adds rowClass after the built-in row classes, following the prop', () => {
     const expired = (r: Row) => (r.name === 'Bob' ? 'is-expired dimmed' : undefined)
     const { container, rerender } = render(

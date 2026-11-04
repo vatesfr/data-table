@@ -1683,6 +1683,41 @@ export function remapRow<TRow>(
   return nextData.find((r) => getRowId(r) === id) ?? null
 }
 
+// `remapRow` for the roving focus target; a group target keeps its key
+export function remapFocusTarget<TRow extends object>(
+  item: VisibleItem<TRow> | null,
+  nextData: TRow[],
+  getRowId?: GetRowId<TRow>,
+): VisibleItem<TRow> | null {
+  if (item?.kind !== 'row') return item
+  const row = remapRow(item.row, nextData, getRowId)
+  if (row === item.row) return item
+  return row ? { ...item, row } : null
+}
+
+export function isSameRow<TRow>(
+  a: TRow | null | undefined,
+  b: TRow | null | undefined,
+  getRowId?: GetRowId<TRow>,
+): boolean {
+  if (a == null || b == null) return false
+  return a === b || (!!getRowId && getRowId(a) === getRowId(b))
+}
+
+// For the view's scroll-into-view effect: a new row target, not one a refetch only remapped
+export function isNewRowFocusTarget<TRow extends object>(
+  target: VisibleItem<TRow> | null,
+  last: VisibleItem<TRow> | null,
+  getRowId?: GetRowId<TRow>,
+): target is { kind: 'row'; row: TRow; groupKey?: string | null } {
+  if (target?.kind !== 'row' || target === last) return false
+  return !(
+    last?.kind === 'row' &&
+    last.row !== target.row &&
+    isSameRow(last.row, target.row, getRowId)
+  )
+}
+
 export function toggleGroupBy(groupBy: string[], key: string): string[] {
   return groupBy.includes(key) ? groupBy.filter((k) => k !== key) : [...groupBy, key]
 }
