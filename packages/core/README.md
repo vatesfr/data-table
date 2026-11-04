@@ -40,7 +40,7 @@ Everything else described below the fold in this README — `filterData`, `sortD
 ```ts
 ColumnDefBase<TRow extends object>  // column definition (key, label, type, value, format, sortable, compare, multiMode, …)
 GroupResult<TRow extends object>    // { key, keyParts, rows } — one entry per group from groupData
-PagedGroup<TRow extends object>     // GroupResult + { continued, sampleRow } — one page's chunk from paginateVisibleGroups
+PagedGroup<TRow extends object>     // GroupResult (rows: the whole group) + { continued, pageRows } — one page's chunk from paginateVisibleGroups
 SortEntry                           // { key: string; dir: 'asc' | 'desc' }
 RangeFilter                         // { min: string; max: string }
 ValueSort                           // { by: 'alpha' | 'count'; dir: 'asc' | 'desc' } — a filter checklist's value sort order
@@ -159,12 +159,12 @@ Selection is tracked as `Set<TRow>` by object identity by default; `getRowId` is
 ```ts
 paginateData(data, page, pageSize) // slice rows for the current page (pageSize 0 → all)
 computeTotalPages(count, pageSize) // total page count (pageSize 0 → 1)
-PagedGroup<TRow> // GroupResult + { continued, sampleRow } — one page's chunk from paginateVisibleGroups
-paginateVisibleGroups(groupedFull, visibleItems, collapsedGroups, defaultCollapsed, page, pageSize) // re-chunk a page's slice of visibleItems back into PagedGroup[] for rendering, counting header rows toward the page budget
+PagedGroup<TRow> // GroupResult (rows: the whole group) + { continued, pageRows } — one page's chunk from paginateVisibleGroups
+paginateVisibleGroups(groupedFull, visibleItems, page, pageSize) // re-chunk a page's slice of visibleItems back into PagedGroup[] for rendering, counting header rows toward the page budget
 mergePageSizeOptions(options, pageSize) // insert pageSize into a "rows per page" option list (sorted) if it's missing, so a custom page size still shows correctly in a <select>
 ```
 
-See [docs/pagination.md](../../docs/pagination.md) for `PagedGroup`'s `continued`/`sampleRow` semantics and how grouping composes with pagination.
+See [docs/pagination.md](../../docs/pagination.md) for `PagedGroup`'s `rows`/`pageRows`/`continued` semantics and how grouping composes with pagination.
 
 #### Columns
 
@@ -195,6 +195,7 @@ See [docs/keyboard-navigation.md](../../docs/keyboard-navigation.md) for the rov
 
 ```ts
 computeAggregate(col, rows) // compute a group header's aggregate value per col.aggregate ('sum' | 'count' | 'avg' | 'min' | 'max' or a custom function)
+formatAggregate(col, rows) // an aggregate cell's text: col.aggregateFormat, else col.format with rows[0]; '' for no value
 ```
 
 #### Search

@@ -21,7 +21,7 @@ test('showcase sports: the clubs view shows squad totals and top scorers', async
     'aria-pressed',
     'false',
   )
-  // Clubs aren't split across pages (B34): expanding one keeps its count and totals
+  // Expanding a club splits it across pages, but keeps its whole count and totals
   const count = await club.locator('.dt-group-count').textContent()
   const games = await agg.locator('[data-col-key="games"]').textContent()
   await club.click()

@@ -180,3 +180,61 @@ describe('DataTableView — currentRow', () => {
     expect(wrapper.findAll('tbody tr[aria-current="true"]')).toHaveLength(1)
   })
 })
+
+describe('DataTableView — group aggregates', () => {
+  // One group of 5, split over pages of 3 items (header + 2 rows, then 3 rows)
+  const SPLIT: Row[] = [1, 2, 3, 4, 5].map((id) => ({ id, name: 'A', score: 10 }))
+  const AGG_COLS: ColumnDef<Row>[] = [
+    { key: 'name', label: 'Name', groupable: true },
+    { key: 'score', label: 'Score', type: 'number', aggregate: 'sum' },
+  ]
+  function mountSplit(cols = AGG_COLS) {
+    let table!: Table
+    const Comp = defineComponent({
+      setup() {
+        table = useTableState(SPLIT, cols, {
+          defaultGroupsCollapsed: false,
+          initialViewState: { groupBy: ['name'], pageSize: 3 },
+        })
+        return () =>
+          h(DataTableView, {
+            table,
+            data: SPLIT,
+            columns: cols,
+            rowKey: 'id',
+            selectable: true,
+          } as Record<string, unknown>)
+      },
+    })
+    const wrapper = mount(Comp)
+    const aggText = () => wrapper.find('.dt-agg-row [data-col-key="score"]').text()
+    const countText = () => wrapper.find('.dt-group-count').text()
+    return { table, wrapper, aggText, countText }
+  }
+
+  it("shows a split group's whole total and row count on every page", async () => {
+    const { table, aggText, countText } = mountSplit()
+    expect([aggText(), countText()]).toEqual(['50', '5 rows'])
+    table.pagination.setPage(2)
+    await nextTick()
+    expect([aggText(), countText()]).toEqual(['50', '5 rows'])
+  })
+
+  it("selects a split group's rows on every page from its checkbox", async () => {
+    const { table, wrapper } = mountSplit()
+    await wrapper.find('input[aria-label^="Select group"]').trigger('change')
+    expect(table.selection.rows.value).toEqual(SPLIT)
+  })
+
+  it('formats an aggregate with aggregateFormat instead of the cell format', () => {
+    const { aggText } = mountSplit([
+      AGG_COLS[0],
+      {
+        ...AGG_COLS[1],
+        format: () => 'cell',
+        aggregateFormat: (v, rows) => `${String(v)} over ${rows.length}`,
+      },
+    ])
+    expect(aggText()).toBe('50 over 5')
+  })
+})

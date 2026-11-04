@@ -45,7 +45,6 @@ const COLUMNS: ColumnDef<Transaction>[] = [
     label: 'Montant',
     type: 'number',
     width: 130,
-    // Limit: B34 — a month split across two pages sums only the lines on this page
     aggregate: 'sum',
     format: (v) => euros.format(Number(v)),
     render: (v) => amount(Number(v)),

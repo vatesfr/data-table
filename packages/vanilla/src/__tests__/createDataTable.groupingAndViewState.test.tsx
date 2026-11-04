@@ -461,6 +461,23 @@ describe('createDataTable (grouping, group dropdown, pagination+grouping, search
     expect(aggRows[0].textContent).toContain('Eng=170')
   })
 
+  it('formats aggregate cells with aggregateFormat, given the group rows, instead of format', () => {
+    const cols: ColumnDef<Row>[] = [
+      { key: 'name', label: 'Name' },
+      {
+        key: 'score',
+        label: 'Score',
+        aggregate: 'sum',
+        format: () => 'cell',
+        aggregateFormat: (v, rows) => `${String(v)} over ${rows.length}`,
+      },
+      { key: 'dept', label: 'Dept', groupable: true },
+    ]
+    createDataTable(container, { data: ROWS, columns: cols })
+    groupByDept(container)
+    expect(container.querySelector('.dt-agg-row')!.textContent).toContain('170 over 2')
+  })
+
   it('does not render aggregate rows when no aggregate is defined', () => {
     createDataTable(container, { data: ROWS, columns: COLS })
     groupByDept(container)

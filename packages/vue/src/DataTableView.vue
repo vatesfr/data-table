@@ -1,7 +1,7 @@
 <script setup lang="ts" generic="TRow extends object">
 import { computed, ref, toRaw, watch, nextTick, useSlots, onMounted, onBeforeUnmount } from 'vue'
 import {
-  computeAggregate,
+  formatAggregate,
   getColumnAlign,
   getColumnValue,
   cellText,
@@ -523,7 +523,7 @@ function findCol(key: string): ColumnDef<TRow> | undefined {
 /** The raw value that defines a group for column `key` at groupBy index `i` — a single array item when the underlying value is an array, the raw value otherwise. Not used for a bucketed column (col.groupValue) — see groupBucketLabel below. */
 function groupRawValue(group: PagedGroup<TRow>, key: string, i: number): unknown {
   const col = findCol(key)
-  const raw = col ? getColumnValue(col, group.sampleRow!) : undefined
+  const raw = col ? getColumnValue(col, group.rows[0]) : undefined
   return Array.isArray(raw) ? group.keyParts[i] : raw
 }
 
@@ -1767,7 +1767,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                   type="checkbox"
                   :checked="isGroupAllSelected(group.rows)"
                   :aria-label="
-                    L.selectGroup(groupText(columns, groupBy, group.keyParts, group.sampleRow!))
+                    L.selectGroup(groupText(columns, groupBy, group.keyParts, group.rows[0]))
                   "
                   @change="toggleSelectAll(group.rows)"
                 />
@@ -1797,11 +1797,11 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                     v-else
                     :name="`group-${g}`"
                     :value="groupRawValue(group, g, i)"
-                    :row="group.sampleRow!"
+                    :row="group.rows[0]"
                   >
                     {{
                       findCol(g)
-                        ? formatValue(groupRawValue(group, g, i), group.sampleRow!, findCol(g)!)
+                        ? formatValue(groupRawValue(group, g, i), group.rows[0], findCol(g)!)
                         : String(groupRawValue(group, g, i) ?? '')
                     }}
                   </slot>
@@ -1825,20 +1825,14 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                 :data-col-key="col.key"
                 :style="{ textAlign: getColumnAlign(col) }"
               >
-                {{
-                  (() => {
-                    const v = computeAggregate(col, group.rows)
-                    if (v === undefined || v === null) return ''
-                    return col.format ? col.format(v, group.sampleRow!) : String(v)
-                  })()
-                }}
+                {{ formatAggregate(col, group.rows) }}
               </td>
             </tr>
 
             <!-- Data rows -->
             <template v-if="group.key === null || !groupCollapsed(group.key!)">
               <tr
-                v-for="(row, ri) in group.rows"
+                v-for="(row, ri) in group.pageRows"
                 :key="(asRecord(row)[rowKey] as string | number) ?? `${group.key}-${ri}`"
                 :ref="(el) => setItemRef(row, el as Element | null)"
                 :tabindex="

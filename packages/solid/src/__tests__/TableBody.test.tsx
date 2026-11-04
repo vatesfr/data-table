@@ -39,13 +39,14 @@ function mount(
     defaultGroupsCollapsed?: boolean
     initialViewState?: TableViewState
     columns?: ColumnDef<Row>[]
+    rows?: Row[]
   } = {},
 ) {
   const container = document.createElement('div')
   document.body.appendChild(container)
   let table!: ReturnType<typeof createTableState<Row>>
   const dispose = createRoot((d) => {
-    table = createTableState(ROWS, opts.columns ?? COLS, {
+    table = createTableState(opts.rows ?? ROWS, opts.columns ?? COLS, {
       defaultGroupsCollapsed: opts.defaultGroupsCollapsed,
       initialViewState: opts.initialViewState,
     })
@@ -406,6 +407,56 @@ describe('TableBody — grouping and aggregation', () => {
       d()
     })
     expect(container.querySelector('.dt-agg-row .custom-agg')?.textContent).toBe('~85~')
+  })
+
+  describe('a group split across pages', () => {
+    // One group of 5, split over pages of 3 items (header + 2 rows, then 3 rows)
+    const SPLIT: Row[] = [1, 2, 3, 4, 5].map((id) => ({ id, name: `N${id}`, dept: 'A', score: 10 }))
+    const SUM_COLS: ColumnDef<Row>[] = [
+      { key: 'dept', label: 'Dept', groupable: true },
+      { key: 'score', label: 'Score', type: 'number', aggregate: 'sum' },
+    ]
+    const mountSplit = (columns = SUM_COLS) => {
+      const mounted = mount({
+        rows: SPLIT,
+        columns,
+        selectable: true,
+        defaultGroupsCollapsed: false,
+        initialViewState: { groupBy: ['dept'], pageSize: 3 },
+      })
+      const aggText = () =>
+        mounted.container.querySelector('.dt-agg-row [data-col-key="score"]')!.textContent
+      const countText = () => mounted.container.querySelector('.dt-group-count')!.textContent
+      return { ...mounted, aggText, countText }
+    }
+
+    it("shows the group's whole total and row count on every page", () => {
+      const { table, aggText, countText, dispose } = mountSplit()
+      expect([aggText(), countText()]).toEqual(['50', '5 rows'])
+      table.pagination.setPage(2)
+      expect([aggText(), countText()]).toEqual(['50', '5 rows'])
+      dispose()
+    })
+
+    it("selects the group's rows on every page from its checkbox", () => {
+      const { container, table, dispose } = mountSplit()
+      container.querySelector<HTMLInputElement>('input[aria-label^="Select group"]')!.click()
+      expect(table.selection.rows()).toEqual(SPLIT)
+      dispose()
+    })
+
+    it('formats an aggregate with aggregateFormat instead of the cell render', () => {
+      const { aggText, dispose } = mountSplit([
+        SUM_COLS[0],
+        {
+          ...SUM_COLS[1],
+          render: () => document.createTextNode('cell'),
+          aggregateFormat: (v, rows) => `${String(v)} over ${rows.length}`,
+        },
+      ])
+      expect(aggText()).toBe('50 over 5')
+      dispose()
+    })
   })
 
   it("a group's own select-all checkbox toggles just that group's rows", () => {

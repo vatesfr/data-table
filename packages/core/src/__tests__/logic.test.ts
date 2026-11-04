@@ -31,6 +31,7 @@ import {
   sumDateTreeNodeCount,
   findDateTreeNode,
   computeAggregate,
+  formatAggregate,
   getColumnAlign,
   getColumnValue,
   cellText,
@@ -298,6 +299,34 @@ describe('searchData', () => {
 })
 
 // ─── computeAggregate ─────────────────────────────────────────────────────────
+
+describe('formatAggregate', () => {
+  const salaryCol = { key: 'salary' as const, label: 'Salary', aggregate: 'sum' as const }
+
+  it("is empty when there's no value", () => {
+    expect(formatAggregate({ key: 'name' as const, label: 'Name' }, ROWS)).toBe('')
+    expect(formatAggregate(salaryCol, [])).toBe('')
+  })
+
+  it("uses the column's format, with the group's first row", () => {
+    const format = vi.fn((v: unknown) => `$${String(v)}`)
+    expect(formatAggregate({ ...salaryCol, format }, ROWS)).toBe('$330000')
+    expect(format).toHaveBeenCalledWith(330000, ROWS[0])
+  })
+
+  it('prefers aggregateFormat, given the whole group', () => {
+    const aggregateFormat = vi.fn((v: unknown, rows: unknown[]) => `${String(v)} / ${rows.length}`)
+    const col = { ...salaryCol, format: () => 'cell', aggregateFormat }
+    expect(formatAggregate(col, ROWS)).toBe('330000 / 4')
+    expect(aggregateFormat).toHaveBeenCalledWith(330000, ROWS)
+  })
+
+  it("doesn't call aggregateFormat without a value", () => {
+    const aggregateFormat = vi.fn(() => 'x')
+    expect(formatAggregate({ ...salaryCol, aggregateFormat }, [])).toBe('')
+    expect(aggregateFormat).not.toHaveBeenCalled()
+  })
+})
 
 describe('computeAggregate', () => {
   const salaryCol = { key: 'salary' as const, label: 'Salary', aggregate: 'sum' as const }
@@ -1451,71 +1480,50 @@ describe('getVisibleRows', () => {
 
 describe('paginateVisibleGroups', () => {
   // groupData(ROWS, ['dept']) => Eng:[Alice, Clara], HR:[Bob, David] (first-seen order)
-  it("splits an expanded group's rows across pages and repeats its header as 'continued'", () => {
+  const ENG = [ROWS[0], ROWS[2]]
+  const HR = [ROWS[1], ROWS[3]]
+
+  it("splits an expanded group's page rows across pages and repeats its header as 'continued'", () => {
     const groupedFull = groupData(ROWS, ['dept'], [])
     const visible = getVisibleRows(groupedFull, new Set())
     // visible = [group Eng, row Alice, row Clara, group HR, row Bob, row David] (6 items)
 
-    const page1 = paginateVisibleGroups(groupedFull, visible, new Set(), false, 1, 2)
-    expect(page1).toEqual([
-      { key: 'Eng', keyParts: ['Eng'], rows: [ROWS[0]], continued: false, sampleRow: ROWS[0] },
+    expect(paginateVisibleGroups(groupedFull, visible, 1, 2)).toEqual([
+      { key: 'Eng', keyParts: ['Eng'], rows: ENG, continued: false, pageRows: [ROWS[0]] },
     ])
-
-    const page2 = paginateVisibleGroups(groupedFull, visible, new Set(), false, 2, 2)
-    expect(page2).toEqual([
-      { key: 'Eng', keyParts: ['Eng'], rows: [ROWS[2]], continued: true, sampleRow: ROWS[0] },
-      { key: 'HR', keyParts: ['HR'], rows: [], continued: false, sampleRow: ROWS[1] },
+    expect(paginateVisibleGroups(groupedFull, visible, 2, 2)).toEqual([
+      { key: 'Eng', keyParts: ['Eng'], rows: ENG, continued: true, pageRows: [ROWS[2]] },
+      // a header ending the page: no page rows, but still the whole group
+      { key: 'HR', keyParts: ['HR'], rows: HR, continued: false, pageRows: [] },
     ])
-
-    const page3 = paginateVisibleGroups(groupedFull, visible, new Set(), false, 3, 2)
-    expect(page3).toEqual([
-      {
-        key: 'HR',
-        keyParts: ['HR'],
-        rows: [ROWS[1], ROWS[3]],
-        continued: true,
-        sampleRow: ROWS[1],
-      },
+    expect(paginateVisibleGroups(groupedFull, visible, 3, 2)).toEqual([
+      { key: 'HR', keyParts: ['HR'], rows: HR, continued: true, pageRows: HR },
     ])
   })
 
-  it("backfills a collapsed group's rows from the full group instead of its (empty) visible slice", () => {
+  it('gives a collapsed group its whole rows and no page rows', () => {
     const groupedFull = groupData(ROWS, ['dept'], [])
-    const collapsedGroups = new Set(['Eng'])
-    const visible = getVisibleRows(groupedFull, collapsedGroups)
+    const visible = getVisibleRows(groupedFull, new Set(['Eng']))
     // visible = [group Eng (collapsed, no rows), group HR, row Bob, row David] (4 items)
 
-    const chunks = paginateVisibleGroups(groupedFull, visible, collapsedGroups, false, 1, 10)
-    expect(chunks).toEqual([
-      {
-        key: 'Eng',
-        keyParts: ['Eng'],
-        rows: [ROWS[0], ROWS[2]],
-        continued: false,
-        sampleRow: ROWS[0],
-      },
-      {
-        key: 'HR',
-        keyParts: ['HR'],
-        rows: [ROWS[1], ROWS[3]],
-        continued: false,
-        sampleRow: ROWS[1],
-      },
+    expect(paginateVisibleGroups(groupedFull, visible, 1, 10)).toEqual([
+      { key: 'Eng', keyParts: ['Eng'], rows: ENG, continued: false, pageRows: [] },
+      { key: 'HR', keyParts: ['HR'], rows: HR, continued: false, pageRows: HR },
     ])
+  })
+
+  it("doesn't add page rows to the full group's rows", () => {
+    const groupedFull = groupData(ROWS, ['dept'], [])
+    paginateVisibleGroups(groupedFull, getVisibleRows(groupedFull, new Set()), 1, 10)
+    expect(groupedFull.map((g) => g.rows)).toEqual([ENG, HR])
   })
 
   it('reduces to plain data-row pagination with a single null-key chunk when ungrouped', () => {
     const groupedFull = groupData(ROWS, [], [])
     const visible = getVisibleRows(groupedFull, new Set())
-    const page1 = paginateVisibleGroups(groupedFull, visible, new Set(), false, 1, 2)
-    expect(page1).toEqual([
-      {
-        key: null,
-        keyParts: [],
-        rows: [ROWS[0], ROWS[1]],
-        continued: false,
-        sampleRow: ROWS[0],
-      },
+    const page1 = [ROWS[0], ROWS[1]]
+    expect(paginateVisibleGroups(groupedFull, visible, 1, 2)).toEqual([
+      { key: null, keyParts: [], rows: page1, continued: false, pageRows: page1 },
     ])
   })
 

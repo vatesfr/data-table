@@ -219,16 +219,8 @@ export function useTableState<TRow extends object>(
   )
 
   const groupedData = useMemo(
-    () =>
-      paginateVisibleGroups(
-        groupedFull,
-        visibleItems,
-        collapsedGroups,
-        defaultGroupsCollapsed,
-        clampedPage,
-        pageSize,
-      ),
-    [groupedFull, visibleItems, collapsedGroups, defaultGroupsCollapsed, clampedPage, pageSize],
+    () => paginateVisibleGroups(groupedFull, visibleItems, clampedPage, pageSize),
+    [groupedFull, visibleItems, clampedPage, pageSize],
   )
 
   const activeColumns = useMemo(

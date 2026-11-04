@@ -110,6 +110,11 @@ export interface ColumnDefBase<TRow extends object = Record<string, unknown>> {
   /** Aggregate function or built-in type shown in group header rows */
   aggregate?: AggregateType | ((rows: TRow[]) => unknown)
   /**
+   * Formats this column's aggregate in group headers, instead of the cell's `render`/`format`
+   * (which get the group's first row as the row). Not called for a `null`/`undefined` aggregate.
+   */
+  aggregateFormat?: (value: unknown, rows: TRow[]) => string
+  /**
    * Match semantics when this column's cell values are arrays (e.g. tags) and are filtered
    * via the checklist: 'or' matches rows containing any selected value (default), 'and'
    * requires all selected values to be present. Array-valued columns are detected

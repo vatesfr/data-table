@@ -210,14 +210,7 @@ export function createTableState<TRow extends object>(
   )
 
   const groupedData = createMemo(() =>
-    paginateVisibleGroups(
-      groupedFull(),
-      visibleItems(),
-      collapsedGroups(),
-      getOptions().defaultGroupsCollapsed ?? true,
-      clampedPage(),
-      pageSize(),
-    ),
+    paginateVisibleGroups(groupedFull(), visibleItems(), clampedPage(), pageSize()),
   )
 
   const activeColumns = createMemo(() =>
