@@ -224,6 +224,22 @@ describe('useTableState — getRowId (selection identity)', () => {
     expect(result.current.selection.rows).toEqual([refetched[0]])
   })
 
+  it('with getRowId, shift-toggle after a refetch ranges from the remapped anchor', () => {
+    const { result, rerender } = renderHook(
+      ({ data }) => useTableState(data, COLS, { getRowId: (r) => r.id }),
+      { initialProps: { data: ROWS } },
+    )
+    act(() => {
+      result.current.selection.toggle(ROWS[0])
+    })
+    const refetched = ROWS.map((r) => ({ ...r }))
+    rerender({ data: refetched })
+    act(() => {
+      result.current.selection.toggle(refetched[2], true)
+    })
+    expect(result.current.selection.rows).toEqual(refetched.slice(0, 3))
+  })
+
   it('with getRowId, a row no longer present after the refetch is dropped from selection', () => {
     const { result, rerender } = renderHook(
       ({ data }) => useTableState(data, COLS, { getRowId: (r) => r.id }),

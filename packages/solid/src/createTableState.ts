@@ -41,6 +41,7 @@ import {
   toggleSelectionShiftAware,
   toggleAllInSelection,
   reconcileSelection,
+  remapRow,
   toggleGroupBy,
   insertGroupSort,
   reorderGroupSorts,
@@ -113,11 +114,13 @@ export function createTableState<TRow extends object>(
   // Set by `moveTo(row, { focus: true })`, consumed by TableBody once the row mounts, as only it holds row refs
   let wantsDomFocus = false
 
-  // Remaps selection to the new rows (only with `getRowId`)
+  // Remaps selection and its shift anchor to the new rows (only with `getRowId`)
   const setData = (rows: TRow[]) => {
     _setData(rows)
     const rowId = getOptions().getRowId
-    if (rowId) setSelection((prev) => reconcileSelection(rows, prev, rowId))
+    if (!rowId) return
+    setSelection((prev) => reconcileSelection(rows, prev, rowId))
+    setSelectionAnchor((prev) => remapRow(prev, rows, rowId))
   }
 
   // Reconciles visibleCols with the new key set (docs/table-state.md)

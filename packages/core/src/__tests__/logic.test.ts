@@ -59,6 +59,7 @@ import {
   toggleRowInSelection,
   toggleAllInSelection,
   reconcileSelection,
+  remapRow,
   selectDateRange,
   toggleGroupBy,
   insertGroupSort,
@@ -3293,6 +3294,24 @@ describe('reconcileSelection', () => {
     const a: SelRow = { id: 1, name: 'a' }
     const selection = new Set([a])
     expect(reconcileSelection([a], selection, getRowId)).toBe(selection)
+  })
+})
+
+describe('remapRow', () => {
+  it('returns the row itself without getRowId', () => {
+    const a: SelRow = { id: 1, name: 'a' }
+    expect(remapRow(a, [], undefined)).toBe(a)
+  })
+
+  it('returns the fresh row with the same id', () => {
+    const a: SelRow = { id: 1, name: 'a' }
+    const aRefetched: SelRow = { id: 1, name: 'a (refetched)' }
+    expect(remapRow(a, [aRefetched], getRowId)).toBe(aRefetched)
+  })
+
+  it('returns null when the id is gone, or for a null row', () => {
+    expect(remapRow({ id: 1, name: 'a' }, [], getRowId)).toBeNull()
+    expect(remapRow(null, [], getRowId)).toBeNull()
   })
 })
 

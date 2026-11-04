@@ -200,6 +200,17 @@ describe('useTableState — getRowId (selection identity)', () => {
     expect(selectedRows.value).toEqual([refetched[0]])
   })
 
+  it('with getRowId, shift-toggle after a refetch ranges from the remapped anchor', async () => {
+    const data = shallowRef(ROWS)
+    const table = useTableState(data, COLS, { getRowId: (r) => r.id })
+    table.selection.toggle(ROWS[0])
+    const refetched = ROWS.map((r) => ({ ...r }))
+    data.value = refetched
+    await nextTick()
+    table.selection.toggle(refetched[2], true)
+    expect(table.selection.rows.value).toEqual(refetched.slice(0, 3))
+  })
+
   it('with getRowId, a row no longer present after the refetch is dropped from selection', () => {
     const data = shallowRef(ROWS)
     const table = useTableState(data, COLS, {

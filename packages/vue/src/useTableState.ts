@@ -27,6 +27,7 @@ import {
   toggleSelectionShiftAware,
   toggleAllInSelection,
   reconcileSelection,
+  remapRow,
   toggleGroupBy,
   insertGroupSort,
   reorderGroupSorts,
@@ -120,10 +121,12 @@ export function useTableState<TRow extends object>(
   // Set by `moveTo(row, { focus: true })`, consumed by DataTableView once the row mounts, as only it holds row refs
   let wantsDomFocus = false
 
-  // Remaps selection to a changed `data` (only with `getRowId`)
+  // Remaps selection and its shift anchor to a changed `data` (only with `getRowId`)
   watch(data, (nextData) => {
-    if (getRowId.value)
-      selection.value = reconcileSelection(nextData, selection.value, getRowId.value)
+    const rowId = getRowId.value
+    if (!rowId) return
+    selection.value = reconcileSelection(nextData, selection.value, rowId)
+    selectionAnchor.value = remapRow(selectionAnchor.value, nextData, rowId)
   })
 
   // Sorted apart from search/filters so a keystroke or filter click never re-sorts (see `sortData`)

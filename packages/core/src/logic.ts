@@ -1671,6 +1671,18 @@ export function reconcileSelection<TRow>(
   return changed ? next : selection
 }
 
+// Repoints one held row (shift anchor, focus target) at `nextData`'s row with its id; `null` once
+// gone. Returns `row` itself without `getRowId`.
+export function remapRow<TRow>(
+  row: TRow | null,
+  nextData: TRow[],
+  getRowId?: GetRowId<TRow>,
+): TRow | null {
+  if (!getRowId || row === null) return row
+  const id = getRowId(row)
+  return nextData.find((r) => getRowId(r) === id) ?? null
+}
+
 export function toggleGroupBy(groupBy: string[], key: string): string[] {
   return groupBy.includes(key) ? groupBy.filter((k) => k !== key) : [...groupBy, key]
 }
