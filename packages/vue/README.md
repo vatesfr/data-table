@@ -252,7 +252,7 @@ Set `aggregate` on a column to show a computed value in a row below each group h
 { key: 'score', label: 'Score', type: 'number', aggregate: (rows) => Math.max(...rows.map((r) => r.score)) }
 ```
 
-The aggregate row only appears once grouping is active and only shows values for columns that define `aggregate`; it's always visible regardless of a group's collapsed state.
+The aggregate row only appears once grouping is active and only shows values for columns that define `aggregate`; it's always visible regardless of a group's collapsed state. It covers the whole group, even one split across pages.
 
 ## Row selection
 

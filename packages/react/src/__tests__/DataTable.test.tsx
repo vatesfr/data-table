@@ -3384,3 +3384,42 @@ describe('DataTable — filter values', () => {
     expect(values(container)).toEqual(['N/A', 'RPG'])
   })
 })
+
+describe('DataTable — group aggregates', () => {
+  // One group of 5, split over pages of 3 items (header + 2 rows, then 3 rows)
+  const SPLIT: Row[] = [1, 2, 3, 4, 5].map((id) => ({ id, name: 'A', score: 10 }))
+  const AGG_COLS: ColumnDef<Row>[] = [
+    { key: 'name', label: 'Name', groupable: true },
+    { key: 'score', label: 'Score', type: 'number', aggregate: 'sum' },
+  ]
+  const renderSplit = (cols = AGG_COLS, onSelectionChange?: (rows: Row[]) => void) =>
+    render(
+      <DataTable
+        data={SPLIT}
+        columns={cols}
+        rowKey="id"
+        selectable={!!onSelectionChange}
+        onSelectionChange={onSelectionChange}
+        defaultGroupsCollapsed={false}
+        initialViewState={{ groupBy: ['name'], pageSize: 3 }}
+      />,
+    )
+  const aggText = (container: HTMLElement) =>
+    container.querySelector('.dt-agg-row [data-col-key="score"]')!.textContent
+  const countText = (container: HTMLElement) =>
+    container.querySelector('.dt-group-count')!.textContent
+
+  it("shows a split group's whole total and row count on every page", () => {
+    const { container, getByRole } = renderSplit()
+    expect([aggText(container), countText(container)]).toEqual(['50', '5 rows'])
+    fireEvent.click(getByRole('button', { name: 'Next page' }))
+    expect([aggText(container), countText(container)]).toEqual(['50', '5 rows'])
+  })
+
+  it("selects a split group's rows on every page from its checkbox", () => {
+    const onSelectionChange = vi.fn()
+    const { getByRole } = renderSplit(AGG_COLS, onSelectionChange)
+    fireEvent.click(getByRole('checkbox', { name: /Select group/ }))
+    expect(onSelectionChange).toHaveBeenLastCalledWith(SPLIT)
+  })
+})

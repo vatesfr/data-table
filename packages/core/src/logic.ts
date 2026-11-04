@@ -1884,59 +1884,51 @@ export function computeTotalPages(count: number, pageSize: number): number {
 }
 
 /**
- * A `GroupResult` chunk for one page. `continued`: its header repeats one from an earlier page.
- * `sampleRow` reads the header's value even when no row of the group lands on this page.
+ * One page's occurrence of a group: `rows` is the whole group, `pageRows` the part of it rendered
+ * on this page (`[]` when collapsed). `continued`: its header repeats one from an earlier page.
  */
 export interface PagedGroup<TRow extends object> extends GroupResult<TRow> {
   continued: boolean
-  sampleRow: TRow | undefined
+  pageRows: TRow[]
 }
 
 /**
  * Re-chunks one page's slice of `visibleItems` into per-group chunks, so header rows count toward
- * `pageSize`; a collapsed group's rows come whole from `groupedFull`, and a group resumed
- * mid-group is `continued` (docs/pagination.md).
+ * `pageSize`; a group resumed mid-group is `continued` (docs/pagination.md).
  */
 export function paginateVisibleGroups<TRow extends object>(
   groupedFull: GroupResult<TRow>[],
   visibleItems: VisibleItem<TRow>[],
-  collapsedGroups: Set<string>,
-  defaultCollapsed: boolean,
   page: number,
   pageSize: number,
 ): PagedGroup<TRow>[] {
-  const rowsByKey = new Map(groupedFull.filter((g) => g.key !== null).map((g) => [g.key!, g.rows]))
-  const keyPartsByKey = new Map(
-    groupedFull.filter((g) => g.key !== null).map((g) => [g.key!, g.keyParts]),
-  )
-  const pageItems = paginateData(visibleItems, page, pageSize)
+  const groupsByKey = new Map(groupedFull.filter((g) => g.key !== null).map((g) => [g.key!, g]))
+  const chunk = (key: string | null, continued: boolean): PagedGroup<TRow> => {
+    const group = key !== null ? groupsByKey.get(key) : undefined
+    const pageRows: TRow[] = []
+    // an ungrouped chunk's rows are just this page's
+    return {
+      key,
+      keyParts: group?.keyParts ?? [],
+      rows: group?.rows ?? pageRows,
+      continued,
+      pageRows,
+    }
+  }
 
   const chunks: PagedGroup<TRow>[] = []
   let current: PagedGroup<TRow> | null = null
-  for (const item of pageItems) {
+  for (const item of paginateData(visibleItems, page, pageSize)) {
     if (item.kind === 'group') {
-      const collapsed = isGroupCollapsed(collapsedGroups, item.key, defaultCollapsed)
-      current = {
-        key: item.key,
-        keyParts: keyPartsByKey.get(item.key) ?? [],
-        rows: collapsed ? (rowsByKey.get(item.key) ?? []) : [],
-        continued: false,
-        sampleRow: rowsByKey.get(item.key)?.[0],
-      }
+      current = chunk(item.key, false)
       chunks.push(current)
     } else {
       const groupKey = item.groupKey ?? null
       if (current === null || current.key !== groupKey) {
-        current = {
-          key: groupKey,
-          keyParts: groupKey !== null ? (keyPartsByKey.get(groupKey) ?? []) : [],
-          rows: [],
-          continued: groupKey !== null,
-          sampleRow: groupKey !== null ? rowsByKey.get(groupKey)?.[0] : item.row,
-        }
+        current = chunk(groupKey, groupKey !== null)
         chunks.push(current)
       }
-      current.rows.push(item.row)
+      current.pageRows.push(item.row)
     }
   }
   return chunks

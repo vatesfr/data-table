@@ -64,7 +64,7 @@ A merged `⊞ Department ↑ ×` pill (arrow toggles direction, one ×) was cons
 
 ## Aggregation in group headers
 
-`ColumnDefBase.aggregate` accepts `'sum' | 'count' | 'avg' | 'min' | 'max'` or a custom `(rows: TRow[]) => unknown` function. When any active column defines an aggregate, a secondary `dt-agg-row` row is rendered below each group header with per-column values. `computeAggregate(col, rows)` in core handles all built-in types; `col.format` is used for display when available, passed `sampleRow` (see [pagination.md](pagination.md)) rather than `rows[0]` since `rows` can legitimately be empty for a header rendered right at a page boundary. The aggregate row is always visible regardless of collapse state — for a collapsed group `rows` is the full group (backfilled by `paginateVisibleGroups`), for an expanded/split group it's whatever chunk of the group is visible on this page (see [pagination.md](pagination.md) for why these differ).
+`ColumnDefBase.aggregate` accepts `'sum' | 'count' | 'avg' | 'min' | 'max'` or a custom `(rows: TRow[]) => unknown` function. When any active column defines an aggregate, a secondary `dt-agg-row` row is rendered below each group header with per-column values. `computeAggregate(col, rows)` in core handles all built-in types. The aggregate row is always visible regardless of collapse state, and always covers the whole group, even one split across pages (see [pagination.md](pagination.md)). `col.format` is used for display when available, passed `rows[0]`.
 
 ---
 

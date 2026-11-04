@@ -155,7 +155,6 @@ export function App() {
                 table.group.clear()
                 // Limit: B44 — ungrouping keeps the club sort grouping added: drop it to get the ranking back
                 table.sort.remove('team')
-                table.pagination.setPageSize(PAGE_SIZE)
               }}
             >
               Players
@@ -167,8 +166,6 @@ export function App() {
                 if (byTeam()) return
                 table.group.clear()
                 table.group.toggle('team')
-                // Limit: B34 — a group split across pages totals only that page's rows: show clubs whole
-                table.pagination.setPageSize(0)
               }}
             >
               Clubs
