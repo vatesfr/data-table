@@ -64,7 +64,11 @@ A merged `⊞ Department ↑ ×` pill (arrow toggles direction, one ×) was cons
 
 ## Aggregation in group headers
 
-`ColumnDefBase.aggregate` accepts `'sum' | 'count' | 'avg' | 'min' | 'max'` or a custom `(rows: TRow[]) => unknown` function. When any active column defines an aggregate, a secondary `dt-agg-row` row is rendered below each group header with per-column values. `computeAggregate(col, rows)` in core handles all built-in types. The aggregate row is always visible regardless of collapse state, and always covers the whole group, even one split across pages (see [pagination.md](pagination.md)). `col.format` is used for display when available, passed `rows[0]`.
+`ColumnDefBase.aggregate` accepts `'sum' | 'count' | 'avg' | 'min' | 'max'` or a custom `(rows: TRow[]) => unknown` function. When any active column defines an aggregate, a secondary `dt-agg-row` row is rendered below each group header with per-column values. `computeAggregate(col, rows)` in core handles all built-in types. The aggregate row is always visible regardless of collapse state, and always covers the whole group, even one split across pages (see [pagination.md](pagination.md)).
+
+- **Display** (`formatAggregate`, core): `col.aggregateFormat(value, rows)` when set, else `col.format(value, rows[0])`, else `String(value)`; empty for a `null`/`undefined` value, without calling either.
+- **`aggregateFormat`** exists because `format`/`render` take a row: given the group's first row, a cell renderer that reads other fields (a currency, a per-row threshold) decorates the total as if it were that row's own value.
+- **Solid/vanilla** go through `col.render` too when `aggregateFormat` isn't set; React and Vue don't (React's `render` and Vue's `#cell-{key}` slot don't apply to aggregate cells).
 
 ---
 

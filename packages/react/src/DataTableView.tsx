@@ -10,7 +10,7 @@ import {
   type ReactNode,
 } from 'react'
 import {
-  computeAggregate,
+  formatAggregate,
   exclusionChip,
   exclusionValueKeys,
   exclusionValues,
@@ -1684,7 +1684,6 @@ export function DataTableView<TRow extends object>({
                     {selectable && <td className="dt-agg-td" style={{ width: 36 }} />}
                     <td className="dt-agg-td" style={{ width: 28 }} />
                     {activeColumns.map((col) => {
-                      const v = computeAggregate(col, rows)
                       return (
                         <td
                           key={col.key}
@@ -1692,11 +1691,7 @@ export function DataTableView<TRow extends object>({
                           data-col-key={col.key}
                           style={{ textAlign: getColumnAlign(col) }}
                         >
-                          {v !== undefined && v !== null
-                            ? col.format
-                              ? col.format(v, rows[0])
-                              : String(v)
-                            : null}
+                          {formatAggregate(col, rows)}
                         </td>
                       )
                     })}

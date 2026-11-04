@@ -47,12 +47,9 @@ const COLUMNS: ColumnDef<Player>[] = [
     label: 'Player',
     pinned: true,
     width: 170,
-    // Limit: B35 — the result goes through the column's render/format with the group's
-    // first row, and has no formatter of its own, so the label is baked into the returned string
-    aggregate: (rows) => {
-      const top = rows.reduce((a, b) => (b.goals > a.goals ? b : a))
-      return `★ ${top.name} (${top.goals})`
-    },
+    // The group's top scorer
+    aggregate: (rows) => rows.reduce((a, b) => (b.goals > a.goals ? b : a)),
+    aggregateFormat: (top) => `★ ${(top as Player).name} (${(top as Player).goals})`,
   },
   {
     key: 'team',

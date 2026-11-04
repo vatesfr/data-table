@@ -444,6 +444,19 @@ describe('TableBody — grouping and aggregation', () => {
       expect(table.selection.rows()).toEqual(SPLIT)
       dispose()
     })
+
+    it('formats an aggregate with aggregateFormat instead of the cell render', () => {
+      const { aggText, dispose } = mountSplit([
+        SUM_COLS[0],
+        {
+          ...SUM_COLS[1],
+          render: () => document.createTextNode('cell'),
+          aggregateFormat: (v, rows) => `${String(v)} over ${rows.length}`,
+        },
+      ])
+      expect(aggText()).toBe('50 over 5')
+      dispose()
+    })
   })
 
   it("a group's own select-all checkbox toggles just that group's rows", () => {

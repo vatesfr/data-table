@@ -195,6 +195,7 @@ See [docs/keyboard-navigation.md](../../docs/keyboard-navigation.md) for the rov
 
 ```ts
 computeAggregate(col, rows) // compute a group header's aggregate value per col.aggregate ('sum' | 'count' | 'avg' | 'min' | 'max' or a custom function)
+formatAggregate(col, rows) // an aggregate cell's text: col.aggregateFormat, else col.format with rows[0]; '' for no value
 ```
 
 #### Search

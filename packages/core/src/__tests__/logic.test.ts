@@ -31,6 +31,7 @@ import {
   sumDateTreeNodeCount,
   findDateTreeNode,
   computeAggregate,
+  formatAggregate,
   getColumnAlign,
   getColumnValue,
   cellText,
@@ -298,6 +299,34 @@ describe('searchData', () => {
 })
 
 // ─── computeAggregate ─────────────────────────────────────────────────────────
+
+describe('formatAggregate', () => {
+  const salaryCol = { key: 'salary' as const, label: 'Salary', aggregate: 'sum' as const }
+
+  it("is empty when there's no value", () => {
+    expect(formatAggregate({ key: 'name' as const, label: 'Name' }, ROWS)).toBe('')
+    expect(formatAggregate(salaryCol, [])).toBe('')
+  })
+
+  it("uses the column's format, with the group's first row", () => {
+    const format = vi.fn((v: unknown) => `$${String(v)}`)
+    expect(formatAggregate({ ...salaryCol, format }, ROWS)).toBe('$330000')
+    expect(format).toHaveBeenCalledWith(330000, ROWS[0])
+  })
+
+  it('prefers aggregateFormat, given the whole group', () => {
+    const aggregateFormat = vi.fn((v: unknown, rows: unknown[]) => `${String(v)} / ${rows.length}`)
+    const col = { ...salaryCol, format: () => 'cell', aggregateFormat }
+    expect(formatAggregate(col, ROWS)).toBe('330000 / 4')
+    expect(aggregateFormat).toHaveBeenCalledWith(330000, ROWS)
+  })
+
+  it("doesn't call aggregateFormat without a value", () => {
+    const aggregateFormat = vi.fn(() => 'x')
+    expect(formatAggregate({ ...salaryCol, aggregateFormat }, [])).toBe('')
+    expect(aggregateFormat).not.toHaveBeenCalled()
+  })
+})
 
 describe('computeAggregate', () => {
   const salaryCol = { key: 'salary' as const, label: 'Salary', aggregate: 'sum' as const }

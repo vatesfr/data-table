@@ -5,6 +5,7 @@ import {
   rowText,
   groupText,
   computeAggregate,
+  formatAggregate,
   getSortIcon,
   getSortIndex,
   isGroupCollapsed,
@@ -53,6 +54,7 @@ function cellValue<TRow extends object>(col: ColumnDef<TRow>, row: TRow): Node |
 
 function aggValue<TRow extends object>(col: ColumnDef<TRow>, rows: TRow[]): Node | string {
   if (!col.aggregate) return ''
+  if (col.aggregateFormat) return formatAggregate(col, rows)
   return renderCell(col, computeAggregate(col, rows), rows[0])
 }
 

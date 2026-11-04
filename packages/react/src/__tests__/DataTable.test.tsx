@@ -3422,4 +3422,16 @@ describe('DataTable — group aggregates', () => {
     fireEvent.click(getByRole('checkbox', { name: /Select group/ }))
     expect(onSelectionChange).toHaveBeenLastCalledWith(SPLIT)
   })
+
+  it('formats an aggregate with aggregateFormat instead of the cell format', () => {
+    const cols: ColumnDef<Row>[] = [
+      AGG_COLS[0],
+      {
+        ...AGG_COLS[1],
+        format: () => 'cell',
+        aggregateFormat: (v, rows) => `${String(v)} over ${rows.length}`,
+      },
+    ]
+    expect(aggText(renderSplit(cols).container)).toBe('50 over 5')
+  })
 })

@@ -2101,6 +2101,17 @@ export function computeAggregate<TRow extends object>(
   }
 }
 
+/** A group header's aggregate cell text: `''` when there's no value, else `aggregateFormat`, else `format`. */
+export function formatAggregate<TRow extends object>(
+  col: ColumnDefBase<TRow>,
+  rows: TRow[],
+): string {
+  const v = computeAggregate(col, rows)
+  if (v === undefined || v === null) return ''
+  if (col.aggregateFormat) return col.aggregateFormat(v, rows)
+  return col.format ? col.format(v, rows[0]) : String(v)
+}
+
 /**
  * A fixed-row-height windowed-rendering slice: which item indices should actually be mounted,
  * the pixel offset to position that window at within the scrollable list, and the list's total

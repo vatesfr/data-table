@@ -1,7 +1,7 @@
 <script setup lang="ts" generic="TRow extends object">
 import { computed, ref, toRaw, watch, nextTick, useSlots, onMounted, onBeforeUnmount } from 'vue'
 import {
-  computeAggregate,
+  formatAggregate,
   getColumnAlign,
   getColumnValue,
   cellText,
@@ -1825,13 +1825,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                 :data-col-key="col.key"
                 :style="{ textAlign: getColumnAlign(col) }"
               >
-                {{
-                  (() => {
-                    const v = computeAggregate(col, group.rows)
-                    if (v === undefined || v === null) return ''
-                    return col.format ? col.format(v, group.rows[0]) : String(v)
-                  })()
-                }}
+                {{ formatAggregate(col, group.rows) }}
               </td>
             </tr>
 

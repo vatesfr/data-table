@@ -225,4 +225,16 @@ describe('DataTableView — group aggregates', () => {
     await wrapper.find('input[aria-label^="Select group"]').trigger('change')
     expect(table.selection.rows.value).toEqual(SPLIT)
   })
+
+  it('formats an aggregate with aggregateFormat instead of the cell format', () => {
+    const { aggText } = mountSplit([
+      AGG_COLS[0],
+      {
+        ...AGG_COLS[1],
+        format: () => 'cell',
+        aggregateFormat: (v, rows) => `${String(v)} over ${rows.length}`,
+      },
+    ])
+    expect(aggText()).toBe('50 over 5')
+  })
 })

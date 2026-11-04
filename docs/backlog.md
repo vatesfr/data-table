@@ -34,7 +34,6 @@ What `demo/showcase` pages wanted and the public API couldn't give. Each page ma
 - **B31** — date grouping stops at the day (`DatePart`); a log viewer wants hour or minute buckets. Page: logs.
 - **B32** — the filter checklist's per-value counts print unformatted ("10010"), and the default `rowCount` label doesn't group digits ("100000 / 100000 rows"). Page: logs.
 - **B33** — `datePartGroup('month')` and the date filter tree name months in the browser's locale, not the table's labels; a French table in an English browser mixes languages. Page: ledger.
-- **B35** — a function `aggregate`'s result goes through the column's own `render`/`format` with a sample row; there's no aggregate formatter, so a label must be baked into the value. Page: sports.
 - **B36** — a column header can't carry a description or tooltip, which abbreviated headers (GP, G, A) need. Page: sports.
 - **B37** — groups order only by their key, never by an aggregate (e.g. clubs by total points). Page: sports.
 - **B38** — `numericRangeGroup`'s unit is only a suffix ("50–100 €", never "€50–€100"). Page: catalog.

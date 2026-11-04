@@ -239,6 +239,12 @@ Set `aggregate` on a column to show a computed value in a row below each group h
 
 The aggregate row only appears once grouping is active and only shows values for columns that define `aggregate`; it's always visible regardless of a group's collapsed state. It covers the whole group, even one split across pages.
 
+The value shows through the column's `format`, which gets the group's first row as its row. Set `aggregateFormat(value, rows)` to format it on its own instead, e.g. when `format` reads other fields of its row:
+
+```ts
+{ key: 'name', label: 'Player', aggregate: (rows) => topScorer(rows), aggregateFormat: (p) => `★ ${(p as Player).name}` }
+```
+
 ## Row selection
 
 ▶ [Try it in the demo](https://vatesfr.github.io/data-table/react/#row-selection)
@@ -363,6 +369,7 @@ interface ColumnDef<TRow extends object> {
   keepVisibleWhenGrouped?: boolean // default: false; keep this column's cells visible even while it's grouped
   multiMode?: 'and' | 'or' // match mode for array-valued columns; default: 'or'
   aggregate?: 'sum' | 'count' | 'avg' | 'min' | 'max' | ((rows: TRow[]) => unknown) // see Aggregation
+  aggregateFormat?: (value: unknown, rows: TRow[]) => string // see Aggregation
   render?: (value: unknown, row: TRow) => ReactNode
   renderFilterLabel?: (value: string) => ReactNode
 }
