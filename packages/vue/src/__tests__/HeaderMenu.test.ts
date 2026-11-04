@@ -35,11 +35,7 @@ function mountView(cols = COLS, initialViewState?: TableViewState) {
   const Comp = defineComponent({
     setup() {
       table = useTableState(ROWS, cols, { initialViewState })
-      return () =>
-        h(DataTableView, { table, data: ROWS, columns: cols, rowKey: 'id' } as Record<
-          string,
-          unknown
-        >)
+      return () => h(DataTableView, { table, data: ROWS, columns: cols } as Record<string, unknown>)
     },
   })
   const wrapper = mount(Comp, { attachTo: document.body })

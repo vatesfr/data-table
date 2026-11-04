@@ -41,7 +41,6 @@ const COLUMNS: ColumnDef<Employee>[] = [
 const table = createDataTable(document.getElementById('table')!, {
   data: employees,
   columns: COLUMNS,
-  rowKey: 'id',
 })
 
 // Update data or columns later
@@ -156,7 +155,7 @@ const data = [
   { id: 2, name: 'Game B', tags: ['Action', 'Adventure'] },
 ]
 
-createDataTable(container, { data, columns: COLUMNS, rowKey: 'id' })
+createDataTable(container, { data, columns: COLUMNS })
 // Filter dropdown shows individual items: "Action" | "Adventure" | "RPG"
 // Selecting "Action" matches both games
 ```
@@ -325,7 +324,6 @@ Pass `selectable` to show a checkbox column. The header checkbox selects/deselec
 const table = createDataTable(container, {
   data: employees,
   columns: COLUMNS,
-  rowKey: 'id',
   selectable: true,
   onSelectionChange: (rows) => console.log(rows.length, 'selected'),
 })
@@ -339,7 +337,6 @@ Refetching or re-mapping `data` breaks that assumption — even identical conten
 const table = createDataTable(container, {
   data: employees,
   columns: COLUMNS,
-  rowKey: 'id',
   selectable: true,
   onSelectionChange: (rows) => console.log(rows.length, 'selected'),
   getRowId: (employee) => employee.id,
@@ -358,7 +355,6 @@ Pass `onRowClick` to react to a data row being clicked — it receives the full 
 const table = createDataTable(container, {
   data: employees,
   columns: COLUMNS,
-  rowKey: 'id',
   onRowClick: (row, event) => console.log('clicked', row.name),
 })
 ```
@@ -375,11 +371,10 @@ Drag a column header to reorder it, or drag a row (or press Alt+ArrowUp/Alt+Arro
 | ------------------------ | --------------------------------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `data`                   | `TRow[]`                                                  | —       | Row data                                                                                                                                               |
 | `columns`                | `ColumnDef<TRow>[]`                                       | —       | Column definitions                                                                                                                                     |
-| `rowKey`                 | `keyof TRow & string`                                     | —       | DOM key only — not selection identity                                                                                                                  |
 | `labels`                 | `Partial<DataTableLabels>`                                | English | UI string overrides                                                                                                                                    |
 | `defaultGroupsCollapsed` | `boolean`                                                 | `true`  | Whether newly-grouped groups start collapsed                                                                                                           |
 | `initialViewState`       | `TableViewState`                                          | `{}`    | Construction-time defaults for columns/sort/filters/grouping/page/search — also what `resetView` restores                                              |
-| `getRowId`               | `(row: TRow) => string \| number`                         | —       | Opt-in id-based selection identity (see "Row selection" above)                                                                                         |
+| `getRowId`               | `(row: TRow) => string \| number`                         | —       | Opt-in id-based row identity: selection, focus, `currentRow` and the row's DOM key (see "Row selection" above)                                         |
 | `selectable`             | `boolean`                                                 | `false` | Show checkbox column for row selection                                                                                                                 |
 | `onSelectionChange`      | `(rows: TRow[]) => void`                                  | —       | Called when selection changes                                                                                                                          |
 | `onRowClick`             | `(row: TRow, event: MouseEvent \| KeyboardEvent) => void` | —       | Called when a data row is clicked                                                                                                                      |
@@ -429,7 +424,6 @@ interface ColumnDef<TRow extends object> {
 | `clearSelection()`                          | Empties the selection — e.g. to wire an external "Clear selection" button           |
 | `getProcessedData()`                        | Current rows after search/filters/sort, before grouping/pagination                  |
 | `clearAll()`                                | Resets search/filters/sort/group/page to true defaults, ignoring `initialViewState` |
-| `setRowKey(key: keyof TRow & string)`       | Changes the row DOM-key property after construction                                 |
 | `setSelectable(value: boolean)`             | Toggles whether rows show selection checkboxes after construction                   |
 | `setShowSearch(value: boolean)`             | Shows/hides the toolbar's search box after construction                             |
 | `setShowColumns(value: boolean)`            | Shows/hides the Columns toolbar button after construction                           |

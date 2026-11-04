@@ -61,10 +61,6 @@ import { FilterPane } from './components/FilterPane'
 import { useDropdownReorder } from './hooks/useDropdownReorder'
 import type { ColumnDef, DataTableViewProps } from './types'
 
-function asRecord(row: object): Record<string, unknown> {
-  return row as Record<string, unknown>
-}
-
 /**
  * Consumes a pending-focus ref (see the `pendingSortFocusKey`/`pendingGroupFocusKey`/
  * `pendingFilterColFocusKey` refs below) and focuses whichever element under `root` carries a
@@ -199,7 +195,6 @@ export function DataTableView<TRow extends object>({
   table,
   data,
   columns,
-  rowKey,
   selectable,
   onSelectionChange,
   onRowClick,
@@ -1705,9 +1700,7 @@ export function DataTableView<TRow extends object>({
                 !isCollapsed &&
                   rows.map((row, ri) => (
                     <tr
-                      key={String(
-                        rowKey ? (asRecord(row)[rowKey] ?? `${gkey}-${ri}`) : `${gkey}-${ri}`,
-                      )}
+                      key={table.getRowId ? table.getRowId(row) : `${gkey}-${ri}`}
                       ref={(el) => {
                         if (el) rowRefs.current.set(row, el)
                         else rowRefs.current.delete(row)

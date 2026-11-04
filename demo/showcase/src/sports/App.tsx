@@ -126,6 +126,7 @@ export function App() {
   // League's top three by points get a podium marker whatever the current sort
   const podium = new Set([...players].sort((a, b) => points(b) - points(a)).slice(0, 3))
   const table = createTableState(players, COLUMNS, {
+    getRowId: (p) => p.id,
     initialViewState: {
       sorts: [
         { key: 'points', dir: 'desc' },
@@ -145,7 +146,6 @@ export function App() {
     >
       <DataTableView
         table={table}
-        rowKey="id"
         rowClass={(p) => (podium.has(p) ? 'podium' : undefined)}
         toolbarEnd={
           <div class="switch" role="group" aria-label="View">

@@ -24,7 +24,6 @@ import { focusSearch } from './SearchBox'
 interface TableBodyProps<TRow extends object> {
   table: TableState<TRow>
   columns: ColumnDef<TRow>[]
-  rowKey?: keyof TRow & string
   selectable?: boolean
   onRowClick?: (row: TRow, event: MouseEvent | KeyboardEvent) => void
   currentRow?: TRow | null
@@ -333,7 +332,6 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
                         row={row}
                         procIdx={procIdxMap().get(row) ?? -1}
                         odd={ri() % 2 !== 0}
-                        rowKey={props.rowKey}
                         selectable={props.selectable}
                         onRowClick={props.onRowClick}
                         current={isSameRow(row, props.currentRow, table.getRowId())}
@@ -381,7 +379,6 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
                         row={row}
                         procIdx={procIdxMap().get(row) ?? -1}
                         odd={ri() % 2 !== 0}
-                        rowKey={props.rowKey}
                         selectable={props.selectable}
                         onRowClick={props.onRowClick}
                         current={isSameRow(row, props.currentRow, table.getRowId())}
@@ -584,7 +581,6 @@ interface DataRowProps<TRow extends object> {
   row: TRow
   procIdx: number
   odd: boolean
-  rowKey?: keyof TRow & string
   selectable?: boolean
   onRowClick?: (row: TRow, event: MouseEvent | KeyboardEvent) => void
   indentGroup?: boolean
@@ -599,11 +595,6 @@ interface DataRowProps<TRow extends object> {
 function DataRow<TRow extends object>(props: DataRowProps<TRow>) {
   const { table, row } = props
   const isSelected = createMemo(() => table.selection.all().has(row))
-  const rk = createMemo(() =>
-    props.rowKey
-      ? String((row as Record<string, unknown>)[props.rowKey] ?? props.procIdx)
-      : props.procIdx,
-  )
 
   function handleClick(e: MouseEvent): void {
     if ((e.target as HTMLElement).closest('[data-no-row-click]')) return
@@ -614,7 +605,7 @@ function DataRow<TRow extends object>(props: DataRowProps<TRow>) {
     <tr
       // A class string, not classList: a computed key would bundle Solid's generic classList helper
       class={`dt-tr${isSelected() ? ' dt-tr--selected' : props.odd ? ' dt-tr--odd' : ''}${props.onRowClick ? ' dt-tr--clickable' : ''}${props.current ? ' dt-tr--current' : ''}${props.extraClass ? ` ${props.extraClass}` : ''}`}
-      data-row-key={String(rk())}
+      data-row-key={table.getRowId()?.(row) ?? props.procIdx}
       data-proc-idx={props.procIdx}
       tabIndex={props.tabIndex}
       aria-selected={props.selectable ? isSelected() : undefined}

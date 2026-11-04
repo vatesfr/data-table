@@ -31,7 +31,6 @@ describe('DataTable — row checkbox name', () => {
       props: {
         data: ROWS,
         columns: [{ key: 'avatar', label: 'Avatar', value: () => null }, ...COLS],
-        rowKey: 'id',
         selectable: true,
       },
     })
@@ -44,7 +43,7 @@ describe('DataTable — rowClick', () => {
   it('calls onRowClick with the row and the click event', async () => {
     const onRowClick = vi.fn()
     const wrapper = mount(DataTable, {
-      props: { data: ROWS, columns: COLS, rowKey: 'id', onRowClick },
+      props: { data: ROWS, columns: COLS, onRowClick },
     })
     await wrapper.find('tbody tr').trigger('click')
     expect(onRowClick).toHaveBeenCalledWith(ROWS[0], expect.any(MouseEvent))
@@ -52,14 +51,14 @@ describe('DataTable — rowClick', () => {
 
   it('does not add the clickable class when no rowClick listener is attached', () => {
     const wrapper = mount(DataTable, {
-      props: { data: ROWS, columns: COLS, rowKey: 'id' },
+      props: { data: ROWS, columns: COLS },
     })
     expect(wrapper.find('tbody tr').classes()).not.toContain('dt-tr--clickable')
   })
 
   it('adds the clickable class when a rowClick listener is attached', () => {
     const wrapper = mount(DataTable, {
-      props: { data: ROWS, columns: COLS, rowKey: 'id', onRowClick: vi.fn() },
+      props: { data: ROWS, columns: COLS, onRowClick: vi.fn() },
     })
     expect(wrapper.find('tbody tr').classes()).toContain('dt-tr--clickable')
   })
@@ -67,7 +66,7 @@ describe('DataTable — rowClick', () => {
   it('clicking the selection checkbox does not call onRowClick', async () => {
     const onRowClick = vi.fn()
     const wrapper = mount(DataTable, {
-      props: { data: ROWS, columns: COLS, rowKey: 'id', selectable: true, onRowClick },
+      props: { data: ROWS, columns: COLS, selectable: true, onRowClick },
     })
     await wrapper.find('tbody tr input[type="checkbox"]').trigger('click')
     expect(onRowClick).not.toHaveBeenCalled()
@@ -75,7 +74,7 @@ describe('DataTable — rowClick', () => {
 
   it('adds the clickable class once a rowClick listener is attached after mount', async () => {
     const wrapper = mount(DataTable, {
-      props: { data: ROWS, columns: COLS, rowKey: 'id' },
+      props: { data: ROWS, columns: COLS },
     })
     expect(wrapper.find('tbody tr').classes()).not.toContain('dt-tr--clickable')
     await wrapper.setProps({ onRowClick: vi.fn() })
@@ -86,14 +85,14 @@ describe('DataTable — rowClick', () => {
 describe('DataTable — v-model:page / v-model:search-query', () => {
   it('emits the initial page and searchQuery once at mount, even with no interaction', () => {
     const wrapper = mount(DataTable, {
-      props: { data: ROWS, columns: COLS, rowKey: 'id' },
+      props: { data: ROWS, columns: COLS },
     })
     expect(wrapper.emitted('update:page')![0]).toEqual([1])
     expect(wrapper.emitted('update:searchQuery')![0]).toEqual([''])
   })
 
   it('says no rows match, with a way out clearing search and filters', async () => {
-    const wrapper = mount(DataTable, { props: { data: ROWS, columns: COLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: COLS } })
     await wrapper.find('input.dt-search-input').setValue('zzz')
     expect(wrapper.find('tbody').text()).toContain('No matching rows')
     const btn = wrapper
@@ -105,14 +104,14 @@ describe('DataTable — v-model:page / v-model:search-query', () => {
   })
 
   it('says "No rows", with no button, when there is no data at all', () => {
-    const wrapper = mount(DataTable, { props: { data: [], columns: COLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: [], columns: COLS } })
     expect(wrapper.find('tbody').text()).toBe('No rows')
     expect(wrapper.find('tbody button').exists()).toBe(false)
   })
 
   it('moves focus to the search box when a clear button removes itself', async () => {
     const wrapper = mount(DataTable, {
-      props: { data: ROWS, columns: COLS, rowKey: 'id' },
+      props: { data: ROWS, columns: COLS },
       attachTo: document.body,
     })
     const search = wrapper.find('input.dt-search-input')
@@ -133,7 +132,6 @@ describe('DataTable — v-model:page / v-model:search-query', () => {
       props: {
         data: ROWS,
         columns: COLS,
-        rowKey: 'id',
         showSearch: false,
         initialViewState: { sorts: [{ key: 'name', dir: 'asc' }] },
       },
@@ -148,7 +146,7 @@ describe('DataTable — v-model:page / v-model:search-query', () => {
 
   it('names the pagination buttons from the labels', () => {
     const wrapper = mount(DataTable, {
-      props: { data: ROWS, columns: COLS, rowKey: 'id', initialViewState: { pageSize: 1 } },
+      props: { data: ROWS, columns: COLS, initialViewState: { pageSize: 1 } },
     })
     expect(wrapper.findAll('.dt-page-btn').map((b) => b.attributes('aria-label'))).toEqual([
       'First page',
@@ -165,7 +163,7 @@ describe('DataTable — v-model:page / v-model:search-query', () => {
       score: i,
     }))
     const wrapper = mount(DataTable, {
-      props: { data: manyRows, columns: COLS, rowKey: 'id', initialViewState: { pageSize: 10 } },
+      props: { data: manyRows, columns: COLS, initialViewState: { pageSize: 10 } },
     })
     const nextBtn = wrapper.findAll('.dt-page-btn').find((b) => b.text() === '›')!
     await nextBtn.trigger('click')
@@ -174,7 +172,7 @@ describe('DataTable — v-model:page / v-model:search-query', () => {
   })
 
   it('emits update:searchQuery when typing in the search box', async () => {
-    const wrapper = mount(DataTable, { props: { data: ROWS, columns: COLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: COLS } })
     await wrapper.find('input.dt-search-input').setValue('ali')
     const queryEmits = wrapper.emitted('update:searchQuery')!
     expect(queryEmits[queryEmits.length - 1]).toEqual(['ali'])
@@ -190,7 +188,6 @@ describe('DataTable — v-model:page / v-model:search-query', () => {
       props: {
         data: manyRows,
         columns: COLS,
-        rowKey: 'id',
         initialViewState: { pageSize: 10 },
         page: 3,
       },
@@ -200,7 +197,7 @@ describe('DataTable — v-model:page / v-model:search-query', () => {
 
   it('binding :search-query pre-filters rows at mount', () => {
     const wrapper = mount(DataTable, {
-      props: { data: ROWS, columns: COLS, rowKey: 'id', searchQuery: 'ali' },
+      props: { data: ROWS, columns: COLS, searchQuery: 'ali' },
     })
     const names = wrapper.findAll('tbody tr td:first-child').map((td) => td.text())
     expect(names).toEqual(['Alice'])
@@ -216,7 +213,6 @@ describe('DataTable — v-model:page / v-model:search-query', () => {
       props: {
         data: manyRows,
         columns: COLS,
-        rowKey: 'id',
         initialViewState: { pageSize: 10 },
         page: 1,
       },
@@ -232,7 +228,7 @@ describe('DataTable — aggregate row', () => {
       { key: 'name', label: 'Name' },
       { key: 'score', label: 'Score', type: 'number', aggregate: 'sum' },
     ]
-    const wrapper = mount(DataTable, { props: { data: ROWS, columns: cols, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: cols } })
     expect(wrapper.find('.dt-agg-row').exists()).toBe(false)
   })
 
@@ -241,7 +237,7 @@ describe('DataTable — aggregate row', () => {
       { key: 'name', label: 'Name', groupable: true },
       { key: 'score', label: 'Score', type: 'number', aggregate: 'sum' },
     ]
-    const wrapper = mount(DataTable, { props: { data: ROWS, columns: cols, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: cols } })
     const groupBtn = wrapper.findAll('button').find((b) => b.text() === 'Group')!
     await groupBtn.trigger('click')
     const nameItem = wrapper.findAll('.dt-dd-item').find((el) => el.text().includes('Name'))!
@@ -260,7 +256,6 @@ describe('DataTable — column align', () => {
       props: {
         data: ROWS,
         columns: cols,
-        rowKey: 'id',
         defaultGroupsCollapsed: false,
         initialViewState: { groupBy: ['name'] },
       },
@@ -280,7 +275,7 @@ describe('DataTable — column align', () => {
       { key: 'id', label: 'ID', type: 'number', align: 'start' },
       { key: 'score', label: 'Score', type: 'number' },
     ]
-    const wrapper = mount(DataTable, { props: { data: ROWS, columns: cols, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: cols } })
     expect(wrapper.find('th[data-col-key="score"] .dt-th-spacer').exists()).toBe(true)
     expect(wrapper.findAll('.dt-th-spacer')).toHaveLength(1)
     const align = (key: string) =>
@@ -300,7 +295,6 @@ describe('DataTable — column align', () => {
       props: {
         data: ROWS,
         columns: cols,
-        rowKey: 'id',
         defaultGroupsCollapsed: false,
         initialViewState: { groupBy: ['name'] },
       },
@@ -323,7 +317,6 @@ describe('DataTable — column align', () => {
       props: {
         data: ROWS,
         columns: cols,
-        rowKey: 'id',
         defaultGroupsCollapsed: false,
         initialViewState: { groupBy: ['name'] },
       },
@@ -347,7 +340,7 @@ describe('DataTable — bucketed grouping (groupValue/groupFormat)', () => {
         groupFormat: (k) => `${k}–${Number(k) + 20}`,
       },
     ]
-    const wrapper = mount(DataTable, { props: { data: ROWS, columns: cols, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: cols } })
     const groupBtn = wrapper.findAll('button').find((b) => b.text() === 'Group')!
     await groupBtn.trigger('click')
     const scoreItem = wrapper.findAll('.dt-dd-item').find((el) => el.text().includes('Score'))!
@@ -365,7 +358,7 @@ describe('DataTable — filter dropdown', () => {
   ]
 
   it('defaults the detail pane to the first filterable column', async () => {
-    const wrapper = mount(DataTable, { props: { data: ROWS, columns: FILTER_COLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: FILTER_COLS } })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
     expect(
@@ -379,7 +372,7 @@ describe('DataTable — filter dropdown', () => {
   })
 
   it('clicking a column in the list switches the detail pane to it', async () => {
-    const wrapper = mount(DataTable, { props: { data: ROWS, columns: FILTER_COLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: FILTER_COLS } })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
     const scoreItem = wrapper
@@ -395,7 +388,7 @@ describe('DataTable — filter dropdown', () => {
   // (e.g. a left-pane column button) could still silently clear that column's value search.
   it("Escape clears the active column's value search only when focus is inside the detail pane", async () => {
     const wrapper = mount(DataTable, {
-      props: { data: ROWS, columns: FILTER_COLS, rowKey: 'id' },
+      props: { data: ROWS, columns: FILTER_COLS },
       attachTo: document.body,
     })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
@@ -409,7 +402,7 @@ describe('DataTable — filter dropdown', () => {
   })
 
   it('the left-pane column search has a labeled clear button, shown only once it has a value', async () => {
-    const wrapper = mount(DataTable, { props: { data: ROWS, columns: FILTER_COLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: FILTER_COLS } })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
     const search = wrapper.find('.dt-filter-cols-search')
@@ -422,7 +415,7 @@ describe('DataTable — filter dropdown', () => {
   })
 
   it('the value search has a labeled clear button, shown only once it has a value', async () => {
-    const wrapper = mount(DataTable, { props: { data: ROWS, columns: FILTER_COLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: FILTER_COLS } })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
     const valueSearch = wrapper.find('.dt-filter-detail input.dt-dd-search')
@@ -438,7 +431,7 @@ describe('DataTable — filter dropdown', () => {
 
   it('does not clear the value search when focus is elsewhere in the panel (e.g. the left pane)', async () => {
     const wrapper = mount(DataTable, {
-      props: { data: ROWS, columns: FILTER_COLS, rowKey: 'id' },
+      props: { data: ROWS, columns: FILTER_COLS },
       attachTo: document.body,
     })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
@@ -468,7 +461,7 @@ describe('DataTable — filter dropdown', () => {
       { id: 1, name: 'Alice', dept: 'Eng' },
       { id: 2, name: 'Bob', dept: 'HR' },
     ]
-    const wrapper = mount(DataTable, { props: { data: ROWS2, columns: COLS2, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: ROWS2, columns: COLS2 } })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
     // Narrow to Alice only: `name` is checked-by-default (see docs/filter-dropdown.md's "Filter dropdown"), so
@@ -500,7 +493,7 @@ describe('DataTable — filter dropdown', () => {
       { id: 1, name: 'Alice', dept: 'Eng', score: 90 },
       { id: 2, name: 'Bob', dept: 'HR', score: 60 },
     ]
-    const wrapper = mount(DataTable, { props: { data: ROWS2, columns: COLS2, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: ROWS2, columns: COLS2 } })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
     const deptItem = wrapper
@@ -522,7 +515,7 @@ describe('DataTable — filter dropdown', () => {
   })
 
   it('search narrows the checklist to matching values', async () => {
-    const wrapper = mount(DataTable, { props: { data: ROWS, columns: FILTER_COLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: FILTER_COLS } })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
     await valueSearchInput(wrapper).setValue('ali')
@@ -549,7 +542,7 @@ describe('DataTable — filter dropdown', () => {
   it('select-all checkbox excludes (unchecks) every currently listed value', async () => {
     // `name` is checked-by-default (see docs/filter-dropdown.md's "Filter dropdown") — nothing excluded yet,
     // so clicking the master checkbox excludes everyone.
-    const wrapper = mount(DataTable, { props: { data: ROWS, columns: FILTER_COLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: FILTER_COLS } })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
     await wrapper.find('.dt-filter-search-row > input[type=checkbox]').trigger('change')
@@ -558,7 +551,7 @@ describe('DataTable — filter dropdown', () => {
   })
 
   it('select-all checkbox re-checks every value when all are already excluded', async () => {
-    const wrapper = mount(DataTable, { props: { data: ROWS, columns: FILTER_COLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: FILTER_COLS } })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
     const selectAll = wrapper.find('.dt-filter-search-row > input[type=checkbox]')
@@ -569,12 +562,12 @@ describe('DataTable — filter dropdown', () => {
   })
 
   it('the Filter toolbar button has no clear-filters button until a filter is active', async () => {
-    const wrapper = mount(DataTable, { props: { data: ROWS, columns: FILTER_COLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: FILTER_COLS } })
     expect(wrapper.find('[title="Clear filters"]').exists()).toBe(false)
   })
 
   it('the toolbar clear-filters button clears all filters without opening the dropdown', async () => {
-    const wrapper = mount(DataTable, { props: { data: ROWS, columns: FILTER_COLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: FILTER_COLS } })
     const filterToggle = () => wrapper.findAll('button').find((b) => b.text().startsWith('Filter'))!
     await filterToggle().trigger('click')
     await checklistCheckbox(wrapper, 'Alice').trigger('click')
@@ -586,7 +579,7 @@ describe('DataTable — filter dropdown', () => {
   })
 
   it('select-all checkbox only affects the search-narrowed values', async () => {
-    const wrapper = mount(DataTable, { props: { data: ROWS, columns: FILTER_COLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: FILTER_COLS } })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
     await valueSearchInput(wrapper).setValue('ali')
@@ -603,7 +596,7 @@ describe('DataTable — filter dropdown', () => {
       { id: 3, name: 'Clara', score: 80 },
       { id: 4, name: 'David', score: 70 },
     ]
-    const wrapper = mount(DataTable, { props: { data: ROWS4, columns: FILTER_COLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: ROWS4, columns: FILTER_COLS } })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
     await checklistCheckbox(wrapper, 'Alice').trigger('click') // exclude Alice, becomes the anchor
@@ -623,7 +616,7 @@ describe('DataTable — filter dropdown', () => {
       { id: 3, name: 'Clara', score: 80 },
       { id: 4, name: 'David', score: 70 },
     ]
-    const wrapper = mount(DataTable, { props: { data: ROWS4, columns: FILTER_COLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: ROWS4, columns: FILTER_COLS } })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
     await wrapper.find('.dt-filter-search-row > input[type=checkbox]').trigger('change') // exclude everyone
@@ -639,7 +632,7 @@ describe('DataTable — filter dropdown', () => {
   })
 
   it('hides the select-all checkbox when search matches no values', async () => {
-    const wrapper = mount(DataTable, { props: { data: ROWS, columns: FILTER_COLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: FILTER_COLS } })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
     await valueSearchInput(wrapper).setValue('zzz')
@@ -648,7 +641,7 @@ describe('DataTable — filter dropdown', () => {
   })
 
   it("renders a range slider with bounds matching the numeric column's actual min/max", async () => {
-    const wrapper = mount(DataTable, { props: { data: ROWS, columns: FILTER_COLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: FILTER_COLS } })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
     const scoreItem = wrapper
@@ -667,7 +660,7 @@ describe('DataTable — filter dropdown', () => {
     const cols = FILTER_COLS.map((c) =>
       c.key === 'score' ? { ...c, format: (v: unknown) => `${v} pts` } : c,
     )
-    const wrapper = mount(DataTable, { props: { data: ROWS, columns: cols, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: cols } })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
     const scoreItem = wrapper
@@ -690,7 +683,7 @@ describe('DataTable — filter dropdown', () => {
   })
 
   it('dragging a slider thumb updates the plain min/max inputs and filters rows', async () => {
-    const wrapper = mount(DataTable, { props: { data: ROWS, columns: FILTER_COLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: FILTER_COLS } })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
     const scoreItem = wrapper
@@ -706,7 +699,7 @@ describe('DataTable — filter dropdown', () => {
   })
 
   it('marks the column with a clear button and an active-bar chip once a range filter is set', async () => {
-    const wrapper = mount(DataTable, { props: { data: ROWS, columns: FILTER_COLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: FILTER_COLS } })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
     const scoreItem = wrapper
@@ -723,7 +716,7 @@ describe('DataTable — filter dropdown', () => {
   })
 
   it("clicking a range filter's active-bar chip clears it and unfilters the rows", async () => {
-    const wrapper = mount(DataTable, { props: { data: ROWS, columns: FILTER_COLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: FILTER_COLS } })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
     const scoreItem = wrapper
@@ -741,7 +734,7 @@ describe('DataTable — filter dropdown', () => {
   })
 
   it('a non-multi-value checklist item explains the plain hide/show toggle, not the tri-state cycle', async () => {
-    const wrapper = mount(DataTable, { props: { data: ROWS, columns: FILTER_COLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: FILTER_COLS } })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
     const alice = checklistCheckbox(wrapper, 'Alice')
@@ -752,7 +745,7 @@ describe('DataTable — filter dropdown', () => {
 
   it('Escape on the Others row clears the search and keeps focus in the pane (U17)', async () => {
     const wrapper = mount(DataTable, {
-      props: { data: ROWS, columns: FILTER_COLS, rowKey: 'id' },
+      props: { data: ROWS, columns: FILTER_COLS },
       attachTo: document.body,
     })
     await wrapper
@@ -770,7 +763,7 @@ describe('DataTable — filter dropdown', () => {
   })
 
   it('an "Others" row appears once the value search narrows the list, bulk-(un)checking everything it hides', async () => {
-    const wrapper = mount(DataTable, { props: { data: ROWS, columns: FILTER_COLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: FILTER_COLS } })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
     expect(wrapper.find('.dt-filter-others').exists()).toBe(false)
@@ -816,7 +809,7 @@ describe('DataTable — filter dropdown', () => {
       { key: 'name', label: 'Name', filterable: true },
       { key: 'dept', label: 'Dept', filterable: true },
     ]
-    const wrapper = mount(DataTable, { props: { data, columns: cols, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data, columns: cols } })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
     const selectCol = async (label: string) => {
@@ -873,7 +866,7 @@ describe('DataTable — exclude filters (multi-value checklist)', () => {
   }
 
   it('the checkbox includes a value and the ≠ button excludes it, each dropping the other', async () => {
-    const wrapper = mount(DataTable, { props: { data: GAMES, columns: GAME_COLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: GAMES, columns: GAME_COLS } })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
     const rpg = () => tagCheckbox(wrapper, 'RPG').element as HTMLInputElement
@@ -899,7 +892,7 @@ describe('DataTable — exclude filters (multi-value checklist)', () => {
 
   it('reaches the ≠ buttons by keyboard: → from a checkbox, ↓ along them, ← back', async () => {
     const wrapper = mount(DataTable, {
-      props: { data: GAMES, columns: GAME_COLS, rowKey: 'id' },
+      props: { data: GAMES, columns: GAME_COLS },
       attachTo: document.body,
     })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
@@ -916,7 +909,7 @@ describe('DataTable — exclude filters (multi-value checklist)', () => {
   })
 
   it('renders an exclude filter as its own chip, distinct from an include chip', async () => {
-    const wrapper = mount(DataTable, { props: { data: GAMES, columns: GAME_COLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: GAMES, columns: GAME_COLS } })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
     await excludeButton(wrapper, 'RPG').trigger('click')
@@ -927,7 +920,7 @@ describe('DataTable — exclude filters (multi-value checklist)', () => {
   })
 
   it("clearing an include chip on a column doesn't clear that same column's exclude chip, and vice versa", async () => {
-    const wrapper = mount(DataTable, { props: { data: GAMES, columns: GAME_COLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: GAMES, columns: GAME_COLS } })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
     await tagCheckbox(wrapper, 'Action').trigger('click') // include Action
@@ -951,7 +944,7 @@ describe('DataTable — exclude filters (multi-value checklist)', () => {
   })
 
   it('select-all moves listed values into the include set, clearing any that were excluded', async () => {
-    const wrapper = mount(DataTable, { props: { data: GAMES, columns: GAME_COLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: GAMES, columns: GAME_COLS } })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
     await excludeButton(wrapper, 'RPG').trigger('click')
@@ -962,7 +955,7 @@ describe('DataTable — exclude filters (multi-value checklist)', () => {
   })
 
   it("select-all's deselect branch only clears the include set, leaving an unrelated exclude untouched", async () => {
-    const wrapper = mount(DataTable, { props: { data: GAMES, columns: GAME_COLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: GAMES, columns: GAME_COLS } })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
     await tagCheckbox(wrapper, 'Action').trigger('click') // include Action
@@ -979,7 +972,7 @@ describe('DataTable — exclude filters (multi-value checklist)', () => {
   })
 
   it("a multi-value column's checkbox has no tooltip; the excluded row is marked", async () => {
-    const wrapper = mount(DataTable, { props: { data: GAMES, columns: GAME_COLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: GAMES, columns: GAME_COLS } })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
     expect(tagCheckbox(wrapper, 'Action').attributes('title')).toBeUndefined()
@@ -989,7 +982,7 @@ describe('DataTable — exclude filters (multi-value checklist)', () => {
   })
 
   it('bulk-(de)selects hidden values via the include set for a multi-value column', async () => {
-    const wrapper = mount(DataTable, { props: { data: GAMES, columns: GAME_COLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: GAMES, columns: GAME_COLS } })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
     await valueSearchInput(wrapper).setValue('action')
@@ -1042,7 +1035,7 @@ describe('DataTable — any/all filter match mode', () => {
   }
 
   it('is shown as a segmented Any/All control for an array-valued column, both options always present', async () => {
-    const wrapper = mount(DataTable, { props: { data: GAMES, columns: GAME_COLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: GAMES, columns: GAME_COLS } })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
 
@@ -1069,7 +1062,7 @@ describe('DataTable — any/all filter match mode', () => {
 
   it('is not shown for a plain scalar column', async () => {
     const cols: ColumnDef<Game>[] = [{ key: 'name', label: 'Name', filterable: true }]
-    const wrapper = mount(DataTable, { props: { data: GAMES, columns: cols, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: GAMES, columns: cols } })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
     expect(wrapper.findAll('.dt-filter-match-mode')).toHaveLength(0)
@@ -1080,7 +1073,7 @@ describe('DataTable — any/all filter match mode', () => {
       { key: 'name', label: 'Name', filterable: true },
       { key: 'tags', label: 'Tags', filterable: true },
     ]
-    const wrapper = mount(DataTable, { props: { data: GAMES, columns: cols, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: GAMES, columns: cols } })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
     await selectFilterCol(wrapper, 'Tags')
@@ -1110,7 +1103,7 @@ describe('DataTable — virtualized filter checklist', () => {
 
   it('only mounts the rows scrolled into view, not every distinct value', async () => {
     const wrapper = mount(DataTable, {
-      props: { data: MANY_ROWS, columns: MANY_COLS, rowKey: 'id' },
+      props: { data: MANY_ROWS, columns: MANY_COLS },
     })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
@@ -1124,7 +1117,6 @@ describe('DataTable — virtualized filter checklist', () => {
       props: {
         data: MANY_ROWS,
         columns: MANY_COLS,
-        rowKey: 'id',
         initialViewState: { pageSize: 10 },
       },
     })
@@ -1148,7 +1140,7 @@ describe('DataTable — virtualized filter checklist', () => {
   it('select-all still excludes every matching value, not just the rendered window', async () => {
     // `name` is a plain scalar column: checked-by-default, so select-all excludes every value.
     const wrapper = mount(DataTable, {
-      props: { data: MANY_ROWS, columns: MANY_COLS, rowKey: 'id' },
+      props: { data: MANY_ROWS, columns: MANY_COLS },
     })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
@@ -1186,20 +1178,20 @@ describe('DataTable — filter value sort', () => {
   }
 
   it('sorts checklist values alphabetically ascending by default', async () => {
-    const wrapper = mount(DataTable, { props: { data: TAG_ROWS, columns: TAG_COLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: TAG_ROWS, columns: TAG_COLS } })
     await openTagsFilter(wrapper)
     expect(checklistValueOrder(wrapper)).toEqual(['Action', 'Adventure', 'RPG'])
   })
 
   it('cycles to alphabetical descending on the first click', async () => {
-    const wrapper = mount(DataTable, { props: { data: TAG_ROWS, columns: TAG_COLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: TAG_ROWS, columns: TAG_COLS } })
     await openTagsFilter(wrapper)
     await wrapper.find('.dt-value-sort-btn').trigger('click')
     expect(checklistValueOrder(wrapper)).toEqual(['RPG', 'Adventure', 'Action'])
   })
 
   it('cycles to count descending (tie-broken alphabetically) on the second click', async () => {
-    const wrapper = mount(DataTable, { props: { data: TAG_ROWS, columns: TAG_COLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: TAG_ROWS, columns: TAG_COLS } })
     await openTagsFilter(wrapper)
     await wrapper.find('.dt-value-sort-btn').trigger('click')
     await wrapper.find('.dt-value-sort-btn').trigger('click')
@@ -1207,7 +1199,7 @@ describe('DataTable — filter value sort', () => {
   })
 
   it('cycles to count ascending (tie-broken alphabetically) on the third click', async () => {
-    const wrapper = mount(DataTable, { props: { data: TAG_ROWS, columns: TAG_COLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: TAG_ROWS, columns: TAG_COLS } })
     await openTagsFilter(wrapper)
     await wrapper.find('.dt-value-sort-btn').trigger('click')
     await wrapper.find('.dt-value-sort-btn').trigger('click')
@@ -1216,7 +1208,7 @@ describe('DataTable — filter value sort', () => {
   })
 
   it('cycles back to alphabetical ascending on the fourth click', async () => {
-    const wrapper = mount(DataTable, { props: { data: TAG_ROWS, columns: TAG_COLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: TAG_ROWS, columns: TAG_COLS } })
     await openTagsFilter(wrapper)
     await wrapper.find('.dt-value-sort-btn').trigger('click')
     await wrapper.find('.dt-value-sort-btn').trigger('click')
@@ -1234,7 +1226,7 @@ describe('DataTable — filter value sort', () => {
         defaultValueSort: { by: 'alpha', dir: 'desc' },
       },
     ]
-    const wrapper = mount(DataTable, { props: { data: TAG_ROWS, columns: cols, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: TAG_ROWS, columns: cols } })
     await openTagsFilter(wrapper)
     expect(checklistValueOrder(wrapper)).toEqual(['RPG', 'Adventure', 'Action'])
     // The cycle still advances through all 4 states from that starting point — alpha-desc's next
@@ -1264,7 +1256,7 @@ describe('DataTable — filter value sort', () => {
         .filter((v): v is string => !!v)
     }
     const wrapper = mount(DataTable, {
-      props: { data: DATE_ROWS, columns: DATE_COLS, rowKey: 'id' },
+      props: { data: DATE_ROWS, columns: DATE_COLS },
     })
     await openTagsFilter(wrapper)
     expect(yearOrder(wrapper)).toEqual(['2021', '2023'])
@@ -1305,7 +1297,7 @@ describe('DataTable — date filter tree', () => {
 
   it('renders year nodes collapsed by default, with months hidden until expanded', async () => {
     const wrapper = mount(DataTable, {
-      props: { data: DATE_ROWS, columns: DATE_COLS, rowKey: 'id' },
+      props: { data: DATE_ROWS, columns: DATE_COLS },
     })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
@@ -1319,7 +1311,7 @@ describe('DataTable — date filter tree', () => {
   // scrolling. It must now sit inside its own bounded, scrollable container.
   it('bounds the date tree in a scrollable, flex-filling container', async () => {
     const wrapper = mount(DataTable, {
-      props: { data: DATE_ROWS, columns: DATE_COLS, rowKey: 'id' },
+      props: { data: DATE_ROWS, columns: DATE_COLS },
     })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
@@ -1330,7 +1322,7 @@ describe('DataTable — date filter tree', () => {
 
   it('expanding a year reveals its months, expanding a month reveals its days', async () => {
     const wrapper = mount(DataTable, {
-      props: { data: DATE_ROWS, columns: DATE_COLS, rowKey: 'id' },
+      props: { data: DATE_ROWS, columns: DATE_COLS },
     })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
@@ -1343,7 +1335,7 @@ describe('DataTable — date filter tree', () => {
 
   it('checking a year node selects every date under it and filters rows accordingly', async () => {
     const wrapper = mount(DataTable, {
-      props: { data: DATE_ROWS, columns: DATE_COLS, rowKey: 'id' },
+      props: { data: DATE_ROWS, columns: DATE_COLS },
     })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
@@ -1355,7 +1347,7 @@ describe('DataTable — date filter tree', () => {
 
   it('unchecking an already fully-selected year deselects every date under it', async () => {
     const wrapper = mount(DataTable, {
-      props: { data: DATE_ROWS, columns: DATE_COLS, rowKey: 'id' },
+      props: { data: DATE_ROWS, columns: DATE_COLS },
     })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
@@ -1367,7 +1359,7 @@ describe('DataTable — date filter tree', () => {
 
   it('is indeterminate on a month node when only some of its days are selected', async () => {
     const wrapper = mount(DataTable, {
-      props: { data: DATE_ROWS, columns: DATE_COLS, rowKey: 'id' },
+      props: { data: DATE_ROWS, columns: DATE_COLS },
     })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
@@ -1386,7 +1378,7 @@ describe('DataTable — date filter tree', () => {
       { id: 3, name: 'Game C', released: '2023-03-01' },
       { id: 4, name: 'Game D', released: '2023-04-01' },
     ]
-    const wrapper = mount(DataTable, { props: { data: rows, columns: DATE_COLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: rows, columns: DATE_COLS } })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
     await treeItem(wrapper, '2023').find('input[type="checkbox"]').trigger('click')
@@ -1402,7 +1394,7 @@ describe('DataTable — date filter tree', () => {
       { id: 3, name: 'Game C', released: '2021-01-02' },
       { id: 4, name: 'Game D', released: '2024-07-01' },
     ]
-    const wrapper = mount(DataTable, { props: { data: rows, columns: DATE_COLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: rows, columns: DATE_COLS } })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
     await treeItem(wrapper, '2023').find('.dt-date-tree-toggle--branch').trigger('click')
@@ -1424,7 +1416,7 @@ describe('DataTable — date filter tree', () => {
       { id: 3, name: 'Game C', released: '2021-01-02' },
       { id: 4, name: 'Game D', released: '2024-07-01' },
     ]
-    const wrapper = mount(DataTable, { props: { data: rows, columns: DATE_COLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: rows, columns: DATE_COLS } })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
     await treeItem(wrapper, '2023').find('.dt-date-tree-toggle--branch').trigger('click')
@@ -1444,7 +1436,7 @@ describe('DataTable — date filter tree', () => {
 
   it('renders 2 native date inputs above the tree for a date column', async () => {
     const wrapper = mount(DataTable, {
-      props: { data: DATE_ROWS, columns: DATE_COLS, rowKey: 'id' },
+      props: { data: DATE_ROWS, columns: DATE_COLS },
     })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
@@ -1454,7 +1446,7 @@ describe('DataTable — date filter tree', () => {
 
   it("defaults the date inputs to the column's earliest/latest date when no filter is set", async () => {
     const wrapper = mount(DataTable, {
-      props: { data: DATE_ROWS, columns: DATE_COLS, rowKey: 'id' },
+      props: { data: DATE_ROWS, columns: DATE_COLS },
     })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
@@ -1465,7 +1457,7 @@ describe('DataTable — date filter tree', () => {
 
   it('a date range narrows the tree itself and filters rows, without needing a checkbox ticked', async () => {
     const wrapper = mount(DataTable, {
-      props: { data: DATE_ROWS, columns: DATE_COLS, rowKey: 'id' },
+      props: { data: DATE_ROWS, columns: DATE_COLS },
     })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
@@ -1481,7 +1473,7 @@ describe('DataTable — date filter tree', () => {
 
   it("a date range slider has epoch-based bounds matching the column's actual min/max date", async () => {
     const wrapper = mount(DataTable, {
-      props: { data: DATE_ROWS, columns: DATE_COLS, rowKey: 'id' },
+      props: { data: DATE_ROWS, columns: DATE_COLS },
     })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
@@ -1495,7 +1487,7 @@ describe('DataTable — date filter tree', () => {
 
   it('marks the date column with a clear button and an active-bar chip once a range filter is set, with no checkbox ticked', async () => {
     const wrapper = mount(DataTable, {
-      props: { data: DATE_ROWS, columns: DATE_COLS, rowKey: 'id' },
+      props: { data: DATE_ROWS, columns: DATE_COLS },
     })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
@@ -1510,7 +1502,7 @@ describe('DataTable — date filter tree', () => {
 
   it("clicking a date range filter's active-bar chip clears it, restoring the full tree and rows", async () => {
     const wrapper = mount(DataTable, {
-      props: { data: DATE_ROWS, columns: DATE_COLS, rowKey: 'id' },
+      props: { data: DATE_ROWS, columns: DATE_COLS },
     })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!
     await filterBtn.trigger('click')
@@ -1529,13 +1521,13 @@ describe('DataTable — date filter tree', () => {
 
 describe('DataTable — search clear button', () => {
   it('does not render a clear button when the search query is empty', () => {
-    const wrapper = mount(DataTable, { props: { data: ROWS, columns: COLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: COLS } })
     expect(wrapper.find('.dt-search-clear').exists()).toBe(false)
   })
 
   it('renders and wires up a clear button once the search query is non-empty', async () => {
     const wrapper = mount(DataTable, {
-      props: { data: ROWS, columns: COLS, rowKey: 'id' },
+      props: { data: ROWS, columns: COLS },
       attachTo: document.body,
     })
     const input = wrapper.find('input.dt-search-input')
@@ -1552,13 +1544,13 @@ describe('DataTable — search clear button', () => {
 describe('DataTable — showSearch', () => {
   it('hides the search box when show-search is false', () => {
     const wrapper = mount(DataTable, {
-      props: { data: ROWS, columns: COLS, rowKey: 'id', showSearch: false },
+      props: { data: ROWS, columns: COLS, showSearch: false },
     })
     expect(wrapper.find('input.dt-search-input').exists()).toBe(false)
   })
 
   it('shows the search box by default', () => {
-    const wrapper = mount(DataTable, { props: { data: ROWS, columns: COLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: COLS } })
     expect(wrapper.find('input.dt-search-input').exists()).toBe(true)
   })
 })
@@ -1569,7 +1561,7 @@ describe('DataTable — range presets', () => {
       { key: 'name', label: 'Name' },
       { key: 'score', label: 'Score', type: 'number', rangePresets: [{ label: 'top', min: 80 }] },
     ]
-    const wrapper = mount(DataTable, { props: { data: ROWS, columns: cols, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: cols } })
     await wrapper
       .findAll('button')
       .find((b) => b.text() === 'Filter')!
@@ -1603,7 +1595,7 @@ describe('DataTable — checkbox cells as hit areas', () => {
   it("a click anywhere in a row's checkbox cell toggles it; shift-click selects the range", async () => {
     const onRowClick = vi.fn()
     const wrapper = mount(DataTable, {
-      props: { data: ROWS3, columns: COLS, rowKey: 'id', selectable: true, onRowClick },
+      props: { data: ROWS3, columns: COLS, selectable: true, onRowClick },
     })
     click(cellOf(wrapper, 'Select row Alice'))
     await wrapper.vm.$nextTick()
@@ -1615,7 +1607,7 @@ describe('DataTable — checkbox cells as hit areas', () => {
 
   it("the select-all checkbox's cell selects all", async () => {
     const wrapper = mount(DataTable, {
-      props: { data: ROWS, columns: COLS, rowKey: 'id', selectable: true },
+      props: { data: ROWS, columns: COLS, selectable: true },
     })
     click(cellOf(wrapper, 'Select all'))
     await wrapper.vm.$nextTick()
@@ -1627,7 +1619,6 @@ describe('DataTable — checkbox cells as hit areas', () => {
       props: {
         data: ROWS,
         columns: COLS.map((c) => ({ ...c, groupable: true })),
-        rowKey: 'id',
         selectable: true,
         defaultGroupsCollapsed: false,
         initialViewState: { groupBy: ['name'] },
@@ -1644,7 +1635,7 @@ describe('DataTable — checkbox cells as hit areas', () => {
 describe('DataTable — currentRow', () => {
   it('marks the current row with aria-current and dt-tr--current, following the prop', async () => {
     const wrapper = mount(DataTable, {
-      props: { data: ROWS, columns: COLS, rowKey: 'id', currentRow: ROWS[1] },
+      props: { data: ROWS, columns: COLS, currentRow: ROWS[1] },
     })
     const marked = () => wrapper.findAll('tbody tr[aria-current="true"]')
     expect(marked()).toHaveLength(1)
@@ -1660,7 +1651,6 @@ describe('DataTable — currentRow', () => {
       props: {
         data: ROWS,
         columns: COLS,
-        rowKey: 'id',
         currentRow: ROWS[1],
         rowClass: (r: Row) => (r.name === 'Bob' ? 'is-expired dimmed' : undefined),
       },
@@ -1683,7 +1673,7 @@ describe('DataTable — empty toolbar', () => {
 
   it('renders no toolbar when no control applies', () => {
     const wrapper = mount(DataTable, {
-      props: { data: ROWS, columns: BARE, rowKey: 'id', showSearch: false },
+      props: { data: ROWS, columns: BARE, showSearch: false },
     })
     expect(wrapper.find('.dt-toolbar').exists()).toBe(false)
     expect(wrapper.find('.dt-active-bar').exists()).toBe(true)
@@ -1691,7 +1681,7 @@ describe('DataTable — empty toolbar', () => {
 
   it('renders it for the toolbar-end slot or a restored state to clear, without a lone divider', () => {
     const withEnd = mount(DataTable, {
-      props: { data: ROWS, columns: BARE, rowKey: 'id', showSearch: false },
+      props: { data: ROWS, columns: BARE, showSearch: false },
       slots: { 'toolbar-end': '<button class="share">Share</button>' },
     })
     expect(withEnd.find('.dt-toolbar-end').exists()).toBe(true)
@@ -1700,7 +1690,6 @@ describe('DataTable — empty toolbar', () => {
       props: {
         data: ROWS,
         columns: BARE,
-        rowKey: 'id',
         showSearch: false,
         initialViewState: { searchQuery: 'a' },
       },
@@ -1710,7 +1699,7 @@ describe('DataTable — empty toolbar', () => {
 
   it('draws the divider only with controls on both sides', () => {
     const wrapper = mount(DataTable, {
-      props: { data: ROWS, columns: SORT_ONLY, rowKey: 'id', showSearch: false },
+      props: { data: ROWS, columns: SORT_ONLY, showSearch: false },
     })
     expect(wrapper.find('.dt-toolbar').exists()).toBe(true)
     expect(wrapper.find('.dt-toolbar-divider').exists()).toBe(false)
@@ -1720,7 +1709,7 @@ describe('DataTable — empty toolbar', () => {
 describe('DataTable — toolbar-end slot', () => {
   it('renders the slot as the last child of the toolbar actions row', () => {
     const wrapper = mount(DataTable, {
-      props: { data: ROWS, columns: COLS, rowKey: 'id' },
+      props: { data: ROWS, columns: COLS },
       slots: { 'toolbar-end': '<button class="share">Share</button>' },
     })
     const end = wrapper.find('.dt-toolbar-actions > .dt-toolbar-end:last-child')
@@ -1728,7 +1717,7 @@ describe('DataTable — toolbar-end slot', () => {
   })
 
   it('renders no toolbar-end wrapper when the slot is absent', () => {
-    const wrapper = mount(DataTable, { props: { data: ROWS, columns: COLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: COLS } })
     expect(wrapper.find('.dt-toolbar-end').exists()).toBe(false)
   })
 
@@ -1736,7 +1725,7 @@ describe('DataTable — toolbar-end slot', () => {
     const restore = stubMatchMedia(true)
     try {
       const wrapper = mount(DataTable, {
-        props: { data: ROWS, columns: COLS, rowKey: 'id' },
+        props: { data: ROWS, columns: COLS },
         slots: { 'toolbar-end': '<button class="share">Share</button>' },
       })
       await wrapper.vm.$nextTick()
@@ -1761,7 +1750,7 @@ describe('DataTable — sort dropdown', () => {
       { key: 'name', label: 'Name', sortable: false },
       { key: 'score', label: 'Score', type: 'number' },
     ]
-    const wrapper = mount(DataTable, { props: { data: ROWS, columns: cols, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: cols } })
     await wrapper
       .findAll('button')
       .find((b) => b.text() === 'Sort')!
@@ -1771,7 +1760,7 @@ describe('DataTable — sort dropdown', () => {
   })
 
   it('lists a not-yet-sorted column under the add section as a real button', async () => {
-    const wrapper = mount(DataTable, { props: { data: ROWS, columns: SORT_COLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: SORT_COLS } })
     await wrapper
       .findAll('button')
       .find((b) => b.text() === 'Sort')!
@@ -1781,7 +1770,7 @@ describe('DataTable — sort dropdown', () => {
   })
 
   it('clicking an add-list column adds it ascending, and clicking the active row toggles direction', async () => {
-    const wrapper = mount(DataTable, { props: { data: ROWS, columns: SORT_COLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: SORT_COLS } })
     await wrapper
       .findAll('button')
       .find((b) => b.text() === 'Sort')!
@@ -1799,7 +1788,7 @@ describe('DataTable — sort dropdown', () => {
   })
 
   it('the × button removes the sort and moves the column back to the add section', async () => {
-    const wrapper = mount(DataTable, { props: { data: ROWS, columns: SORT_COLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: SORT_COLS } })
     await wrapper
       .findAll('button')
       .find((b) => b.text() === 'Sort')!
@@ -1815,7 +1804,7 @@ describe('DataTable — sort dropdown', () => {
   })
 
   it('an active row has a drag-handle icon and a labeled remove button', async () => {
-    const wrapper = mount(DataTable, { props: { data: ROWS, columns: SORT_COLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: SORT_COLS } })
     await wrapper
       .findAll('button')
       .find((b) => b.text() === 'Sort')!
@@ -1836,7 +1825,6 @@ describe('DataTable — sort dropdown', () => {
       props: {
         data: ROWS,
         columns: COLS.map((c) => ({ ...c, groupable: true })),
-        rowKey: 'id',
         initialViewState: {
           groupBy: ['name'],
           sorts: [{ key: 'score', dir: 'asc' }],
@@ -1853,12 +1841,12 @@ describe('DataTable — sort dropdown', () => {
   })
 
   it('the Sort toolbar button has no clear-sorts button until a sort is active', async () => {
-    const wrapper = mount(DataTable, { props: { data: ROWS, columns: SORT_COLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: SORT_COLS } })
     expect(wrapper.find('[title="Clear sorts"]').exists()).toBe(false)
   })
 
   it('the toolbar clear-sorts button clears all sorts without opening the dropdown', async () => {
-    const wrapper = mount(DataTable, { props: { data: ROWS, columns: SORT_COLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: SORT_COLS } })
     const sortToggle = () => wrapper.findAll('button').find((b) => b.text().startsWith('Sort'))!
     await sortToggle().trigger('click')
     await wrapper
@@ -1875,7 +1863,7 @@ describe('DataTable — sort dropdown', () => {
   })
 
   it('dragging an active sort row onto another reorders priority', async () => {
-    const wrapper = mount(DataTable, { props: { data: ROWS, columns: SORT_COLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: SORT_COLS } })
     await wrapper
       .findAll('button')
       .find((b) => b.text() === 'Sort')!
@@ -1900,7 +1888,7 @@ describe('DataTable — sort dropdown', () => {
 
   it('dropping past the last active sort row moves the dragged row to the end', async () => {
     const cols: ColumnDef<Row>[] = [...SORT_COLS, { key: 'id', label: 'Id', type: 'number' }]
-    const wrapper = mount(DataTable, { props: { data: ROWS, columns: cols, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: cols } })
     await wrapper
       .findAll('button')
       .find((b) => b.text() === 'Sort')!
@@ -1939,7 +1927,7 @@ describe('DataTable — sort dropdown', () => {
   })
 
   it('dropping on the bottom half of the last active sort row moves the dragged row after it', async () => {
-    const wrapper = mount(DataTable, { props: { data: ROWS, columns: SORT_COLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: SORT_COLS } })
     await wrapper
       .findAll('button')
       .find((b) => b.text() === 'Sort')!
@@ -1968,7 +1956,7 @@ describe('DataTable — sort dropdown', () => {
   })
 
   it('Alt+ArrowUp on a focused active sort row reorders priority', async () => {
-    const wrapper = mount(DataTable, { props: { data: ROWS, columns: SORT_COLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: SORT_COLS } })
     await wrapper
       .findAll('button')
       .find((b) => b.text() === 'Sort')!
@@ -1989,7 +1977,7 @@ describe('DataTable — sort dropdown', () => {
     expect(after[1].text()).toContain('Name')
   })
   it("Alt+ArrowUp on the first active sort row isn't default-prevented (no neighbor)", async () => {
-    const wrapper = mount(DataTable, { props: { data: ROWS, columns: SORT_COLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: SORT_COLS } })
     await wrapper
       .findAll('button')
       .find((b) => b.text() === 'Sort')!
@@ -2020,7 +2008,7 @@ describe('DataTable — header click sort', () => {
   ]
 
   it('clicking a header sorts ascending, clicking again reverses to descending', async () => {
-    const wrapper = mount(DataTable, { props: { data: ROWS, columns: SORT_COLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: SORT_COLS } })
     await headerOf(wrapper, 'Score').trigger('click')
     let names = wrapper.findAll('tbody tr td:first-child').map((td) => td.text())
     expect(names).toEqual(['Bob', 'Alice']) // 60, 90 — ascending
@@ -2031,7 +2019,7 @@ describe('DataTable — header click sort', () => {
   })
 
   it('clicking a third time clears the sort', async () => {
-    const wrapper = mount(DataTable, { props: { data: ROWS, columns: SORT_COLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: SORT_COLS } })
     await headerOf(wrapper, 'Score').trigger('click')
     await headerOf(wrapper, 'Score').trigger('click')
     await headerOf(wrapper, 'Score').trigger('click')
@@ -2040,7 +2028,7 @@ describe('DataTable — header click sort', () => {
   })
 
   it('plain-clicking a different header replaces the sort instead of appending to it', async () => {
-    const wrapper = mount(DataTable, { props: { data: ROWS, columns: SORT_COLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: SORT_COLS } })
     await headerOf(wrapper, 'Name').trigger('click')
     await headerOf(wrapper, 'Score').trigger('click')
     // Only Score's arrow shows — Name is no longer sorted.
@@ -2050,7 +2038,7 @@ describe('DataTable — header click sort', () => {
   })
 
   it('shift-clicking a header appends it to the existing sort instead of replacing it', async () => {
-    const wrapper = mount(DataTable, { props: { data: ROWS, columns: SORT_COLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: SORT_COLS } })
     await headerOf(wrapper, 'Name').trigger('click')
     await headerOf(wrapper, 'Score').trigger('click', { shiftKey: true })
     expect(headerOf(wrapper, 'Name').text()).toMatch(/[↑↓]/)
@@ -2060,7 +2048,7 @@ describe('DataTable — header click sort', () => {
   })
 
   it('shift-clicking an already-sorted column flips its direction in place, without removing it', async () => {
-    const wrapper = mount(DataTable, { props: { data: ROWS, columns: SORT_COLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: SORT_COLS } })
     await headerOf(wrapper, 'Name').trigger('click')
     await headerOf(wrapper, 'Score').trigger('click', { shiftKey: true })
     await headerOf(wrapper, 'Score').trigger('click', { shiftKey: true })
@@ -2075,7 +2063,7 @@ describe('DataTable — header click sort', () => {
       { key: 'name', label: 'Name', sortable: false },
       { key: 'score', label: 'Score', type: 'number' },
     ]
-    const wrapper = mount(DataTable, { props: { data: ROWS, columns: cols, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: cols } })
     await headerOf(wrapper, 'Name').trigger('click')
     await headerOf(wrapper, 'Name').trigger('click', { shiftKey: true })
     expect(headerOf(wrapper, 'Name').text()).not.toMatch(/[↑↓]/)
@@ -2088,32 +2076,32 @@ describe('DataTable — header click sort', () => {
       { key: 'name', label: 'Name', sortable: false },
       { key: 'score', label: 'Score', type: 'number', sortable: false },
     ]
-    const wrapper = mount(DataTable, { props: { data: ROWS, columns: cols, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: cols } })
     expect(wrapper.findAll('button').find((b) => b.text() === 'Sort')).toBeUndefined()
   })
 
   it('hides the Columns toolbar button when showColumns is false', () => {
     const wrapper = mount(DataTable, {
-      props: { data: ROWS, columns: COLS, rowKey: 'id', showColumns: false },
+      props: { data: ROWS, columns: COLS, showColumns: false },
     })
     expect(wrapper.findAll('button').find((b) => b.text() === 'Columns')).toBeUndefined()
   })
 
   it('hides the Columns toolbar button entirely when there are fewer than 2 columns', () => {
     const oneCol: ColumnDef<Row>[] = [{ key: 'name', label: 'Name' }]
-    const wrapper = mount(DataTable, { props: { data: ROWS, columns: oneCol, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: oneCol } })
     expect(wrapper.findAll('button').find((b) => b.text() === 'Columns')).toBeUndefined()
   })
 
   it('a single sorted column shows only the direction arrow, no index number', async () => {
-    const wrapper = mount(DataTable, { props: { data: ROWS, columns: SORT_COLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: SORT_COLS } })
     await headerOf(wrapper, 'Score').trigger('click')
     expect(headerOf(wrapper, 'Score').text()).toContain('↑')
     expect(headerOf(wrapper, 'Score').text()).not.toMatch(/\d/)
   })
 
   it('shows an index number on each header once more than one column is sorted', async () => {
-    const wrapper = mount(DataTable, { props: { data: ROWS, columns: SORT_COLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: SORT_COLS } })
     await headerOf(wrapper, 'Name').trigger('click')
     await headerOf(wrapper, 'Score').trigger('click', { shiftKey: true })
     expect(headerOf(wrapper, 'Name').text()).toContain('1↑')
@@ -2130,7 +2118,7 @@ describe('DataTable — header click sort', () => {
       { key: 'dept', label: 'Dept', groupable: true },
     ]
     const rows: DeptRow[] = ROWS.map((r) => ({ ...r, dept: r.name === 'Alice' ? 'Eng' : 'HR' }))
-    const wrapper = mount(DataTable, { props: { data: rows, columns: cols, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: rows, columns: cols } })
     // Sort by dept while it still has a header, then group by it — its sort entry (used to order
     // the groups) stays in `sorts`, but dept no longer has a header to show a number on.
     await headerOf(wrapper, 'Dept').trigger('click')
@@ -2157,7 +2145,7 @@ describe('DataTable — group dropdown', () => {
   ]
 
   it('lists a not-yet-grouped column under the add section as a real button', async () => {
-    const wrapper = mount(DataTable, { props: { data: ROWS, columns: GROUP_COLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: GROUP_COLS } })
     await wrapper
       .findAll('button')
       .find((b) => b.text() === 'Group')!
@@ -2167,7 +2155,7 @@ describe('DataTable — group dropdown', () => {
   })
 
   it('the × button removes the group and moves the column back to the add section', async () => {
-    const wrapper = mount(DataTable, { props: { data: ROWS, columns: GROUP_COLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: GROUP_COLS } })
     await wrapper
       .findAll('button')
       .find((b) => b.text() === 'Group')!
@@ -2182,12 +2170,12 @@ describe('DataTable — group dropdown', () => {
   })
 
   it('the Group toolbar button has no clear-groups button until a group is active', async () => {
-    const wrapper = mount(DataTable, { props: { data: ROWS, columns: GROUP_COLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: GROUP_COLS } })
     expect(wrapper.find('[title="Clear groups"]').exists()).toBe(false)
   })
 
   it('the toolbar clear-groups button clears all groups without opening the dropdown', async () => {
-    const wrapper = mount(DataTable, { props: { data: ROWS, columns: GROUP_COLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: GROUP_COLS } })
     const groupToggle = () => wrapper.findAll('button').find((b) => b.text().startsWith('Group'))!
     await groupToggle().trigger('click')
     await wrapper
@@ -2202,7 +2190,7 @@ describe('DataTable — group dropdown', () => {
   })
 
   it('dragging an active group row onto another reorders priority', async () => {
-    const wrapper = mount(DataTable, { props: { data: ROWS, columns: GROUP_COLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: GROUP_COLS } })
     await wrapper
       .findAll('button')
       .find((b) => b.text() === 'Group')!
@@ -2230,7 +2218,7 @@ describe('DataTable — group dropdown', () => {
       ...GROUP_COLS,
       { key: 'id', label: 'Id', type: 'number', groupable: true },
     ]
-    const wrapper = mount(DataTable, { props: { data: ROWS, columns: cols, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: cols } })
     await wrapper
       .findAll('button')
       .find((b) => b.text() === 'Group')!
@@ -2273,7 +2261,7 @@ describe('DataTable — group dropdown', () => {
       ...GROUP_COLS,
       { key: 'id', label: 'Id', type: 'number', groupable: true },
     ]
-    const wrapper = mount(DataTable, { props: { data: ROWS, columns: cols, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: cols } })
     await wrapper
       .findAll('button')
       .find((b) => b.text() === 'Group')!
@@ -2311,7 +2299,7 @@ describe('DataTable — group dropdown', () => {
 
 describe('DataTable — columns dropdown', () => {
   it('column rows are draggable and reorder headers on drop, with no ▲▼ buttons', async () => {
-    const wrapper = mount(DataTable, { props: { data: ROWS, columns: COLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: COLS } })
     await wrapper
       .findAll('button')
       .find((b) => b.text() === 'Columns')!
@@ -2329,7 +2317,7 @@ describe('DataTable — columns dropdown', () => {
   })
 
   it('Alt+ArrowUp on a focused visible-column row reorders headers, its × still hides the column', async () => {
-    const wrapper = mount(DataTable, { props: { data: ROWS, columns: COLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: COLS } })
     await wrapper
       .findAll('button')
       .find((b) => b.text() === 'Columns')!
@@ -2346,7 +2334,7 @@ describe('DataTable — columns dropdown', () => {
 
   it('dropping past the last column row moves the dragged row to the end', async () => {
     const cols: ColumnDef<Row>[] = [...COLS, { key: 'id', label: 'Id', type: 'number' }]
-    const wrapper = mount(DataTable, { props: { data: ROWS, columns: cols, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: cols } })
     await wrapper
       .findAll('button')
       .find((b) => b.text() === 'Columns')!
@@ -2368,7 +2356,7 @@ describe('DataTable — columns dropdown', () => {
 
   it('dropping on the bottom half of the last column row moves the dragged row after it', async () => {
     const cols: ColumnDef<Row>[] = [...COLS, { key: 'id', label: 'Id', type: 'number' }]
-    const wrapper = mount(DataTable, { props: { data: ROWS, columns: cols, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: cols } })
     await wrapper
       .findAll('button')
       .find((b) => b.text() === 'Columns')!
@@ -2396,7 +2384,7 @@ describe('DataTable — filter column selector keyboard access', () => {
   ]
 
   it('renders each column selector as a real, focusable <button>', async () => {
-    const wrapper = mount(DataTable, { props: { data: ROWS, columns: FILTER_COLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: FILTER_COLS } })
     await wrapper
       .findAll('button')
       .find((b) => b.text() === 'Filter')!
@@ -2446,7 +2434,7 @@ describe('DataTable — filter column ordering & clear button', () => {
 
   it('is plain alphabetical order with nothing active', async () => {
     const wrapper = mount(DataTable, {
-      props: { data: ORDER_ROWS, columns: ORDER_COLS, rowKey: 'id' },
+      props: { data: ORDER_ROWS, columns: ORDER_COLS },
     })
     await openFilter(wrapper)
     expect(filterColLabels(wrapper)).toEqual(['Dept', 'Joined', 'Name', 'Score'])
@@ -2454,7 +2442,7 @@ describe('DataTable — filter column ordering & clear button', () => {
 
   it('does not reorder mid-session when a filter is toggled while the panel stays open', async () => {
     const wrapper = mount(DataTable, {
-      props: { data: ORDER_ROWS, columns: ORDER_COLS, rowKey: 'id' },
+      props: { data: ORDER_ROWS, columns: ORDER_COLS },
     })
     await openFilter(wrapper)
     await rowFor(wrapper, 'Score').find('.dt-filter-col-item').trigger('click')
@@ -2464,7 +2452,7 @@ describe('DataTable — filter column ordering & clear button', () => {
 
   it('moves active-filter columns to the top on the next open', async () => {
     const wrapper = mount(DataTable, {
-      props: { data: ORDER_ROWS, columns: ORDER_COLS, rowKey: 'id' },
+      props: { data: ORDER_ROWS, columns: ORDER_COLS },
     })
     await openFilter(wrapper)
     await rowFor(wrapper, 'Score').find('.dt-filter-col-item').trigger('click')
@@ -2476,7 +2464,7 @@ describe('DataTable — filter column ordering & clear button', () => {
 
   it('shows a clear button only for a column with an active filter', async () => {
     const wrapper = mount(DataTable, {
-      props: { data: ORDER_ROWS, columns: ORDER_COLS, rowKey: 'id' },
+      props: { data: ORDER_ROWS, columns: ORDER_COLS },
     })
     await openFilter(wrapper)
     expect(rowFor(wrapper, 'Score').find('.dt-filter-col-clear').exists()).toBe(false)
@@ -2487,7 +2475,7 @@ describe('DataTable — filter column ordering & clear button', () => {
 
   it('clear button removes the filter without opening that column', async () => {
     const wrapper = mount(DataTable, {
-      props: { data: ORDER_ROWS, columns: ORDER_COLS, rowKey: 'id' },
+      props: { data: ORDER_ROWS, columns: ORDER_COLS },
     })
     await openFilter(wrapper)
     await rowFor(wrapper, 'Score').find('.dt-filter-col-item').trigger('click')
@@ -2501,7 +2489,7 @@ describe('DataTable — filter column ordering & clear button', () => {
 
   it('Delete on a focused, active column row clears its filter', async () => {
     const wrapper = mount(DataTable, {
-      props: { data: ORDER_ROWS, columns: ORDER_COLS, rowKey: 'id' },
+      props: { data: ORDER_ROWS, columns: ORDER_COLS },
     })
     await openFilter(wrapper)
     const scoreBtn = rowFor(wrapper, 'Score').find('.dt-filter-col-item')
@@ -2513,7 +2501,7 @@ describe('DataTable — filter column ordering & clear button', () => {
 
   it('Backspace on a focused, inactive column row is a no-op', async () => {
     const wrapper = mount(DataTable, {
-      props: { data: ORDER_ROWS, columns: ORDER_COLS, rowKey: 'id' },
+      props: { data: ORDER_ROWS, columns: ORDER_COLS },
     })
     await openFilter(wrapper)
     const deptBtn = rowFor(wrapper, 'Dept').find('.dt-filter-col-item')
@@ -2528,7 +2516,6 @@ describe('DataTable — active state bar', () => {
       props: {
         data: ROWS,
         columns: COLS,
-        rowKey: 'id',
         initialViewState: {
           sorts: [
             { key: 'name', dir: 'asc' },
@@ -2547,7 +2534,7 @@ describe('DataTable — active state bar', () => {
   })
 
   it('renders with just the row-count stats when nothing is active', () => {
-    const wrapper = mount(DataTable, { props: { data: ROWS, columns: COLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: COLS } })
     expect(wrapper.find('.dt-active-bar').exists()).toBe(true)
     expect(wrapper.find('.dt-active-bar .dt-chip').exists()).toBe(false)
     expect(wrapper.find('.dt-stats').text()).toContain('2 / 2 rows')
@@ -2558,7 +2545,7 @@ describe('DataTable — active state bar', () => {
       { key: 'name', label: 'Name', filterable: true, groupable: true },
       { key: 'score', label: 'Score', type: 'number', groupable: true },
     ]
-    const wrapper = mount(DataTable, { props: { data: ROWS, columns: chipCols, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: chipCols } })
     await wrapper
       .findAll('button')
       .find((b) => b.text() === 'Sort')!
@@ -2611,13 +2598,13 @@ describe('DataTable — keyboard navigation', () => {
   }
 
   it('does not add a tabindex to rows when neither selectable nor onRowClick is set', () => {
-    const wrapper = mount(DataTable, { props: { data: ROWS3, columns: COLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: ROWS3, columns: COLS } })
     for (const row of dataRows(wrapper)) expect(row.attributes('tabindex')).toBeUndefined()
   })
 
   it('makes the first row the sole tab stop by default, the rest tabindex -1', () => {
     const wrapper = mount(DataTable, {
-      props: { data: ROWS3, columns: COLS, rowKey: 'id', selectable: true },
+      props: { data: ROWS3, columns: COLS, selectable: true },
     })
     const [first, ...rest] = dataRows(wrapper)
     expect(first.attributes('tabindex')).toBe('0')
@@ -2626,7 +2613,7 @@ describe('DataTable — keyboard navigation', () => {
 
   it('excludes the row checkbox from the tab sequence', () => {
     const wrapper = mount(DataTable, {
-      props: { data: ROWS3, columns: COLS, rowKey: 'id', selectable: true },
+      props: { data: ROWS3, columns: COLS, selectable: true },
     })
     expect(wrapper.find('tbody tr input[type="checkbox"]').attributes('tabindex')).toBe('-1')
   })
@@ -2635,7 +2622,7 @@ describe('DataTable — keyboard navigation', () => {
   // renders into a detached fragment by default, so these need `attachTo: document.body`.
   it('ArrowDown moves the roving tabindex to the next row', async () => {
     const wrapper = mount(DataTable, {
-      props: { data: ROWS3, columns: COLS, rowKey: 'id', selectable: true },
+      props: { data: ROWS3, columns: COLS, selectable: true },
       attachTo: document.body,
     })
     const [first, second] = dataRows(wrapper)
@@ -2649,7 +2636,7 @@ describe('DataTable — keyboard navigation', () => {
 
   it('ArrowUp/Home on the first row is a no-op, leaving the key to the page', async () => {
     const wrapper = mount(DataTable, {
-      props: { data: ROWS3, columns: COLS, rowKey: 'id', selectable: true },
+      props: { data: ROWS3, columns: COLS, selectable: true },
       attachTo: document.body,
     })
     const [first] = dataRows(wrapper)
@@ -2668,7 +2655,7 @@ describe('DataTable — keyboard navigation', () => {
 
   it('End moves the roving tabindex to the last row', async () => {
     const wrapper = mount(DataTable, {
-      props: { data: ROWS3, columns: COLS, rowKey: 'id', selectable: true },
+      props: { data: ROWS3, columns: COLS, selectable: true },
       attachTo: document.body,
     })
     const rows = dataRows(wrapper)
@@ -2683,7 +2670,7 @@ describe('DataTable — keyboard navigation', () => {
 
   it('Space toggles selection on the focused row', async () => {
     const wrapper = mount(DataTable, {
-      props: { data: ROWS3, columns: COLS, rowKey: 'id', selectable: true },
+      props: { data: ROWS3, columns: COLS, selectable: true },
     })
     const [first] = dataRows(wrapper)
     const checkbox = first.find('input[type="checkbox"]')
@@ -2696,7 +2683,7 @@ describe('DataTable — keyboard navigation', () => {
 
   it('Shift+ArrowDown extends the selection range like a shift-click would', async () => {
     const wrapper = mount(DataTable, {
-      props: { data: ROWS3, columns: COLS, rowKey: 'id', selectable: true },
+      props: { data: ROWS3, columns: COLS, selectable: true },
       attachTo: document.body,
     })
     const [first, second] = dataRows(wrapper)
@@ -2714,7 +2701,7 @@ describe('DataTable — keyboard navigation', () => {
   it('Enter calls onRowClick with the row and the keyboard event', async () => {
     const onRowClick = vi.fn()
     const wrapper = mount(DataTable, {
-      props: { data: ROWS3, columns: COLS, rowKey: 'id', onRowClick },
+      props: { data: ROWS3, columns: COLS, onRowClick },
     })
     const [first] = dataRows(wrapper)
     ;(first.element as HTMLElement).focus()
@@ -2744,7 +2731,7 @@ describe('DataTable — keyboard navigation across pages', () => {
 
   it('hides the pager when no page size would split the rows into pages', () => {
     const wrapper = mount(DataTable, {
-      props: { data: ROWS6, columns: COLS, rowKey: 'id', initialViewState: { pageSize: 10 } },
+      props: { data: ROWS6, columns: COLS, initialViewState: { pageSize: 10 } },
     })
     expect(wrapper.find('select').exists()).toBe(false)
     expect(wrapper.find('button[aria-label="Next page"]').exists()).toBe(false)
@@ -2753,7 +2740,7 @@ describe('DataTable — keyboard navigation across pages', () => {
   it('shows only the rows-per-page select when every row fits on one page', () => {
     const rows = [...ROWS6, ...ROWS6].map((r, i) => ({ ...r, id: i + 1 }))
     const wrapper = mount(DataTable, {
-      props: { data: rows, columns: COLS, rowKey: 'id', initialViewState: { pageSize: 20 } },
+      props: { data: rows, columns: COLS, initialViewState: { pageSize: 20 } },
     })
     expect(wrapper.find('select').exists()).toBe(true)
     expect(wrapper.find('button[aria-label="Next page"]').exists()).toBe(false)
@@ -2763,7 +2750,7 @@ describe('DataTable — keyboard navigation across pages', () => {
   it('keeps the pager and the starting page size after picking a larger one', async () => {
     const rows = [...ROWS6, ROWS6[0]].map((r, i) => ({ ...r, id: i + 1 }))
     const wrapper = mount(DataTable, {
-      props: { data: rows, columns: COLS, rowKey: 'id', initialViewState: { pageSize: 5 } },
+      props: { data: rows, columns: COLS, initialViewState: { pageSize: 5 } },
     })
     await wrapper.find('select').setValue('10')
     expect(wrapper.find('select').exists()).toBe(true)
@@ -2778,7 +2765,7 @@ describe('DataTable — keyboard navigation across pages', () => {
 
   it('names the rows-per-page select after its visible label', () => {
     const wrapper = mount(DataTable, {
-      props: { data: ROWS6, columns: COLS, rowKey: 'id', initialViewState: { pageSize: 2 } },
+      props: { data: ROWS6, columns: COLS, initialViewState: { pageSize: 2 } },
     })
     const select = wrapper.find('select').element as HTMLSelectElement
     expect(select.labels[0]?.textContent).toMatch(/^Rows per page:/)
@@ -2786,7 +2773,7 @@ describe('DataTable — keyboard navigation across pages', () => {
 
   it('the rows-per-page dropdown includes and selects a custom initialViewState.pageSize not among the defaults', () => {
     const wrapper = mount(DataTable, {
-      props: { data: ROWS6, columns: COLS, rowKey: 'id', initialViewState: { pageSize: 2 } },
+      props: { data: ROWS6, columns: COLS, initialViewState: { pageSize: 2 } },
     })
     const select = wrapper.find('select').element as HTMLSelectElement
     expect([...select.options].map((o) => o.value)).toEqual(['2', '10', '20', '50', '100'])
@@ -2798,7 +2785,6 @@ describe('DataTable — keyboard navigation across pages', () => {
       props: {
         data: ROWS6,
         columns: COLS,
-        rowKey: 'id',
         selectable: true,
         initialViewState: { pageSize: 2 },
       },
@@ -2819,7 +2805,6 @@ describe('DataTable — keyboard navigation across pages', () => {
       props: {
         data: ROWS6,
         columns: COLS,
-        rowKey: 'id',
         selectable: true,
         initialViewState: { pageSize: 2 },
       },
@@ -2843,7 +2828,6 @@ describe('DataTable — keyboard navigation across pages', () => {
       props: {
         data: ROWS6,
         columns: COLS,
-        rowKey: 'id',
         selectable: true,
         initialViewState: { pageSize: 2 },
       },
@@ -2865,7 +2849,6 @@ describe('DataTable — keyboard navigation across pages', () => {
       props: {
         data: ROWS6,
         columns: COLS,
-        rowKey: 'id',
         selectable: true,
         initialViewState: { pageSize: 2 },
       },
@@ -2888,7 +2871,6 @@ describe('DataTable — keyboard navigation across pages', () => {
       props: {
         data: ROWS6,
         columns: COLS,
-        rowKey: 'id',
         selectable: true,
         initialViewState: { pageSize: 2 },
       },
@@ -2954,7 +2936,6 @@ describe('DataTable — keyboard navigation with grouping', () => {
       props: {
         data: GROUP_ROWS,
         columns: GROUP_COLS,
-        rowKey: 'id',
         selectable: true,
         defaultGroupsCollapsed: false,
       },
@@ -2973,7 +2954,6 @@ describe('DataTable — keyboard navigation with grouping', () => {
       props: {
         data: GROUP_ROWS,
         columns: GROUP_COLS,
-        rowKey: 'id',
         selectable: true,
         defaultGroupsCollapsed: false,
       },
@@ -2991,7 +2971,7 @@ describe('DataTable — keyboard navigation with grouping', () => {
 
   it('Enter toggles collapse on a focused group header, regardless of selectable/onRowClick', async () => {
     const wrapper = mount(DataTable, {
-      props: { data: GROUP_ROWS, columns: GROUP_COLS, rowKey: 'id', defaultGroupsCollapsed: false },
+      props: { data: GROUP_ROWS, columns: GROUP_COLS, defaultGroupsCollapsed: false },
       attachTo: document.body,
     })
     await groupByDept(wrapper)
@@ -3009,7 +2989,6 @@ describe('DataTable — keyboard navigation with grouping', () => {
       props: {
         data: GROUP_ROWS,
         columns: GROUP_COLS,
-        rowKey: 'id',
         selectable: true,
         defaultGroupsCollapsed: false,
       },
@@ -3029,7 +3008,6 @@ describe('DataTable — keyboard navigation with grouping', () => {
       props: {
         data: GROUP_ROWS,
         columns: GROUP_COLS,
-        rowKey: 'id',
         selectable: true,
         defaultGroupsCollapsed: false,
       },
@@ -3048,7 +3026,6 @@ describe('DataTable — keyboard navigation with grouping', () => {
       props: {
         data: GROUP_ROWS,
         columns: GROUP_COLS,
-        rowKey: 'id',
         selectable: true,
         defaultGroupsCollapsed: false,
       },
@@ -3065,7 +3042,7 @@ describe('DataTable — keyboard navigation with grouping', () => {
 
   it('starts groups collapsed by default, and Enter expands one', async () => {
     const wrapper = mount(DataTable, {
-      props: { data: GROUP_ROWS, columns: GROUP_COLS, rowKey: 'id' },
+      props: { data: GROUP_ROWS, columns: GROUP_COLS },
       attachTo: document.body,
     })
     await groupByDept(wrapper)
@@ -3082,7 +3059,6 @@ describe('DataTable — keyboard navigation with grouping', () => {
       props: {
         data: GROUP_ROWS,
         columns: GROUP_COLS,
-        rowKey: 'id',
         defaultGroupsCollapsed: false,
       },
       attachTo: document.body,
@@ -3137,7 +3113,6 @@ describe('DataTable — pagination with grouping', () => {
       props: {
         data: GROUP_ROWS,
         columns: GROUP_COLS,
-        rowKey: 'id',
         initialViewState: { pageSize: 2 },
         defaultGroupsCollapsed: false,
       },
@@ -3154,7 +3129,6 @@ describe('DataTable — pagination with grouping', () => {
       props: {
         data: GROUP_ROWS,
         columns: GROUP_COLS,
-        rowKey: 'id',
         initialViewState: { pageSize: 2 },
         defaultGroupsCollapsed: false,
       },
@@ -3180,7 +3154,7 @@ describe('DataTable — computed columns', () => {
       { key: 'grade', label: 'Grade', value: (row: Row) => (row.score >= 70 ? 'Pass' : 'Fail') },
     ]
     const wrapper = mount(DataTable, {
-      props: { data: ROWS, columns: cols, rowKey: 'id' },
+      props: { data: ROWS, columns: cols },
     })
     expect(wrapper.text()).toContain('Pass')
     expect(wrapper.text()).toContain('Fail')
@@ -3209,7 +3183,6 @@ describe('DataTable — dropdown column search and keyboard navigation', () => {
       props: {
         data: ROWS,
         columns: THREE_COLS,
-        rowKey: 'id',
         initialViewState: { visibleCols: ['name', 'score'] },
       },
     })
@@ -3227,7 +3200,7 @@ describe('DataTable — dropdown column search and keyboard navigation', () => {
   })
 
   it('the sort dropdown search box narrows only the addable list, alphabetized, leaving active sorts untouched', async () => {
-    const wrapper = mount(DataTable, { props: { data: ROWS, columns: THREE_COLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: THREE_COLS } })
     await openDd(wrapper, 'Sort')
     await wrapper
       .findAll('button.dt-dd-item--click')
@@ -3242,14 +3215,14 @@ describe('DataTable — dropdown column search and keyboard navigation', () => {
   })
 
   it('the group dropdown search box narrows the addable list', async () => {
-    const wrapper = mount(DataTable, { props: { data: ROWS, columns: THREE_COLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: THREE_COLS } })
     await openDd(wrapper, 'Group')
     await ddSearchInput(wrapper).setValue('xyz')
     expect(wrapper.findAll('button.dt-dd-item--click')).toHaveLength(0)
   })
 
   it('the filter dropdown search box narrows the left column pane, alphabetized', async () => {
-    const wrapper = mount(DataTable, { props: { data: ROWS, columns: THREE_COLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: THREE_COLS } })
     await openDd(wrapper, 'Filter')
     expect(wrapper.findAll('.dt-filter-col-item span:first-child').map((s) => s.text())).toEqual(
       ['Id', 'Name', 'Score'], // filterable defaults to true, so Id is included, alphabetized
@@ -3265,7 +3238,6 @@ describe('DataTable — dropdown column search and keyboard navigation', () => {
       props: {
         data: ROWS,
         columns: THREE_COLS,
-        rowKey: 'id',
         initialViewState: { visibleCols: ['name'] },
       },
       attachTo: document.body,
@@ -3282,7 +3254,6 @@ describe('DataTable — dropdown column search and keyboard navigation', () => {
         props: {
           data: ROWS,
           columns: THREE_COLS,
-          rowKey: 'id',
           initialViewState: { visibleCols: ['name'] },
         },
         attachTo: document.body,
@@ -3299,7 +3270,7 @@ describe('DataTable — dropdown column search and keyboard navigation', () => {
 
   it('opening a dropdown with no search box (nothing left to add) focuses the first active row', async () => {
     const wrapper = mount(DataTable, {
-      props: { data: ROWS, columns: THREE_COLS, rowKey: 'id' },
+      props: { data: ROWS, columns: THREE_COLS },
       attachTo: document.body,
     })
     await openDd(wrapper, 'Sort')
@@ -3316,7 +3287,7 @@ describe('DataTable — dropdown column search and keyboard navigation', () => {
 
   it('ArrowDown moves through Sort dropdown rows in visible order: active row, then search box, then addable rows', async () => {
     const wrapper = mount(DataTable, {
-      props: { data: ROWS, columns: THREE_COLS, rowKey: 'id' },
+      props: { data: ROWS, columns: THREE_COLS },
       attachTo: document.body,
     })
     await openDd(wrapper, 'Sort')
@@ -3343,7 +3314,6 @@ describe('DataTable — dropdown column search and keyboard navigation', () => {
       props: {
         data: ROWS,
         columns: THREE_COLS,
-        rowKey: 'id',
         initialViewState: { visibleCols: ['name'] },
       },
       attachTo: document.body,
@@ -3363,7 +3333,6 @@ describe('DataTable — dropdown column search and keyboard navigation', () => {
       props: {
         data: ROWS,
         columns: THREE_COLS,
-        rowKey: 'id',
         initialViewState: { visibleCols: ['name'] },
       },
       attachTo: document.body,
@@ -3384,7 +3353,6 @@ describe('DataTable — dropdown column search and keyboard navigation', () => {
       props: {
         data: ROWS,
         columns: THREE_COLS,
-        rowKey: 'id',
         initialViewState: { visibleCols: ['name'] },
       },
       attachTo: document.body,
@@ -3404,7 +3372,7 @@ describe('DataTable — dropdown column search and keyboard navigation', () => {
 
   it('activating an addable column in the Sort dropdown keeps focus on its new active row', async () => {
     const wrapper = mount(DataTable, {
-      props: { data: ROWS, columns: THREE_COLS, rowKey: 'id' },
+      props: { data: ROWS, columns: THREE_COLS },
       attachTo: document.body,
     })
     await openDd(wrapper, 'Sort')
@@ -3415,7 +3383,7 @@ describe('DataTable — dropdown column search and keyboard navigation', () => {
 
   it('removing an active Sort column returns focus to its addable button', async () => {
     const wrapper = mount(DataTable, {
-      props: { data: ROWS, columns: THREE_COLS, rowKey: 'id' },
+      props: { data: ROWS, columns: THREE_COLS },
       attachTo: document.body,
     })
     await openDd(wrapper, 'Sort')
@@ -3431,7 +3399,7 @@ describe('DataTable — dropdown column search and keyboard navigation', () => {
 
   it('activating/removing an active Group column keeps focus, same as Sort', async () => {
     const wrapper = mount(DataTable, {
-      props: { data: ROWS, columns: THREE_COLS, rowKey: 'id' },
+      props: { data: ROWS, columns: THREE_COLS },
       attachTo: document.body,
     })
     await openDd(wrapper, 'Group')
@@ -3450,7 +3418,7 @@ describe('DataTable — dropdown column search and keyboard navigation', () => {
   // different lists) — confirmed empirically, and fixed the same way for Sort/Group/Columns.
   it('Alt+ArrowUp on a focused active sort row keeps focus on the moved row', async () => {
     const wrapper = mount(DataTable, {
-      props: { data: ROWS, columns: THREE_COLS, rowKey: 'id' },
+      props: { data: ROWS, columns: THREE_COLS },
       attachTo: document.body,
     })
     await openDd(wrapper, 'Sort')
@@ -3472,7 +3440,7 @@ describe('DataTable — dropdown column search and keyboard navigation', () => {
 
   it('Alt+ArrowUp on a focused active group row keeps focus on the moved row', async () => {
     const wrapper = mount(DataTable, {
-      props: { data: ROWS, columns: THREE_COLS, rowKey: 'id' },
+      props: { data: ROWS, columns: THREE_COLS },
       attachTo: document.body,
     })
     await openDd(wrapper, 'Group')
@@ -3494,7 +3462,7 @@ describe('DataTable — dropdown column search and keyboard navigation', () => {
 
   it('Alt+ArrowDown on a focused visible-column row keeps focus on the moved row', async () => {
     const wrapper = mount(DataTable, {
-      props: { data: ROWS, columns: THREE_COLS, rowKey: 'id' },
+      props: { data: ROWS, columns: THREE_COLS },
       attachTo: document.body,
     })
     await openDd(wrapper, 'Columns')
@@ -3508,7 +3476,7 @@ describe('DataTable — dropdown column search and keyboard navigation', () => {
 
   it('ArrowRight on the left column list enters the right detail pane at its value search (U32)', async () => {
     const wrapper = mount(DataTable, {
-      props: { data: ROWS, columns: THREE_COLS, rowKey: 'id' },
+      props: { data: ROWS, columns: THREE_COLS },
       attachTo: document.body,
     })
     await openDd(wrapper, 'Filter')
@@ -3524,7 +3492,7 @@ describe('DataTable — dropdown column search and keyboard navigation', () => {
 
   it('ArrowLeft from a checklist row returns focus to the active column button', async () => {
     const wrapper = mount(DataTable, {
-      props: { data: ROWS, columns: THREE_COLS, rowKey: 'id' },
+      props: { data: ROWS, columns: THREE_COLS },
       attachTo: document.body,
     })
     await openDd(wrapper, 'Filter')
@@ -3536,7 +3504,7 @@ describe('DataTable — dropdown column search and keyboard navigation', () => {
 
   it('ArrowLeft does not hijack cursor movement in the value-search text box', async () => {
     const wrapper = mount(DataTable, {
-      props: { data: ROWS, columns: THREE_COLS, rowKey: 'id' },
+      props: { data: ROWS, columns: THREE_COLS },
       attachTo: document.body,
     })
     await openDd(wrapper, 'Filter')
@@ -3548,7 +3516,7 @@ describe('DataTable — dropdown column search and keyboard navigation', () => {
 
   it('ArrowDown/ArrowUp move between checklist rows in the filter detail pane', async () => {
     const wrapper = mount(DataTable, {
-      props: { data: ROWS, columns: THREE_COLS, rowKey: 'id' },
+      props: { data: ROWS, columns: THREE_COLS },
       attachTo: document.body,
     })
     await openDd(wrapper, 'Filter')
@@ -3563,7 +3531,7 @@ describe('DataTable — dropdown column search and keyboard navigation', () => {
 
   it('focusing a different column in the left pane updates the right pane immediately, with no Enter/Space needed', async () => {
     const wrapper = mount(DataTable, {
-      props: { data: ROWS, columns: THREE_COLS, rowKey: 'id' },
+      props: { data: ROWS, columns: THREE_COLS },
       attachTo: document.body,
     })
     await openDd(wrapper, 'Filter')
@@ -3585,7 +3553,7 @@ const CATEGORIZED_COLS: ColumnDef<Row>[] = [
 
 describe('DataTable — one open dropdown', () => {
   it('U33: opening a dropdown from the keyboard closes the one still open', async () => {
-    const wrapper = mount(DataTable, { props: { data: ROWS, columns: COLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: COLS } })
     // A click without a mousedown, as Enter/Space on a trigger after Tab left the open menu
     await openDdByLabel(wrapper, 'Columns')
     await openDdByLabel(wrapper, 'Sort')
@@ -3597,7 +3565,7 @@ describe('DataTable — one open dropdown', () => {
 
   it('a pointer click on another trigger closes the open dropdown and opens that one', async () => {
     const wrapper = mount(DataTable, {
-      props: { data: ROWS, columns: COLS, rowKey: 'id' },
+      props: { data: ROWS, columns: COLS },
       attachTo: document.body,
     })
     await openDdByLabel(wrapper, 'Columns')
@@ -3632,7 +3600,7 @@ function plainAddableButtons(wrapper: ReturnType<typeof mount>) {
 describe('DataTable — Sort dropdown column categories', () => {
   it('renders uncategorized addable columns as plain rows and categorized ones under a submenu trigger', async () => {
     const wrapper = mount(DataTable, {
-      props: { data: ROWS, columns: CATEGORIZED_COLS, rowKey: 'id' },
+      props: { data: ROWS, columns: CATEGORIZED_COLS },
     })
     await openDdByLabel(wrapper, 'Sort')
     expect(plainAddableButtons(wrapper).map((el) => el.text())).toEqual(['Id']) // Name/Score are categorized, not addable rows themselves
@@ -3650,7 +3618,7 @@ describe('DataTable — Sort dropdown column categories', () => {
   // engine doesn't reliably compute that).
   it('renders the submenu as a DOM descendant of its own container, not teleported to document.body', async () => {
     const wrapper = mount(DataTable, {
-      props: { data: ROWS, columns: CATEGORIZED_COLS, rowKey: 'id' },
+      props: { data: ROWS, columns: CATEGORIZED_COLS },
       attachTo: document.body,
     })
     await openDdByLabel(wrapper, 'Sort')
@@ -3663,7 +3631,7 @@ describe('DataTable — Sort dropdown column categories', () => {
 
   it('opens the submenu on click and adds a sort from a row inside it', async () => {
     const wrapper = mount(DataTable, {
-      props: { data: ROWS, columns: CATEGORIZED_COLS, rowKey: 'id' },
+      props: { data: ROWS, columns: CATEGORIZED_COLS },
       attachTo: document.body,
     })
     await openDdByLabel(wrapper, 'Sort')
@@ -3688,7 +3656,7 @@ describe('DataTable — Sort dropdown column categories', () => {
   // affected by the submenu's nav quirks (see CategorySubmenu.vue's own top comment).
   it('activating a column from inside the submenu refocuses its new active row, not <body>', async () => {
     const wrapper = mount(DataTable, {
-      props: { data: ROWS, columns: CATEGORIZED_COLS, rowKey: 'id' },
+      props: { data: ROWS, columns: CATEGORIZED_COLS },
       attachTo: document.body,
     })
     await openDdByLabel(wrapper, 'Sort')
@@ -3706,7 +3674,7 @@ describe('DataTable — Sort dropdown column categories', () => {
 
   it('opening one category submenu closes the previously open sibling (only one open at a time)', async () => {
     const wrapper = mount(DataTable, {
-      props: { data: ROWS, columns: CATEGORIZED_COLS, rowKey: 'id' },
+      props: { data: ROWS, columns: CATEGORIZED_COLS },
       attachTo: document.body,
     })
     await openDdByLabel(wrapper, 'Sort')
@@ -3726,7 +3694,7 @@ describe('DataTable — Sort dropdown column categories', () => {
 
   it('Escape closes the submenu and refocuses the trigger, without closing the whole dropdown', async () => {
     const wrapper = mount(DataTable, {
-      props: { data: ROWS, columns: CATEGORIZED_COLS, rowKey: 'id' },
+      props: { data: ROWS, columns: CATEGORIZED_COLS },
       attachTo: document.body,
     })
     await openDdByLabel(wrapper, 'Sort')
@@ -3750,7 +3718,7 @@ describe('DataTable — Sort dropdown column categories', () => {
   // wander into the open submenu's rows instead of moving to the next top-level entry.
   it('panel-level ArrowDown on a trigger with its submenu open skips into the next trigger, not the submenu', async () => {
     const wrapper = mount(DataTable, {
-      props: { data: ROWS, columns: CATEGORIZED_COLS, rowKey: 'id' },
+      props: { data: ROWS, columns: CATEGORIZED_COLS },
       attachTo: document.body,
     })
     await openDdByLabel(wrapper, 'Sort')
@@ -3771,7 +3739,7 @@ describe('DataTable — Sort dropdown column categories', () => {
 
   it('a category match is flattened into a plain, category-tagged row while searching', async () => {
     const wrapper = mount(DataTable, {
-      props: { data: ROWS, columns: CATEGORIZED_COLS, rowKey: 'id' },
+      props: { data: ROWS, columns: CATEGORIZED_COLS },
     })
     await openDdByLabel(wrapper, 'Sort')
     const search = wrapper.find('.dt-dd input.dt-dd-search')
@@ -3790,7 +3758,7 @@ describe('DataTable — Sort dropdown column categories', () => {
   })
   it('removing a categorized sort while searching refocuses its flat, category-tagged row', async () => {
     const wrapper = mount(DataTable, {
-      props: { data: ROWS, columns: CATEGORIZED_COLS, rowKey: 'id' },
+      props: { data: ROWS, columns: CATEGORIZED_COLS },
       attachTo: document.body,
     })
     await openDdByLabel(wrapper, 'Sort')
@@ -3810,7 +3778,7 @@ describe('DataTable — Sort dropdown column categories', () => {
 describe('DataTable — Group dropdown column categories', () => {
   it('renders uncategorized addable columns as plain rows and categorized ones under a submenu trigger', async () => {
     const wrapper = mount(DataTable, {
-      props: { data: ROWS, columns: CATEGORIZED_COLS, rowKey: 'id' },
+      props: { data: ROWS, columns: CATEGORIZED_COLS },
     })
     await openDdByLabel(wrapper, 'Group')
     expect(plainAddableButtons(wrapper).map((el) => el.text())).toEqual(['Id'])
@@ -3822,7 +3790,7 @@ describe('DataTable — Group dropdown column categories', () => {
 
   it('opens the submenu on click and adds a group from a row inside it', async () => {
     const wrapper = mount(DataTable, {
-      props: { data: ROWS, columns: CATEGORIZED_COLS, rowKey: 'id' },
+      props: { data: ROWS, columns: CATEGORIZED_COLS },
       attachTo: document.body,
     })
     await openDdByLabel(wrapper, 'Group')
@@ -3840,7 +3808,7 @@ describe('DataTable — Group dropdown column categories', () => {
 
   it('a category match is flattened into a plain, category-tagged row while searching', async () => {
     const wrapper = mount(DataTable, {
-      props: { data: ROWS, columns: CATEGORIZED_COLS, rowKey: 'id' },
+      props: { data: ROWS, columns: CATEGORIZED_COLS },
     })
     await openDdByLabel(wrapper, 'Group')
     const search = wrapper.find('.dt-dd input.dt-dd-search')
@@ -3854,7 +3822,7 @@ describe('DataTable — Group dropdown column categories', () => {
 
   it('an active row has a drag-handle icon and a labeled remove button', async () => {
     const wrapper = mount(DataTable, {
-      props: { data: ROWS, columns: CATEGORIZED_COLS, rowKey: 'id' },
+      props: { data: ROWS, columns: CATEGORIZED_COLS },
     })
     await openDdByLabel(wrapper, 'Group')
     await wrapper
@@ -3870,7 +3838,7 @@ describe('DataTable — Group dropdown column categories', () => {
 
   it('Enter/Space on an active row preventDefault (no click action of its own, but stops the native Space-scroll)', async () => {
     const wrapper = mount(DataTable, {
-      props: { data: ROWS, columns: CATEGORIZED_COLS, rowKey: 'id' },
+      props: { data: ROWS, columns: CATEGORIZED_COLS },
     })
     await openDdByLabel(wrapper, 'Group')
     await wrapper
@@ -3893,7 +3861,7 @@ describe('DataTable — Filter dropdown column categories', () => {
 
   it('starts collapsed and expands/collapses its columns on header click', async () => {
     const wrapper = mount(DataTable, {
-      props: { data: ROWS, columns: categorizedCols, rowKey: 'id' },
+      props: { data: ROWS, columns: categorizedCols },
     })
     await openDdByLabel(wrapper, 'Filter')
     const header = wrapper.find('[data-filter-category-header="Org"]')
@@ -3921,7 +3889,6 @@ describe('DataTable — Filter dropdown column categories', () => {
       props: {
         data: ROWS,
         columns: categorizedCols,
-        rowKey: 'id',
         initialViewState: { filters: { score: ['90'] } },
       },
     })
@@ -3935,7 +3902,7 @@ describe('DataTable — Filter dropdown column categories', () => {
 
   it('the search box also matches by category, surfacing every column filed under it', async () => {
     const wrapper = mount(DataTable, {
-      props: { data: ROWS, columns: categorizedCols, rowKey: 'id' },
+      props: { data: ROWS, columns: categorizedCols },
     })
     await openDdByLabel(wrapper, 'Filter')
     const search = wrapper.find('.dt-dd input.dt-dd-search')
@@ -3954,7 +3921,7 @@ describe('DataTable — Filter dropdown column categories', () => {
 
   it('a collapsed category with a matching column expands while searching, and reverts once cleared', async () => {
     const wrapper = mount(DataTable, {
-      props: { data: ROWS, columns: categorizedCols, rowKey: 'id' },
+      props: { data: ROWS, columns: categorizedCols },
     })
     await openDdByLabel(wrapper, 'Filter')
     const header = () => wrapper.find('[data-filter-category-header="Org"]')
@@ -3986,7 +3953,7 @@ describe('DataTable — the column the Filter pane opens on', () => {
 
   it('reopens on the picked column with its category expanded', async () => {
     const wrapper = mount(DataTable, {
-      props: { data: ROWS, columns: categorizedCols, rowKey: 'id' },
+      props: { data: ROWS, columns: categorizedCols },
     })
     await openDdByLabel(wrapper, 'Filter')
     await wrapper.find('[data-filter-category-header="Org"]').trigger('click')
@@ -4003,7 +3970,6 @@ describe('DataTable — the column the Filter pane opens on', () => {
       props: {
         data: ROWS,
         columns: categorizedCols,
-        rowKey: 'id',
         initialViewState: { rangeFilters: { score: { min: '70', max: '' } } },
       },
     })
@@ -4013,7 +3979,7 @@ describe('DataTable — the column the Filter pane opens on', () => {
 
   it('clears the column search on reopen, so it never hides the shown column', async () => {
     const wrapper = mount(DataTable, {
-      props: { data: ROWS, columns: categorizedCols, rowKey: 'id' },
+      props: { data: ROWS, columns: categorizedCols },
     })
     await openDdByLabel(wrapper, 'Filter')
     await wrapper.find('.dt-dd input.dt-dd-search').setValue('zzz')
@@ -4042,13 +4008,13 @@ describe('DataTable — Columns dropdown Visible/Available split', () => {
   }
 
   it('lists every visible column in table order, not alphabetized', async () => {
-    const wrapper = mount(DataTable, { props: { data: VROWS, columns: VCOLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: VROWS, columns: VCOLS } })
     await openDdByLabel(wrapper, 'Columns')
     expect(visibleLabels(wrapper)).toEqual(['ID', 'Name', 'Score'])
   })
 
   it('the × button hides a column, moving it into Available', async () => {
-    const wrapper = mount(DataTable, { props: { data: VROWS, columns: VCOLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: VROWS, columns: VCOLS } })
     await openDdByLabel(wrapper, 'Columns')
     await wrapper.find('[data-col-row-key="id"] .dt-item-remove').trigger('click')
     expect(visibleLabels(wrapper)).toEqual(['Name', 'Score'])
@@ -4057,14 +4023,14 @@ describe('DataTable — Columns dropdown Visible/Available split', () => {
   })
 
   it('Delete/Backspace on a focused visible row hides it, same as its × button', async () => {
-    const wrapper = mount(DataTable, { props: { data: VROWS, columns: VCOLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: VROWS, columns: VCOLS } })
     await openDdByLabel(wrapper, 'Columns')
     await wrapper.find('[data-col-row-key="id"]').trigger('keydown', { key: 'Delete' })
     expect(visibleLabels(wrapper)).toEqual(['Name', 'Score'])
   })
 
   it('hiding the last visible column is a no-op (stays >= 1 visible)', async () => {
-    const wrapper = mount(DataTable, { props: { data: VROWS, columns: VCOLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: VROWS, columns: VCOLS } })
     await openDdByLabel(wrapper, 'Columns')
     await wrapper.find('[data-col-row-key="id"] .dt-item-remove').trigger('click')
     await wrapper.find('[data-col-row-key="name"] .dt-item-remove').trigger('click')
@@ -4074,7 +4040,7 @@ describe('DataTable — Columns dropdown Visible/Available split', () => {
   })
 
   it('Alt+ArrowDown on a row moves it down one visible position', async () => {
-    const wrapper = mount(DataTable, { props: { data: VROWS, columns: VCOLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: VROWS, columns: VCOLS } })
     await openDdByLabel(wrapper, 'Columns')
     await wrapper
       .find('[data-col-row-key="id"]')
@@ -4083,7 +4049,7 @@ describe('DataTable — Columns dropdown Visible/Available split', () => {
   })
 
   it('Alt+ArrowDown skips a hidden column, reordering against the next visible one', async () => {
-    const wrapper = mount(DataTable, { props: { data: VROWS, columns: VCOLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: VROWS, columns: VCOLS } })
     await openDdByLabel(wrapper, 'Columns')
     await wrapper.find('[data-col-row-key="name"] .dt-item-remove').trigger('click') // hide the one in between id/score
     expect(visibleLabels(wrapper)).toEqual(['ID', 'Score'])
@@ -4094,7 +4060,7 @@ describe('DataTable — Columns dropdown Visible/Available split', () => {
   })
 
   it('a visible row has a drag-handle icon and a labeled hide button', async () => {
-    const wrapper = mount(DataTable, { props: { data: VROWS, columns: VCOLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: VROWS, columns: VCOLS } })
     await openDdByLabel(wrapper, 'Columns')
     const row = wrapper.find('[data-col-row-key="id"]')
     expect(row.find('.dt-dd-drag-handle').exists()).toBe(true)
@@ -4104,7 +4070,7 @@ describe('DataTable — Columns dropdown Visible/Available split', () => {
   })
 
   it('Enter/Space on a row preventDefault (no click action of its own, but stops the native Space-scroll)', async () => {
-    const wrapper = mount(DataTable, { props: { data: VROWS, columns: VCOLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: VROWS, columns: VCOLS } })
     await openDdByLabel(wrapper, 'Columns')
     const row = wrapper.find('[data-col-row-key="id"]')
     const enterEvent = new KeyboardEvent('keydown', {
@@ -4121,7 +4087,7 @@ describe('DataTable — Columns dropdown Visible/Available split', () => {
 
   it('Escape closes the dropdown on the first press when focus is on a row, even with a non-empty search term', async () => {
     const wrapper = mount(DataTable, {
-      props: { data: VROWS, columns: VCOLS, rowKey: 'id' },
+      props: { data: VROWS, columns: VCOLS },
       attachTo: document.body,
     })
     await openDdByLabel(wrapper, 'Columns')
@@ -4138,7 +4104,7 @@ describe('DataTable — Columns dropdown Visible/Available split', () => {
   })
 
   it('the search box has a labeled clear button, shown only once it has a value', async () => {
-    const wrapper = mount(DataTable, { props: { data: VROWS, columns: VCOLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: VROWS, columns: VCOLS } })
     await openDdByLabel(wrapper, 'Columns')
     const search = wrapper.find('input[data-dd-search]')
     expect(wrapper.find('.dt-dd-search-clear').exists()).toBe(false)
@@ -4152,7 +4118,7 @@ describe('DataTable — Columns dropdown Visible/Available split', () => {
   })
 
   it('lists hidden columns as plain addable rows, in table order', async () => {
-    const wrapper = mount(DataTable, { props: { data: VROWS, columns: VCOLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: VROWS, columns: VCOLS } })
     await openDdByLabel(wrapper, 'Columns')
     await wrapper.find('[data-col-row-key="id"] .dt-item-remove').trigger('click')
     await wrapper.find('[data-col-row-key="score"] .dt-item-remove').trigger('click')
@@ -4163,7 +4129,7 @@ describe('DataTable — Columns dropdown Visible/Available split', () => {
 
   it('clicking an addable row shows the column again at its original position, and refocuses its new visible row', async () => {
     const wrapper = mount(DataTable, {
-      props: { data: VROWS, columns: VCOLS, rowKey: 'id' },
+      props: { data: VROWS, columns: VCOLS },
       attachTo: document.body,
     })
     await openDdByLabel(wrapper, 'Columns')
@@ -4178,7 +4144,7 @@ describe('DataTable — Columns dropdown Visible/Available split', () => {
   })
 
   it('the search box stays mounted once every column is visible (no Available section, though)', async () => {
-    const wrapper = mount(DataTable, { props: { data: VROWS, columns: VCOLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: VROWS, columns: VCOLS } })
     await openDdByLabel(wrapper, 'Columns')
     expect(wrapper.find('input[data-dd-search]').exists()).toBe(true)
     expect(wrapper.findAll('.dt-dd-section').map((el) => el.text())).not.toContain(
@@ -4192,7 +4158,7 @@ describe('DataTable — Columns dropdown Visible/Available split', () => {
       { key: 'name', label: 'Name', category: 'Info' },
       { key: 'score', label: 'Score', type: 'number', category: 'Info' },
     ]
-    const wrapper = mount(DataTable, { props: { data: VROWS, columns: categorized, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: VROWS, columns: categorized } })
     await openDdByLabel(wrapper, 'Columns')
     await wrapper.find('[data-col-row-key="name"] .dt-item-remove').trigger('click')
     await wrapper.find('[data-col-row-key="score"] .dt-item-remove').trigger('click')
@@ -4207,7 +4173,7 @@ describe('DataTable — Columns dropdown Visible/Available split', () => {
       { key: 'score', label: 'Score', type: 'number', category: 'Info' },
     ]
     const wrapper = mount(DataTable, {
-      props: { data: VROWS, columns: categorized, rowKey: 'id' },
+      props: { data: VROWS, columns: categorized },
       attachTo: document.body,
     })
     await openDdByLabel(wrapper, 'Columns')
@@ -4231,7 +4197,7 @@ describe('DataTable — Columns dropdown Visible/Available split', () => {
       { key: 'score', label: 'Score', type: 'number', category: 'Info' },
     ]
     const wrapper = mount(DataTable, {
-      props: { data: VROWS, columns: categorized, rowKey: 'id' },
+      props: { data: VROWS, columns: categorized },
       attachTo: document.body,
     })
     await openDdByLabel(wrapper, 'Columns')
@@ -4246,7 +4212,7 @@ describe('DataTable — Columns dropdown Visible/Available split', () => {
       { key: 'name', label: 'Name', category: 'Info' },
       { key: 'score', label: 'Score', type: 'number', category: 'Info' },
     ]
-    const wrapper = mount(DataTable, { props: { data: VROWS, columns: categorized, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: VROWS, columns: categorized } })
     await openDdByLabel(wrapper, 'Columns')
     await wrapper.find('[data-col-row-key="name"] .dt-item-remove').trigger('click')
     expect(visibleLabels(wrapper)).toEqual(['ID', 'Score'])
@@ -4261,7 +4227,7 @@ describe('DataTable — Columns dropdown Visible/Available split', () => {
       { key: 'score', label: 'Score' },
       { key: 'name', label: 'Name' },
     ]
-    const wrapper = mount(DataTable, { props: { data: VROWS, columns: cols, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: VROWS, columns: cols } })
     await openDdByLabel(wrapper, 'Columns')
     await wrapper.find('[data-col-row-key="score"] .dt-item-remove').trigger('click')
     await wrapper.find('[data-col-row-key="name"] .dt-item-remove').trigger('click')
@@ -4279,7 +4245,7 @@ describe('DataTable — Columns dropdown Visible/Available split', () => {
       { key: 'name', label: 'Name', category: 'Info' },
       { key: 'score', label: 'Score', type: 'number', category: 'Info' },
     ]
-    const wrapper = mount(DataTable, { props: { data: VROWS, columns: categorized, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: VROWS, columns: categorized } })
     await openDdByLabel(wrapper, 'Columns')
     await wrapper.find('[data-col-row-key="name"] .dt-item-remove').trigger('click')
 
@@ -4298,7 +4264,7 @@ describe('DataTable — Columns dropdown Visible/Available split', () => {
   })
 
   it('the search box never unmounts, even when the query matches nothing at all', async () => {
-    const wrapper = mount(DataTable, { props: { data: VROWS, columns: VCOLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: VROWS, columns: VCOLS } })
     await openDdByLabel(wrapper, 'Columns')
     const search = wrapper.find('input[data-dd-search]')
     await search.setValue('zzzz-no-match')
@@ -4307,7 +4273,7 @@ describe('DataTable — Columns dropdown Visible/Available split', () => {
   })
 
   it('a search hides each section heading with no matching column', async () => {
-    const wrapper = mount(DataTable, { props: { data: VROWS, columns: VCOLS, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: VROWS, columns: VCOLS } })
     await openDdByLabel(wrapper, 'Columns')
     await wrapper.find('[data-col-row-key="id"] .dt-item-remove').trigger('click')
     const search = wrapper.find('input[data-dd-search]')
@@ -4324,7 +4290,7 @@ describe('DataTable — Columns dropdown Visible/Available split', () => {
       { key: 'name', label: 'Bar' },
       { key: 'score', label: 'Foo2', type: 'number' },
     ]
-    const wrapper = mount(DataTable, { props: { data: VROWS, columns: cols, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: VROWS, columns: cols } })
     await openDdByLabel(wrapper, 'Columns')
     await wrapper.find('input[data-dd-search]').setValue('Foo') // matches Foo1/Foo2, not Bar
     expect(wrapper.findAll('.dt-dd-item--colrow').map((r) => r.text())).toEqual([
@@ -4360,7 +4326,7 @@ describe('DataTable — active-bar chip click actions', () => {
   // U6: one merged chip showed two identical × removing different things
   it('a sorted and grouped column gets a ⊞ group chip and a separate sort chip, each removing only its own', async () => {
     const wrapper = mount(DataTable, {
-      props: { data: ROWS, columns: THREE_COLS, rowKey: 'id' },
+      props: { data: ROWS, columns: THREE_COLS },
     })
     await openDd(wrapper, 'Group')
     await wrapper
@@ -4382,7 +4348,7 @@ describe('DataTable — active-bar chip click actions', () => {
 
   it("clicking a sort chip body toggles that column's direction and keeps focus on it", async () => {
     const wrapper = mount(DataTable, {
-      props: { data: ROWS, columns: THREE_COLS, rowKey: 'id' },
+      props: { data: ROWS, columns: THREE_COLS },
       attachTo: document.body,
     })
     await openDd(wrapper, 'Sort')
@@ -4402,7 +4368,7 @@ describe('DataTable — active-bar chip click actions', () => {
 
   it('clicking a group chip body opens the Group dropdown focused on that entry', async () => {
     const wrapper = mount(DataTable, {
-      props: { data: ROWS, columns: THREE_COLS, rowKey: 'id' },
+      props: { data: ROWS, columns: THREE_COLS },
       attachTo: document.body,
     })
     await openDd(wrapper, 'Group')
@@ -4420,7 +4386,7 @@ describe('DataTable — active-bar chip click actions', () => {
 
   it("clicking a filter chip body opens the Filter dropdown focused on that column's detail pane", async () => {
     const wrapper = mount(DataTable, {
-      props: { data: ROWS, columns: THREE_COLS, rowKey: 'id' },
+      props: { data: ROWS, columns: THREE_COLS },
       attachTo: document.body,
     })
     await openDd(wrapper, 'Filter')
@@ -4448,7 +4414,6 @@ describe('DataTable — active-bar chip click actions', () => {
       props: {
         data: ROWS,
         columns: [{ ...THREE_COLS[0], category: 'People' }, ...THREE_COLS.slice(1)],
-        rowKey: 'id',
         initialViewState: { filters: { name: ['Alice'] } },
       },
       attachTo: document.body,
@@ -4481,7 +4446,7 @@ describe('DataTable — filter dropdown on a narrow screen (U16)', () => {
   async function open(matches: boolean) {
     restore = stubMatchMedia(matches)
     const wrapper = mount(DataTable, {
-      props: { data: ROWS, columns: NARROW_COLS, rowKey: 'id' },
+      props: { data: ROWS, columns: NARROW_COLS },
       attachTo: document.body,
     })
     await openDdByLabel(wrapper, 'Filter')
@@ -4548,7 +4513,6 @@ describe('DataTable — exclusion chip wording (U18)', () => {
       props: {
         data: DEPT_ROWS,
         columns: DEPT_COLS,
-        rowKey: 'id',
         initialViewState: { excludeFilters: { dept: excluded } },
       },
     })
@@ -4591,7 +4555,6 @@ describe('DataTable — checklist chip in All mode', () => {
       props: {
         data: TAG_ROWS,
         columns: TAG_COLS,
-        rowKey: 'id',
         initialViewState: view(filterModes),
       },
     })
@@ -4633,7 +4596,6 @@ describe('DataTable — filter values through the column format', () => {
       props: {
         data: ITEMS,
         columns: ITEM_COLS,
-        rowKey: 'id',
         initialViewState: {
           filters: { code: ['ab'] },
           rangeFilters: { price: { min: '1000', max: '' } },
@@ -4662,7 +4624,7 @@ describe('DataTable — column search with no match', () => {
       { key: 'name', label: 'Name', groupable: true },
       { key: 'score', label: 'Score', type: 'number' },
     ]
-    const wrapper = mount(DataTable, { props: { data: ROWS, columns: cols, rowKey: 'id' } })
+    const wrapper = mount(DataTable, { props: { data: ROWS, columns: cols } })
     await wrapper
       .findAll('button')
       .find((b) => b.text() === dropdown)!
@@ -4693,7 +4655,6 @@ describe('DataTable — filter values', () => {
       props: {
         data: ROWS,
         columns: cols,
-        rowKey: 'id',
         initialViewState: { visibleCols: ['name'] },
       },
     })
@@ -4708,7 +4669,7 @@ describe('DataTable — filter values', () => {
       { key: 'tags', label: 'Tags', value: (r) => (r.id === 1 ? ['RPG'] : []) },
     ]
     const wrapper = mount(DataTable, {
-      props: { data: ROWS, columns: cols, rowKey: 'id', labels: { emptyValue: 'N/A' } },
+      props: { data: ROWS, columns: cols, labels: { emptyValue: 'N/A' } },
     })
     await openFilter(wrapper)
     expect(wrapper.findAll('.dt-filter-list .dt-dd-item .dt-flex1').map((el) => el.text())).toEqual(

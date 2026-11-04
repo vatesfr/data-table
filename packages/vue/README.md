@@ -43,7 +43,7 @@ const COLUMNS: ColumnDef<Employee>[] = [
 </script>
 
 <template>
-  <DataTable :data="employees" :columns="COLUMNS" row-key="id" />
+  <DataTable :data="employees" :columns="COLUMNS" />
 </template>
 ```
 
@@ -54,7 +54,7 @@ const COLUMNS: ColumnDef<Employee>[] = [
 Use named scoped slots to customize how cells, filter labels, and group headers render. `Badge` below is your own component — this library ships no presentational components of its own, only the table logic/chrome.
 
 ```vue
-<DataTable :data="employees" :columns="COLUMNS" row-key="id">
+<DataTable :data="employees" :columns="COLUMNS">
   <!-- Custom table cell -->
   <template #cell-department="{ value, row }">
     <Badge :label="String(value)" />
@@ -269,7 +269,6 @@ const selected = ref<Employee[]>([])
   <DataTable
     :data="employees"
     :columns="COLUMNS"
-    row-key="id"
     :selectable="true"
     @selection-change="selected = $event"
   />
@@ -285,7 +284,6 @@ Refetching or re-mapping `data` breaks that assumption — even identical conten
 <DataTable
   :data="employees"
   :columns="COLUMNS"
-  row-key="id"
   :selectable="true"
   @selection-change="selected = $event"
   :get-row-id="(employee) => employee.id"
@@ -304,7 +302,6 @@ Pass `@row-click` (the `onRowClick` prop) to react to a data row being clicked �
 <DataTable
   :data="employees"
   :columns="COLUMNS"
-  row-key="id"
   @row-click="(row, event) => console.log('clicked', row.name)"
 />
 ```
@@ -342,11 +339,10 @@ Drag a column header to reorder it, or drag a row (or press Alt+ArrowUp/Alt+Arro
 | ------------------------ | --------------------------------------------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
 | `data`                   | `TRow[]`                                                  | —       | Row data                                                                                                                                       |
 | `columns`                | `ColumnDef<TRow>[]`                                       | —       | Column definitions                                                                                                                             |
-| `rowKey`                 | `string`                                                  | —       | Vue `:key` only — not selection identity                                                                                                       |
 | `labels`                 | `Partial<DataTableLabels>`                                | English | UI string overrides                                                                                                                            |
 | `defaultGroupsCollapsed` | `boolean`                                                 | `true`  | Whether newly-grouped groups start collapsed                                                                                                   |
 | `initialViewState`       | `TableViewState`                                          | `{}`    | Construction-time defaults for columns/sort/filters/grouping/page/search — also what `resetView` restores                                      |
-| `getRowId`               | `(row: TRow) => string \| number`                         | —       | Opt-in id-based selection identity (see "Row selection" above)                                                                                 |
+| `getRowId`               | `(row: TRow) => string \| number`                         | —       | Opt-in id-based row identity: selection, focus, `currentRow` and the row's DOM key (see "Row selection" above)                                 |
 | `selectable`             | `boolean`                                                 | `false` | Show checkbox column for row selection                                                                                                         |
 | `currentRow`             | `TRow \| null`                                            | —       | Row to mark as current (e.g. open in a side panel): `aria-current="true"` and the `dt-tr--current` class, unstyled. Matched by object identity |
 | `rowClass`               | `(row: TRow) => string \| undefined`                      | —       | Extra classes for a data row, after the built-in `dt-tr*` ones (e.g. to dim an expired row)                                                    |
@@ -545,7 +541,7 @@ usePersistence(table, { storageKey: 'employee-table-view', paramName: 'view' })
 </script>
 
 <template>
-  <DataTableView :table="table" :data="employees" :columns="COLUMNS" row-key="id" />
+  <DataTableView :table="table" :data="employees" :columns="COLUMNS" />
 </template>
 ```
 

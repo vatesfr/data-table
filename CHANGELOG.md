@@ -12,6 +12,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - **Showcase**: [six apps](https://vatesfr.github.io/data-table/showcase/) built with the library (ops console, French ledger, log viewer, store catalog, sports stats, user admin), each with its own data, interactions and style, and its source.
 - **Style one toolbar clear button**: the Group, Sort and Filter × buttons carry `dt-btn-clear--groups`, `dt-btn-clear--sorts` and `dt-btn-clear--filters`, so CSS can target one without matching its translated label.
 
+### Removed
+
+- ⚠️ **BREAKING:** **`rowKey` is gone; `getRowId` keys the rows**: the row id that matches selection, focus and `currentRow` is now also each row's DOM key, so the same identity is no longer declared twice. Migrate `rowKey="id"` (vanilla `rowKey: 'id'`) to `getRowId: (row) => row.id` on the table state or `DataTable`, and drop vanilla's `setRowKey`. Without `getRowId`, rows are keyed by position, including in Vue, which used to key by an `id` property by default.
+
 ### Fixed
 
 - **Focus and current row survive a data refresh with `getRowId`**: after a refetch the focused row keeps keyboard focus (in Solid and vanilla it dropped on every update) and the tab stop, and `currentRow` still marks a row passed from before the refresh.

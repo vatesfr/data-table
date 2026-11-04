@@ -32,7 +32,7 @@ function mount() {
   const container = document.createElement('div')
   document.body.appendChild(container)
   const dispose = createRoot((d) => {
-    render(() => <DataTable data={ROWS} columns={COLS} rowKey="id" />, container)
+    render(() => <DataTable data={ROWS} columns={COLS} />, container)
     return d
   })
   return { container, dispose }
@@ -51,7 +51,6 @@ function mountWithHiddenColumn() {
         <DataTable
           data={ROWS}
           columns={COLS}
-          rowKey="id"
           initialViewState={{ visibleCols: ['name', 'dept'] }}
         />
       ),
@@ -305,7 +304,6 @@ describe('DataTable — active-bar chip click actions', () => {
           <DataTable
             data={ROWS}
             columns={[{ ...COLS[0], category: 'People' }, ...COLS.slice(1)]}
-            rowKey="id"
             initialViewState={{ filters: { name: ['Alice'] } }}
           />
         ),

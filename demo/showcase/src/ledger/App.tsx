@@ -69,6 +69,7 @@ const COLUMNS: ColumnDef<Transaction>[] = [
 
 export function App() {
   const table = createTableState(makeTransactions(), COLUMNS, {
+    getRowId: (t) => t.id,
     labels: LABELS_FR,
     defaultGroupsCollapsed: false,
     initialViewState: {
@@ -139,7 +140,6 @@ export function App() {
         </header>
         <DataTableView
           table={table}
-          rowKey="id"
           toolbarEnd={
             <button class="print" onClick={print}>
               Imprimer

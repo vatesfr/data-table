@@ -6,7 +6,6 @@ import type { DataTableProps } from './types'
 
 // Vue casts an absent boolean prop to `false`; the default keeps `defaultGroupsCollapsed` at `true`
 const props = withDefaults(defineProps<DataTableProps<TRow>>(), {
-  rowKey: 'id',
   defaultGroupsCollapsed: true,
   showSearch: true,
   showColumns: true,
@@ -57,7 +56,6 @@ watch(table.search.query, (query) => emit('update:searchQuery', query), { immedi
     :table="table"
     :data="data"
     :columns="columns"
-    :row-key="rowKey"
     :selectable="selectable"
     :current-row="currentRow"
     :row-class="rowClass"

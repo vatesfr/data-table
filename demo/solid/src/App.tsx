@@ -404,17 +404,12 @@ function PersistedTable(props: { labels?: Partial<DataTableLabels> }) {
   // options passed as an accessor (rather than a plain object) so `labels` stays live — see the
   // "locale switcher" note in App() below.
   const table = createTableState(SAMPLE_DATA, COLUMNS, () => ({
+    getRowId: (r) => r.id,
     initialViewState: { visibleCols: PERSISTED_VISIBLE, pageSize: 5 },
     labels: props.labels,
   }))
   const { reset } = usePersistence(table, VIEW_KEYS.persisted)
-  return (
-    <DataTableView
-      table={table}
-      rowKey="id"
-      toolbarEnd={<ViewControls onReset={reset} inToolbar />}
-    />
-  )
+  return <DataTableView table={table} toolbarEnd={<ViewControls onReset={reset} inToolbar />} />
 }
 
 // Full-featured table, wired the same way as PersistedTable above (createTableState +
@@ -422,6 +417,7 @@ function PersistedTable(props: { labels?: Partial<DataTableLabels> }) {
 // usePersistedView/useUrlView/resetView — nothing about the table's own features changes.
 function FullTable(props: { labels?: Partial<DataTableLabels> }) {
   const table = createTableState(SAMPLE_DATA, COLUMNS, () => ({
+    getRowId: (r) => r.id,
     initialViewState: { visibleCols: DEFAULT_VISIBLE, pageSize: 5 },
     labels: props.labels,
   }))
@@ -430,7 +426,7 @@ function FullTable(props: { labels?: Partial<DataTableLabels> }) {
   return (
     <>
       <ViewControls onReset={() => resetView(table, VIEW_KEYS.full)} />
-      <DataTableView table={table} rowKey="id" />
+      <DataTableView table={table} />
     </>
   )
 }
@@ -444,6 +440,7 @@ function SelectionTable(props: {
     () => props.data,
     COLUMNS,
     () => ({
+      getRowId: (r) => r.id,
       initialViewState: { visibleCols: SELECTION_VISIBLE, pageSize: 5 },
       labels: props.labels,
     }),
@@ -458,7 +455,7 @@ function SelectionTable(props: {
   return (
     <>
       <ViewControls onReset={() => resetView(table, VIEW_KEYS.selection)} />
-      <DataTableView table={table} rowKey="id" selectable />
+      <DataTableView table={table} selectable />
     </>
   )
 }
@@ -469,6 +466,7 @@ function ClickTable(props: {
   onRowClick: (row: Employee) => void
 }) {
   const table = createTableState(SAMPLE_DATA, COLUMNS, () => ({
+    getRowId: (r) => r.id,
     initialViewState: { visibleCols: CLICK_VISIBLE, pageSize: 5 },
     labels: props.labels,
   }))
@@ -479,7 +477,6 @@ function ClickTable(props: {
       <ViewControls onReset={() => resetView(table, VIEW_KEYS.click)} />
       <DataTableView
         table={table}
-        rowKey="id"
         currentRow={props.currentRow}
         rowClass={(row) => (row.status === 'Inactive' ? 'demo-inactive' : undefined)}
         onRowClick={(row) => props.onRowClick(row)}
@@ -517,13 +514,16 @@ function WhenVisible(props: { children: JSX.Element }) {
 }
 
 function HugeTable() {
-  const table = createTableState(hugeData(), HUGE_COLUMNS, { initialViewState: { pageSize: 100 } })
+  const table = createTableState(hugeData(), HUGE_COLUMNS, {
+    initialViewState: { pageSize: 100 },
+    getRowId: (r) => r.id,
+  })
   usePersistedView(table, VIEW_KEYS.huge.storageKey)
   useUrlView(table, { paramName: VIEW_KEYS.huge.paramName })
   return (
     <>
       <ViewControls onReset={() => resetView(table, VIEW_KEYS.huge)} />
-      <DataTableView table={table} rowKey="id" />
+      <DataTableView table={table} />
     </>
   )
 }

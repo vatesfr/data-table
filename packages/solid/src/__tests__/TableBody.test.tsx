@@ -50,14 +50,13 @@ function mount(
     table = createTableState(ROWS, opts.columns ?? COLS, {
       defaultGroupsCollapsed: opts.defaultGroupsCollapsed,
       initialViewState: opts.initialViewState,
-      getRowId: opts.getRowId,
+      getRowId: opts.getRowId ?? ((r) => r.id),
     })
     render(
       () => (
         <TableBody
           table={table}
           columns={opts.columns ?? COLS}
-          rowKey="id"
           selectable={opts.selectable}
           onRowClick={opts.onRowClick}
           currentRow={opts.currentRow?.()}

@@ -96,6 +96,7 @@ const CARD_SORTS = [
 export function App() {
   const products = makeProducts()
   const table = createTableState(products, COLUMNS, {
+    getRowId: (p) => p.sku,
     initialViewState: { sorts: [{ key: 'added', dir: 'desc' }], pageSize: 25 },
   })
   const [view, setView] = createSignal<'table' | 'cards'>('table')
@@ -264,7 +265,6 @@ export function App() {
             <div class="table-card">
               <DataTableView
                 table={table}
-                rowKey="sku"
                 showSearch={false}
                 onRowClick={(p) => open(p)}
                 currentRow={current()}

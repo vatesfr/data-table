@@ -30,7 +30,7 @@ describe('DataTable', () => {
     let table!: ReturnType<typeof createTableState<Row>>
     const dispose = createRoot((d) => {
       table = createTableState(ROWS, COLS)
-      render(() => <DataTableView table={table} rowKey="id" />, container)
+      render(() => <DataTableView table={table} />, container)
       return d
     })
     const status = () => container.querySelector('[role="status"]')?.textContent
@@ -57,7 +57,7 @@ describe('DataTable', () => {
           ],
         },
       })
-      render(() => <DataTableView table={table} rowKey="id" />, container)
+      render(() => <DataTableView table={table} />, container)
       return d
     })
     const x = (label: string) =>
@@ -74,7 +74,7 @@ describe('DataTable', () => {
     const container = document.createElement('div')
     const dispose = createRoot((d) => {
       render(
-        () => <DataTable data={ROWS} columns={[...COLS, { key: 'id', label: 'Id' }]} rowKey="id" />,
+        () => <DataTable data={ROWS} columns={[...COLS, { key: 'id', label: 'Id' }]} />,
         container,
       )
       return d
@@ -87,7 +87,7 @@ describe('DataTable', () => {
     const container = document.createElement('div')
     const cols: ColumnDef<Row>[] = [{ key: 'avatar', label: 'Avatar', value: () => null }, ...COLS]
     const dispose = createRoot((d) => {
-      render(() => <DataTable data={ROWS} columns={cols} rowKey="id" selectable />, container)
+      render(() => <DataTable data={ROWS} columns={cols} selectable />, container)
       return d
     })
     const names = [...container.querySelectorAll('input[type="checkbox"]')].map((c) =>
@@ -101,7 +101,7 @@ describe('DataTable', () => {
     const container = document.createElement('div')
     document.body.appendChild(container)
     const dispose = createRoot((d) => {
-      render(() => <DataTable data={ROWS} columns={COLS} rowKey="id" />, container)
+      render(() => <DataTable data={ROWS} columns={COLS} />, container)
       return d
     })
     expect(container.querySelector('.dt-th')?.textContent).toContain('Name')
@@ -113,7 +113,7 @@ describe('DataTable', () => {
     const container = document.createElement('div')
     document.body.appendChild(container)
     const dispose = createRoot((d) => {
-      render(() => <DataTable data={ROWS} columns={COLS} rowKey="id" />, container)
+      render(() => <DataTable data={ROWS} columns={COLS} />, container)
       return d
     })
     const search = container.querySelector<HTMLInputElement>('.dt-search-input')!
@@ -146,7 +146,6 @@ describe('DataTable', () => {
           <DataTable
             data={ROWS}
             columns={cols}
-            rowKey="id"
             showSearch={false}
             initialViewState={{ sorts: [{ key: 'name', dir: 'asc' }] }}
           />
@@ -169,9 +168,7 @@ describe('DataTable', () => {
     document.body.appendChild(container)
     const dispose = createRoot((d) => {
       render(
-        () => (
-          <DataTable data={ROWS} columns={COLS} rowKey="id" initialViewState={{ pageSize: 1 }} />
-        ),
+        () => <DataTable data={ROWS} columns={COLS} initialViewState={{ pageSize: 1 }} />,
         container,
       )
       return d
@@ -187,9 +184,7 @@ describe('DataTable', () => {
     const container = document.createElement('div')
     const dispose = createRoot((d) => {
       render(
-        () => (
-          <DataTable data={ROWS} columns={COLS} rowKey="id" initialViewState={{ pageSize: 10 }} />
-        ),
+        () => <DataTable data={ROWS} columns={COLS} initialViewState={{ pageSize: 10 }} />,
         container,
       )
       return d
@@ -203,9 +198,7 @@ describe('DataTable', () => {
     const container = document.createElement('div')
     const dispose = createRoot((d) => {
       render(
-        () => (
-          <DataTable data={rows} columns={COLS} rowKey="id" initialViewState={{ pageSize: 20 }} />
-        ),
+        () => <DataTable data={rows} columns={COLS} initialViewState={{ pageSize: 20 }} />,
         container,
       )
       return d
@@ -222,9 +215,7 @@ describe('DataTable', () => {
     const container = document.createElement('div')
     const dispose = createRoot((d) => {
       render(
-        () => (
-          <DataTable data={rows} columns={COLS} rowKey="id" initialViewState={{ pageSize: 5 }} />
-        ),
+        () => <DataTable data={rows} columns={COLS} initialViewState={{ pageSize: 5 }} />,
         container,
       )
       return d
@@ -242,9 +233,7 @@ describe('DataTable', () => {
     const container = document.createElement('div')
     const dispose = createRoot((d) => {
       render(
-        () => (
-          <DataTable data={ROWS} columns={COLS} rowKey="id" initialViewState={{ pageSize: 1 }} />
-        ),
+        () => <DataTable data={ROWS} columns={COLS} initialViewState={{ pageSize: 1 }} />,
         container,
       )
       return d
@@ -259,7 +248,7 @@ describe('DataTable', () => {
     document.body.appendChild(container)
     const [rows, setRows] = createSignal(ROWS)
     const dispose = createRoot((d) => {
-      render(() => <DataTable data={rows()} columns={COLS} rowKey="id" />, container)
+      render(() => <DataTable data={rows()} columns={COLS} />, container)
       return d
     })
     expect(rowNames(container)).toEqual(['Alice', 'Bob'])
@@ -275,13 +264,7 @@ describe('DataTable', () => {
     const dispose = createRoot((d) => {
       render(
         () => (
-          <DataTable
-            data={ROWS}
-            columns={COLS}
-            rowKey="id"
-            selectable
-            onSelectionChange={onSelectionChange}
-          />
+          <DataTable data={ROWS} columns={COLS} selectable onSelectionChange={onSelectionChange} />
         ),
         container,
       )
@@ -300,7 +283,7 @@ describe('DataTable', () => {
     document.body.appendChild(container)
     const cols: ColumnDef<Row>[] = [{ key: 'name', label: 'Name', sortable: false }]
     const dispose = createRoot((d) => {
-      render(() => <DataTable data={ROWS} columns={cols} rowKey="id" />, container)
+      render(() => <DataTable data={ROWS} columns={cols} />, container)
       return d
     })
     const sortBtn = [...container.querySelectorAll('.dt-btn')].find(
@@ -315,7 +298,7 @@ describe('DataTable', () => {
     document.body.appendChild(container)
     const cols: ColumnDef<Row>[] = [{ key: 'name', label: 'Name', filterable: false }]
     const dispose = createRoot((d) => {
-      render(() => <DataTable data={ROWS} columns={cols} rowKey="id" />, container)
+      render(() => <DataTable data={ROWS} columns={cols} />, container)
       return d
     })
     const filterBtn = [...container.querySelectorAll('.dt-btn')].find(
@@ -333,10 +316,7 @@ describe('DataTable', () => {
       { key: 'id', label: 'Id' },
     ]
     const dispose = createRoot((d) => {
-      render(
-        () => <DataTable data={ROWS} columns={cols} rowKey="id" showColumns={false} />,
-        container,
-      )
+      render(() => <DataTable data={ROWS} columns={cols} showColumns={false} />, container)
       return d
     })
     const colsBtn = [...container.querySelectorAll('.dt-btn')].find(
@@ -350,7 +330,7 @@ describe('DataTable', () => {
     const container = document.createElement('div')
     document.body.appendChild(container)
     const dispose = createRoot((d) => {
-      render(() => <DataTable data={ROWS} columns={COLS} rowKey="id" />, container)
+      render(() => <DataTable data={ROWS} columns={COLS} />, container)
       return d
     })
     const colsBtn = [...container.querySelectorAll('.dt-btn')].find(
@@ -364,10 +344,7 @@ describe('DataTable', () => {
     const container = document.createElement('div')
     document.body.appendChild(container)
     const dispose = createRoot((d) => {
-      render(
-        () => <DataTable data={ROWS} columns={COLS} rowKey="id" showSearch={false} />,
-        container,
-      )
+      render(() => <DataTable data={ROWS} columns={COLS} showSearch={false} />, container)
       return d
     })
     expect(container.querySelector('.dt-search-input')).toBeNull()
@@ -383,7 +360,7 @@ describe('DataTable', () => {
       document.body.appendChild(container)
       const dispose = createRoot((d) => {
         render(
-          () => <DataTable data={ROWS} columns={BARE} rowKey="id" showSearch={false} {...props} />,
+          () => <DataTable data={ROWS} columns={BARE} showSearch={false} {...props} />,
           container,
         )
         return d
@@ -413,10 +390,7 @@ describe('DataTable', () => {
       return <button class="share">Share</button>
     }
     const dispose = createRoot((d) => {
-      render(
-        () => <DataTable data={ROWS} columns={COLS} rowKey="id" toolbarEnd={shareButton()} />,
-        container,
-      )
+      render(() => <DataTable data={ROWS} columns={COLS} toolbarEnd={shareButton()} />, container)
       return d
     })
     const end = container.querySelector('.dt-toolbar-actions > .dt-toolbar-end:last-child')
@@ -435,7 +409,6 @@ describe('DataTable', () => {
           <DataTable
             data={ROWS}
             columns={COLS}
-            rowKey="id"
             toolbarEnd={show() ? <button class="share">Share</button> : undefined}
           />
         ),
@@ -458,12 +431,7 @@ describe('DataTable', () => {
     const dispose = createRoot((d) => {
       render(
         () => (
-          <DataTable
-            data={ROWS}
-            columns={COLS}
-            rowKey="id"
-            toolbarEnd={<button class="share">Share</button>}
-          />
+          <DataTable data={ROWS} columns={COLS} toolbarEnd={<button class="share">Share</button>} />
         ),
         container,
       )
@@ -507,7 +475,6 @@ describe('DataTable — filter values through the column format', () => {
           <DataTable
             data={ITEMS}
             columns={ITEM_COLS}
-            rowKey="id"
             initialViewState={{
               filters: { code: ['ab'] },
               rangeFilters: { price: { min: '1000', max: '' } },
@@ -554,12 +521,7 @@ describe('DataTable — filter values through the column format', () => {
       const dispose = createRoot((d) => {
         render(
           () => (
-            <DataTable
-              data={TAG_ROWS}
-              columns={TAG_COLS}
-              rowKey="id"
-              initialViewState={view(filterModes)}
-            />
+            <DataTable data={TAG_ROWS} columns={TAG_COLS} initialViewState={view(filterModes)} />
           ),
           container,
         )
@@ -585,10 +547,7 @@ describe('DataTable — currentRow', () => {
     document.body.appendChild(container)
     const [current, setCurrent] = createSignal<Row | null>(ROWS[1])
     const dispose = createRoot((d) => {
-      render(
-        () => <DataTable data={ROWS} columns={COLS} rowKey="id" currentRow={current()} />,
-        container,
-      )
+      render(() => <DataTable data={ROWS} columns={COLS} currentRow={current()} />, container)
       return d
     })
     const marked = () =>
@@ -613,7 +572,6 @@ describe('DataTable — currentRow', () => {
           <DataTable
             data={ROWS}
             columns={COLS}
-            rowKey="id"
             currentRow={ROWS[1]}
             rowClass={(r) => (r.name === expiredName() ? 'is-expired dimmed' : undefined)}
           />
@@ -647,7 +605,7 @@ describe('DataTable — column search with no match', () => {
       { key: 'id', label: 'Id', type: 'number' },
     ]
     const dispose = createRoot((d) => {
-      render(() => <DataTable data={ROWS} columns={cols} rowKey="id" />, container)
+      render(() => <DataTable data={ROWS} columns={cols} />, container)
       return d
     })
     ;[...container.querySelectorAll<HTMLButtonElement>('button')]
@@ -681,12 +639,7 @@ describe('DataTable — filter values', () => {
     const dispose = createRoot((d) => {
       render(
         () => (
-          <DataTable
-            data={data()}
-            columns={cols}
-            rowKey="id"
-            initialViewState={{ visibleCols: ['name'] }}
-          />
+          <DataTable data={data()} columns={cols} initialViewState={{ visibleCols: ['name'] }} />
         ),
         container,
       )

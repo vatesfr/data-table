@@ -32,7 +32,7 @@ function mount(cols = COLS, initialViewState?: TableViewState) {
   let table!: ReturnType<typeof createTableState<Row>>
   const dispose = createRoot((d) => {
     table = createTableState(ROWS, cols, { initialViewState })
-    render(() => <DataTableView table={table} rowKey="id" />, container)
+    render(() => <DataTableView table={table} />, container)
     return d
   })
   const trigger = (label: string) =>

@@ -18,11 +18,6 @@ import { Pagination } from './components/Pagination'
 
 export interface DataTableViewProps<TRow extends object> {
   table: TableState<TRow>
-  /**
-   * A row property used as a stable DOM key (default: the index). Not used for selection, which
-   * tracks rows by object identity (or `getRowId`).
-   */
-  rowKey?: keyof TRow & string
   selectable?: boolean
   onRowClick?: (row: TRow, event: MouseEvent | KeyboardEvent) => void
   /**
@@ -176,7 +171,6 @@ export function DataTableView<TRow extends object>(props: DataTableViewProps<TRo
       <TableBody
         table={table}
         columns={table.columns.list()}
-        rowKey={props.rowKey}
         selectable={props.selectable}
         onRowClick={props.onRowClick}
         currentRow={props.currentRow}

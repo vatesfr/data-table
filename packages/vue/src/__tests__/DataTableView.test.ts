@@ -40,7 +40,6 @@ function mountView(options: { selectable?: boolean; attachToBody?: boolean } = {
           table,
           data: ROWS,
           columns: COLS,
-          rowKey: 'id',
           selectable: options.selectable,
         } as Record<string, unknown>)
     },
@@ -83,7 +82,6 @@ describe('DataTableView', () => {
             table,
             data: ROWS,
             columns: COLS,
-            rowKey: 'id',
             onRowClick: () => {},
           } as Record<string, unknown>)
       },
@@ -171,7 +169,6 @@ describe('DataTableView — currentRow', () => {
             table,
             data: ROWS,
             columns: COLS,
-            rowKey: 'id',
             currentRow: current.value,
           } as Record<string, unknown>)
       },

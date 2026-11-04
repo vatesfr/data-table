@@ -308,6 +308,7 @@ useUrlView(table, { paramName: VIEW_KEYS.custom.paramName })
 // VIEW_KEYS.persisted object feeds all three, so its storageKey/paramName can't drift out of
 // sync between them.
 const persistedTable = useTableState(SAMPLE_DATA, COLUMNS, () => ({
+  getRowId: (r) => r.id,
   initialViewState: { visibleCols: PERSISTED_VISIBLE, pageSize: 5 },
   labels: currentLocale.value,
 }))
@@ -317,6 +318,7 @@ const { reset: resetPersistedTable } = usePersistence(persistedTable, VIEW_KEYS.
 // wired the same way — useTableState + DataTableView instead of <DataTable> — purely so each
 // can also reach usePersistedView/useUrlView/resetView; nothing about their own features changes.
 const fullTable = useTableState(SAMPLE_DATA, COLUMNS, () => ({
+  getRowId: (r) => r.id,
   initialViewState: { visibleCols: DEFAULT_VISIBLE, pageSize: 5 },
   labels: currentLocale.value,
 }))
@@ -324,6 +326,7 @@ usePersistedView(fullTable, VIEW_KEYS.full.storageKey)
 useUrlView(fullTable, { paramName: VIEW_KEYS.full.paramName })
 
 const selectionTable = useTableState(selectionData, COLUMNS, () => ({
+  getRowId: (r) => r.id,
   initialViewState: { visibleCols: SELECTION_VISIBLE, pageSize: 5 },
   labels: currentLocale.value,
 }))
@@ -331,6 +334,7 @@ usePersistedView(selectionTable, VIEW_KEYS.selection.storageKey)
 useUrlView(selectionTable, { paramName: VIEW_KEYS.selection.paramName })
 
 const clickTable = useTableState(SAMPLE_DATA, COLUMNS, () => ({
+  getRowId: (r) => r.id,
   initialViewState: { visibleCols: CLICK_VISIBLE, pageSize: 5 },
   labels: currentLocale.value,
 }))
@@ -523,7 +527,7 @@ function fmtSalary(n: number | null) {
       <span v-html="docLink('grouped-columns', 'Bucketed grouping')" />
     </p>
     <ViewControls @reset="resetView(fullTable, VIEW_KEYS.full)" />
-    <DataTableView :table="fullTable" :data="SAMPLE_DATA" :columns="COLUMNS" row-key="id">
+    <DataTableView :table="fullTable" :data="SAMPLE_DATA" :columns="COLUMNS">
       <!-- Custom cell rendering via named slots -->
       <template #cell-department="{ value }">
         <Badge :value="String(value)" :color-map="DEPT_COLORS" />
@@ -652,7 +656,6 @@ function fmtSalary(n: number | null) {
       :table="selectionTable"
       :data="selectionData"
       :columns="COLUMNS"
-      row-key="id"
       :selectable="true"
       @selection-change="selected = $event"
     >
@@ -705,7 +708,6 @@ function fmtSalary(n: number | null) {
       :table="clickTable"
       :data="SAMPLE_DATA"
       :columns="COLUMNS"
-      row-key="id"
       :current-row="clicked"
       :row-class="(row: Employee) => (row.status === 'Inactive' ? 'demo-inactive' : undefined)"
       @row-click="clicked = $event"
@@ -817,7 +819,7 @@ function fmtSalary(n: number | null) {
       <code>useTableState</code> instance you own instead — reorder or hide a column, then reload
       the page. <span v-html="docLink('view-persistence--sharing', '📖 Docs')" />
     </p>
-    <DataTableView :table="persistedTable" :data="SAMPLE_DATA" :columns="COLUMNS" row-key="id">
+    <DataTableView :table="persistedTable" :data="SAMPLE_DATA" :columns="COLUMNS">
       <template #toolbar-end>
         <ViewControls in-toolbar @reset="resetPersistedTable" />
       </template>
@@ -866,7 +868,7 @@ function fmtSalary(n: number | null) {
     <div ref="hugeSection">
       <template v-if="hugeRows.length">
         <ViewControls @reset="resetView(hugeTable, VIEW_KEYS.huge)" />
-        <DataTableView :table="hugeTable" :data="hugeRows" :columns="HUGE_COLUMNS" row-key="id" />
+        <DataTableView :table="hugeTable" :data="hugeRows" :columns="HUGE_COLUMNS" />
       </template>
       <div v-else style="height: 400px" />
     </div>

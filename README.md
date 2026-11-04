@@ -63,7 +63,7 @@ const COLUMNS: ColumnDef<User>[] = [
 ]
 
 export default function App() {
-  return <DataTable data={users} columns={COLUMNS} rowKey="id" />
+  return <DataTable data={users} columns={COLUMNS} />
 }
 ```
 
@@ -105,7 +105,7 @@ const COLUMNS: ColumnDef<User>[] = [
 </script>
 
 <template>
-  <DataTable :data="users" :columns="COLUMNS" row-key="id">
+  <DataTable :data="users" :columns="COLUMNS">
     <template #cell-role="{ value }">
       <Badge :label="String(value)" />
     </template>
@@ -142,7 +142,6 @@ const COLUMNS: ColumnDef<User>[] = [
 const table = createDataTable(document.getElementById('table')!, {
   data: users,
   columns: COLUMNS,
-  rowKey: 'id',
 })
 
 // Update later
@@ -175,7 +174,7 @@ const COLUMNS: ColumnDef<User>[] = [
 ]
 
 export default function App() {
-  return <DataTable data={users} columns={COLUMNS} rowKey="id" />
+  return <DataTable data={users} columns={COLUMNS} />
 }
 ```
 

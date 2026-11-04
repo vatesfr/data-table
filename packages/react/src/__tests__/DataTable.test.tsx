@@ -28,7 +28,6 @@ describe('DataTable — row checkbox name', () => {
       <DataTable
         data={ROWS}
         columns={[{ key: 'avatar', label: 'Avatar', value: () => null }, ...COLS]}
-        rowKey="id"
         selectable
       />,
     )
@@ -47,7 +46,6 @@ describe('DataTable — checkbox cells as hit areas', () => {
       <DataTable
         data={ROWS3}
         columns={COLS}
-        rowKey="id"
         selectable
         onSelectionChange={onSelectionChange}
         onRowClick={onRowClick}
@@ -62,13 +60,7 @@ describe('DataTable — checkbox cells as hit areas', () => {
   it("the select-all checkbox's cell selects all", () => {
     const onSelectionChange = vi.fn()
     render(
-      <DataTable
-        data={ROWS}
-        columns={COLS}
-        rowKey="id"
-        selectable
-        onSelectionChange={onSelectionChange}
-      />,
+      <DataTable data={ROWS} columns={COLS} selectable onSelectionChange={onSelectionChange} />,
     )
     fireEvent.click(cellOf('Select all'))
     expect(onSelectionChange).toHaveBeenLastCalledWith(ROWS)
@@ -80,7 +72,6 @@ describe('DataTable — checkbox cells as hit areas', () => {
       <DataTable
         data={ROWS}
         columns={COLS.map((c) => ({ ...c, groupable: true }))}
-        rowKey="id"
         selectable
         defaultGroupsCollapsed={false}
         initialViewState={{ groupBy: ['name'] }}
@@ -98,16 +89,14 @@ describe('DataTable — checkbox cells as hit areas', () => {
 describe('DataTable — onRowClick', () => {
   it('calls onRowClick with the row and the click event', () => {
     const onRowClick = vi.fn()
-    const { getByText } = render(
-      <DataTable data={ROWS} columns={COLS} rowKey="id" onRowClick={onRowClick} />,
-    )
+    const { getByText } = render(<DataTable data={ROWS} columns={COLS} onRowClick={onRowClick} />)
     fireEvent.click(getByText('Alice'))
     expect(onRowClick).toHaveBeenCalledTimes(1)
     expect(onRowClick.mock.calls[0][0]).toEqual(ROWS[0])
   })
 
   it('does not set a pointer cursor when onRowClick is not passed', () => {
-    const { container } = render(<DataTable data={ROWS} columns={COLS} rowKey="id" />)
+    const { container } = render(<DataTable data={ROWS} columns={COLS} />)
     const row = container.querySelector<HTMLElement>('tbody tr')!
     expect(row.classList.contains('dt-tr--clickable')).toBe(false)
   })
@@ -115,7 +104,7 @@ describe('DataTable — onRowClick', () => {
   it('clicking the selection checkbox does not trigger onRowClick', () => {
     const onRowClick = vi.fn()
     const { container } = render(
-      <DataTable data={ROWS} columns={COLS} rowKey="id" selectable onRowClick={onRowClick} />,
+      <DataTable data={ROWS} columns={COLS} selectable onRowClick={onRowClick} />,
     )
     const checkbox = container.querySelector('tbody tr input[type="checkbox"]')!
     fireEvent.click(checkbox)
@@ -127,23 +116,21 @@ describe('DataTable — onRowClick', () => {
   const injectedRules = () => document.querySelector('style[data-dt-styles]')?.textContent ?? ''
 
   it('highlights a clickable row on hover', () => {
-    const { container } = render(
-      <DataTable data={ROWS} columns={COLS} rowKey="id" onRowClick={vi.fn()} />,
-    )
+    const { container } = render(<DataTable data={ROWS} columns={COLS} onRowClick={vi.fn()} />)
     const row = container.querySelector<HTMLElement>('tbody tr')!
     expect(row.classList.contains('dt-tr--clickable')).toBe(true)
     expect(injectedRules()).toContain(hoverRule)
   })
 
   it('does not highlight on hover when onRowClick is not passed', () => {
-    const { container } = render(<DataTable data={ROWS} columns={COLS} rowKey="id" />)
+    const { container } = render(<DataTable data={ROWS} columns={COLS} />)
     const row = container.querySelector<HTMLElement>('tbody tr')!
     expect(row.classList.contains('dt-tr--clickable')).toBe(false)
   })
 
   it('keeps the selected background on hover instead of the hover color', () => {
     const { container } = render(
-      <DataTable data={ROWS} columns={COLS} rowKey="id" selectable onRowClick={vi.fn()} />,
+      <DataTable data={ROWS} columns={COLS} selectable onRowClick={vi.fn()} />,
     )
     const checkbox = container.querySelector<HTMLInputElement>('tbody tr input[type="checkbox"]')!
     fireEvent.click(checkbox)
@@ -155,7 +142,7 @@ describe('DataTable — onRowClick', () => {
 
 describe('DataTable — one open dropdown', () => {
   it('U33: opening a dropdown from the keyboard closes the one still open', () => {
-    const { getByText, container } = render(<DataTable data={ROWS} columns={COLS} rowKey="id" />)
+    const { getByText, container } = render(<DataTable data={ROWS} columns={COLS} />)
     // A click without a mousedown, as Enter/Space on a trigger after Tab left the open menu
     fireEvent.click(getByText('Columns'))
     fireEvent.click(getByText('Sort'))
@@ -177,9 +164,7 @@ describe('DataTable — filter dropdown', () => {
   }
 
   it('defaults the detail pane to the first filterable column', () => {
-    const { getByText, container } = render(
-      <DataTable data={ROWS} columns={FILTER_COLS} rowKey="id" />,
-    )
+    const { getByText, container } = render(<DataTable data={ROWS} columns={FILTER_COLS} />)
     fireEvent.click(getByText('Filter'))
     expect(checklistLabels(container).some((t) => t.includes('Alice'))).toBe(true)
     expect(screen.queryByRole('spinbutton', { name: / Min$/ })).toBeNull()
@@ -187,7 +172,7 @@ describe('DataTable — filter dropdown', () => {
 
   it('clicking a column in the list switches the detail pane to it', () => {
     const { getByText, getAllByText, container } = render(
-      <DataTable data={ROWS} columns={FILTER_COLS} rowKey="id" />,
+      <DataTable data={ROWS} columns={FILTER_COLS} />,
     )
     fireEvent.click(getByText('Filter'))
     const scoreItem = getAllByText('Score').find((el) => el.closest('th') === null)!
@@ -199,9 +184,7 @@ describe('DataTable — filter dropdown', () => {
   it('select-all checkbox excludes (unchecks) every currently listed value', () => {
     // `name` is checked-by-default (see docs/filter-dropdown.md's "Filter dropdown") — nothing excluded yet,
     // so clicking the master checkbox excludes everyone.
-    const { getByText, getByLabelText } = render(
-      <DataTable data={ROWS} columns={FILTER_COLS} rowKey="id" />,
-    )
+    const { getByText, getByLabelText } = render(<DataTable data={ROWS} columns={FILTER_COLS} />)
     fireEvent.click(getByText('Filter'))
     fireEvent.click(getByLabelText('Select all'))
     expect((getByLabelText('Alice', { exact: false }) as HTMLInputElement).checked).toBe(false)
@@ -209,9 +192,7 @@ describe('DataTable — filter dropdown', () => {
   })
 
   it('select-all checkbox re-checks every value when all are already excluded', () => {
-    const { getByText, getByLabelText } = render(
-      <DataTable data={ROWS} columns={FILTER_COLS} rowKey="id" />,
-    )
+    const { getByText, getByLabelText } = render(<DataTable data={ROWS} columns={FILTER_COLS} />)
     fireEvent.click(getByText('Filter'))
     fireEvent.click(getByLabelText('Select all'))
     fireEvent.click(getByLabelText('Select all'))
@@ -220,13 +201,13 @@ describe('DataTable — filter dropdown', () => {
   })
 
   it('the Filter toolbar button has no clear-filters button until a filter is active', () => {
-    const { queryByTitle } = render(<DataTable data={ROWS} columns={FILTER_COLS} rowKey="id" />)
+    const { queryByTitle } = render(<DataTable data={ROWS} columns={FILTER_COLS} />)
     expect(queryByTitle('Clear filters')).toBeNull()
   })
 
   it('the toolbar clear-filters button clears all filters without opening the dropdown', () => {
     const { getByLabelText, getByTitle, container, queryByLabelText } = render(
-      <DataTable data={ROWS} columns={FILTER_COLS} rowKey="id" />,
+      <DataTable data={ROWS} columns={FILTER_COLS} />,
     )
     const filterToggle = () =>
       [...container.querySelectorAll('button')].find((b) => b.textContent?.startsWith('Filter'))!
@@ -241,7 +222,7 @@ describe('DataTable — filter dropdown', () => {
 
   it('select-all checkbox only affects the search-narrowed values', () => {
     const { getByText, getAllByPlaceholderText, getByLabelText } = render(
-      <DataTable data={ROWS} columns={FILTER_COLS} rowKey="id" />,
+      <DataTable data={ROWS} columns={FILTER_COLS} />,
     )
     fireEvent.click(getByText('Filter'))
     // The global toolbar search box shares this same default placeholder and now sits before
@@ -257,9 +238,7 @@ describe('DataTable — filter dropdown', () => {
   })
 
   it('select-all checkbox is indeterminate when only some listed values are selected', () => {
-    const { getByText, getByLabelText } = render(
-      <DataTable data={ROWS} columns={FILTER_COLS} rowKey="id" />,
-    )
+    const { getByText, getByLabelText } = render(<DataTable data={ROWS} columns={FILTER_COLS} />)
     fireEvent.click(getByText('Filter'))
     fireEvent.click(getByLabelText('Alice', { exact: false }))
     expect((getByLabelText('Select all') as HTMLInputElement).indeterminate).toBe(true)
@@ -267,7 +246,7 @@ describe('DataTable — filter dropdown', () => {
 
   it('hides the select-all checkbox when search matches no values', () => {
     const { getByText, getAllByPlaceholderText, queryByLabelText } = render(
-      <DataTable data={ROWS} columns={FILTER_COLS} rowKey="id" />,
+      <DataTable data={ROWS} columns={FILTER_COLS} />,
     )
     fireEvent.click(getByText('Filter'))
     // The global toolbar search box shares this same default placeholder and now sits before
@@ -295,7 +274,7 @@ describe('DataTable — filter dropdown', () => {
       { id: 2, name: 'Bob', dept: 'HR' },
     ]
     const { getByText, getAllByText, getByLabelText, queryByLabelText } = render(
-      <DataTable data={ROWS2} columns={COLS2} rowKey="id" />,
+      <DataTable data={ROWS2} columns={COLS2} />,
     )
     fireEvent.click(getByText('Filter'))
     // Narrow to Alice only: `name` is checked-by-default (see docs/filter-dropdown.md's "Filter dropdown"), so
@@ -325,7 +304,7 @@ describe('DataTable — filter dropdown', () => {
       { id: 2, name: 'Bob', dept: 'HR', score: 60 },
     ]
     const { getByText, getAllByText, getByLabelText } = render(
-      <DataTable data={ROWS2} columns={COLS2} rowKey="id" />,
+      <DataTable data={ROWS2} columns={COLS2} />,
     )
     fireEvent.click(getByText('Filter'))
     const deptItem = getAllByText('Dept').find((el) => el.closest('th') === null)!
@@ -346,7 +325,7 @@ describe('DataTable — filter dropdown', () => {
 
   it('search narrows the checklist to matching values', () => {
     const { getByText, getAllByPlaceholderText, container } = render(
-      <DataTable data={ROWS} columns={FILTER_COLS} rowKey="id" />,
+      <DataTable data={ROWS} columns={FILTER_COLS} />,
     )
     fireEvent.click(getByText('Filter'))
     // The toolbar's global row search shares the same "Search…" placeholder as the
@@ -369,9 +348,7 @@ describe('DataTable — filter dropdown', () => {
       { id: 3, name: 'Clara', score: 80 },
       { id: 4, name: 'David', score: 70 },
     ]
-    const { getByText, getByLabelText } = render(
-      <DataTable data={ROWS4} columns={FILTER_COLS} rowKey="id" />,
-    )
+    const { getByText, getByLabelText } = render(<DataTable data={ROWS4} columns={FILTER_COLS} />)
     fireEvent.click(getByText('Filter'))
     fireEvent.click(getByLabelText('Alice', { exact: false })) // exclude Alice, becomes the anchor
     // Direction mirrors what a plain click on Clara (currently checked) would do: exclude the
@@ -390,9 +367,7 @@ describe('DataTable — filter dropdown', () => {
       { id: 3, name: 'Clara', score: 80 },
       { id: 4, name: 'David', score: 70 },
     ]
-    const { getByText, getByLabelText } = render(
-      <DataTable data={ROWS4} columns={FILTER_COLS} rowKey="id" />,
-    )
+    const { getByText, getByLabelText } = render(<DataTable data={ROWS4} columns={FILTER_COLS} />)
     fireEvent.click(getByText('Filter'))
     fireEvent.click(getByLabelText('Select all')) // exclude everyone
     fireEvent.click(getByLabelText('Alice', { exact: false })) // re-check Alice
@@ -408,7 +383,7 @@ describe('DataTable — filter dropdown', () => {
 
   it("renders a range slider with bounds matching the numeric column's actual min/max", () => {
     const { getByText, getAllByText, container } = render(
-      <DataTable data={ROWS} columns={FILTER_COLS} rowKey="id" />,
+      <DataTable data={ROWS} columns={FILTER_COLS} />,
     )
     fireEvent.click(getByText('Filter'))
     const scoreItem = getAllByText('Score').find((el) => el.closest('th') === null)!
@@ -425,9 +400,7 @@ describe('DataTable — filter dropdown', () => {
     const cols = FILTER_COLS.map((c) =>
       c.key === 'score' ? { ...c, format: (v: unknown) => `${v} pts` } : c,
     )
-    const { getByText, getAllByText, container } = render(
-      <DataTable data={ROWS} columns={cols} rowKey="id" />,
-    )
+    const { getByText, getAllByText, container } = render(<DataTable data={ROWS} columns={cols} />)
     fireEvent.click(getByText('Filter'))
     const scoreItem = getAllByText('Score').find((el) => el.closest('th') === null)!
     fireEvent.click(scoreItem)
@@ -446,7 +419,7 @@ describe('DataTable — filter dropdown', () => {
 
   it('dragging a slider thumb updates the plain min/max inputs and filters rows', () => {
     const { getByText, getAllByText, container } = render(
-      <DataTable data={ROWS} columns={FILTER_COLS} rowKey="id" />,
+      <DataTable data={ROWS} columns={FILTER_COLS} />,
     )
     fireEvent.click(getByText('Filter'))
     const scoreItem = getAllByText('Score').find((el) => el.closest('th') === null)!
@@ -459,7 +432,7 @@ describe('DataTable — filter dropdown', () => {
 
   it('marks the column with a clear button and an active-bar chip once a range filter is set', () => {
     const { getByText, getAllByText, container } = render(
-      <DataTable data={ROWS} columns={FILTER_COLS} rowKey="id" />,
+      <DataTable data={ROWS} columns={FILTER_COLS} />,
     )
     fireEvent.click(getByText('Filter'))
     const scoreItem = getAllByText('Score').find((el) => el.closest('th') === null)!
@@ -478,7 +451,7 @@ describe('DataTable — filter dropdown', () => {
 
   it("clicking a range filter's active-bar chip clears it and unfilters the rows", () => {
     const { getByText, getAllByText, container } = render(
-      <DataTable data={ROWS} columns={FILTER_COLS} rowKey="id" />,
+      <DataTable data={ROWS} columns={FILTER_COLS} />,
     )
     fireEvent.click(getByText('Filter'))
     const scoreItem = getAllByText('Score').find((el) => el.closest('th') === null)!
@@ -497,9 +470,7 @@ describe('DataTable — filter dropdown', () => {
   })
 
   it('a non-multi-value checklist item explains the plain hide/show toggle, not the tri-state cycle', () => {
-    const { getByText, getByLabelText } = render(
-      <DataTable data={ROWS} columns={FILTER_COLS} rowKey="id" />,
-    )
+    const { getByText, getByLabelText } = render(<DataTable data={ROWS} columns={FILTER_COLS} />)
     fireEvent.click(getByText('Filter'))
     const alice = getByLabelText('Alice', { exact: false }) as HTMLInputElement
     expect(alice.title).toBe('Click to hide this value')
@@ -539,7 +510,7 @@ describe('DataTable — filter dropdown', () => {
       { key: 'name', label: 'Name', filterable: true },
       { key: 'dept', label: 'Dept', filterable: true },
     ]
-    const { getByText, getAllByText } = render(<DataTable data={data} columns={cols} rowKey="id" />)
+    const { getByText, getAllByText } = render(<DataTable data={data} columns={cols} />)
     fireEvent.click(getByText('Filter'))
     const selectCol = (label: string) =>
       fireEvent.click(getAllByText(label).find((el) => el.closest('th') === null)!)
@@ -554,7 +525,7 @@ describe('DataTable — filter dropdown', () => {
   it('renders the "Others" row without a controlled-checkbox warning (U22)', () => {
     const error = vi.spyOn(console, 'error').mockImplementation(() => {})
     const { getByText, getAllByPlaceholderText, getByLabelText } = render(
-      <DataTable data={ROWS} columns={FILTER_COLS} rowKey="id" />,
+      <DataTable data={ROWS} columns={FILTER_COLS} />,
     )
     fireEvent.click(getByText('Filter'))
     const searchInputs = getAllByPlaceholderText('Search…')
@@ -566,7 +537,7 @@ describe('DataTable — filter dropdown', () => {
 
   it('an "Others" row appears once the value search narrows the list, bulk-(un)checking everything it hides', () => {
     const { getByText, getAllByPlaceholderText, getByLabelText, queryByLabelText } = render(
-      <DataTable data={ROWS} columns={FILTER_COLS} rowKey="id" />,
+      <DataTable data={ROWS} columns={FILTER_COLS} />,
     )
     fireEvent.click(getByText('Filter'))
     expect(queryByLabelText('Others', { exact: false })).toBeNull()
@@ -606,7 +577,7 @@ describe('DataTable — exclude filters (multi-value checklist)', () => {
 
   it('the checkbox includes a value and the ≠ button excludes it, each dropping the other', () => {
     const { getByText, getByLabelText, getByRole, container } = render(
-      <DataTable data={GAMES} columns={GAME_COLS} rowKey="id" />,
+      <DataTable data={GAMES} columns={GAME_COLS} />,
     )
     fireEvent.click(getByText('Filter'))
     const rpg = () => getByLabelText('RPG', { exact: false, selector: 'input' }) as HTMLInputElement
@@ -632,7 +603,7 @@ describe('DataTable — exclude filters (multi-value checklist)', () => {
 
   it('reaches the ≠ buttons by keyboard: → from a checkbox, ↓ along them, ← back', () => {
     const { getByText, getByLabelText, getByRole } = render(
-      <DataTable data={GAMES} columns={GAME_COLS} rowKey="id" />,
+      <DataTable data={GAMES} columns={GAME_COLS} />,
     )
     fireEvent.click(getByText('Filter'))
     const action = getByLabelText('Action', { exact: false, selector: 'input' })
@@ -649,7 +620,7 @@ describe('DataTable — exclude filters (multi-value checklist)', () => {
 
   it('renders an exclude filter as its own chip, distinct from an include chip', () => {
     const { getByText, getByRole, container } = render(
-      <DataTable data={GAMES} columns={GAME_COLS} rowKey="id" />,
+      <DataTable data={GAMES} columns={GAME_COLS} />,
     )
     fireEvent.click(getByText('Filter'))
     fireEvent.click(getByRole('button', { name: 'Exclude RPG' }))
@@ -666,7 +637,7 @@ describe('DataTable — exclude filters (multi-value checklist)', () => {
 
   it("clearing an include chip on a column doesn't clear that same column's exclude chip, and vice versa", () => {
     const { getByText, getByLabelText, getByRole, container } = render(
-      <DataTable data={GAMES} columns={GAME_COLS} rowKey="id" />,
+      <DataTable data={GAMES} columns={GAME_COLS} />,
     )
     fireEvent.click(getByText('Filter'))
     const action = () =>
@@ -697,7 +668,7 @@ describe('DataTable — exclude filters (multi-value checklist)', () => {
 
   it('select-all moves listed values into the include set, clearing any that were excluded', () => {
     const { getByText, getByLabelText, getByRole } = render(
-      <DataTable data={GAMES} columns={GAME_COLS} rowKey="id" />,
+      <DataTable data={GAMES} columns={GAME_COLS} />,
     )
     fireEvent.click(getByText('Filter'))
     const rpg = () => getByLabelText('RPG', { exact: false, selector: 'input' }) as HTMLInputElement
@@ -710,7 +681,7 @@ describe('DataTable — exclude filters (multi-value checklist)', () => {
 
   it("select-all's deselect branch only clears the include set, leaving an unrelated exclude untouched", () => {
     const { getByText, getByLabelText, getByRole, container } = render(
-      <DataTable data={GAMES} columns={GAME_COLS} rowKey="id" />,
+      <DataTable data={GAMES} columns={GAME_COLS} />,
     )
     fireEvent.click(getByText('Filter'))
     const action = () =>
@@ -730,7 +701,7 @@ describe('DataTable — exclude filters (multi-value checklist)', () => {
 
   it("a multi-value column's checkbox has no tooltip; the excluded row is struck through", () => {
     const { getByText, getByLabelText, getByRole } = render(
-      <DataTable data={GAMES} columns={GAME_COLS} rowKey="id" />,
+      <DataTable data={GAMES} columns={GAME_COLS} />,
     )
     fireEvent.click(getByText('Filter'))
     const action = getByLabelText('Action', { exact: false, selector: 'input' }) as HTMLInputElement
@@ -743,7 +714,7 @@ describe('DataTable — exclude filters (multi-value checklist)', () => {
 
   it('bulk-(de)selects hidden values via the include set for a multi-value column', () => {
     const { getByText, getAllByPlaceholderText, getByLabelText } = render(
-      <DataTable data={GAMES} columns={GAME_COLS} rowKey="id" />,
+      <DataTable data={GAMES} columns={GAME_COLS} />,
     )
     fireEvent.click(getByText('Filter'))
     const searchInputs = getAllByPlaceholderText('Search…')
@@ -788,7 +759,7 @@ describe('DataTable — any/all filter match mode', () => {
 
   it('is shown as a segmented Any/All control for an array-valued column, both options always present', () => {
     const { getByText, getByLabelText, container } = render(
-      <DataTable data={GAMES} columns={GAME_COLS} rowKey="id" />,
+      <DataTable data={GAMES} columns={GAME_COLS} />,
     )
     fireEvent.click(getByText('Filter'))
     const anyBtn = getByText('Any') as HTMLButtonElement
@@ -814,7 +785,7 @@ describe('DataTable — any/all filter match mode', () => {
 
   it('is not shown for a plain scalar column', () => {
     const cols: ColumnDef<Game>[] = [{ key: 'name', label: 'Name', filterable: true }]
-    const { getByText, queryByText } = render(<DataTable data={GAMES} columns={cols} rowKey="id" />)
+    const { getByText, queryByText } = render(<DataTable data={GAMES} columns={cols} />)
     fireEvent.click(getByText('Filter'))
     expect(queryByText('Any')).toBeNull()
     expect(queryByText('All')).toBeNull()
@@ -826,7 +797,7 @@ describe('DataTable — any/all filter match mode', () => {
       { key: 'tags', label: 'Tags', filterable: true },
     ]
     const { getByText, getByLabelText, queryByLabelText, container } = render(
-      <DataTable data={GAMES} columns={cols} rowKey="id" />,
+      <DataTable data={GAMES} columns={cols} />,
     )
     const selectCol = (key: string) =>
       fireEvent.click(container.querySelector(`[data-filter-col-key="${key}"]`)!)
@@ -871,9 +842,7 @@ describe('DataTable — virtualized filter checklist', () => {
   }
 
   it('only mounts the rows scrolled into view, not every distinct value', () => {
-    const { container, getByText } = render(
-      <DataTable data={MANY_ROWS} columns={MANY_COLS} rowKey="id" />,
-    )
+    const { container, getByText } = render(<DataTable data={MANY_ROWS} columns={MANY_COLS} />)
     fireEvent.click(getByText('Filter'))
     const checkboxes = container.querySelectorAll(
       '.dt-filter-list-item, label input[type="checkbox"]',
@@ -885,7 +854,7 @@ describe('DataTable — virtualized filter checklist', () => {
 
   it('renders a different slice of values after scrolling', async () => {
     const { container, getByText, queryByLabelText } = render(
-      <DataTable data={MANY_ROWS} columns={MANY_COLS} rowKey="id" />,
+      <DataTable data={MANY_ROWS} columns={MANY_COLS} />,
     )
     fireEvent.click(getByText('Filter'))
     expect(queryByLabelText('Value 0000', { exact: false })).toBeTruthy()
@@ -902,9 +871,7 @@ describe('DataTable — virtualized filter checklist', () => {
 
   it('select-all still excludes every matching value, not just the rendered window', () => {
     // `name` is a plain scalar column: checked-by-default, so select-all excludes every value.
-    const { getByText, getByLabelText } = render(
-      <DataTable data={MANY_ROWS} columns={MANY_COLS} rowKey="id" />,
-    )
+    const { getByText, getByLabelText } = render(<DataTable data={MANY_ROWS} columns={MANY_COLS} />)
     fireEvent.click(getByText('Filter'))
     fireEvent.click(getByLabelText('Select all'))
     expect(getByText(`0 / 500 rows`)).toBeTruthy()
@@ -934,16 +901,14 @@ describe('DataTable — filter value sort', () => {
   }
 
   it('sorts checklist values alphabetically ascending by default', () => {
-    const { getByText, container } = render(
-      <DataTable data={TAG_ROWS} columns={TAG_COLS} rowKey="id" />,
-    )
+    const { getByText, container } = render(<DataTable data={TAG_ROWS} columns={TAG_COLS} />)
     fireEvent.click(getByText('Filter'))
     expect(checklistValueOrder(container)).toEqual(['Action', 'Adventure', 'RPG'])
   })
 
   it('cycles to alphabetical descending on the first click', () => {
     const { getByText, getByLabelText, container } = render(
-      <DataTable data={TAG_ROWS} columns={TAG_COLS} rowKey="id" />,
+      <DataTable data={TAG_ROWS} columns={TAG_COLS} />,
     )
     fireEvent.click(getByText('Filter'))
     fireEvent.click(getByLabelText('Sort values'))
@@ -952,7 +917,7 @@ describe('DataTable — filter value sort', () => {
 
   it('cycles to count descending (tie-broken alphabetically) on the second click', () => {
     const { getByText, getByLabelText, container } = render(
-      <DataTable data={TAG_ROWS} columns={TAG_COLS} rowKey="id" />,
+      <DataTable data={TAG_ROWS} columns={TAG_COLS} />,
     )
     fireEvent.click(getByText('Filter'))
     fireEvent.click(getByLabelText('Sort values'))
@@ -962,7 +927,7 @@ describe('DataTable — filter value sort', () => {
 
   it('cycles to count ascending (tie-broken alphabetically) on the third click', () => {
     const { getByText, getByLabelText, container } = render(
-      <DataTable data={TAG_ROWS} columns={TAG_COLS} rowKey="id" />,
+      <DataTable data={TAG_ROWS} columns={TAG_COLS} />,
     )
     fireEvent.click(getByText('Filter'))
     fireEvent.click(getByLabelText('Sort values'))
@@ -973,7 +938,7 @@ describe('DataTable — filter value sort', () => {
 
   it('cycles back to alphabetical ascending on the fourth click', () => {
     const { getByText, getByLabelText, container } = render(
-      <DataTable data={TAG_ROWS} columns={TAG_COLS} rowKey="id" />,
+      <DataTable data={TAG_ROWS} columns={TAG_COLS} />,
     )
     fireEvent.click(getByText('Filter'))
     fireEvent.click(getByLabelText('Sort values'))
@@ -993,7 +958,7 @@ describe('DataTable — filter value sort', () => {
       },
     ]
     const { getByText, getByLabelText, container } = render(
-      <DataTable data={TAG_ROWS} columns={cols} rowKey="id" />,
+      <DataTable data={TAG_ROWS} columns={cols} />,
     )
     fireEvent.click(getByText('Filter'))
     expect(checklistValueOrder(container)).toEqual(['RPG', 'Adventure', 'Action'])
@@ -1023,7 +988,7 @@ describe('DataTable — filter value sort', () => {
         .filter((v): v is string => !!v)
     }
     const { getByText, getByLabelText, container } = render(
-      <DataTable data={DATE_ROWS} columns={DATE_COLS} rowKey="id" />,
+      <DataTable data={DATE_ROWS} columns={DATE_COLS} />,
     )
     fireEvent.click(getByText('Filter'))
     expect(yearOrder(container)).toEqual(['2021', '2023'])
@@ -1069,9 +1034,7 @@ describe('DataTable — date filter tree', () => {
   }
 
   it('renders year nodes collapsed by default, with months hidden until expanded', () => {
-    const { getByText, queryByText } = render(
-      <DataTable data={DATE_ROWS} columns={DATE_COLS} rowKey="id" />,
-    )
+    const { getByText, queryByText } = render(<DataTable data={DATE_ROWS} columns={DATE_COLS} />)
     fireEvent.click(getByText('Filter'))
     expect(getByText('2023')).toBeTruthy()
     expect(getByText('2021')).toBeTruthy()
@@ -1082,9 +1045,7 @@ describe('DataTable — date filter tree', () => {
   // overflow — so an expanded tree could bleed past the filter panel onto the page instead of
   // scrolling. It must now sit inside its own bounded, scrollable container (`.dt-date-tree-wrap`).
   it('bounds the date tree in a scrollable, flex-filling container', () => {
-    const { getByText, container } = render(
-      <DataTable data={DATE_ROWS} columns={DATE_COLS} rowKey="id" />,
-    )
+    const { getByText, container } = render(<DataTable data={DATE_ROWS} columns={DATE_COLS} />)
     fireEvent.click(getByText('Filter'))
     const yearNode = getByText('2023')
     const wrap = [...container.querySelectorAll<HTMLElement>('div')].find(
@@ -1094,9 +1055,7 @@ describe('DataTable — date filter tree', () => {
   })
 
   it('expanding a year reveals its months, expanding a month reveals its days', () => {
-    const { getByText, container } = render(
-      <DataTable data={DATE_ROWS} columns={DATE_COLS} rowKey="id" />,
-    )
+    const { getByText, container } = render(<DataTable data={DATE_ROWS} columns={DATE_COLS} />)
     fireEvent.click(getByText('Filter'))
     fireEvent.click(toggleFor(container, '2023'))
     expect(getByText('May')).toBeTruthy()
@@ -1107,7 +1066,7 @@ describe('DataTable — date filter tree', () => {
 
   it('checking a year node selects every date under it and filters rows accordingly', () => {
     const { getByText, getByLabelText, queryByText } = render(
-      <DataTable data={DATE_ROWS} columns={DATE_COLS} rowKey="id" />,
+      <DataTable data={DATE_ROWS} columns={DATE_COLS} />,
     )
     fireEvent.click(getByText('Filter'))
     fireEvent.click(getByLabelText('2023', { exact: false }))
@@ -1117,9 +1076,7 @@ describe('DataTable — date filter tree', () => {
   })
 
   it('unchecking an already fully-selected year deselects every date under it', () => {
-    const { getByText, getByLabelText } = render(
-      <DataTable data={DATE_ROWS} columns={DATE_COLS} rowKey="id" />,
-    )
+    const { getByText, getByLabelText } = render(<DataTable data={DATE_ROWS} columns={DATE_COLS} />)
     fireEvent.click(getByText('Filter'))
     fireEvent.click(getByLabelText('2023', { exact: false }))
     fireEvent.click(getByLabelText('2023', { exact: false }))
@@ -1128,7 +1085,7 @@ describe('DataTable — date filter tree', () => {
 
   it('is indeterminate on a month node when only some of its days are selected', () => {
     const { getByText, getByLabelText, container } = render(
-      <DataTable data={DATE_ROWS} columns={DATE_COLS} rowKey="id" />,
+      <DataTable data={DATE_ROWS} columns={DATE_COLS} />,
     )
     fireEvent.click(getByText('Filter'))
     fireEvent.click(toggleFor(container, '2023'))
@@ -1145,7 +1102,7 @@ describe('DataTable — date filter tree', () => {
       { id: 4, name: 'Game D', released: '2023-04-01' },
     ]
     const { getByText, getByLabelText, container } = render(
-      <DataTable data={rows} columns={DATE_COLS} rowKey="id" />,
+      <DataTable data={rows} columns={DATE_COLS} />,
     )
     fireEvent.click(getByText('Filter'))
     fireEvent.click(getByLabelText('2023', { exact: false }))
@@ -1160,7 +1117,7 @@ describe('DataTable — date filter tree', () => {
       { id: 4, name: 'Game D', released: '2024-07-01' },
     ]
     const { getByText, container, queryByText } = render(
-      <DataTable data={rows} columns={DATE_COLS} rowKey="id" />,
+      <DataTable data={rows} columns={DATE_COLS} />,
     )
     fireEvent.click(getByText('Filter'))
     fireEvent.click(toggleFor(container, '2023'))
@@ -1181,7 +1138,7 @@ describe('DataTable — date filter tree', () => {
       { id: 4, name: 'Game D', released: '2024-07-01' },
     ]
     const { getByText, getByLabelText, container, queryByText } = render(
-      <DataTable data={rows} columns={DATE_COLS} rowKey="id" />,
+      <DataTable data={rows} columns={DATE_COLS} />,
     )
     fireEvent.click(getByText('Filter'))
     fireEvent.click(toggleFor(container, '2023'))
@@ -1198,7 +1155,7 @@ describe('DataTable — date filter tree', () => {
   })
 
   it('renders 2 native date inputs above the tree for a date column', () => {
-    const { getByText } = render(<DataTable data={DATE_ROWS} columns={DATE_COLS} rowKey="id" />)
+    const { getByText } = render(<DataTable data={DATE_ROWS} columns={DATE_COLS} />)
     fireEvent.click(getByText('Filter'))
     expect(
       (screen.getByLabelText(/ Min$/, { selector: 'input[type="date"]' }) as HTMLInputElement).type,
@@ -1209,7 +1166,7 @@ describe('DataTable — date filter tree', () => {
   })
 
   it("defaults the date inputs to the column's earliest/latest date when no filter is set", () => {
-    const { getByText } = render(<DataTable data={DATE_ROWS} columns={DATE_COLS} rowKey="id" />)
+    const { getByText } = render(<DataTable data={DATE_ROWS} columns={DATE_COLS} />)
     fireEvent.click(getByText('Filter'))
     expect(
       (screen.getByLabelText(/ Min$/, { selector: 'input[type="date"]' }) as HTMLInputElement)
@@ -1223,7 +1180,7 @@ describe('DataTable — date filter tree', () => {
 
   it('a date range narrows the tree itself and filters rows, without needing a checkbox ticked', () => {
     const { getByText, queryByText, container } = render(
-      <DataTable data={DATE_ROWS} columns={DATE_COLS} rowKey="id" />,
+      <DataTable data={DATE_ROWS} columns={DATE_COLS} />,
     )
     fireEvent.click(getByText('Filter'))
     fireEvent.change(screen.getByLabelText(/ Min$/, { selector: 'input[type="date"]' }), {
@@ -1237,9 +1194,7 @@ describe('DataTable — date filter tree', () => {
   })
 
   it("a date range slider has epoch-based bounds matching the column's actual min/max date", () => {
-    const { getByText, container } = render(
-      <DataTable data={DATE_ROWS} columns={DATE_COLS} rowKey="id" />,
-    )
+    const { getByText, container } = render(<DataTable data={DATE_ROWS} columns={DATE_COLS} />)
     fireEvent.click(getByText('Filter'))
     const thumbs = container.querySelectorAll<HTMLInputElement>('input[type="range"]')
     expect(thumbs).toHaveLength(2)
@@ -1249,7 +1204,7 @@ describe('DataTable — date filter tree', () => {
 
   it('marks the date column with a clear button and an active-bar chip once a range filter is set, with no checkbox ticked', () => {
     const { getByText, getAllByText, container } = render(
-      <DataTable data={DATE_ROWS} columns={DATE_COLS} rowKey="id" />,
+      <DataTable data={DATE_ROWS} columns={DATE_COLS} />,
     )
     fireEvent.click(getByText('Filter'))
     fireEvent.change(screen.getByLabelText(/ Min$/, { selector: 'input[type="date"]' }), {
@@ -1266,7 +1221,7 @@ describe('DataTable — date filter tree', () => {
 
   it("clicking a date range filter's active-bar chip clears it, restoring the full tree and rows", () => {
     const { getByText, queryByText, container } = render(
-      <DataTable data={DATE_ROWS} columns={DATE_COLS} rowKey="id" />,
+      <DataTable data={DATE_ROWS} columns={DATE_COLS} />,
     )
     fireEvent.click(getByText('Filter'))
     fireEvent.change(screen.getByLabelText(/ Min$/, { selector: 'input[type="date"]' }), {
@@ -1286,13 +1241,13 @@ describe('DataTable — date filter tree', () => {
 
 describe('DataTable — search clear button', () => {
   it('does not render a clear button when the search query is empty', () => {
-    const { queryByTitle } = render(<DataTable data={ROWS} columns={COLS} rowKey="id" />)
+    const { queryByTitle } = render(<DataTable data={ROWS} columns={COLS} />)
     expect(queryByTitle('Clear search')).toBeNull()
   })
 
   it('renders and wires up a clear button once the search query is non-empty', () => {
     const { getByPlaceholderText, getByTitle, queryByTitle } = render(
-      <DataTable data={ROWS} columns={COLS} rowKey="id" />,
+      <DataTable data={ROWS} columns={COLS} />,
     )
     const input = getByPlaceholderText('Search…') as HTMLInputElement
     fireEvent.change(input, { target: { value: 'ali' } })
@@ -1306,13 +1261,13 @@ describe('DataTable — search clear button', () => {
 describe('DataTable — showSearch', () => {
   it('hides the search box when showSearch is false', () => {
     const { queryByPlaceholderText } = render(
-      <DataTable data={ROWS} columns={COLS} rowKey="id" showSearch={false} />,
+      <DataTable data={ROWS} columns={COLS} showSearch={false} />,
     )
     expect(queryByPlaceholderText('Search…')).toBeNull()
   })
 
   it('shows the search box by default', () => {
-    const { queryByPlaceholderText } = render(<DataTable data={ROWS} columns={COLS} rowKey="id" />)
+    const { queryByPlaceholderText } = render(<DataTable data={ROWS} columns={COLS} />)
     expect(queryByPlaceholderText('Search…')).not.toBeNull()
   })
 })
@@ -1323,9 +1278,7 @@ describe('DataTable — range presets', () => {
       { key: 'name', label: 'Name' },
       { key: 'score', label: 'Score', type: 'number', rangePresets: [{ label: 'top', min: 80 }] },
     ]
-    const { getByText, getAllByText, container } = render(
-      <DataTable data={ROWS} columns={cols} rowKey="id" />,
-    )
+    const { getByText, getAllByText, container } = render(<DataTable data={ROWS} columns={cols} />)
     fireEvent.click(getByText('Filter'))
     fireEvent.click(getAllByText('Score').find((el) => el.closest('th') === null)!)
     const top = screen.getByRole('button', { name: 'top' })
@@ -1342,13 +1295,13 @@ describe('DataTable — range presets', () => {
 describe('DataTable — currentRow', () => {
   it('marks the current row with aria-current and dt-tr--current, following the prop', () => {
     const { container, rerender } = render(
-      <DataTable data={ROWS} columns={COLS} rowKey="id" currentRow={ROWS[1]} />,
+      <DataTable data={ROWS} columns={COLS} currentRow={ROWS[1]} />,
     )
     const marked = () => [...container.querySelectorAll('tbody tr[aria-current="true"]')]
     expect(marked()).toHaveLength(1)
     expect(marked()[0].textContent).toContain(ROWS[1].name)
     expect(container.querySelector('.dt-tr--current')).toBe(marked()[0])
-    rerender(<DataTable data={ROWS} columns={COLS} rowKey="id" currentRow={null} />)
+    rerender(<DataTable data={ROWS} columns={COLS} currentRow={null} />)
     expect(marked()).toHaveLength(0)
     expect(container.querySelector('.dt-tr--current')).toBeNull()
   })
@@ -1366,14 +1319,14 @@ describe('DataTable — currentRow', () => {
   it('adds rowClass after the built-in row classes, following the prop', () => {
     const expired = (r: Row) => (r.name === 'Bob' ? 'is-expired dimmed' : undefined)
     const { container, rerender } = render(
-      <DataTable data={ROWS} columns={COLS} rowKey="id" currentRow={ROWS[1]} rowClass={expired} />,
+      <DataTable data={ROWS} columns={COLS} currentRow={ROWS[1]} rowClass={expired} />,
     )
     const rows = [...container.querySelectorAll('tbody tr.dt-tr')]
     expect(rows.map((tr) => tr.className)).toEqual([
       'dt-tr',
       'dt-tr dt-tr--odd dt-tr--current is-expired dimmed',
     ])
-    rerender(<DataTable data={ROWS} columns={COLS} rowKey="id" rowClass={() => undefined} />)
+    rerender(<DataTable data={ROWS} columns={COLS} rowClass={() => undefined} />)
     expect(container.querySelector('.is-expired')).toBeNull()
   })
 })
@@ -1385,9 +1338,7 @@ describe('DataTable — empty toolbar', () => {
   const SORT_ONLY: ColumnDef<Row>[] = [{ key: 'name', label: 'Name', filterable: false }]
 
   it('renders no toolbar when no control applies', () => {
-    const { container } = render(
-      <DataTable data={ROWS} columns={BARE} rowKey="id" showSearch={false} />,
-    )
+    const { container } = render(<DataTable data={ROWS} columns={BARE} showSearch={false} />)
     expect(container.querySelector('.dt-toolbar')).toBeNull()
     expect(container.querySelector('.dt-active-bar')).not.toBeNull()
   })
@@ -1397,7 +1348,6 @@ describe('DataTable — empty toolbar', () => {
       <DataTable
         data={ROWS}
         columns={BARE}
-        rowKey="id"
         showSearch={false}
         toolbarEnd={<button>Share</button>}
       />,
@@ -1408,7 +1358,6 @@ describe('DataTable — empty toolbar', () => {
       <DataTable
         data={ROWS}
         columns={BARE}
-        rowKey="id"
         showSearch={false}
         initialViewState={{ searchQuery: 'a' }}
       />,
@@ -1417,9 +1366,7 @@ describe('DataTable — empty toolbar', () => {
   })
 
   it('draws the divider only with controls on both sides', () => {
-    const { container } = render(
-      <DataTable data={ROWS} columns={SORT_ONLY} rowKey="id" showSearch={false} />,
-    )
+    const { container } = render(<DataTable data={ROWS} columns={SORT_ONLY} showSearch={false} />)
     expect(container.querySelector('.dt-toolbar')).not.toBeNull()
     expect(container.querySelector('.dt-toolbar-divider')).toBeNull()
   })
@@ -1428,7 +1375,7 @@ describe('DataTable — empty toolbar', () => {
 describe('DataTable — toolbarEnd', () => {
   it('renders toolbarEnd as the last child of the toolbar actions row', () => {
     const { container, getByText } = render(
-      <DataTable data={ROWS} columns={COLS} rowKey="id" toolbarEnd={<button>Share</button>} />,
+      <DataTable data={ROWS} columns={COLS} toolbarEnd={<button>Share</button>} />,
     )
     const end = container.querySelector<HTMLElement>('.dt-toolbar-end')!
     expect(end.contains(getByText('Share'))).toBe(true)
@@ -1438,7 +1385,7 @@ describe('DataTable — toolbarEnd', () => {
 
   it('sits right after "Clear all" when that is shown', () => {
     const { container, getAllByPlaceholderText } = render(
-      <DataTable data={ROWS} columns={COLS} rowKey="id" toolbarEnd={<button>Share</button>} />,
+      <DataTable data={ROWS} columns={COLS} toolbarEnd={<button>Share</button>} />,
     )
     fireEvent.change(getAllByPlaceholderText('Search…')[0], { target: { value: 'ali' } })
     const end = container.querySelector<HTMLElement>('.dt-toolbar-end')!
@@ -1447,9 +1394,9 @@ describe('DataTable — toolbarEnd', () => {
   })
 
   it('renders no toolbar-end wrapper when toolbarEnd is absent or false', () => {
-    const { container, rerender } = render(<DataTable data={ROWS} columns={COLS} rowKey="id" />)
+    const { container, rerender } = render(<DataTable data={ROWS} columns={COLS} />)
     expect(container.querySelector('.dt-toolbar-end')).toBeNull()
-    rerender(<DataTable data={ROWS} columns={COLS} rowKey="id" toolbarEnd={false} />)
+    rerender(<DataTable data={ROWS} columns={COLS} toolbarEnd={false} />)
     expect(container.querySelector('.dt-toolbar-end')).toBeNull()
   })
 
@@ -1457,7 +1404,7 @@ describe('DataTable — toolbarEnd', () => {
     const restore = stubMatchMedia(true)
     try {
       const { container, getAllByPlaceholderText } = render(
-        <DataTable data={ROWS} columns={COLS} rowKey="id" toolbarEnd={<button>Share</button>} />,
+        <DataTable data={ROWS} columns={COLS} toolbarEnd={<button>Share</button>} />,
       )
       fireEvent.change(getAllByPlaceholderText('Search…')[0], { target: { value: 'ali' } })
       const end = container.querySelector<HTMLElement>('.dt-toolbar-end')!
@@ -1499,16 +1446,14 @@ describe('DataTable — sort dropdown', () => {
   ]
 
   it('lists a not-yet-sorted column under the add section as a real button', () => {
-    const { getByText, getAllByText } = render(
-      <DataTable data={ROWS} columns={SORT_COLS} rowKey="id" />,
-    )
+    const { getByText, getAllByText } = render(<DataTable data={ROWS} columns={SORT_COLS} />)
     fireEvent.click(getByText('Sort'))
     expect(ddCopyOf(getAllByText, 'Score').closest('button')).not.toBeNull()
   })
 
   it('clicking an add-list column adds it ascending, and clicking the active row toggles direction', () => {
     const { getByText, getAllByText, container } = render(
-      <DataTable data={ROWS} columns={SORT_COLS} rowKey="id" />,
+      <DataTable data={ROWS} columns={SORT_COLS} />,
     )
     fireEvent.click(getByText('Sort'))
     fireEvent.click(ddCopyOf(getAllByText, 'Score').closest('button')!)
@@ -1524,7 +1469,7 @@ describe('DataTable — sort dropdown', () => {
 
   it('the × button removes the sort and moves the column back to the add section', () => {
     const { getByText, getAllByText, container } = render(
-      <DataTable data={ROWS} columns={SORT_COLS} rowKey="id" />,
+      <DataTable data={ROWS} columns={SORT_COLS} />,
     )
     fireEvent.click(getByText('Sort'))
     fireEvent.click(ddCopyOf(getAllByText, 'Score').closest('button')!)
@@ -1543,7 +1488,6 @@ describe('DataTable — sort dropdown', () => {
       <DataTable
         data={ROWS}
         columns={COLS.map((c) => ({ ...c, groupable: true }))}
-        rowKey="id"
         initialViewState={{
           groupBy: ['name'],
           sorts: [{ key: 'score', dir: 'asc' }],
@@ -1560,13 +1504,13 @@ describe('DataTable — sort dropdown', () => {
   })
 
   it('the Sort toolbar button has no clear-sorts button until a sort is active', () => {
-    const { queryByTitle } = render(<DataTable data={ROWS} columns={SORT_COLS} rowKey="id" />)
+    const { queryByTitle } = render(<DataTable data={ROWS} columns={SORT_COLS} />)
     expect(queryByTitle('Clear sorts')).toBeNull()
   })
 
   it('the toolbar clear-sorts button clears all sorts without opening the dropdown', () => {
     const { getAllByText, getByTitle, container, queryByText } = render(
-      <DataTable data={ROWS} columns={SORT_COLS} rowKey="id" />,
+      <DataTable data={ROWS} columns={SORT_COLS} />,
     )
     const sortToggle = () =>
       [...container.querySelectorAll('button')].find((b) => b.textContent?.startsWith('Sort'))!
@@ -1584,7 +1528,7 @@ describe('DataTable — sort dropdown', () => {
 
   it('dragging an active sort row onto another reorders priority', () => {
     const { getByText, getAllByText, container } = render(
-      <DataTable data={ROWS} columns={SORT_COLS} rowKey="id" />,
+      <DataTable data={ROWS} columns={SORT_COLS} />,
     )
     fireEvent.click(getByText('Sort'))
     fireEvent.click(ddCopyOf(getAllByText, 'Name').closest('button')!)
@@ -1601,9 +1545,7 @@ describe('DataTable — sort dropdown', () => {
 
   it('dropping past the last active sort row moves the dragged row to the end', () => {
     const cols: ColumnDef<Row>[] = [...SORT_COLS, { key: 'id', label: 'Id', type: 'number' }]
-    const { getByText, getAllByText, container } = render(
-      <DataTable data={ROWS} columns={cols} rowKey="id" />,
-    )
+    const { getByText, getAllByText, container } = render(<DataTable data={ROWS} columns={cols} />)
     fireEvent.click(getByText('Sort'))
     fireEvent.click(ddCopyOf(getAllByText, 'Name').closest('button')!)
     fireEvent.click(ddCopyOf(getAllByText, 'Score').closest('button')!)
@@ -1634,7 +1576,7 @@ describe('DataTable — sort dropdown', () => {
 
   it('dropping on the bottom half of the last active sort row moves the dragged row after it', () => {
     const { getByText, getAllByText, container } = render(
-      <DataTable data={ROWS} columns={SORT_COLS} rowKey="id" />,
+      <DataTable data={ROWS} columns={SORT_COLS} />,
     )
     fireEvent.click(getByText('Sort'))
     fireEvent.click(ddCopyOf(getAllByText, 'Name').closest('button')!)
@@ -1656,7 +1598,7 @@ describe('DataTable — sort dropdown', () => {
 
   it('Alt+ArrowUp on a focused active sort row reorders priority', () => {
     const { getByText, getAllByText, container } = render(
-      <DataTable data={ROWS} columns={SORT_COLS} rowKey="id" />,
+      <DataTable data={ROWS} columns={SORT_COLS} />,
     )
     fireEvent.click(getByText('Sort'))
     fireEvent.click(ddCopyOf(getAllByText, 'Name').closest('button')!)
@@ -1676,7 +1618,7 @@ describe('DataTable — sort dropdown', () => {
 
   it("Alt+ArrowUp on the first active sort row isn't default-prevented (no neighbor)", () => {
     const { getByText, getAllByText, container } = render(
-      <DataTable data={ROWS} columns={SORT_COLS} rowKey="id" />,
+      <DataTable data={ROWS} columns={SORT_COLS} />,
     )
     fireEvent.click(getByText('Sort'))
     fireEvent.click(ddCopyOf(getAllByText, 'Name').closest('button')!)
@@ -1703,9 +1645,7 @@ describe('DataTable — header click sort', () => {
   ]
 
   it('clicking a header sorts ascending, clicking again reverses to descending', () => {
-    const { getAllByText, container } = render(
-      <DataTable data={ROWS} columns={SORT_COLS} rowKey="id" />,
-    )
+    const { getAllByText, container } = render(<DataTable data={ROWS} columns={SORT_COLS} />)
     fireEvent.click(headerOf(getAllByText, 'Score'))
     let names = [...container.querySelectorAll('tbody tr td:first-child')].map(
       (td) => td.textContent,
@@ -1718,9 +1658,7 @@ describe('DataTable — header click sort', () => {
   })
 
   it('clicking a third time clears the sort', () => {
-    const { getAllByText, container } = render(
-      <DataTable data={ROWS} columns={SORT_COLS} rowKey="id" />,
-    )
+    const { getAllByText, container } = render(<DataTable data={ROWS} columns={SORT_COLS} />)
     fireEvent.click(headerOf(getAllByText, 'Score'))
     fireEvent.click(headerOf(getAllByText, 'Score'))
     fireEvent.click(headerOf(getAllByText, 'Score'))
@@ -1731,9 +1669,7 @@ describe('DataTable — header click sort', () => {
   })
 
   it('plain-clicking a different header replaces the sort instead of appending to it', () => {
-    const { getAllByText, container } = render(
-      <DataTable data={ROWS} columns={SORT_COLS} rowKey="id" />,
-    )
+    const { getAllByText, container } = render(<DataTable data={ROWS} columns={SORT_COLS} />)
     fireEvent.click(headerOf(getAllByText, 'Name'))
     fireEvent.click(headerOf(getAllByText, 'Score'))
     // Only Score's arrow shows — Name is no longer sorted.
@@ -1745,9 +1681,7 @@ describe('DataTable — header click sort', () => {
   })
 
   it('shift-clicking a header appends it to the existing sort instead of replacing it', () => {
-    const { getAllByText, container } = render(
-      <DataTable data={ROWS} columns={SORT_COLS} rowKey="id" />,
-    )
+    const { getAllByText, container } = render(<DataTable data={ROWS} columns={SORT_COLS} />)
     fireEvent.click(headerOf(getAllByText, 'Name'))
     fireEvent.click(headerOf(getAllByText, 'Score'), { shiftKey: true })
     expect(headerOf(getAllByText, 'Name').textContent).toMatch(/[↑↓]/)
@@ -1759,7 +1693,7 @@ describe('DataTable — header click sort', () => {
   })
 
   it('shift-clicking an already-sorted column flips its direction in place, without removing it', () => {
-    const { getAllByText } = render(<DataTable data={ROWS} columns={SORT_COLS} rowKey="id" />)
+    const { getAllByText } = render(<DataTable data={ROWS} columns={SORT_COLS} />)
     fireEvent.click(headerOf(getAllByText, 'Name'))
     fireEvent.click(headerOf(getAllByText, 'Score'), { shiftKey: true })
     fireEvent.click(headerOf(getAllByText, 'Score'), { shiftKey: true })
@@ -1774,7 +1708,7 @@ describe('DataTable — header click sort', () => {
       { key: 'name', label: 'Name', sortable: false },
       { key: 'score', label: 'Score', type: 'number' },
     ]
-    const { getAllByText, container } = render(<DataTable data={ROWS} columns={cols} rowKey="id" />)
+    const { getAllByText, container } = render(<DataTable data={ROWS} columns={cols} />)
     fireEvent.click(headerOf(getAllByText, 'Name'))
     fireEvent.click(headerOf(getAllByText, 'Name'), { shiftKey: true })
     expect(headerOf(getAllByText, 'Name').textContent).not.toMatch(/[↑↓]/)
@@ -1790,7 +1724,7 @@ describe('DataTable — header click sort', () => {
       { key: 'score', label: 'Score', type: 'number' },
     ]
     const { getByText, getAllByText, queryAllByText } = render(
-      <DataTable data={ROWS} columns={cols} rowKey="id" />,
+      <DataTable data={ROWS} columns={cols} />,
     )
     fireEvent.click(getByText('Sort'))
     expect(queryAllByText('Name').some((el) => el.closest('th') === null)).toBe(false)
@@ -1802,32 +1736,30 @@ describe('DataTable — header click sort', () => {
       { key: 'name', label: 'Name', sortable: false },
       { key: 'score', label: 'Score', type: 'number', sortable: false },
     ]
-    const { queryByText } = render(<DataTable data={ROWS} columns={cols} rowKey="id" />)
+    const { queryByText } = render(<DataTable data={ROWS} columns={cols} />)
     expect(queryByText('Sort')).toBeNull()
   })
 
   it('hides the Columns toolbar button when showColumns is false', () => {
-    const { queryByText } = render(
-      <DataTable data={ROWS} columns={COLS} rowKey="id" showColumns={false} />,
-    )
+    const { queryByText } = render(<DataTable data={ROWS} columns={COLS} showColumns={false} />)
     expect(queryByText('Columns')).toBeNull()
   })
 
   it('hides the Columns toolbar button entirely when there are fewer than 2 columns', () => {
     const oneCol: ColumnDef<Row>[] = [{ key: 'name', label: 'Name' }]
-    const { queryByText } = render(<DataTable data={ROWS} columns={oneCol} rowKey="id" />)
+    const { queryByText } = render(<DataTable data={ROWS} columns={oneCol} />)
     expect(queryByText('Columns')).toBeNull()
   })
 
   it('a single sorted column shows only the direction arrow, no index number', () => {
-    const { getAllByText } = render(<DataTable data={ROWS} columns={SORT_COLS} rowKey="id" />)
+    const { getAllByText } = render(<DataTable data={ROWS} columns={SORT_COLS} />)
     fireEvent.click(headerOf(getAllByText, 'Score'))
     expect(headerOf(getAllByText, 'Score').textContent).toContain('↑')
     expect(headerOf(getAllByText, 'Score').textContent).not.toMatch(/\d/)
   })
 
   it('shows an index number on each header once more than one column is sorted', () => {
-    const { getAllByText } = render(<DataTable data={ROWS} columns={SORT_COLS} rowKey="id" />)
+    const { getAllByText } = render(<DataTable data={ROWS} columns={SORT_COLS} />)
     fireEvent.click(headerOf(getAllByText, 'Name'))
     fireEvent.click(headerOf(getAllByText, 'Score'), { shiftKey: true })
     expect(headerOf(getAllByText, 'Name').textContent).toContain('1↑')
@@ -1844,7 +1776,7 @@ describe('DataTable — header click sort', () => {
       { key: 'dept', label: 'Dept', groupable: true },
     ]
     const rows: DeptRow[] = ROWS.map((r) => ({ ...r, dept: r.name === 'Alice' ? 'Eng' : 'HR' }))
-    const { getByText, getAllByText } = render(<DataTable data={rows} columns={cols} rowKey="id" />)
+    const { getByText, getAllByText } = render(<DataTable data={rows} columns={cols} />)
     // Sort by dept while it still has a header, then group by it — its sort entry (used to order
     // the groups) stays in `sorts`, but dept no longer has a header to show a number on.
     fireEvent.click(headerOf(getAllByText, 'Dept'))
@@ -1865,16 +1797,14 @@ describe('DataTable — group dropdown', () => {
   ]
 
   it('lists a not-yet-grouped column under the add section as a real button', () => {
-    const { getByText, getAllByText } = render(
-      <DataTable data={ROWS} columns={GROUP_COLS} rowKey="id" />,
-    )
+    const { getByText, getAllByText } = render(<DataTable data={ROWS} columns={GROUP_COLS} />)
     fireEvent.click(getByText('Group'))
     expect(ddCopyOf(getAllByText, 'Score').closest('button')).not.toBeNull()
   })
 
   it('the × button removes the group and moves the column back to the add section', () => {
     const { getByText, getAllByText, container } = render(
-      <DataTable data={ROWS} columns={GROUP_COLS} rowKey="id" />,
+      <DataTable data={ROWS} columns={GROUP_COLS} />,
     )
     fireEvent.click(getByText('Group'))
     fireEvent.click(ddCopyOf(getAllByText, 'Score').closest('button')!)
@@ -1886,13 +1816,13 @@ describe('DataTable — group dropdown', () => {
   })
 
   it('the Group toolbar button has no clear-groups button until a group is active', () => {
-    const { queryByTitle } = render(<DataTable data={ROWS} columns={GROUP_COLS} rowKey="id" />)
+    const { queryByTitle } = render(<DataTable data={ROWS} columns={GROUP_COLS} />)
     expect(queryByTitle('Clear groups')).toBeNull()
   })
 
   it('the toolbar clear-groups button clears all groups without opening the dropdown', () => {
     const { getAllByText, getByTitle, container, queryByText } = render(
-      <DataTable data={ROWS} columns={GROUP_COLS} rowKey="id" />,
+      <DataTable data={ROWS} columns={GROUP_COLS} />,
     )
     const groupToggle = () =>
       [...container.querySelectorAll('button')].find((b) => b.textContent?.startsWith('Group'))!
@@ -1907,7 +1837,7 @@ describe('DataTable — group dropdown', () => {
 
   it('dragging an active group row onto another reorders priority', () => {
     const { getByText, getAllByText, container } = render(
-      <DataTable data={ROWS} columns={GROUP_COLS} rowKey="id" />,
+      <DataTable data={ROWS} columns={GROUP_COLS} />,
     )
     fireEvent.click(getByText('Group'))
     fireEvent.click(ddCopyOf(getAllByText, 'Name').closest('button')!)
@@ -1924,7 +1854,7 @@ describe('DataTable — group dropdown', () => {
 
   it('Alt+ArrowUp on a focused active group row reorders priority and keeps focus', () => {
     const { getByText, getAllByText, container } = render(
-      <DataTable data={ROWS} columns={GROUP_COLS} rowKey="id" />,
+      <DataTable data={ROWS} columns={GROUP_COLS} />,
     )
     fireEvent.click(getByText('Group'))
     fireEvent.click(ddCopyOf(getAllByText, 'Name').closest('button')!)
@@ -1945,9 +1875,7 @@ describe('DataTable — group dropdown', () => {
       ...GROUP_COLS,
       { key: 'id', label: 'Id', type: 'number', groupable: true },
     ]
-    const { getByText, getAllByText, container } = render(
-      <DataTable data={ROWS} columns={cols} rowKey="id" />,
-    )
+    const { getByText, getAllByText, container } = render(<DataTable data={ROWS} columns={cols} />)
     fireEvent.click(getByText('Group'))
     fireEvent.click(ddCopyOf(getAllByText, 'Name').closest('button')!)
     fireEvent.click(ddCopyOf(getAllByText, 'Score').closest('button')!)
@@ -1975,9 +1903,7 @@ describe('DataTable — group dropdown', () => {
       ...GROUP_COLS,
       { key: 'id', label: 'Id', type: 'number', groupable: true },
     ]
-    const { getByText, getAllByText, container } = render(
-      <DataTable data={ROWS} columns={cols} rowKey="id" />,
-    )
+    const { getByText, getAllByText, container } = render(<DataTable data={ROWS} columns={cols} />)
     fireEvent.click(getByText('Group'))
     fireEvent.click(ddCopyOf(getAllByText, 'Name').closest('button')!)
     fireEvent.click(ddCopyOf(getAllByText, 'Score').closest('button')!)
@@ -2003,7 +1929,7 @@ describe('DataTable — group dropdown', () => {
 
 describe('DataTable — columns dropdown', () => {
   it('column rows are draggable and reorder headers on drop, with no ▲▼ buttons', () => {
-    const { getByText, container } = render(<DataTable data={ROWS} columns={COLS} rowKey="id" />)
+    const { getByText, container } = render(<DataTable data={ROWS} columns={COLS} />)
     fireEvent.click(getByText('Columns'))
     const rows = draggableRows(container)
     expect(rows).toHaveLength(COLS.length)
@@ -2019,7 +1945,7 @@ describe('DataTable — columns dropdown', () => {
   })
 
   it('Alt+ArrowUp on a focused visible-column row reorders headers, its × still hides the column', () => {
-    const { getByText, container } = render(<DataTable data={ROWS} columns={COLS} rowKey="id" />)
+    const { getByText, container } = render(<DataTable data={ROWS} columns={COLS} />)
     fireEvent.click(getByText('Columns'))
     const rows = draggableRows(container)
     rows[1].focus()
@@ -2039,7 +1965,7 @@ describe('DataTable — columns dropdown', () => {
 
   it('dropping past the last column row moves the dragged row to the end', () => {
     const cols: ColumnDef<Row>[] = [...COLS, { key: 'id', label: 'Id', type: 'number' }]
-    const { getByText, container } = render(<DataTable data={ROWS} columns={cols} rowKey="id" />)
+    const { getByText, container } = render(<DataTable data={ROWS} columns={cols} />)
     fireEvent.click(getByText('Columns'))
     const rows = draggableRows(container)
     const [nameRow, , idRow] = rows
@@ -2059,7 +1985,7 @@ describe('DataTable — columns dropdown', () => {
 
   it('dropping on the bottom half of the last column row moves the dragged row after it', () => {
     const cols: ColumnDef<Row>[] = [...COLS, { key: 'id', label: 'Id', type: 'number' }]
-    const { getByText, container } = render(<DataTable data={ROWS} columns={cols} rowKey="id" />)
+    const { getByText, container } = render(<DataTable data={ROWS} columns={cols} />)
     fireEvent.click(getByText('Columns'))
     const rows = draggableRows(container)
     const [nameRow, , idRow] = rows
@@ -2099,13 +2025,13 @@ describe('DataTable — Columns dropdown Visible/Available split', () => {
   }
 
   it('lists every visible column in table order, not alphabetized', () => {
-    const { getByText, container } = render(<DataTable data={VROWS} columns={VCOLS} rowKey="id" />)
+    const { getByText, container } = render(<DataTable data={VROWS} columns={VCOLS} />)
     fireEvent.click(getByText('Columns'))
     expect(visibleLabels(container)).toEqual(['ID', 'Name', 'Score'])
   })
 
   it('the × button hides a column, moving it into Available', () => {
-    const { getByText, container } = render(<DataTable data={VROWS} columns={VCOLS} rowKey="id" />)
+    const { getByText, container } = render(<DataTable data={VROWS} columns={VCOLS} />)
     fireEvent.click(getByText('Columns'))
     fireEvent.click(container.querySelector<HTMLButtonElement>('[data-col-row-key="id"] button')!)
     expect(visibleLabels(container)).toEqual(['Name', 'Score'])
@@ -2113,7 +2039,7 @@ describe('DataTable — Columns dropdown Visible/Available split', () => {
   })
 
   it('Delete/Backspace on a focused visible row hides it, same as its × button', () => {
-    const { getByText, container } = render(<DataTable data={VROWS} columns={VCOLS} rowKey="id" />)
+    const { getByText, container } = render(<DataTable data={VROWS} columns={VCOLS} />)
     fireEvent.click(getByText('Columns'))
     const row = container.querySelector<HTMLElement>('[data-col-row-key="id"]')!
     fireEvent.keyDown(row, { key: 'Delete' })
@@ -2121,7 +2047,7 @@ describe('DataTable — Columns dropdown Visible/Available split', () => {
   })
 
   it('hiding the last visible column is a no-op (stays >= 1 visible)', () => {
-    const { getByText, container } = render(<DataTable data={VROWS} columns={VCOLS} rowKey="id" />)
+    const { getByText, container } = render(<DataTable data={VROWS} columns={VCOLS} />)
     fireEvent.click(getByText('Columns'))
     fireEvent.click(container.querySelector<HTMLButtonElement>('[data-col-row-key="id"] button')!)
     fireEvent.click(container.querySelector<HTMLButtonElement>('[data-col-row-key="name"] button')!)
@@ -2133,7 +2059,7 @@ describe('DataTable — Columns dropdown Visible/Available split', () => {
   })
 
   it('Alt+ArrowDown on a row moves it down one visible position', () => {
-    const { getByText, container } = render(<DataTable data={VROWS} columns={VCOLS} rowKey="id" />)
+    const { getByText, container } = render(<DataTable data={VROWS} columns={VCOLS} />)
     fireEvent.click(getByText('Columns'))
     const idRow = container.querySelector<HTMLElement>('[data-col-row-key="id"]')!
     fireEvent.keyDown(idRow, { key: 'ArrowDown', altKey: true })
@@ -2141,7 +2067,7 @@ describe('DataTable — Columns dropdown Visible/Available split', () => {
   })
 
   it('Alt+ArrowDown skips a hidden column, reordering against the next visible one', () => {
-    const { getByText, container } = render(<DataTable data={VROWS} columns={VCOLS} rowKey="id" />)
+    const { getByText, container } = render(<DataTable data={VROWS} columns={VCOLS} />)
     fireEvent.click(getByText('Columns'))
     fireEvent.click(container.querySelector<HTMLButtonElement>('[data-col-row-key="name"] button')!) // hide the one in between id/score
     expect(visibleLabels(container)).toEqual(['ID', 'Score'])
@@ -2151,7 +2077,7 @@ describe('DataTable — Columns dropdown Visible/Available split', () => {
   })
 
   it('lists hidden columns as plain addable rows, in table order', () => {
-    const { getByText, container } = render(<DataTable data={VROWS} columns={VCOLS} rowKey="id" />)
+    const { getByText, container } = render(<DataTable data={VROWS} columns={VCOLS} />)
     fireEvent.click(getByText('Columns'))
     fireEvent.click(container.querySelector<HTMLButtonElement>('[data-col-row-key="id"] button')!)
     fireEvent.click(
@@ -2163,7 +2089,7 @@ describe('DataTable — Columns dropdown Visible/Available split', () => {
   })
 
   it('clicking an addable row shows the column again and refocuses its new visible row', () => {
-    const { getByText, container } = render(<DataTable data={VROWS} columns={VCOLS} rowKey="id" />)
+    const { getByText, container } = render(<DataTable data={VROWS} columns={VCOLS} />)
     fireEvent.click(getByText('Columns'))
     fireEvent.click(container.querySelector<HTMLButtonElement>('[data-col-row-key="id"] button')!)
     fireEvent.click(container.querySelector<HTMLButtonElement>('[data-col-key="id"]')!)
@@ -2172,7 +2098,7 @@ describe('DataTable — Columns dropdown Visible/Available split', () => {
   })
 
   it('the search box stays mounted once every column is visible (no Available section, though)', () => {
-    const { getByText, container } = render(<DataTable data={VROWS} columns={VCOLS} rowKey="id" />)
+    const { getByText, container } = render(<DataTable data={VROWS} columns={VCOLS} />)
     fireEvent.click(getByText('Columns'))
     expect(container.querySelector('input[data-dd-search]')).not.toBeNull()
     expect(container.querySelector('[data-category-header]')).toBeNull()
@@ -2180,7 +2106,7 @@ describe('DataTable — Columns dropdown Visible/Available split', () => {
   })
 
   it('the search box never unmounts, even when the query matches nothing at all', () => {
-    const { getByText, container } = render(<DataTable data={VROWS} columns={VCOLS} rowKey="id" />)
+    const { getByText, container } = render(<DataTable data={VROWS} columns={VCOLS} />)
     fireEvent.click(getByText('Columns'))
     const search = container.querySelector<HTMLInputElement>('input[data-dd-search]')!
     fireEvent.change(search, { target: { value: 'zzzz-no-match' } })
@@ -2189,9 +2115,7 @@ describe('DataTable — Columns dropdown Visible/Available split', () => {
   })
 
   it('a search hides each section heading with no matching column', () => {
-    const { getByText, queryByText, container } = render(
-      <DataTable data={VROWS} columns={VCOLS} rowKey="id" />,
-    )
+    const { getByText, queryByText, container } = render(<DataTable data={VROWS} columns={VCOLS} />)
     fireEvent.click(getByText('Columns'))
     fireEvent.click(
       container.querySelector('[data-col-row-key="id"] button[aria-label="Hide column"]')!,
@@ -2211,9 +2135,7 @@ describe('DataTable — Columns dropdown Visible/Available split', () => {
       { key: 'name', label: 'Name', category: 'Info' },
       { key: 'score', label: 'Score', type: 'number', category: 'Info' },
     ]
-    const { getByText, container } = render(
-      <DataTable data={VROWS} columns={categorized} rowKey="id" />,
-    )
+    const { getByText, container } = render(<DataTable data={VROWS} columns={categorized} />)
     fireEvent.click(getByText('Columns'))
     fireEvent.click(container.querySelector<HTMLButtonElement>('[data-col-row-key="name"] button')!)
     fireEvent.click(
@@ -2229,9 +2151,7 @@ describe('DataTable — Columns dropdown Visible/Available split', () => {
       { key: 'name', label: 'Name', category: 'Info' },
       { key: 'score', label: 'Score', type: 'number', category: 'Info' },
     ]
-    const { getByText, container } = render(
-      <DataTable data={VROWS} columns={categorized} rowKey="id" />,
-    )
+    const { getByText, container } = render(<DataTable data={VROWS} columns={categorized} />)
     fireEvent.click(getByText('Columns'))
     fireEvent.click(container.querySelector<HTMLButtonElement>('[data-col-row-key="name"] button')!)
     const trigger = container.querySelector<HTMLButtonElement>('[data-category-header]')!
@@ -2248,9 +2168,7 @@ describe('DataTable — Columns dropdown Visible/Available split', () => {
       { key: 'name', label: 'Name', category: 'Info' },
       { key: 'score', label: 'Score', type: 'number', category: 'Info' },
     ]
-    const { getByText, container } = render(
-      <DataTable data={VROWS} columns={categorized} rowKey="id" />,
-    )
+    const { getByText, container } = render(<DataTable data={VROWS} columns={categorized} />)
     fireEvent.click(getByText('Columns'))
     fireEvent.click(container.querySelector<HTMLButtonElement>('[data-col-row-key="name"] button')!)
     expect(document.activeElement).toBe(container.querySelector('[data-category-header]'))
@@ -2262,9 +2180,7 @@ describe('DataTable — Columns dropdown Visible/Available split', () => {
       { key: 'name', label: 'Name', category: 'Info' },
       { key: 'score', label: 'Score', type: 'number', category: 'Info' },
     ]
-    const { getByText, container } = render(
-      <DataTable data={VROWS} columns={categorized} rowKey="id" />,
-    )
+    const { getByText, container } = render(<DataTable data={VROWS} columns={categorized} />)
     fireEvent.click(getByText('Columns'))
     fireEvent.click(container.querySelector<HTMLButtonElement>('[data-col-row-key="name"] button')!)
     expect(visibleLabels(container)).toEqual(['ID', 'Score'])
@@ -2280,9 +2196,7 @@ describe('DataTable — Columns dropdown Visible/Available split', () => {
       { key: 'name', label: 'Name', category: 'Info' },
       { key: 'score', label: 'Score', type: 'number', category: 'Info' },
     ]
-    const { getByText, container } = render(
-      <DataTable data={VROWS} columns={categorized} rowKey="id" />,
-    )
+    const { getByText, container } = render(<DataTable data={VROWS} columns={categorized} />)
     fireEvent.click(getByText('Columns'))
     fireEvent.click(container.querySelector<HTMLButtonElement>('[data-col-row-key="name"] button')!)
 
@@ -2304,7 +2218,7 @@ describe('DataTable — Columns dropdown Visible/Available split', () => {
       { key: 'name', label: 'Bar' },
       { key: 'score', label: 'Foo2', type: 'number' },
     ]
-    const { getByText, container } = render(<DataTable data={VROWS} columns={cols} rowKey="id" />)
+    const { getByText, container } = render(<DataTable data={VROWS} columns={cols} />)
     fireEvent.click(getByText('Columns'))
     const search = container.querySelector<HTMLInputElement>('input[data-dd-search]')!
     fireEvent.change(search, { target: { value: 'Foo' } }) // matches Foo1/Foo2, not Bar
@@ -2325,9 +2239,7 @@ describe('DataTable — filter column selector keyboard access', () => {
   ]
 
   it('renders each column selector as a real, focusable <button>', () => {
-    const { getByText, getAllByText } = render(
-      <DataTable data={ROWS} columns={FILTER_COLS} rowKey="id" />,
-    )
+    const { getByText, getAllByText } = render(<DataTable data={ROWS} columns={FILTER_COLS} />)
     fireEvent.click(getByText('Filter'))
     const nameItem = ddCopyOf(getAllByText, 'Name')
     const btn = nameItem.closest('button')
@@ -2359,9 +2271,7 @@ describe('DataTable — the column the Filter pane opens on', () => {
     container.querySelector<HTMLElement>(`[data-filter-col-key="${key}"]`)!
 
   it('reopens on the picked column with its category expanded', () => {
-    const { getByText, container } = render(
-      <DataTable data={CAT_ROWS} columns={CAT_COLS} rowKey="id" />,
-    )
+    const { getByText, container } = render(<DataTable data={CAT_ROWS} columns={CAT_COLS} />)
     fireEvent.click(getByText('Filter'))
     fireEvent.click(container.querySelector('.dt-filter-category-header')!)
     fireEvent.click(colItem(container, 'score'))
@@ -2377,7 +2287,6 @@ describe('DataTable — the column the Filter pane opens on', () => {
       <DataTable
         data={CAT_ROWS}
         columns={CAT_COLS}
-        rowKey="id"
         initialViewState={{ filters: { dept: ['Eng'] } }}
       />,
     )
@@ -2386,9 +2295,7 @@ describe('DataTable — the column the Filter pane opens on', () => {
   })
 
   it('clears the column search on reopen, so it never hides the shown column', () => {
-    const { getByText, container } = render(
-      <DataTable data={CAT_ROWS} columns={CAT_COLS} rowKey="id" />,
-    )
+    const { getByText, container } = render(<DataTable data={CAT_ROWS} columns={CAT_COLS} />)
     fireEvent.click(getByText('Filter'))
     const search = () => container.querySelector<HTMLInputElement>('.dt-filter-cols-search')!
     fireEvent.change(search(), { target: { value: 'zzz' } })
@@ -2431,17 +2338,13 @@ describe('DataTable — filter column ordering & clear button', () => {
   }
 
   it('is plain alphabetical order with nothing active', () => {
-    const { getByText, container } = render(
-      <DataTable data={ORDER_ROWS} columns={ORDER_COLS} rowKey="id" />,
-    )
+    const { getByText, container } = render(<DataTable data={ORDER_ROWS} columns={ORDER_COLS} />)
     fireEvent.click(getByText('Filter'))
     expect(filterColLabels(container)).toEqual(['Dept', 'Joined', 'Name', 'Score'])
   })
 
   it('does not reorder mid-session when a filter is toggled while the panel stays open', () => {
-    const { getByText, container } = render(
-      <DataTable data={ORDER_ROWS} columns={ORDER_COLS} rowKey="id" />,
-    )
+    const { getByText, container } = render(<DataTable data={ORDER_ROWS} columns={ORDER_COLS} />)
     fireEvent.click(getByText('Filter'))
     fireEvent.click(rowFor(container, 'Score').querySelector('[data-filter-col-key]')!)
     fireEvent.change(screen.getByRole('spinbutton', { name: / Min$/ }), { target: { value: '80' } })
@@ -2449,9 +2352,7 @@ describe('DataTable — filter column ordering & clear button', () => {
   })
 
   it('moves active-filter columns to the top on the next open', () => {
-    const { getByText, container } = render(
-      <DataTable data={ORDER_ROWS} columns={ORDER_COLS} rowKey="id" />,
-    )
+    const { getByText, container } = render(<DataTable data={ORDER_ROWS} columns={ORDER_COLS} />)
     fireEvent.click(getByText('Filter'))
     fireEvent.click(rowFor(container, 'Score').querySelector('[data-filter-col-key]')!)
     fireEvent.change(screen.getByRole('spinbutton', { name: / Min$/ }), { target: { value: '80' } })
@@ -2461,9 +2362,7 @@ describe('DataTable — filter column ordering & clear button', () => {
   })
 
   it('shows a clear button only for a column with an active filter', () => {
-    const { getByText, container } = render(
-      <DataTable data={ORDER_ROWS} columns={ORDER_COLS} rowKey="id" />,
-    )
+    const { getByText, container } = render(<DataTable data={ORDER_ROWS} columns={ORDER_COLS} />)
     fireEvent.click(getByText('Filter'))
     expect(rowFor(container, 'Score').querySelectorAll('button')).toHaveLength(1)
     fireEvent.click(rowFor(container, 'Score').querySelector('[data-filter-col-key]')!)
@@ -2472,9 +2371,7 @@ describe('DataTable — filter column ordering & clear button', () => {
   })
 
   it('clear button removes the filter without opening that column', () => {
-    const { getByText, container } = render(
-      <DataTable data={ORDER_ROWS} columns={ORDER_COLS} rowKey="id" />,
-    )
+    const { getByText, container } = render(<DataTable data={ORDER_ROWS} columns={ORDER_COLS} />)
     fireEvent.click(getByText('Filter'))
     fireEvent.click(rowFor(container, 'Score').querySelector('[data-filter-col-key]')!)
     fireEvent.change(screen.getByRole('spinbutton', { name: / Min$/ }), { target: { value: '80' } })
@@ -2487,9 +2384,7 @@ describe('DataTable — filter column ordering & clear button', () => {
   })
 
   it('Delete on a focused, active column row clears its filter', () => {
-    const { getByText, container } = render(
-      <DataTable data={ORDER_ROWS} columns={ORDER_COLS} rowKey="id" />,
-    )
+    const { getByText, container } = render(<DataTable data={ORDER_ROWS} columns={ORDER_COLS} />)
     fireEvent.click(getByText('Filter'))
     const scoreBtn = rowFor(container, 'Score').querySelector<HTMLButtonElement>(
       '[data-filter-col-key]',
@@ -2501,9 +2396,7 @@ describe('DataTable — filter column ordering & clear button', () => {
   })
 
   it('Backspace on a focused, inactive column row is a no-op', () => {
-    const { getByText, container } = render(
-      <DataTable data={ORDER_ROWS} columns={ORDER_COLS} rowKey="id" />,
-    )
+    const { getByText, container } = render(<DataTable data={ORDER_ROWS} columns={ORDER_COLS} />)
     fireEvent.click(getByText('Filter'))
     const deptBtn = rowFor(container, 'Dept').querySelector<HTMLButtonElement>(
       '[data-filter-col-key]',
@@ -2515,7 +2408,7 @@ describe('DataTable — filter column ordering & clear button', () => {
 
 describe('DataTable — active state bar', () => {
   it('renders with just the row-count stats when nothing is active', () => {
-    const { getByText } = render(<DataTable data={ROWS} columns={COLS} rowKey="id" />)
+    const { getByText } = render(<DataTable data={ROWS} columns={COLS} />)
     expect(getByText('2 / 2 rows', { ignore: '.dt-status' })).toBeTruthy()
   })
 
@@ -2525,7 +2418,7 @@ describe('DataTable — active state bar', () => {
       { key: 'score', label: 'Score', type: 'number', groupable: true },
     ]
     const { getByText, getAllByText, getByLabelText, container } = render(
-      <DataTable data={ROWS} columns={chipCols} rowKey="id" />,
+      <DataTable data={ROWS} columns={chipCols} />,
     )
     fireEvent.click(getByText('Sort'))
     fireEvent.click(ddCopyOf(getAllByText, 'Score').closest('button')!)
@@ -2549,7 +2442,6 @@ describe('DataTable — active state bar', () => {
       <DataTable
         data={ROWS}
         columns={COLS}
-        rowKey="id"
         initialViewState={{
           sorts: [
             { key: 'name', dir: 'asc' },
@@ -2577,25 +2469,25 @@ describe('DataTable — keyboard navigation', () => {
   }
 
   it('does not add a tabIndex to rows when neither selectable nor onRowClick is set', () => {
-    const { container } = render(<DataTable data={ROWS3} columns={COLS} rowKey="id" />)
+    const { container } = render(<DataTable data={ROWS3} columns={COLS} />)
     for (const row of dataRows(container)) expect(row.getAttribute('tabindex')).toBeNull()
   })
 
   it('makes the first row the sole tab stop by default, the rest tabIndex -1', () => {
-    const { container } = render(<DataTable data={ROWS3} columns={COLS} rowKey="id" selectable />)
+    const { container } = render(<DataTable data={ROWS3} columns={COLS} selectable />)
     const [first, ...rest] = dataRows(container)
     expect(first.getAttribute('tabindex')).toBe('0')
     for (const row of rest) expect(row.getAttribute('tabindex')).toBe('-1')
   })
 
   it('excludes the row checkbox from the tab sequence', () => {
-    const { container } = render(<DataTable data={ROWS3} columns={COLS} rowKey="id" selectable />)
+    const { container } = render(<DataTable data={ROWS3} columns={COLS} selectable />)
     const checkbox = container.querySelector('tbody tr input[type="checkbox"]')!
     expect(checkbox.getAttribute('tabindex')).toBe('-1')
   })
 
   it('ArrowDown moves the roving tabIndex to the next row', () => {
-    const { container } = render(<DataTable data={ROWS3} columns={COLS} rowKey="id" selectable />)
+    const { container } = render(<DataTable data={ROWS3} columns={COLS} selectable />)
     const [first, second] = dataRows(container)
     first.focus()
     fireEvent.keyDown(first, { key: 'ArrowDown' })
@@ -2605,7 +2497,7 @@ describe('DataTable — keyboard navigation', () => {
   })
 
   it('ArrowUp/Home on the first row is a no-op, leaving the key to the page', () => {
-    const { container } = render(<DataTable data={ROWS3} columns={COLS} rowKey="id" selectable />)
+    const { container } = render(<DataTable data={ROWS3} columns={COLS} selectable />)
     const [first] = dataRows(container)
     first.focus()
     expect(fireEvent.keyDown(first, { key: 'ArrowUp' })).toBe(true)
@@ -2615,7 +2507,7 @@ describe('DataTable — keyboard navigation', () => {
   })
 
   it('End moves the roving tabIndex to the last row', () => {
-    const { container } = render(<DataTable data={ROWS3} columns={COLS} rowKey="id" selectable />)
+    const { container } = render(<DataTable data={ROWS3} columns={COLS} selectable />)
     const [first, , last] = dataRows(container)
     first.focus()
     fireEvent.keyDown(first, { key: 'End' })
@@ -2624,7 +2516,7 @@ describe('DataTable — keyboard navigation', () => {
   })
 
   it('Space toggles selection on the focused row', () => {
-    const { container } = render(<DataTable data={ROWS3} columns={COLS} rowKey="id" selectable />)
+    const { container } = render(<DataTable data={ROWS3} columns={COLS} selectable />)
     const [first] = dataRows(container)
     const checkbox = first.querySelector('input[type="checkbox"]') as HTMLInputElement
     first.focus()
@@ -2635,7 +2527,7 @@ describe('DataTable — keyboard navigation', () => {
   })
 
   it('Shift+ArrowDown extends the selection range like a shift-click would', () => {
-    const { container } = render(<DataTable data={ROWS3} columns={COLS} rowKey="id" selectable />)
+    const { container } = render(<DataTable data={ROWS3} columns={COLS} selectable />)
     const [first, second] = dataRows(container)
     const firstCheckbox = first.querySelector('input[type="checkbox"]') as HTMLInputElement
     const secondCheckbox = second.querySelector('input[type="checkbox"]') as HTMLInputElement
@@ -2649,9 +2541,7 @@ describe('DataTable — keyboard navigation', () => {
 
   it('Enter fires onRowClick with the row and the keyboard event', () => {
     const onRowClick = vi.fn()
-    const { container } = render(
-      <DataTable data={ROWS3} columns={COLS} rowKey="id" onRowClick={onRowClick} />,
-    )
+    const { container } = render(<DataTable data={ROWS3} columns={COLS} onRowClick={onRowClick} />)
     const [first] = dataRows(container)
     first.focus()
     fireEvent.keyDown(first, { key: 'Enter' })
@@ -2661,7 +2551,7 @@ describe('DataTable — keyboard navigation', () => {
   })
 
   it('Enter does nothing when onRowClick is not set', () => {
-    const { container } = render(<DataTable data={ROWS3} columns={COLS} rowKey="id" selectable />)
+    const { container } = render(<DataTable data={ROWS3} columns={COLS} selectable />)
     const [first] = dataRows(container)
     first.focus()
     expect(() => fireEvent.keyDown(first, { key: 'Enter' })).not.toThrow()
@@ -2688,7 +2578,7 @@ describe('DataTable — keyboard navigation across pages', () => {
 
   it('says no rows match, with a way out clearing search and filters', () => {
     const { container, getByText, getByRole, getAllByPlaceholderText } = render(
-      <DataTable data={ROWS6} columns={COLS} rowKey="id" />,
+      <DataTable data={ROWS6} columns={COLS} />,
     )
     fireEvent.change(getAllByPlaceholderText('Search…')[0], { target: { value: 'zzz' } })
     expect(getByText('No matching rows', { ignore: '.dt-status' })).toBeTruthy()
@@ -2698,15 +2588,13 @@ describe('DataTable — keyboard navigation across pages', () => {
   })
 
   it('says "No rows", with no button, when there is no data at all', () => {
-    const { container } = render(<DataTable data={[]} columns={COLS} rowKey="id" />)
+    const { container } = render(<DataTable data={[]} columns={COLS} />)
     expect(container.querySelector('tbody')?.textContent).toBe('No rows')
     expect(container.querySelector('tbody button')).toBeNull()
   })
 
   it('moves focus to the search box when a clear button removes itself', () => {
-    const { getByRole, getAllByPlaceholderText } = render(
-      <DataTable data={ROWS6} columns={COLS} rowKey="id" />,
-    )
+    const { getByRole, getAllByPlaceholderText } = render(<DataTable data={ROWS6} columns={COLS} />)
     const search = getAllByPlaceholderText('Search…')[0]
     for (const name of ['× Clear all', 'Clear search', 'Clear search and filters']) {
       fireEvent.change(search, { target: { value: 'zzz' } })
@@ -2722,7 +2610,6 @@ describe('DataTable — keyboard navigation across pages', () => {
       <DataTable
         data={ROWS6}
         columns={COLS}
-        rowKey="id"
         showSearch={false}
         initialViewState={{ sorts: [{ key: 'name', dir: 'asc' }] }}
       />,
@@ -2735,7 +2622,7 @@ describe('DataTable — keyboard navigation across pages', () => {
 
   it('names the pagination buttons from the labels', () => {
     const { getByRole } = render(
-      <DataTable data={ROWS6} columns={COLS} rowKey="id" initialViewState={{ pageSize: 2 }} />,
+      <DataTable data={ROWS6} columns={COLS} initialViewState={{ pageSize: 2 }} />,
     )
     for (const name of ['First page', 'Previous page', 'Next page', 'Last page'])
       expect(getByRole('button', { name })).toBeTruthy()
@@ -2743,7 +2630,7 @@ describe('DataTable — keyboard navigation across pages', () => {
 
   it('hides the pager when no page size would split the rows into pages', () => {
     const { queryByRole } = render(
-      <DataTable data={ROWS6} columns={COLS} rowKey="id" initialViewState={{ pageSize: 10 }} />,
+      <DataTable data={ROWS6} columns={COLS} initialViewState={{ pageSize: 10 }} />,
     )
     expect(queryByRole('combobox', { name: 'Rows per page:' })).toBeNull()
     expect(queryByRole('button', { name: 'Next page' })).toBeNull()
@@ -2752,7 +2639,7 @@ describe('DataTable — keyboard navigation across pages', () => {
   it('shows only the rows-per-page select when every row fits on one page', () => {
     const rows = [...ROWS6, ...ROWS6].map((r, i) => ({ ...r, id: i + 1 }))
     const { queryByRole } = render(
-      <DataTable data={rows} columns={COLS} rowKey="id" initialViewState={{ pageSize: 20 }} />,
+      <DataTable data={rows} columns={COLS} initialViewState={{ pageSize: 20 }} />,
     )
     expect(queryByRole('combobox', { name: 'Rows per page:' })).not.toBeNull()
     expect(queryByRole('button', { name: 'Next page' })).toBeNull()
@@ -2762,7 +2649,7 @@ describe('DataTable — keyboard navigation across pages', () => {
   it('keeps the pager and the starting page size after picking a larger one', () => {
     const rows = [...ROWS6, ROWS6[0]].map((r, i) => ({ ...r, id: i + 1 }))
     const { getByRole } = render(
-      <DataTable data={rows} columns={COLS} rowKey="id" initialViewState={{ pageSize: 5 }} />,
+      <DataTable data={rows} columns={COLS} initialViewState={{ pageSize: 5 }} />,
     )
     fireEvent.change(getByRole('combobox', { name: 'Rows per page:' }), { target: { value: '10' } })
     const select = getByRole('combobox', { name: 'Rows per page:' }) as HTMLSelectElement
@@ -2771,14 +2658,14 @@ describe('DataTable — keyboard navigation across pages', () => {
 
   it('names the rows-per-page select after its visible label', () => {
     const { getByRole } = render(
-      <DataTable data={ROWS6} columns={COLS} rowKey="id" initialViewState={{ pageSize: 2 }} />,
+      <DataTable data={ROWS6} columns={COLS} initialViewState={{ pageSize: 2 }} />,
     )
     expect(getByRole('combobox', { name: 'Rows per page:' })).toBeTruthy()
   })
 
   it('the rows-per-page dropdown includes and selects a custom initialViewState.pageSize not among the defaults', () => {
     const { container } = render(
-      <DataTable data={ROWS6} columns={COLS} rowKey="id" initialViewState={{ pageSize: 2 }} />,
+      <DataTable data={ROWS6} columns={COLS} initialViewState={{ pageSize: 2 }} />,
     )
     const select = container.querySelector('select')!
     expect([...select.options].map((o) => o.value)).toEqual(['2', '10', '20', '50', '100'])
@@ -2787,13 +2674,7 @@ describe('DataTable — keyboard navigation across pages', () => {
 
   it('ArrowDown on the last row of a page moves to the first row of the next page', () => {
     const { container } = render(
-      <DataTable
-        data={ROWS6}
-        columns={COLS}
-        rowKey="id"
-        selectable
-        initialViewState={{ pageSize: 2 }}
-      />,
+      <DataTable data={ROWS6} columns={COLS} selectable initialViewState={{ pageSize: 2 }} />,
     )
     const [, last] = dataRows(container)
     last.focus()
@@ -2806,13 +2687,7 @@ describe('DataTable — keyboard navigation across pages', () => {
 
   it('ArrowUp on the first row of a page moves to the last row of the previous page', () => {
     const { container } = render(
-      <DataTable
-        data={ROWS6}
-        columns={COLS}
-        rowKey="id"
-        selectable
-        initialViewState={{ pageSize: 2 }}
-      />,
+      <DataTable data={ROWS6} columns={COLS} selectable initialViewState={{ pageSize: 2 }} />,
     )
     clickNextPage(container)
     const [first] = dataRows(container)
@@ -2828,13 +2703,7 @@ describe('DataTable — keyboard navigation across pages', () => {
 
   it('Ctrl+End jumps to the true last row across all pages', () => {
     const { container } = render(
-      <DataTable
-        data={ROWS6}
-        columns={COLS}
-        rowKey="id"
-        selectable
-        initialViewState={{ pageSize: 2 }}
-      />,
+      <DataTable data={ROWS6} columns={COLS} selectable initialViewState={{ pageSize: 2 }} />,
     )
     const [first] = dataRows(container)
     first.focus()
@@ -2848,13 +2717,7 @@ describe('DataTable — keyboard navigation across pages', () => {
 
   it('Ctrl+Home jumps to the true first row across all pages', () => {
     const { container } = render(
-      <DataTable
-        data={ROWS6}
-        columns={COLS}
-        rowKey="id"
-        selectable
-        initialViewState={{ pageSize: 2 }}
-      />,
+      <DataTable data={ROWS6} columns={COLS} selectable initialViewState={{ pageSize: 2 }} />,
     )
     const [first] = dataRows(container)
     first.focus()
@@ -2869,13 +2732,7 @@ describe('DataTable — keyboard navigation across pages', () => {
 
   it('Shift+ArrowDown across a page boundary extends the selection onto the next page', () => {
     const { container } = render(
-      <DataTable
-        data={ROWS6}
-        columns={COLS}
-        rowKey="id"
-        selectable
-        initialViewState={{ pageSize: 2 }}
-      />,
+      <DataTable data={ROWS6} columns={COLS} selectable initialViewState={{ pageSize: 2 }} />,
     )
     const [, last] = dataRows(container)
     const lastCheckbox = last.querySelector('input[type="checkbox"]') as HTMLInputElement
@@ -2928,7 +2785,6 @@ describe('DataTable — keyboard navigation with grouping', () => {
       <DataTable
         data={GROUP_ROWS}
         columns={GROUP_COLS}
-        rowKey="id"
         selectable
         defaultGroupsCollapsed={false}
       />,
@@ -2945,7 +2801,6 @@ describe('DataTable — keyboard navigation with grouping', () => {
       <DataTable
         data={GROUP_ROWS}
         columns={GROUP_COLS}
-        rowKey="id"
         selectable
         defaultGroupsCollapsed={false}
       />,
@@ -2961,12 +2816,7 @@ describe('DataTable — keyboard navigation with grouping', () => {
 
   it('Enter toggles collapse on a focused group header, regardless of selectable/onRowClick', () => {
     const { getByText, getAllByText, container, queryByText } = render(
-      <DataTable
-        data={GROUP_ROWS}
-        columns={GROUP_COLS}
-        rowKey="id"
-        defaultGroupsCollapsed={false}
-      />,
+      <DataTable data={GROUP_ROWS} columns={GROUP_COLS} defaultGroupsCollapsed={false} />,
     )
     groupByDept(getByText, getAllByText)
     const [firstHeader] = groupHeaderRows(container)
@@ -2982,7 +2832,6 @@ describe('DataTable — keyboard navigation with grouping', () => {
       <DataTable
         data={GROUP_ROWS}
         columns={GROUP_COLS}
-        rowKey="id"
         selectable
         defaultGroupsCollapsed={false}
       />,
@@ -3000,7 +2849,6 @@ describe('DataTable — keyboard navigation with grouping', () => {
       <DataTable
         data={GROUP_ROWS}
         columns={GROUP_COLS}
-        rowKey="id"
         selectable
         defaultGroupsCollapsed={false}
       />,
@@ -3017,7 +2865,6 @@ describe('DataTable — keyboard navigation with grouping', () => {
       <DataTable
         data={GROUP_ROWS}
         columns={GROUP_COLS}
-        rowKey="id"
         selectable
         defaultGroupsCollapsed={false}
       />,
@@ -3033,7 +2880,7 @@ describe('DataTable — keyboard navigation with grouping', () => {
 
   it('starts groups collapsed by default, and Enter expands one', () => {
     const { getByText, getAllByText, container, queryByText } = render(
-      <DataTable data={GROUP_ROWS} columns={GROUP_COLS} rowKey="id" />,
+      <DataTable data={GROUP_ROWS} columns={GROUP_COLS} />,
     )
     groupByDept(getByText, getAllByText)
     expect(queryByText('Alice')).toBeNull()
@@ -3045,12 +2892,7 @@ describe('DataTable — keyboard navigation with grouping', () => {
 
   it('defaultGroupsCollapsed={false} starts groups expanded', () => {
     const { getByText, getAllByText, queryByText } = render(
-      <DataTable
-        data={GROUP_ROWS}
-        columns={GROUP_COLS}
-        rowKey="id"
-        defaultGroupsCollapsed={false}
-      />,
+      <DataTable data={GROUP_ROWS} columns={GROUP_COLS} defaultGroupsCollapsed={false} />,
     )
     groupByDept(getByText, getAllByText)
     expect(queryByText('Alice')).toBeTruthy()
@@ -3061,7 +2903,6 @@ describe('DataTable — keyboard navigation with grouping', () => {
       <DataTable
         data={GROUP_ROWS}
         columns={GROUP_COLS}
-        rowKey="id"
         initialViewState={{ pageSize: 2 }}
         defaultGroupsCollapsed={false}
       />,
@@ -3078,7 +2919,6 @@ describe('DataTable — keyboard navigation with grouping', () => {
       <DataTable
         data={GROUP_ROWS}
         columns={GROUP_COLS}
-        rowKey="id"
         initialViewState={{ pageSize: 2 }}
         defaultGroupsCollapsed={false}
       />,
@@ -3107,7 +2947,7 @@ describe('DataTable — computed columns', () => {
       ...COLS,
       { key: 'grade', label: 'Grade', value: (row) => (row.score >= 70 ? 'Pass' : 'Fail') },
     ]
-    const { getByText } = render(<DataTable data={ROWS} columns={cols} rowKey="id" />)
+    const { getByText } = render(<DataTable data={ROWS} columns={cols} />)
     expect(getByText('Pass')).toBeTruthy()
     expect(getByText('Fail')).toBeTruthy()
   })
@@ -3126,9 +2966,7 @@ describe('DataTable — bucketed grouping (groupValue/groupFormat)', () => {
         groupFormat: (k) => `${k}–${Number(k) + 20}`,
       },
     ]
-    const { getByText, getAllByText, container } = render(
-      <DataTable data={ROWS} columns={cols} rowKey="id" />,
-    )
+    const { getByText, getAllByText, container } = render(<DataTable data={ROWS} columns={cols} />)
     fireEvent.click(getByText('Group'))
     fireEvent.click(getAllByText('Score').find((el) => el.closest('th') === null)!)
     // scores 90 and 60 bucket to 80 and 60 -> "80–100" and "60–80"
@@ -3154,7 +2992,6 @@ describe('DataTable — exclusion chip wording (U18)', () => {
       <DataTable
         data={DEPT_ROWS}
         columns={DEPT_COLS}
-        rowKey="id"
         initialViewState={{ excludeFilters: { dept: ['HR', 'Ops', 'Sales'] } }}
       />,
     )
@@ -3166,7 +3003,6 @@ describe('DataTable — exclusion chip wording (U18)', () => {
       <DataTable
         data={DEPT_ROWS}
         columns={DEPT_COLS}
-        rowKey="id"
         initialViewState={{ excludeFilters: { dept: ['HR'] } }}
       />,
     )
@@ -3195,17 +3031,10 @@ describe('DataTable — checklist chip in All mode', () => {
 
   it('joins the values with & in All mode, with a comma in Any mode', () => {
     const all = render(
-      <DataTable
-        data={TAG_ROWS}
-        columns={TAG_COLS}
-        rowKey="id"
-        initialViewState={view({ tags: 'and' })}
-      />,
+      <DataTable data={TAG_ROWS} columns={TAG_COLS} initialViewState={view({ tags: 'and' })} />,
     )
     expect(chipText(all.container)).toBe('Tags: Action & RPG')
-    const any = render(
-      <DataTable data={TAG_ROWS} columns={TAG_COLS} rowKey="id" initialViewState={view()} />,
-    )
+    const any = render(<DataTable data={TAG_ROWS} columns={TAG_COLS} initialViewState={view()} />)
     expect(chipText(any.container)).toBe('Tags: Action, RPG')
   })
 })
@@ -3235,7 +3064,6 @@ describe('DataTable — filter values through the column format', () => {
       <DataTable
         data={ITEMS}
         columns={ITEM_COLS}
-        rowKey="id"
         initialViewState={{
           filters: { code: ['ab'] },
           rangeFilters: { price: { min: '1000', max: '' } },
@@ -3264,7 +3092,6 @@ describe('DataTable — column align', () => {
       <DataTable
         data={ROWS}
         columns={cols}
-        rowKey="id"
         defaultGroupsCollapsed={false}
         initialViewState={{ groupBy: ['name'] }}
       />,
@@ -3285,7 +3112,7 @@ describe('DataTable — column align', () => {
       { key: 'id', label: 'ID', type: 'number', align: 'start' },
       { key: 'score', label: 'Score', type: 'number' },
     ]
-    const { container, getByRole } = render(<DataTable data={ROWS} columns={cols} rowKey="id" />)
+    const { container, getByRole } = render(<DataTable data={ROWS} columns={cols} />)
     expect(
       getByRole('columnheader', { name: /Score/ }).querySelector('.dt-th-spacer'),
     ).not.toBeNull()
@@ -3307,7 +3134,6 @@ describe('DataTable — column align', () => {
       <DataTable
         data={ROWS}
         columns={cols}
-        rowKey="id"
         defaultGroupsCollapsed={false}
         initialViewState={{ groupBy: ['name'] }}
       />,
@@ -3330,7 +3156,6 @@ describe('DataTable — column align', () => {
       <DataTable
         data={ROWS}
         columns={cols}
-        rowKey="id"
         defaultGroupsCollapsed={false}
         initialViewState={{ groupBy: ['name'] }}
       />,
@@ -3348,7 +3173,7 @@ describe('DataTable — column search with no match', () => {
       { key: 'name', label: 'Name', groupable: true },
       { key: 'score', label: 'Score', type: 'number' },
     ]
-    const { getByText, container } = render(<DataTable data={ROWS} columns={cols} rowKey="id" />)
+    const { getByText, container } = render(<DataTable data={ROWS} columns={cols} />)
     fireEvent.click(getByText(dropdown))
     const search = container.querySelector<HTMLInputElement>('input[data-dd-search]')!
     fireEvent.change(search, { target: { value: 'zzzz' } })
@@ -3373,7 +3198,6 @@ describe('DataTable — filter values', () => {
     ]
     const props = {
       columns: cols,
-      rowKey: 'id' as const,
       initialViewState: { visibleCols: ['name'] },
     }
     const { rerender, getByText } = render(<DataTable data={ROWS} {...props} />)
@@ -3388,7 +3212,7 @@ describe('DataTable — filter values', () => {
       { key: 'tags', label: 'Tags', value: (r) => (r.id === 1 ? ['RPG'] : []) },
     ]
     const { getByText, container } = render(
-      <DataTable data={ROWS} columns={cols} rowKey="id" labels={{ emptyValue: 'N/A' }} />,
+      <DataTable data={ROWS} columns={cols} labels={{ emptyValue: 'N/A' }} />,
     )
     fireEvent.click(getByText('Filter'))
     expect(values(container)).toEqual(['N/A', 'RPG'])

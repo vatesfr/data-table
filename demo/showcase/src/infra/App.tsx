@@ -139,7 +139,6 @@ export function App() {
     >
       <DataTableView
         table={table}
-        rowKey="id"
         selectable
         rowClass={(vm) => (vm.power === 'Halted' ? 'vm-halted' : undefined)}
         toolbarEnd={

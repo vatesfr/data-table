@@ -57,7 +57,6 @@ import { useDropdownReorder } from './composables/useDropdownReorder'
 // explicit `true` default is required here so an omitted `showSearch` still shows the search box
 // (same gotcha `<DataTable>`'s own `defaultGroupsCollapsed` default works around).
 const props = withDefaults(defineProps<DataTableViewProps<TRow>>(), {
-  rowKey: 'id',
   showSearch: true,
   showColumns: true,
 })
@@ -507,10 +506,6 @@ const hasShapeControls = computed(
 const hasFindControls = computed(
   () => props.showSearch || filterableCols.value.length > 0 || hasActiveState.value,
 )
-
-function asRecord(row: object): Record<string, unknown> {
-  return row as Record<string, unknown>
-}
 
 function formatValue(v: unknown, row: TRow, col: ColumnDef<TRow>): string {
   if (col.format) return col.format(v, row)
@@ -1841,7 +1836,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
             <template v-if="group.key === null || !groupCollapsed(group.key!)">
               <tr
                 v-for="(row, ri) in group.rows"
-                :key="(asRecord(row)[rowKey] as string | number) ?? `${group.key}-${ri}`"
+                :key="table.getRowId.value ? table.getRowId.value(row) : `${group.key}-${ri}`"
                 :ref="(el) => setItemRef(row, el as Element | null)"
                 :tabindex="
                   isRowNavEnabled ? (isFocusTarget({ kind: 'row', row }) ? 0 : -1) : undefined

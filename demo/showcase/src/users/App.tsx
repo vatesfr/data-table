@@ -289,7 +289,6 @@ export function App() {
         </div>
         <DataTableView
           table={table}
-          rowKey="id"
           selectable
           rowClass={(u) => (u.status === 'suspended' ? 'user-suspended' : undefined)}
           toolbarEnd={

@@ -39,7 +39,7 @@ const COLUMNS: ColumnDef<Employee>[] = [
 ]
 
 export default function App() {
-  return <DataTable data={employees} columns={COLUMNS} rowKey="id" />
+  return <DataTable data={employees} columns={COLUMNS} />
 }
 ```
 
@@ -251,7 +251,6 @@ const [selected, setSelected] = useState<Employee[]>([])
 <DataTable
   data={employees}
   columns={COLUMNS}
-  rowKey="id"
   selectable
   onSelectionChange={setSelected}
 />
@@ -267,7 +266,6 @@ Refetching or re-mapping `data` breaks that assumption — even identical conten
 <DataTable
   data={employees}
   columns={COLUMNS}
-  rowKey="id"
   selectable
   onSelectionChange={setSelected}
   getRowId={(employee) => employee.id}
@@ -310,7 +308,6 @@ Pass `onRowClick` to react to a data row being clicked — it receives the full 
 <DataTable
   data={employees}
   columns={COLUMNS}
-  rowKey="id"
   onRowClick={(row, event) => console.log('clicked', row.name)}
 />
 ```
@@ -327,11 +324,10 @@ Drag a column header to reorder it, or drag a row (or press Alt+ArrowUp/Alt+Arro
 | ------------------------ | --------------------------------------------------------------------------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `data`                   | `TRow[]`                                                                                            | —       | Row data                                                                                                                                               |
 | `columns`                | `ColumnDef<TRow>[]`                                                                                 | —       | Column definitions                                                                                                                                     |
-| `rowKey`                 | `keyof TRow & string`                                                                               | —       | React list key only — not selection identity                                                                                                           |
 | `labels`                 | `Partial<DataTableLabels>`                                                                          | English | UI string overrides                                                                                                                                    |
 | `defaultGroupsCollapsed` | `boolean`                                                                                           | `true`  | Whether newly-grouped groups start collapsed                                                                                                           |
 | `initialViewState`       | `TableViewState`                                                                                    | `{}`    | Construction-time defaults for columns/sort/filters/grouping/page/search — also what `resetView` restores                                              |
-| `getRowId`               | `(row: TRow) => string \| number`                                                                   | —       | Opt-in id-based selection identity (see "Row selection" above)                                                                                         |
+| `getRowId`               | `(row: TRow) => string \| number`                                                                   | —       | Opt-in id-based row identity: selection, focus, `currentRow` and the row's DOM key (see "Row selection" above)                                         |
 | `selectable`             | `boolean`                                                                                           | `false` | Show checkbox column for row selection                                                                                                                 |
 | `onSelectionChange`      | `(rows: TRow[]) => void`                                                                            | —       | Called when selection changes                                                                                                                          |
 | `onRowClick`             | `(row: TRow, event: MouseEvent<HTMLTableRowElement> \| KeyboardEvent<HTMLTableRowElement>) => void` | —       | Called when a data row is clicked, or on Enter with keyboard focus                                                                                     |
@@ -503,7 +499,7 @@ function EmployeeTable() {
     initialViewState: { visibleCols: DEFAULT_VISIBLE, pageSize: 20 },
   })
   usePersistence(table, { storageKey: 'employee-table-view', paramName: 'view' })
-  return <DataTableView table={table} data={employees} columns={COLUMNS} rowKey="id" />
+  return <DataTableView table={table} data={employees} columns={COLUMNS} />
 }
 ```
 

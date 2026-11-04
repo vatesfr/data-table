@@ -288,12 +288,10 @@ describe('createDataTable', () => {
     expect(container.querySelector('thead input[type="checkbox"]')).toBeNull()
   })
 
-  it('setRowKey/setOnRowClick/setDefaultGroupsCollapsed/setGetRowId are callable after construction', () => {
-    // These have no easily-observable DOM effect on their own (rowKey is a rendering-identity
-    // hint only; the others are exercised via their own dedicated describe blocks elsewhere) — this
-    // just confirms none of them throw and the table keeps rendering normally afterward.
+  it('setOnRowClick/setDefaultGroupsCollapsed/setGetRowId are callable after construction', () => {
+    // Exercised via their own dedicated describe blocks elsewhere — this just confirms none of
+    // them throw and the table keeps rendering normally afterward.
     const table = createDataTable(container, { data: ROWS, columns: COLS })
-    table.setRowKey('name')
     table.setOnRowClick(() => {})
     table.setDefaultGroupsCollapsed(false)
     table.setGetRowId((row: Row) => row.id)

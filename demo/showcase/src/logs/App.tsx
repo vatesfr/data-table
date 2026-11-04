@@ -107,6 +107,7 @@ const SAVED_SEARCHES: { label: string; view: TableViewState }[] = [
 export function App() {
   const events = makeEvents()
   const table = createTableState(events, COLUMNS, {
+    getRowId: (e) => e.id,
     initialViewState: { sorts: [{ key: 'timestamp', dir: 'desc' }], pageSize: 100 },
     // The default prints raw counts ("100000 / 100000 rows"): group the digits at this scale
     labels: {
@@ -170,7 +171,6 @@ export function App() {
       </div>
       <DataTableView
         table={table}
-        rowKey="id"
         rowClass={(e) => (e.level === 'error' ? 'log-error' : undefined)}
         toolbarEnd={
           <button class="copy" onClick={copyLink}>
