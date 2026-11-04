@@ -18,6 +18,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - ⚠️ **BREAKING (Solid, React, Vue):** in `table.groupedData`, a group's `rows` is now the whole group on every page, and the new `pageRows` holds the part rendered on this page (`[]` when collapsed); `sampleRow` is removed. Iterate `pageRows` to render a page's rows, and read `rows[0]` instead of `sampleRow`.
 - **A group's checkbox and Space select the whole group**, also when it's split across pages.
 
+### Removed
+
+- **UMD builds**: no adapter ships a UMD file any more. They needed a `DataTableCore` browser global that no package provides, so they never worked from a `<script>` tag. `require()` now loads a plain CommonJS build and keeps working.
+
 ### Fixed
 
 - **A group split across pages shows its whole total and row count**: its aggregates and "n rows" no longer cover only the current page's rows, so expanding a group doesn't change its numbers.

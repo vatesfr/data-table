@@ -20,11 +20,14 @@ export default defineConfig({
     // Terser: smaller gzipped output than esbuild; no property mangling (object keys unaudited)
     minify: 'terser',
     lib: {
-      // A UMD build allows one entry: `/theme` builds via ../vite.theme.config.mts
-      entry: resolve(import.meta.dirname, 'src/index.ts'),
-      name: 'DataTableReact',
-      fileName: 'data-table-react',
-      formats: ['es', 'umd'],
+      entry: {
+        index: resolve(import.meta.dirname, 'src/index.ts'),
+        theme: resolve(import.meta.dirname, 'src/theme.ts'),
+      },
+      // Entry `index` keeps the bundled types at dist/index.d.ts; the main JS keeps the package name.
+      fileName: (format, name) =>
+        `${name === 'index' ? 'data-table-react' : name}.${format === 'es' ? 'js' : 'cjs'}`,
+      formats: ['es', 'cjs'],
     },
     rollupOptions: {
       external: [
@@ -33,16 +36,8 @@ export default defineConfig({
         'react-dom',
         '@vates/data-table-core',
         '@vates/data-table-core/internal',
+        '@vates/data-table-core/theme',
       ],
-      output: {
-        globals: {
-          react: 'React',
-          'react/jsx-runtime': 'ReactJSXRuntime',
-          'react-dom': 'ReactDOM',
-          '@vates/data-table-core': 'DataTableCore',
-          '@vates/data-table-core/internal': 'DataTableCore',
-        },
-      },
     },
   },
 })
