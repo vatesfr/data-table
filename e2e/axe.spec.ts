@@ -9,7 +9,6 @@ const KNOWN = [
   { rule: 'color-contrast', html: 'No review yet', item: 'demo muted()' },
   { rule: 'color-contrast', html: 'dt-group-colname', item: 'U43' },
   { rule: 'color-contrast', html: 'dt-group-count', item: 'U43' },
-  { rule: 'empty-table-header', html: 'width:28px', item: 'U44' },
 ]
 
 // The Solid demo, and the showcase ledger: grouped from the start, which the demo never is

@@ -1493,7 +1493,11 @@ export function DataTableView<TRow extends object>({
                   />
                 </th>
               )}
-              {groupBy.length > 0 && <th className="dt-th dt-th--no-sort" style={{ width: 28 }} />}
+              {groupBy.length > 0 && (
+                <th className="dt-th dt-th--no-sort" style={{ width: 28 }}>
+                  <span className="dt-sr-only">{L.expandCollapse}</span>
+                </th>
+              )}
               {/* Only sorts entries for a currently-rendered header count toward numbering — a
                   groupBy column can have its own sort entry (sortWithinGroups uses it to order
                   the groups themselves), but it has no header of its own to attach a number to,

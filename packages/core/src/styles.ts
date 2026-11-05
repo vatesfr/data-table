@@ -16,7 +16,7 @@ export const DT_STYLES = `
 .dt-clear-all{margin-left:auto}
 .dt-toolbar-end{display:flex;align-items:center;gap:8px;margin-left:auto}
 .dt-clear-all~.dt-toolbar-end{margin-left:0}
-.dt-status{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.dt-status,.dt-sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 .dt-stats{margin-left:auto;font-size:var(--font-size-sm,12px);color:var(--color-text-secondary,#666561);white-space:nowrap}
 .dt-btn{display:inline-flex;align-items:center;gap:4px;padding:5px 10px;background:none;border:.5px solid var(--color-border-secondary,#dddcd8);border-radius:6px;font-size:var(--font-size-md,13px);cursor:pointer;color:var(--color-text-primary,#1a1916);font-family:inherit;line-height:1}
 .dt-btn--active{background:var(--color-background-secondary,#f7f6f3)}

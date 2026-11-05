@@ -547,6 +547,13 @@ describe('TableBody — keyboard navigation', () => {
     dispose()
   })
 
+  it("names the group expander column's header, visually hidden", () => {
+    const { container, table, dispose } = mount()
+    table.group.toggle('dept')
+    expect(container.querySelector('thead .dt-sr-only')?.textContent).toBe('Expand/collapse')
+    dispose()
+  })
+
   it('collapsing a group via Enter does not drop DOM focus (group rows keep stable identity)', () => {
     const { container, table, dispose } = mount({ defaultGroupsCollapsed: false })
     table.group.toggle('dept')

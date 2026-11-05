@@ -27,7 +27,6 @@ Seeded 2026-10-04 from issues reported by a consumer app, each reproduced on the
 
 ## Table body
 
-- **U44 · minor · UC04** — the group expander's header cell is an empty `<th>` (axe `empty-table-header`): give it visually hidden text. Seen in Solid.
 - **U45 · polish** — the pinned column's row border (its `::after`) sits ~1 px above the rest of the row and runs 8 px past the column's edge; its shadow (`rgba(0,0,0,.12)`) vanishes on dark themes. Reported from zoomed screenshots of the showcase's catalog and users. Seen in Solid.
 
 ## Toolbar

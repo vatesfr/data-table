@@ -2936,6 +2936,12 @@ describe('DataTable — keyboard navigation with grouping', () => {
     await deptItem.trigger('click')
   }
 
+  it("names the group expander column's header, visually hidden", async () => {
+    const wrapper = mount(DataTable, { props: { data: GROUP_ROWS, columns: GROUP_COLS } })
+    await groupByDept(wrapper)
+    expect(wrapper.find('thead .dt-sr-only').text()).toBe('Expand/collapse')
+  })
+
   it('makes every group header row a Tab stop, one at a time', async () => {
     const wrapper = mount(DataTable, {
       props: {

@@ -218,6 +218,8 @@ export interface DataTableLabels {
   columnMenu: (column: string, filtered: boolean) => string
   /** Marker shown on a group header that repeats mid-way down a page — see "Pagination" — because the group's rows split across a page boundary */
   groupContinued: string
+  /** Visually hidden header of the column holding each group's expand/collapse button */
+  expandCollapse: string
   rowsPerPage: string
   pageOf: (page: number, total: number) => string
   /** Empty table body: no data at all */

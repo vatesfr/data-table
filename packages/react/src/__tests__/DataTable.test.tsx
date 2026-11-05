@@ -2786,6 +2786,14 @@ describe('DataTable — keyboard navigation with grouping', () => {
     fireEvent.click(getAllByText('Department').find((el) => el.closest('th') === null)!)
   }
 
+  it("names the group expander column's header, visually hidden", () => {
+    const { getByText, getAllByText, container } = render(
+      <DataTable data={GROUP_ROWS} columns={GROUP_COLS} />,
+    )
+    groupByDept(getByText, getAllByText)
+    expect(container.querySelector('thead .dt-sr-only')?.textContent).toBe('Expand/collapse')
+  })
+
   it('makes every group header row a Tab stop, one at a time', () => {
     const { getByText, getAllByText, container } = render(
       <DataTable

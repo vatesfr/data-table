@@ -1686,7 +1686,9 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                 @change="toggleSelectAll(processedData)"
               />
             </th>
-            <th v-if="groupBy.length > 0" class="dt-th dt-th--no-sort" style="width: 28px" />
+            <th v-if="groupBy.length > 0" class="dt-th dt-th--no-sort" style="width: 28px">
+              <span class="dt-sr-only">{{ L.expandCollapse }}</span>
+            </th>
             <th
               v-for="col in activeColumns"
               :key="col.key"

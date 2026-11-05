@@ -247,7 +247,9 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
               </th>
             </Show>
             <Show when={table.group.by().length > 0}>
-              <th class="dt-th dt-th--no-sort" style={{ width: '28px' }} />
+              <th class="dt-th dt-th--no-sort" style={{ width: '28px' }}>
+                <span class="dt-sr-only">{table.labels().expandCollapse}</span>
+              </th>
             </Show>
             <For each={table.columns.active()}>
               {(col) => {
