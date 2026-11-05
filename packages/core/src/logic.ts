@@ -1299,20 +1299,24 @@ export function toggleSort(
  * A plain header click: sort by `key` alone — cycling it when it's already the sole non-group
  * sort, else starting at `defaultDir` — keeping grouped columns' entries ahead of it. A grouped
  * `key` (`keepVisibleWhenGrouped`) cycles in place via `toggleSort` (docs/sorting.md,
- * docs/grouped-columns.md).
+ * docs/grouped-columns.md). With `dir`, applies exactly that direction instead of cycling.
  */
 export function replaceSort(
   sorts: SortEntry[],
   key: string,
   defaultDir: SortDir = 'asc',
   groupBy: string[] = [],
+  dir?: SortDir,
 ): SortEntry[] {
-  if (groupBy.includes(key)) return toggleSort(sorts, key, defaultDir)
+  if (groupBy.includes(key))
+    return dir
+      ? sorts.map((s) => (s.key === key ? { key, dir } : s))
+      : toggleSort(sorts, key, defaultDir)
   const groupSorts = sorts.filter((s) => groupBy.includes(s.key))
   const rest = sorts.filter((s) => !groupBy.includes(s.key))
-  if (rest.length === 1 && rest[0].key === key)
+  if (!dir && rest.length === 1 && rest[0].key === key)
     return [...groupSorts, ...toggleSort(rest, key, defaultDir)]
-  return [...groupSorts, { key, dir: defaultDir }]
+  return [...groupSorts, { key, dir: dir ?? defaultDir }]
 }
 
 /**

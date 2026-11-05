@@ -280,6 +280,16 @@ describe('createTableState — sorting', () => {
     })
   })
 
+  it('replace with a dir sets that exact sort, without cycling', () => {
+    withRoot(() => {
+      const table = createTableState(ROWS, COLS)
+      table.sort.toggle('name')
+      table.sort.replace('score', 'desc')
+      table.sort.replace('score', 'desc')
+      expect(table.sort.entries()).toEqual([{ key: 'score', dir: 'desc' }])
+    })
+  })
+
   it('appendOrToggleSort adds to the existing multi-sort instead of replacing it', () => {
     withRoot(() => {
       const table = createTableState(ROWS, COLS)

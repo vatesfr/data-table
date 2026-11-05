@@ -9,6 +9,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Added
 
+- **Set an exact sort in one call**: `table.sort.replace(key, dir)` sorts by `key` alone in that direction, without cycling; a grouped column's direction changes in place.
 - **`compareInOrder(order)`**: a ready-made `compare` for an ordinal column (`Bronze < Silver < Gold`), ranking values by their index in `order`; values missing from it rank after.
 - **`expandCollapse` label**: names the column of group expand/collapse buttons for screen readers (visually hidden); set it with the other labels.
 - **Showcase**: [six apps](https://vatesfr.github.io/data-table/showcase/) built with the library (ops console, French ledger, log viewer, store catalog, sports stats, user admin), each with its own data, interactions and style, and its source.

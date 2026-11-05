@@ -445,6 +445,18 @@ describe('useTableState — sort remove/direction/reorder', () => {
     expect(result.current.sort.entries).toEqual([{ key: 'score', dir: 'desc' }])
   })
 
+  it('replace with a dir sets that exact sort, without cycling', () => {
+    const { result } = renderHook(() => useTableState(ROWS, COLS))
+    act(() => {
+      result.current.sort.toggle('name')
+      result.current.sort.replace('score', 'desc')
+    })
+    act(() => {
+      result.current.sort.replace('score', 'desc')
+    })
+    expect(result.current.sort.entries).toEqual([{ key: 'score', dir: 'desc' }])
+  })
+
   it('appendOrToggleSort (shift-click) starts at defaultSortDir', () => {
     const cols: ColumnDef<Row>[] = [{ key: 'score', label: 'Score', defaultSortDir: 'desc' }]
     const { result } = renderHook(() => useTableState(ROWS, cols))

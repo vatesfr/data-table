@@ -2633,6 +2633,32 @@ describe('toggleSort', () => {
 
 // ─── replaceSort ──────────────────────────────────────────────────────────────
 
+describe('replaceSort with an exact dir', () => {
+  it('applies it without cycling, keeping group sorts first', () => {
+    const sorts: SortEntry[] = [{ key: 'name', dir: 'desc' }]
+    expect(replaceSort(sorts, 'name', 'asc', [], 'desc')).toEqual([{ key: 'name', dir: 'desc' }])
+    const grouped: SortEntry[] = [
+      { key: 'dept', dir: 'asc' },
+      { key: 'name', dir: 'asc' },
+    ]
+    expect(replaceSort(grouped, 'score', 'asc', ['dept'], 'desc')).toEqual([
+      { key: 'dept', dir: 'asc' },
+      { key: 'score', dir: 'desc' },
+    ])
+  })
+
+  it("sets a grouped column's direction in place", () => {
+    const sorts: SortEntry[] = [
+      { key: 'dept', dir: 'asc' },
+      { key: 'name', dir: 'asc' },
+    ]
+    expect(replaceSort(sorts, 'dept', 'asc', ['dept'], 'desc')).toEqual([
+      { key: 'dept', dir: 'desc' },
+      { key: 'name', dir: 'asc' },
+    ])
+  })
+})
+
 describe('replaceSort', () => {
   it('sets a fresh asc sort when nothing is sorted', () => {
     expect(replaceSort([], 'name')).toEqual([{ key: 'name', dir: 'asc' }])

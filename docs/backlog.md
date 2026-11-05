@@ -34,7 +34,6 @@ What `demo/showcase` pages wanted and the public API couldn't give. Each page ma
 - **B37** — groups order only by their key, never by an aggregate (e.g. clubs by total points). Page: sports.
 - **B38** — `numericRangeGroup`'s unit is only a suffix ("50–100 €", never "€50–€100"). Page: catalog.
 - **B39** — no public per-value counts under the current search and filters, for an app's own facet chips. Page: catalog.
-- **B40** — no setter for an exact sort (key and direction) in one call; an app's own sort control calls `replace` then `toggleDir`. Page: catalog.
 - **B41** — the toolbar can't render without the table body, so a headless view (cards) can't reuse the Sort/Filter controls. Page: catalog.
 - **B42** — no public way to compare two views; telling which saved view is active means serializing `getViewState()` with sorted keys. Pages: users, logs.
 - **B43** — each column header is two Tab stops (sort, menu): from the search box, 19 Tabs reach the first row of a 9-column table. Page: users (a "Jump to rows" link with `focus.moveTo`).

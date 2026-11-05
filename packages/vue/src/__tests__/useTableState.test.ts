@@ -1099,6 +1099,16 @@ describe('useTableState — computed columns', () => {
   })
 })
 
+describe('useTableState — sort.replace with a dir', () => {
+  it('sets that exact sort, without cycling', () => {
+    const table = useTableState(ROWS, COLS)
+    table.sort.toggle('name')
+    table.sort.replace('score', 'desc')
+    table.sort.replace('score', 'desc')
+    expect(table.sort.entries.value).toEqual([{ key: 'score', dir: 'desc' }])
+  })
+})
+
 describe('useTableState — sort stays off the search/filter path', () => {
   it('re-sorts on a sort or data change, not on a search or filter change', () => {
     const compare = vi.fn((a: unknown, b: unknown) => Number(a) - Number(b))

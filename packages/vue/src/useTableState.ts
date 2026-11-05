@@ -251,8 +251,8 @@ export function useTableState<TRow extends object>(
       toggle: (key: string) => {
         sorts.value = _toggleSort(sorts.value, key, defaultSortDirFor(key))
       },
-      replace: (key: string) => {
-        sorts.value = _replaceSort(sorts.value, key, defaultSortDirFor(key), groupBy.value)
+      replace: (key: string, dir?: SortEntry['dir']) => {
+        sorts.value = _replaceSort(sorts.value, key, defaultSortDirFor(key), groupBy.value, dir)
       },
       appendOrToggle: (key: string) => {
         sorts.value = _appendOrToggleSort(sorts.value, key, defaultSortDirFor(key))

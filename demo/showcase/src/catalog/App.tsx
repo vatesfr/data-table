@@ -154,10 +154,8 @@ export function App() {
     return CARD_SORTS.some((c) => `${c.key}:${c.dir}` === value) ? value : ''
   }
   const setCardSort = (value: string) => {
-    const [key, dir] = value.split(':')
-    // Limit: B40 — no setter for an exact key + direction, so replace then flip if needed
-    table.sort.replace(key)
-    if (table.sort.entries().find((s) => s.key === key)?.dir !== dir) table.sort.toggleDir(key)
+    const c = CARD_SORTS.find((c) => `${c.key}:${c.dir}` === value)
+    if (c) table.sort.replace(c.key, c.dir)
   }
 
   return (
