@@ -11,6 +11,7 @@ import {
 } from 'react'
 import {
   computeAggregate,
+  trackWrapWidth,
   formatAggregate,
   exclusionChip,
   exclusionValueKeys,
@@ -225,6 +226,9 @@ export function DataTableView<TRow extends object>({
   // Narrow screen (U16): the Filter dropdown shows one pane at a time — columns, or values
   const [narrowFilter, setNarrowFilter] = useState(false)
   useEffect(() => watchMedia(FILTER_NARROW_QUERY, setNarrowFilter), [])
+  // U41: a group label wraps to the visible width of the sideways-scrolling table
+  const wrapRef = useRef<HTMLDivElement>(null)
+  useEffect(() => trackWrapWidth(wrapRef.current!), [])
   const hasToolbarEnd = toolbarEnd != null && toolbarEnd !== false
   // On a phone the toolbar wraps: toolbarEnd ends the first line instead of taking a line of its own.
   const endFirst = narrowFilter && hasToolbarEnd
@@ -1485,7 +1489,7 @@ export function DataTableView<TRow extends object>({
       </div>
 
       {/* Table */}
-      <div className="dt-table-wrap">
+      <div className="dt-table-wrap" ref={wrapRef}>
         <table className="dt-table">
           <thead>
             <tr>
@@ -1632,58 +1636,66 @@ export function DataTableView<TRow extends object>({
                     className="dt-group-row"
                     onClick={() => toggleGroupCollapse(gkey)}
                   >
-                    {selectable && (
-                      <td
-                        className="dt-group-td dt-check-cell"
-                        style={{ width: 36 }}
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          if (e.target === e.currentTarget) toggleSelectAll(rows)
-                        }}
-                      >
-                        <input
-                          ref={(el) => {
-                            if (el) el.indeterminate = groupSomeSelected(rows)
-                          }}
-                          type="checkbox"
-                          checked={groupAllSelected(rows)}
-                          aria-label={L.selectGroup(groupText(columns, groupBy, keyParts, rows[0]))}
-                          onChange={() => toggleSelectAll(rows)}
-                        />
-                      </td>
-                    )}
-                    <td className="dt-group-td" style={{ width: 28 }}>
-                      {isCollapsed ? '▶' : '▼'}
-                    </td>
-                    <td colSpan={activeColumns.length} className="dt-group-td">
-                      {groupBy.map((g, i) => {
-                        const col = columns.find((c) => c.key === g)
-                        // A bucketed group (see groupValue/groupFormat) has no single row whose
-                        // real value *is* the group — the sample row's own value/format would
-                        // show e.g. a raw "47%" instead of the "40–50%" bucket it landed in — so
-                        // its label renders from the group's own keyPart via groupFormat instead
-                        // of the normal cellValue/format pipeline.
-                        const label = col?.groupValue
-                          ? (col.groupFormat?.(keyParts[i]) ?? keyParts[i])
-                          : (() => {
-                              const raw = col ? getColumnValue(col, rows[0]) : undefined
-                              const value = Array.isArray(raw) ? keyParts[i] : raw
-                              return col ? formatValue(value, rows[0], col) : String(value ?? '')
-                            })()
-                        return (
-                          <span key={g}>
-                            {i > 0 && <span className="dt-group-sep"> › </span>}
-                            <span className="dt-group-colname">{col?.label ?? g}:</span> {label}
+                    <td
+                      colSpan={activeColumns.length + (selectable ? 2 : 1)}
+                      className="dt-group-td"
+                    >
+                      <div className="dt-group-label">
+                        {selectable && (
+                          <span
+                            className="dt-group-check dt-check-cell"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              if (e.target === e.currentTarget) toggleSelectAll(rows)
+                            }}
+                          >
+                            <input
+                              ref={(el) => {
+                                if (el) el.indeterminate = groupSomeSelected(rows)
+                              }}
+                              type="checkbox"
+                              checked={groupAllSelected(rows)}
+                              aria-label={L.selectGroup(
+                                groupText(columns, groupBy, keyParts, rows[0]),
+                              )}
+                              onChange={() => toggleSelectAll(rows)}
+                            />
                           </span>
-                        )
-                      })}
-                      {continued && (
-                        <>
-                          {' '}
-                          <span className="dt-group-continued">{L.groupContinued}</span>
-                        </>
-                      )}{' '}
-                      <span className="dt-group-count">{L.rowsInGroup(rows.length)}</span>
+                        )}
+                        <span className="dt-group-arrow">{isCollapsed ? '▶' : '▼'}</span>
+                        <span className="dt-group-text">
+                          {groupBy.map((g, i) => {
+                            const col = columns.find((c) => c.key === g)
+                            // A bucketed group (see groupValue/groupFormat) has no single row whose
+                            // real value *is* the group — the sample row's own value/format would
+                            // show e.g. a raw "47%" instead of the "40–50%" bucket it landed in — so
+                            // its label renders from the group's own keyPart via groupFormat instead
+                            // of the normal cellValue/format pipeline.
+                            const label = col?.groupValue
+                              ? (col.groupFormat?.(keyParts[i]) ?? keyParts[i])
+                              : (() => {
+                                  const raw = col ? getColumnValue(col, rows[0]) : undefined
+                                  const value = Array.isArray(raw) ? keyParts[i] : raw
+                                  return col
+                                    ? formatValue(value, rows[0], col)
+                                    : String(value ?? '')
+                                })()
+                            return (
+                              <span key={g}>
+                                {i > 0 && <span className="dt-group-sep"> › </span>}
+                                <span className="dt-group-colname">{col?.label ?? g}:</span> {label}
+                              </span>
+                            )
+                          })}
+                          {continued && (
+                            <>
+                              {' '}
+                              <span className="dt-group-continued">{L.groupContinued}</span>
+                            </>
+                          )}{' '}
+                          <span className="dt-group-count">{L.rowsInGroup(rows.length)}</span>
+                        </span>
+                      </div>
                     </td>
                   </tr>
                 ),

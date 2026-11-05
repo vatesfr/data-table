@@ -38,7 +38,7 @@ describe('DataTable — row checkbox name', () => {
 
 describe('DataTable — checkbox cells as hit areas', () => {
   const ROWS3: Row[] = [...ROWS, { id: 3, name: 'Clara', score: 75 }]
-  const cellOf = (name: string) => screen.getByRole('checkbox', { name }).closest('td, th')!
+  const cellOf = (name: string) => screen.getByRole('checkbox', { name }).closest('.dt-check-cell')!
 
   it("a click anywhere in a row's checkbox cell toggles it; shift-click selects the range", () => {
     const onSelectionChange = vi.fn()

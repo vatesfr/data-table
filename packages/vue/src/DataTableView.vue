@@ -2,6 +2,7 @@
 import { computed, ref, toRaw, watch, nextTick, useSlots, onMounted, onBeforeUnmount } from 'vue'
 import {
   computeAggregate,
+  trackWrapWidth,
   formatAggregate,
   getColumnAlign,
   getColumnValue,
@@ -434,6 +435,12 @@ onMounted(() => {
   stopNarrowFilter = watchMedia(FILTER_NARROW_QUERY, (matches) => (narrowFilter.value = matches))
 })
 onBeforeUnmount(() => stopNarrowFilter())
+
+// U41: a group label wraps to the visible width of the sideways-scrolling table
+const wrapRef = ref<HTMLElement | null>(null)
+let stopWrapWidth = () => {}
+onMounted(() => (stopWrapWidth = trackWrapWidth(wrapRef.value!)))
+onBeforeUnmount(() => stopWrapWidth())
 // On a phone the toolbar wraps: the toolbar-end slot ends the first line instead of taking a line of its own.
 const endFirst = () => narrowFilter.value && hasSlot('toolbar-end')
 const filterShowValues = ref(false)
@@ -1676,7 +1683,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
     </div>
 
     <!-- ── Table ── -->
-    <div class="dt-table-wrap">
+    <div ref="wrapRef" class="dt-table-wrap">
       <table class="dt-table">
         <thead>
           <tr>
@@ -1763,60 +1770,61 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
               @keydown="handleKeyDown($event, { kind: 'group', key: group.key! })"
               @focusin="setFocusTarget({ kind: 'group', key: group.key! })"
             >
-              <td
-                v-if="selectable"
-                class="dt-group-td dt-check-cell"
-                style="width: 36px"
-                @click.stop.self="toggleSelectAll(group.rows)"
-              >
-                <input
-                  v-indeterminate="isGroupSomeSelected(group.rows)"
-                  type="checkbox"
-                  :checked="isGroupAllSelected(group.rows)"
-                  :aria-label="
-                    L.selectGroup(groupText(columns, groupBy, group.keyParts, group.rows[0]))
-                  "
-                  @change="toggleSelectAll(group.rows)"
-                />
-              </td>
-              <td class="dt-group-td" style="width: 28px">
-                {{ groupCollapsed(group.key!) ? '▶' : '▼' }}
-              </td>
-              <td :colspan="activeColumns.length" class="dt-group-td">
-                <template v-for="(g, i) in groupBy" :key="g">
-                  <span v-if="i > 0" class="dt-group-sep">›</span>
-                  <span class="dt-group-colname">{{ findCol(g)?.label }}:</span>
-                  <!--
+              <td :colspan="activeColumns.length + (selectable ? 2 : 1)" class="dt-group-td">
+                <div class="dt-group-label">
+                  <span
+                    v-if="selectable"
+                    class="dt-group-check dt-check-cell"
+                    @click.stop.self="toggleSelectAll(group.rows)"
+                  >
+                    <input
+                      v-indeterminate="isGroupSomeSelected(group.rows)"
+                      type="checkbox"
+                      :checked="isGroupAllSelected(group.rows)"
+                      :aria-label="
+                        L.selectGroup(groupText(columns, groupBy, group.keyParts, group.rows[0]))
+                      "
+                      @change="toggleSelectAll(group.rows)"
+                    />
+                  </span>
+                  <span class="dt-group-arrow">{{ groupCollapsed(group.key!) ? '▶' : '▼' }}</span>
+                  <span class="dt-group-text">
+                    <template v-for="(g, i) in groupBy" :key="g">
+                      <span v-if="i > 0" class="dt-group-sep">›</span>
+                      <span class="dt-group-colname">{{ findCol(g)?.label }}:</span>
+                      <!--
                     A bucketed column (col.groupValue) has no single raw value the #group-{key}
                     slot's scope could meaningfully carry — same reasoning the date filter tree
                     skips its own per-value slot for branch nodes — so it bypasses the slot
                     entirely and renders groupFormat's label directly.
                   -->
-                  <template v-if="findCol(g)?.groupValue">{{
-                    groupBucketLabel(group, g, i)
-                  }}</template>
-                  <!--
+                      <template v-if="findCol(g)?.groupValue">{{
+                        groupBucketLabel(group, g, i)
+                      }}</template>
+                      <!--
                     Slot #group-{key} — custom rendering in the group header.
                     Slot scope: { value: unknown, row: TRow }
                     Falls back to format() or string coercion.
                   -->
-                  <slot
-                    v-else
-                    :name="`group-${g}`"
-                    :value="groupRawValue(group, g, i)"
-                    :row="group.rows[0]"
-                  >
-                    {{
-                      findCol(g)
-                        ? formatValue(groupRawValue(group, g, i), group.rows[0], findCol(g)!)
-                        : String(groupRawValue(group, g, i) ?? '')
-                    }}
-                  </slot>
-                </template>
-                <span v-if="group.continued" class="dt-group-continued">{{
-                  L.groupContinued
-                }}</span>
-                <span class="dt-group-count">{{ L.rowsInGroup(group.rows.length) }}</span>
+                      <slot
+                        v-else
+                        :name="`group-${g}`"
+                        :value="groupRawValue(group, g, i)"
+                        :row="group.rows[0]"
+                      >
+                        {{
+                          findCol(g)
+                            ? formatValue(groupRawValue(group, g, i), group.rows[0], findCol(g)!)
+                            : String(groupRawValue(group, g, i) ?? '')
+                        }}
+                      </slot>
+                    </template>
+                    <span v-if="group.continued" class="dt-group-continued">{{
+                      L.groupContinued
+                    }}</span>
+                    <span class="dt-group-count">{{ L.rowsInGroup(group.rows.length) }}</span>
+                  </span>
+                </div>
               </td>
             </tr>
 

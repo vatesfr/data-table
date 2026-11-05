@@ -135,6 +135,7 @@ Symptom first, then cause and fix. Delete entries once obsolete.
 
 - Symptom: a `scripts/ux-step.mjs` script times out finding the table; the page's console shows "The requested module '/@fs/…/packages/core/src/locales.ts?t=…' does not provide an export named 'LABELS_EN'", though the file exports it.
 - Cause: a demo dev server left running while core sources were edited serves a stale module graph (seen on React after editing `locales.ts` and `types.ts`; exact Vite trigger not pinned down).
+- Also silent: after a second edit to `styles.ts`, the Solid demo kept injecting the previous `DT_STYLES` (no error, just old CSS). Before trusting a measurement after a core CSS edit, read the rule back from the page's `<style>` or restart the server.
 - Fix: restart that dev server.
 
 ## E2E geometry check passes locally, fails in CI

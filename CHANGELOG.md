@@ -20,6 +20,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - ⚠️ **BREAKING (React):** a column's `render` now also draws its group totals, as in Solid and vanilla. Set `aggregateFormat` to keep a plain-text total.
 - **A group's checkbox and Space select the whole group**, also when it's split across pages.
 - **Solid, vanilla: an empty group total shows nothing**: `render` is no longer called with a `null`/`undefined` aggregate, as in React and Vue.
+- **A group header row is one cell**: its checkbox, arrow and label sit in a `.dt-group-label` inside a single `.dt-group-td` (as `.dt-group-check`, `.dt-group-arrow` and `.dt-group-text`). CSS that targeted the header's separate cells needs updating.
 
 ### Removed
 
@@ -27,6 +28,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Fixed
 
+- **A group header stays in view on a sideways-scrolled table**: on a narrow screen, its checkbox, arrow and label stick to the left edge like a pinned column, and a long label wraps within the visible width instead of running off it.
 - **A group split across pages shows its whole total and row count**: its aggregates and "n rows" no longer cover only the current page's rows, so expanding a group doesn't change its numbers.
 - **Date range filters keep rows dated on a bound in every time zone**: a min or max date now covers that whole local day, so "Released ≤ today" no longer drops today's rows west of UTC (nor min east of UTC). The range inputs and slider show the right day east of UTC, a `YYYY-MM-DD` value sits on its own day in the date filter tree, and a month group reads its own month west of UTC. A custom `parseDate` should return local time to match. (#46)
 

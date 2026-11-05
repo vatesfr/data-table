@@ -24,7 +24,8 @@ Each adapter's own cell/group-header rendering (React `cellValue()`, Vue `cellTe
 - Pinned rules stay at or below the row-state selectors' specificity, so an app's `.dt-tr--selected .dt-td` (etc.) override colours the pinned cell too; it must be opaque, or scrolled cells show through.
 - Responsive pinning stays with the app: toggle `pinned`, or undo `.dt-pinned`'s `position` in a media query.
 - A static shadow and the row border are drawn on `.dt-pinned::after`.
-- Not pinned: group label and empty-table rows (one `colspan` cell each).
+- A group header stays in view: its checkbox, arrow and label sit in one sticky `.dt-group-label`, capped at the scroll area's visible width (`--dt-wrap-width`, kept by `trackWrapWidth`) so a long label wraps there.
+- Not pinned: the empty-table row (one `colspan` cell).
 
 ## Global search
 

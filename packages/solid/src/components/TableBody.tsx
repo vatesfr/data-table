@@ -6,6 +6,7 @@ import {
   groupText,
   computeAggregate,
   formatAggregate,
+  trackWrapWidth,
   getSortIcon,
   getSortIndex,
   isGroupCollapsed,
@@ -213,7 +214,7 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
   }
 
   return (
-    <div class="dt-table-wrap">
+    <div class="dt-table-wrap" ref={(el) => onCleanup(trackWrapWidth(el))}>
       <table class="dt-table">
         <thead>
           <tr ref={headerRow} onDragOver={handleHeaderDragOver} onDrop={handleHeaderDrop}>
@@ -467,62 +468,73 @@ function GroupHeaderRow<TRow extends object>(props: GroupHeaderRowProps<TRow>) {
         onFocus={props.onFocusGroup}
         onKeyDown={(e) => props.onKeyDown(e, { kind: 'group', key: props.group.key! })}
       >
-        <Show when={props.selectable}>
-          <td
-            class="dt-group-td dt-check-cell"
-            style={{ width: '36px' }}
-            onClick={(e) => {
-              if (e.target !== e.currentTarget) return
-              e.stopPropagation()
-              table.selection.toggleAll(props.group.rows)
-            }}
-          >
-            <input
-              type="checkbox"
-              checked={groupAllSelected()}
-              ref={cbEl}
-              aria-label={table
-                .labels()
-                .selectGroup(
-                  groupText(
-                    props.columns,
-                    table.group.by(),
-                    props.group.keyParts,
-                    props.group.rows[0],
-                  ),
-                )}
-              onClick={(e) => {
-                e.stopPropagation()
-                table.selection.toggleAll(props.group.rows)
-              }}
-            />
-          </td>
-        </Show>
-        <td class="dt-group-td" style={{ width: '28px' }}>
-          {isCollapsed() ? '▶' : '▼'}
-        </td>
-        <td class="dt-group-td" colspan={table.columns.active().length}>
-          <For each={table.group.by()}>
-            {(gColKey, gi) => {
-              const gCol = props.columns.find((c) => c.key === gColKey)
-              return (
-                <>
-                  <Show when={gi() > 0}>
-                    <span class="dt-group-sep"> › </span>
-                  </Show>
-                  <span class="dt-group-colname">{gCol?.label ?? gColKey}:</span>{' '}
-                  {gCol?.groupValue
-                    ? (gCol.groupFormat?.(props.group.keyParts[gi()]) ?? props.group.keyParts[gi()])
-                    : renderGroupCellValue(gCol, props.group.rows[0], props.group.keyParts[gi()])}
-                </>
-              )
-            }}
-          </For>
-          <Show when={props.group.continued}>
-            {' '}
-            <span class="dt-group-continued">{table.labels().groupContinued}</span>
-          </Show>{' '}
-          <span class="dt-group-count">{table.labels().rowsInGroup(props.group.rows.length)}</span>
+        <td
+          class="dt-group-td"
+          colspan={table.columns.active().length + (props.selectable ? 2 : 1)}
+        >
+          <div class="dt-group-label">
+            <Show when={props.selectable}>
+              <span
+                class="dt-group-check dt-check-cell"
+                onClick={(e) => {
+                  if (e.target !== e.currentTarget) return
+                  e.stopPropagation()
+                  table.selection.toggleAll(props.group.rows)
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={groupAllSelected()}
+                  ref={cbEl}
+                  aria-label={table
+                    .labels()
+                    .selectGroup(
+                      groupText(
+                        props.columns,
+                        table.group.by(),
+                        props.group.keyParts,
+                        props.group.rows[0],
+                      ),
+                    )}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    table.selection.toggleAll(props.group.rows)
+                  }}
+                />
+              </span>
+            </Show>
+            <span class="dt-group-arrow">{isCollapsed() ? '▶' : '▼'}</span>
+            <span class="dt-group-text">
+              <For each={table.group.by()}>
+                {(gColKey, gi) => {
+                  const gCol = props.columns.find((c) => c.key === gColKey)
+                  return (
+                    <>
+                      <Show when={gi() > 0}>
+                        <span class="dt-group-sep"> › </span>
+                      </Show>
+                      <span class="dt-group-colname">{gCol?.label ?? gColKey}:</span>{' '}
+                      {gCol?.groupValue
+                        ? (gCol.groupFormat?.(props.group.keyParts[gi()]) ??
+                          props.group.keyParts[gi()])
+                        : renderGroupCellValue(
+                            gCol,
+                            props.group.rows[0],
+                            props.group.keyParts[gi()],
+                          )}
+                    </>
+                  )
+                }}
+              </For>
+              <Show when={props.group.continued}>
+                {' '}
+                <span class="dt-group-continued">{table.labels().groupContinued}</span>
+              </Show>{' '}
+              <span class="dt-group-count">
+                {table.labels().rowsInGroup(props.group.rows.length)}
+              </span>
+            </span>
+          </div>
         </td>
       </tr>
       <Show when={props.hasAgg}>
