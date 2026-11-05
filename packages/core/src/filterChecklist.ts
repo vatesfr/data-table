@@ -7,7 +7,7 @@ import {
   sortFilterValues,
   findDateTreeNode,
   getDateTreeNodeState,
-  isMultiValueColumn,
+  isMultiValueColumnCached,
   selectDateRange,
   selectRange,
 } from './logic'
@@ -171,28 +171,6 @@ export function clickDateTreeNode(
   const range = selectDateRange(ctx.values, anchorNode, node, ctx.parseDate)
   filter.setValues(key, range, select)
   if (select) filter.clearExcludeValues(key, range)
-}
-
-const multiValueCache = new WeakMap<object[], Map<string, boolean>>()
-
-/**
- * `isMultiValueColumn`, cached per data array and column key: its scan never short-circuits for a
- * scalar column, and filter panes are recreated per column, so revisiting one would rescan the
- * whole dataset. Date and number columns are never multi-value here.
- */
-export function isMultiValueColumnCached<TRow extends object>(
-  data: TRow[],
-  col: ColumnDefBase<TRow>,
-): boolean {
-  if (col.type === 'date' || col.type === 'number') return false
-  let byKey = multiValueCache.get(data)
-  if (!byKey) multiValueCache.set(data, (byKey = new Map()))
-  let cached = byKey.get(col.key)
-  if (cached === undefined) {
-    cached = isMultiValueColumn(data, col, col.key)
-    byKey.set(col.key, cached)
-  }
-  return cached
 }
 
 /**

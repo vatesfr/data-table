@@ -1613,7 +1613,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                   vals,
                   L.moreValues,
                   (v) => formatFilterValue(findCol(key), v, L.emptyValue),
-                  chipSeparator(filterMatchMode(filterModes, key, findCol(key))),
+                  chipSeparator(filterMatchMode(filterModes, key, findCol(key), data)),
                 )
               }}
             </button>

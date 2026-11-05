@@ -291,7 +291,7 @@ export function filterData<TRow extends object>(
   for (const [key, vals] of Object.entries(filters)) {
     if (vals.size === 0) continue
     const col = colByKey.get(key)
-    const mode = filterMatchMode(filterModes, key, col)
+    const mode = filterMatchMode(filterModes, key, col, data)
     result = result.filter((row) => {
       const rowValues = resolveMultiValues(col, row, key, emptyLabel)
       if (mode === 'and') {
@@ -825,13 +825,20 @@ export function formatFilterValue<TRow extends object>(
  * suffix — see `summarizeFilterValues`. */
 const FILTER_CHIP_MAX = 3
 
-/** A column's checklist match: its runtime override, else `col.multiMode`, else "any" */
-export function filterMatchMode(
+/**
+ * A column's checklist match: its runtime override, else `col.multiMode`, else "any". Always "any"
+ * for a single-value column, where "all" of two values would match no row.
+ */
+export function filterMatchMode<TRow extends object>(
   filterModes: Record<string, 'and' | 'or'>,
   key: string,
-  col: { multiMode?: 'and' | 'or' } | undefined,
+  col: ColumnDefBase<TRow> | undefined,
+  data: TRow[],
 ): 'and' | 'or' {
-  return filterModes[key] ?? col?.multiMode ?? 'or'
+  const mode = filterModes[key] ?? col?.multiMode ?? 'or'
+  if (mode !== 'and') return 'or'
+  const multi = col ? isMultiValueColumnCached(data, col) : isMultiValueColumn(data, col, key)
+  return multi ? 'and' : 'or'
 }
 
 /** Joins an include chip's values: " & " when all must match, so it doesn't read as "any of" */
@@ -1554,6 +1561,28 @@ export function isMultiValueColumn<TRow extends object>(
   key: string,
 ): boolean {
   return data.some((row) => Array.isArray(resolveValue(col, row, key)))
+}
+
+const multiValueCache = new WeakMap<object[], Map<string, boolean>>()
+
+/**
+ * `isMultiValueColumn`, cached per data array and column key: its scan never short-circuits for a
+ * scalar column, and filter panes are recreated per column, so revisiting one would rescan the
+ * whole dataset. Date and number columns are never multi-value here.
+ */
+export function isMultiValueColumnCached<TRow extends object>(
+  data: TRow[],
+  col: ColumnDefBase<TRow>,
+): boolean {
+  if (col.type === 'date' || col.type === 'number') return false
+  let byKey = multiValueCache.get(data)
+  if (!byKey) multiValueCache.set(data, (byKey = new Map()))
+  let cached = byKey.get(col.key)
+  if (cached === undefined) {
+    cached = isMultiValueColumn(data, col, col.key)
+    byKey.set(col.key, cached)
+  }
+  return cached
 }
 
 /**

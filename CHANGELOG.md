@@ -33,6 +33,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Fixed
 
+- **"All" match mode no longer empties a single-value column's filter**: with `multiMode: 'and'` (or a saved "all" mode) on a column holding one value per row, including two values showed no rows, and its chip read "A & B". Such a column now always matches any of its included values.
 - **A plain column's filter checklist shows "only these values"**: an include filter on a single-value column, set by `initialViewState`, `setViewState` or `filter.setValues`, narrowed the rows while the checklist showed every value ticked. The checklist now ticks only the included values and edits that filter, so an app's own "show only" control can write `filter.setValues(key, values, true)` instead of excluding every other value; values that arrive later stay hidden. Once no value is included, the checklist is back to all ticked.
 - **Counts are digit-grouped**: the row count, group counts and the filter checklist's per-value counts now read `10,010` (in each locale's own style) instead of `10010`. A new `formatCount` label sets the checklist's format; a custom `rowCount` label formats its own numbers.
 - **Dark tables get dark native controls**: under a dark theme (OS preference or `data-theme="dark"`), checkboxes, selects, scrollbars and date-input icons were drawn light; the theme now sets `color-scheme` on the table only, through a new `--dt-color-scheme` token, leaving the host page's as it is.

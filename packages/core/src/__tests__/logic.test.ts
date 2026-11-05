@@ -54,6 +54,7 @@ import {
   filterOpenState,
   applyColumnOrderSnapshot,
   isMultiValueColumn,
+  filterMatchMode,
   selectRange,
   isRowSelected,
   getSelectedRows,
@@ -719,6 +720,12 @@ describe('filterData / sortData', () => {
     const cols = [{ key: 'tags' as const, label: 'Tags', multiMode: 'and' as const }]
     const result = filterData(GAMES, { tags: new Set(['Action', 'RPG']) }, {}, cols)
     expect(result.map((r) => r.name)).toEqual(['Game A'])
+  })
+
+  it('matches a single-value column with any selected value, even in and mode', () => {
+    const cols = [{ key: 'name' as const, label: 'Name', multiMode: 'and' as const }]
+    const result = filterData(GAMES, { name: new Set(['Game A', 'Game B']) }, {}, cols)
+    expect(result.map((r) => r.name)).toEqual(['Game A', 'Game B'])
   })
 
   it("filterModes overrides col.multiMode's default for the given key", () => {
@@ -3239,6 +3246,17 @@ describe('isMultiValueColumn', () => {
   it('resolves the value through a column with a `value` accessor', () => {
     const col = { key: 'tagCount', label: 'Tags', value: (row: Game) => row.tags }
     expect(isMultiValueColumn(GAMES, col, 'tagCount')).toBe(true)
+  })
+})
+
+describe('filterMatchMode', () => {
+  it('falls back to "any" on a single-value column, scanning the data once per data array', () => {
+    const value = vi.fn((row: Game) => row.name)
+    const col = { key: 'name', label: 'Name', value }
+    const data = [...GAMES]
+    expect(filterMatchMode({ name: 'and' }, 'name', col, data)).toBe('or')
+    expect(filterMatchMode({ name: 'and' }, 'name', col, data)).toBe('or')
+    expect(value).toHaveBeenCalledTimes(data.length)
   })
 })
 

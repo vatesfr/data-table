@@ -256,7 +256,7 @@ export function FilterPane<TRow extends object>({
   const usesExcludeOnly = isExcludeOnlyColumn(data, col, filters)
   // The set the column's model writes
   const touched = (usesExcludeOnly ? excludeFilters : filters)[col.key]
-  const matchMode = filterMatchMode(filterModes, col.key, col)
+  const matchMode = filterMatchMode(filterModes, col.key, col, data)
   const cycleFilterValueSort = () => setValueSort(nextValueSort(col, valueSort))
   const [filterDetailValues, filterOtherValues] = checklistValues(
     col,

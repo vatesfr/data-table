@@ -1423,6 +1423,7 @@ export function DataTableView<TRow extends object>({
                         filterModes,
                         key,
                         columns.find((c) => c.key === key),
+                        data,
                       ),
                     ),
                   )}

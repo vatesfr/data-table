@@ -94,7 +94,9 @@ const isMultiValue = computed(() => isMultiValueColumnCached(props.data, props.c
 // docs/filter-dropdown.md's "Filter dropdown"): "checked" means "not in `excludeFilters`",
 // unless an include filter narrows it.
 const usesExcludeOnly = computed(() => isExcludeOnlyColumn(props.data, props.col, filters.value))
-const matchMode = computed(() => filterMatchMode(filterModes.value, props.col.key, props.col))
+const matchMode = computed(() =>
+  filterMatchMode(filterModes.value, props.col.key, props.col, props.data),
+)
 
 // The set the column's model writes
 const touched = () => (usesExcludeOnly.value ? excludeFilters.value : filters.value)[props.col.key]

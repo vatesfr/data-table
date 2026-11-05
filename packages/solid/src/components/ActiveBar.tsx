@@ -132,6 +132,7 @@ export function ActiveBar<TRow extends object>(props: ActiveBarProps<TRow>) {
                       table.filter.modes(),
                       key,
                       props.columns.find((c) => c.key === key),
+                      table.data(),
                     ),
                   ),
                 )}

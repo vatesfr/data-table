@@ -172,7 +172,7 @@ export function FilterPane<TRow extends object>(props: FilterPaneProps<TRow>) {
   // `isMultiValueColumn`); cached in core per data array and column
   const isMultiValueCol = createMemo(() => isMultiValueColumnCached(table.data(), activeCol()))
   const matchMode = createMemo(() =>
-    filterMatchMode(table.filter.modes(), activeCol().key, activeCol()),
+    filterMatchMode(table.filter.modes(), activeCol().key, activeCol(), table.data()),
   )
 
   // A plain string column's checklist is checked-by-default, exclude-only (see
