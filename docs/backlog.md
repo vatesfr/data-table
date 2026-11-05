@@ -19,7 +19,6 @@ Code health items (simplicity, duplication, maintainability, dev loop) from `vfl
 
 What `demo/showcase` pages wanted and the public API couldn't give. Each page marks the spot with a `Limit: B<n>` comment: once an item ships, update those spots and remove the item.
 
-- **B25** — the font tokens (`--font-size-md`, `--font-weight-medium`…) and the danger colors (`--color-text-danger`…) are read by the table but missing from the documented token table (vanilla README "Theming"). Pages: infra, logs, catalog, sports, users.
 - **B26** — no token for cell padding or row height: a console or log viewer wants dense rows, a catalog airy ones. Pages: infra, logs, catalog.
 - **B27** — no token for the header row (background, text color, weight, case): it shares `--color-background-tertiary` and `--font-weight-medium` with the rest of the table. Pages: catalog, sports.
 - **B28** — no way to hide the toolbar, the header menus and the pager, e.g. for a printed report. Page: ledger.

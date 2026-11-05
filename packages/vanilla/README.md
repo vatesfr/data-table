@@ -81,15 +81,33 @@ To override individual tokens, define the custom property in your own stylesheet
 | `--color-background-tertiary`  | `#eae9e5` | `#3a3830` |
 | `--color-background-info`      | `#e6f1fb` | `#0d2640` |
 | `--color-background-warning`   | `#faeeda` | `#2a1900` |
+| `--color-background-danger`    | `#fbe9e9` | `#3a1414` |
 | `--color-text-primary`         | `#1a1916` | `#e8e7e4` |
 | `--color-text-secondary`       | `#666561` | `#a6a5a1` |
 | `--color-text-tertiary`        | `#9b9a96` | `#86847e` |
 | `--color-text-info`            | `#185fa5` | `#5b9fe0` |
 | `--color-text-warning`         | `#854f0b` | `#e8a040` |
+| `--color-text-danger`          | `#a5182f` | `#e2726f` |
 | `--color-border-secondary`     | `#dddcd8` | `#504d46` |
 | `--color-border-tertiary`      | `#eeedea` | `#333029` |
 | `--color-border-info`          | `#b8d6f5` | `#1a4070` |
 | `--color-border-warning`       | `#f0d4a8` | `#4a2c00` |
+| `--color-border-danger`        | `#f2c2c2` | `#5a2020` |
+
+Type tokens aren't set by the theme: the table reads them with these fallbacks, so a page's own type scale applies when it defines them.
+
+| Token                    | Default |
+| ------------------------ | ------- |
+| `--font-size-2xs`        | `10px`  |
+| `--font-size-xs`         | `11px`  |
+| `--font-size-sm`         | `12px`  |
+| `--font-size-md`         | `13px`  |
+| `--font-size-lg`         | `14px`  |
+| `--font-size-xl`         | `15px`  |
+| `--font-weight-normal`   | `400`   |
+| `--font-weight-medium`   | `500`   |
+| `--font-weight-semibold` | `600`   |
+| `--font-weight-bold`     | `700`   |
 
 ### Overrides inside a CSS `@layer` have no effect
 
