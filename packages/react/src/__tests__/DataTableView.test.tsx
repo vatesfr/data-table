@@ -1,4 +1,5 @@
 import { describe, it, expect, afterEach } from 'vitest'
+import { useState } from 'react'
 import { render, cleanup, act } from '@testing-library/react'
 import { useTableState } from '../useTableState'
 import { DataTableView } from '../DataTableView'
@@ -128,6 +129,34 @@ describe('DataTableView', () => {
     act(() => {
       table!.focus.moveTo(ROWS[1], { focus: true })
     })
+    expect(document.activeElement).toBe(getByText('Bob').closest('tr'))
+  })
+
+  it('keeps DOM focus on a row that a refetch moves', () => {
+    let table!: ReturnType<typeof useTableState<Row>>
+    let setData!: (rows: Row[]) => void
+    function Refetching({
+      onReady,
+    }: {
+      onReady: (t: ReturnType<typeof useTableState<Row>>, set: (rows: Row[]) => void) => void
+    }) {
+      const [data, set] = useState(ROWS)
+      const t = useTableState(data, COLS, { getRowId: (r) => r.id })
+      onReady(t, set)
+      return <DataTableView table={t} data={data} columns={COLS} selectable />
+    }
+    const { getByText, container } = render(
+      <Refetching
+        onReady={(t, set) => {
+          table = t
+          setData = set
+        }}
+      />,
+    )
+    act(() => table.focus.moveTo(ROWS[1], { focus: true }))
+    expect(document.activeElement).toBe(getByText('Bob').closest('tr'))
+    act(() => setData([...ROWS].reverse().map((r) => ({ ...r }))))
+    expect(container.querySelector('tbody tr')!.textContent).toContain('Bob')
     expect(document.activeElement).toBe(getByText('Bob').closest('tr'))
   })
   it('exposes each sorted header direction as aria-sort', () => {

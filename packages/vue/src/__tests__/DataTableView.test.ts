@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { defineComponent, h, nextTick, ref } from 'vue'
+import { defineComponent, h, nextTick, ref, shallowRef } from 'vue'
 import { mount } from '@vue/test-utils'
 import { useTableState } from '../useTableState'
 import DataTableViewRaw from '../DataTableView.vue'
@@ -214,6 +214,35 @@ describe('DataTableView — currentRow', () => {
     const marked = wrapper.findAll('tbody tr[aria-current="true"]')
     expect(marked).toHaveLength(1)
     expect(marked[0].text()).toContain(ROWS[1].name)
+  })
+
+  it('keeps DOM focus on a row that a refetch moves', async () => {
+    const data = shallowRef(ROWS)
+    let table!: Table
+    const Comp = defineComponent({
+      setup() {
+        table = useTableState(data, COLS, { getRowId: (r) => r.id })
+        return () =>
+          h(DataTableView, {
+            table,
+            data: data.value,
+            columns: COLS,
+            selectable: true,
+          } as Record<string, unknown>)
+      },
+    })
+    const wrapper = mount(Comp, { attachTo: document.body })
+    table.focus.moveTo(ROWS[1], { focus: true })
+    await nextTick()
+    await nextTick()
+    const row = () => wrapper.findAll('tbody tr').find((tr) => tr.text().includes('Bob'))!.element
+    expect(document.activeElement).toBe(row())
+    data.value = [...ROWS].reverse().map((r) => ({ ...r }))
+    await nextTick()
+    await nextTick()
+    expect(wrapper.find('tbody tr').text()).toContain('Bob')
+    expect(document.activeElement).toBe(row())
+    wrapper.unmount()
   })
 })
 

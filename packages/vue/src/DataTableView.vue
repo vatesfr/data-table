@@ -247,6 +247,27 @@ watch(
   { flush: 'post' },
 )
 
+// A refetch that moves a `getRowId`-keyed row re-inserts its <tr>, dropping DOM focus to <body>:
+// note whether focus was in a row before the update, then refocus the remapped target after it
+let rowHadFocus = false
+watch(
+  groupedData,
+  () => {
+    const active = document.activeElement
+    rowHadFocus = !!active && [...rowRefs.values()].some((el) => el.contains(active))
+  },
+  { flush: 'pre' },
+)
+watch(
+  groupedData,
+  () => {
+    const target = focusTarget.value
+    if (!rowHadFocus || !target || document.activeElement !== document.body) return
+    rowRefs.get(target.kind === 'row' ? target.row : target.key)?.focus({ preventScroll: true })
+  },
+  { flush: 'post' },
+)
+
 function handleKeyDown(event: KeyboardEvent, target: VisibleItem<TRow>): void {
   const plan = planRowNav(event, target, {
     visibleItems: visibleItems.value,
