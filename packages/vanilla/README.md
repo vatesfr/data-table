@@ -94,6 +94,8 @@ To override individual tokens, define the custom property in your own stylesheet
 | `--color-border-warning`       | `#f0d4a8` | `#4a2c00` |
 | `--color-border-danger`        | `#f2c2c2` | `#5a2020` |
 
+`--dt-color-scheme` (`light`/`dark`) sets `color-scheme` on the table only, so its checkboxes, selects and scrollbars follow its theme without recoloring the rest of the page.
+
 Type tokens aren't set by the theme: the table reads them with these fallbacks, so a page's own type scale applies when it defines them.
 
 | Token                    | Default |

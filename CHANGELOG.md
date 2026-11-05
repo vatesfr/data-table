@@ -21,6 +21,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Fixed
 
+- **Dark tables get dark native controls**: under a dark theme (OS preference or `data-theme="dark"`), checkboxes, selects, scrollbars and date-input icons were drawn light; the theme now sets `color-scheme` on the table only, through a new `--dt-color-scheme` token, leaving the host page's as it is.
 - **Solid: `render` and `renderFilterLabel` take any JSX**: they were typed `Node`, so every JSX cell needed `as HTMLElement`; a string or fragment now type-checks too.
 - **Group headers pass accessibility checks**: a group's expand/collapse is now a button named after the group, carrying its expanded state and its keyboard focus, instead of an `aria-expanded` the table row isn't allowed to have. Keyboard behavior is unchanged; apps styling or querying the focused group row should target `.dt-group-toggle`.
 - **Clear all returns to the initial view**: with an `initialViewState` sort (or filter, group, search), Clear all now restores it instead of emptying it, no longer shows on first load, and leaves no `?view=e30` in the URL. Removing an initial sort by hand now survives a reload.

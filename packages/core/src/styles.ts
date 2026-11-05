@@ -7,9 +7,10 @@
 // - A "Group order" row cancels --sortrow's hover (it can't be dragged); it must follow .dt-dd-item--sortrow:hover.
 // - .dt-pinned's ::after redraws the border hidden by its opaque background (shadow kept off box-shadow for the drag-over line); pinned rules stay at or below row-state specificity so app overrides win; the stripe layers over the pinned base.
 // - Full-width panels leave 17 px: twice the 8 px viewport clamp margin plus borders; the narrow Filter panel's 100vw includes a classic scrollbar.
+// - .dt's color-scheme has no fallback: without --dt-color-scheme it inherits the page's instead of resetting it.
 // - Row focus ring: :focus-visible (a click focuses the row), inset (the scroll wrapper clips); a pinned cell redraws its top and bottom edges and drops its row border.
 export const DT_STYLES = `
-.dt{font-family:inherit;font-size:var(--font-size-lg,14px);color:var(--color-text-primary,#1a1916)}
+.dt{font-family:inherit;font-size:var(--font-size-lg,14px);color:var(--color-text-primary,#1a1916);color-scheme:var(--dt-color-scheme)}
 .dt-toolbar{padding:12px 0;border-bottom:.5px solid var(--color-border-tertiary,#eeedea)}
 .dt-toolbar-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .dt-toolbar-divider{width:1px;height:22px;background:var(--color-border-secondary,#dddcd8);flex-shrink:0;margin:0 2px}

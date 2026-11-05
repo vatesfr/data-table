@@ -558,6 +558,8 @@ The table's rules are injected into `<head>` the first time it mounts (a `<style
 
 See the [vanilla README](../vanilla/README.md#theming) for the full token reference table.
 
+`--dt-color-scheme` (`light`/`dark`, in `renderThemeCss()`'s token sets) sets `color-scheme` on the table only, so its checkboxes, selects and scrollbars follow a dark theme without recoloring the rest of the page; unset, the table inherits the page's `color-scheme`.
+
 ## License
 
 MIT

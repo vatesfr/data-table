@@ -13,7 +13,6 @@ Code health items (simplicity, duplication, maintainability, dev loop) from `vfl
 - **B48** — two tables persisted to the URL with the same `paramName` (default `view`) overwrite each other silently; nothing warns.
 - **B53** — "show only these values" on an exclude-only (single-value) column means writing the complement into `excludeFilters` (showcase catalog's chips: 20 lines of branching), and `setViewState`/`initialViewState` silently accept include `filters` there, which the checklist never shows (showcase users' views first did this: Filter → Status showed every value ticked while one was kept). A `filter.keepOnly(key, values)`, and normalize or warn on include filters for such columns.
 - **B55** — the group bucketers don't see the column's `parseDate`: a non-ISO date column passes it twice (`parseDate: parseFr` and `bucketDatePart('month', parseFr)`). Default bucketing to the column's `parseDate`.
-- **B56** — the theme never sets `color-scheme`, so on a dark table (forced `data-theme="dark"`, or the OS dark preference) checkboxes, selects, scrollbars and date-input icons stay light; the Solid demo shows it too. Set `color-scheme: dark` in the dark rules (the showcase's dark pages set it themselves).
 
 ## Showcase limits
 
