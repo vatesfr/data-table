@@ -16,7 +16,7 @@ Each package has its own Vitest setup under `src/__tests__/`:
 
 ## End to end
 
-`e2e/` runs Playwright (`npm run e2e`) against the Solid demo's dev server and the showcase's, which it starts unless already on `:58983`/`:58985`; React and Vue stay covered by their unit tests. Each showcase page has one smoke spec (e.g. `e2e/showcase-infra.spec.ts`, using the `showcase` fixture): its signature interaction, no console errors.
+`e2e/` runs Playwright (`npm run e2e`) against the Solid demo's dev server and the showcase's, which it starts unless already on `:58983`/`:58985` (a server from another checkout, e.g. a parallel session's worktree, fails the run in `e2e/global-setup.ts`); React and Vue stay covered by their unit tests. Each showcase page has one smoke spec (e.g. `e2e/showcase-infra.spec.ts`, using the `showcase` fixture): its signature interaction, no console errors.
 
 - Two projects: `desktop` (1440×900) and `phone` (390×844, touch). A phone-only spec skips `desktop` with `test.skip(({ isMobile }) => !isMobile)`.
 - A test's title starts with what it covers: `UC01.1-7 …` the [use case](use-cases.md) steps it walks (asserting them and **Done when**), `U<n> …` a backlog item's regression, `#<n> …` a GitHub issue's; `npm run check:use-cases` enforces it, a ◇ step included (drop the ◇ in the same commit). `axe.spec.ts`, untagged, scans every table in both color schemes.

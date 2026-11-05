@@ -3,6 +3,7 @@ import { defineConfig } from '@playwright/test'
 export default defineConfig({
   testDir: '.',
   outputDir: '../.playwright-e2e',
+  globalSetup: './global-setup.ts',
   // One browser at a time: #huge-dataset holds 200k rows per page (docs/pitfalls.md, OOM killer).
   workers: 1,
   forbidOnly: !!process.env.CI,
