@@ -124,26 +124,12 @@ export function App() {
     CATEGORY_NAMES.map((c) => [c, products.filter((p) => p.category === c).length]),
   )
 
-  // Category is a plain string column: its checklist is exclude-only, so chips write `exclude`
-  const hidden = () => table.filter.exclude().category ?? new Set<string>()
-  const allShown = () => hidden().size === 0
-  const showAll = () => table.filter.clearColumn('category', 'exclude')
-  const toggleCategory = (cat: string) => {
-    const h = hidden()
-    if (allShown()) {
-      table.filter.setExcludeValues(
-        'category',
-        CATEGORY_NAMES.filter((c) => c !== cat),
-        true,
-      )
-    } else if (h.has(cat)) {
-      table.filter.setExcludeValues('category', [cat], false)
-    } else if (h.size === CATEGORY_NAMES.length - 1) {
-      showAll()
-    } else {
-      table.filter.setExcludeValues('category', [cat], true)
-    }
-  }
+  // The chips pick the categories to show; the table's Filter dropdown ticks the same ones
+  const shown = () => table.filter.include().category ?? new Set<string>()
+  const allShown = () => shown().size === 0
+  const showAll = () => table.filter.clearColumn('category', 'include')
+  const toggleCategory = (cat: string) =>
+    table.filter.setValues('category', [cat], !shown().has(cat))
 
   // Filters set from the table's own dropdowns also apply to the cards
   const otherFilters = () => table.filter.activeCount() - (allShown() ? 0 : 1)
@@ -183,7 +169,7 @@ export function App() {
             {(cat) => (
               <button
                 class="chip"
-                aria-pressed={!allShown() && !hidden().has(cat)}
+                aria-pressed={shown().has(cat)}
                 onClick={() => toggleCategory(cat)}
               >
                 {CATEGORIES[cat].emoji} {cat} <span class="chip-count">{totals[cat]}</span>

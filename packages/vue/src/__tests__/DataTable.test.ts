@@ -551,6 +551,36 @@ describe('DataTable — filter dropdown', () => {
     expect((checklistCheckbox(wrapper, 'Bob').element as HTMLInputElement).checked).toBe(false)
   })
 
+  it('shows and edits an include filter from view state, without ≠ toggles, until it empties', async () => {
+    const wrapper = mount(DataTable, {
+      props: {
+        data: ROWS,
+        columns: FILTER_COLS,
+        initialViewState: { filters: { name: ['Alice'] } },
+      },
+    })
+    await wrapper
+      .findAll('button')
+      .find((b) => b.text() === 'Filter')!
+      .trigger('click')
+    const checked = () =>
+      ['Alice', 'Bob'].map(
+        (v) => (checklistCheckbox(wrapper, v).element as HTMLInputElement).checked,
+      )
+    const click = (v: string) => checklistCheckbox(wrapper, v).trigger('click')
+    expect(checked()).toEqual([true, false])
+    expect(wrapper.find('[data-dd-value-exclude]').exists()).toBe(false)
+    await click('Bob')
+    expect(checked()).toEqual([true, true])
+    await click('Alice')
+    await click('Bob')
+    // No filter left: back to the checked-by-default model
+    expect(checked()).toEqual([true, true])
+    await click('Bob')
+    expect(checked()).toEqual([true, false])
+    expect(wrapper.find('[data-dd-value-exclude]').exists()).toBe(false)
+  })
+
   it('select-all checkbox re-checks every value when all are already excluded', async () => {
     const wrapper = mount(DataTable, { props: { data: ROWS, columns: FILTER_COLS } })
     const filterBtn = wrapper.findAll('button').find((b) => b.text() === 'Filter')!

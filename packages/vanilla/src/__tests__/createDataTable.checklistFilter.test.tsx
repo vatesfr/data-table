@@ -182,6 +182,17 @@ describe('createDataTable — checklist filter', () => {
     expect(container.textContent).toContain('Alice')
   })
 
+  it('a plain column shows an include filter from setViewState, without ≠ toggles', () => {
+    const { container, table } = mount(ROWS, COLS)
+    table.setViewState({ filters: { name: ['Alice'] } })
+    openFilterDropdown(container)
+    expect(filterValueCheckbox(container, 'Alice')!.checked).toBe(true)
+    expect(filterValueCheckbox(container, 'Bob')!.checked).toBe(false)
+    expect(container.querySelector('[data-dd-value-exclude]')).toBeNull()
+    click(filterValueCheckbox(container, 'Bob')!)
+    expect(container.querySelectorAll('tbody tr')).toHaveLength(2)
+  })
+
   it('the Filter toolbar button has no clear-filters button until a filter is active', () => {
     const { container } = mount(ROWS, COLS)
     expect(container.querySelector('.dt-btn-clear')).toBeNull()

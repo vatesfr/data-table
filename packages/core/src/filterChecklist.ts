@@ -196,14 +196,21 @@ export function isMultiValueColumnCached<TRow extends object>(
 }
 
 /**
- * Whether `col`'s checklist is the checked-by-default, exclude-only kind (a plain string column)
- * rather than the include/exclude tri-state of a multi-value column.
+ * Whether `col`'s checklist is the checked-by-default, exclude-only kind (a plain string column
+ * without an include filter) rather than the include model: a multi-value column's tri-state, or
+ * a plain column narrowed to some values by view state or the API.
  */
 export function isExcludeOnlyColumn<TRow extends object>(
   data: TRow[],
   col: ColumnDefBase<TRow>,
+  include: Record<string, ReadonlySet<string>>,
 ): boolean {
-  return col.type !== 'date' && col.type !== 'number' && !isMultiValueColumnCached(data, col)
+  return (
+    col.type !== 'date' &&
+    col.type !== 'number' &&
+    !include[col.key]?.size &&
+    !isMultiValueColumnCached(data, col)
+  )
 }
 
 /**
@@ -214,10 +221,14 @@ export function isExcludeOnlyColumn<TRow extends object>(
 export function exclusionValueKeys<TRow extends object>(
   data: TRow[],
   columns: ColumnDefBase<TRow>[],
+  include: Record<string, Set<string>>,
   exclude: Record<string, Set<string>>,
 ): string {
   return columns
-    .filter((c) => exclude[c.key]?.size && c.filterable !== false && isExcludeOnlyColumn(data, c))
+    .filter(
+      (c) =>
+        exclude[c.key]?.size && c.filterable !== false && isExcludeOnlyColumn(data, c, include),
+    )
     .map((c) => c.key)
     .join('\0')
 }

@@ -203,11 +203,15 @@ describe('exclusionValueKeys', () => {
 
   it('keeps only filterable exclude-only columns with an active exclusion', () => {
     const exclude = { ...ex('dept', 'tags', 'age', 'note', 'other'), other: new Set<string>() }
-    expect(exclusionValueKeys(rows, cols, exclude)).toBe('dept')
+    expect(exclusionValueKeys(rows, cols, {}, exclude)).toBe('dept')
+  })
+
+  it('skips a column with an include filter, whose checklist uses the include model', () => {
+    expect(exclusionValueKeys(rows, cols, { dept: new Set(['HR']) }, ex('dept'))).toBe('')
   })
 
   it('feeds exclusionValues the value lists of those columns only', () => {
-    const keys = exclusionValueKeys(rows, cols, ex('dept', 'other'))
+    const keys = exclusionValueKeys(rows, cols, {}, ex('dept', 'other'))
     expect(exclusionValues(rows, cols, keys, '(none)')).toEqual({ dept: ['HR'], other: [''] })
   })
 })
@@ -215,9 +219,16 @@ describe('exclusionValueKeys', () => {
 describe('isExcludeOnlyColumn', () => {
   it('is true for a plain string column only', () => {
     const data = [{ dept: 'Eng', skills: ['TS'], n: 1 }]
-    expect(isExcludeOnlyColumn(data, { key: 'dept', label: 'Dept' })).toBe(true)
-    expect(isExcludeOnlyColumn(data, { key: 'skills', label: 'Skills' })).toBe(false)
-    expect(isExcludeOnlyColumn(data, { key: 'n', label: 'N', type: 'number' })).toBe(false)
+    expect(isExcludeOnlyColumn(data, { key: 'dept', label: 'Dept' }, {})).toBe(true)
+    expect(isExcludeOnlyColumn(data, { key: 'skills', label: 'Skills' }, {})).toBe(false)
+    expect(isExcludeOnlyColumn(data, { key: 'n', label: 'N', type: 'number' }, {})).toBe(false)
+  })
+
+  it('is false while the column has an include filter', () => {
+    const data = [{ dept: 'Eng' }]
+    const col = { key: 'dept', label: 'Dept' }
+    expect(isExcludeOnlyColumn(data, col, { dept: new Set(['Eng']) })).toBe(false)
+    expect(isExcludeOnlyColumn(data, col, { dept: new Set() })).toBe(true)
   })
 })
 

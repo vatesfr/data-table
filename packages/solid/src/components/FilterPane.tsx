@@ -176,8 +176,11 @@ export function FilterPane<TRow extends object>(props: FilterPaneProps<TRow>) {
   )
 
   // A plain string column's checklist is checked-by-default, exclude-only (see
-  // docs/filter-dropdown.md's "Filter dropdown"): "checked" means "not in `excludeFilters`"
-  const usesExcludeOnly = createMemo(() => isExcludeOnlyColumn(table.data(), activeCol()))
+  // docs/filter-dropdown.md's "Filter dropdown"): "checked" means "not in `excludeFilters`",
+  // unless an include filter narrows it
+  const usesExcludeOnly = createMemo(() =>
+    isExcludeOnlyColumn(table.data(), activeCol(), table.filter.include()),
+  )
 
   const allValues = createMemo(() =>
     computeStringValues(table.data(), activeCol(), table.labels().emptyValue),
@@ -469,7 +472,7 @@ export function FilterPane<TRow extends object>(props: FilterPaneProps<TRow>) {
                             <div
                               class="dt-dd-item"
                               classList={{
-                                'dt-dd-item--exclude': !usesExcludeOnly() && excluded(),
+                                'dt-dd-item--exclude': isMultiValueCol() && excluded(),
                               }}
                               style={{
                                 height: `${FILTER_LIST_ITEM_HEIGHT}px`,
@@ -502,7 +505,7 @@ export function FilterPane<TRow extends object>(props: FilterPaneProps<TRow>) {
                                   {table.labels().formatCount(count())}
                                 </span>
                               </label>
-                              <Show when={!usesExcludeOnly()}>
+                              <Show when={isMultiValueCol()}>
                                 <button
                                   type="button"
                                   class="dt-filter-exclude"

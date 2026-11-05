@@ -91,8 +91,9 @@ const valueCounts = computed(() =>
 // isMultiValueColumn), and only for the string checklist.
 const isMultiValue = computed(() => isMultiValueColumnCached(props.data, props.col))
 // A plain string column's checklist is checked-by-default, exclude-only (see
-// docs/filter-dropdown.md's "Filter dropdown"): "checked" means "not in `excludeFilters`".
-const usesExcludeOnly = computed(() => isExcludeOnlyColumn(props.data, props.col))
+// docs/filter-dropdown.md's "Filter dropdown"): "checked" means "not in `excludeFilters`",
+// unless an include filter narrows it.
+const usesExcludeOnly = computed(() => isExcludeOnlyColumn(props.data, props.col, filters.value))
 const matchMode = computed(() => filterMatchMode(filterModes.value, props.col.key, props.col))
 
 // The set the column's model writes
@@ -118,7 +119,7 @@ function isValueChecked(value: string): boolean {
     : (filters.value[props.col.key]?.has(value) ?? false)
 }
 function isValueExcluded(value: string): boolean {
-  return usesExcludeOnly.value ? false : (excludeFilters.value[props.col.key]?.has(value) ?? false)
+  return isMultiValue.value && (excludeFilters.value[props.col.key]?.has(value) ?? false)
 }
 function valueTitle(value: string): string | undefined {
   if (!usesExcludeOnly.value) return undefined
@@ -461,7 +462,7 @@ async function onKeydown(event: KeyboardEvent): Promise<void> {
                   <span class="dt-filter-count">{{ L.formatCount(valueCounts.get(v) ?? 0) }}</span>
                 </label>
                 <button
-                  v-if="!usesExcludeOnly"
+                  v-if="isMultiValue"
                   type="button"
                   class="dt-filter-exclude"
                   data-dd-value-exclude

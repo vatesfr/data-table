@@ -50,7 +50,7 @@ export function ActiveBar<TRow extends object>(props: ActiveBarProps<TRow>) {
 
   const pageGroupCount = createMemo(() => new Set(table.groupedData().map((g) => g.key)).size)
   const exclusionKeys = createMemo(() =>
-    exclusionValueKeys(table.data(), props.columns, table.filter.exclude()),
+    exclusionValueKeys(table.data(), props.columns, table.filter.include(), table.filter.exclude()),
   )
   const allValues = createMemo(() =>
     exclusionValues(table.data(), props.columns, exclusionKeys(), table.labels().emptyValue),

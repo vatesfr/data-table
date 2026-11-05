@@ -251,8 +251,9 @@ export function FilterPane<TRow extends object>({
   // Any/all toggle: only for an array-valued column's checklist, not the date tree
   const isMultiValueFilterCol = isMultiValueColumnCached(data, col)
   // A plain string column's checklist is checked-by-default, exclude-only (see
-  // docs/filter-dropdown.md's "Filter dropdown"): "checked" means "not in `excludeFilters`"
-  const usesExcludeOnly = isExcludeOnlyColumn(data, col)
+  // docs/filter-dropdown.md's "Filter dropdown"): "checked" means "not in `excludeFilters`",
+  // unless an include filter narrows it
+  const usesExcludeOnly = isExcludeOnlyColumn(data, col, filters)
   // The set the column's model writes
   const touched = (usesExcludeOnly ? excludeFilters : filters)[col.key]
   const matchMode = filterMatchMode(filterModes, col.key, col)
@@ -603,9 +604,8 @@ export function FilterPane<TRow extends object>({
                           const checked = usesExcludeOnly
                             ? !(excludeFilters[col.key]?.has(v) ?? false)
                             : (filters[col.key]?.has(v) ?? false)
-                          const excluded = usesExcludeOnly
-                            ? false
-                            : (excludeFilters[col.key]?.has(v) ?? false)
+                          const excluded =
+                            isMultiValueFilterCol && (excludeFilters[col.key]?.has(v) ?? false)
                           const itemTitle = usesExcludeOnly
                             ? checked
                               ? L.filterValueHideTitle
@@ -648,7 +648,7 @@ export function FilterPane<TRow extends object>({
                                   {L.formatCount(valueCounts.get(v) ?? 0)}
                                 </span>
                               </label>
-                              {!usesExcludeOnly && (
+                              {isMultiValueFilterCol && (
                                 <button
                                   type="button"
                                   className="dt-filter-exclude"

@@ -304,6 +304,29 @@ describe('FilterDropdown — string checklist', () => {
     dispose()
   })
 
+  it('shows and edits an include filter set by the API, without ≠ toggles, until it empties', async () => {
+    const { container, table, dispose } = mount()
+    table.filter.setValues('name', ['Alice'], true)
+    const box = (name: string) =>
+      [...container.querySelectorAll('.dt-filter-list .dt-dd-item')]
+        .find((el) => el.textContent?.includes(name))!
+        .querySelector<HTMLInputElement>('input[type="checkbox"]')!
+    const click = (name: string) =>
+      box(name).dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
+    expect([box('Alice').checked, box('Bob').checked]).toEqual([true, false])
+    expect(container.querySelector('[data-dd-value-exclude]')).toBeNull()
+    click('Bob')
+    expect(table.filter.include().name).toEqual(new Set(['Alice', 'Bob']))
+    click('Alice')
+    click('Bob')
+    expect(table.filter.include().name).toEqual(new Set())
+    expect(table.filter.exclude().name ?? new Set()).toEqual(new Set())
+    // The clicked box's native revert is corrected a macrotask later (see the next test)
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect([box('Alice').checked, box('Bob').checked]).toEqual([true, true])
+    dispose()
+  })
+
   it('the checkbox DOM property reflects the checked state correctly after a click, not just app state', async () => {
     // Regression test: a checkbox's own native "canceled activation steps" (triggered because
     // the click handler calls preventDefault() to stay fully controlled) run *after* the click

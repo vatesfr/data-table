@@ -57,3 +57,29 @@ test('showcase catalog: cards keep focus on close and show a custom table sort',
   await expect(card).toBeFocused()
   expect(errors).toEqual([])
 })
+
+test('showcase catalog: category chips and the Filter dropdown show the same categories', async ({
+  page,
+  showcase,
+}) => {
+  const { dt, errors } = await showcase('catalog')
+  const chips = page.getByRole('group', { name: 'Categories' })
+  await chips.getByRole('button', { name: /Kitchen/ }).click()
+  await expect(chips.getByRole('button', { name: /Kitchen/ })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
+  await expect(chips.getByRole('button', { name: /^All/ })).toHaveAttribute('aria-pressed', 'false')
+
+  await dt.getByRole('button', { name: 'Filter', exact: true }).click()
+  await page.locator('[data-filter-cols]').getByRole('button', { name: 'Category' }).click()
+  const detail = page.locator('[data-filter-detail]')
+  await expect(detail.getByRole('checkbox', { name: /Kitchen/ })).toBeChecked()
+  await expect(detail.getByRole('checkbox', { name: /Audio/ })).not.toBeChecked()
+  await expect(detail.locator('[data-dd-value-exclude]')).toHaveCount(0)
+
+  // Ticking a category in the table presses its chip
+  await detail.getByRole('checkbox', { name: /Audio/ }).click()
+  await expect(chips.getByRole('button', { name: /Audio/ })).toHaveAttribute('aria-pressed', 'true')
+  expect(errors).toEqual([])
+})

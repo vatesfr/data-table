@@ -11,7 +11,6 @@ Code health items (simplicity, duplication, maintainability, dev loop) from `vfl
 
 - **B46** — vanilla has no single-field setters: an outside search box calls `setViewState({ ...getViewState(), searchQuery })`, since `setViewState` resets every field the view leaves out.
 - **B48** — two tables persisted to the URL with the same `paramName` (default `view`) overwrite each other silently; nothing warns.
-- **B53** — "show only these values" on an exclude-only (single-value) column means writing the complement into `excludeFilters` (showcase catalog's chips: 20 lines of branching), and `setViewState`/`initialViewState` silently accept include `filters` there, which the checklist never shows (showcase users' views first did this: Filter → Status showed every value ticked while one was kept). A `filter.keepOnly(key, values)`, and normalize or warn on include filters for such columns.
 
 ## Showcase limits
 

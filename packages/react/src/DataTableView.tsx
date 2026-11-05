@@ -337,7 +337,7 @@ export function DataTableView<TRow extends object>({
     clearColumn: clearColumnFilter,
     clear: clearFilters,
   } = table.filter
-  const exclusionKeys = exclusionValueKeys(data, columns, excludeFilters)
+  const exclusionKeys = exclusionValueKeys(data, columns, filters, excludeFilters)
   const exclusionAllValues = useMemo(
     () => exclusionValues(data, columns, exclusionKeys, L.emptyValue),
     [data, columns, exclusionKeys, L.emptyValue],

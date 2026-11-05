@@ -413,7 +413,7 @@ function hasActiveColFilter(col: ColumnDef<TRow>): boolean {
   return columnHasActiveFilter(col.key, filters.value, excludeFilters.value, rangeFilters.value)
 }
 const exclusionKeys = computed(() =>
-  exclusionValueKeys(props.data, props.columns, excludeFilters.value),
+  exclusionValueKeys(props.data, props.columns, filters.value, excludeFilters.value),
 )
 const exclusionAllValues = computed(() =>
   exclusionValues(props.data, props.columns, exclusionKeys.value, L.value.emptyValue),

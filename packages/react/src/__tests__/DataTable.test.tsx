@@ -191,6 +191,29 @@ describe('DataTable — filter dropdown', () => {
     expect((getByLabelText('Bob', { exact: false }) as HTMLInputElement).checked).toBe(false)
   })
 
+  it('shows and edits an include filter from view state, without ≠ toggles, until it empties', () => {
+    const { getByText, getByLabelText, container } = render(
+      <DataTable
+        data={ROWS}
+        columns={FILTER_COLS}
+        initialViewState={{ filters: { name: ['Alice'] } }}
+      />,
+    )
+    fireEvent.click(getByText('Filter'))
+    const box = (name: string) => getByLabelText(name, { exact: false }) as HTMLInputElement
+    expect([box('Alice').checked, box('Bob').checked]).toEqual([true, false])
+    expect(container.querySelector('[data-dd-value-exclude]')).toBeNull()
+    fireEvent.click(box('Bob'))
+    expect([box('Alice').checked, box('Bob').checked]).toEqual([true, true])
+    fireEvent.click(box('Alice'))
+    fireEvent.click(box('Bob'))
+    // No filter left: back to the checked-by-default model
+    expect([box('Alice').checked, box('Bob').checked]).toEqual([true, true])
+    fireEvent.click(box('Bob'))
+    expect([box('Alice').checked, box('Bob').checked]).toEqual([true, false])
+    expect(container.querySelector('[data-dd-value-exclude]')).toBeNull()
+  })
+
   it('select-all checkbox re-checks every value when all are already excluded', () => {
     const { getByText, getByLabelText } = render(<DataTable data={ROWS} columns={FILTER_COLS} />)
     fireEvent.click(getByText('Filter'))
