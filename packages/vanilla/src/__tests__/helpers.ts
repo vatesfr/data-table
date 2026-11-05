@@ -23,6 +23,7 @@ export function colHeaders(container: HTMLElement): string[] {
   )
 }
 
+// Each group's tab stop: its toggle button
 export function groupHeaderRows(el: HTMLElement): HTMLElement[] {
-  return [...el.querySelectorAll<HTMLElement>('.dt-group-row[data-gkey]')]
+  return [...el.querySelectorAll<HTMLElement>('.dt-group-row[data-gkey] .dt-group-toggle')]
 }

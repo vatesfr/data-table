@@ -550,15 +550,17 @@ describe('TableBody — keyboard navigation', () => {
   it('collapsing a group via Enter does not drop DOM focus (group rows keep stable identity)', () => {
     const { container, table, dispose } = mount({ defaultGroupsCollapsed: false })
     table.group.toggle('dept')
-    const groupRow = container.querySelector<HTMLElement>('.dt-group-row[data-gkey="Eng"]')!
-    groupRow.focus()
-    groupRow.dispatchEvent(
+    const toggle = container.querySelector<HTMLElement>(
+      '.dt-group-row[data-gkey="Eng"] .dt-group-toggle',
+    )!
+    toggle.focus()
+    toggle.dispatchEvent(
       new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }),
     )
     // Same DOM node, now representing the collapsed group — still focused, not fallen back to
     // <body> (which a full remount, e.g. from a reference-keyed `<For>`, would cause).
-    expect(document.activeElement).toBe(groupRow)
-    expect(groupRow.getAttribute('aria-expanded')).toBe('false')
+    expect(document.activeElement).toBe(toggle)
+    expect(toggle.getAttribute('aria-expanded')).toBe('false')
     dispose()
   })
 })

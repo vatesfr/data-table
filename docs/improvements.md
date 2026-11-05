@@ -22,7 +22,6 @@ Seeded 2026-10-04 from issues reported by a consumer app, each reproduced on the
 
 ## Grouping
 
-- **U40 · major · UC02, UC04** — a group row is `<tr tabindex="0" aria-expanded>` in a plain table, where `aria-expanded` isn't allowed on a row (axe `aria-conditional-attr`, serious; `e2e/axe.spec.ts` never groups, so it's missed). Put `aria-expanded` on a button in the row, or use treegrid roles. Seen in Solid (showcase infra and ledger).
 - **U41 · minor · UC02, UC07** — with a pinned column, a group header's label sits in a non-sticky `colspan` cell: scrolled sideways on a phone, headers turn into empty bands (showcase sports in Clubs view; ledger's aggregate band is blank while Montant is off-screen). Keep the label in the pinned area. Seen in Solid.
 - **U43 · minor · UC02** — a group header's column name and count use `opacity: .6` instead of a text token, so their contrast depends on the theme: 4.46:1 on the showcase ledger's palette. Use `--color-text-secondary`. Seen in Solid.
 

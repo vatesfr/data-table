@@ -151,7 +151,7 @@ watch(selectedRows, (rows) => {
 // checklist/date-tree checkboxes already use for shift-click. Data rows only join the tab
 // sequence when they're actually interactive; group headers always do, since collapsing a group
 // is already a click away regardless of selectable/onRowClick.
-const rowRefs = new Map<TRow | string, HTMLTableRowElement>()
+const rowRefs = new Map<TRow | string, HTMLElement>()
 
 const isRowNavEnabled = computed(() => props.selectable || isRowClickable.value)
 const pageVisibleItems = computed(() =>
@@ -183,8 +183,14 @@ const initialPageSize = pageSize.value
 const pageSizes = computed(() => pageSizeOptions(pageSize.value, initialPageSize))
 
 function setItemRef(key: TRow | string, el: Element | null): void {
-  if (el) rowRefs.set(key, el as HTMLTableRowElement)
+  if (el) rowRefs.set(key, el as HTMLElement)
   else rowRefs.delete(key)
+}
+
+// A click anywhere on a group row makes its toggle the tab stop, as a data row's click does
+function toggleAndFocusGroup(key: string): void {
+  toggleGroupCollapse(key)
+  rowRefs.get(key)?.focus({ preventScroll: true })
 }
 
 function focusItem(target: VisibleItem<TRow>): void {
@@ -1741,11 +1747,8 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
             <!-- Group header -->
             <tr
               v-if="group.key !== null"
-              :ref="(el) => setItemRef(group.key!, el as Element | null)"
-              :tabindex="isFocusTarget({ kind: 'group', key: group.key! }) ? 0 : -1"
-              :aria-expanded="!groupCollapsed(group.key!)"
               class="dt-group-row"
-              @click="toggleGroupCollapse(group.key!)"
+              @click="toggleAndFocusGroup(group.key!)"
               @keydown="handleKeyDown($event, { kind: 'group', key: group.key! })"
               @focusin="setFocusTarget({ kind: 'group', key: group.key! })"
             >
@@ -1766,7 +1769,17 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                 />
               </td>
               <td class="dt-group-td" style="width: 28px">
-                {{ groupCollapsed(group.key!) ? '▶' : '▼' }}
+                <!-- The group's tab stop: a row can't carry aria-expanded outside a treegrid -->
+                <button
+                  :ref="(el) => setItemRef(group.key!, el as Element | null)"
+                  type="button"
+                  class="dt-group-toggle"
+                  :tabindex="isFocusTarget({ kind: 'group', key: group.key! }) ? 0 : -1"
+                  :aria-expanded="!groupCollapsed(group.key!)"
+                  :aria-label="groupText(columns, groupBy, group.keyParts, group.sampleRow!)"
+                >
+                  {{ groupCollapsed(group.key!) ? '▶' : '▼' }}
+                </button>
               </td>
               <td :colspan="activeColumns.length" class="dt-group-td">
                 <template v-for="(g, i) in groupBy" :key="g">

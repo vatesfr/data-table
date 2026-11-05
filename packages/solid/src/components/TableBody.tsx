@@ -461,6 +461,9 @@ function GroupHeaderRow<TRow extends object>(props: GroupHeaderRowProps<TRow>) {
   )
   // Both properties, as for the header select-all
   let cbEl: HTMLInputElement | undefined
+  let toggleEl: HTMLButtonElement | undefined
+  const label = () =>
+    groupText(props.columns, table.group.by(), props.group.keyParts, props.group.sampleRow!)
   createEffect(() => {
     applyCheckboxState(cbEl, groupAllSelected(), groupSomeSelected())
   })
@@ -470,11 +473,11 @@ function GroupHeaderRow<TRow extends object>(props: GroupHeaderRowProps<TRow>) {
       <tr
         class="dt-group-row"
         data-gkey={props.group.key}
-        tabIndex={props.tabIndex}
-        aria-expanded={!isCollapsed()}
-        ref={(el) => props.registerRef(el)}
-        onClick={() => table.group.toggleCollapse(props.group.key!)}
-        onFocus={props.onFocusGroup}
+        onClick={() => {
+          table.group.toggleCollapse(props.group.key!)
+          // A click anywhere on the row makes its toggle the tab stop, as a data row's click does
+          toggleEl?.focus({ preventScroll: true })
+        }}
         onKeyDown={(e) => props.onKeyDown(e, { kind: 'group', key: props.group.key! })}
       >
         <Show when={props.selectable}>
@@ -491,16 +494,7 @@ function GroupHeaderRow<TRow extends object>(props: GroupHeaderRowProps<TRow>) {
               type="checkbox"
               checked={groupAllSelected()}
               ref={cbEl}
-              aria-label={table
-                .labels()
-                .selectGroup(
-                  groupText(
-                    props.columns,
-                    table.group.by(),
-                    props.group.keyParts,
-                    props.group.sampleRow!,
-                  ),
-                )}
+              aria-label={table.labels().selectGroup(label())}
               onClick={(e) => {
                 e.stopPropagation()
                 table.selection.toggleAll(props.group.rows)
@@ -509,7 +503,21 @@ function GroupHeaderRow<TRow extends object>(props: GroupHeaderRowProps<TRow>) {
           </td>
         </Show>
         <td class="dt-group-td" style={{ width: '28px' }}>
-          {isCollapsed() ? '▶' : '▼'}
+          {/* The group's tab stop: a row can't carry aria-expanded outside a treegrid */}
+          <button
+            type="button"
+            class="dt-group-toggle"
+            tabIndex={props.tabIndex}
+            aria-expanded={!isCollapsed()}
+            aria-label={label()}
+            ref={(el) => {
+              toggleEl = el
+              props.registerRef(el)
+            }}
+            onFocus={props.onFocusGroup}
+          >
+            {isCollapsed() ? '▶' : '▼'}
+          </button>
         </td>
         <td class="dt-group-td" colspan={table.columns.active().length}>
           <For each={table.group.by()}>

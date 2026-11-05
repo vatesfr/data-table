@@ -347,11 +347,15 @@ describe('createDataTable (grouping, group dropdown, pagination+grouping, search
     click(pageButton(container, '›')) // -> page 2: [Clara (Eng, continued), header HR (no rows here)]
     expect(container.textContent).toContain('Clara')
     expect(container.textContent).not.toContain('Alice')
-    const engHeader = groupHeaderRows(container).find((h) => h.textContent?.includes('Eng'))!
+    const engHeader = groupHeaderRows(container)
+      .find((h) => h.closest('tr')!.textContent?.includes('Eng'))!
+      .closest('tr')!
     expect(engHeader.textContent).toContain('cont')
     // HR's header lands as the very last item on this page with none of its own rows following
     // until the next page — it must still render its label instead of crashing on empty `rows`.
-    const hrHeader = groupHeaderRows(container).find((h) => h.textContent?.includes('HR'))!
+    const hrHeader = groupHeaderRows(container)
+      .find((h) => h.closest('tr')!.textContent?.includes('HR'))!
+      .closest('tr')!
     expect(hrHeader).toBeTruthy()
     expect(hrHeader.textContent).not.toContain('cont')
   })

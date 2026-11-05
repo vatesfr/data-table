@@ -227,7 +227,7 @@ export function DataTableView<TRow extends object>({
   const endFirst = narrowFilter && hasToolbarEnd
   const [filterShowValues, setFilterShowValues] = useState(false)
   const pendingFilterValuesFocus = useRef(false)
-  const rowRefs = useRef(new Map<TRow | string, HTMLTableRowElement>())
+  const rowRefs = useRef(new Map<TRow | string, HTMLElement>())
   const [dragColKey, setDragColKey] = useState<string | null>(null)
   const [dragOverColKey, setDragOverColKey] = useState<string | null>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
@@ -1607,16 +1607,14 @@ export function DataTableView<TRow extends object>({
                 gkey !== null && (
                   <tr
                     key={`g-${gkey}`}
-                    ref={(el) => {
-                      if (el) rowRefs.current.set(gkey, el)
-                      else rowRefs.current.delete(gkey)
-                    }}
-                    tabIndex={isFocusTarget({ kind: 'group', key: gkey }) ? 0 : -1}
-                    aria-expanded={!isCollapsed}
                     onKeyDown={(e) => handleKeyDown(e, { kind: 'group', key: gkey })}
                     onFocus={() => setFocusTarget({ kind: 'group', key: gkey })}
                     className="dt-group-row"
-                    onClick={() => toggleGroupCollapse(gkey)}
+                    onClick={() => {
+                      toggleGroupCollapse(gkey)
+                      // A click anywhere on the row makes its toggle the tab stop, as a data row's click does
+                      rowRefs.current.get(gkey)?.focus({ preventScroll: true })
+                    }}
                   >
                     {selectable && (
                       <td
@@ -1641,7 +1639,20 @@ export function DataTableView<TRow extends object>({
                       </td>
                     )}
                     <td className="dt-group-td" style={{ width: 28 }}>
-                      {isCollapsed ? '▶' : '▼'}
+                      {/* The group's tab stop: a row can't carry aria-expanded outside a treegrid */}
+                      <button
+                        type="button"
+                        className="dt-group-toggle"
+                        ref={(el) => {
+                          if (el) rowRefs.current.set(gkey, el)
+                          else rowRefs.current.delete(gkey)
+                        }}
+                        tabIndex={isFocusTarget({ kind: 'group', key: gkey }) ? 0 : -1}
+                        aria-expanded={!isCollapsed}
+                        aria-label={groupText(columns, groupBy, keyParts, sampleRow!)}
+                      >
+                        {isCollapsed ? '▶' : '▼'}
+                      </button>
                     </td>
                     <td colSpan={activeColumns.length} className="dt-group-td">
                       {groupBy.map((g, i) => {

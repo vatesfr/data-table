@@ -79,10 +79,10 @@ describe('DataTable — checkbox cells as hit areas', () => {
       />,
     )
     const cell = cellOf('Select group Alice')
-    const header = cell.closest('tr')!
+    const toggle = cell.closest('tr')!.querySelector('.dt-group-toggle')!
     fireEvent.click(cell)
     expect(onSelectionChange).toHaveBeenLastCalledWith([ROWS[0]])
-    expect(header.getAttribute('aria-expanded')).toBe('true')
+    expect(toggle.getAttribute('aria-expanded')).toBe('true')
   })
 })
 
@@ -2418,7 +2418,7 @@ describe('DataTable — active state bar', () => {
       { key: 'name', label: 'Name', filterable: true, groupable: true },
       { key: 'score', label: 'Score', type: 'number', groupable: true },
     ]
-    const { getByText, getAllByText, getByLabelText, container } = render(
+    const { getByText, getAllByText, getAllByLabelText, container } = render(
       <DataTable data={ROWS} columns={chipCols} />,
     )
     fireEvent.click(getByText('Sort'))
@@ -2426,7 +2426,10 @@ describe('DataTable — active state bar', () => {
     fireEvent.click(getByText('Group'))
     fireEvent.click(ddCopyOf(getAllByText, 'Name').closest('button')!)
     fireEvent.click(getByText('Filter'))
-    fireEvent.click(getByLabelText('Alice', { exact: false }))
+    // The checklist's box, not the group toggle also named after Alice
+    fireEvent.click(
+      getAllByLabelText('Alice', { exact: false }).find((el) => el.tagName === 'INPUT')!,
+    )
 
     // Sort/group chips now get the same at-a-glance treatment the filter chip always had — no
     // more bare count badge on the toolbar button itself (see the "Sort"/"Group" assertions).
@@ -2767,8 +2770,9 @@ describe('DataTable — keyboard navigation with grouping', () => {
     { id: 4, name: 'David', dept: 'HR' },
   ]
 
+  // Each group's tab stop: its toggle button
   function groupHeaderRows(container: HTMLElement): HTMLElement[] {
-    return [...container.querySelectorAll<HTMLElement>('tbody tr[aria-expanded]')]
+    return [...container.querySelectorAll<HTMLElement>('tbody .dt-group-toggle')]
   }
 
   // Clicking "Group" reveals a "Department" entry in the dropdown, ambiguous with the still
@@ -2842,7 +2846,9 @@ describe('DataTable — keyboard navigation with grouping', () => {
     const [firstHeader] = groupHeaderRows(container)
     firstHeader.focus()
     fireEvent.keyDown(firstHeader, { key: ' ' })
-    const checkbox = firstHeader.querySelector('input[type="checkbox"]') as HTMLInputElement
+    const checkbox = firstHeader
+      .closest('tr')!
+      .querySelector('input[type="checkbox"]') as HTMLInputElement
     expect(checkbox.checked).toBe(true)
   })
 
@@ -2932,12 +2938,16 @@ describe('DataTable — keyboard navigation with grouping', () => {
     fireEvent.click(nextPageBtn) // -> page 2: [Bob (Eng, continued), header HR (no rows of its own here)]
     expect(container.textContent).toContain('Bob')
     expect(container.textContent).not.toContain('Alice')
-    const engHeader = groupHeaderRows(container).find((h) => h.textContent?.includes('Eng'))!
+    const engHeader = groupHeaderRows(container)
+      .find((h) => h.closest('tr')!.textContent?.includes('Eng'))!
+      .closest('tr')!
     expect(engHeader.textContent).toContain('cont')
     // HR's header lands as the very last item on this page with none of its own rows following
     // until the next page — it must still render its label (from a full-group sample row) instead
     // of crashing on an empty `rows` array.
-    const hrHeader = groupHeaderRows(container).find((h) => h.textContent?.includes('HR'))!
+    const hrHeader = groupHeaderRows(container)
+      .find((h) => h.closest('tr')!.textContent?.includes('HR'))!
+      .closest('tr')!
     expect(hrHeader).toBeTruthy()
     expect(hrHeader.textContent).not.toContain('cont')
   })

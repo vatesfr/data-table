@@ -18,6 +18,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Fixed
 
+- **Group headers pass accessibility checks**: a group's expand/collapse is now a button named after the group, carrying its expanded state and its keyboard focus, instead of an `aria-expanded` the table row isn't allowed to have. Keyboard behavior is unchanged; apps styling or querying the focused group row should target `.dt-group-toggle`.
 - **Clear all returns to the initial view**: with an `initialViewState` sort (or filter, group, search), Clear all now restores it instead of emptying it, no longer shows on first load, and leaves no `?view=e30` in the URL. Removing an initial sort by hand now survives a reload.
 - **Focus and current row survive a data refresh with `getRowId`**: after a refetch the focused row keeps keyboard focus (in Solid and vanilla it dropped on every update) and the tab stop, and `currentRow` still marks a row passed from before the refresh.
 - **Shift-click range selection survives a data refresh with `getRowId`**: after a refetch, shift-clicking a row selected only that row; it now selects the range from the last plain click.

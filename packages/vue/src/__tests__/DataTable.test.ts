@@ -1629,7 +1629,9 @@ describe('DataTable — checkbox cells as hit areas', () => {
     click(cell)
     await wrapper.vm.$nextTick()
     expect(lastSelection(wrapper)).toEqual([[ROWS[0]]])
-    expect(cell.closest('tr')!.getAttribute('aria-expanded')).toBe('true')
+    expect(
+      cell.closest('tr')!.querySelector('.dt-group-toggle')!.getAttribute('aria-expanded'),
+    ).toBe('true')
   })
 })
 
@@ -2910,8 +2912,9 @@ describe('DataTable — keyboard navigation with grouping', () => {
     { id: 4, name: 'David', dept: 'HR' },
   ]
 
+  // Each group's tab stop: its toggle button
   function groupHeaderRows(wrapper: ReturnType<typeof mount>) {
-    return wrapper.findAll('.dt-group-row')
+    return wrapper.findAll('.dt-group-toggle')
   }
 
   function dataRows(wrapper: ReturnType<typeof mount>) {
@@ -3000,8 +3003,8 @@ describe('DataTable — keyboard navigation with grouping', () => {
     const [firstHeader] = groupHeaderRows(wrapper)
     ;(firstHeader.element as HTMLElement).focus()
     await firstHeader.trigger('keydown', { key: ' ' })
-    const checkbox = firstHeader.find('input[type="checkbox"]')
-    expect((checkbox.element as HTMLInputElement).checked).toBe(true)
+    const checkbox = firstHeader.element.closest('tr')!.querySelector('input[type="checkbox"]')!
+    expect((checkbox as HTMLInputElement).checked).toBe(true)
     wrapper.unmount()
   })
 

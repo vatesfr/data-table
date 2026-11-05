@@ -108,7 +108,8 @@ export const DT_STYLES = `
 .dt-tr--clickable{cursor:pointer}
 .dt-tr--clickable:not(.dt-tr--selected):hover .dt-td{background:var(--color-background-secondary,#f7f6f3)}
 .dt-tr--selected .dt-td{background:var(--color-background-info,#e6f1fb)}
-.dt-tr:focus-visible,.dt-group-row:focus-visible{outline:2px solid var(--color-text-info,#185fa5);outline-offset:-2px}
+.dt-tr:focus-visible,.dt-group-row:has(.dt-group-toggle:focus-visible){outline:2px solid var(--color-text-info,#185fa5);outline-offset:-2px}
+.dt-group-toggle{padding:0;border:none;background:none;color:inherit;font:inherit;cursor:pointer}.dt-group-toggle:focus-visible{outline:none}
 .dt-tr:focus-visible>.dt-pinned{box-shadow:inset 0 2px 0 var(--color-text-info,#185fa5),inset 0 -2px 0 var(--color-text-info,#185fa5)}
 .dt-tr:focus-visible>.dt-pinned::after{border-bottom:0}
 .dt-group-row{background:var(--color-background-secondary,#f7f6f3);border-left:3px solid var(--color-border-secondary,#dddcd8);font-weight:var(--font-weight-semibold,600);font-size:var(--font-size-sm,12px);color:var(--color-text-primary,#1a1916);cursor:pointer}
