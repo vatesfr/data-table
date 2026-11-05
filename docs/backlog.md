@@ -40,9 +40,9 @@ What `demo/showcase` pages wanted and the public API couldn't give. Each page ma
 - **B41** — the toolbar can't render without the table body, so a headless view (cards) can't reuse the Sort/Filter controls. Page: catalog.
 - **B42** — no public way to compare two views; telling which saved view is active means serializing `getViewState()` with sorted keys. Pages: users, logs.
 - **B43** — each column header is two Tab stops (sort, menu): from the search box, 19 Tabs reach the first row of a 9-column table. Page: users (a "Jump to rows" link with `focus.moveTo`).
-- **B44** — `group.clear()` leaves the sort entries grouping added, so leaving a grouped view also needs `sort.remove`. Page: sports.
 - **B49** — a column `width` is only set on its `<th>` under automatic table layout, so it's a hint: a 190 px Name column renders ~99 px and wraps (the Solid demo's 160 px Name renders ~98 px). Make it hold (`<colgroup>`, or a minimum width) or document it as a hint. Page: infra (one-line cell renders).
 
 ## Declined
 
+- **B44** — `group.clear()` dropping the sort entries grouping added. Ungrouping keeps them on purpose ([grouped columns](grouped-columns.md)), and nothing tells a grouping sort from one the user set on that column before grouping, so dropping it would lose a user's own sort. Apps leaving a grouped view call `sort.remove` (showcase sports).
 - **B18** — splitting React's `DataTableView.tsx` and Vue's `DataTableView.vue` into per-dropdown components like Solid's. Reviewers estimated 30–80 B gzip per component (~150–300 B per adapter, against ~100 B of budget headroom); it moves no logic out, only adds props and a focus-restore effect per component, and the coupled areas (Filter, ActiveBar, TableBody: chip→dropdown focus, Vue's dynamic `cell-*`/`group-*`/`filter-*` slots) would need imperative handles. The duplicated logic it aimed at now lives in core (B8–B14). Revisit if a view becomes hard to change.

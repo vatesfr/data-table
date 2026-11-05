@@ -153,7 +153,7 @@ export function App() {
               aria-pressed={grouping().length === 0}
               onClick={() => {
                 table.group.clear()
-                // Limit: B44 — ungrouping keeps the club sort grouping added: drop it to get the ranking back
+                // Ungrouping keeps the club sort grouping added (by design): drop it to get the ranking back
                 table.sort.remove('team')
                 table.pagination.setPageSize(PAGE_SIZE)
               }}
