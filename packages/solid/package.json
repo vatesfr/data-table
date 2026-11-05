@@ -59,7 +59,7 @@
       "name": "ESM bundle (gzip)",
       "path": "dist/data-table-solid.js",
       "gzip": true,
-      "limit": "22.24 KB"
+      "limit": "22.27 KB"
     }
   ],
   "dependencies": {

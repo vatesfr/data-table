@@ -4,7 +4,7 @@
 
 UX backlog from `ux-review` runs against [use cases](use-cases.md) and [UI guidelines](ui-guidelines.md). Each item names the use cases it slows down and, when not all three, the adapters; `ux-fix` fixes one per commit and removes it once shipped. IDs are never reused.
 
-Next free ID: **U47** (IDs are never reused, including ones dropped before committing).
+Next free ID: **U48** (IDs are never reused, including ones dropped before committing).
 
 Severity: **blocker** (goal unreachable) · **major** (reached with confusion or a workaround) · **minor** (friction) · **polish**.
 
@@ -22,7 +22,7 @@ Seeded 2026-10-04 from issues reported by a consumer app, each reproduced on the
 
 ## Grouping
 
-- **U41 · minor · UC02, UC07** — with a pinned column, a group header's label sits in a non-sticky `colspan` cell: scrolled sideways on a phone, headers turn into empty bands (showcase sports in Clubs view; ledger's aggregate band is blank while Montant is off-screen). Keep the label in the pinned area. Seen in Solid.
+- **U47 · minor · UC02, UC07** — scrolled sideways on a phone, a group's aggregate row turns into an empty band while its figures' columns are off-screen (showcase ledger: blank while Montant is off-screen), and the empty-table message (one `colspan` cell) scrolls away. The group label stays in view since U41. Seen in Solid.
 - **U43 · minor · UC02** — a group header's column name and count use `opacity: .6` instead of a text token, so their contrast depends on the theme: 4.46:1 on the showcase ledger's palette. Use `--color-text-secondary`. Seen in Solid.
 
 ## Table body

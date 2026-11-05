@@ -8,6 +8,7 @@
 // - .dt-pinned's ::after redraws the border hidden by its opaque background (shadow kept off box-shadow for the drag-over line); pinned rules stay at or below row-state specificity so app overrides win; the stripe layers over the pinned base.
 // - Full-width panels leave 17 px: twice the 8 px viewport clamp margin plus borders; the narrow Filter panel's 100vw includes a classic scrollbar.
 // - .dt's color-scheme has no fallback: without --dt-color-scheme it inherits the page's instead of resetting it.
+// - A group header is one cell whose .dt-group-label sticks to the scrollport's left edge, capped at --dt-wrap-width (trackWrapWidth) so it wraps in view; its check and arrow take their content width plus 12 px paddings (no fixed width: the old columns' widths came from table layout), so the checkbox lines up with the rows'; the cap leaves out the row's 3 px left border.
 // - Row focus ring: :focus-visible (a click focuses the row), inset (the scroll wrapper clips); a pinned cell redraws its top and bottom edges and drops its row border.
 export const DT_STYLES = `
 .dt{font-family:inherit;font-size:var(--font-size-lg,14px);color:var(--color-text-primary,#1a1916);color-scheme:var(--dt-color-scheme)}
@@ -110,16 +111,19 @@ export const DT_STYLES = `
 .dt-tr--clickable:not(.dt-tr--selected):hover .dt-td{background:var(--color-background-secondary,#f7f6f3)}
 .dt-tr--selected .dt-td{background:var(--color-background-info,#e6f1fb)}
 .dt-tr:focus-visible,.dt-group-row:has(.dt-group-toggle:focus-visible){outline:2px solid var(--color-text-info,#185fa5);outline-offset:-2px}
-.dt-group-toggle{padding:0;border:none;background:none;color:inherit;font:inherit;cursor:pointer}.dt-group-toggle:focus-visible{outline:none}
+.dt-group-toggle{border:none;background:none;color:inherit;font:inherit;cursor:pointer}.dt-group-toggle:focus-visible{outline:none}
 .dt-tr:focus-visible>.dt-pinned{box-shadow:inset 0 2px 0 var(--color-text-info,#185fa5),inset 0 -2px 0 var(--color-text-info,#185fa5)}
 .dt-tr:focus-visible>.dt-pinned::after{border-bottom:0}
 .dt-group-row{background:var(--color-background-secondary,#f7f6f3);border-left:3px solid var(--color-border-secondary,#dddcd8);font-weight:var(--font-weight-semibold,600);font-size:var(--font-size-sm,12px);color:var(--color-text-primary,#1a1916);cursor:pointer}
 .dt-dd-no-match{padding:6px 12px;font-size:var(--font-size-sm,12px);color:var(--color-text-tertiary,#9b9a96)}
 .dt-empty{padding:24px 12px;color:var(--color-text-secondary,#666561)}
-.dt-group-td{padding:6px 12px;border-bottom:1px solid var(--color-border-secondary,#dddcd8)}
+.dt-group-td{padding:0;border-bottom:1px solid var(--color-border-secondary,#dddcd8)}
+.dt-group-label{position:sticky;left:0;display:flex;max-width:calc(var(--dt-wrap-width) - 3px)}
+.dt-group-check,.dt-group-arrow{flex:none;display:flex;align-items:center;padding:6px 12px}
+.dt-group-text{padding:6px 12px}
 .dt-group-sep{margin:0 4px;opacity:.4}
 .dt-group-colname{margin-right:4px;opacity:.6}
-.dt-group-count{margin-left:10px;font-weight:var(--font-weight-normal,400);opacity:.6}
+.dt-group-count{margin-left:10px;white-space:nowrap;font-weight:var(--font-weight-normal,400);opacity:.6}
 .dt-group-continued{margin-left:8px;font-weight:var(--font-weight-normal,400);opacity:.6}
 .dt-pagination{display:flex;align-items:center;gap:6px;padding:10px 2px;justify-content:flex-end;flex-wrap:wrap}
 .dt-page-btn{padding:5px 9px;background:none;border:.5px solid var(--color-border-secondary,#dddcd8);border-radius:4px;cursor:pointer;font-size:var(--font-size-md,13px);color:var(--color-text-primary,#1a1916);font-family:inherit;line-height:1}

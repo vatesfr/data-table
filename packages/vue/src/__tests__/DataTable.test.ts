@@ -1585,7 +1585,7 @@ describe('DataTable — range presets', () => {
 describe('DataTable — checkbox cells as hit areas', () => {
   const ROWS3: Row[] = [...ROWS, { id: 3, name: 'Clara', score: 75 }]
   const cellOf = (wrapper: ReturnType<typeof mount>, label: string) =>
-    wrapper.find(`input[aria-label="${label}"]`).element.closest('td, th')!
+    wrapper.find(`input[aria-label="${label}"]`).element.closest('.dt-check-cell')!
   const lastSelection = (wrapper: ReturnType<typeof mount>) => {
     const events = wrapper.emitted('selectionChange')!
     return events[events.length - 1]

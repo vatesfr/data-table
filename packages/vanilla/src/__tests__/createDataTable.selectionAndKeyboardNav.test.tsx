@@ -142,7 +142,7 @@ describe('createDataTable — row selection', () => {
 })
 
 describe('createDataTable — checkbox cells as hit areas', () => {
-  const cell = (cb: HTMLInputElement) => cb.closest('td, th')!
+  const cell = (cb: HTMLInputElement) => cb.closest('.dt-check-cell')!
 
   it("a click anywhere in a row's checkbox cell toggles it; shift-click selects the range", () => {
     const onRowClick = vi.fn()
