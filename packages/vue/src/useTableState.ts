@@ -211,7 +211,7 @@ export function useTableState<TRow extends object>(
     getSelectedRows(processedData.value, selection.value, getRowId.value),
   )
 
-  return {
+  const state = {
     // Top-level: the pipeline's actual output, not a "concern" of its own
     processedData,
     pagedData,
@@ -454,17 +454,13 @@ export function useTableState<TRow extends object>(
       },
     },
 
-    clearAll: () => {
-      sorts.value = []
-      filters.value = {}
-      excludeFilters.value = {}
-      filterModes.value = {}
-      rangeFilters.value = {}
-      groupBy.value = []
-      collapsedGroups.value = new Set()
-      page.value = 1
-      searchQuery.value = ''
-    },
+    // Back to `initialViewState`, keeping the column layout and page size
+    clearAll: () =>
+      state.setViewState({
+        visibleCols: [...visibleCols.value],
+        columnOrder: columnOrder.value,
+        pageSize: pageSize.value,
+      }),
 
     getViewState: (): TableViewState =>
       buildViewStateSnapshot({
@@ -499,4 +495,5 @@ export function useTableState<TRow extends object>(
       searchQuery.value = resolved.searchQuery
     },
   }
+  return state
 }

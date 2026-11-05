@@ -1343,7 +1343,7 @@ describe('DataTable — empty toolbar', () => {
     expect(container.querySelector('.dt-active-bar')).not.toBeNull()
   })
 
-  it('renders it for toolbarEnd or a restored state to clear, without a lone divider', () => {
+  it('renders it for toolbarEnd, not for an initial view alone, without a lone divider', () => {
     const withEnd = render(
       <DataTable
         data={ROWS}
@@ -1354,7 +1354,8 @@ describe('DataTable — empty toolbar', () => {
     )
     expect(withEnd.container.querySelector('.dt-toolbar-end')).not.toBeNull()
     expect(withEnd.container.querySelector('.dt-toolbar-divider')).toBeNull()
-    const restored = render(
+    // An initial view is what "Clear all" returns to: nothing to clear yet
+    const initial = render(
       <DataTable
         data={ROWS}
         columns={BARE}
@@ -1362,7 +1363,7 @@ describe('DataTable — empty toolbar', () => {
         initialViewState={{ searchQuery: 'a' }}
       />,
     )
-    expect(restored.container.querySelector('.dt-clear-all')).not.toBeNull()
+    expect(initial.container.querySelector('.dt-toolbar')).toBeNull()
   })
 
   it('draws the divider only with controls on both sides', () => {
@@ -2614,6 +2615,7 @@ describe('DataTable — keyboard navigation across pages', () => {
         initialViewState={{ sorts: [{ key: 'name', dir: 'asc' }] }}
       />,
     )
+    fireEvent.click(container.querySelector('th[data-col-key="score"]')!)
     const clearAll = getByRole('button', { name: '× Clear all' })
     clearAll.focus()
     fireEvent.click(clearAll)

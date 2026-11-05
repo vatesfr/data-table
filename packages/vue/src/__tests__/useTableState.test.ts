@@ -930,6 +930,17 @@ describe('useTableState — search', () => {
     expect(page.value).toBe(1)
   })
 
+  it('clearAll returns to initialViewState, leaving nothing to persist', () => {
+    const table = useTableState(ROWS, COLS, {
+      initialViewState: { sorts: [{ key: 'name', dir: 'desc' }] },
+    })
+    table.sort.clear()
+    table.search.setQuery('alice')
+    table.clearAll()
+    expect(table.sort.entries.value).toEqual([{ key: 'name', dir: 'desc' }])
+    expect(table.getViewState()).toEqual({})
+  })
+
   it('clearAll resets searchQuery', () => {
     const table = useTableState(ROWS, COLS)
     const { processedData, clearAll } = table

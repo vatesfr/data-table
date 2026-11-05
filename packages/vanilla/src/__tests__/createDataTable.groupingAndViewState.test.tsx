@@ -686,7 +686,7 @@ describe('createDataTable (grouping, group dropdown, pagination+grouping, search
 
   // --- clearAll ---
 
-  it('clearAll resets search/filter/sort/group/page to true defaults, ignoring initialViewState', () => {
+  it('clearAll resets search/filter/sort/group/page to initialViewState', () => {
     const instance = createDataTable(container, {
       data: ROWS,
       columns: COLS,
@@ -695,10 +695,10 @@ describe('createDataTable (grouping, group dropdown, pagination+grouping, search
     click(container.querySelector<HTMLElement>('th[data-col-key="name"]')!) // diverge from initial
     setInput(container.querySelector<HTMLInputElement>('.dt-search-input')!, 'ali')
     instance.clearAll()
-    // Unlike setViewState({}), which restores initialViewState's own sort, clearAll ignores it —
-    // sorts: [] surfaces explicitly here since it now differs from the initialViewState default.
-    expect(instance.getViewState()).toEqual({ sorts: [] })
-    expect(instance.getProcessedData()).toEqual(ROWS)
+    expect(instance.getViewState()).toEqual({})
+    expect(instance.getProcessedData().map((r) => r.score)).toEqual(
+      ROWS.map((r) => r.score).sort((a, b) => b - a),
+    )
     expect(container.querySelector<HTMLInputElement>('.dt-search-input')!.value).toBe('')
   })
 })

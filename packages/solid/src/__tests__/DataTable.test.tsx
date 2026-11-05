@@ -154,6 +154,7 @@ describe('DataTable', () => {
       )
       return d
     })
+    container.querySelector<HTMLElement>('th[data-col-key="name"]')!.click()
     const clearAll = [...container.querySelectorAll<HTMLButtonElement>('button')].find(
       (b) => b.textContent === '× Clear all',
     )!
@@ -351,7 +352,7 @@ describe('DataTable', () => {
     dispose()
   })
 
-  it('renders no toolbar when no control applies, and one for toolbarEnd or a restored state, without a lone divider', () => {
+  it('renders no toolbar when no control applies or for an initial view alone, and one for toolbarEnd, without a lone divider', () => {
     const BARE: ColumnDef<Row>[] = [
       { key: 'name', label: 'Name', sortable: false, filterable: false },
     ]
@@ -373,12 +374,14 @@ describe('DataTable', () => {
     const withEnd = mountWith({ toolbarEnd: <button>Share</button> })
     expect(withEnd.container.querySelector('.dt-toolbar-end')).not.toBeNull()
     expect(withEnd.container.querySelector('.dt-toolbar-divider')).toBeNull()
-    const restored = mountWith({ initialViewState: { searchQuery: 'a' } })
-    expect(restored.container.querySelector('.dt-clear-all')).not.toBeNull()
+    // An initial view is what "Clear all" returns to: nothing to clear yet
+    const initial = mountWith({ initialViewState: { searchQuery: 'a' } })
+    expect(initial.container.querySelector('.dt-toolbar')).toBeNull()
+
     const sortOnly = mountWith({ columns: [{ key: 'name', label: 'Name', filterable: false }] })
     expect(sortOnly.container.querySelector('.dt-toolbar')).not.toBeNull()
     expect(sortOnly.container.querySelector('.dt-toolbar-divider')).toBeNull()
-    for (const m of [bare, withEnd, restored, sortOnly]) m.dispose()
+    for (const m of [bare, withEnd, initial, sortOnly]) m.dispose()
   })
 
   it('renders toolbarEnd once, as the last child of the toolbar actions row', () => {

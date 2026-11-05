@@ -245,7 +245,7 @@ export function createTableState<TRow extends object>(
     getSelectedRows(processedData(), selection(), getOptions().getRowId),
   )
 
-  return {
+  const state = {
     // Top-level: the pipeline's actual output, not a "concern" of its own
     data,
     setData,
@@ -507,16 +507,13 @@ export function createTableState<TRow extends object>(
       },
     },
 
-    clearAll: () => {
-      setSorts([])
-      setFilterState({ filters: {}, excludeFilters: {} })
-      setFilterModes({})
-      setRangeFilters({})
-      setGroupBy([])
-      setCollapsedGroups(new Set<string>())
-      setPageState(1)
-      setSearchQueryState('')
-    },
+    // Back to `initialViewState`, keeping the column layout and page size
+    clearAll: () =>
+      state.setViewState({
+        visibleCols: [...visibleCols()],
+        columnOrder: columnOrder(),
+        pageSize: pageSize(),
+      }),
 
     getViewState: (): TableViewState =>
       buildViewStateSnapshot({
@@ -550,4 +547,5 @@ export function createTableState<TRow extends object>(
       setSearchQueryState(resolved.searchQuery)
     },
   }
+  return state
 }

@@ -1084,6 +1084,21 @@ describe('useTableState — search', () => {
     expect(result.current.pagination.page).toBe(1)
   })
 
+  it('clearAll returns to initialViewState, leaving nothing to persist', () => {
+    const { result } = renderHook(() =>
+      useTableState(ROWS, COLS, { initialViewState: { sorts: [{ key: 'name', dir: 'desc' }] } }),
+    )
+    act(() => {
+      result.current.sort.clear()
+      result.current.search.setQuery('alice')
+    })
+    act(() => {
+      result.current.clearAll()
+    })
+    expect(result.current.sort.entries).toEqual([{ key: 'name', dir: 'desc' }])
+    expect(result.current.getViewState()).toEqual({})
+  })
+
   it('clearAll resets searchQuery', () => {
     const { result } = renderHook(() => useTableState(ROWS, COLS))
     act(() => {

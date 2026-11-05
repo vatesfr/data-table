@@ -4,6 +4,7 @@ import {
   decodeViewState,
   resolveViewState,
   buildViewStateSnapshot,
+  isViewClearable,
   type TableViewState,
   type ViewStateSnapshotInput,
 } from '../view'
@@ -35,23 +36,32 @@ describe('encodeViewState / decodeViewState', () => {
     expect(decodeViewState(encodeViewState(view))).toEqual(view)
   })
 
+  it('round-trips fields emptied on purpose, overriding an initial view', () => {
+    const view: TableViewState = {
+      sorts: [],
+      filters: {},
+      groupBy: [],
+      searchQuery: '',
+      pageSize: 0,
+    }
+    expect(decodeViewState(encodeViewState(view))).toEqual(view)
+  })
+
   it('round-trips an empty view', () => {
     expect(decodeViewState(encodeViewState({}))).toEqual({})
   })
 
-  it('omits fields at their default value', () => {
+  it('drops entries without values, keeping their field', () => {
     const view: TableViewState = {
-      columnOrder: [],
-      sorts: [],
       filters: { dept: [] },
       excludeFilters: { tags: [] },
-      filterModes: {},
       rangeFilters: { salary: { min: '', max: '' } },
-      page: 1,
-      pageSize: 0,
-      searchQuery: '',
     }
-    expect(decodeViewState(encodeViewState(view))).toEqual({})
+    expect(decodeViewState(encodeViewState(view))).toEqual({
+      filters: {},
+      excludeFilters: {},
+      rangeFilters: {},
+    })
   })
 
   it('round-trips both "and" and "or" filterModes entries', () => {
@@ -85,6 +95,16 @@ describe('encodeViewState / decodeViewState', () => {
   it('returns undefined for malformed input', () => {
     expect(decodeViewState('not valid base64url!!!')).toBeUndefined()
     expect(decodeViewState('')).toBeUndefined()
+  })
+})
+
+describe('isViewClearable', () => {
+  it('is true once the view has a sort, filter, group or search apart from the initial one', () => {
+    expect(isViewClearable({})).toBe(false)
+    expect(isViewClearable({ visibleCols: ['name'], pageSize: 5, page: 2 })).toBe(false)
+    expect(isViewClearable({ sorts: [] })).toBe(true)
+    expect(isViewClearable({ rangeFilters: { score: { min: '1', max: '' } } })).toBe(true)
+    expect(isViewClearable({ searchQuery: 'a' })).toBe(true)
   })
 })
 

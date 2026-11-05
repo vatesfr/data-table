@@ -162,6 +162,21 @@ describe('createTableState — row selection', () => {
   })
 })
 
+describe('createTableState — clearAll', () => {
+  it('returns to initialViewState, leaving nothing to persist', () => {
+    withRoot(() => {
+      const table = createTableState(ROWS, COLS, {
+        initialViewState: { sorts: [{ key: 'name', dir: 'desc' }] },
+      })
+      table.sort.clear()
+      table.search.setQuery('alice')
+      table.clearAll()
+      expect(table.sort.entries()).toEqual([{ key: 'name', dir: 'desc' }])
+      expect(table.getViewState()).toEqual({})
+    })
+  })
+})
+
 describe('createTableState — getRowId (selection identity)', () => {
   it('without getRowId, setData with new row objects silently drops selection', () => {
     withRoot(() => {

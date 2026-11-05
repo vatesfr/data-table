@@ -137,6 +137,7 @@ describe('DataTable — v-model:page / v-model:search-query', () => {
       },
       attachTo: document.body,
     })
+    await wrapper.find('th[data-col-key="score"]').trigger('click')
     const clearAll = wrapper.findAll('button').find((b) => b.text() === '× Clear all')!
     ;(clearAll.element as HTMLElement).focus()
     await clearAll.trigger('click')
@@ -1679,14 +1680,15 @@ describe('DataTable — empty toolbar', () => {
     expect(wrapper.find('.dt-active-bar').exists()).toBe(true)
   })
 
-  it('renders it for the toolbar-end slot or a restored state to clear, without a lone divider', () => {
+  it('renders it for the toolbar-end slot, not for an initial view alone, without a lone divider', () => {
     const withEnd = mount(DataTable, {
       props: { data: ROWS, columns: BARE, showSearch: false },
       slots: { 'toolbar-end': '<button class="share">Share</button>' },
     })
     expect(withEnd.find('.dt-toolbar-end').exists()).toBe(true)
     expect(withEnd.find('.dt-toolbar-divider').exists()).toBe(false)
-    const restored = mount(DataTable, {
+    // An initial view is what "Clear all" returns to: nothing to clear yet
+    const initial = mount(DataTable, {
       props: {
         data: ROWS,
         columns: BARE,
@@ -1694,7 +1696,7 @@ describe('DataTable — empty toolbar', () => {
         initialViewState: { searchQuery: 'a' },
       },
     })
-    expect(restored.find('.dt-clear-all').exists()).toBe(true)
+    expect(initial.find('.dt-toolbar').exists()).toBe(false)
   })
 
   it('draws the divider only with controls on both sides', () => {

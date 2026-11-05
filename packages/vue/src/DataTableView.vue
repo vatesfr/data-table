@@ -11,6 +11,7 @@ import {
   isSameVisibleItem,
   isSameRow,
   isNewRowFocusTarget,
+  isViewClearable,
   indexOfVisibleItem,
   paginateVisibleItems,
   pageSizeOptions,
@@ -488,13 +489,8 @@ async function onOpenFilterCol(key: string): Promise<void> {
   await nextTick()
   filterColRefs.get(key)?.focus()
 }
-const hasActiveState = computed(
-  () =>
-    sorts.value.length > 0 ||
-    activeFilterCount.value > 0 ||
-    groupBy.value.length > 0 ||
-    searchQuery.value !== '',
-)
+// Apart from `initialViewState`, which "Clear all" returns to
+const canClearAll = computed(() => isViewClearable(props.table.getViewState()))
 const hasAggregates = computed(() => activeColumns.value.some((c) => c.aggregate !== undefined))
 // The divider separates the shape controls from the find ones: only drawn with both sides
 const hasShapeControls = computed(
@@ -504,7 +500,7 @@ const hasShapeControls = computed(
     sortableCols.value.length > 0,
 )
 const hasFindControls = computed(
-  () => props.showSearch || filterableCols.value.length > 0 || hasActiveState.value,
+  () => props.showSearch || filterableCols.value.length > 0 || canClearAll.value,
 )
 
 function formatValue(v: unknown, row: TRow, col: ColumnDef<TRow>): string {
@@ -1534,7 +1530,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
              .dt-clear-all) — nothing else in the row needs to reflow when it mounts/unmounts,
              unlike the old layout where it sat between search and the stats text. -->
         <button
-          v-if="hasActiveState"
+          v-if="canClearAll"
           type="button"
           class="dt-btn dt-clear-all"
           @click="clearAllAndFocus"

@@ -25,6 +25,7 @@ import {
   isSameVisibleItem,
   isSameRow,
   isNewRowFocusTarget,
+  isViewClearable,
   indexOfVisibleItem,
   paginateVisibleItems,
   pageSizeOptions,
@@ -738,8 +739,8 @@ export function DataTableView<TRow extends object>({
     }
   }
 
-  const hasActiveState =
-    sorts.length > 0 || activeFilterCount > 0 || groupBy.length > 0 || searchQuery !== ''
+  // Apart from `initialViewState`, which "Clear all" returns to
+  const canClearAll = isViewClearable(table.getViewState())
   const hasAggregates = activeColumns.some((c) => c.aggregate !== undefined)
   const toolbarEndEl = hasToolbarEnd && <div className="dt-toolbar-end">{toolbarEnd}</div>
   // The divider separates the shape controls from the find ones: only drawn with both sides
@@ -747,7 +748,7 @@ export function DataTableView<TRow extends object>({
     (showColumns !== false && columns.length >= 2) ||
     groupableCols.length > 0 ||
     sortableCols.length > 0
-  const hasFindControls = showSearch !== false || filterableCols.length > 0 || hasActiveState
+  const hasFindControls = showSearch !== false || filterableCols.length > 0 || canClearAll
 
   const formatValue = (v: unknown, row: TRow, col: ColumnDef<TRow>) => {
     if (col.render) return col.render(v, row)
@@ -1310,7 +1311,7 @@ export function DataTableView<TRow extends object>({
             {/* "Clear all" sits alone at the far right of the actions row (`.dt-clear-all`'s
               margin-left: auto) — nothing else in the row needs to reflow when it mounts/unmounts,
               unlike the old layout where it sat between search and the stats text. */}
-            {hasActiveState && (
+            {canClearAll && (
               <button
                 type="button"
                 className="dt-btn dt-clear-all"

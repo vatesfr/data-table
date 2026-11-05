@@ -279,7 +279,7 @@ export function useTableState<TRow extends object>(
       return next
     })
 
-  return {
+  const state = {
     // Top-level: the pipeline's actual output, not a "concern" of its own
     processedData,
     pagedData,
@@ -479,13 +479,8 @@ export function useTableState<TRow extends object>(
       consumeDomFocus,
     },
 
-    clearAll: () => {
-      setSorts([])
-      clearFilters()
-      setGroupBy([])
-      setCollapsedGroups(new Set())
-      setSearchQueryState('')
-    },
+    // Back to `initialViewState`, keeping the column layout and page size
+    clearAll: () => state.setViewState({ visibleCols: [...visibleCols], columnOrder, pageSize }),
 
     getViewState: (): TableViewState =>
       buildViewStateSnapshot({
@@ -519,4 +514,5 @@ export function useTableState<TRow extends object>(
       setSearchQueryState(resolved.searchQuery)
     },
   }
+  return state
 }

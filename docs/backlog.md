@@ -16,7 +16,6 @@ Code health items (simplicity, duplication, maintainability, dev loop) from `vfl
 - **B53** — "show only these values" on an exclude-only (single-value) column means writing the complement into `excludeFilters` (showcase catalog's chips: 20 lines of branching), and `setViewState`/`initialViewState` silently accept include `filters` there, which the checklist never shows (showcase users' views first did this: Filter → Status showed every value ticked while one was kept). A `filter.keepOnly(key, values)`, and normalize or warn on include filters for such columns.
 - **B55** — the group bucketers don't see the column's `parseDate`: a non-ISO date column passes it twice (`parseDate: parseFr` and `bucketDatePart('month', parseFr)`). Default bucketing to the column's `parseDate`.
 - **B56** — the theme never sets `color-scheme`, so on a dark table (forced `data-theme="dark"`, or the OS dark preference) checkboxes, selects, scrollbars and date-input icons stay light; the Solid demo shows it too. Set `color-scheme: dark` in the dark rules (the showcase's dark pages set it themselves).
-- **B57** — after "Clear all" the URL keeps `?view=e30` (an empty view) instead of dropping the parameter.
 
 ## Showcase limits
 
@@ -43,7 +42,6 @@ What `demo/showcase` pages wanted and the public API couldn't give. Each page ma
 - **B43** — each column header is two Tab stops (sort, menu): from the search box, 19 Tabs reach the first row of a 9-column table. Page: users (a "Jump to rows" link with `focus.moveTo`).
 - **B44** — `group.clear()` leaves the sort entries grouping added, so leaving a grouped view also needs `sort.remove`. Page: sports.
 - **B49** — a column `width` is only set on its `<th>` under automatic table layout, so it's a hint: a 190 px Name column renders ~99 px and wraps (the Solid demo's 160 px Name renders ~98 px). Make it hold (`<colgroup>`, or a minimum width) or document it as a hint. Page: infra (one-line cell renders).
-- **B45** — an `initialViewState` sort counts as user state: its chip and "Clear all" show on first load, and "Clear all" drops it instead of returning to the initial view. Page: logs (no comment).
 
 ## Declined
 

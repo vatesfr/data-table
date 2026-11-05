@@ -9,7 +9,13 @@ export * from './styles'
 // Only the internal date-tree filter and the adapters' date-tree components need it
 export type { DateTreeNode } from './types'
 
-export { encodeViewState, decodeViewState, buildViewStateSnapshot, resolveViewState } from './view'
+export {
+  encodeViewState,
+  decodeViewState,
+  buildViewStateSnapshot,
+  resolveViewState,
+  isViewClearable,
+} from './view'
 export type { ViewStateSnapshotInput, ResolvedViewState, TableViewState } from './view'
 
 export type { ViewStateApi, ResetViewOptions } from './viewPersistence'
