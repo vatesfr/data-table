@@ -44,7 +44,6 @@ const COLUMNS: ColumnDef<LogEvent>[] = [
     label: 'Host',
     groupable: true,
     // 320 hosts: busiest first in the (virtualized) checklist
-    // Limit: B32 — checklist counts print raw ("10010"), no label or format hook for them
     defaultValueSort: { by: 'count', dir: 'desc' },
   },
   {
@@ -109,10 +108,7 @@ export function App() {
   const table = createTableState(events, COLUMNS, {
     getRowId: (e) => e.id,
     initialViewState: { sorts: [{ key: 'timestamp', dir: 'desc' }], pageSize: 100 },
-    // The default prints raw counts ("100000 / 100000 rows"): group the digits at this scale
-    labels: {
-      rowCount: (f, t) => `${f.toLocaleString('en')} of ${t.toLocaleString('en')} events`,
-    },
+    labels: { rowCount: (f, t) => `${f.toLocaleString('en')} of ${t.toLocaleString('en')} events` },
   })
   // The whole view lives in `?view=…`: a copied URL reopens the same search
   useUrlView(table)

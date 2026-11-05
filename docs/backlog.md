@@ -24,7 +24,6 @@ What `demo/showcase` pages wanted and the public API couldn't give. Each page ma
 - **B29** — no hook to style group header and aggregate rows (e.g. as report section breaks). Page: ledger (no comment: nothing in the page would change).
 - **B30** — no public way to build a share link for a view that isn't applied (`encodeViewState` is internal), so saved searches are buttons, not links. Page: logs.
 - **B31** — date grouping stops at the day (`DatePart`); a log viewer wants hour or minute buckets. Page: logs.
-- **B32** — the filter checklist's per-value counts print unformatted ("10010"), and the default `rowCount` label doesn't group digits ("100000 / 100000 rows"). Page: logs.
 - **B33** — `datePartGroup('month')` and the date filter tree name months in the browser's locale, not the table's labels; a French table in an English browser mixes languages. Page: ledger.
 - **B34** — an expanded group split across pages aggregates and counts only this page's rows (deliberate, see [pagination](pagination.md)): a report wants whole-group totals, and expanding a group changes its numbers ("25 rows, GP 500" collapsed, "24 rows, GP 496" expanded). Pages: ledger, sports.
 - **B35** — a function `aggregate`'s result goes through the column's own `render`/`format` with a sample row; there's no aggregate formatter, so a label must be baked into the value. Page: sports.

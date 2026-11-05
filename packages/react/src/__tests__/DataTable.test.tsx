@@ -1292,6 +1292,18 @@ describe('DataTable — range presets', () => {
   })
 })
 
+describe('DataTable — filter checklist counts', () => {
+  it('formats them with the formatCount label', () => {
+    const { getByText, container } = render(
+      <DataTable data={ROWS} columns={COLS} labels={{ formatCount: (n) => `#${n}` }} />,
+    )
+    fireEvent.click(getByText('Filter'))
+    const counts = [...container.querySelectorAll('.dt-filter-count')].map((c) => c.textContent)
+    expect(counts.length).toBeGreaterThan(0)
+    expect(counts.every((c) => /^#\d+$/.test(c ?? ''))).toBe(true)
+  })
+})
+
 describe('DataTable — currentRow', () => {
   it('marks the current row with aria-current and dt-tr--current, following the prop', () => {
     const { container, rerender } = render(

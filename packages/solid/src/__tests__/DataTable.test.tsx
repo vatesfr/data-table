@@ -544,6 +544,27 @@ describe('DataTable — filter values through the column format', () => {
   })
 })
 
+describe('DataTable — filter checklist counts', () => {
+  it('formats them with the formatCount label', () => {
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const dispose = createRoot((d) => {
+      render(
+        () => <DataTable data={ROWS} columns={COLS} labels={{ formatCount: (n) => `#${n}` }} />,
+        container,
+      )
+      return d
+    })
+    ;[...container.querySelectorAll<HTMLButtonElement>('button')]
+      .find((b) => b.textContent?.startsWith('Filter'))!
+      .click()
+    const counts = [...document.querySelectorAll('.dt-filter-count')].map((c) => c.textContent)
+    expect(counts.length).toBeGreaterThan(0)
+    expect(counts.every((c) => /^#\d+$/.test(c ?? ''))).toBe(true)
+    dispose()
+  })
+})
+
 describe('DataTable — currentRow', () => {
   it('marks the current row with aria-current and dt-tr--current, following the prop', () => {
     const container = document.createElement('div')

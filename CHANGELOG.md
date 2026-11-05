@@ -21,6 +21,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Fixed
 
+- **Counts are digit-grouped**: the row count, group counts and the filter checklist's per-value counts now read `10,010` (in each locale's own style) instead of `10010`. A new `formatCount` label sets the checklist's format; a custom `rowCount` label formats its own numbers.
 - **Dark tables get dark native controls**: under a dark theme (OS preference or `data-theme="dark"`), checkboxes, selects, scrollbars and date-input icons were drawn light; the theme now sets `color-scheme` on the table only, through a new `--dt-color-scheme` token, leaving the host page's as it is.
 - **Solid: `render` and `renderFilterLabel` take any JSX**: they were typed `Node`, so every JSX cell needed `as HTMLElement`; a string or fragment now type-checks too.
 - **Group headers pass accessibility checks**: a group's expand/collapse is now a button named after the group, carrying its expanded state and its keyboard focus, instead of an `aria-expanded` the table row isn't allowed to have. Keyboard behavior is unchanged; apps styling or querying the focused group row should target `.dt-group-toggle`.

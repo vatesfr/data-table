@@ -158,6 +158,27 @@ describe('DataTableView', () => {
   })
 })
 
+describe('DataTableView — filter checklist counts', () => {
+  it('formats them with the formatCount label', async () => {
+    const Comp = defineComponent({
+      setup() {
+        const table = useTableState(ROWS, COLS, { labels: { formatCount: (n) => `#${n}` } })
+        return () =>
+          h(DataTableView, { table, data: ROWS, columns: COLS } as Record<string, unknown>)
+      },
+    })
+    const wrapper = mount(Comp, { attachTo: document.body })
+    await wrapper
+      .findAll('button')
+      .find((b) => b.text().startsWith('Filter'))!
+      .trigger('click')
+    const counts = wrapper.findAll('.dt-filter-count').map((c) => c.text())
+    expect(counts.length).toBeGreaterThan(0)
+    expect(counts.every((c) => /^#\d+$/.test(c))).toBe(true)
+    wrapper.unmount()
+  })
+})
+
 describe('DataTableView — currentRow', () => {
   it('matches a current row held in a ref, which wraps it in a reactive proxy', () => {
     const current = ref<Row | null>(ROWS[1])

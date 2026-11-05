@@ -1,5 +1,7 @@
 import type { DataTableLabels } from './types'
 
+const countEN = (n: number) => n.toLocaleString('en')
+
 export const LABELS_EN: DataTableLabels = {
   columns: 'Columns',
   columnsSection: 'Visible columns',
@@ -35,10 +37,11 @@ export const LABELS_EN: DataTableLabels = {
   ungroupColumn: 'Remove group',
   clearAll: '× Clear all',
   clearSearch: 'Clear search',
-  rowCount: (f, t) => `${f} / ${t} row${t !== 1 ? 's' : ''}`,
-  groupCount: (n) => ` · ${n} group${n !== 1 ? 's' : ''}`,
+  formatCount: countEN,
+  rowCount: (f, t) => `${countEN(f)} / ${countEN(t)} row${t !== 1 ? 's' : ''}`,
+  groupCount: (n) => ` · ${countEN(n)} group${n !== 1 ? 's' : ''}`,
   groupLabel: (i) => `Group ${i}`,
-  rowsInGroup: (n) => `${n} row${n !== 1 ? 's' : ''}`,
+  rowsInGroup: (n) => `${countEN(n)} row${n !== 1 ? 's' : ''}`,
   selectGroup: (g) => `Select group ${g}`,
   selectRow: (r) => `Select row ${r}`,
   groupByColumn: 'Group by this column',
@@ -57,8 +60,10 @@ export const LABELS_EN: DataTableLabels = {
   lastPage: 'Last page',
   search: 'Search…',
   emptyValue: '(none)',
-  moreValues: (n) => `+${n} more`,
+  moreValues: (n) => `+${countEN(n)} more`,
 }
+
+const countFR = (n: number) => n.toLocaleString('fr')
 
 export const LABELS_FR: DataTableLabels = {
   columns: 'Colonnes',
@@ -95,10 +100,11 @@ export const LABELS_FR: DataTableLabels = {
   ungroupColumn: 'Supprimer le groupe',
   clearAll: '× Tout effacer',
   clearSearch: 'Effacer la recherche',
-  rowCount: (f, t) => `${f} / ${t} ligne${t > 1 ? 's' : ''}`,
-  groupCount: (n) => ` · ${n} groupe${n > 1 ? 's' : ''}`,
+  formatCount: countFR,
+  rowCount: (f, t) => `${countFR(f)} / ${countFR(t)} ligne${t > 1 ? 's' : ''}`,
+  groupCount: (n) => ` · ${countFR(n)} groupe${n > 1 ? 's' : ''}`,
   groupLabel: (i) => `Groupe ${i}`,
-  rowsInGroup: (n) => `${n} ligne${n > 1 ? 's' : ''}`,
+  rowsInGroup: (n) => `${countFR(n)} ligne${n > 1 ? 's' : ''}`,
   selectGroup: (g) => `Sélectionner le groupe ${g}`,
   selectRow: (r) => `Sélectionner la ligne ${r}`,
   groupByColumn: 'Grouper par cette colonne',
@@ -117,8 +123,10 @@ export const LABELS_FR: DataTableLabels = {
   lastPage: 'Dernière page',
   search: 'Rechercher…',
   emptyValue: '(aucun)',
-  moreValues: (n) => `+${n} de plus`,
+  moreValues: (n) => `+${countFR(n)} de plus`,
 }
+
+const countES = (n: number) => n.toLocaleString('es')
 
 export const LABELS_ES: DataTableLabels = {
   columns: 'Columnas',
@@ -155,10 +163,11 @@ export const LABELS_ES: DataTableLabels = {
   ungroupColumn: 'Quitar grupo',
   clearAll: '× Borrar todo',
   clearSearch: 'Borrar búsqueda',
-  rowCount: (f, t) => `${f} / ${t} fila${t !== 1 ? 's' : ''}`,
-  groupCount: (n) => ` · ${n} grupo${n !== 1 ? 's' : ''}`,
+  formatCount: countES,
+  rowCount: (f, t) => `${countES(f)} / ${countES(t)} fila${t !== 1 ? 's' : ''}`,
+  groupCount: (n) => ` · ${countES(n)} grupo${n !== 1 ? 's' : ''}`,
   groupLabel: (i) => `Grupo ${i}`,
-  rowsInGroup: (n) => `${n} fila${n !== 1 ? 's' : ''}`,
+  rowsInGroup: (n) => `${countES(n)} fila${n !== 1 ? 's' : ''}`,
   selectGroup: (g) => `Seleccionar grupo ${g}`,
   selectRow: (r) => `Seleccionar fila ${r}`,
   groupByColumn: 'Agrupar por esta columna',
@@ -177,8 +186,10 @@ export const LABELS_ES: DataTableLabels = {
   lastPage: 'Última página',
   search: 'Buscar…',
   emptyValue: '(ninguno)',
-  moreValues: (n) => `+${n} más`,
+  moreValues: (n) => `+${countES(n)} más`,
 }
+
+const countDE = (n: number) => n.toLocaleString('de')
 
 export const LABELS_DE: DataTableLabels = {
   columns: 'Spalten',
@@ -215,10 +226,11 @@ export const LABELS_DE: DataTableLabels = {
   ungroupColumn: 'Gruppierung entfernen',
   clearAll: '× Alles löschen',
   clearSearch: 'Suche löschen',
-  rowCount: (f, t) => `${f} / ${t} Zeile${t !== 1 ? 'n' : ''}`,
-  groupCount: (n) => ` · ${n} Gruppe${n !== 1 ? 'n' : ''}`,
+  formatCount: countDE,
+  rowCount: (f, t) => `${countDE(f)} / ${countDE(t)} Zeile${t !== 1 ? 'n' : ''}`,
+  groupCount: (n) => ` · ${countDE(n)} Gruppe${n !== 1 ? 'n' : ''}`,
   groupLabel: (i) => `Gruppe ${i}`,
-  rowsInGroup: (n) => `${n} Zeile${n !== 1 ? 'n' : ''}`,
+  rowsInGroup: (n) => `${countDE(n)} Zeile${n !== 1 ? 'n' : ''}`,
   selectGroup: (g) => `Gruppe ${g} auswählen`,
   selectRow: (r) => `Zeile ${r} auswählen`,
   groupByColumn: 'Nach dieser Spalte gruppieren',
@@ -237,8 +249,10 @@ export const LABELS_DE: DataTableLabels = {
   lastPage: 'Letzte Seite',
   search: 'Suchen…',
   emptyValue: '(keine)',
-  moreValues: (n) => `+${n} weitere`,
+  moreValues: (n) => `+${countDE(n)} weitere`,
 }
+
+const countPT = (n: number) => n.toLocaleString('pt')
 
 export const LABELS_PT: DataTableLabels = {
   columns: 'Colunas',
@@ -275,10 +289,11 @@ export const LABELS_PT: DataTableLabels = {
   ungroupColumn: 'Remover grupo',
   clearAll: '× Limpar tudo',
   clearSearch: 'Limpar pesquisa',
-  rowCount: (f, t) => `${f} / ${t} linha${t !== 1 ? 's' : ''}`,
-  groupCount: (n) => ` · ${n} grupo${n !== 1 ? 's' : ''}`,
+  formatCount: countPT,
+  rowCount: (f, t) => `${countPT(f)} / ${countPT(t)} linha${t !== 1 ? 's' : ''}`,
+  groupCount: (n) => ` · ${countPT(n)} grupo${n !== 1 ? 's' : ''}`,
   groupLabel: (i) => `Grupo ${i}`,
-  rowsInGroup: (n) => `${n} linha${n !== 1 ? 's' : ''}`,
+  rowsInGroup: (n) => `${countPT(n)} linha${n !== 1 ? 's' : ''}`,
   selectGroup: (g) => `Selecionar grupo ${g}`,
   selectRow: (r) => `Selecionar linha ${r}`,
   groupByColumn: 'Agrupar por esta coluna',
@@ -297,5 +312,5 @@ export const LABELS_PT: DataTableLabels = {
   lastPage: 'Última página',
   search: 'Pesquisar…',
   emptyValue: '(nenhum)',
-  moreValues: (n) => `+${n} mais`,
+  moreValues: (n) => `+${countPT(n)} mais`,
 }

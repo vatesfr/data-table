@@ -415,7 +415,7 @@ export function FilterPane<TRow extends object>(props: FilterPaneProps<TRow>) {
                     />
                     <span class="dt-flex1">{table.labels().filterOthers}</span>
                     <span class="dt-filter-count" aria-hidden="true">
-                      {otherValues().length}
+                      {table.labels().formatCount(otherValues().length)}
                     </span>
                   </label>
                 </Show>
@@ -499,7 +499,7 @@ export function FilterPane<TRow extends object>(props: FilterPaneProps<TRow>) {
                                     : formatFilterValue(col(), value, table.labels().emptyValue)}
                                 </span>
                                 <span class="dt-filter-count" aria-hidden="true">
-                                  {count()}
+                                  {table.labels().formatCount(count())}
                                 </span>
                               </label>
                               <Show when={!usesExcludeOnly()}>
@@ -568,6 +568,7 @@ export function FilterPane<TRow extends object>(props: FilterPaneProps<TRow>) {
                     depth={0}
                     selected={table.filter.include()[col().key] ?? new Set()}
                     counts={stringValueCounts()}
+                    formatCount={table.labels().formatCount}
                     expanded={expanded()}
                     searchActive={searchTerm() !== ''}
                     onToggleExpand={toggleExpand}

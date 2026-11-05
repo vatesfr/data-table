@@ -202,6 +202,8 @@ export interface DataTableLabels {
   clearAll: string
   /** Title/aria-label for the button that clears the search input */
   clearSearch: string
+  /** Digit-grouped count (`10,010`): the filter checklist's counts, and every built-in count label of the locale */
+  formatCount: (count: number) => string
   rowCount: (filtered: number, total: number) => string
   groupCount: (count: number) => string
   groupLabel: (index: number) => string
