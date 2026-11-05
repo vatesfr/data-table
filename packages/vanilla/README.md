@@ -71,6 +71,7 @@ To override individual tokens, define the custom property in your own stylesheet
 :root {
   --color-background-primary: #0f0f0f;
   --color-text-primary: #f5f5f5;
+  --dt-color-scheme: dark; /* dark native controls */
 }
 ```
 
@@ -94,7 +95,7 @@ To override individual tokens, define the custom property in your own stylesheet
 | `--color-border-warning`       | `#f0d4a8` | `#4a2c00` |
 | `--color-border-danger`        | `#f2c2c2` | `#5a2020` |
 
-`--dt-color-scheme` (`light`/`dark`) sets `color-scheme` on the table only, so its checkboxes, selects and scrollbars follow its theme without recoloring the rest of the page.
+`--dt-color-scheme` (`light`/`dark`) sets `color-scheme` on the table only, so its checkboxes, selects and scrollbars follow its theme without recoloring the rest of the page. The injected theme sets it from the OS preference or `data-theme`, so a page that darkens the table with its own token overrides sets it to `dark` too.
 
 Type tokens aren't set by the theme: the table reads them with these fallbacks, so a page's own type scale applies when it defines them.
 
