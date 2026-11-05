@@ -36,7 +36,7 @@ export {
 } from '@vates/data-table-core'
 // Ready-made compare for pinning a value (missing data, by default) last regardless of sort
 // direction — see `ColumnDefBase.compare` in the docs.
-export { compareMissingLast } from '@vates/data-table-core'
+export { compareMissingLast, compareInOrder } from '@vates/data-table-core'
 export type { DatePart, LogRangeOptions } from '@vates/data-table-core'
 
 // Solid setters treat a function argument as an updater, and several of these values are functions.

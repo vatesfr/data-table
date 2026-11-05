@@ -59,6 +59,7 @@ import {
   toggleRowInSelection,
   toggleAllInSelection,
   reconcileSelection,
+  compareInOrder,
   remapRow,
   remapFocusTarget,
   isSameRow,
@@ -379,6 +380,27 @@ describe('computeAggregate', () => {
 })
 
 // ─── compareMissingLast ────────────────────────────────────────────────────────
+
+describe('compareInOrder', () => {
+  const TIERS = ['Bronze', 'Silver', 'Gold']
+
+  it('ranks values by their index in order, unknown ones after and tied', () => {
+    const values = ['Gold', 'Tin', 'Bronze', 'Silver', 'Lead']
+    expect([...values].sort(compareInOrder(TIERS))).toEqual([
+      'Bronze',
+      'Silver',
+      'Gold',
+      'Tin',
+      'Lead',
+    ])
+  })
+
+  it('keeps unknown values last in both directions inside compareMissingLast', () => {
+    const cmp = compareMissingLast(compareInOrder(TIERS), (v) => !TIERS.includes(v as string))
+    expect(cmp('Tin', 'Bronze', 'desc')).toBeLessThan(0)
+    expect(cmp('Tin', 'Bronze', 'asc')).toBeGreaterThan(0)
+  })
+})
 
 describe('compareMissingLast', () => {
   // compareMissingLast's return value is meant to be fed through the same "negate for desc"

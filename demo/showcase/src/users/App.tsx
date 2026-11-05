@@ -1,5 +1,6 @@
 import { createMemo, createSignal, For, Show } from 'solid-js'
 import {
+  compareInOrder,
   compareMissingLast,
   createTableState,
   DataTableView,
@@ -85,7 +86,7 @@ const COLUMNS: ColumnDef<User>[] = [
     key: 'role',
     label: 'Role',
     groupable: true,
-    compare: (a, b) => ROLES.indexOf(a as Role) - ROLES.indexOf(b as Role),
+    compare: compareInOrder(ROLES),
     render: (_, u) => roleBadge(u.role),
     renderFilterLabel: roleBadge,
   },
@@ -104,9 +105,7 @@ const COLUMNS: ColumnDef<User>[] = [
     key: 'status',
     label: 'Status',
     groupable: true,
-    compare: (a, b) =>
-      Object.keys(STATUS_LABEL).indexOf(a as string) -
-      Object.keys(STATUS_LABEL).indexOf(b as string),
+    compare: compareInOrder(Object.keys(STATUS_LABEL)),
     format: (v) => STATUS_LABEL[v as Status],
     render: (_, user) => (
       <span class="status-cell">

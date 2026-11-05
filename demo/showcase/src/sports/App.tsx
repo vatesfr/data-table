@@ -1,4 +1,5 @@
 import {
+  compareInOrder,
   createTableState,
   DataTableView,
   numericRangeGroup,
@@ -65,7 +66,7 @@ const COLUMNS: ColumnDef<Player>[] = [
     key: 'position',
     label: 'Pos',
     groupable: true,
-    compare: (a, b) => POSITIONS.indexOf(a as Position) - POSITIONS.indexOf(b as Position),
+    compare: compareInOrder(POSITIONS),
     render: (v) => posPill(v as Position),
     renderFilterLabel: (v) => posPill(v as Position),
   },

@@ -210,13 +210,11 @@ const COLUMNS: ColumnDef<Employee>[] = [
 `compare` overrides the default numeric-or-alphabetical comparison for a column whose natural order is neither, e.g. an enum/tier column:
 
 ```ts
+import { compareInOrder } from '@vates/data-table-vanilla'
+
 const TIER_ORDER = ['Bronze', 'Silver', 'Gold', 'Platinum']
 
-{
-  key: 'tier',
-  label: 'Tier',
-  compare: (a, b) => TIER_ORDER.indexOf(String(a)) - TIER_ORDER.indexOf(String(b)),
-}
+{ key: 'tier', label: 'Tier', compare: compareInOrder(TIER_ORDER) } // tiers missing from TIER_ORDER rank after
 ```
 
 It applies everywhere the column's values are ordered: row sort, group order (for a groupBy column), and the filter checklist's default and explicit ordering.
@@ -229,7 +227,7 @@ import { compareMissingLast } from '@vates/data-table-vanilla'
 { key: 'score', label: 'Score', type: 'number', compare: compareMissingLast() } // null/undefined/'' always last, in both directions
 ```
 
-Its default `isMissing` check is `(v) => v == null || v === ''`; pass your own `compare`/`isMissing` to `compareMissingLast(compare?, isMissing?)` to combine it with a custom order — e.g. `compareMissingLast((a, b) => TIER_ORDER.indexOf(String(a)) - TIER_ORDER.indexOf(String(b)))` sorts by tier rank with an empty tier always last.
+Its default `isMissing` check is `(v) => v == null || v === ''`; pass your own `compare`/`isMissing` to `compareMissingLast(compare?, isMissing?)` to combine it with a custom order — e.g. `compareMissingLast(compareInOrder(TIER_ORDER), (v) => !TIER_ORDER.includes(v))` sorts by tier rank with an unknown or empty tier always last.
 
 ## Grouped columns
 

@@ -1,5 +1,6 @@
 import { createMemo, createSignal, For, onCleanup } from 'solid-js'
 import {
+  compareInOrder,
   createTableState,
   DataTableView,
   datePartGroup,
@@ -33,7 +34,7 @@ const COLUMNS: ColumnDef<LogEvent>[] = [
     label: 'Level',
     width: 80,
     groupable: true,
-    compare: (a, b) => LEVELS.indexOf(a as Level) - LEVELS.indexOf(b as Level),
+    compare: compareInOrder(LEVELS),
     render: (v) => levelBadge(v as string),
     renderFilterLabel: levelBadge,
   },

@@ -25,6 +25,7 @@ DEFAULT_LABELS
 ;(bucketDatePart, formatDatePart, datePartGroup)
 ;(bucketLogRange, formatLogRange, logRangeGroup)
 compareMissingLast
+compareInOrder
 
 // + every named locale export from `./locales` (LABELS_EN, LABELS_FR, LABELS_ES, LABELS_DE, LABELS_PT)
 ```
@@ -110,6 +111,7 @@ getSortIcon(sorts, key) // '↑' | '↓' | '↕'
 getSortIndex(sorts, key) // 1-based position or null
 countActiveSorts(sorts) // sorts.length, exported for symmetry with countActiveFilters/countActiveGroups
 compareMissingLast(compare?, isMissing?) // ready-made ColumnDefBase.compare that pins a value (missing data, by default) last regardless of sort direction
+compareInOrder(order) // ready-made ColumnDefBase.compare ranking values by their index in order, unknown values after
 ```
 
 `ColumnDefBase.compare`/`defaultSortDir` (a plain, direction-naive `(a, b, dir) => number` comparator, and the direction a fresh sort starts at) are read internally by `sortData`, `sortWithinGroups`, `computeStringValues`, and `sortFilterValues` — no separate function to call.

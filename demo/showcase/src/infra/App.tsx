@@ -1,5 +1,6 @@
 import { createSignal, onCleanup, Show } from 'solid-js'
 import {
+  compareInOrder,
   compareMissingLast,
   createTableState,
   DataTableView,
@@ -39,7 +40,7 @@ const COLUMNS: ColumnDef<Vm>[] = [
     key: 'power',
     label: 'Power',
     groupable: true,
-    compare: (a, b) => POWER_ORDER.indexOf(a as Power) - POWER_ORDER.indexOf(b as Power),
+    compare: compareInOrder(POWER_ORDER),
     render: (_, vm) => powerDot(vm.power),
     renderFilterLabel: (v) => powerDot(v as Power),
   },

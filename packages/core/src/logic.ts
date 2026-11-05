@@ -212,6 +212,20 @@ export function compareMissingLast<T = unknown>(
 }
 
 /**
+ * Ready-made `ColumnDefBase.compare` for an ordinal column (`Bronze < Silver < Gold`): values
+ * rank by their index in `order`; values missing from it rank after, tied. Under a descending sort
+ * they come first: wrap it in `compareMissingLast(compareInOrder(order), (v) => !order.includes(v))`
+ * to keep them last in both directions.
+ */
+export function compareInOrder(order: readonly unknown[]): (a: unknown, b: unknown) => number {
+  const rank = (v: unknown) => {
+    const i = order.indexOf(v)
+    return i === -1 ? order.length : i
+  }
+  return (a, b) => rank(a) - rank(b)
+}
+
+/**
  * Sorts `rows` by `sorts` for `sortData` and `sortWithinGroups`, coercing each row's values once
  * rather than per comparison (docs/performance.md); a column's `compare` takes the raw values.
  */
