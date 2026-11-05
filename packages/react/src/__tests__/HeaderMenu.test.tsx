@@ -38,7 +38,7 @@ function Harness({
 }) {
   const table = useTableState(ROWS, cols, { initialViewState })
   onReady(table)
-  return <DataTableView table={table} data={ROWS} columns={cols} rowKey="id" />
+  return <DataTableView table={table} data={ROWS} columns={cols} />
 }
 
 function mount(cols = COLS, initialViewState?: TableViewState) {

@@ -35,9 +35,7 @@ function Harness({
 }) {
   const table = useTableState(ROWS, COLS)
   onReady(table)
-  return (
-    <DataTableView table={table} data={ROWS} columns={COLS} rowKey="id" selectable={selectable} />
-  )
+  return <DataTableView table={table} data={ROWS} columns={COLS} selectable={selectable} />
 }
 
 describe('DataTableView', () => {

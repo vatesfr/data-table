@@ -1,5 +1,6 @@
 import { createMemo, createSignal, For, onCleanup } from 'solid-js'
 import {
+  compareInOrder,
   createTableState,
   DataTableView,
   datePartGroup,
@@ -13,7 +14,7 @@ import { LEVELS, makeEvents, type Level, type LogEvent } from './data'
 import source from './App.tsx?raw'
 
 function levelBadge(level: string) {
-  return (<span class={`lvl lvl--${level}`}>{level}</span>) as HTMLElement
+  return <span class={`lvl lvl--${level}`}>{level}</span>
 }
 
 const COLUMNS: ColumnDef<LogEvent>[] = [
@@ -33,7 +34,7 @@ const COLUMNS: ColumnDef<LogEvent>[] = [
     label: 'Level',
     width: 80,
     groupable: true,
-    compare: (a, b) => LEVELS.indexOf(a as Level) - LEVELS.indexOf(b as Level),
+    compare: compareInOrder(LEVELS),
     render: (v) => levelBadge(v as string),
     renderFilterLabel: levelBadge,
   },
@@ -43,7 +44,6 @@ const COLUMNS: ColumnDef<LogEvent>[] = [
     label: 'Host',
     groupable: true,
     // 320 hosts: busiest first in the (virtualized) checklist
-    // Limit: B32 — checklist counts print raw ("10010"), no label or format hook for them
     defaultValueSort: { by: 'count', dir: 'desc' },
   },
   {
@@ -73,12 +73,11 @@ const COLUMNS: ColumnDef<LogEvent>[] = [
     label: 'Message',
     // 100k distinct strings: a checklist would be useless, search covers it
     filterable: false,
-    render: (v) =>
-      (
-        <span class="msg" title={v as string}>
-          {v as string}
-        </span>
-      ) as HTMLElement,
+    render: (v) => (
+      <span class="msg" title={v as string}>
+        {v as string}
+      </span>
+    ),
   },
 ]
 
@@ -107,11 +106,9 @@ const SAVED_SEARCHES: { label: string; view: TableViewState }[] = [
 export function App() {
   const events = makeEvents()
   const table = createTableState(events, COLUMNS, {
+    getRowId: (e) => e.id,
     initialViewState: { sorts: [{ key: 'timestamp', dir: 'desc' }], pageSize: 100 },
-    // The default prints raw counts ("100000 / 100000 rows"): group the digits at this scale
-    labels: {
-      rowCount: (f, t) => `${f.toLocaleString('en')} of ${t.toLocaleString('en')} events`,
-    },
+    labels: { rowCount: (f, t) => `${f.toLocaleString('en')} of ${t.toLocaleString('en')} events` },
   })
   // The whole view lives in `?view=…`: a copied URL reopens the same search
   useUrlView(table)
@@ -170,7 +167,6 @@ export function App() {
       </div>
       <DataTableView
         table={table}
-        rowKey="id"
         rowClass={(e) => (e.level === 'error' ? 'log-error' : undefined)}
         toolbarEnd={
           <button class="copy" onClick={copyLink}>

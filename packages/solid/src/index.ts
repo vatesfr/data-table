@@ -9,6 +9,7 @@ import {
   formatLogRange,
   logRangeGroup,
   compareMissingLast,
+  compareInOrder,
 } from '@vates/data-table-core'
 
 export type { ColumnDef } from './types'
@@ -36,9 +37,9 @@ export {
   formatLogRange,
   logRangeGroup,
 }
-// Ready-made compare for pinning a value (missing data, by default) last regardless of sort
-// direction — see `ColumnDefBase.compare` in the docs.
-export { compareMissingLast }
+// Ready-made compares: pin a value (missing data, by default) last regardless of sort direction,
+// and rank an ordinal column — see `ColumnDefBase.compare` in the docs.
+export { compareMissingLast, compareInOrder }
 
 export { createTableState } from './createTableState'
 export type { TableState, CreateTableStateOptions } from './createTableState'

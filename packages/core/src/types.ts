@@ -208,6 +208,8 @@ export interface DataTableLabels {
   clearAll: string
   /** Title/aria-label for the button that clears the search input */
   clearSearch: string
+  /** Digit-grouped count (`10,010`): the filter checklist's counts, and every built-in count label of the locale */
+  formatCount: (count: number) => string
   rowCount: (filtered: number, total: number) => string
   groupCount: (count: number) => string
   groupLabel: (index: number) => string
@@ -224,6 +226,8 @@ export interface DataTableLabels {
   columnMenu: (column: string, filtered: boolean) => string
   /** Marker shown on a group header that repeats mid-way down a page — see "Pagination" — because the group's rows split across a page boundary */
   groupContinued: string
+  /** Visually hidden header of the column holding each group's expand/collapse button */
+  expandCollapse: string
   rowsPerPage: string
   pageOf: (page: number, total: number) => string
   /** Empty table body: no data at all */

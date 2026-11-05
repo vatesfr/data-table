@@ -29,6 +29,8 @@ import {
   toggleSelectionShiftAware,
   toggleAllInSelection,
   reconcileSelection,
+  remapRow,
+  remapFocusTarget,
   toggleGroupBy,
   insertGroupSort,
   reorderGroupSorts,
@@ -148,11 +150,15 @@ export function useTableState<TRow extends object>(
     return wanted
   }, [])
 
-  // Remaps selection to a changed `data` (only with `getRowId`)
+  // Remaps selection, its shift anchor and the focus target to a changed `data` (only with `getRowId`)
   const [prevData, setPrevData] = useState(data)
   if (data !== prevData) {
     setPrevData(data)
-    if (getRowId) setSelection((prev) => reconcileSelection(data, prev, getRowId))
+    if (getRowId) {
+      setSelection((prev) => reconcileSelection(data, prev, getRowId))
+      setSelectionAnchor((prev) => remapRow(prev, data, getRowId))
+      setFocusTarget((prev) => remapFocusTarget(prev, data, getRowId))
+    }
   }
 
   const defaultSortDirFor = (key: string) => getDefaultSortDir(columns, key)
@@ -265,13 +271,14 @@ export function useTableState<TRow extends object>(
       return next
     })
 
-  return {
+  const state = {
     // Top-level: the pipeline's actual output, not a "concern" of its own
     processedData,
     pagedData,
     groupedData,
     visibleItems,
     labels: L,
+    getRowId,
 
     columns: {
       visible: visibleCols,
@@ -299,8 +306,8 @@ export function useTableState<TRow extends object>(
     sort: {
       entries: sorts,
       toggle: (key: string) => setSorts((prev) => _toggleSort(prev, key, defaultSortDirFor(key))),
-      replace: (key: string) =>
-        setSorts((prev) => _replaceSort(prev, key, defaultSortDirFor(key), groupBy)),
+      replace: (key: string, dir?: SortEntry['dir']) =>
+        setSorts((prev) => _replaceSort(prev, key, defaultSortDirFor(key), groupBy, dir)),
       appendOrToggle: (key: string) =>
         setSorts((prev) => _appendOrToggleSort(prev, key, defaultSortDirFor(key))),
       remove: (key: string) => setSorts((prev) => prev.filter((s) => s.key !== key)),
@@ -464,13 +471,8 @@ export function useTableState<TRow extends object>(
       consumeDomFocus,
     },
 
-    clearAll: () => {
-      setSorts([])
-      clearFilters()
-      setGroupBy([])
-      setCollapsedGroups(new Set())
-      setSearchQueryState('')
-    },
+    // Back to `initialViewState`, keeping the column layout and page size
+    clearAll: () => state.setViewState({ visibleCols: [...visibleCols], columnOrder, pageSize }),
 
     getViewState: (): TableViewState =>
       buildViewStateSnapshot({
@@ -504,4 +506,5 @@ export function useTableState<TRow extends object>(
       setSearchQueryState(resolved.searchQuery)
     },
   }
+  return state
 }

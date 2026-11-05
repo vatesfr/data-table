@@ -1,4 +1,5 @@
 import {
+  compareInOrder,
   createTableState,
   DataTableView,
   numericRangeGroup,
@@ -23,14 +24,13 @@ function crest(team: string) {
       </span>
       {team}
     </span>
-  ) as HTMLElement
+  )
 }
 
-const posPill = (pos: Position) =>
-  (<span class={`pos pos--${pos.toLowerCase()}`}>{pos}</span>) as HTMLElement
+const posPill = (pos: Position) => <span class={`pos pos--${pos.toLowerCase()}`}>{pos}</span>
 
 const card = (kind: 'yellow' | 'red', n: number) =>
-  (n ? <span class={`card card--${kind}`}>{n}</span> : <span class="zero">0</span>) as HTMLElement
+  n ? <span class={`card card--${kind}`}>{n}</span> : <span class="zero">0</span>
 
 // Every stat ranks best-first on its first header click
 const stat = (key: string, label: string): ColumnDef<Player> => ({
@@ -63,7 +63,7 @@ const COLUMNS: ColumnDef<Player>[] = [
     key: 'position',
     label: 'Pos',
     groupable: true,
-    compare: (a, b) => POSITIONS.indexOf(a as Position) - POSITIONS.indexOf(b as Position),
+    compare: compareInOrder(POSITIONS),
     render: (v) => posPill(v as Position),
     renderFilterLabel: (v) => posPill(v as Position),
   },
@@ -107,14 +107,13 @@ const COLUMNS: ColumnDef<Player>[] = [
     compare: (a, b) => formPoints(a as string) - formPoints(b as string),
     // A squad shares its club's form; the aggregate row renders it through `render` too
     aggregate: (rows) => rows[0].form,
-    render: (v) =>
-      (
-        <span class="form" aria-label={`Last five: ${v as string}`}>
-          {[...(v as string)].map((r) => (
-            <span class={`form-dot form-dot--${r.toLowerCase()}`}>{r}</span>
-          ))}
-        </span>
-      ) as HTMLElement,
+    render: (v) => (
+      <span class="form" aria-label={`Last five: ${v as string}`}>
+        {[...(v as string)].map((r) => (
+          <span class={`form-dot form-dot--${r.toLowerCase()}`}>{r}</span>
+        ))}
+      </span>
+    ),
   },
 ]
 
@@ -123,6 +122,7 @@ export function App() {
   // League's top three by points get a podium marker whatever the current sort
   const podium = new Set([...players].sort((a, b) => points(b) - points(a)).slice(0, 3))
   const table = createTableState(players, COLUMNS, {
+    getRowId: (p) => p.id,
     initialViewState: {
       sorts: [
         { key: 'points', dir: 'desc' },
@@ -142,7 +142,6 @@ export function App() {
     >
       <DataTableView
         table={table}
-        rowKey="id"
         rowClass={(p) => (podium.has(p) ? 'podium' : undefined)}
         toolbarEnd={
           <div class="switch" role="group" aria-label="View">
@@ -150,7 +149,7 @@ export function App() {
               aria-pressed={grouping().length === 0}
               onClick={() => {
                 table.group.clear()
-                // Limit: B44 — ungrouping keeps the club sort grouping added: drop it to get the ranking back
+                // Ungrouping keeps the club sort grouping added (by design): drop it to get the ranking back
                 table.sort.remove('team')
               }}
             >

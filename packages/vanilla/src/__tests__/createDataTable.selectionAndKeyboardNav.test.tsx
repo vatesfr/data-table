@@ -163,10 +163,11 @@ describe('createDataTable — checkbox cells as hit areas', () => {
     const { container, table } = mount({ selectable: true, defaultGroupsCollapsed: false })
     groupByDept(container)
     const header = container.querySelector<HTMLElement>('.dt-group-row')!
-    const expanded = header.getAttribute('aria-expanded')
+    const toggle = header.querySelector<HTMLElement>('.dt-group-toggle')!
+    const expanded = toggle.getAttribute('aria-expanded')
     click(cell(header.querySelector<HTMLInputElement>('input[type="checkbox"]')!))
     expect(table.getSelection().length).toBeGreaterThan(0)
-    expect(header.getAttribute('aria-expanded')).toBe(expanded)
+    expect(toggle.getAttribute('aria-expanded')).toBe(expanded)
   })
 })
 
@@ -642,8 +643,9 @@ describe('createDataTable — keyboard navigation with grouping', () => {
     const [firstHeader] = groupHeaderRows(container)
     firstHeader.focus()
     keydown(firstHeader, ' ')
-    const checkbox =
-      groupHeaderRows(container)[0].querySelector<HTMLInputElement>('input[type="checkbox"]')!
+    const checkbox = groupHeaderRows(container)[0]
+      .closest('tr')!
+      .querySelector<HTMLInputElement>('input[type="checkbox"]')!
     expect(checkbox.checked).toBe(true)
   })
 

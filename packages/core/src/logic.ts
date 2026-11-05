@@ -212,6 +212,20 @@ export function compareMissingLast<T = unknown>(
 }
 
 /**
+ * Ready-made `ColumnDefBase.compare` for an ordinal column (`Bronze < Silver < Gold`): values
+ * rank by their index in `order`; values missing from it rank after, tied. Under a descending sort
+ * they come first: wrap it in `compareMissingLast(compareInOrder(order), (v) => !order.includes(v))`
+ * to keep them last in both directions.
+ */
+export function compareInOrder(order: readonly unknown[]): (a: unknown, b: unknown) => number {
+  const rank = (v: unknown) => {
+    const i = order.indexOf(v)
+    return i === -1 ? order.length : i
+  }
+  return (a, b) => rank(a) - rank(b)
+}
+
+/**
  * Sorts `rows` by `sorts` for `sortData` and `sortWithinGroups`, coercing each row's values once
  * rather than per comparison (docs/performance.md); a column's `compare` takes the raw values.
  */
@@ -1285,20 +1299,24 @@ export function toggleSort(
  * A plain header click: sort by `key` alone — cycling it when it's already the sole non-group
  * sort, else starting at `defaultDir` — keeping grouped columns' entries ahead of it. A grouped
  * `key` (`keepVisibleWhenGrouped`) cycles in place via `toggleSort` (docs/sorting.md,
- * docs/grouped-columns.md).
+ * docs/grouped-columns.md). With `dir`, applies exactly that direction instead of cycling.
  */
 export function replaceSort(
   sorts: SortEntry[],
   key: string,
   defaultDir: SortDir = 'asc',
   groupBy: string[] = [],
+  dir?: SortDir,
 ): SortEntry[] {
-  if (groupBy.includes(key)) return toggleSort(sorts, key, defaultDir)
+  if (groupBy.includes(key))
+    return dir
+      ? sorts.map((s) => (s.key === key ? { key, dir } : s))
+      : toggleSort(sorts, key, defaultDir)
   const groupSorts = sorts.filter((s) => groupBy.includes(s.key))
   const rest = sorts.filter((s) => !groupBy.includes(s.key))
-  if (rest.length === 1 && rest[0].key === key)
+  if (!dir && rest.length === 1 && rest[0].key === key)
     return [...groupSorts, ...toggleSort(rest, key, defaultDir)]
-  return [...groupSorts, { key, dir: defaultDir }]
+  return [...groupSorts, { key, dir: dir ?? defaultDir }]
 }
 
 /**
@@ -1669,6 +1687,53 @@ export function reconcileSelection<TRow>(
     if (fresh !== row) changed = true
   }
   return changed ? next : selection
+}
+
+// Repoints one held row (shift anchor, focus target) at `nextData`'s row with its id; `null` once
+// gone. Returns `row` itself without `getRowId`.
+export function remapRow<TRow>(
+  row: TRow | null,
+  nextData: TRow[],
+  getRowId?: GetRowId<TRow>,
+): TRow | null {
+  if (!getRowId || row === null) return row
+  const id = getRowId(row)
+  return nextData.find((r) => getRowId(r) === id) ?? null
+}
+
+// `remapRow` for the roving focus target; a group target keeps its key
+export function remapFocusTarget<TRow extends object>(
+  item: VisibleItem<TRow> | null,
+  nextData: TRow[],
+  getRowId?: GetRowId<TRow>,
+): VisibleItem<TRow> | null {
+  if (item?.kind !== 'row') return item
+  const row = remapRow(item.row, nextData, getRowId)
+  if (row === item.row) return item
+  return row ? { ...item, row } : null
+}
+
+export function isSameRow<TRow>(
+  a: TRow | null | undefined,
+  b: TRow | null | undefined,
+  getRowId?: GetRowId<TRow>,
+): boolean {
+  if (a == null || b == null) return false
+  return a === b || (!!getRowId && getRowId(a) === getRowId(b))
+}
+
+// For the view's scroll-into-view effect: a new row target, not one a refetch only remapped
+export function isNewRowFocusTarget<TRow extends object>(
+  target: VisibleItem<TRow> | null,
+  last: VisibleItem<TRow> | null,
+  getRowId?: GetRowId<TRow>,
+): target is { kind: 'row'; row: TRow; groupKey?: string | null } {
+  if (target?.kind !== 'row' || target === last) return false
+  return !(
+    last?.kind === 'row' &&
+    last.row !== target.row &&
+    isSameRow(last.row, target.row, getRowId)
+  )
 }
 
 export function toggleGroupBy(groupBy: string[], key: string): string[] {

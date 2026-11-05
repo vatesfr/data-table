@@ -28,9 +28,9 @@ export interface TableViewState {
   searchQuery?: string
 }
 
-// Wire format: 1-letter keys and tuples instead of objects, with any field matching its
-// natural "empty" value omitted entirely — most shared/persisted views differ from the
-// defaults in only one or two fields, so this keeps the encoded string small.
+// Wire format: 1-letter keys and tuples instead of objects; a field is written only when the view
+// has it, and `getViewState` already leaves out fields at their default, so the string stays small.
+// An empty field is kept: it overrides a non-empty `initialViewState` (e.g. no sort).
 type WireSort = [key: string, dirFlag: 0 | 1]
 type WireFilter = [key: string, values: string[]]
 type WireRange = [key: string, min: string, max: string]
@@ -53,33 +53,26 @@ interface WireViewState {
 
 function toWire(view: TableViewState): WireViewState {
   const wire: WireViewState = {}
-  if (view.visibleCols?.length) wire.v = view.visibleCols
-  if (view.columnOrder?.length) wire.o = view.columnOrder
-  if (view.sorts?.length)
-    wire.s = view.sorts.map((s): WireSort => [s.key, s.dir === 'desc' ? 1 : 0])
-
-  const filterEntries = Object.entries(view.filters ?? {}).filter(([, vals]) => vals.length > 0)
-  if (filterEntries.length) wire.f = filterEntries
-
-  const excludeFilterEntries = Object.entries(view.excludeFilters ?? {}).filter(
-    ([, vals]) => vals.length > 0,
-  )
-  if (excludeFilterEntries.length) wire.x = excludeFilterEntries
-
-  const filterModeEntries = Object.entries(view.filterModes ?? {})
-  if (filterModeEntries.length)
-    wire.m = filterModeEntries.map(([key, mode]): WireFilterMode => [key, mode === 'and' ? 1 : 0])
-
-  const rangeEntries = Object.entries(view.rangeFilters ?? {})
-    .filter(([, r]) => r.min !== '' || r.max !== '')
-    .map(([key, r]): WireRange => [key, r.min, r.max])
-  if (rangeEntries.length) wire.r = rangeEntries
-
-  if (view.groupBy?.length) wire.g = view.groupBy
-  if (view.collapsedGroups?.length) wire.c = view.collapsedGroups
-  if (view.page && view.page !== 1) wire.p = view.page
-  if (view.pageSize) wire.z = view.pageSize
-  if (view.searchQuery) wire.q = view.searchQuery
+  if (view.visibleCols) wire.v = view.visibleCols
+  if (view.columnOrder) wire.o = view.columnOrder
+  if (view.sorts) wire.s = view.sorts.map((s): WireSort => [s.key, s.dir === 'desc' ? 1 : 0])
+  if (view.filters) wire.f = Object.entries(view.filters).filter(([, vals]) => vals.length > 0)
+  if (view.excludeFilters)
+    wire.x = Object.entries(view.excludeFilters).filter(([, vals]) => vals.length > 0)
+  if (view.filterModes)
+    wire.m = Object.entries(view.filterModes).map(([key, mode]): WireFilterMode => [
+      key,
+      mode === 'and' ? 1 : 0,
+    ])
+  if (view.rangeFilters)
+    wire.r = Object.entries(view.rangeFilters)
+      .filter(([, r]) => r.min !== '' || r.max !== '')
+      .map(([key, r]): WireRange => [key, r.min, r.max])
+  if (view.groupBy) wire.g = view.groupBy
+  if (view.collapsedGroups) wire.c = view.collapsedGroups
+  if (view.page !== undefined) wire.p = view.page
+  if (view.pageSize !== undefined) wire.z = view.pageSize
+  if (view.searchQuery !== undefined) wire.q = view.searchQuery
   return wire
 }
 
@@ -96,9 +89,9 @@ function fromWire(wire: WireViewState): TableViewState {
     view.rangeFilters = Object.fromEntries(wire.r.map(([key, min, max]) => [key, { min, max }]))
   if (wire.g) view.groupBy = wire.g
   if (wire.c) view.collapsedGroups = wire.c
-  if (wire.p) view.page = wire.p
-  if (wire.z) view.pageSize = wire.z
-  if (wire.q) view.searchQuery = wire.q
+  if (wire.p !== undefined) view.page = wire.p
+  if (wire.z !== undefined) view.pageSize = wire.z
+  if (wire.q !== undefined) view.searchQuery = wire.q
   return view
 }
 
@@ -129,6 +122,20 @@ export function decodeViewState(encoded: string): TableViewState | undefined {
   } catch {
     return undefined
   }
+}
+
+// "Clear all" shows while `getViewState()` holds any field it resets that users see
+const CLEARABLE_FIELDS = [
+  'sorts',
+  'filters',
+  'excludeFilters',
+  'rangeFilters',
+  'groupBy',
+  'searchQuery',
+] as const satisfies (keyof TableViewState)[]
+
+export function isViewClearable(view: TableViewState): boolean {
+  return CLEARABLE_FIELDS.some((k) => view[k] !== undefined)
 }
 
 // Equality helpers for buildViewStateSnapshot's "matches what a reset restores" checks

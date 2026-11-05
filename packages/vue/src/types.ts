@@ -14,11 +14,6 @@ export interface DataTableViewProps<TRow extends object = Record<string, unknown
   table: TableState<TRow>
   data: TRow[]
   columns: ColumnDef<TRow>[]
-  /**
-   * A row property used as Vue's `:key` (default: the index). Not used for selection, which tracks
-   * rows by object identity (or `getRowId`).
-   */
-  rowKey?: string
   selectable?: boolean
   /**
    * The row to mark as current (e.g. the one open in a side panel): it gets `aria-current="true"`

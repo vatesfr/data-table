@@ -41,6 +41,8 @@ import {
   toggleSelectionShiftAware,
   toggleAllInSelection,
   reconcileSelection,
+  remapRow,
+  remapFocusTarget,
   toggleGroupBy,
   insertGroupSort,
   reorderGroupSorts,
@@ -113,12 +115,17 @@ export function createTableState<TRow extends object>(
   // Set by `moveTo(row, { focus: true })`, consumed by TableBody once the row mounts, as only it holds row refs
   let wantsDomFocus = false
 
-  // Remaps selection to the new rows (only with `getRowId`)
-  const setData = (rows: TRow[]) => {
-    _setData(rows)
-    const rowId = getOptions().getRowId
-    if (rowId) setSelection((prev) => reconcileSelection(rows, prev, rowId))
-  }
+  // Remaps selection, its shift anchor and the focus target to the new rows (only with `getRowId`)
+  // Batched, so rows re-render once, already pointing at the remapped focus target
+  const setData = (rows: TRow[]) =>
+    batch(() => {
+      _setData(rows)
+      const rowId = getOptions().getRowId
+      if (!rowId) return
+      setSelection((prev) => reconcileSelection(rows, prev, rowId))
+      setSelectionAnchor((prev) => remapRow(prev, rows, rowId))
+      setFocusTarget((prev) => remapFocusTarget(prev, rows, rowId))
+    })
 
   // Reconciles visibleCols with the new key set (docs/table-state.md)
   const setColumns = (cols: ColumnDef<TRow>[]) => {
@@ -231,10 +238,11 @@ export function createTableState<TRow extends object>(
     getSelectedRows(processedData(), selection(), getOptions().getRowId),
   )
 
-  return {
+  const state = {
     // Top-level: the pipeline's actual output, not a "concern" of its own
     data,
     setData,
+    getRowId: () => getOptions().getRowId,
     processedData,
     pagedData,
     groupedData,
@@ -283,8 +291,8 @@ export function createTableState<TRow extends object>(
     sort: {
       entries: sorts,
       toggle: (key: string) => setSorts((prev) => _toggleSort(prev, key, defaultSortDirFor(key))),
-      replace: (key: string) =>
-        setSorts((prev) => _replaceSort(prev, key, defaultSortDirFor(key), groupBy())),
+      replace: (key: string, dir?: SortEntry['dir']) =>
+        setSorts((prev) => _replaceSort(prev, key, defaultSortDirFor(key), groupBy(), dir)),
       appendOrToggle: (key: string) =>
         setSorts((prev) => _appendOrToggleSort(prev, key, defaultSortDirFor(key))),
       remove: (key: string) => setSorts((prev) => prev.filter((s) => s.key !== key)),
@@ -492,16 +500,13 @@ export function createTableState<TRow extends object>(
       },
     },
 
-    clearAll: () => {
-      setSorts([])
-      setFilterState({ filters: {}, excludeFilters: {} })
-      setFilterModes({})
-      setRangeFilters({})
-      setGroupBy([])
-      setCollapsedGroups(new Set<string>())
-      setPageState(1)
-      setSearchQueryState('')
-    },
+    // Back to `initialViewState`, keeping the column layout and page size
+    clearAll: () =>
+      state.setViewState({
+        visibleCols: [...visibleCols()],
+        columnOrder: columnOrder(),
+        pageSize: pageSize(),
+      }),
 
     getViewState: (): TableViewState =>
       buildViewStateSnapshot({
@@ -535,4 +540,5 @@ export function createTableState<TRow extends object>(
       setSearchQueryState(resolved.searchQuery)
     },
   }
+  return state
 }

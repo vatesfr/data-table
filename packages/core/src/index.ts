@@ -22,6 +22,7 @@ export {
   formatLogRange,
   logRangeGroup,
   compareMissingLast,
+  compareInOrder,
 } from './logic'
 
 export type { TableViewState } from './view'

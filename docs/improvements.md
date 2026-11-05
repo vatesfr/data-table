@@ -22,13 +22,11 @@ Seeded 2026-10-04 from issues reported by a consumer app, each reproduced on the
 
 ## Grouping
 
-- **U40 · major · UC02, UC04** — a group row is `<tr tabindex="0" aria-expanded>` in a plain table, where `aria-expanded` isn't allowed on a row (axe `aria-conditional-attr`, serious; `e2e/axe.spec.ts` never groups, so it's missed). Put `aria-expanded` on a button in the row, or use treegrid roles. Seen in Solid (showcase infra and ledger).
 - **U47 · minor · UC02, UC07** — scrolled sideways on a phone, a group's aggregate row turns into an empty band while its figures' columns are off-screen (showcase ledger: blank while Montant is off-screen), and the empty-table message (one `colspan` cell) scrolls away. The group label stays in view since U41. Seen in Solid.
 - **U43 · minor · UC02** — a group header's column name and count use `opacity: .6` instead of a text token, so their contrast depends on the theme: 4.46:1 on the showcase ledger's palette. Use `--color-text-secondary`. Seen in Solid.
 
 ## Table body
 
-- **U44 · minor · UC04** — the group expander's header cell is an empty `<th>` (axe `empty-table-header`): give it visually hidden text. Seen in Solid.
 - **U45 · polish** — the pinned column's row border (its `::after`) sits ~1 px above the rest of the row and runs 8 px past the column's edge; its shadow (`rgba(0,0,0,.12)`) vanishes on dark themes. Reported from zoomed screenshots of the showcase's catalog and users. Seen in Solid.
 
 ## Toolbar

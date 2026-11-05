@@ -40,7 +40,6 @@ function mountView(options: { selectable?: boolean; attachToBody?: boolean } = {
           table,
           data: ROWS,
           columns: COLS,
-          rowKey: 'id',
           selectable: options.selectable,
         } as Record<string, unknown>)
     },
@@ -83,7 +82,6 @@ describe('DataTableView', () => {
             table,
             data: ROWS,
             columns: COLS,
-            rowKey: 'id',
             onRowClick: () => {},
           } as Record<string, unknown>)
       },
@@ -160,6 +158,27 @@ describe('DataTableView', () => {
   })
 })
 
+describe('DataTableView — filter checklist counts', () => {
+  it('formats them with the formatCount label', async () => {
+    const Comp = defineComponent({
+      setup() {
+        const table = useTableState(ROWS, COLS, { labels: { formatCount: (n) => `#${n}` } })
+        return () =>
+          h(DataTableView, { table, data: ROWS, columns: COLS } as Record<string, unknown>)
+      },
+    })
+    const wrapper = mount(Comp, { attachTo: document.body })
+    await wrapper
+      .findAll('button')
+      .find((b) => b.text().startsWith('Filter'))!
+      .trigger('click')
+    const counts = wrapper.findAll('.dt-filter-count').map((c) => c.text())
+    expect(counts.length).toBeGreaterThan(0)
+    expect(counts.every((c) => /^#\d+$/.test(c))).toBe(true)
+    wrapper.unmount()
+  })
+})
+
 describe('DataTableView — currentRow', () => {
   it('matches a current row held in a ref, which wraps it in a reactive proxy', () => {
     const current = ref<Row | null>(ROWS[1])
@@ -171,13 +190,30 @@ describe('DataTableView — currentRow', () => {
             table,
             data: ROWS,
             columns: COLS,
-            rowKey: 'id',
             currentRow: current.value,
           } as Record<string, unknown>)
       },
     })
     const wrapper = mount(Comp)
     expect(wrapper.findAll('tbody tr[aria-current="true"]')).toHaveLength(1)
+  })
+
+  it('matches the current row by getRowId after a refetch', () => {
+    const refetched = ROWS.map((r) => ({ ...r }))
+    const Comp = defineComponent({
+      setup() {
+        const table = useTableState(refetched, COLS, { getRowId: (r) => r.id })
+        return () =>
+          h(DataTableView, { table, data: refetched, columns: COLS, currentRow: ROWS[1] } as Record<
+            string,
+            unknown
+          >)
+      },
+    })
+    const wrapper = mount(Comp)
+    const marked = wrapper.findAll('tbody tr[aria-current="true"]')
+    expect(marked).toHaveLength(1)
+    expect(marked[0].text()).toContain(ROWS[1].name)
   })
 })
 
@@ -203,7 +239,6 @@ describe('DataTableView — group aggregates', () => {
               table,
               data: SPLIT,
               columns: cols,
-              rowKey: 'id',
               selectable: true,
             } as Record<string, unknown>,
             slots,

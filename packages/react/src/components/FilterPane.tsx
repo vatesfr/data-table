@@ -444,7 +444,7 @@ export function FilterPane<TRow extends object>({
             />
             <span className="dt-flex1">{label}</span>
             <span className="dt-filter-count" aria-hidden="true">
-              {sumDateTreeNodeCount(node, valueCounts)}
+              {L.formatCount(sumDateTreeNodeCount(node, valueCounts))}
             </span>
           </label>
           {!isLeaf && expanded && renderDateTreeNodes(node.children, colKey, depth + 1, parseDate)}
@@ -568,7 +568,7 @@ export function FilterPane<TRow extends object>({
                       />
                       <span className="dt-flex1">{L.filterOthers}</span>
                       <span className="dt-filter-count" aria-hidden="true">
-                        {filterOtherValues.length}
+                        {L.formatCount(filterOtherValues.length)}
                       </span>
                     </label>
                   )}
@@ -645,7 +645,7 @@ export function FilterPane<TRow extends object>({
                                     : formatFilterValue(col, v, L.emptyValue)}
                                 </span>
                                 <span className="dt-filter-count" aria-hidden="true">
-                                  {valueCounts.get(v) ?? 0}
+                                  {L.formatCount(valueCounts.get(v) ?? 0)}
                                 </span>
                               </label>
                               {!usesExcludeOnly && (

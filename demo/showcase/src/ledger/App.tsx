@@ -15,9 +15,7 @@ const monthYear = new Intl.DateTimeFormat('fr-FR', { month: 'long', year: 'numer
 const longDate = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long' })
 
 function amount(v: number) {
-  return (
-    <span class={v < 0 ? 'amount amount--neg' : 'amount'}>{euros.format(v)}</span>
-  ) as HTMLElement
+  return <span class={v < 0 ? 'amount amount--neg' : 'amount'}>{euros.format(v)}</span>
 }
 
 const COLUMNS: ColumnDef<Transaction>[] = [
@@ -62,12 +60,13 @@ const COLUMNS: ColumnDef<Transaction>[] = [
     width: 80,
     groupable: true,
     format: (v) => (v ? 'Oui' : 'Non'),
-    render: (v) => (<span class="check">{v ? '✓' : '—'}</span>) as HTMLElement,
+    render: (v) => <span class="check">{v ? '✓' : '—'}</span>,
   },
 ]
 
 export function App() {
   const table = createTableState(makeTransactions(), COLUMNS, {
+    getRowId: (t) => t.id,
     labels: LABELS_FR,
     defaultGroupsCollapsed: false,
     initialViewState: {
@@ -138,7 +137,6 @@ export function App() {
         </header>
         <DataTableView
           table={table}
-          rowKey="id"
           toolbarEnd={
             <button class="print" onClick={print}>
               Imprimer

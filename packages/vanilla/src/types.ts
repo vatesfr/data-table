@@ -21,11 +21,6 @@ export interface ColumnDef<
 export interface DataTableOptions<TRow extends object = Record<string, unknown>> {
   data: TRow[]
   columns: ColumnDef<TRow>[]
-  /**
-   * A row property used as a stable DOM key (default: the index). Not used for selection, which
-   * tracks rows by object identity (or `getRowId`).
-   */
-  rowKey?: keyof TRow & string
   labels?: Partial<DataTableLabels>
   /** Whether newly-grouped groups start collapsed. Defaults to `true`; pass `false` to start expanded. */
   defaultGroupsCollapsed?: boolean
@@ -102,8 +97,6 @@ export interface DataTableInstance<TRow extends object = Record<string, unknown>
    * values. Mirrors React/Vue/Solid's top-level `clearAll`.
    */
   clearAll(): void
-  /** Changes the row DOM-key property after construction — see `DataTableOptions.rowKey`. */
-  setRowKey(key: keyof TRow & string): void
   /** Toggles whether rows show selection checkboxes after construction. */
   setSelectable(value: boolean): void
   /** Shows/hides the toolbar's search box after construction — see `DataTableOptions.showSearch`. */

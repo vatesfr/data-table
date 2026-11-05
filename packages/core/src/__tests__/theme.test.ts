@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { LIGHT_THEME, DARK_THEME, renderThemeCss } from '../theme'
+import { DT_STYLES } from '../styles'
 
 describe('theme', () => {
   it('LIGHT_THEME and DARK_THEME define the same set of tokens', () => {
@@ -15,6 +16,13 @@ describe('theme', () => {
     expect(css).toContain(`--color-background-primary:${DARK_THEME['color-background-primary']}`)
     expect(css).toContain('[data-theme=dark]{')
     expect(css).toContain('[data-theme=light]{')
+  })
+
+  it("scopes the native controls' color scheme to the table, following the theme", () => {
+    expect(LIGHT_THEME['dt-color-scheme']).toBe('light')
+    expect(DARK_THEME['dt-color-scheme']).toBe('dark')
+    // No fallback: without the token, .dt inherits the page's color-scheme instead of resetting it
+    expect(DT_STYLES).toContain('color-scheme:var(--dt-color-scheme)')
   })
 
   it('defines a tertiary background token distinct from the secondary one, for the table header', () => {

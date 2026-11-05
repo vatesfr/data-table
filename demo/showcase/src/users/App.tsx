@@ -1,5 +1,6 @@
 import { createMemo, createSignal, For, Show } from 'solid-js'
 import {
+  compareInOrder,
   compareMissingLast,
   createTableState,
   DataTableView,
@@ -45,7 +46,7 @@ const STATUS_LABEL: Record<Status, string> = {
 }
 
 // Filter labels get the raw value as a string, cells the typed row
-const badge = (cls: string, text: string) => (<span class={cls}>{text}</span>) as HTMLElement
+const badge = (cls: string, text: string) => <span class={cls}>{text}</span>
 const roleBadge = (role: string) => badge(`role role--${role.toLowerCase()}`, role)
 const statusBadge = (status: string) =>
   badge(`status status--${status}`, STATUS_LABEL[status as Status])
@@ -68,7 +69,7 @@ function avatar(user: User) {
         <span class="user-email">{user.email}</span>
       </span>
     </span>
-  ) as HTMLElement
+  )
 }
 
 const COLUMNS: ColumnDef<User>[] = [
@@ -85,7 +86,7 @@ const COLUMNS: ColumnDef<User>[] = [
     key: 'role',
     label: 'Role',
     groupable: true,
-    compare: (a, b) => ROLES.indexOf(a as Role) - ROLES.indexOf(b as Role),
+    compare: compareInOrder(ROLES),
     render: (_, u) => roleBadge(u.role),
     renderFilterLabel: roleBadge,
   },
@@ -94,28 +95,24 @@ const COLUMNS: ColumnDef<User>[] = [
     key: 'groups',
     label: 'Groups',
     width: 180,
-    render: (_, u) =>
-      (
-        <span class="chips">
-          <For each={u.groups}>{(g) => <span class="chip">{g}</span>}</For>
-        </span>
-      ) as HTMLElement,
+    render: (_, u) => (
+      <span class="chips">
+        <For each={u.groups}>{(g) => <span class="chip">{g}</span>}</For>
+      </span>
+    ),
   },
   {
     key: 'status',
     label: 'Status',
     groupable: true,
-    compare: (a, b) =>
-      Object.keys(STATUS_LABEL).indexOf(a as string) -
-      Object.keys(STATUS_LABEL).indexOf(b as string),
+    compare: compareInOrder(Object.keys(STATUS_LABEL)),
     format: (v) => STATUS_LABEL[v as Status],
-    render: (_, user) =>
-      (
-        <span class="status-cell">
-          {statusBadge(user.status)}
-          <Show when={user.invitedAt}>{(at) => <span class="muted">sent {ago(at())}</span>}</Show>
-        </span>
-      ) as HTMLElement,
+    render: (_, user) => (
+      <span class="status-cell">
+        {statusBadge(user.status)}
+        <Show when={user.invitedAt}>{(at) => <span class="muted">sent {ago(at())}</span>}</Show>
+      </span>
+    ),
     renderFilterLabel: statusBadge,
   },
   {
@@ -135,11 +132,11 @@ const COLUMNS: ColumnDef<User>[] = [
     // No row in filter chips and checklists: format takes the value
     format: formatDay,
     render: (_, u) =>
-      (u.lastLogin ? (
+      u.lastLogin ? (
         <span title={formatDay(u.lastLogin)}>{ago(u.lastLogin)}</span>
       ) : (
         <span class="muted">Never</span>
-      )) as HTMLElement,
+      ),
   },
   { key: 'created', label: 'Created', type: 'date', defaultSortDir: 'desc', format: formatDay },
 ]
@@ -289,7 +286,6 @@ export function App() {
         </div>
         <DataTableView
           table={table}
-          rowKey="id"
           selectable
           rowClass={(u) => (u.status === 'suspended' ? 'user-suspended' : undefined)}
           toolbarEnd={

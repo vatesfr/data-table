@@ -11,6 +11,9 @@ import {
   groupText,
   isGroupCollapsed,
   isSameVisibleItem,
+  isSameRow,
+  isNewRowFocusTarget,
+  isViewClearable,
   indexOfVisibleItem,
   paginateVisibleItems,
   pageSizeOptions,
@@ -57,7 +60,6 @@ import { useDropdownReorder } from './composables/useDropdownReorder'
 // explicit `true` default is required here so an omitted `showSearch` still shows the search box
 // (same gotcha `<DataTable>`'s own `defaultGroupsCollapsed` default works around).
 const props = withDefaults(defineProps<DataTableViewProps<TRow>>(), {
-  rowKey: 'id',
   showSearch: true,
   showColumns: true,
 })
@@ -151,7 +153,7 @@ watch(selectedRows, (rows) => {
 // checklist/date-tree checkboxes already use for shift-click. Data rows only join the tab
 // sequence when they're actually interactive; group headers always do, since collapsing a group
 // is already a click away regardless of selectable/onRowClick.
-const rowRefs = new Map<TRow | string, HTMLTableRowElement>()
+const rowRefs = new Map<TRow | string, HTMLElement>()
 
 const isRowNavEnabled = computed(() => props.selectable || isRowClickable.value)
 const pageVisibleItems = computed(() =>
@@ -183,8 +185,14 @@ const initialPageSize = pageSize.value
 const pageSizes = computed(() => pageSizeOptions(pageSize.value, initialPageSize))
 
 function setItemRef(key: TRow | string, el: Element | null): void {
-  if (el) rowRefs.set(key, el as HTMLTableRowElement)
+  if (el) rowRefs.set(key, el as HTMLElement)
   else rowRefs.delete(key)
+}
+
+// A click anywhere on a group row makes its toggle the tab stop, as a data row's click does
+function toggleAndFocusGroup(key: string): void {
+  toggleGroupCollapse(key)
+  rowRefs.get(key)?.focus({ preventScroll: true })
 }
 
 function focusItem(target: VisibleItem<TRow>): void {
@@ -222,7 +230,7 @@ watch(
   [focusTarget, page, collapsedGroups],
   () => {
     const target = focusTarget.value
-    if (target && target.kind === 'row' && target !== lastScrolledFocusTarget) {
+    if (isNewRowFocusTarget(target, lastScrolledFocusTarget, props.table.getRowId.value)) {
       const el = rowRefs.get(target.row)
       if (el) {
         // jsdom (used by this project's own component tests) doesn't implement
@@ -234,7 +242,7 @@ watch(
         if (props.table.focus.consumeDomFocus()) el.focus({ preventScroll: true })
         lastScrolledFocusTarget = target
       }
-    }
+    } else lastScrolledFocusTarget = target
   },
   { flush: 'post' },
 )
@@ -426,7 +434,7 @@ const exclusionChips = computed(() =>
 
 // Raw on both sides: a row held in a consumer's `ref` is a reactive proxy, never `===` the rendered one
 const currentRaw = computed(() => props.currentRow && toRaw(props.currentRow))
-const isCurrent = (row: TRow) => toRaw(row) === currentRaw.value
+const isCurrent = (row: TRow) => isSameRow(toRaw(row), currentRaw.value, props.table.getRowId.value)
 
 // Narrow screen (U16): the Filter dropdown shows one pane at a time — columns, or values
 const narrowFilter = ref(false)
@@ -495,13 +503,8 @@ async function onOpenFilterCol(key: string): Promise<void> {
   await nextTick()
   filterColRefs.get(key)?.focus()
 }
-const hasActiveState = computed(
-  () =>
-    sorts.value.length > 0 ||
-    activeFilterCount.value > 0 ||
-    groupBy.value.length > 0 ||
-    searchQuery.value !== '',
-)
+// Apart from `initialViewState`, which "Clear all" returns to
+const canClearAll = computed(() => isViewClearable(props.table.getViewState()))
 const hasAggregates = computed(() => activeColumns.value.some((c) => c.aggregate !== undefined))
 // The divider separates the shape controls from the find ones: only drawn with both sides
 const hasShapeControls = computed(
@@ -511,12 +514,8 @@ const hasShapeControls = computed(
     sortableCols.value.length > 0,
 )
 const hasFindControls = computed(
-  () => props.showSearch || filterableCols.value.length > 0 || hasActiveState.value,
+  () => props.showSearch || filterableCols.value.length > 0 || canClearAll.value,
 )
-
-function asRecord(row: object): Record<string, unknown> {
-  return row as Record<string, unknown>
-}
 
 function formatValue(v: unknown, row: TRow, col: ColumnDef<TRow>): string {
   if (col.format) return col.format(v, row)
@@ -1551,7 +1550,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
              .dt-clear-all) — nothing else in the row needs to reflow when it mounts/unmounts,
              unlike the old layout where it sat between search and the stats text. -->
         <button
-          v-if="hasActiveState"
+          v-if="canClearAll"
           type="button"
           class="dt-btn dt-clear-all"
           @click="clearAllAndFocus"
@@ -1701,7 +1700,9 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                 @change="toggleSelectAll(processedData)"
               />
             </th>
-            <th v-if="groupBy.length > 0" class="dt-th dt-th--no-sort" style="width: 28px" />
+            <th v-if="groupBy.length > 0" class="dt-th dt-th--no-sort" style="width: 28px">
+              <span class="dt-sr-only">{{ L.expandCollapse }}</span>
+            </th>
             <th
               v-for="col in activeColumns"
               :key="col.key"
@@ -1762,11 +1763,8 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
             <!-- Group header -->
             <tr
               v-if="group.key !== null"
-              :ref="(el) => setItemRef(group.key!, el as Element | null)"
-              :tabindex="isFocusTarget({ kind: 'group', key: group.key! }) ? 0 : -1"
-              :aria-expanded="!groupCollapsed(group.key!)"
               class="dt-group-row"
-              @click="toggleGroupCollapse(group.key!)"
+              @click="toggleAndFocusGroup(group.key!)"
               @keydown="handleKeyDown($event, { kind: 'group', key: group.key! })"
               @focusin="setFocusTarget({ kind: 'group', key: group.key! })"
             >
@@ -1787,7 +1785,17 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                       @change="toggleSelectAll(group.rows)"
                     />
                   </span>
-                  <span class="dt-group-arrow">{{ groupCollapsed(group.key!) ? '▶' : '▼' }}</span>
+                  <!-- The group's tab stop: a row can't carry aria-expanded outside a treegrid -->
+                  <button
+                    :ref="(el) => setItemRef(group.key!, el as Element | null)"
+                    type="button"
+                    class="dt-group-arrow dt-group-toggle"
+                    :tabindex="isFocusTarget({ kind: 'group', key: group.key! }) ? 0 : -1"
+                    :aria-expanded="!groupCollapsed(group.key!)"
+                    :aria-label="groupText(columns, groupBy, group.keyParts, group.rows[0])"
+                  >
+                    {{ groupCollapsed(group.key!) ? '▶' : '▼' }}
+                  </button>
                   <span class="dt-group-text">
                     <template v-for="(g, i) in groupBy" :key="g">
                       <span v-if="i > 0" class="dt-group-sep">›</span>
@@ -1859,7 +1867,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
             <template v-if="group.key === null || !groupCollapsed(group.key!)">
               <tr
                 v-for="(row, ri) in group.pageRows"
-                :key="(asRecord(row)[rowKey] as string | number) ?? `${group.key}-${ri}`"
+                :key="table.getRowId.value ? table.getRowId.value(row) : `${group.key}-${ri}`"
                 :ref="(el) => setItemRef(row, el as Element | null)"
                 :tabindex="
                   isRowNavEnabled ? (isFocusTarget({ kind: 'row', row }) ? 0 : -1) : undefined

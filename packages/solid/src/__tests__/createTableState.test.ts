@@ -162,6 +162,21 @@ describe('createTableState — row selection', () => {
   })
 })
 
+describe('createTableState — clearAll', () => {
+  it('returns to initialViewState, leaving nothing to persist', () => {
+    withRoot(() => {
+      const table = createTableState(ROWS, COLS, {
+        initialViewState: { sorts: [{ key: 'name', dir: 'desc' }] },
+      })
+      table.sort.clear()
+      table.search.setQuery('alice')
+      table.clearAll()
+      expect(table.sort.entries()).toEqual([{ key: 'name', dir: 'desc' }])
+      expect(table.getViewState()).toEqual({})
+    })
+  })
+})
+
 describe('createTableState — getRowId (selection identity)', () => {
   it('without getRowId, setData with new row objects silently drops selection', () => {
     withRoot(() => {
@@ -182,6 +197,31 @@ describe('createTableState — getRowId (selection identity)', () => {
       expect(table.selection.rows()).toEqual([refetched[0]])
       // The raw selection Set itself is reconciled too, not just selectedRows' derived view.
       expect([...table.selection.all()]).toEqual([refetched[0]])
+    })
+  })
+
+  it('with getRowId, focus.row follows its row across setData', () => {
+    withRoot(() => {
+      const getRowId = (r: Row) => r.id
+      const table = createTableState(ROWS, COLS, { getRowId })
+      expect(table.getRowId()).toBe(getRowId)
+      table.focus.moveTo(ROWS[1])
+      const refetched = ROWS.map((r) => ({ ...r }))
+      table.setData(refetched)
+      expect(table.focus.row()).toBe(refetched[1])
+      table.setData(refetched.filter((r) => r.id !== 2))
+      expect(table.focus.row()).toBeNull()
+    })
+  })
+
+  it('with getRowId, shift-toggle after setData ranges from the remapped anchor', () => {
+    withRoot(() => {
+      const table = createTableState(ROWS, COLS, { getRowId: (r) => r.id })
+      table.selection.toggle(ROWS[0])
+      const refetched = ROWS.map((r) => ({ ...r }))
+      table.setData(refetched)
+      table.selection.toggle(refetched[2], true)
+      expect(table.selection.rows()).toEqual(refetched.slice(0, 3))
     })
   })
 
@@ -237,6 +277,16 @@ describe('createTableState — sorting', () => {
       table.sort.toggle('name')
       table.sort.replace('score')
       expect(table.sort.entries()).toEqual([{ key: 'score', dir: 'asc' }])
+    })
+  })
+
+  it('replace with a dir sets that exact sort, without cycling', () => {
+    withRoot(() => {
+      const table = createTableState(ROWS, COLS)
+      table.sort.toggle('name')
+      table.sort.replace('score', 'desc')
+      table.sort.replace('score', 'desc')
+      expect(table.sort.entries()).toEqual([{ key: 'score', dir: 'desc' }])
     })
   })
 

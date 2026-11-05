@@ -41,7 +41,6 @@ const COLUMNS: ColumnDef<Employee>[] = [
 const table = createDataTable(document.getElementById('table')!, {
   data: employees,
   columns: COLUMNS,
-  rowKey: 'id',
 })
 
 // Update data or columns later
@@ -82,15 +81,35 @@ To override individual tokens, define the custom property in your own stylesheet
 | `--color-background-tertiary`  | `#eae9e5` | `#3a3830` |
 | `--color-background-info`      | `#e6f1fb` | `#0d2640` |
 | `--color-background-warning`   | `#faeeda` | `#2a1900` |
+| `--color-background-danger`    | `#fbe9e9` | `#3a1414` |
 | `--color-text-primary`         | `#1a1916` | `#e8e7e4` |
 | `--color-text-secondary`       | `#666561` | `#a6a5a1` |
 | `--color-text-tertiary`        | `#9b9a96` | `#86847e` |
 | `--color-text-info`            | `#185fa5` | `#5b9fe0` |
 | `--color-text-warning`         | `#854f0b` | `#e8a040` |
+| `--color-text-danger`          | `#a5182f` | `#e2726f` |
 | `--color-border-secondary`     | `#dddcd8` | `#504d46` |
 | `--color-border-tertiary`      | `#eeedea` | `#333029` |
 | `--color-border-info`          | `#b8d6f5` | `#1a4070` |
 | `--color-border-warning`       | `#f0d4a8` | `#4a2c00` |
+| `--color-border-danger`        | `#f2c2c2` | `#5a2020` |
+
+`--dt-color-scheme` (`light`/`dark`) sets `color-scheme` on the table only, so its checkboxes, selects and scrollbars follow its theme without recoloring the rest of the page.
+
+Type tokens aren't set by the theme: the table reads them with these fallbacks, so a page's own type scale applies when it defines them.
+
+| Token                    | Default |
+| ------------------------ | ------- |
+| `--font-size-2xs`        | `10px`  |
+| `--font-size-xs`         | `11px`  |
+| `--font-size-sm`         | `12px`  |
+| `--font-size-md`         | `13px`  |
+| `--font-size-lg`         | `14px`  |
+| `--font-size-xl`         | `15px`  |
+| `--font-weight-normal`   | `400`   |
+| `--font-weight-medium`   | `500`   |
+| `--font-weight-semibold` | `600`   |
+| `--font-weight-bold`     | `700`   |
 
 ### Overrides inside a CSS `@layer` have no effect
 
@@ -156,7 +175,7 @@ const data = [
   { id: 2, name: 'Game B', tags: ['Action', 'Adventure'] },
 ]
 
-createDataTable(container, { data, columns: COLUMNS, rowKey: 'id' })
+createDataTable(container, { data, columns: COLUMNS })
 // Filter dropdown shows individual items: "Action" | "Adventure" | "RPG"
 // Selecting "Action" matches both games
 ```
@@ -211,13 +230,11 @@ const COLUMNS: ColumnDef<Employee>[] = [
 `compare` overrides the default numeric-or-alphabetical comparison for a column whose natural order is neither, e.g. an enum/tier column:
 
 ```ts
+import { compareInOrder } from '@vates/data-table-vanilla'
+
 const TIER_ORDER = ['Bronze', 'Silver', 'Gold', 'Platinum']
 
-{
-  key: 'tier',
-  label: 'Tier',
-  compare: (a, b) => TIER_ORDER.indexOf(String(a)) - TIER_ORDER.indexOf(String(b)),
-}
+{ key: 'tier', label: 'Tier', compare: compareInOrder(TIER_ORDER) } // tiers missing from TIER_ORDER rank after
 ```
 
 It applies everywhere the column's values are ordered: row sort, group order (for a groupBy column), and the filter checklist's default and explicit ordering.
@@ -230,7 +247,7 @@ import { compareMissingLast } from '@vates/data-table-vanilla'
 { key: 'score', label: 'Score', type: 'number', compare: compareMissingLast() } // null/undefined/'' always last, in both directions
 ```
 
-Its default `isMissing` check is `(v) => v == null || v === ''`; pass your own `compare`/`isMissing` to `compareMissingLast(compare?, isMissing?)` to combine it with a custom order — e.g. `compareMissingLast((a, b) => TIER_ORDER.indexOf(String(a)) - TIER_ORDER.indexOf(String(b)))` sorts by tier rank with an empty tier always last.
+Its default `isMissing` check is `(v) => v == null || v === ''`; pass your own `compare`/`isMissing` to `compareMissingLast(compare?, isMissing?)` to combine it with a custom order — e.g. `compareMissingLast(compareInOrder(TIER_ORDER), (v) => !TIER_ORDER.includes(v))` sorts by tier rank with an unknown or empty tier always last.
 
 ## Grouped columns
 
@@ -331,7 +348,6 @@ Pass `selectable` to show a checkbox column. The header checkbox selects/deselec
 const table = createDataTable(container, {
   data: employees,
   columns: COLUMNS,
-  rowKey: 'id',
   selectable: true,
   onSelectionChange: (rows) => console.log(rows.length, 'selected'),
 })
@@ -345,7 +361,6 @@ Refetching or re-mapping `data` breaks that assumption — even identical conten
 const table = createDataTable(container, {
   data: employees,
   columns: COLUMNS,
-  rowKey: 'id',
   selectable: true,
   onSelectionChange: (rows) => console.log(rows.length, 'selected'),
   getRowId: (employee) => employee.id,
@@ -364,7 +379,6 @@ Pass `onRowClick` to react to a data row being clicked — it receives the full 
 const table = createDataTable(container, {
   data: employees,
   columns: COLUMNS,
-  rowKey: 'id',
   onRowClick: (row, event) => console.log('clicked', row.name),
 })
 ```
@@ -381,11 +395,10 @@ Drag a column header to reorder it, or drag a row (or press Alt+ArrowUp/Alt+Arro
 | ------------------------ | --------------------------------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `data`                   | `TRow[]`                                                  | —       | Row data                                                                                                                                               |
 | `columns`                | `ColumnDef<TRow>[]`                                       | —       | Column definitions                                                                                                                                     |
-| `rowKey`                 | `keyof TRow & string`                                     | —       | DOM key only — not selection identity                                                                                                                  |
 | `labels`                 | `Partial<DataTableLabels>`                                | English | UI string overrides                                                                                                                                    |
 | `defaultGroupsCollapsed` | `boolean`                                                 | `true`  | Whether newly-grouped groups start collapsed                                                                                                           |
 | `initialViewState`       | `TableViewState`                                          | `{}`    | Construction-time defaults for columns/sort/filters/grouping/page/search — also what `resetView` restores                                              |
-| `getRowId`               | `(row: TRow) => string \| number`                         | —       | Opt-in id-based selection identity (see "Row selection" above)                                                                                         |
+| `getRowId`               | `(row: TRow) => string \| number`                         | —       | Opt-in id-based row identity: selection, focus, `currentRow` and the row's DOM key (see "Row selection" above)                                         |
 | `selectable`             | `boolean`                                                 | `false` | Show checkbox column for row selection                                                                                                                 |
 | `onSelectionChange`      | `(rows: TRow[]) => void`                                  | —       | Called when selection changes                                                                                                                          |
 | `onRowClick`             | `(row: TRow, event: MouseEvent \| KeyboardEvent) => void` | —       | Called when a data row is clicked                                                                                                                      |
@@ -424,30 +437,29 @@ interface ColumnDef<TRow extends object> {
 
 ## Instance methods
 
-| Method                                      | Description                                                                         |
-| ------------------------------------------- | ----------------------------------------------------------------------------------- |
-| `setData(rows: TRow[])`                     | Replace the data and re-render                                                      |
-| `setColumns(cols: ColumnDef<TRow>[])`       | Replace the column definitions and re-render                                        |
-| `getViewState()`                            | Returns a serializable snapshot of sort/filter/group/page/etc. (not selection)      |
-| `setViewState(view: TableViewState)`        | Applies a view snapshot; fields absent from it reset to default                     |
-| `onViewChange(cb)`                          | Subscribes to view changes (not selection-only); returns an unsubscribe function    |
-| `getSelection()`                            | Current selection (by object identity), including rows hidden by a filter           |
-| `setSelection(rows: TRow[])`                | Replaces the selection outright — e.g. to pre-select rows on load                   |
-| `clearSelection()`                          | Empties the selection — e.g. to wire an external "Clear selection" button           |
-| `getProcessedData()`                        | Current rows after search/filters/sort, before grouping/pagination                  |
-| `clearAll()`                                | Resets search/filters/sort/group/page to true defaults, ignoring `initialViewState` |
-| `setRowKey(key: keyof TRow & string)`       | Changes the row DOM-key property after construction                                 |
-| `setSelectable(value: boolean)`             | Toggles whether rows show selection checkboxes after construction                   |
-| `setShowSearch(value: boolean)`             | Shows/hides the toolbar's search box after construction                             |
-| `setShowColumns(value: boolean)`            | Shows/hides the Columns toolbar button after construction                           |
-| `setToolbarEnd(node: Node \| null)`         | Replaces (or removes, with `null`) the toolbar-end node after construction          |
-| `setOnRowClick(cb \| undefined)`            | Changes (or clears) the row-click callback after construction                       |
-| `setCurrentRow(row \| null)`                | Changes (or clears) the current row after construction                              |
-| `setRowClass(fn \| undefined)`              | Changes (or clears) the `rowClass` callback after construction                      |
-| `setLabels(labels \| undefined)`            | Replaces the label overrides after construction                                     |
-| `setDefaultGroupsCollapsed(value: boolean)` | Changes whether newly-grouped groups start collapsed after construction             |
-| `setGetRowId(getRowId \| undefined)`        | Changes (or clears) the selection-identity function after construction              |
-| `destroy()`                                 | Remove all event listeners and clear the container                                  |
+| Method                                      | Description                                                                                |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `setData(rows: TRow[])`                     | Replace the data and re-render                                                             |
+| `setColumns(cols: ColumnDef<TRow>[])`       | Replace the column definitions and re-render                                               |
+| `getViewState()`                            | Returns a serializable snapshot of sort/filter/group/page/etc. (not selection)             |
+| `setViewState(view: TableViewState)`        | Applies a view snapshot; fields absent from it reset to default                            |
+| `onViewChange(cb)`                          | Subscribes to view changes (not selection-only); returns an unsubscribe function           |
+| `getSelection()`                            | Current selection (by object identity), including rows hidden by a filter                  |
+| `setSelection(rows: TRow[])`                | Replaces the selection outright — e.g. to pre-select rows on load                          |
+| `clearSelection()`                          | Empties the selection — e.g. to wire an external "Clear selection" button                  |
+| `getProcessedData()`                        | Current rows after search/filters/sort, before grouping/pagination                         |
+| `clearAll()`                                | Resets search/filters/sort/group/page to `initialViewState`, keeping columns and page size |
+| `setSelectable(value: boolean)`             | Toggles whether rows show selection checkboxes after construction                          |
+| `setShowSearch(value: boolean)`             | Shows/hides the toolbar's search box after construction                                    |
+| `setShowColumns(value: boolean)`            | Shows/hides the Columns toolbar button after construction                                  |
+| `setToolbarEnd(node: Node \| null)`         | Replaces (or removes, with `null`) the toolbar-end node after construction                 |
+| `setOnRowClick(cb \| undefined)`            | Changes (or clears) the row-click callback after construction                              |
+| `setCurrentRow(row \| null)`                | Changes (or clears) the current row after construction                                     |
+| `setRowClass(fn \| undefined)`              | Changes (or clears) the `rowClass` callback after construction                             |
+| `setLabels(labels \| undefined)`            | Replaces the label overrides after construction                                            |
+| `setDefaultGroupsCollapsed(value: boolean)` | Changes whether newly-grouped groups start collapsed after construction                    |
+| `setGetRowId(getRowId \| undefined)`        | Changes (or clears) the selection-identity function after construction                     |
+| `destroy()`                                 | Remove all event listeners and clear the container                                         |
 
 ## View persistence & sharing
 

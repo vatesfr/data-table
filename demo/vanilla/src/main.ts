@@ -470,7 +470,7 @@ themeBtn.addEventListener('click', () => {
 const table1 = createDataTable<Employee>(document.getElementById('table1')!, {
   data: SAMPLE_DATA,
   columns: COLUMNS,
-  rowKey: 'id',
+  getRowId: (r) => r.id,
   initialViewState: { visibleCols: DEFAULT_VISIBLE, pageSize: 5 },
   labels: LOCALES[currentLocale],
 })
@@ -484,7 +484,7 @@ let selectionData = SAMPLE_DATA
 const table2 = createDataTable<Employee>(document.getElementById('table2')!, {
   data: selectionData,
   columns: COLUMNS,
-  rowKey: 'id',
+  getRowId: (r) => r.id,
   initialViewState: { visibleCols: SELECTION_VISIBLE, pageSize: 5 },
   labels: LOCALES[currentLocale],
   selectable: true,
@@ -517,7 +517,7 @@ const clickBanner = document.getElementById('click-banner')!
 const tableClick = createDataTable<Employee>(document.getElementById('table-click')!, {
   data: SAMPLE_DATA,
   columns: COLUMNS,
-  rowKey: 'id',
+  getRowId: (r) => r.id,
   rowClass: (row) => (row.status === 'Inactive' ? 'demo-inactive' : undefined),
   initialViewState: { visibleCols: CLICK_VISIBLE, pageSize: 5 },
   labels: LOCALES[currentLocale],
@@ -534,7 +534,7 @@ wireViewPersistence(tableClick, 'click')
 const tablePersist = createDataTable<Employee>(document.getElementById('table-persist')!, {
   data: SAMPLE_DATA,
   columns: COLUMNS,
-  rowKey: 'id',
+  getRowId: (r) => r.id,
   initialViewState: { visibleCols: PERSISTED_VISIBLE, pageSize: 5 },
   labels: LOCALES[currentLocale],
   toolbarEnd: viewControlsNode('persisted'),
@@ -548,7 +548,7 @@ let dynamicData = SAMPLE_DATA.slice(0, 5)
 const table3 = createDataTable<Employee>(document.getElementById('table3')!, {
   data: dynamicData,
   columns: COLUMNS,
-  rowKey: 'id',
+  getRowId: (r) => r.id,
   initialViewState: { visibleCols: DYNAMIC_VISIBLE },
   labels: LOCALES[currentLocale],
 })
@@ -592,7 +592,7 @@ const hugeObserver = new IntersectionObserver(
     const tableHuge = createDataTable(hugeContainer, {
       data: hugeData(),
       columns: HUGE_COLUMNS,
-      rowKey: 'id',
+      getRowId: (r) => r.id,
       initialViewState: { pageSize: 100 },
     })
     wireViewPersistence(tableHuge, 'huge')

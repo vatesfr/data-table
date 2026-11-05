@@ -347,11 +347,15 @@ describe('createDataTable (grouping, group dropdown, pagination+grouping, search
     click(pageButton(container, '›')) // -> page 2: [Clara (Eng, continued), header HR (no rows here)]
     expect(container.textContent).toContain('Clara')
     expect(container.textContent).not.toContain('Alice')
-    const engHeader = groupHeaderRows(container).find((h) => h.textContent?.includes('Eng'))!
+    const engHeader = groupHeaderRows(container)
+      .find((h) => h.closest('tr')!.textContent?.includes('Eng'))!
+      .closest('tr')!
     expect(engHeader.textContent).toContain('cont')
     // HR's header lands as the very last item on this page with none of its own rows following
     // until the next page — it must still render its label instead of crashing on empty `rows`.
-    const hrHeader = groupHeaderRows(container).find((h) => h.textContent?.includes('HR'))!
+    const hrHeader = groupHeaderRows(container)
+      .find((h) => h.closest('tr')!.textContent?.includes('HR'))!
+      .closest('tr')!
     expect(hrHeader).toBeTruthy()
     expect(hrHeader.textContent).not.toContain('cont')
   })
@@ -703,7 +707,7 @@ describe('createDataTable (grouping, group dropdown, pagination+grouping, search
 
   // --- clearAll ---
 
-  it('clearAll resets search/filter/sort/group/page to true defaults, ignoring initialViewState', () => {
+  it('clearAll resets search/filter/sort/group/page to initialViewState', () => {
     const instance = createDataTable(container, {
       data: ROWS,
       columns: COLS,
@@ -712,10 +716,10 @@ describe('createDataTable (grouping, group dropdown, pagination+grouping, search
     click(container.querySelector<HTMLElement>('th[data-col-key="name"]')!) // diverge from initial
     setInput(container.querySelector<HTMLInputElement>('.dt-search-input')!, 'ali')
     instance.clearAll()
-    // Unlike setViewState({}), which restores initialViewState's own sort, clearAll ignores it —
-    // sorts: [] surfaces explicitly here since it now differs from the initialViewState default.
-    expect(instance.getViewState()).toEqual({ sorts: [] })
-    expect(instance.getProcessedData()).toEqual(ROWS)
+    expect(instance.getViewState()).toEqual({})
+    expect(instance.getProcessedData().map((r) => r.score)).toEqual(
+      ROWS.map((r) => r.score).sort((a, b) => b - a),
+    )
     expect(container.querySelector<HTMLInputElement>('.dt-search-input')!.value).toBe('')
   })
 })

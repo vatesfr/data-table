@@ -1,6 +1,21 @@
 import { describe, it, expect } from 'vitest'
 import { LABELS_EN, LABELS_FR, LABELS_ES, LABELS_DE, LABELS_PT } from '../locales'
 
+describe('count formatting', () => {
+  it('groups digits in each locale, in every built-in count label', () => {
+    expect(LABELS_EN.rowCount(10010, 100000)).toBe('10,010 / 100,000 rows')
+    expect(LABELS_EN.rowsInGroup(1234)).toBe('1,234 rows')
+    expect(LABELS_EN.groupCount(1234)).toBe(' · 1,234 groups')
+    expect(LABELS_EN.moreValues(1234)).toBe('+1,234 more')
+    expect(LABELS_FR.formatCount(10010)).toBe('10\u202f010')
+    expect(LABELS_DE.formatCount(10010)).toBe('10.010')
+    expect(LABELS_PT.formatCount(10010)).toBe('10.010')
+    // Spanish leaves 4-digit numbers ungrouped
+    expect(LABELS_ES.formatCount(1234)).toBe('1234')
+    expect(LABELS_ES.formatCount(10010)).toBe('10.010')
+  })
+})
+
 describe('LABELS_EN', () => {
   describe('rowCount', () => {
     it('uses !== 1: 0 total is plural', () => {

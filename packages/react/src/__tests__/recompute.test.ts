@@ -61,7 +61,7 @@ describe('useTableState — pipeline recomputes', () => {
   })
   it('a value-search keystroke in the filter pane rescans no rows', () => {
     const { getByText, container } = render(
-      createElement(DataTable<Row>, { data: ROWS, columns: COLS, rowKey: 'id' }),
+      createElement(DataTable<Row>, { data: ROWS, columns: COLS }),
     )
     fireEvent.click(getByText('Filter'))
     fireEvent.click(container.querySelector('[data-filter-col-key="name"]')!)

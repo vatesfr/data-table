@@ -39,6 +39,8 @@ function mount(
     defaultGroupsCollapsed?: boolean
     initialViewState?: TableViewState
     columns?: ColumnDef<Row>[]
+    getRowId?: (r: Row) => string | number
+    currentRow?: () => Row | null
     rows?: Row[]
   } = {},
 ) {
@@ -49,15 +51,16 @@ function mount(
     table = createTableState(opts.rows ?? ROWS, opts.columns ?? COLS, {
       defaultGroupsCollapsed: opts.defaultGroupsCollapsed,
       initialViewState: opts.initialViewState,
+      getRowId: opts.getRowId ?? ((r) => r.id),
     })
     render(
       () => (
         <TableBody
           table={table}
           columns={opts.columns ?? COLS}
-          rowKey="id"
           selectable={opts.selectable}
           onRowClick={opts.onRowClick}
+          currentRow={opts.currentRow?.()}
         />
       ),
       container,
@@ -606,18 +609,56 @@ describe('TableBody — keyboard navigation', () => {
     dispose()
   })
 
+  it("names the group expander column's header, visually hidden", () => {
+    const { container, table, dispose } = mount()
+    table.group.toggle('dept')
+    expect(container.querySelector('thead .dt-sr-only')?.textContent).toBe('Expand/collapse')
+    dispose()
+  })
+
   it('collapsing a group via Enter does not drop DOM focus (group rows keep stable identity)', () => {
     const { container, table, dispose } = mount({ defaultGroupsCollapsed: false })
     table.group.toggle('dept')
-    const groupRow = container.querySelector<HTMLElement>('.dt-group-row[data-gkey="Eng"]')!
-    groupRow.focus()
-    groupRow.dispatchEvent(
+    const toggle = container.querySelector<HTMLElement>(
+      '.dt-group-row[data-gkey="Eng"] .dt-group-toggle',
+    )!
+    toggle.focus()
+    toggle.dispatchEvent(
       new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }),
     )
     // Same DOM node, now representing the collapsed group — still focused, not fallen back to
     // <body> (which a full remount, e.g. from a reference-keyed `<For>`, would cause).
-    expect(document.activeElement).toBe(groupRow)
-    expect(groupRow.getAttribute('aria-expanded')).toBe('false')
+    expect(document.activeElement).toBe(toggle)
+    expect(toggle.getAttribute('aria-expanded')).toBe('false')
+    dispose()
+  })
+})
+
+describe('TableBody — row identity across setData (getRowId)', () => {
+  const refetch = () => ROWS.map((r) => ({ ...r }))
+
+  it('keeps DOM focus on the focused row when setData replaces its object', async () => {
+    const { container, table, dispose } = mount({ onRowClick: () => {}, getRowId: (r) => r.id })
+    const second = () => container.querySelectorAll<HTMLElement>('tbody tr.dt-tr')[1]
+    second().focus()
+    second().dispatchEvent(new FocusEvent('focusin', { bubbles: true }))
+    table.setData(refetch())
+    await Promise.resolve()
+    expect(document.activeElement).toBe(second())
+    expect(second().tabIndex).toBe(0)
+    dispose()
+  })
+
+  it('marks the current row matched by id after setData', () => {
+    const { container, table, dispose } = mount({
+      getRowId: (r) => r.id,
+      currentRow: () => ROWS[1],
+    })
+    table.setData(refetch())
+    const marked = container.querySelectorAll('tbody tr[aria-current="true"]')
+    expect([...marked].map((tr) => tr.textContent)).toEqual([
+      container.querySelectorAll('tbody tr.dt-tr')[1].textContent,
+    ])
     dispose()
   })
 })

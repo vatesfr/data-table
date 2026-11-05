@@ -16,6 +16,8 @@ export const LIGHT_THEME: Record<string, string> = {
   'color-border-info': '#b8d6f5',
   'color-border-warning': '#f0d4a8',
   'color-border-danger': '#f2c2c2',
+  // Native controls (checkboxes, selects, scrollbars) inside the table, not the host page
+  'dt-color-scheme': 'light',
 }
 
 export const DARK_THEME: Record<string, string> = {
@@ -36,6 +38,7 @@ export const DARK_THEME: Record<string, string> = {
   'color-border-info': '#1a4070',
   'color-border-warning': '#4a2c00',
   'color-border-danger': '#5a2020',
+  'dt-color-scheme': 'dark',
 }
 
 function toCssVars(theme: Record<string, string>): string {

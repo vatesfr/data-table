@@ -19,13 +19,12 @@ const COLUMNS: ColumnDef<Product>[] = [
     label: 'Product',
     pinned: true,
     width: 240,
-    render: (_, p) =>
-      (
-        <span class="product">
-          {thumb(p)}
-          <span class="product-name">{p.name}</span>
-        </span>
-      ) as HTMLElement,
+    render: (_, p) => (
+      <span class="product">
+        {thumb(p)}
+        <span class="product-name">{p.name}</span>
+      </span>
+    ),
   },
   { key: 'sku', label: 'SKU', filterable: false },
   { key: 'brand', label: 'Brand', groupable: true },
@@ -33,7 +32,7 @@ const COLUMNS: ColumnDef<Product>[] = [
     key: 'category',
     label: 'Category',
     groupable: true,
-    renderFilterLabel: (v) => (<span>{`${CATEGORIES[v]?.emoji ?? ''} ${v}`}</span>) as HTMLElement,
+    renderFilterLabel: (v) => <span>{`${CATEGORIES[v]?.emoji ?? ''} ${v}`}</span>,
   },
   {
     key: 'price',
@@ -67,7 +66,7 @@ const COLUMNS: ColumnDef<Product>[] = [
     label: 'Colors',
     multiMode: 'or',
     groupable: true,
-    render: (_, p) => (<span class="dots">{p.colors.map(colorDot)}</span>) as HTMLElement,
+    render: (_, p) => <span class="dots">{p.colors.map(colorDot)}</span>,
     renderFilterLabel: colorLabel,
   },
   {
@@ -96,6 +95,7 @@ const CARD_SORTS = [
 export function App() {
   const products = makeProducts()
   const table = createTableState(products, COLUMNS, {
+    getRowId: (p) => p.sku,
     initialViewState: { sorts: [{ key: 'added', dir: 'desc' }], pageSize: 25 },
   })
   const [view, setView] = createSignal<'table' | 'cards'>('table')
@@ -154,10 +154,8 @@ export function App() {
     return CARD_SORTS.some((c) => `${c.key}:${c.dir}` === value) ? value : ''
   }
   const setCardSort = (value: string) => {
-    const [key, dir] = value.split(':')
-    // Limit: B40 — no setter for an exact key + direction, so replace then flip if needed
-    table.sort.replace(key)
-    if (table.sort.entries().find((s) => s.key === key)?.dir !== dir) table.sort.toggleDir(key)
+    const c = CARD_SORTS.find((c) => `${c.key}:${c.dir}` === value)
+    if (c) table.sort.replace(c.key, c.dir)
   }
 
   return (
@@ -264,7 +262,6 @@ export function App() {
             <div class="table-card">
               <DataTableView
                 table={table}
-                rowKey="sku"
                 showSearch={false}
                 onRowClick={(p) => open(p)}
                 currentRow={current()}

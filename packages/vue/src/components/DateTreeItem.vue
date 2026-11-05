@@ -14,6 +14,7 @@ const props = defineProps<{
   depth: number
   selected: Set<string>
   counts: Map<string, number>
+  formatCount: (n: number) => string
   expanded: Set<string>
   searchActive: boolean
 }>()
@@ -54,7 +55,7 @@ function label(node: DateTreeNode): string {
         @click="emit('toggleNode', node, $event)"
       />
       <span class="dt-flex1">{{ label(node) }}</span>
-      <span class="dt-filter-count">{{ sumDateTreeNodeCount(node, counts) }}</span>
+      <span class="dt-filter-count">{{ formatCount(sumDateTreeNodeCount(node, counts)) }}</span>
     </label>
     <DateTreeItem
       v-if="!isLeaf(node) && isExpanded(node)"
@@ -62,6 +63,7 @@ function label(node: DateTreeNode): string {
       :depth="depth + 1"
       :selected="selected"
       :counts="counts"
+      :format-count="formatCount"
       :expanded="expanded"
       :search-active="searchActive"
       @toggle-node="(n, e) => emit('toggleNode', n, e)"

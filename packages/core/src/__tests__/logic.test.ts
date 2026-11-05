@@ -60,6 +60,11 @@ import {
   toggleRowInSelection,
   toggleAllInSelection,
   reconcileSelection,
+  compareInOrder,
+  remapRow,
+  remapFocusTarget,
+  isSameRow,
+  isNewRowFocusTarget,
   selectDateRange,
   toggleGroupBy,
   insertGroupSort,
@@ -404,6 +409,27 @@ describe('computeAggregate', () => {
 })
 
 // ─── compareMissingLast ────────────────────────────────────────────────────────
+
+describe('compareInOrder', () => {
+  const TIERS = ['Bronze', 'Silver', 'Gold']
+
+  it('ranks values by their index in order, unknown ones after and tied', () => {
+    const values = ['Gold', 'Tin', 'Bronze', 'Silver', 'Lead']
+    expect([...values].sort(compareInOrder(TIERS))).toEqual([
+      'Bronze',
+      'Silver',
+      'Gold',
+      'Tin',
+      'Lead',
+    ])
+  })
+
+  it('keeps unknown values last in both directions inside compareMissingLast', () => {
+    const cmp = compareMissingLast(compareInOrder(TIERS), (v) => !TIERS.includes(v as string))
+    expect(cmp('Tin', 'Bronze', 'desc')).toBeLessThan(0)
+    expect(cmp('Tin', 'Bronze', 'asc')).toBeGreaterThan(0)
+  })
+})
 
 describe('compareMissingLast', () => {
   // compareMissingLast's return value is meant to be fed through the same "negate for desc"
@@ -2615,6 +2641,32 @@ describe('toggleSort', () => {
 
 // ─── replaceSort ──────────────────────────────────────────────────────────────
 
+describe('replaceSort with an exact dir', () => {
+  it('applies it without cycling, keeping group sorts first', () => {
+    const sorts: SortEntry[] = [{ key: 'name', dir: 'desc' }]
+    expect(replaceSort(sorts, 'name', 'asc', [], 'desc')).toEqual([{ key: 'name', dir: 'desc' }])
+    const grouped: SortEntry[] = [
+      { key: 'dept', dir: 'asc' },
+      { key: 'name', dir: 'asc' },
+    ]
+    expect(replaceSort(grouped, 'score', 'asc', ['dept'], 'desc')).toEqual([
+      { key: 'dept', dir: 'asc' },
+      { key: 'score', dir: 'desc' },
+    ])
+  })
+
+  it("sets a grouped column's direction in place", () => {
+    const sorts: SortEntry[] = [
+      { key: 'dept', dir: 'asc' },
+      { key: 'name', dir: 'asc' },
+    ]
+    expect(replaceSort(sorts, 'dept', 'asc', ['dept'], 'desc')).toEqual([
+      { key: 'dept', dir: 'desc' },
+      { key: 'name', dir: 'asc' },
+    ])
+  })
+})
+
 describe('replaceSort', () => {
   it('sets a fresh asc sort when nothing is sorted', () => {
     expect(replaceSort([], 'name')).toEqual([{ key: 'name', dir: 'asc' }])
@@ -3301,6 +3353,73 @@ describe('reconcileSelection', () => {
     const a: SelRow = { id: 1, name: 'a' }
     const selection = new Set([a])
     expect(reconcileSelection([a], selection, getRowId)).toBe(selection)
+  })
+})
+
+describe('remapRow', () => {
+  it('returns the row itself without getRowId', () => {
+    const a: SelRow = { id: 1, name: 'a' }
+    expect(remapRow(a, [], undefined)).toBe(a)
+  })
+
+  it('returns the fresh row with the same id', () => {
+    const a: SelRow = { id: 1, name: 'a' }
+    const aRefetched: SelRow = { id: 1, name: 'a (refetched)' }
+    expect(remapRow(a, [aRefetched], getRowId)).toBe(aRefetched)
+  })
+
+  it('returns null when the id is gone, or for a null row', () => {
+    expect(remapRow({ id: 1, name: 'a' }, [], getRowId)).toBeNull()
+    expect(remapRow(null, [], getRowId)).toBeNull()
+  })
+})
+
+describe('remapFocusTarget', () => {
+  const a: SelRow = { id: 1, name: 'a' }
+  const aRefetched: SelRow = { id: 1, name: 'a (refetched)' }
+
+  it('repoints a row target at its fresh row, and drops it once gone', () => {
+    const target = { kind: 'row', row: a, groupKey: '' } as VisibleItem<SelRow>
+    expect(remapFocusTarget(target, [aRefetched], getRowId)).toEqual({ ...target, row: aRefetched })
+    expect(remapFocusTarget(target, [], getRowId)).toBeNull()
+  })
+
+  it('keeps a group target, and any target without getRowId', () => {
+    const group = { kind: 'group', key: 'g' } as VisibleItem<SelRow>
+    const row = { kind: 'row', row: a, groupKey: '' } as VisibleItem<SelRow>
+    expect(remapFocusTarget(group, [], getRowId)).toBe(group)
+    expect(remapFocusTarget(row, [], undefined)).toBe(row)
+  })
+})
+
+describe('isSameRow', () => {
+  it('matches by reference, or by id with getRowId', () => {
+    const a: SelRow = { id: 1, name: 'a' }
+    const aRefetched: SelRow = { id: 1, name: 'a (refetched)' }
+    expect(isSameRow(a, a)).toBe(true)
+    expect(isSameRow(a, aRefetched)).toBe(false)
+    expect(isSameRow(a, aRefetched, getRowId)).toBe(true)
+    expect(isSameRow(a, null, getRowId)).toBe(false)
+  })
+})
+
+describe('isNewRowFocusTarget', () => {
+  const a: SelRow = { id: 1, name: 'a' }
+  const aRefetched: SelRow = { id: 1, name: 'a (refetched)' }
+  const b: SelRow = { id: 2, name: 'b' }
+  const item = (row: SelRow) => ({ kind: 'row', row }) as VisibleItem<SelRow>
+
+  it('is true for a new row target, including the same row moved to again', () => {
+    expect(isNewRowFocusTarget(item(a), null)).toBe(true)
+    expect(isNewRowFocusTarget(item(b), item(a), getRowId)).toBe(true)
+    expect(isNewRowFocusTarget(item(a), item(a), getRowId)).toBe(true)
+  })
+
+  it('is false for the same target, a group, or a row a refetch only remapped', () => {
+    const t = item(a)
+    expect(isNewRowFocusTarget(t, t)).toBe(false)
+    expect(isNewRowFocusTarget({ kind: 'group', key: 'g' }, null)).toBe(false)
+    expect(isNewRowFocusTarget(item(aRefetched), item(a), getRowId)).toBe(false)
   })
 })
 

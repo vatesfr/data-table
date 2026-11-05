@@ -13,6 +13,7 @@ interface DateTreeItemProps {
   depth: number
   selected: Set<string>
   counts: Map<string, number>
+  formatCount: (n: number) => string
   expanded: Set<string>
   // Force-expands every node while the column's value search is active
   searchActive: boolean
@@ -63,7 +64,7 @@ export function DateTreeItem(props: DateTreeItemProps) {
           }}
         />
         <span class="dt-flex1">{label()}</span>
-        <span class="dt-filter-count">{count()}</span>
+        <span class="dt-filter-count">{props.formatCount(count())}</span>
       </label>
       <Show when={!isLeaf() && expanded()}>
         <For each={props.node.children}>
@@ -73,6 +74,7 @@ export function DateTreeItem(props: DateTreeItemProps) {
               depth={props.depth + 1}
               selected={props.selected}
               counts={props.counts}
+              formatCount={props.formatCount}
               expanded={props.expanded}
               searchActive={props.searchActive}
               onToggleExpand={props.onToggleExpand}

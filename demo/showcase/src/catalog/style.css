@@ -18,7 +18,6 @@ body {
   --color-border-secondary: #eaded2;
   --color-border-tertiary: #f4ece3;
   --color-border-info: #fdba74;
-  /* Limit: B25 — --font-size-* work but aren't in the documented token table */
   --font-size-md: 14px;
   --font-size-sm: 13px;
   --dt-stripe-background: transparent;

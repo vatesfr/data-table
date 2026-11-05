@@ -76,7 +76,7 @@
         "dist/logic-*.js"
       ],
       "gzip": true,
-      "limit": "18.59 KB"
+      "limit": "18.98 KB"
     }
   ],
   "devDependencies": {

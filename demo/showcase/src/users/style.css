@@ -16,7 +16,6 @@ body {
   --color-border-tertiary: #f1f5f9;
   --color-border-info: #c7d2fe;
   --dt-stripe-background: transparent;
-  /* Limit: B25 — --font-size-* work but aren't documented with the color tokens */
   --font-size-md: 14px;
   --font-size-sm: 13px;
   --page-background: #f1f5f9;

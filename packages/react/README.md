@@ -39,7 +39,7 @@ const COLUMNS: ColumnDef<Employee>[] = [
 ]
 
 export default function App() {
-  return <DataTable data={employees} columns={COLUMNS} rowKey="id" />
+  return <DataTable data={employees} columns={COLUMNS} />
 }
 ```
 
@@ -135,13 +135,11 @@ const COLUMNS: ColumnDef<Employee>[] = [
 `compare` overrides the default numeric-or-alphabetical comparison for a column whose natural order is neither, e.g. an enum/tier column:
 
 ```tsx
+import { compareInOrder } from '@vates/data-table-react'
+
 const TIER_ORDER = ['Bronze', 'Silver', 'Gold', 'Platinum']
 
-{
-  key: 'tier',
-  label: 'Tier',
-  compare: (a, b) => TIER_ORDER.indexOf(String(a)) - TIER_ORDER.indexOf(String(b)),
-}
+{ key: 'tier', label: 'Tier', compare: compareInOrder(TIER_ORDER) } // tiers missing from TIER_ORDER rank after
 ```
 
 It applies everywhere the column's values are ordered: row sort, group order (for a groupBy column), and the filter checklist's default and explicit ordering.
@@ -154,7 +152,7 @@ import { compareMissingLast } from '@vates/data-table-react'
 { key: 'score', label: 'Score', type: 'number', compare: compareMissingLast() } // null/undefined/'' always last, in both directions
 ```
 
-Its default `isMissing` check is `(v) => v == null || v === ''`; pass your own `compare`/`isMissing` to `compareMissingLast(compare?, isMissing?)` to combine it with a custom order — e.g. `compareMissingLast((a, b) => TIER_ORDER.indexOf(String(a)) - TIER_ORDER.indexOf(String(b)))` sorts by tier rank with an empty tier always last.
+Its default `isMissing` check is `(v) => v == null || v === ''`; pass your own `compare`/`isMissing` to `compareMissingLast(compare?, isMissing?)` to combine it with a custom order — e.g. `compareMissingLast(compareInOrder(TIER_ORDER), (v) => !TIER_ORDER.includes(v))` sorts by tier rank with an unknown or empty tier always last.
 
 ## Grouped columns
 
@@ -257,7 +255,6 @@ const [selected, setSelected] = useState<Employee[]>([])
 <DataTable
   data={employees}
   columns={COLUMNS}
-  rowKey="id"
   selectable
   onSelectionChange={setSelected}
 />
@@ -273,7 +270,6 @@ Refetching or re-mapping `data` breaks that assumption — even identical conten
 <DataTable
   data={employees}
   columns={COLUMNS}
-  rowKey="id"
   selectable
   onSelectionChange={setSelected}
   getRowId={(employee) => employee.id}
@@ -316,7 +312,6 @@ Pass `onRowClick` to react to a data row being clicked — it receives the full 
 <DataTable
   data={employees}
   columns={COLUMNS}
-  rowKey="id"
   onRowClick={(row, event) => console.log('clicked', row.name)}
 />
 ```
@@ -333,11 +328,10 @@ Drag a column header to reorder it, or drag a row (or press Alt+ArrowUp/Alt+Arro
 | ------------------------ | --------------------------------------------------------------------------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `data`                   | `TRow[]`                                                                                            | —       | Row data                                                                                                                                               |
 | `columns`                | `ColumnDef<TRow>[]`                                                                                 | —       | Column definitions                                                                                                                                     |
-| `rowKey`                 | `keyof TRow & string`                                                                               | —       | React list key only — not selection identity                                                                                                           |
 | `labels`                 | `Partial<DataTableLabels>`                                                                          | English | UI string overrides                                                                                                                                    |
 | `defaultGroupsCollapsed` | `boolean`                                                                                           | `true`  | Whether newly-grouped groups start collapsed                                                                                                           |
 | `initialViewState`       | `TableViewState`                                                                                    | `{}`    | Construction-time defaults for columns/sort/filters/grouping/page/search — also what `resetView` restores                                              |
-| `getRowId`               | `(row: TRow) => string \| number`                                                                   | —       | Opt-in id-based selection identity (see "Row selection" above)                                                                                         |
+| `getRowId`               | `(row: TRow) => string \| number`                                                                   | —       | Opt-in id-based row identity: selection, focus, `currentRow` and the row's DOM key (see "Row selection" above)                                         |
 | `selectable`             | `boolean`                                                                                           | `false` | Show checkbox column for row selection                                                                                                                 |
 | `onSelectionChange`      | `(rows: TRow[]) => void`                                                                            | —       | Called when selection changes                                                                                                                          |
 | `onRowClick`             | `(row: TRow, event: MouseEvent<HTMLTableRowElement> \| KeyboardEvent<HTMLTableRowElement>) => void` | —       | Called when a data row is clicked, or on Enter with keyboard focus                                                                                     |
@@ -510,7 +504,7 @@ function EmployeeTable() {
     initialViewState: { visibleCols: DEFAULT_VISIBLE, pageSize: 20 },
   })
   usePersistence(table, { storageKey: 'employee-table-view', paramName: 'view' })
-  return <DataTableView table={table} data={employees} columns={COLUMNS} rowKey="id" />
+  return <DataTableView table={table} data={employees} columns={COLUMNS} />
 }
 ```
 
@@ -570,6 +564,8 @@ delete document.documentElement.dataset.theme
 The table's rules are injected into `<head>` the first time it mounts (a `<style data-dt-styles>` tag, inserted first so your stylesheets win; under a Content Security Policy it needs `style-src-elem 'unsafe-inline'`). It is injected on the client only, so a server-rendered page shows the table unstyled until hydration. Its elements carry the same `dt-…` classes as the Solid and vanilla adapters (`.dt`, `.dt-toolbar`, `.dt-dd`, `.dt-th`, `.dt-td`, …), so your CSS can target them. Every rule falls back to the default value of a token you don't define.
 
 See the [vanilla README](../vanilla/README.md#theming) for the full token reference table.
+
+`--dt-color-scheme` (`light`/`dark`, in `renderThemeCss()`'s token sets) sets `color-scheme` on the table only, so its checkboxes, selects and scrollbars follow a dark theme without recoloring the rest of the page; unset, the table inherits the page's `color-scheme`.
 
 ## License
 

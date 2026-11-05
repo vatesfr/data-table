@@ -409,6 +409,7 @@ async function onKeydown(event: KeyboardEvent): Promise<void> {
           :depth="0"
           :selected="filters[col.key] ?? new Set()"
           :counts="valueCounts"
+          :format-count="L.formatCount"
           :expanded="expanded"
           :search-active="searchTerm !== ''"
           @toggle-node="onDateNodeClick"
@@ -427,7 +428,7 @@ async function onKeydown(event: KeyboardEvent): Promise<void> {
             @click="onOthersClick"
           />
           <span class="dt-flex1">{{ L.filterOthers }}</span>
-          <span class="dt-filter-count">{{ otherValues.length }}</span>
+          <span class="dt-filter-count">{{ L.formatCount(otherValues.length) }}</span>
         </label>
         <!-- Virtualized: only rows scrolled into view (+ overscan) are mounted -->
         <div ref="listRef" class="dt-filter-list" @scroll="onListScroll">
@@ -457,7 +458,7 @@ async function onKeydown(event: KeyboardEvent): Promise<void> {
                       {{ formatFilterValue(col, v, L.emptyValue) }}
                     </slot>
                   </span>
-                  <span class="dt-filter-count">{{ valueCounts.get(v) ?? 0 }}</span>
+                  <span class="dt-filter-count">{{ L.formatCount(valueCounts.get(v) ?? 0) }}</span>
                 </label>
                 <button
                   v-if="!usesExcludeOnly"

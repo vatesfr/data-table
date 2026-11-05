@@ -200,6 +200,32 @@ describe('useTableState — getRowId (selection identity)', () => {
     expect(selectedRows.value).toEqual([refetched[0]])
   })
 
+  it('with getRowId, focus.row follows its row across a refetch', async () => {
+    const getRowId = (r: Row) => r.id
+    const data = shallowRef(ROWS)
+    const table = useTableState(data, COLS, { getRowId })
+    expect(table.getRowId.value).toBe(getRowId)
+    table.focus.moveTo(ROWS[1])
+    const refetched = ROWS.map((r) => ({ ...r }))
+    data.value = refetched
+    await nextTick()
+    expect(table.focus.row.value).toBe(refetched[1])
+    data.value = refetched.filter((r) => r.id !== 2)
+    await nextTick()
+    expect(table.focus.row.value).toBeNull()
+  })
+
+  it('with getRowId, shift-toggle after a refetch ranges from the remapped anchor', async () => {
+    const data = shallowRef(ROWS)
+    const table = useTableState(data, COLS, { getRowId: (r) => r.id })
+    table.selection.toggle(ROWS[0])
+    const refetched = ROWS.map((r) => ({ ...r }))
+    data.value = refetched
+    await nextTick()
+    table.selection.toggle(refetched[2], true)
+    expect(table.selection.rows.value).toEqual(refetched.slice(0, 3))
+  })
+
   it('with getRowId, a row no longer present after the refetch is dropped from selection', () => {
     const data = shallowRef(ROWS)
     const table = useTableState(data, COLS, {
@@ -894,6 +920,17 @@ describe('useTableState — search', () => {
     expect(page.value).toBe(1)
   })
 
+  it('clearAll returns to initialViewState, leaving nothing to persist', () => {
+    const table = useTableState(ROWS, COLS, {
+      initialViewState: { sorts: [{ key: 'name', dir: 'desc' }] },
+    })
+    table.sort.clear()
+    table.search.setQuery('alice')
+    table.clearAll()
+    expect(table.sort.entries.value).toEqual([{ key: 'name', dir: 'desc' }])
+    expect(table.getViewState()).toEqual({})
+  })
+
   it('clearAll resets searchQuery', () => {
     const table = useTableState(ROWS, COLS)
     const { processedData, clearAll } = table
@@ -1049,6 +1086,16 @@ describe('useTableState — computed columns', () => {
       'Bob',
       'David',
     ])
+  })
+})
+
+describe('useTableState — sort.replace with a dir', () => {
+  it('sets that exact sort, without cycling', () => {
+    const table = useTableState(ROWS, COLS)
+    table.sort.toggle('name')
+    table.sort.replace('score', 'desc')
+    table.sort.replace('score', 'desc')
+    expect(table.sort.entries.value).toEqual([{ key: 'score', dir: 'desc' }])
   })
 })
 

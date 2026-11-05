@@ -9,6 +9,9 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Added
 
+- **Set an exact sort in one call**: `table.sort.replace(key, dir)` sorts by `key` alone in that direction, without cycling; a grouped column's direction changes in place.
+- **`compareInOrder(order)`**: a ready-made `compare` for an ordinal column (`Bronze < Silver < Gold`), ranking values by their index in `order`; values missing from it rank after.
+- **`expandCollapse` label**: names the column of group expand/collapse buttons for screen readers (visually hidden); set it with the other labels.
 - **Showcase**: [six apps](https://vatesfr.github.io/data-table/showcase/) built with the library (ops console, French ledger, log viewer, store catalog, sports stats, user admin), each with its own data, interactions and style, and its source.
 - **Style one toolbar clear button**: the Group, Sort and Filter × buttons carry `dt-btn-clear--groups`, `dt-btn-clear--sorts` and `dt-btn-clear--filters`, so CSS can target one without matching its translated label.
 - **Format a group total on its own**: a column's `aggregateFormat(value, rows)` formats its group header aggregate instead of the cell's `render`/`format`, which get the group's first row as their row and so could decorate the total as that row's value.
@@ -24,10 +27,18 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Removed
 
+- ⚠️ **BREAKING:** **`rowKey` is gone; `getRowId` keys the rows**: the row id that matches selection, focus and `currentRow` is now also each row's DOM key, so the same identity is no longer declared twice. Migrate `rowKey="id"` (vanilla `rowKey: 'id'`) to `getRowId: (row) => row.id` on the table state or `DataTable`, and drop vanilla's `setRowKey`. Without `getRowId`, rows are keyed by position, including in Vue, which used to key by an `id` property by default.
 - **UMD builds**: no adapter ships a UMD file any more. They needed a `DataTableCore` browser global that no package provides, so they never worked from a `<script>` tag. `require()` now loads a plain CommonJS build and keeps working.
 
 ### Fixed
 
+- **Counts are digit-grouped**: the row count, group counts and the filter checklist's per-value counts now read `10,010` (in each locale's own style) instead of `10010`. A new `formatCount` label sets the checklist's format; a custom `rowCount` label formats its own numbers.
+- **Dark tables get dark native controls**: under a dark theme (OS preference or `data-theme="dark"`), checkboxes, selects, scrollbars and date-input icons were drawn light; the theme now sets `color-scheme` on the table only, through a new `--dt-color-scheme` token, leaving the host page's as it is.
+- **Solid: `render` and `renderFilterLabel` take any JSX**: they were typed `Node`, so every JSX cell needed `as HTMLElement`; a string or fragment now type-checks too.
+- **Group headers pass accessibility checks**: a group's expand/collapse is now a button named after the group, carrying its expanded state and its keyboard focus, instead of an `aria-expanded` the table row isn't allowed to have. Keyboard behavior is unchanged; apps styling or querying the focused group row should target `.dt-group-toggle`.
+- **Clear all returns to the initial view**: with an `initialViewState` sort (or filter, group, search), Clear all now restores it instead of emptying it, no longer shows on first load, and leaves no `?view=e30` in the URL. Removing an initial sort by hand now survives a reload.
+- **Focus and current row survive a data refresh with `getRowId`**: after a refetch the focused row keeps keyboard focus (in Solid and vanilla it dropped on every update) and the tab stop, and `currentRow` still marks a row passed from before the refresh.
+- **Shift-click range selection survives a data refresh with `getRowId`**: after a refetch, shift-clicking a row selected only that row; it now selects the range from the last plain click.
 - **A group header stays in view on a sideways-scrolled table**: on a narrow screen, its checkbox, arrow and label stick to the left edge like a pinned column, and a long label wraps within the visible width instead of running off it.
 - **A group split across pages shows its whole total and row count**: its aggregates and "n rows" no longer cover only the current page's rows, so expanding a group doesn't change its numbers.
 - **Date range filters keep rows dated on a bound in every time zone**: a min or max date now covers that whole local day, so "Released ≤ today" no longer drops today's rows west of UTC (nor min east of UTC). The range inputs and slider show the right day east of UTC, a `YYYY-MM-DD` value sits on its own day in the date filter tree, and a month group reads its own month west of UTC. A custom `parseDate` should return local time to match. (#46)

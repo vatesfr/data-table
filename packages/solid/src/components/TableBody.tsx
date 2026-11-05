@@ -1,4 +1,13 @@
-import { For, Index, Show, createEffect, createMemo, createSignal, onCleanup } from 'solid-js'
+import {
+  For,
+  Index,
+  Show,
+  createEffect,
+  createMemo,
+  createSignal,
+  onCleanup,
+  type JSXElement,
+} from 'solid-js'
 import {
   getColumnAlign,
   getColumnValue,
@@ -11,6 +20,8 @@ import {
   getSortIndex,
   isGroupCollapsed,
   isSameVisibleItem,
+  isSameRow,
+  isNewRowFocusTarget,
   paginateVisibleItems,
   planRowNav,
   type VisibleItem,
@@ -24,7 +35,6 @@ import { focusSearch } from './SearchBox'
 interface TableBodyProps<TRow extends object> {
   table: TableState<TRow>
   columns: ColumnDef<TRow>[]
-  rowKey?: keyof TRow & string
   selectable?: boolean
   onRowClick?: (row: TRow, event: MouseEvent | KeyboardEvent) => void
   currentRow?: TRow | null
@@ -43,18 +53,18 @@ function renderCell<TRow extends object>(
   value: unknown,
   contextRow: TRow,
   fallback: (v: unknown) => string = stringifyValue,
-): Node | string {
+): JSXElement {
   if (col.render) return col.render(value, contextRow)
   if (col.format) return col.format(value, contextRow)
   return fallback(value)
 }
 
-function cellValue<TRow extends object>(col: ColumnDef<TRow>, row: TRow): Node | string {
+function cellValue<TRow extends object>(col: ColumnDef<TRow>, row: TRow): JSXElement {
   return renderCell(col, getColumnValue(col, row), row)
 }
 
 // aggregateFormat, else render, else format (formatAggregate); nothing for an empty aggregate
-function aggValue<TRow extends object>(col: ColumnDef<TRow>, rows: TRow[]): Node | string {
+function aggValue<TRow extends object>(col: ColumnDef<TRow>, rows: TRow[]): JSXElement {
   if (!col.render || col.aggregateFormat) return formatAggregate(col, rows)
   const v = computeAggregate(col, rows)
   return v === undefined || v === null ? '' : col.render(v, rows[0])
@@ -77,7 +87,15 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
     rowRefs.set(key, el)
     onCleanup(() => {
       if (rowRefs.get(key) === el) rowRefs.delete(key)
+      // `<For>` remounts a row whose object a refetch replaced: refocus the remapped target's new
+      // row once the update has mounted it
+      if (el.contains(document.activeElement)) queueMicrotask(refocusTarget)
     })
+  }
+
+  function refocusTarget(): void {
+    const target = focusTarget()
+    if (target && document.activeElement === document.body) rowRefs.get(refKey(target))?.focus()
   }
 
   const navigableItems = createMemo(() =>
@@ -112,7 +130,9 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
   let lastScrolledFocusTarget: VisibleItem<TRow> | null = null
   createEffect(() => {
     const target = focusTarget()
-    if (target && target.kind === 'row' && target !== lastScrolledFocusTarget) {
+    if (!isNewRowFocusTarget(target, lastScrolledFocusTarget, table.getRowId())) {
+      lastScrolledFocusTarget = target
+    } else {
       const el = rowRefs.get(target.row)
       if (el) {
         el.scrollIntoView?.({ block: 'nearest' })
@@ -236,7 +256,9 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
               </th>
             </Show>
             <Show when={table.group.by().length > 0}>
-              <th class="dt-th dt-th--no-sort" style={{ width: '28px' }} />
+              <th class="dt-th dt-th--no-sort" style={{ width: '28px' }}>
+                <span class="dt-sr-only">{table.labels().expandCollapse}</span>
+              </th>
             </Show>
             <For each={table.columns.active()}>
               {(col) => {
@@ -321,10 +343,9 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
                         row={row}
                         procIdx={procIdxMap().get(row) ?? -1}
                         odd={ri() % 2 !== 0}
-                        rowKey={props.rowKey}
                         selectable={props.selectable}
                         onRowClick={props.onRowClick}
-                        current={props.currentRow === row}
+                        current={isSameRow(row, props.currentRow, table.getRowId())}
                         extraClass={props.rowClass?.(row)}
                         tabIndex={
                           rowNavEnabled()
@@ -369,10 +390,9 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
                         row={row}
                         procIdx={procIdxMap().get(row) ?? -1}
                         odd={ri() % 2 !== 0}
-                        rowKey={props.rowKey}
                         selectable={props.selectable}
                         onRowClick={props.onRowClick}
-                        current={props.currentRow === row}
+                        current={isSameRow(row, props.currentRow, table.getRowId())}
                         extraClass={props.rowClass?.(row)}
                         indentGroup
                         tabIndex={
@@ -452,6 +472,9 @@ function GroupHeaderRow<TRow extends object>(props: GroupHeaderRowProps<TRow>) {
   )
   // Both properties, as for the header select-all
   let cbEl: HTMLInputElement | undefined
+  let toggleEl: HTMLButtonElement | undefined
+  const label = () =>
+    groupText(props.columns, table.group.by(), props.group.keyParts, props.group.rows[0])
   createEffect(() => {
     applyCheckboxState(cbEl, groupAllSelected(), groupSomeSelected())
   })
@@ -461,11 +484,11 @@ function GroupHeaderRow<TRow extends object>(props: GroupHeaderRowProps<TRow>) {
       <tr
         class="dt-group-row"
         data-gkey={props.group.key}
-        tabIndex={props.tabIndex}
-        aria-expanded={!isCollapsed()}
-        ref={(el) => props.registerRef(el)}
-        onClick={() => table.group.toggleCollapse(props.group.key!)}
-        onFocus={props.onFocusGroup}
+        onClick={() => {
+          table.group.toggleCollapse(props.group.key!)
+          // A click anywhere on the row makes its toggle the tab stop, as a data row's click does
+          toggleEl?.focus({ preventScroll: true })
+        }}
         onKeyDown={(e) => props.onKeyDown(e, { kind: 'group', key: props.group.key! })}
       >
         <td
@@ -503,7 +526,21 @@ function GroupHeaderRow<TRow extends object>(props: GroupHeaderRowProps<TRow>) {
                 />
               </span>
             </Show>
-            <span class="dt-group-arrow">{isCollapsed() ? '▶' : '▼'}</span>
+            {/* The group's tab stop: a row can't carry aria-expanded outside a treegrid */}
+            <button
+              type="button"
+              class="dt-group-arrow dt-group-toggle"
+              tabIndex={props.tabIndex}
+              aria-expanded={!isCollapsed()}
+              aria-label={label()}
+              ref={(el) => {
+                toggleEl = el
+                props.registerRef(el)
+              }}
+              onFocus={props.onFocusGroup}
+            >
+              {isCollapsed() ? '▶' : '▼'}
+            </button>
             <span class="dt-group-text">
               <For each={table.group.by()}>
                 {(gColKey, gi) => {
@@ -566,7 +603,7 @@ function renderGroupCellValue<TRow extends object>(
   col: ColumnDef<TRow> | undefined,
   sampleRow: TRow,
   keyPart: string,
-): Node | string {
+): JSXElement {
   if (!col) return String(keyPart ?? '')
   const raw = getColumnValue(col, sampleRow)
   const value = Array.isArray(raw) ? keyPart : raw
@@ -579,7 +616,6 @@ interface DataRowProps<TRow extends object> {
   row: TRow
   procIdx: number
   odd: boolean
-  rowKey?: keyof TRow & string
   selectable?: boolean
   onRowClick?: (row: TRow, event: MouseEvent | KeyboardEvent) => void
   indentGroup?: boolean
@@ -594,11 +630,6 @@ interface DataRowProps<TRow extends object> {
 function DataRow<TRow extends object>(props: DataRowProps<TRow>) {
   const { table, row } = props
   const isSelected = createMemo(() => table.selection.all().has(row))
-  const rk = createMemo(() =>
-    props.rowKey
-      ? String((row as Record<string, unknown>)[props.rowKey] ?? props.procIdx)
-      : props.procIdx,
-  )
 
   function handleClick(e: MouseEvent): void {
     if ((e.target as HTMLElement).closest('[data-no-row-click]')) return
@@ -609,7 +640,7 @@ function DataRow<TRow extends object>(props: DataRowProps<TRow>) {
     <tr
       // A class string, not classList: a computed key would bundle Solid's generic classList helper
       class={`dt-tr${isSelected() ? ' dt-tr--selected' : props.odd ? ' dt-tr--odd' : ''}${props.onRowClick ? ' dt-tr--clickable' : ''}${props.current ? ' dt-tr--current' : ''}${props.extraClass ? ` ${props.extraClass}` : ''}`}
-      data-row-key={String(rk())}
+      data-row-key={table.getRowId()?.(row) ?? props.procIdx}
       data-proc-idx={props.procIdx}
       tabIndex={props.tabIndex}
       aria-selected={props.selectable ? isSelected() : undefined}

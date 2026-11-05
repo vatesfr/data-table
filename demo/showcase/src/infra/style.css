@@ -12,7 +12,6 @@ body {
   --color-border-secondary: #2b3a30;
   --color-border-tertiary: #1a231d;
   --color-border-info: #1f5c36;
-  /* Limit: B25 — --font-size-* work but aren't documented as public tokens */
   --font-size-md: 12px;
   --font-size-sm: 11px;
   /* Limit: B26 — no token for cell padding / row height: a console wants ~3px rows */

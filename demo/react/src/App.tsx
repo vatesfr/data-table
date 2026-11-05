@@ -390,6 +390,7 @@ function EmployeeCards() {
 // sync between them.
 function PersistedTable({ labels }: { labels?: Partial<DataTableLabels> }) {
   const table = useTableState(SAMPLE_DATA, COLUMNS, {
+    getRowId: (r) => r.id,
     initialViewState: { visibleCols: PERSISTED_VISIBLE, pageSize: 5 },
     labels,
   })
@@ -399,7 +400,6 @@ function PersistedTable({ labels }: { labels?: Partial<DataTableLabels> }) {
       table={table}
       data={SAMPLE_DATA}
       columns={COLUMNS}
-      rowKey="id"
       toolbarEnd={<ViewControls onReset={reset} inToolbar />}
     />
   )
@@ -410,6 +410,7 @@ function PersistedTable({ labels }: { labels?: Partial<DataTableLabels> }) {
 // resetView — nothing about the table's own features changes.
 function FullTable({ labels }: { labels?: Partial<DataTableLabels> }) {
   const table = useTableState(SAMPLE_DATA, COLUMNS, {
+    getRowId: (r) => r.id,
     initialViewState: { visibleCols: DEFAULT_VISIBLE, pageSize: 5 },
     labels,
   })
@@ -418,7 +419,7 @@ function FullTable({ labels }: { labels?: Partial<DataTableLabels> }) {
   return (
     <>
       <ViewControls onReset={() => resetView(table, VIEW_KEYS.full)} />
-      <DataTableView table={table} data={SAMPLE_DATA} columns={COLUMNS} rowKey="id" />
+      <DataTableView table={table} data={SAMPLE_DATA} columns={COLUMNS} />
     </>
   )
 }
@@ -433,6 +434,7 @@ function SelectionTable({
   onSelectionChange: (rows: Employee[]) => void
 }) {
   const table = useTableState(data, COLUMNS, {
+    getRowId: (r) => r.id,
     initialViewState: { visibleCols: SELECTION_VISIBLE, pageSize: 5 },
     labels,
   })
@@ -445,7 +447,6 @@ function SelectionTable({
         table={table}
         data={data}
         columns={COLUMNS}
-        rowKey="id"
         selectable
         onSelectionChange={onSelectionChange}
       />
@@ -463,6 +464,7 @@ function ClickTable({
   onRowClick: (row: Employee) => void
 }) {
   const table = useTableState(SAMPLE_DATA, COLUMNS, {
+    getRowId: (r) => r.id,
     initialViewState: { visibleCols: CLICK_VISIBLE, pageSize: 5 },
     labels,
   })
@@ -475,7 +477,6 @@ function ClickTable({
         table={table}
         data={SAMPLE_DATA}
         columns={COLUMNS}
-        rowKey="id"
         currentRow={currentRow}
         rowClass={(row) => (row.status === 'Inactive' ? 'demo-inactive' : undefined)}
         onRowClick={onRowClick}
@@ -488,13 +489,16 @@ function ClickTable({
 // default English labels regardless of the page's locale switcher.
 function HugeTable() {
   const data = hugeData()
-  const table = useTableState(data, HUGE_COLUMNS, { initialViewState: { pageSize: 100 } })
+  const table = useTableState(data, HUGE_COLUMNS, {
+    initialViewState: { pageSize: 100 },
+    getRowId: (r) => r.id,
+  })
   usePersistedView(table, VIEW_KEYS.huge.storageKey)
   useUrlView(table, { paramName: VIEW_KEYS.huge.paramName })
   return (
     <>
       <ViewControls onReset={() => resetView(table, VIEW_KEYS.huge)} />
-      <DataTableView table={table} data={data} columns={HUGE_COLUMNS} rowKey="id" />
+      <DataTableView table={table} data={data} columns={HUGE_COLUMNS} />
     </>
   )
 }

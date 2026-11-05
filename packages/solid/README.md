@@ -41,7 +41,7 @@ const COLUMNS: ColumnDef<Employee>[] = [
 ]
 
 export default function EmployeeTable(props: { employees: Employee[] }) {
-  return <DataTable data={props.employees} columns={COLUMNS} rowKey="id" />
+  return <DataTable data={props.employees} columns={COLUMNS} />
 }
 ```
 
@@ -78,7 +78,7 @@ const table = createTableState(
 return <DataTableView table={table} />
 ```
 
-`DataTableViewProps` only takes `table` (plus `rowKey`/`selectable`/`onRowClick`/`currentRow`/`rowClass`/`showSearch`/`showColumns`/`toolbarEnd`) — no separate `data`/`columns` props, since `table.data()`/`table.columns.list()` already are that value. `showSearch` (default `true`) shows/hides the toolbar's search box — the Sort/Group/Filter dropdowns already auto-hide themselves when no column qualifies for them, so search is the one toolbar control that needs an explicit opt-out (e.g. when the page already has its own search input). `showColumns` (default `true`) is the same kind of opt-out for the Columns button, which also auto-hides on its own once `columns.length < 2`. `toolbarEnd` (`JSXElement`) renders your own controls at the right end of the toolbar's action row, in a `.dt-toolbar-end` wrapper — e.g. "Share view"/"Reset view" buttons; no wrapper is rendered without it. `currentRow` (`TRow | null`) marks a row as current (e.g. the one open in a side panel) with `aria-current="true"` and the unstyled `dt-tr--current` class, matched by object identity. `rowClass` (`(row) => string | undefined`) adds your own classes to a data row, after the built-in `dt-tr*` ones (e.g. to dim an expired row).
+`DataTableViewProps` only takes `table` (plus `selectable`/`onRowClick`/`currentRow`/`rowClass`/`showSearch`/`showColumns`/`toolbarEnd`) — no separate `data`/`columns` props, since `table.data()`/`table.columns.list()` already are that value. `showSearch` (default `true`) shows/hides the toolbar's search box — the Sort/Group/Filter dropdowns already auto-hide themselves when no column qualifies for them, so search is the one toolbar control that needs an explicit opt-out (e.g. when the page already has its own search input). `showColumns` (default `true`) is the same kind of opt-out for the Columns button, which also auto-hides on its own once `columns.length < 2`. `toolbarEnd` (`JSXElement`) renders your own controls at the right end of the toolbar's action row, in a `.dt-toolbar-end` wrapper — e.g. "Share view"/"Reset view" buttons; no wrapper is rendered without it. `currentRow` (`TRow | null`) marks a row as current (e.g. the one open in a side panel) with `aria-current="true"` and the unstyled `dt-tr--current` class, matched by object identity. `rowClass` (`(row) => string | undefined`) adds your own classes to a data row, after the built-in `dt-tr*` ones (e.g. to dim an expired row).
 
 ▶ [Try it in the demo](https://vatesfr.github.io/data-table/solid/#custom-layout)
 
@@ -103,7 +103,7 @@ To persist a view somewhere else (e.g. a backend), call `getViewState()`/`setVie
 
 ## Selection, row click, keyboard navigation, view persistence
 
-Same model as every other adapter — see the [root README](../../README.md#features) and [docs/](../../docs/) for the full behavior (selection is tracked by object identity, not `rowKey`; shift-click/shift-arrow range selection; roving-tabindex keyboard nav; `getViewState()`/`setViewState()` for persistence/sharing). `TableState<TRow>` exposes the same actions/derived values React's and Vue's `useTableState` do, namespaced by concern (see `createTableState`'s own entry above) — `table.selection.all`/`.rows`/`.toggle`/`.toggleAll`/`.clear`, `table.sort.entries`, `table.filter.include`, `table.group.by`, `table.pagination.page`/`.pageSize`, and so on, all as Solid signals/accessors instead of `useState`/`ref`. `<DataTable>` doesn't expose any of that directly (see above) — pass `selectable` to turn selection on, and `onSelectionChange` to observe it, the same two props `@vates/data-table-vanilla`'s own `createDataTable` accepts.
+Same model as every other adapter — see the [root README](../../README.md#features) and [docs/](../../docs/) for the full behavior (selection is tracked by object identity, or by `getRowId`; shift-click/shift-arrow range selection; roving-tabindex keyboard nav; `getViewState()`/`setViewState()` for persistence/sharing). `TableState<TRow>` exposes the same actions/derived values React's and Vue's `useTableState` do, namespaced by concern (see `createTableState`'s own entry above) — `table.selection.all`/`.rows`/`.toggle`/`.toggleAll`/`.clear`, `table.sort.entries`, `table.filter.include`, `table.group.by`, `table.pagination.page`/`.pageSize`, and so on, all as Solid signals/accessors instead of `useState`/`ref`. `<DataTable>` doesn't expose any of that directly (see above) — pass `selectable` to turn selection on, and `onSelectionChange` to observe it, the same two props `@vates/data-table-vanilla`'s own `createDataTable` accepts.
 
 Object-identity selection silently drops on a `setData`/refetch that produces new row objects, since a `Set` can only ever match by reference. Pass `getRowId` (to `createTableState`'s options, or `<DataTable>`'s own prop) to opt into id-based matching instead — a selected id is remapped to its fresh object reference whenever `data` changes, and dropped if the id no longer exists:
 

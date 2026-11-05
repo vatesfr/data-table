@@ -27,6 +27,8 @@ import {
   toggleSelectionShiftAware,
   toggleAllInSelection,
   reconcileSelection,
+  remapRow,
+  remapFocusTarget,
   toggleGroupBy,
   insertGroupSort,
   reorderGroupSorts,
@@ -120,10 +122,13 @@ export function useTableState<TRow extends object>(
   // Set by `moveTo(row, { focus: true })`, consumed by DataTableView once the row mounts, as only it holds row refs
   let wantsDomFocus = false
 
-  // Remaps selection to a changed `data` (only with `getRowId`)
+  // Remaps selection, its shift anchor and the focus target to a changed `data` (only with `getRowId`)
   watch(data, (nextData) => {
-    if (getRowId.value)
-      selection.value = reconcileSelection(nextData, selection.value, getRowId.value)
+    const rowId = getRowId.value
+    if (!rowId) return
+    selection.value = reconcileSelection(nextData, selection.value, rowId)
+    selectionAnchor.value = remapRow(selectionAnchor.value, nextData, rowId)
+    focusTarget.value = remapFocusTarget(focusTarget.value, nextData, rowId)
   })
 
   // Sorted apart from search/filters so a keystroke or filter click never re-sorts (see `sortData`)
@@ -199,13 +204,14 @@ export function useTableState<TRow extends object>(
     getSelectedRows(processedData.value, selection.value, getRowId.value),
   )
 
-  return {
+  const state = {
     // Top-level: the pipeline's actual output, not a "concern" of its own
     processedData,
     pagedData,
     groupedData,
     visibleItems,
     labels: L,
+    getRowId,
 
     columns: {
       visible: visibleCols,
@@ -238,8 +244,8 @@ export function useTableState<TRow extends object>(
       toggle: (key: string) => {
         sorts.value = _toggleSort(sorts.value, key, defaultSortDirFor(key))
       },
-      replace: (key: string) => {
-        sorts.value = _replaceSort(sorts.value, key, defaultSortDirFor(key), groupBy.value)
+      replace: (key: string, dir?: SortEntry['dir']) => {
+        sorts.value = _replaceSort(sorts.value, key, defaultSortDirFor(key), groupBy.value, dir)
       },
       appendOrToggle: (key: string) => {
         sorts.value = _appendOrToggleSort(sorts.value, key, defaultSortDirFor(key))
@@ -441,17 +447,13 @@ export function useTableState<TRow extends object>(
       },
     },
 
-    clearAll: () => {
-      sorts.value = []
-      filters.value = {}
-      excludeFilters.value = {}
-      filterModes.value = {}
-      rangeFilters.value = {}
-      groupBy.value = []
-      collapsedGroups.value = new Set()
-      page.value = 1
-      searchQuery.value = ''
-    },
+    // Back to `initialViewState`, keeping the column layout and page size
+    clearAll: () =>
+      state.setViewState({
+        visibleCols: [...visibleCols.value],
+        columnOrder: columnOrder.value,
+        pageSize: pageSize.value,
+      }),
 
     getViewState: (): TableViewState =>
       buildViewStateSnapshot({
@@ -486,4 +488,5 @@ export function useTableState<TRow extends object>(
       searchQuery.value = resolved.searchQuery
     },
   }
+  return state
 }

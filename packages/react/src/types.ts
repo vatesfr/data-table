@@ -24,11 +24,6 @@ export interface DataTableViewProps<TRow extends object = Record<string, unknown
   table: TableState<TRow>
   data: TRow[]
   columns: ColumnDef<TRow>[]
-  /**
-   * A row property used as React's `key` (default: the index). Not used for selection, which
-   * tracks rows by object identity (or `getRowId`).
-   */
-  rowKey?: keyof TRow & string
   selectable?: boolean
   onSelectionChange?: (rows: TRow[]) => void
   /** Fires on a row click, or on Enter while a row has keyboard focus (see "Keyboard navigation"). */

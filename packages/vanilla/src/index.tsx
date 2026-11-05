@@ -36,7 +36,7 @@ export {
 } from '@vates/data-table-core'
 // Ready-made compare for pinning a value (missing data, by default) last regardless of sort
 // direction — see `ColumnDefBase.compare` in the docs.
-export { compareMissingLast } from '@vates/data-table-core'
+export { compareMissingLast, compareInOrder } from '@vates/data-table-core'
 export type { DatePart, LogRangeOptions } from '@vates/data-table-core'
 
 // Solid setters treat a function argument as an updater, and several of these values are functions.
@@ -61,7 +61,6 @@ export function createDataTable<TRow extends object>(
   if (options.onSelectionChange) selectionChangeListeners.add(options.onSelectionChange)
 
   // Settable after construction; see docs/packages.md's "Vanilla package".
-  const [rowKey, setRowKey] = prop(options.rowKey)
   const [selectable, setSelectable] = prop(options.selectable ?? false)
   const [showSearch, setShowSearch] = prop(options.showSearch ?? true)
   const [showColumns, setShowColumns] = prop(options.showColumns ?? true)
@@ -108,7 +107,6 @@ export function createDataTable<TRow extends object>(
       () => (
         <DataTableView
           table={table}
-          rowKey={rowKey()}
           selectable={selectable()}
           onRowClick={onRowClick()}
           currentRow={currentRow()}
@@ -142,7 +140,6 @@ export function createDataTable<TRow extends object>(
     // Flat name, as vanilla flattens every namespaced group (docs/packages.md)
     focusRow: (row: TRow, options?: { focus?: boolean }) => table.focus.moveTo(row, options),
     clearAll: () => table.clearAll(),
-    setRowKey,
     setSelectable,
     setShowSearch,
     setShowColumns,

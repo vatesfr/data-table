@@ -224,6 +224,38 @@ describe('useTableState — getRowId (selection identity)', () => {
     expect(result.current.selection.rows).toEqual([refetched[0]])
   })
 
+  it('with getRowId, focus.row follows its row across a refetch', () => {
+    const getRowId = (r: Row) => r.id
+    const { result, rerender } = renderHook(({ data }) => useTableState(data, COLS, { getRowId }), {
+      initialProps: { data: ROWS },
+    })
+    expect(result.current.getRowId).toBe(getRowId)
+    act(() => {
+      result.current.focus.moveTo(ROWS[1])
+    })
+    const refetched = ROWS.map((r) => ({ ...r }))
+    rerender({ data: refetched })
+    expect(result.current.focus.row).toBe(refetched[1])
+    rerender({ data: refetched.filter((r) => r.id !== 2) })
+    expect(result.current.focus.row).toBeNull()
+  })
+
+  it('with getRowId, shift-toggle after a refetch ranges from the remapped anchor', () => {
+    const { result, rerender } = renderHook(
+      ({ data }) => useTableState(data, COLS, { getRowId: (r) => r.id }),
+      { initialProps: { data: ROWS } },
+    )
+    act(() => {
+      result.current.selection.toggle(ROWS[0])
+    })
+    const refetched = ROWS.map((r) => ({ ...r }))
+    rerender({ data: refetched })
+    act(() => {
+      result.current.selection.toggle(refetched[2], true)
+    })
+    expect(result.current.selection.rows).toEqual(refetched.slice(0, 3))
+  })
+
   it('with getRowId, a row no longer present after the refetch is dropped from selection', () => {
     const { result, rerender } = renderHook(
       ({ data }) => useTableState(data, COLS, { getRowId: (r) => r.id }),
@@ -409,6 +441,18 @@ describe('useTableState — sort remove/direction/reorder', () => {
     const { result } = renderHook(() => useTableState(ROWS, cols))
     act(() => {
       result.current.sort.replace('score')
+    })
+    expect(result.current.sort.entries).toEqual([{ key: 'score', dir: 'desc' }])
+  })
+
+  it('replace with a dir sets that exact sort, without cycling', () => {
+    const { result } = renderHook(() => useTableState(ROWS, COLS))
+    act(() => {
+      result.current.sort.toggle('name')
+      result.current.sort.replace('score', 'desc')
+    })
+    act(() => {
+      result.current.sort.replace('score', 'desc')
     })
     expect(result.current.sort.entries).toEqual([{ key: 'score', dir: 'desc' }])
   })
@@ -1040,6 +1084,21 @@ describe('useTableState — search', () => {
       result.current.search.setQuery('a')
     })
     expect(result.current.pagination.page).toBe(1)
+  })
+
+  it('clearAll returns to initialViewState, leaving nothing to persist', () => {
+    const { result } = renderHook(() =>
+      useTableState(ROWS, COLS, { initialViewState: { sorts: [{ key: 'name', dir: 'desc' }] } }),
+    )
+    act(() => {
+      result.current.sort.clear()
+      result.current.search.setQuery('alice')
+    })
+    act(() => {
+      result.current.clearAll()
+    })
+    expect(result.current.sort.entries).toEqual([{ key: 'name', dir: 'desc' }])
+    expect(result.current.getViewState()).toEqual({})
   })
 
   it('clearAll resets searchQuery', () => {

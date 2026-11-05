@@ -1,7 +1,8 @@
-import { Show, children, createSignal, onCleanup, type JSXElement } from 'solid-js'
+import { Show, children, createMemo, createSignal, onCleanup, type JSXElement } from 'solid-js'
 import {
   FILTER_NARROW_QUERY,
   injectStyles,
+  isViewClearable,
   tableStatus,
   watchMedia,
 } from '@vates/data-table-core/internal'
@@ -18,11 +19,6 @@ import { Pagination } from './components/Pagination'
 
 export interface DataTableViewProps<TRow extends object> {
   table: TableState<TRow>
-  /**
-   * A row property used as a stable DOM key (default: the index). Not used for selection, which
-   * tracks rows by object identity (or `getRowId`).
-   */
-  rowKey?: keyof TRow & string
   selectable?: boolean
   onRowClick?: (row: TRow, event: MouseEvent | KeyboardEvent) => void
   /**
@@ -70,16 +66,13 @@ export function DataTableView<TRow extends object>(props: DataTableViewProps<TRo
   // On a phone the toolbar wraps: toolbarEnd ends the first line instead of taking a line of its own.
   const endFirst = () => narrow() && hasToolbarEnd()
   const showColumns = () => props.showColumns !== false && table.columns.list().length >= 2
-  const hasActiveState = () =>
-    table.sort.entries().length > 0 ||
-    table.filter.activeCount() > 0 ||
-    table.group.by().length > 0 ||
-    table.search.query() !== ''
+  // Apart from `initialViewState`, which "Clear all" returns to
+  const canClearAll = createMemo(() => isViewClearable(table.getViewState()))
   // The divider separates the shape controls from the find ones: only drawn with both sides
   const hasShapeControls = () =>
     showColumns() || groupableCols().length > 0 || sortableCols().length > 0
   const hasFindControls = () =>
-    props.showSearch !== false || filterableCols().length > 0 || hasActiveState()
+    props.showSearch !== false || filterableCols().length > 0 || canClearAll()
 
   function toggleDd(id: DropdownId): void {
     setOpenDropdown((cur) => (cur === id ? null : id))
@@ -136,7 +129,7 @@ export function DataTableView<TRow extends object>(props: DataTableViewProps<TRo
                 onClose={() => setOpenDropdown(null)}
               />
             </Show>
-            <Show when={hasActiveState()}>
+            <Show when={canClearAll()}>
               <button
                 type="button"
                 class="dt-btn dt-clear-all"
@@ -176,7 +169,6 @@ export function DataTableView<TRow extends object>(props: DataTableViewProps<TRo
       <TableBody
         table={table}
         columns={table.columns.list()}
-        rowKey={props.rowKey}
         selectable={props.selectable}
         onRowClick={props.onRowClick}
         currentRow={props.currentRow}

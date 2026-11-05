@@ -25,6 +25,9 @@ import {
   columnsDropdownLists,
   isGroupCollapsed,
   isSameVisibleItem,
+  isSameRow,
+  isNewRowFocusTarget,
+  isViewClearable,
   indexOfVisibleItem,
   paginateVisibleItems,
   pageSizeOptions,
@@ -60,10 +63,6 @@ import { ToolbarBtn } from './components/ToolbarBtn'
 import { FilterPane } from './components/FilterPane'
 import { useDropdownReorder } from './hooks/useDropdownReorder'
 import type { ColumnDef, DataTableViewProps } from './types'
-
-function asRecord(row: object): Record<string, unknown> {
-  return row as Record<string, unknown>
-}
 
 /**
  * Consumes a pending-focus ref (see the `pendingSortFocusKey`/`pendingGroupFocusKey`/
@@ -199,7 +198,6 @@ export function DataTableView<TRow extends object>({
   table,
   data,
   columns,
-  rowKey,
   selectable,
   onSelectionChange,
   onRowClick,
@@ -234,7 +232,7 @@ export function DataTableView<TRow extends object>({
   const endFirst = narrowFilter && hasToolbarEnd
   const [filterShowValues, setFilterShowValues] = useState(false)
   const pendingFilterValuesFocus = useRef(false)
-  const rowRefs = useRef(new Map<TRow | string, HTMLTableRowElement>())
+  const rowRefs = useRef(new Map<TRow | string, HTMLElement>())
   const [dragColKey, setDragColKey] = useState<string | null>(null)
   const [dragOverColKey, setDragOverColKey] = useState<string | null>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
@@ -473,11 +471,7 @@ export function DataTableView<TRow extends object>({
   // the row once it actually mounts.
   const lastScrolledFocusTarget = useRef<VisibleItem<TRow> | null>(null)
   useEffect(() => {
-    if (
-      focusTarget &&
-      focusTarget.kind === 'row' &&
-      focusTarget !== lastScrolledFocusTarget.current
-    ) {
+    if (isNewRowFocusTarget(focusTarget, lastScrolledFocusTarget.current, table.getRowId)) {
       const el = rowRefs.current.get(focusTarget.row)
       if (el) {
         // jsdom (used by this project's own component tests) doesn't implement
@@ -489,8 +483,8 @@ export function DataTableView<TRow extends object>({
         if (consumeDomFocus()) el.focus({ preventScroll: true })
         lastScrolledFocusTarget.current = focusTarget
       }
-    }
-  }, [focusTarget, page, collapsedGroups, consumeDomFocus])
+    } else lastScrolledFocusTarget.current = focusTarget
+  }, [focusTarget, page, collapsedGroups, consumeDomFocus, table.getRowId])
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTableRowElement>, target: VisibleItem<TRow>) => {
     const plan = planRowNav(e, target, {
@@ -750,8 +744,8 @@ export function DataTableView<TRow extends object>({
     }
   }
 
-  const hasActiveState =
-    sorts.length > 0 || activeFilterCount > 0 || groupBy.length > 0 || searchQuery !== ''
+  // Apart from `initialViewState`, which "Clear all" returns to
+  const canClearAll = isViewClearable(table.getViewState())
   const hasAggregates = activeColumns.some((c) => c.aggregate !== undefined)
   const toolbarEndEl = hasToolbarEnd && <div className="dt-toolbar-end">{toolbarEnd}</div>
   // The divider separates the shape controls from the find ones: only drawn with both sides
@@ -759,7 +753,7 @@ export function DataTableView<TRow extends object>({
     (showColumns !== false && columns.length >= 2) ||
     groupableCols.length > 0 ||
     sortableCols.length > 0
-  const hasFindControls = showSearch !== false || filterableCols.length > 0 || hasActiveState
+  const hasFindControls = showSearch !== false || filterableCols.length > 0 || canClearAll
 
   const formatValue = (v: unknown, row: TRow, col: ColumnDef<TRow>) => {
     if (col.render) return col.render(v, row)
@@ -1329,7 +1323,7 @@ export function DataTableView<TRow extends object>({
             {/* "Clear all" sits alone at the far right of the actions row (`.dt-clear-all`'s
               margin-left: auto) — nothing else in the row needs to reflow when it mounts/unmounts,
               unlike the old layout where it sat between search and the stats text. */}
-            {hasActiveState && (
+            {canClearAll && (
               <button
                 type="button"
                 className="dt-btn dt-clear-all"
@@ -1511,7 +1505,11 @@ export function DataTableView<TRow extends object>({
                   />
                 </th>
               )}
-              {groupBy.length > 0 && <th className="dt-th dt-th--no-sort" style={{ width: 28 }} />}
+              {groupBy.length > 0 && (
+                <th className="dt-th dt-th--no-sort" style={{ width: 28 }}>
+                  <span className="dt-sr-only">{L.expandCollapse}</span>
+                </th>
+              )}
               {/* Only sorts entries for a currently-rendered header count toward numbering — a
                   groupBy column can have its own sort entry (sortWithinGroups uses it to order
                   the groups themselves), but it has no header of its own to attach a number to,
@@ -1625,16 +1623,14 @@ export function DataTableView<TRow extends object>({
                 gkey !== null && (
                   <tr
                     key={`g-${gkey}`}
-                    ref={(el) => {
-                      if (el) rowRefs.current.set(gkey, el)
-                      else rowRefs.current.delete(gkey)
-                    }}
-                    tabIndex={isFocusTarget({ kind: 'group', key: gkey }) ? 0 : -1}
-                    aria-expanded={!isCollapsed}
                     onKeyDown={(e) => handleKeyDown(e, { kind: 'group', key: gkey })}
                     onFocus={() => setFocusTarget({ kind: 'group', key: gkey })}
                     className="dt-group-row"
-                    onClick={() => toggleGroupCollapse(gkey)}
+                    onClick={() => {
+                      toggleGroupCollapse(gkey)
+                      // A click anywhere on the row makes its toggle the tab stop, as a data row's click does
+                      rowRefs.current.get(gkey)?.focus({ preventScroll: true })
+                    }}
                   >
                     <td
                       colSpan={activeColumns.length + (selectable ? 2 : 1)}
@@ -1662,7 +1658,20 @@ export function DataTableView<TRow extends object>({
                             />
                           </span>
                         )}
-                        <span className="dt-group-arrow">{isCollapsed ? '▶' : '▼'}</span>
+                        {/* The group's tab stop: a row can't carry aria-expanded outside a treegrid */}
+                        <button
+                          type="button"
+                          className="dt-group-arrow dt-group-toggle"
+                          ref={(el) => {
+                            if (el) rowRefs.current.set(gkey, el)
+                            else rowRefs.current.delete(gkey)
+                          }}
+                          tabIndex={isFocusTarget({ kind: 'group', key: gkey }) ? 0 : -1}
+                          aria-expanded={!isCollapsed}
+                          aria-label={groupText(columns, groupBy, keyParts, rows[0])}
+                        >
+                          {isCollapsed ? '▶' : '▼'}
+                        </button>
                         <span className="dt-group-text">
                           {groupBy.map((g, i) => {
                             const col = columns.find((c) => c.key === g)
@@ -1720,9 +1729,7 @@ export function DataTableView<TRow extends object>({
                 !isCollapsed &&
                   pageRows.map((row, ri) => (
                     <tr
-                      key={String(
-                        rowKey ? (asRecord(row)[rowKey] ?? `${gkey}-${ri}`) : `${gkey}-${ri}`,
-                      )}
+                      key={table.getRowId ? table.getRowId(row) : `${gkey}-${ri}`}
                       ref={(el) => {
                         if (el) rowRefs.current.set(row, el)
                         else rowRefs.current.delete(row)
@@ -1731,12 +1738,12 @@ export function DataTableView<TRow extends object>({
                         rowNavEnabled ? (isFocusTarget({ kind: 'row', row }) ? 0 : -1) : undefined
                       }
                       aria-selected={selectable ? selection.has(row) : undefined}
-                      aria-current={row === currentRow ? 'true' : undefined}
+                      aria-current={isSameRow(row, currentRow, table.getRowId) ? 'true' : undefined}
                       className={trClass(
                         !!selectable && selection.has(row),
                         ri % 2 !== 0,
                         !!onRowClick,
-                        row === currentRow,
+                        isSameRow(row, currentRow, table.getRowId),
                         rowClass?.(row),
                       )}
                       onKeyDown={
