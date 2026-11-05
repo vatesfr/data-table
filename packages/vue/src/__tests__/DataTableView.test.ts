@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
 import { mount } from '@vue/test-utils'
 import { useTableState } from '../useTableState'
@@ -188,7 +188,7 @@ describe('DataTableView — group aggregates', () => {
     { key: 'name', label: 'Name', groupable: true },
     { key: 'score', label: 'Score', type: 'number', aggregate: 'sum' },
   ]
-  function mountSplit(cols = AGG_COLS) {
+  function mountSplit(cols = AGG_COLS, slots: Record<string, (scope: never) => unknown> = {}) {
     let table!: Table
     const Comp = defineComponent({
       setup() {
@@ -197,13 +197,17 @@ describe('DataTableView — group aggregates', () => {
           initialViewState: { groupBy: ['name'], pageSize: 3 },
         })
         return () =>
-          h(DataTableView, {
-            table,
-            data: SPLIT,
-            columns: cols,
-            rowKey: 'id',
-            selectable: true,
-          } as Record<string, unknown>)
+          h(
+            DataTableView,
+            {
+              table,
+              data: SPLIT,
+              columns: cols,
+              rowKey: 'id',
+              selectable: true,
+            } as Record<string, unknown>,
+            slots,
+          )
       },
     })
     const wrapper = mount(Comp)
@@ -236,5 +240,32 @@ describe('DataTableView — group aggregates', () => {
       },
     ])
     expect(aggText()).toBe('50 over 5')
+  })
+
+  it('renders an aggregate through the #aggregate-{key} slot, given the whole group', () => {
+    const { wrapper } = mountSplit(AGG_COLS, {
+      'aggregate-score': ({ value, rows }: { value: unknown; rows: Row[] }) =>
+        h('b', `${String(value)} / ${rows.length}`),
+    })
+    expect(wrapper.find('.dt-agg-row [data-col-key="score"] b').text()).toBe('50 / 5')
+  })
+
+  it('prefers aggregateFormat to the #aggregate-{key} slot', () => {
+    const slot = vi.fn(() => h('b', 'slot'))
+    const { aggText } = mountSplit(
+      [AGG_COLS[0], { ...AGG_COLS[1], aggregateFormat: (v) => `=${String(v)}` }],
+      { 'aggregate-score': slot },
+    )
+    expect(aggText()).toBe('=50')
+    expect(slot).not.toHaveBeenCalled()
+  })
+
+  it("doesn't render an empty aggregate through the #aggregate-{key} slot", () => {
+    const slot = vi.fn(() => h('b', 'slot'))
+    const { aggText } = mountSplit([AGG_COLS[0], { ...AGG_COLS[1], aggregate: () => null }], {
+      'aggregate-score': slot,
+    })
+    expect(aggText()).toBe('')
+    expect(slot).not.toHaveBeenCalled()
   })
 })

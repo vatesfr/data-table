@@ -111,7 +111,8 @@ export interface ColumnDefBase<TRow extends object = Record<string, unknown>> {
   aggregate?: AggregateType | ((rows: TRow[]) => unknown)
   /**
    * Formats this column's aggregate in group headers, instead of the cell's `render`/`format`
-   * (which get the group's first row as the row). Not called for a `null`/`undefined` aggregate.
+   * (which get the group's first row as the row) or Vue's `#aggregate-{key}` slot. Not called for
+   * a `null`/`undefined` aggregate.
    */
   aggregateFormat?: (value: unknown, rows: TRow[]) => string
   /**

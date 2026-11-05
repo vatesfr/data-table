@@ -457,6 +457,17 @@ describe('TableBody — grouping and aggregation', () => {
       expect(aggText()).toBe('50 over 5')
       dispose()
     })
+
+    it("doesn't render an empty aggregate", () => {
+      const render = vi.fn(() => document.createTextNode('cell'))
+      const { aggText, dispose } = mountSplit([
+        SUM_COLS[0],
+        { ...SUM_COLS[1], aggregate: () => null, render },
+      ])
+      expect(aggText()).toBe('')
+      expect(render).not.toHaveBeenCalledWith(null, expect.anything())
+      dispose()
+    })
   })
 
   it("a group's own select-all checkbox toggles just that group's rows", () => {

@@ -62,7 +62,7 @@ const COLUMNS: ColumnDef<Employee>[] = [
 ]
 ```
 
-`render` also applies to group header values, so grouped columns display with the same badge/visual as table cells.
+`render` also applies to group header values and aggregate cells, so grouped columns display with the same badge/visual as table cells.
 
 ## Multi-value (array) columns
 
@@ -239,7 +239,7 @@ Set `aggregate` on a column to show a computed value in a row below each group h
 
 The aggregate row only appears once grouping is active and only shows values for columns that define `aggregate`; it's always visible regardless of a group's collapsed state. It covers the whole group, even one split across pages.
 
-The value shows through the column's `format`, which gets the group's first row as its row. Set `aggregateFormat(value, rows)` to format it on its own instead, e.g. when `format` reads other fields of its row:
+The value shows through the column's `render` or `format`, which get the group's first row as their row; an empty (`null`/`undefined`) value shows nothing. Set `aggregateFormat(value, rows)` to format it on its own instead, e.g. when `render` reads other fields of its row:
 
 ```ts
 { key: 'name', label: 'Player', aggregate: (rows) => topScorer(rows), aggregateFormat: (p) => `★ ${(p as Player).name}` }

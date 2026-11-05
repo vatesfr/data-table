@@ -3429,9 +3429,27 @@ describe('DataTable — group aggregates', () => {
       {
         ...AGG_COLS[1],
         format: () => 'cell',
+        render: () => 'cell',
         aggregateFormat: (v, rows) => `${String(v)} over ${rows.length}`,
       },
     ]
     expect(aggText(renderSplit(cols).container)).toBe('50 over 5')
+  })
+
+  it("renders an aggregate through the column's render, given the group's first row", () => {
+    const render = vi.fn((v: unknown) => <b>{String(v)}</b>)
+    const { container } = renderSplit([AGG_COLS[0], { ...AGG_COLS[1], render }])
+    expect(container.querySelector('.dt-agg-row [data-col-key="score"] b')!.textContent).toBe('50')
+    expect(render).toHaveBeenCalledWith(50, SPLIT[0])
+  })
+
+  it("doesn't render an empty aggregate", () => {
+    const render = vi.fn(() => 'cell')
+    const { container } = renderSplit([
+      AGG_COLS[0],
+      { ...AGG_COLS[1], aggregate: () => null, render },
+    ])
+    expect(aggText(container)).toBe('')
+    expect(render).not.toHaveBeenCalledWith(null, expect.anything())
   })
 })

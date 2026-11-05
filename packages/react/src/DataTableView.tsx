@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from 'react'
 import {
+  computeAggregate,
   formatAggregate,
   exclusionChip,
   exclusionValueKeys,
@@ -761,6 +762,13 @@ export function DataTableView<TRow extends object>({
     if (col.format) return col.format(v, row)
     if (Array.isArray(v)) return v.join(', ')
     return v != null ? String(v) : ''
+  }
+
+  // aggregateFormat, else render, else format (formatAggregate); nothing for an empty aggregate
+  const aggregateValue = (col: ColumnDef<TRow>, rows: TRow[]) => {
+    if (!col.render || col.aggregateFormat) return formatAggregate(col, rows)
+    const v = computeAggregate(col, rows)
+    return v === undefined || v === null ? null : col.render(v, rows[0])
   }
 
   const cellValue = (row: TRow, col: ColumnDef<TRow>) =>
@@ -1691,7 +1699,7 @@ export function DataTableView<TRow extends object>({
                           data-col-key={col.key}
                           style={{ textAlign: getColumnAlign(col) }}
                         >
-                          {formatAggregate(col, rows)}
+                          {aggregateValue(col, rows)}
                         </td>
                       )
                     })}

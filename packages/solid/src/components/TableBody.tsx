@@ -52,10 +52,11 @@ function cellValue<TRow extends object>(col: ColumnDef<TRow>, row: TRow): Node |
   return renderCell(col, getColumnValue(col, row), row)
 }
 
+// aggregateFormat, else render, else format (formatAggregate); nothing for an empty aggregate
 function aggValue<TRow extends object>(col: ColumnDef<TRow>, rows: TRow[]): Node | string {
-  if (!col.aggregate) return ''
-  if (col.aggregateFormat) return formatAggregate(col, rows)
-  return renderCell(col, computeAggregate(col, rows), rows[0])
+  if (!col.render || col.aggregateFormat) return formatAggregate(col, rows)
+  const v = computeAggregate(col, rows)
+  return v === undefined || v === null ? '' : col.render(v, rows[0])
 }
 
 // Table header + body: sortable/draggable header cells, group headers (collapse toggle,

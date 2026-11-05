@@ -11,12 +11,15 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 - **Showcase**: [six apps](https://vatesfr.github.io/data-table/showcase/) built with the library (ops console, French ledger, log viewer, store catalog, sports stats, user admin), each with its own data, interactions and style, and its source.
 - **Style one toolbar clear button**: the Group, Sort and Filter × buttons carry `dt-btn-clear--groups`, `dt-btn-clear--sorts` and `dt-btn-clear--filters`, so CSS can target one without matching its translated label.
-- **Format a group total on its own**: a column's `aggregateFormat(value, rows)` formats its group header aggregate instead of the cell's `format` (or, in Solid and vanilla, `render`), which get the group's first row as their row and so could decorate the total as that row's value.
+- **Format a group total on its own**: a column's `aggregateFormat(value, rows)` formats its group header aggregate instead of the cell's `render`/`format`, which get the group's first row as their row and so could decorate the total as that row's value.
+- **Vue: render a group total with a slot**: `#aggregate-{key}`, with scope `{ value, rows }` (the whole group).
 
 ### Changed
 
 - ⚠️ **BREAKING (Solid, React, Vue):** in `table.groupedData`, a group's `rows` is now the whole group on every page, and the new `pageRows` holds the part rendered on this page (`[]` when collapsed); `sampleRow` is removed. Iterate `pageRows` to render a page's rows, and read `rows[0]` instead of `sampleRow`.
+- ⚠️ **BREAKING (React):** a column's `render` now also draws its group totals, as in Solid and vanilla. Set `aggregateFormat` to keep a plain-text total.
 - **A group's checkbox and Space select the whole group**, also when it's split across pages.
+- **Solid, vanilla: an empty group total shows nothing**: `render` is no longer called with a `null`/`undefined` aggregate, as in React and Vue.
 
 ### Removed
 
@@ -25,7 +28,6 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ### Fixed
 
 - **A group split across pages shows its whole total and row count**: its aggregates and "n rows" no longer cover only the current page's rows, so expanding a group doesn't change its numbers.
-
 - **Date range filters keep rows dated on a bound in every time zone**: a min or max date now covers that whole local day, so "Released ≤ today" no longer drops today's rows west of UTC (nor min east of UTC). The range inputs and slider show the right day east of UTC, a `YYYY-MM-DD` value sits on its own day in the date filter tree, and a month group reads its own month west of UTC. A custom `parseDate` should return local time to match. (#46)
 
 ## [0.21.0] - 2026-10-31

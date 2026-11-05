@@ -1,6 +1,7 @@
 <script setup lang="ts" generic="TRow extends object">
 import { computed, ref, toRaw, watch, nextTick, useSlots, onMounted, onBeforeUnmount } from 'vue'
 import {
+  computeAggregate,
   formatAggregate,
   getColumnAlign,
   getColumnValue,
@@ -541,6 +542,12 @@ function groupBucketLabel(group: PagedGroup<TRow>, key: string, i: number): stri
 
 function hasSlot(name: string): boolean {
   return name in slots
+}
+
+function hasAggregateSlot(col: ColumnDef<TRow>, rows: TRow[]): boolean {
+  if (col.aggregateFormat || !hasSlot(`aggregate-${col.key}`)) return false
+  const v = computeAggregate(col, rows)
+  return v !== undefined && v !== null
 }
 
 const dragColKey = ref<string | null>(null)
@@ -1825,7 +1832,18 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                 :data-col-key="col.key"
                 :style="{ textAlign: getColumnAlign(col) }"
               >
-                {{ formatAggregate(col, group.rows) }}
+                <!--
+                  Slot #aggregate-{key} — custom aggregate rendering, unless aggregateFormat is set.
+                  Slot scope: { value: unknown, rows: TRow[] } (the whole group); not used for an
+                  empty aggregate. Falls back to aggregateFormat(), format() or string coercion.
+                -->
+                <slot
+                  v-if="hasAggregateSlot(col, group.rows)"
+                  :name="`aggregate-${col.key}`"
+                  :value="computeAggregate(col, group.rows)"
+                  :rows="group.rows"
+                />
+                <template v-else>{{ formatAggregate(col, group.rows) }}</template>
               </td>
             </tr>
 
