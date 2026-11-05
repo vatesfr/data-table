@@ -13,7 +13,9 @@ export async function runInBrowser(script) {
   try {
     const page = await (await browser.newContext()).newPage()
     const fn = (0, eval)(script)
-    console.log(JSON.stringify(await fn(page), null, 2))
+    const result = await fn(page)
+    console.log(JSON.stringify(result, null, 2))
+    return result
   } finally {
     await browser.close()
   }

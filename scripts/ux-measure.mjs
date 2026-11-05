@@ -15,7 +15,8 @@
 // the heading the first row starts, the height of the library's controls above the table, page
 // and in-table horizontal overflow, interactive elements under 24×24 px or without an accessible
 // name, and console errors (the demos' missing favicon aside).
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { appendFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs'
+import { homedir } from 'node:os'
 import { join, relative, resolve } from 'node:path'
 import process from 'node:process'
 import console from 'node:console'
@@ -107,6 +108,8 @@ function measureSection(id) {
 
 // encodeViewState is served from core's source by every demo's dev server.
 const viewModule = '/@fs' + resolve(import.meta.dirname, '../packages/core/src/view.ts')
+// A dev server can keep injecting an older DT_STYLES after a core CSS edit (docs/pitfalls.md)
+const { DT_STYLES } = await import('../packages/core/src/styles.ts')
 
 // Runs on a page of its own, closed at the end: its init script clears the persisted views before
 // the demo's code runs on each navigation (clearing after load loses to the demo re-saving its view).
@@ -121,6 +124,7 @@ const script = `async (mcpPage) => {
   page.on('response', (r) => { if (r.status() === 504 && r.url().includes('/node_modules/.vite/deps/')) staleDeps = true; });
   const measureSection = ${measureSection.toString()};
   const views = ${JSON.stringify(views)};
+  const sourceStyles = ${JSON.stringify(DT_STYLES)};
   const out = {};
   // Closed even when a step throws: each demo page holds #huge-dataset's 200k rows, and leaked
   // pages grew Chromium past 10 GB until the OOM killer took down the terminal with it.
@@ -137,6 +141,8 @@ const script = `async (mcpPage) => {
         await page.goto(base + '?' + query);
       }
       await page.locator('table').first().waitFor({ timeout: 15000 });
+      const served = await page.evaluate(() => [...document.querySelectorAll('style')].map((s) => s.textContent).join(''));
+      if (!served.includes(sourceStyles)) throw new Error('Stale core styles: restart the dev server (npm run dev:' + demo + ')');
       for (const [w, h] of ${JSON.stringify(SIZES)}) {
         await page.setViewportSize({ width: w, height: h });
         for (const section of ${JSON.stringify(sections.length ? sections : SECTIONS)}) {
@@ -169,4 +175,28 @@ mkdirSync(dir, { recursive: true })
 const file = join(dir, 'measure.js')
 writeFileSync(file, script)
 console.log(relative(process.cwd(), file))
-if (args.includes('--run')) await (await import('./run-in-browser.mjs')).runInBrowser(script)
+if (args.includes('--run')) {
+  const start = Date.now()
+  let outcome = 'ok'
+  let measured = 0
+  try {
+    const result = await (await import('./run-in-browser.mjs')).runInBrowser(script)
+    measured = Object.keys(result).length - 1 // minus consoleErrors
+  } catch (error) {
+    outcome = error.message.split('\n')[0]
+    throw error
+  } finally {
+    const logs = join(homedir(), '.claude/logs')
+    if (existsSync(logs))
+      appendFileSync(
+        join(logs, 'ux-measure.jsonl'),
+        JSON.stringify({
+          date: new Date().toISOString(),
+          demos,
+          measured,
+          outcome,
+          seconds: Math.round((Date.now() - start) / 1000),
+        }) + '\n',
+      )
+  }
+}
