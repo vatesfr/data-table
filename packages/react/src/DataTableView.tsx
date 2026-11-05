@@ -1506,11 +1506,6 @@ export function DataTableView<TRow extends object>({
                   />
                 </th>
               )}
-              {groupBy.length > 0 && (
-                <th className="dt-th dt-th--no-sort" style={{ width: 28 }}>
-                  <span className="dt-sr-only">{L.expandCollapse}</span>
-                </th>
-              )}
               {/* Only sorts entries for a currently-rendered header count toward numbering — a
                   groupBy column can have its own sort entry (sortWithinGroups uses it to order
                   the groups themselves), but it has no header of its own to attach a number to,
@@ -1634,7 +1629,7 @@ export function DataTableView<TRow extends object>({
                     }}
                   >
                     <td
-                      colSpan={activeColumns.length + (selectable ? 2 : 1)}
+                      colSpan={activeColumns.length + (selectable ? 1 : 0)}
                       className="dt-group-td"
                     >
                       <div className="dt-group-label">
@@ -1712,7 +1707,6 @@ export function DataTableView<TRow extends object>({
                 gkey !== null && hasAggregates && (
                   <tr key={`agg-${gkey}`} className="dt-agg-row">
                     {selectable && <td className="dt-agg-td" style={{ width: 36 }} />}
-                    <td className="dt-agg-td" style={{ width: 28 }} />
                     {activeColumns.map((col) => {
                       return (
                         <td
@@ -1774,7 +1768,6 @@ export function DataTableView<TRow extends object>({
                           />
                         </td>
                       )}
-                      {gkey !== null && <td className="dt-td" style={{ width: 28 }} />}
                       {activeColumns.map((col) => (
                         <td
                           key={col.key}
@@ -1792,9 +1785,7 @@ export function DataTableView<TRow extends object>({
             {processedData.length === 0 && (
               <tr>
                 <td
-                  colSpan={
-                    activeColumns.length + (selectable ? 1 : 0) + (groupBy.length > 0 ? 1 : 0)
-                  }
+                  colSpan={activeColumns.length + (selectable ? 1 : 0)}
                   className="dt-td dt-empty"
                 >
                   {data.length === 0 ? (

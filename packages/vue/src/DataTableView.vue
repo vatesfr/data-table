@@ -1721,9 +1721,6 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                 @change="toggleSelectAll(processedData)"
               />
             </th>
-            <th v-if="groupBy.length > 0" class="dt-th dt-th--no-sort" style="width: 28px">
-              <span class="dt-sr-only">{{ L.expandCollapse }}</span>
-            </th>
             <th
               v-for="col in activeColumns"
               :key="col.key"
@@ -1789,7 +1786,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
               @keydown="handleKeyDown($event, { kind: 'group', key: group.key! })"
               @focusin="setFocusTarget({ kind: 'group', key: group.key! })"
             >
-              <td :colspan="activeColumns.length + (selectable ? 2 : 1)" class="dt-group-td">
+              <td :colspan="activeColumns.length + (selectable ? 1 : 0)" class="dt-group-td">
                 <div class="dt-group-label">
                   <span
                     v-if="selectable"
@@ -1860,7 +1857,6 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
             <!-- Aggregate row -->
             <tr v-if="group.key !== null && hasAggregates" class="dt-agg-row">
               <td v-if="selectable" class="dt-agg-td" style="width: 36px" />
-              <td class="dt-agg-td" style="width: 28px" />
               <td
                 v-for="col in activeColumns"
                 :key="col.key"
@@ -1923,7 +1919,6 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                     @click="toggleRowSelection(row, $event.shiftKey)"
                   />
                 </td>
-                <td v-if="group.key !== null" class="dt-td" style="width: 28px" />
                 <td
                   v-for="col in activeColumns"
                   :key="col.key"
@@ -1952,10 +1947,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
             </template>
           </template>
           <tr v-if="processedData.length === 0">
-            <td
-              class="dt-td dt-empty"
-              :colspan="activeColumns.length + (selectable ? 1 : 0) + (groupBy.length > 0 ? 1 : 0)"
-            >
+            <td class="dt-td dt-empty" :colspan="activeColumns.length + (selectable ? 1 : 0)">
               <template v-if="data.length === 0">{{ L.noRows }}</template>
               <template v-else>
                 {{ L.noMatchingRows }}

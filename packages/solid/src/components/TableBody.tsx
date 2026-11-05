@@ -255,11 +255,6 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
                 />
               </th>
             </Show>
-            <Show when={table.group.by().length > 0}>
-              <th class="dt-th dt-th--no-sort" style={{ width: '28px' }}>
-                <span class="dt-sr-only">{table.labels().expandCollapse}</span>
-              </th>
-            </Show>
             <For each={table.columns.active()}>
               {(col) => {
                 const sortDir = createMemo(() => headerSorts().find((s) => s.key === col.key)?.dir)
@@ -394,7 +389,6 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
                         onRowClick={props.onRowClick}
                         current={isSameRow(row, props.currentRow, table.getRowId())}
                         extraClass={props.rowClass?.(row)}
-                        indentGroup
                         tabIndex={
                           rowNavEnabled()
                             ? isFocusTarget({ kind: 'row', row })
@@ -416,11 +410,7 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
             <tr>
               <td
                 class="dt-td dt-empty"
-                colspan={
-                  table.columns.active().length +
-                  (props.selectable ? 1 : 0) +
-                  (table.group.by().length > 0 ? 1 : 0)
-                }
+                colspan={table.columns.active().length + (props.selectable ? 1 : 0)}
               >
                 <Show when={table.data().length > 0} fallback={table.labels().noRows}>
                   {table.labels().noMatchingRows}{' '}
@@ -493,7 +483,7 @@ function GroupHeaderRow<TRow extends object>(props: GroupHeaderRowProps<TRow>) {
       >
         <td
           class="dt-group-td"
-          colspan={table.columns.active().length + (props.selectable ? 2 : 1)}
+          colspan={table.columns.active().length + (props.selectable ? 1 : 0)}
         >
           <div class="dt-group-label">
             <Show when={props.selectable}>
@@ -579,7 +569,6 @@ function GroupHeaderRow<TRow extends object>(props: GroupHeaderRowProps<TRow>) {
           <Show when={props.selectable}>
             <td class="dt-agg-td" style={{ width: '36px' }} />
           </Show>
-          <td class="dt-agg-td" style={{ width: '28px' }} />
           <For each={table.columns.active()}>
             {(col) => (
               <td
@@ -618,7 +607,6 @@ interface DataRowProps<TRow extends object> {
   odd: boolean
   selectable?: boolean
   onRowClick?: (row: TRow, event: MouseEvent | KeyboardEvent) => void
-  indentGroup?: boolean
   current?: boolean
   extraClass?: string
   tabIndex?: number
@@ -667,9 +655,6 @@ function DataRow<TRow extends object>(props: DataRowProps<TRow>) {
             onClick={(e) => table.selection.toggle(row, (e as MouseEvent).shiftKey)}
           />
         </td>
-      </Show>
-      <Show when={props.indentGroup}>
-        <td class="dt-td" style={{ width: '28px' }} />
       </Show>
       <For each={table.columns.active()}>
         {(col) => (

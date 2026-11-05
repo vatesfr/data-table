@@ -2821,12 +2821,16 @@ describe('DataTable — keyboard navigation with grouping', () => {
     fireEvent.click(getAllByText('Department').find((el) => el.closest('th') === null)!)
   }
 
-  it("names the group expander column's header, visually hidden", () => {
+  it('adds no empty column when grouped: the group header spans the data columns', () => {
     const { getByText, getAllByText, container } = render(
       <DataTable data={GROUP_ROWS} columns={GROUP_COLS} />,
     )
     groupByDept(getByText, getAllByText)
-    expect(container.querySelector('thead .dt-sr-only')?.textContent).toBe('Expand/collapse')
+    const headers = container.querySelectorAll('thead th').length
+    expect(container.querySelector('.dt-group-td')!.getAttribute('colspan')).toBe(String(headers))
+    fireEvent.click(container.querySelector('.dt-group-toggle')!)
+    const row = container.querySelector('tbody tr:not(.dt-group-row):not(.dt-agg-row)')!
+    expect(row.querySelector('td')!.textContent).not.toBe('')
   })
 
   it('makes every group header row a Tab stop, one at a time', () => {

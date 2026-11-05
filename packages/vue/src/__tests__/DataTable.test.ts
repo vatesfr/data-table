@@ -2966,10 +2966,14 @@ describe('DataTable — keyboard navigation with grouping', () => {
     await deptItem.trigger('click')
   }
 
-  it("names the group expander column's header, visually hidden", async () => {
+  it('adds no empty column when grouped: the group header spans the data columns', async () => {
     const wrapper = mount(DataTable, { props: { data: GROUP_ROWS, columns: GROUP_COLS } })
     await groupByDept(wrapper)
-    expect(wrapper.find('thead .dt-sr-only').text()).toBe('Expand/collapse')
+    const headers = wrapper.findAll('thead th').length
+    expect(wrapper.find('.dt-group-td').attributes('colspan')).toBe(String(headers))
+    await wrapper.find('.dt-group-toggle').trigger('click')
+    const row = wrapper.find('tbody tr:not(.dt-group-row):not(.dt-agg-row)')
+    expect(row.find('td').text()).not.toBe('')
   })
 
   it('makes every group header row a Tab stop, one at a time', async () => {

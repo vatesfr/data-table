@@ -609,10 +609,14 @@ describe('TableBody — keyboard navigation', () => {
     dispose()
   })
 
-  it("names the group expander column's header, visually hidden", () => {
+  it('adds no empty column when grouped: the group header spans the data columns', () => {
     const { container, table, dispose } = mount()
     table.group.toggle('dept')
-    expect(container.querySelector('thead .dt-sr-only')?.textContent).toBe('Expand/collapse')
+    const headers = container.querySelectorAll('thead th').length
+    expect(container.querySelector('.dt-group-td')!.getAttribute('colspan')).toBe(String(headers))
+    ;(container.querySelector('.dt-group-toggle') as HTMLElement).click()
+    const row = container.querySelector('tbody tr:not(.dt-group-row):not(.dt-agg-row)')!
+    expect(row.querySelector('td')!.textContent).not.toBe('')
     dispose()
   })
 
