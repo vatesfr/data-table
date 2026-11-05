@@ -4,7 +4,7 @@ import pluginVue from 'eslint-plugin-vue'
 import tseslint from 'typescript-eslint'
 
 export default tseslint.config(
-  { ignores: ['**/dist/**', '**/node_modules/**', '.playwright-mcp/**'] },
+  { ignores: ['**/dist/**', '**/node_modules/**', '.playwright-mcp/**', '.claude/worktrees/**'] },
   eslint.configs.recommended,
   tseslint.configs.recommended,
   // `essential`: correctness rules only; layout is Prettier's
