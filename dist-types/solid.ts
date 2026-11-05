@@ -5,7 +5,8 @@ type Row = { id: number; name: string }
 
 export const props: DataTableProps<Row> = {
   data: [],
-  columns: [{ key: 'name', label: 'Name' }],
+  // `render` takes any JSX, a plain string included, not only a DOM node
+  columns: [{ key: 'name', label: 'Name', render: (v) => String(v), renderFilterLabel: (v) => v }],
   labels: LABELS_FR,
 }
 // @ts-expect-error columns must be typed, not `any`

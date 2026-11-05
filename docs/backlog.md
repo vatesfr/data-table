@@ -11,7 +11,6 @@ Code health items (simplicity, duplication, maintainability, dev loop) from `vfl
 
 - **B46** — vanilla has no single-field setters: an outside search box calls `setViewState({ ...getViewState(), searchQuery })`, since `setViewState` resets every field the view leaves out.
 - **B48** — two tables persisted to the URL with the same `paramName` (default `view`) overwrite each other silently; nothing warns.
-- **B51** — Solid's `ColumnDef.render`/`renderFilterLabel` are typed `Node`, so every JSX cell needs `as HTMLElement` (25 casts in the showcase). Type them as `JSXElement`, like `toolbarEnd`; vanilla keeps its own copy.
 - **B52** — no helper for an ordinal `compare` (`Bronze < Silver < Gold`): 4 of 6 showcase pages hand-roll `ORDER.indexOf(a as X) - ORDER.indexOf(b as X)`. A `compareInOrder(order)` next to `compareMissingLast()`.
 - **B53** — "show only these values" on an exclude-only (single-value) column means writing the complement into `excludeFilters` (showcase catalog's chips: 20 lines of branching), and `setViewState`/`initialViewState` silently accept include `filters` there, which the checklist never shows (showcase users' views first did this: Filter → Status showed every value ticked while one was kept). A `filter.keepOnly(key, values)`, and normalize or warn on include filters for such columns.
 - **B55** — the group bucketers don't see the column's `parseDate`: a non-ISO date column passes it twice (`parseDate: parseFr` and `bucketDatePart('month', parseFr)`). Default bucketing to the column's `parseDate`.

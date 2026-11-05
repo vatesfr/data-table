@@ -23,14 +23,13 @@ function crest(team: string) {
       </span>
       {team}
     </span>
-  ) as HTMLElement
+  )
 }
 
-const posPill = (pos: Position) =>
-  (<span class={`pos pos--${pos.toLowerCase()}`}>{pos}</span>) as HTMLElement
+const posPill = (pos: Position) => <span class={`pos pos--${pos.toLowerCase()}`}>{pos}</span>
 
 const card = (kind: 'yellow' | 'red', n: number) =>
-  (n ? <span class={`card card--${kind}`}>{n}</span> : <span class="zero">0</span>) as HTMLElement
+  n ? <span class={`card card--${kind}`}>{n}</span> : <span class="zero">0</span>
 
 // Every stat ranks best-first on its first header click
 const stat = (key: string, label: string): ColumnDef<Player> => ({
@@ -110,14 +109,13 @@ const COLUMNS: ColumnDef<Player>[] = [
     compare: (a, b) => formPoints(a as string) - formPoints(b as string),
     // A squad shares its club's form; the aggregate row renders it through `render` too
     aggregate: (rows) => rows[0].form,
-    render: (v) =>
-      (
-        <span class="form" aria-label={`Last five: ${v as string}`}>
-          {[...(v as string)].map((r) => (
-            <span class={`form-dot form-dot--${r.toLowerCase()}`}>{r}</span>
-          ))}
-        </span>
-      ) as HTMLElement,
+    render: (v) => (
+      <span class="form" aria-label={`Last five: ${v as string}`}>
+        {[...(v as string)].map((r) => (
+          <span class={`form-dot form-dot--${r.toLowerCase()}`}>{r}</span>
+        ))}
+      </span>
+    ),
   },
 ]
 

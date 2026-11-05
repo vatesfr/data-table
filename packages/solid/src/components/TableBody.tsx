@@ -1,4 +1,13 @@
-import { For, Index, Show, createEffect, createMemo, createSignal, onCleanup } from 'solid-js'
+import {
+  For,
+  Index,
+  Show,
+  createEffect,
+  createMemo,
+  createSignal,
+  onCleanup,
+  type JSXElement,
+} from 'solid-js'
 import {
   getColumnAlign,
   getColumnValue,
@@ -42,13 +51,13 @@ function renderCell<TRow extends object>(
   value: unknown,
   contextRow: TRow,
   fallback: (v: unknown) => string = stringifyValue,
-): Node | string {
+): JSXElement {
   if (col.render) return col.render(value, contextRow)
   if (col.format) return col.format(value, contextRow)
   return fallback(value)
 }
 
-function cellValue<TRow extends object>(col: ColumnDef<TRow>, row: TRow): Node | string {
+function cellValue<TRow extends object>(col: ColumnDef<TRow>, row: TRow): JSXElement {
   return renderCell(col, getColumnValue(col, row), row)
 }
 
@@ -56,7 +65,7 @@ function aggValue<TRow extends object>(
   col: ColumnDef<TRow>,
   rows: TRow[],
   sampleRow: TRow,
-): Node | string {
+): JSXElement {
   if (!col.aggregate) return ''
   return renderCell(col, computeAggregate(col, rows), sampleRow)
 }
@@ -578,7 +587,7 @@ function renderGroupCellValue<TRow extends object>(
   col: ColumnDef<TRow> | undefined,
   sampleRow: TRow,
   keyPart: string,
-): Node | string {
+): JSXElement {
   if (!col) return String(keyPart ?? '')
   const raw = getColumnValue(col, sampleRow)
   const value = Array.isArray(raw) ? keyPart : raw

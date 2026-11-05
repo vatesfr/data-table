@@ -14,7 +14,7 @@ export function thumb(p: Product, size: 'sm' | 'lg' = 'sm') {
     <span class={`thumb thumb--${size}`} style={{ background: c.tint }} aria-hidden="true">
       {c.emoji}
     </span>
-  ) as HTMLElement
+  )
 }
 
 export function stockPill(stock: number) {
@@ -24,7 +24,7 @@ export function stockPill(stock: number) {
       : stock <= 10
         ? ['low', `Low · ${stock}`]
         : ['ok', `${stock} in stock`]
-  return (<span class={`pill pill--${level}`}>{text}</span>) as HTMLElement
+  return <span class={`pill pill--${level}`}>{text}</span>
 }
 
 export function stars(rating: number) {
@@ -38,11 +38,11 @@ export function stars(rating: number) {
       </span>
       <span class="stars-value">{rating.toFixed(1)}</span>
     </span>
-  ) as HTMLElement
+  )
 }
 
 export function colorDot(name: string) {
-  return (<span class="dot" style={{ background: COLORS[name] }} title={name} />) as HTMLElement
+  return <span class="dot" style={{ background: COLORS[name] }} title={name} />
 }
 
 export function colorLabel(name: string) {
@@ -50,5 +50,5 @@ export function colorLabel(name: string) {
     <span class="dot-label">
       {colorDot(name)} {name}
     </span>
-  ) as HTMLElement
+  )
 }

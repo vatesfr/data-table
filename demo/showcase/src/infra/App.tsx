@@ -14,23 +14,23 @@ import source from './App.tsx?raw'
 const POWER_ORDER: Power[] = ['Running', 'Paused', 'Halted']
 
 function powerDot(power: Power) {
-  return (<span class={`power power--${power.toLowerCase()}`}>{power}</span>) as HTMLElement
+  return <span class={`power power--${power.toLowerCase()}`}>{power}</span>
 }
 
 // Limit: B49 — a column `width` is only a hint, so cells keep themselves on one line
 function oneLine(text: string) {
-  return (<span class="nowrap">{text}</span>) as HTMLElement
+  return <span class="nowrap">{text}</span>
 }
 
 function cpuBar(cpu: number | null) {
-  if (cpu == null) return (<span class="muted">—</span>) as HTMLElement
+  if (cpu == null) return <span class="muted">—</span>
   const level = cpu >= 90 ? 'hot' : cpu >= 70 ? 'warm' : 'ok'
   return (
     <span class={`cpu cpu--${level}`}>
       <span class="cpu-bar" style={{ width: `${cpu}%` }} />
       <span class="cpu-value">{cpu}%</span>
     </span>
-  ) as HTMLElement
+  )
 }
 
 const COLUMNS: ColumnDef<Vm>[] = [
@@ -85,14 +85,13 @@ const COLUMNS: ColumnDef<Vm>[] = [
     label: 'Tags',
     multiMode: 'and',
     groupable: true,
-    render: (_, vm) =>
-      (
-        <span class="tags">
-          {vm.tags.map((t) => (
-            <span class="tag">{t}</span>
-          ))}
-        </span>
-      ) as HTMLElement,
+    render: (_, vm) => (
+      <span class="tags">
+        {vm.tags.map((t) => (
+          <span class="tag">{t}</span>
+        ))}
+      </span>
+    ),
   },
   {
     key: 'lastBoot',

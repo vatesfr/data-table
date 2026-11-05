@@ -13,7 +13,7 @@ import { LEVELS, makeEvents, type Level, type LogEvent } from './data'
 import source from './App.tsx?raw'
 
 function levelBadge(level: string) {
-  return (<span class={`lvl lvl--${level}`}>{level}</span>) as HTMLElement
+  return <span class={`lvl lvl--${level}`}>{level}</span>
 }
 
 const COLUMNS: ColumnDef<LogEvent>[] = [
@@ -73,12 +73,11 @@ const COLUMNS: ColumnDef<LogEvent>[] = [
     label: 'Message',
     // 100k distinct strings: a checklist would be useless, search covers it
     filterable: false,
-    render: (v) =>
-      (
-        <span class="msg" title={v as string}>
-          {v as string}
-        </span>
-      ) as HTMLElement,
+    render: (v) => (
+      <span class="msg" title={v as string}>
+        {v as string}
+      </span>
+    ),
   },
 ]
 

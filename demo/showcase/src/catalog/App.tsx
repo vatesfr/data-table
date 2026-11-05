@@ -19,13 +19,12 @@ const COLUMNS: ColumnDef<Product>[] = [
     label: 'Product',
     pinned: true,
     width: 240,
-    render: (_, p) =>
-      (
-        <span class="product">
-          {thumb(p)}
-          <span class="product-name">{p.name}</span>
-        </span>
-      ) as HTMLElement,
+    render: (_, p) => (
+      <span class="product">
+        {thumb(p)}
+        <span class="product-name">{p.name}</span>
+      </span>
+    ),
   },
   { key: 'sku', label: 'SKU', filterable: false },
   { key: 'brand', label: 'Brand', groupable: true },
@@ -33,7 +32,7 @@ const COLUMNS: ColumnDef<Product>[] = [
     key: 'category',
     label: 'Category',
     groupable: true,
-    renderFilterLabel: (v) => (<span>{`${CATEGORIES[v]?.emoji ?? ''} ${v}`}</span>) as HTMLElement,
+    renderFilterLabel: (v) => <span>{`${CATEGORIES[v]?.emoji ?? ''} ${v}`}</span>,
   },
   {
     key: 'price',
@@ -67,7 +66,7 @@ const COLUMNS: ColumnDef<Product>[] = [
     label: 'Colors',
     multiMode: 'or',
     groupable: true,
-    render: (_, p) => (<span class="dots">{p.colors.map(colorDot)}</span>) as HTMLElement,
+    render: (_, p) => <span class="dots">{p.colors.map(colorDot)}</span>,
     renderFilterLabel: colorLabel,
   },
   {
