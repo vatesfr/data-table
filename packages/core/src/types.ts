@@ -92,10 +92,11 @@ export interface ColumnDefBase<TRow extends object = Record<string, unknown>> {
   /**
    * Buckets a row's groupBy value into a coarser group key, for continuous or high-cardinality
    * columns (percentages, timestamps); only grouping uses it. Return a value of the column's `type`
-   * so groups keep their natural order; label buckets with `groupFormat`. See
-   * `bucketNumericRange`/`bucketDatePart` and docs/grouped-columns.md.
+   * (a date as ISO `YYYY-MM-DD`, whatever its `parseDate`) so groups keep their natural order;
+   * label buckets with `groupFormat`. See `bucketNumericRange`/`bucketDatePart` and
+   * docs/grouped-columns.md.
    */
-  groupValue?: (value: unknown, row: TRow) => unknown
+  groupValue?: (value: unknown, row: TRow, col: ColumnDefBase<TRow>) => unknown
   /**
    * Formats a `groupValue` bucket key for the group header, e.g. `40` → `"40–50%"`. Default: the
    * raw key.

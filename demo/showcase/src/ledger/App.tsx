@@ -29,7 +29,7 @@ const COLUMNS: ColumnDef<Transaction>[] = [
     groupable: true,
     // The month is the group; each line still shows its own day
     keepVisibleWhenGrouped: true,
-    groupValue: bucketDatePart('month', parseFrDate),
+    groupValue: bucketDatePart('month'),
     // Limit: B33 — datePartGroup('month') names months in the browser's locale, not the table's
     groupFormat: (key) => {
       const label = monthYear.format(new Date(`${key}T00:00`))

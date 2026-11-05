@@ -20,6 +20,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ### Changed
 
 - ⚠️ **BREAKING (Solid, React, Vue):** in `table.groupedData`, a group's `rows` is now the whole group on every page, and the new `pageRows` holds the part rendered on this page (`[]` when collapsed); `sampleRow` is removed. Iterate `pageRows` to render a page's rows, and read `rows[0]` instead of `sampleRow`.
+- ⚠️ **BREAKING:** **date group bucketers read the column's `parseDate`**: `bucketDatePart(part)` and `datePartGroup(part, missingLabel?)` no longer take a `parseDate` argument, so a custom date format is declared once, on the column. Drop the argument: `bucketDatePart('month', parseFr)` becomes `bucketDatePart('month')`, `datePartGroup('month', parseFr, 'None')` becomes `datePartGroup('month', 'None')`. A `groupValue` now also receives the column as its third argument. A custom `groupValue` on a date column must return ISO `YYYY-MM-DD` keys, whatever the column's `parseDate`: other keys no longer sort as dates.
 - ⚠️ **BREAKING (React):** a column's `render` now also draws its group totals, as in Solid and vanilla. Set `aggregateFormat` to keep a plain-text total.
 - **A group's checkbox and Space select the whole group**, also when it's split across pages.
 - **Solid, vanilla: an empty group total shows nothing**: `render` is no longer called with a `null`/`undefined` aggregate, as in React and Vue.
@@ -39,6 +40,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - **Clear all returns to the initial view**: with an `initialViewState` sort (or filter, group, search), Clear all now restores it instead of emptying it, no longer shows on first load, and leaves no `?view=e30` in the URL. Removing an initial sort by hand now survives a reload.
 - **Focus and current row survive a data refresh with `getRowId`**: after a refetch the focused row keeps keyboard focus (in Solid and vanilla it dropped on every update) and the tab stop, and `currentRow` still marks a row passed from before the refresh.
 - **Shift-click range selection survives a data refresh with `getRowId`**: after a refetch, shift-clicking a row selected only that row; it now selects the range from the last plain click.
+- **Date groups sort chronologically with a custom `parseDate`**: month or year groups of a column with a non-ISO date format (e.g. `DD/MM/YYYY`) were left unordered when sorted by that column.
 - **Group header details pass contrast checks on any theme**: a group's column name, row count and "continued" note use the `--color-text-secondary` token instead of a faded text color, whose contrast depended on the theme's background.
 - **A group header stays in view on a sideways-scrolled table**: on a narrow screen, its checkbox, arrow and label stick to the left edge like a pinned column, and a long label wraps within the visible width instead of running off it.
 - **A group split across pages shows its whole total and row count**: its aggregates and "n rows" no longer cover only the current page's rows, so expanding a group doesn't change its numbers.

@@ -1316,6 +1316,11 @@ describe('numericRangeGroup', () => {
 
 // ─── bucketDatePart / formatDatePart ──────────────────────────────────────────
 
+const parseFrDate = (v: string) => {
+  const [d, m, y] = v.split('/').map(Number)
+  return new Date(y, m - 1, d).getTime()
+}
+
 describe('bucketDatePart', () => {
   it('truncates a date to the start of its month', () => {
     expect(bucketDatePart('month')('2024-05-14')).toBe('2024-05-01')
@@ -1336,6 +1341,28 @@ describe('bucketDatePart', () => {
   it('returns null for a missing value, instead of the literal text "null"', () => {
     expect(bucketDatePart('month')(null)).toBeNull()
     expect(bucketDatePart('month')(undefined)).toBeNull()
+  })
+
+  it("parses with the column's own parseDate", () => {
+    expect(bucketDatePart('month')('14/05/2024', {}, { parseDate: parseFrDate })).toBe('2024-05-01')
+  })
+
+  it('orders custom-parsed month groups chronologically', () => {
+    const col = {
+      key: 'date',
+      label: 'Date',
+      type: 'date' as const,
+      parseDate: parseFrDate,
+      ...datePartGroup('month'),
+    }
+    const rows = [{ date: '05/01/2024' }, { date: '05/03/2024' }, { date: '05/02/2024' }]
+    const groups = sortWithinGroups(
+      groupData(rows, ['date'], [col]),
+      [{ key: 'date', dir: 'desc' }],
+      ['date'],
+      [col],
+    )
+    expect(groups.map((g) => g.keyParts[0])).toEqual(['2024-03-01', '2024-02-01', '2024-01-01'])
   })
 })
 

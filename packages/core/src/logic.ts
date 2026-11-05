@@ -357,7 +357,7 @@ export function groupData<TRow extends object>(
     const bucketed = groupBy.map((g, i) => {
       const col = groupCols[i]
       const raw = resolveValue(col, row, g)
-      return col?.groupValue ? col.groupValue(raw, row) : raw
+      return col?.groupValue ? col.groupValue(raw, row, col) : raw
     })
     // Fast path for the usual all-scalar row (one bucket): no per-row combo arrays, and keyParts
     // only built for a new group
@@ -425,7 +425,9 @@ export function sortWithinGroups<TRow extends object>(
         const key = groupBy[idx]
         const dir = dirByGroupKey.get(key)
         if (dir === undefined) continue
-        const col = colByKey.get(key)
+        const raw = colByKey.get(key)
+        // A bucketed date key is ISO (`bucketDatePart`), not the column's own `parseDate` format
+        const col = raw?.groupValue && raw.type === 'date' ? { ...raw, parseDate: undefined } : raw
         const ka = a.keyParts[idx]
         const kb = b.keyParts[idx]
         const va = col?.compare ? ka : coerceByType(col, ka)
@@ -499,10 +501,8 @@ export type DatePart = 'year' | 'month' | 'day'
 
 /**
  * Ready-made `groupValue` bucketing function for a `type: 'date'` column: truncates a value to
- * the start of its enclosing year/month/day, returned as an ISO date string (`"2024-05-01"`) that
- * the same `parseDate` (default or override, matching the column's own) parses back correctly —
- * so `sortWithinGroups`' existing chronological comparison stays correct with no separate sort
- * key needed. Pair with `formatDatePart` to render a human label (e.g. `"May 2024"`) instead of
+ * the start of its enclosing year/month/day (read with the column's `parseDate`), returned as an
+ * ISO date string (`"2024-05-01"`), which `sortWithinGroups` orders chronologically. Pair with `formatDatePart` to render a human label (e.g. `"May 2024"`) instead of
  * the raw ISO bucket key in the group header.
  *
  * A missing (`null`/`undefined`) value returns `null` rather than falling through to
@@ -513,11 +513,14 @@ export type DatePart = 'year' | 'month' | 'day'
  */
 export function bucketDatePart(
   part: DatePart,
-  parseDate: (value: string) => number = defaultParseDate,
-): (value: unknown) => string | null {
-  return (value: unknown) => {
+): (
+  value: unknown,
+  row?: unknown,
+  col?: Pick<ColumnDefBase<object>, 'parseDate'>,
+) => string | null {
+  return (value, _row, col) => {
     if (value == null) return null
-    const t = parseDate(String(value))
+    const t = (col?.parseDate ?? defaultParseDate)(String(value))
     if (isNaN(t)) return String(value)
     const { y, m, day: dayPart } = datePartsOf(new Date(t))
     const day = part === 'day' ? dayPart : '01'
@@ -546,11 +549,10 @@ export function formatDatePart(
  * `{ key: 'releaseDate', ...datePartGroup('month') }`. */
 export function datePartGroup(
   part: DatePart,
-  parseDate: (value: string) => number = defaultParseDate,
   missingLabel = '(none)',
-): { groupValue: (value: unknown) => string | null; groupFormat: (keyPart: string) => string } {
+): { groupValue: ReturnType<typeof bucketDatePart>; groupFormat: (keyPart: string) => string } {
   return {
-    groupValue: bucketDatePart(part, parseDate),
+    groupValue: bucketDatePart(part),
     groupFormat: formatDatePart(part, missingLabel),
   }
 }
