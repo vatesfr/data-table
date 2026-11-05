@@ -4,4 +4,5 @@ dist/
 *.local
 .playwright-mcp/
 .playwright-e2e/
+test-results/
 demo-*.png
