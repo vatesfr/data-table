@@ -7,8 +7,6 @@ import { SHOWCASE_URL } from './fixtures'
 const KNOWN = [
   { rule: 'color-contrast', html: 'min-width: 26px', item: 'demo scoreBar' },
   { rule: 'color-contrast', html: 'No review yet', item: 'demo muted()' },
-  { rule: 'color-contrast', html: 'dt-group-colname', item: 'U43' },
-  { rule: 'color-contrast', html: 'dt-group-count', item: 'U43' },
 ]
 
 // The Solid demo, and the showcase ledger: grouped from the start, which the demo never is

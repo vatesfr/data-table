@@ -23,7 +23,6 @@ Seeded 2026-10-04 from issues reported by a consumer app, each reproduced on the
 ## Grouping
 
 - **U47 · minor · UC02, UC07** — scrolled sideways on a phone, a group's aggregate row turns into an empty band while its figures' columns are off-screen (showcase ledger: blank while Montant is off-screen), and the empty-table message (one `colspan` cell) scrolls away. The group label stays in view since U41. Seen in Solid.
-- **U43 · minor · UC02** — a group header's column name and count use `opacity: .6` instead of a text token, so their contrast depends on the theme: 4.46:1 on the showcase ledger's palette. Use `--color-text-secondary`. Seen in Solid.
 
 ## Table body
 

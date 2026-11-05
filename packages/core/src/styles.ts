@@ -122,9 +122,9 @@ export const DT_STYLES = `
 .dt-group-check,.dt-group-arrow{flex:none;display:flex;align-items:center;padding:6px 12px}
 .dt-group-text{padding:6px 12px}
 .dt-group-sep{margin:0 4px;opacity:.4}
-.dt-group-colname{margin-right:4px;opacity:.6}
-.dt-group-count{margin-left:10px;white-space:nowrap;font-weight:var(--font-weight-normal,400);opacity:.6}
-.dt-group-continued{margin-left:8px;font-weight:var(--font-weight-normal,400);opacity:.6}
+.dt-group-colname{margin-right:4px;color:var(--color-text-secondary,#666561)}
+.dt-group-count{margin-left:10px;white-space:nowrap;font-weight:var(--font-weight-normal,400);color:var(--color-text-secondary,#666561)}
+.dt-group-continued{margin-left:8px;font-weight:var(--font-weight-normal,400);color:var(--color-text-secondary,#666561)}
 .dt-pagination{display:flex;align-items:center;gap:6px;padding:10px 2px;justify-content:flex-end;flex-wrap:wrap}
 .dt-page-btn{padding:5px 9px;background:none;border:.5px solid var(--color-border-secondary,#dddcd8);border-radius:4px;cursor:pointer;font-size:var(--font-size-md,13px);color:var(--color-text-primary,#1a1916);font-family:inherit;line-height:1}
 .dt-page-btn:disabled{opacity:.35;cursor:default}
