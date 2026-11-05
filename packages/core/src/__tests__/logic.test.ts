@@ -2699,6 +2699,18 @@ describe('replaceSort with an exact dir', () => {
       { key: 'name', dir: 'asc' },
     ])
   })
+
+  it('adds a missing grouped entry in group order', () => {
+    const sorts: SortEntry[] = [
+      { key: 'dept', dir: 'asc' },
+      { key: 'name', dir: 'asc' },
+    ]
+    expect(replaceSort(sorts, 'city', 'asc', ['dept', 'city'], 'desc')).toEqual([
+      { key: 'dept', dir: 'asc' },
+      { key: 'city', dir: 'desc' },
+      { key: 'name', dir: 'asc' },
+    ])
+  })
 })
 
 describe('replaceSort', () => {

@@ -1319,7 +1319,9 @@ export function replaceSort(
 ): SortEntry[] {
   if (groupBy.includes(key))
     return dir
-      ? sorts.map((s) => (s.key === key ? { key, dir } : s))
+      ? insertGroupSort(sorts, groupBy.slice(0, groupBy.indexOf(key)), key, dir).map((s) =>
+          s.key === key ? { key, dir } : s,
+        )
       : toggleSort(sorts, key, defaultDir)
   const groupSorts = sorts.filter((s) => groupBy.includes(s.key))
   const rest = sorts.filter((s) => !groupBy.includes(s.key))

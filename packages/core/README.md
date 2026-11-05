@@ -103,7 +103,7 @@ normalizeForSearch(s) // lowercase + strip diacritics, e.g. "Öoo" -> "ooo" (use
 
 ```ts
 toggleSort(sorts, key, defaultDir?) // cycle defaultDir → opposite → off (default defaultDir 'asc', so none → asc → desc → none)
-replaceSort(sorts, key, defaultDir?, groupBy?) // plain header click: sort by key alone, discarding every other *non-group* sort entry; cycles direction if key is already the sole active non-group sort. groupBy (default []) exempts a currently grouped column's own entry from the discard, and — if key itself is grouped (reachable via keepVisibleWhenGrouped) — cycles that entry in place instead
+replaceSort(sorts, key, defaultDir?, groupBy?, dir?) // plain header click: sort by key alone, discarding every other *non-group* sort entry; cycles direction if key is already the sole active non-group sort. groupBy (default []) exempts a currently grouped column's own entry from the discard, and — if key itself is grouped (reachable via keepVisibleWhenGrouped) — cycles that entry in place instead
 appendOrToggleSort(sorts, key, defaultDir?) // shift-click header: add key to the multi-sort, or flip its direction in place if already present — never removes it
 moveSortBy(sorts, key, delta) // swap the sort entry for key with its neighbor delta positions away (e.g. -1/+1 for up/down buttons)
 reorderSort(sorts, dragKey, targetKey, after = false) // move the sort entry keyed dragKey to just before targetKey (or just after, if after is true) (drag-and-drop)

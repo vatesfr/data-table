@@ -455,7 +455,7 @@ const {
 const {
   entries: sorts,
   toggle: toggleSort, // append-or-cycle a column into the multi-sort; used by the Sort dropdown's "add" rows
-  replace: replaceSort, // (key: string) => void — sort by this column alone, discarding other sorts; header plain-click
+  replace: replaceSort, // (key: string, dir?: SortDir) => void — sort by this column alone, discarding other sorts; header plain-click; dir applies that direction instead of cycling
   appendOrToggle: appendOrToggleSort, // (key: string) => void — add/flip in place, never removes; header shift-click
   clear: clearSorts,
   icon: getSortIcon,

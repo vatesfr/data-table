@@ -412,7 +412,7 @@ const {
 const {
   entries: sorts,
   toggle: toggleSort,
-  replace: replaceSort, // (key: string) => void — single-column sort shortcut, discards other sorts; see Header click sorting
+  replace: replaceSort, // (key: string, dir?: SortDir) => void — single-column sort shortcut, discards other sorts; dir applies that direction instead of cycling; see Header click sorting
   appendOrToggle: appendOrToggleSort, // (key: string) => void — adds to the multi-sort or flips direction in place, never removes
   clear: clearSorts,
   icon: getSortIcon,
