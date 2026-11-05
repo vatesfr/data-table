@@ -7,6 +7,8 @@ describe('count formatting', () => {
     expect(LABELS_EN.rowsInGroup(1234)).toBe('1,234 rows')
     expect(LABELS_EN.groupCount(1234)).toBe(' · 1,234 groups')
     expect(LABELS_EN.moreValues(1234)).toBe('+1,234 more')
+    expect(LABELS_EN.pageOf(1234, 10010)).toBe('Page 1,234 of 10,010')
+    expect(LABELS_FR.pageOf(1234, 10010)).toBe('Page 1\u202f234 sur 10\u202f010')
     expect(LABELS_FR.formatCount(10010)).toBe('10\u202f010')
     expect(LABELS_DE.formatCount(10010)).toBe('10.010')
     expect(LABELS_PT.formatCount(10010)).toBe('10.010')
