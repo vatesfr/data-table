@@ -86,6 +86,12 @@ Symptom first, then cause and fix. Delete entries once obsolete.
 - Cause: Vue casts an absent boolean prop with no `withDefaults` default to `false`, not `undefined`.
 - Fix: spell out the default in `withDefaults` in both `DataTable.vue` and `DataTableView.vue` (e.g. `showSearch: true`, `defaultGroupsCollapsed`). A function prop (`onRowClick`) stays `undefined` when absent.
 
+## Vue test: `focus.moveTo(row)` or `selection.toggle(row)` matches no rendered row
+
+- Symptom: a test passing a row from its fixture array to a table action sees nothing happen, though the same test with a plain array works.
+- Cause: `ref(rows)` deep-wraps each row in a reactive proxy, so the table holds proxies and the fixture's raw row is a different object.
+- Fix: feed reactive data through `shallowRef(rows)`, as a consumer with plain row objects would.
+
 ## Vue demo: "Property … was accessed during render but is not defined on instance"
 
 - Symptom: a prop just added to `packages/vue/src/types.ts` is ignored in the running Vue demo, with that warning in the dev-server log; unit tests pass.
