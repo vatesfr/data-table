@@ -27,13 +27,13 @@
     "node": ">=18"
   },
   "type": "module",
-  "main": "./dist/data-table-vue.umd.cjs",
+  "main": "./dist/data-table-vue.cjs",
   "module": "./dist/data-table-vue.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "import": "./dist/data-table-vue.js",
-      "require": "./dist/data-table-vue.umd.cjs",
+      "require": "./dist/data-table-vue.cjs",
       "types": "./dist/index.d.ts"
     },
     "./theme": {
@@ -48,7 +48,7 @@
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "vite build && vite build --config ../vite.theme.config.mts",
+    "build": "vite build",
     "test": "vitest run",
     "test:watch": "vitest",
     "type-check": "vue-tsc --noEmit",
@@ -59,7 +59,7 @@
       "name": "ESM bundle (gzip)",
       "path": "dist/data-table-vue.js",
       "gzip": true,
-      "limit": "21.79 KB"
+      "limit": "21.82 KB"
     }
   ],
   "dependencies": {

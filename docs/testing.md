@@ -12,6 +12,7 @@ Each package has its own Vitest setup under `src/__tests__/`:
 
 - `dist-types/` imports each adapter's main entry and `/theme` the way a consumer does, resolved through `node_modules` to the built `dist/`; `npm run check:dist-types` (after `build`) type-checks it.
 - A `@ts-expect-error` on a mistyped prop fails if the types degrade to `any`.
+- `dist-types/require.mjs`, also run by `check:dist-types`, `require()`s each adapter's `.` and `/theme` CommonJS entries under jsdom globals and Node's `browser` condition.
 
 ## End to end
 

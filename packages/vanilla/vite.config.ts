@@ -21,11 +21,14 @@ export default defineConfig({
     // Terser: smaller gzipped output than esbuild; no property mangling (object keys unaudited)
     minify: 'terser',
     lib: {
-      // A UMD build allows one entry: `/theme` builds via ../vite.theme.config.mts
-      entry: resolve(import.meta.dirname, 'src/index.tsx'),
-      name: 'DataTableVanilla',
-      fileName: 'data-table-vanilla',
-      formats: ['es', 'umd'],
+      entry: {
+        index: resolve(import.meta.dirname, 'src/index.tsx'),
+        theme: resolve(import.meta.dirname, 'src/theme.ts'),
+      },
+      // Entry `index` keeps the bundled types at dist/index.d.ts; the main JS keeps the package name.
+      fileName: (format, name) =>
+        `${name === 'index' ? 'data-table-vanilla' : name}.${format === 'es' ? 'js' : 'cjs'}`,
+      formats: ['es', 'cjs'],
     },
     rollupOptions: {
       // solid-js AND @vates/data-table-solid (the package this one wraps — see index.tsx) are
@@ -38,13 +41,6 @@ export default defineConfig({
         '@vates/data-table-core/theme',
         '@vates/data-table-core/internal',
       ],
-      output: {
-        globals: {
-          '@vates/data-table-core': 'DataTableCore',
-          '@vates/data-table-core/theme': 'DataTableCore',
-          '@vates/data-table-core/internal': 'DataTableCore',
-        },
-      },
     },
   },
 })

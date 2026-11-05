@@ -14,6 +14,7 @@ import {
   rowText,
   groupText,
   computeAggregate,
+  formatAggregate,
   getSortIcon,
   getSortIndex,
   isGroupCollapsed,
@@ -61,13 +62,11 @@ function cellValue<TRow extends object>(col: ColumnDef<TRow>, row: TRow): JSXEle
   return renderCell(col, getColumnValue(col, row), row)
 }
 
-function aggValue<TRow extends object>(
-  col: ColumnDef<TRow>,
-  rows: TRow[],
-  sampleRow: TRow,
-): JSXElement {
-  if (!col.aggregate) return ''
-  return renderCell(col, computeAggregate(col, rows), sampleRow)
+// aggregateFormat, else render, else format (formatAggregate); nothing for an empty aggregate
+function aggValue<TRow extends object>(col: ColumnDef<TRow>, rows: TRow[]): JSXElement {
+  if (!col.render || col.aggregateFormat) return formatAggregate(col, rows)
+  const v = computeAggregate(col, rows)
+  return v === undefined || v === null ? '' : col.render(v, rows[0])
 }
 
 // Table header + body: sortable/draggable header cells, group headers (collapse toggle,
@@ -335,7 +334,7 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
               <Show
                 when={group().key !== null}
                 fallback={
-                  <For each={group().rows}>
+                  <For each={group().pageRows}>
                     {(row, ri) => (
                       <DataRow
                         table={table}
@@ -382,7 +381,7 @@ export function TableBody<TRow extends object>(props: TableBodyProps<TRow>) {
                     )
                   }
                 >
-                  <For each={group().rows}>
+                  <For each={group().pageRows}>
                     {(row, ri) => (
                       <DataRow
                         table={table}
@@ -474,7 +473,7 @@ function GroupHeaderRow<TRow extends object>(props: GroupHeaderRowProps<TRow>) {
   let cbEl: HTMLInputElement | undefined
   let toggleEl: HTMLButtonElement | undefined
   const label = () =>
-    groupText(props.columns, table.group.by(), props.group.keyParts, props.group.sampleRow!)
+    groupText(props.columns, table.group.by(), props.group.keyParts, props.group.rows[0])
   createEffect(() => {
     applyCheckboxState(cbEl, groupAllSelected(), groupSomeSelected())
   })
@@ -542,11 +541,7 @@ function GroupHeaderRow<TRow extends object>(props: GroupHeaderRowProps<TRow>) {
                   <span class="dt-group-colname">{gCol?.label ?? gColKey}:</span>{' '}
                   {gCol?.groupValue
                     ? (gCol.groupFormat?.(props.group.keyParts[gi()]) ?? props.group.keyParts[gi()])
-                    : renderGroupCellValue(
-                        gCol,
-                        props.group.sampleRow!,
-                        props.group.keyParts[gi()],
-                      )}
+                    : renderGroupCellValue(gCol, props.group.rows[0], props.group.keyParts[gi()])}
                 </>
               )
             }}
@@ -572,7 +567,7 @@ function GroupHeaderRow<TRow extends object>(props: GroupHeaderRowProps<TRow>) {
                 data-col-key={col.key}
                 style={{ 'text-align': getColumnAlign(col) }}
               >
-                {aggValue(col, props.group.rows, props.group.sampleRow!)}
+                {aggValue(col, props.group.rows)}
               </td>
             )}
           </For>

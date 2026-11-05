@@ -11,6 +11,7 @@ import {
 } from 'react'
 import {
   computeAggregate,
+  formatAggregate,
   exclusionChip,
   exclusionValueKeys,
   exclusionValues,
@@ -755,6 +756,13 @@ export function DataTableView<TRow extends object>({
     if (col.format) return col.format(v, row)
     if (Array.isArray(v)) return v.join(', ')
     return v != null ? String(v) : ''
+  }
+
+  // aggregateFormat, else render, else format (formatAggregate); nothing for an empty aggregate
+  const aggregateValue = (col: ColumnDef<TRow>, rows: TRow[]) => {
+    if (!col.render || col.aggregateFormat) return formatAggregate(col, rows)
+    const v = computeAggregate(col, rows)
+    return v === undefined || v === null ? null : col.render(v, rows[0])
   }
 
   const cellValue = (row: TRow, col: ColumnDef<TRow>) =>
@@ -1604,7 +1612,7 @@ export function DataTableView<TRow extends object>({
             </tr>
           </thead>
           <tbody>
-            {groupedData.map(({ key: gkey, keyParts, rows, continued, sampleRow }) => {
+            {groupedData.map(({ key: gkey, keyParts, rows, pageRows, continued }) => {
               const isCollapsed =
                 gkey !== null && isGroupCollapsed(collapsedGroups, gkey, defaultGroupsCollapsed)
               return [
@@ -1635,9 +1643,7 @@ export function DataTableView<TRow extends object>({
                           }}
                           type="checkbox"
                           checked={groupAllSelected(rows)}
-                          aria-label={L.selectGroup(
-                            groupText(columns, groupBy, keyParts, sampleRow!),
-                          )}
+                          aria-label={L.selectGroup(groupText(columns, groupBy, keyParts, rows[0]))}
                           onChange={() => toggleSelectAll(rows)}
                         />
                       </td>
@@ -1653,7 +1659,7 @@ export function DataTableView<TRow extends object>({
                         }}
                         tabIndex={isFocusTarget({ kind: 'group', key: gkey }) ? 0 : -1}
                         aria-expanded={!isCollapsed}
-                        aria-label={groupText(columns, groupBy, keyParts, sampleRow!)}
+                        aria-label={groupText(columns, groupBy, keyParts, rows[0])}
                       >
                         {isCollapsed ? '▶' : '▼'}
                       </button>
@@ -1669,9 +1675,9 @@ export function DataTableView<TRow extends object>({
                         const label = col?.groupValue
                           ? (col.groupFormat?.(keyParts[i]) ?? keyParts[i])
                           : (() => {
-                              const raw = col ? getColumnValue(col, sampleRow!) : undefined
+                              const raw = col ? getColumnValue(col, rows[0]) : undefined
                               const value = Array.isArray(raw) ? keyParts[i] : raw
-                              return col ? formatValue(value, sampleRow!, col) : String(value ?? '')
+                              return col ? formatValue(value, rows[0], col) : String(value ?? '')
                             })()
                         return (
                           <span key={g}>
@@ -1695,7 +1701,6 @@ export function DataTableView<TRow extends object>({
                     {selectable && <td className="dt-agg-td" style={{ width: 36 }} />}
                     <td className="dt-agg-td" style={{ width: 28 }} />
                     {activeColumns.map((col) => {
-                      const v = computeAggregate(col, rows)
                       return (
                         <td
                           key={col.key}
@@ -1703,18 +1708,14 @@ export function DataTableView<TRow extends object>({
                           data-col-key={col.key}
                           style={{ textAlign: getColumnAlign(col) }}
                         >
-                          {v !== undefined && v !== null
-                            ? col.format
-                              ? col.format(v, sampleRow!)
-                              : String(v)
-                            : null}
+                          {aggregateValue(col, rows)}
                         </td>
                       )
                     })}
                   </tr>
                 ),
                 !isCollapsed &&
-                  rows.map((row, ri) => (
+                  pageRows.map((row, ri) => (
                     <tr
                       key={table.getRowId ? table.getRowId(row) : `${gkey}-${ri}`}
                       ref={(el) => {

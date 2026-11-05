@@ -2,6 +2,7 @@
 import { computed, ref, toRaw, watch, nextTick, useSlots, onMounted, onBeforeUnmount } from 'vue'
 import {
   computeAggregate,
+  formatAggregate,
   getColumnAlign,
   getColumnValue,
   cellText,
@@ -522,7 +523,7 @@ function findCol(key: string): ColumnDef<TRow> | undefined {
 /** The raw value that defines a group for column `key` at groupBy index `i` — a single array item when the underlying value is an array, the raw value otherwise. Not used for a bucketed column (col.groupValue) — see groupBucketLabel below. */
 function groupRawValue(group: PagedGroup<TRow>, key: string, i: number): unknown {
   const col = findCol(key)
-  const raw = col ? getColumnValue(col, group.sampleRow!) : undefined
+  const raw = col ? getColumnValue(col, group.rows[0]) : undefined
   return Array.isArray(raw) ? group.keyParts[i] : raw
 }
 
@@ -540,6 +541,12 @@ function groupBucketLabel(group: PagedGroup<TRow>, key: string, i: number): stri
 
 function hasSlot(name: string): boolean {
   return name in slots
+}
+
+function hasAggregateSlot(col: ColumnDef<TRow>, rows: TRow[]): boolean {
+  if (col.aggregateFormat || !hasSlot(`aggregate-${col.key}`)) return false
+  const v = computeAggregate(col, rows)
+  return v !== undefined && v !== null
 }
 
 const dragColKey = ref<string | null>(null)
@@ -1765,7 +1772,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                   type="checkbox"
                   :checked="isGroupAllSelected(group.rows)"
                   :aria-label="
-                    L.selectGroup(groupText(columns, groupBy, group.keyParts, group.sampleRow!))
+                    L.selectGroup(groupText(columns, groupBy, group.keyParts, group.rows[0]))
                   "
                   @change="toggleSelectAll(group.rows)"
                 />
@@ -1778,7 +1785,7 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                   class="dt-group-toggle"
                   :tabindex="isFocusTarget({ kind: 'group', key: group.key! }) ? 0 : -1"
                   :aria-expanded="!groupCollapsed(group.key!)"
-                  :aria-label="groupText(columns, groupBy, group.keyParts, group.sampleRow!)"
+                  :aria-label="groupText(columns, groupBy, group.keyParts, group.rows[0])"
                 >
                   {{ groupCollapsed(group.key!) ? '▶' : '▼' }}
                 </button>
@@ -1805,11 +1812,11 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                     v-else
                     :name="`group-${g}`"
                     :value="groupRawValue(group, g, i)"
-                    :row="group.sampleRow!"
+                    :row="group.rows[0]"
                   >
                     {{
                       findCol(g)
-                        ? formatValue(groupRawValue(group, g, i), group.sampleRow!, findCol(g)!)
+                        ? formatValue(groupRawValue(group, g, i), group.rows[0], findCol(g)!)
                         : String(groupRawValue(group, g, i) ?? '')
                     }}
                   </slot>
@@ -1833,20 +1840,25 @@ async function onFilterDropdownKeydown(event: KeyboardEvent): Promise<void> {
                 :data-col-key="col.key"
                 :style="{ textAlign: getColumnAlign(col) }"
               >
-                {{
-                  (() => {
-                    const v = computeAggregate(col, group.rows)
-                    if (v === undefined || v === null) return ''
-                    return col.format ? col.format(v, group.sampleRow!) : String(v)
-                  })()
-                }}
+                <!--
+                  Slot #aggregate-{key} — custom aggregate rendering, unless aggregateFormat is set.
+                  Slot scope: { value: unknown, rows: TRow[] } (the whole group); not used for an
+                  empty aggregate. Falls back to aggregateFormat(), format() or string coercion.
+                -->
+                <slot
+                  v-if="hasAggregateSlot(col, group.rows)"
+                  :name="`aggregate-${col.key}`"
+                  :value="computeAggregate(col, group.rows)"
+                  :rows="group.rows"
+                />
+                <template v-else>{{ formatAggregate(col, group.rows) }}</template>
               </td>
             </tr>
 
             <!-- Data rows -->
             <template v-if="group.key === null || !groupCollapsed(group.key!)">
               <tr
-                v-for="(row, ri) in group.rows"
+                v-for="(row, ri) in group.pageRows"
                 :key="table.getRowId.value ? table.getRowId.value(row) : `${group.key}-${ri}`"
                 :ref="(el) => setItemRef(row, el as Element | null)"
                 :tabindex="

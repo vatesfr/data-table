@@ -20,21 +20,22 @@ export default defineConfig({
     // Terser: smaller gzipped output than esbuild; no property mangling (object keys unaudited)
     minify: 'terser',
     lib: {
-      // A UMD build allows one entry: `/theme` builds via ../vite.theme.config.mts
-      entry: resolve(import.meta.dirname, 'src/index.ts'),
-      name: 'DataTableVue',
-      fileName: 'data-table-vue',
-      formats: ['es', 'umd'],
+      entry: {
+        index: resolve(import.meta.dirname, 'src/index.ts'),
+        theme: resolve(import.meta.dirname, 'src/theme.ts'),
+      },
+      // Entry `index` keeps the bundled types at dist/index.d.ts; the main JS keeps the package name.
+      fileName: (format, name) =>
+        `${name === 'index' ? 'data-table-vue' : name}.${format === 'es' ? 'js' : 'cjs'}`,
+      formats: ['es', 'cjs'],
     },
     rollupOptions: {
-      external: ['vue', '@vates/data-table-core', '@vates/data-table-core/internal'],
-      output: {
-        globals: {
-          vue: 'Vue',
-          '@vates/data-table-core': 'DataTableCore',
-          '@vates/data-table-core/internal': 'DataTableCore',
-        },
-      },
+      external: [
+        'vue',
+        '@vates/data-table-core',
+        '@vates/data-table-core/internal',
+        '@vates/data-table-core/theme',
+      ],
     },
   },
 })

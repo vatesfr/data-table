@@ -7,7 +7,7 @@ Code health items (simplicity, duplication, maintainability, dev loop) from `vfl
 ## Open
 
 - **B14 · S** — dropdown drag-reorder row lookup (`react/src/hooks/useDropdownReorder.ts`, `vue/src/composables/useDropdownReorder.ts`, `solid/src/dragReorder.ts`) still copied 3×. A core `resolveDropdownDragRow(root, {target, clientY}, attr)` measured core +64 B against adapters −42 to −66 B gzip, so the Vue, Solid and vanilla totals grew. Direction: retry only with a more compact signature, measured with `node scripts/size-diff.mjs`.
-- **B24 · S** — root `package.json` `test` runs 5 vitest processes in sequence. A root `vitest.config.ts` with `projects: ['packages/*/vitest.config.ts']` (not `packages/*`, which picks up `vite.theme.config.mts`) ran the test step in 12 s instead of 15–17 s with the same 2,063 tests, but stage 1 of `check.mjs --staged` stayed at 15–17 s, bound by its other parallel steps. Direction: retry once type-check or build gets faster.
+- **B24 · S** — root `package.json` `test` runs 5 vitest processes in sequence. A root `vitest.config.ts` with `projects: ['packages/*/vitest.config.ts']` ran the test step in 12 s instead of 15–17 s with the same 2,063 tests, but stage 1 of `check.mjs --staged` stayed at 15–17 s, bound by its other parallel steps. Direction: retry once type-check or build gets faster.
 
 - **B46** — vanilla has no single-field setters: an outside search box calls `setViewState({ ...getViewState(), searchQuery })`, since `setViewState` resets every field the view leaves out.
 - **B48** — two tables persisted to the URL with the same `paramName` (default `view`) overwrite each other silently; nothing warns.
@@ -25,8 +25,6 @@ What `demo/showcase` pages wanted and the public API couldn't give. Each page ma
 - **B30** — no public way to build a share link for a view that isn't applied (`encodeViewState` is internal), so saved searches are buttons, not links. Page: logs.
 - **B31** — date grouping stops at the day (`DatePart`); a log viewer wants hour or minute buckets. Page: logs.
 - **B33** — `datePartGroup('month')` and the date filter tree name months in the browser's locale, not the table's labels; a French table in an English browser mixes languages. Page: ledger.
-- **B34** — an expanded group split across pages aggregates and counts only this page's rows (deliberate, see [pagination](pagination.md)): a report wants whole-group totals, and expanding a group changes its numbers ("25 rows, GP 500" collapsed, "24 rows, GP 496" expanded). Pages: ledger, sports.
-- **B35** — a function `aggregate`'s result goes through the column's own `render`/`format` with a sample row; there's no aggregate formatter, so a label must be baked into the value. Page: sports.
 - **B36** — a column header can't carry a description or tooltip, which abbreviated headers (GP, G, A) need. Page: sports.
 - **B37** — groups order only by their key, never by an aggregate (e.g. clubs by total points). Page: sports.
 - **B38** — `numericRangeGroup`'s unit is only a suffix ("50–100 €", never "€50–€100"). Page: catalog.

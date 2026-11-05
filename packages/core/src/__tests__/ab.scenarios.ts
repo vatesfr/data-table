@@ -62,7 +62,7 @@ export function scenarios(
     { name: 'search index (first keystroke)', run: () => L.buildSearchIndex(data, columns) },
     {
       name: 'paginate groups (page 1, size 100)',
-      run: () => L.paginateVisibleGroups(grouped, visibleItems, new Set(), false, 1, 100),
+      run: () => L.paginateVisibleGroups(grouped, visibleItems, 1, 100),
     },
     // Filter value lists: one column's, computed as its filter pane opens
     { name: 'filter values, one column', run: () => L.computeStringValues(data, category) },

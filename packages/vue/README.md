@@ -72,7 +72,7 @@ Use named scoped slots to customize how cells, filter labels, and group headers 
 </DataTable>
 ```
 
-Slot naming: `#cell-{key}`, `#filter-{key}`, `#group-{key}` where `{key}` matches the column's `key`.
+Slot naming: `#cell-{key}`, `#filter-{key}`, `#group-{key}`, `#aggregate-{key}` where `{key}` matches the column's `key`.
 
 `#toolbar-end` (no scope) renders your own controls at the right end of the toolbar's action row, in a `.dt-toolbar-end` wrapper — e.g. "Share view"/"Reset view" buttons. No wrapper is rendered without it.
 
@@ -250,7 +250,19 @@ Set `aggregate` on a column to show a computed value in a row below each group h
 { key: 'score', label: 'Score', type: 'number', aggregate: (rows) => Math.max(...rows.map((r) => r.score)) }
 ```
 
-The aggregate row only appears once grouping is active and only shows values for columns that define `aggregate`; it's always visible regardless of a group's collapsed state.
+The aggregate row only appears once grouping is active and only shows values for columns that define `aggregate`; it's always visible regardless of a group's collapsed state. It covers the whole group, even one split across pages.
+
+The value shows through the `#aggregate-{key}` slot, with scope `{ value, rows }` (the whole group), else the column's `format`, which gets the group's first row as its row; an empty (`null`/`undefined`) value shows nothing. Set `aggregateFormat(value, rows)` to format it on its own instead, e.g. when `format` reads other fields of its row:
+
+```ts
+{ key: 'name', label: 'Player', aggregate: (rows) => topScorer(rows), aggregateFormat: (p) => `★ ${(p as Player).name}` }
+```
+
+```vue
+<template #aggregate-salary="{ value }">
+  <strong>{{ value }}</strong>
+</template>
+```
 
 ## Row selection
 
@@ -404,6 +416,7 @@ interface ColumnDef<TRow extends object> {
   keepVisibleWhenGrouped?: boolean // default: false; keep this column's cells visible even while it's grouped
   multiMode?: 'and' | 'or' // match mode for array-valued columns; default: 'or'
   aggregate?: 'sum' | 'count' | 'avg' | 'min' | 'max' | ((rows: TRow[]) => unknown) // see Aggregation
+  aggregateFormat?: (value: unknown, rows: TRow[]) => string // see Aggregation
 }
 ```
 

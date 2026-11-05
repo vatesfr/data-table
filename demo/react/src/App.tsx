@@ -136,11 +136,13 @@ const COLUMNS: ColumnDef<Employee>[] = [
     width: 80,
     category: 'Performance',
     compare: compareMissingLast(),
+    // a group's average score, drawn by render like the cells
+    aggregate: 'avg',
     render: (v) =>
       v == null ? (
         <span style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>No review yet</span>
       ) : (
-        <ScoreBar value={Number(v)} />
+        <ScoreBar value={Math.round(Number(v))} />
       ),
   },
   // computed column (value) + compare (issue #15): bucket a continuous score into an ordered

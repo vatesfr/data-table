@@ -3250,3 +3250,71 @@ describe('DataTable — filter values', () => {
     expect(values(container)).toEqual(['N/A', 'RPG'])
   })
 })
+
+describe('DataTable — group aggregates', () => {
+  // One group of 5, split over pages of 3 items (header + 2 rows, then 3 rows)
+  const SPLIT: Row[] = [1, 2, 3, 4, 5].map((id) => ({ id, name: 'A', score: 10 }))
+  const AGG_COLS: ColumnDef<Row>[] = [
+    { key: 'name', label: 'Name', groupable: true },
+    { key: 'score', label: 'Score', type: 'number', aggregate: 'sum' },
+  ]
+  const renderSplit = (cols = AGG_COLS, onSelectionChange?: (rows: Row[]) => void) =>
+    render(
+      <DataTable
+        data={SPLIT}
+        columns={cols}
+        selectable={!!onSelectionChange}
+        onSelectionChange={onSelectionChange}
+        defaultGroupsCollapsed={false}
+        initialViewState={{ groupBy: ['name'], pageSize: 3 }}
+      />,
+    )
+  const aggText = (container: HTMLElement) =>
+    container.querySelector('.dt-agg-row [data-col-key="score"]')!.textContent
+  const countText = (container: HTMLElement) =>
+    container.querySelector('.dt-group-count')!.textContent
+
+  it("shows a split group's whole total and row count on every page", () => {
+    const { container, getByRole } = renderSplit()
+    expect([aggText(container), countText(container)]).toEqual(['50', '5 rows'])
+    fireEvent.click(getByRole('button', { name: 'Next page' }))
+    expect([aggText(container), countText(container)]).toEqual(['50', '5 rows'])
+  })
+
+  it("selects a split group's rows on every page from its checkbox", () => {
+    const onSelectionChange = vi.fn()
+    const { getByRole } = renderSplit(AGG_COLS, onSelectionChange)
+    fireEvent.click(getByRole('checkbox', { name: /Select group/ }))
+    expect(onSelectionChange).toHaveBeenLastCalledWith(SPLIT)
+  })
+
+  it('formats an aggregate with aggregateFormat instead of the cell format', () => {
+    const cols: ColumnDef<Row>[] = [
+      AGG_COLS[0],
+      {
+        ...AGG_COLS[1],
+        format: () => 'cell',
+        render: () => 'cell',
+        aggregateFormat: (v, rows) => `${String(v)} over ${rows.length}`,
+      },
+    ]
+    expect(aggText(renderSplit(cols).container)).toBe('50 over 5')
+  })
+
+  it("renders an aggregate through the column's render, given the group's first row", () => {
+    const render = vi.fn((v: unknown) => <b>{String(v)}</b>)
+    const { container } = renderSplit([AGG_COLS[0], { ...AGG_COLS[1], render }])
+    expect(container.querySelector('.dt-agg-row [data-col-key="score"] b')!.textContent).toBe('50')
+    expect(render).toHaveBeenCalledWith(50, SPLIT[0])
+  })
+
+  it("doesn't render an empty aggregate", () => {
+    const render = vi.fn(() => 'cell')
+    const { container } = renderSplit([
+      AGG_COLS[0],
+      { ...AGG_COLS[1], aggregate: () => null, render },
+    ])
+    expect(aggText(container)).toBe('')
+    expect(render).not.toHaveBeenCalledWith(null, expect.anything())
+  })
+})

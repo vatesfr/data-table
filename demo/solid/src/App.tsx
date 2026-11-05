@@ -148,7 +148,9 @@ const COLUMNS: ColumnDef<Employee>[] = [
     width: 80,
     category: 'Performance',
     compare: compareMissingLast(),
-    render: (v) => (v == null ? muted('No review yet') : scoreBar(Number(v))),
+    // a group's average score, drawn by render like the cells
+    aggregate: 'avg',
+    render: (v) => (v == null ? muted('No review yet') : scoreBar(Math.round(Number(v)))),
   },
   // computed column (value) + compare (issue #15): bucket a continuous score into an ordered
   // enum and sort it by rank, not alphabetically — see TIER_ORDER above. compareMissingLast()

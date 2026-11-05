@@ -123,7 +123,9 @@ const COLUMNS: ColumnDef<Employee>[] = [
     type: 'number',
     width: 80,
     compare: compareMissingLast(),
-    render: (v) => (v == null ? muted('No review yet') : createScoreBar(Number(v))),
+    // a group's average score, drawn by render like the cells
+    aggregate: 'avg',
+    render: (v) => (v == null ? muted('No review yet') : createScoreBar(Math.round(Number(v)))),
   },
   // computed column (value) + compare (issue #15): bucket a continuous score into an ordered
   // enum and sort it by rank, not alphabetically — see TIER_ORDER above, wrapped in

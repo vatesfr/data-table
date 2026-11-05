@@ -183,14 +183,7 @@ export function useTableState<TRow extends object>(
   )
 
   const groupedData = computed(() =>
-    paginateVisibleGroups(
-      groupedFull.value,
-      visibleItems.value,
-      collapsedGroups.value,
-      defaultGroupsCollapsed.value,
-      clampedPage.value,
-      pageSize.value,
-    ),
+    paginateVisibleGroups(groupedFull.value, visibleItems.value, clampedPage.value, pageSize.value),
   )
 
   const activeColumns = computed(() =>

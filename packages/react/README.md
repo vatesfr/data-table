@@ -62,7 +62,7 @@ const COLUMNS: ColumnDef<Employee>[] = [
 ]
 ```
 
-`render` also applies to group header values, so grouped columns display with the same badge/visual as table cells.
+`render` also applies to group header values and aggregate cells, so grouped columns display with the same badge/visual as table cells.
 
 ## Multi-value (array) columns
 
@@ -235,7 +235,13 @@ Set `aggregate` on a column to show a computed value in a row below each group h
 { key: 'score', label: 'Score', type: 'number', aggregate: (rows) => Math.max(...rows.map((r) => r.score)) }
 ```
 
-The aggregate row only appears once grouping is active and only shows values for columns that define `aggregate`; it's always visible regardless of a group's collapsed state.
+The aggregate row only appears once grouping is active and only shows values for columns that define `aggregate`; it's always visible regardless of a group's collapsed state. It covers the whole group, even one split across pages.
+
+The value shows through the column's `render` or `format`, which get the group's first row as their row; an empty (`null`/`undefined`) value shows nothing. Set `aggregateFormat(value, rows)` to format it on its own instead, e.g. when `render` reads other fields of its row:
+
+```ts
+{ key: 'name', label: 'Player', aggregate: (rows) => topScorer(rows), aggregateFormat: (p) => `★ ${(p as Player).name}` }
+```
 
 ## Row selection
 
@@ -357,6 +363,7 @@ interface ColumnDef<TRow extends object> {
   keepVisibleWhenGrouped?: boolean // default: false; keep this column's cells visible even while it's grouped
   multiMode?: 'and' | 'or' // match mode for array-valued columns; default: 'or'
   aggregate?: 'sum' | 'count' | 'avg' | 'min' | 'max' | ((rows: TRow[]) => unknown) // see Aggregation
+  aggregateFormat?: (value: unknown, rows: TRow[]) => string // see Aggregation
   render?: (value: unknown, row: TRow) => ReactNode
   renderFilterLabel?: (value: string) => ReactNode
 }

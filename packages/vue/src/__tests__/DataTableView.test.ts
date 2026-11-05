@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
 import { mount } from '@vue/test-utils'
 import { useTableState } from '../useTableState'
@@ -214,5 +214,93 @@ describe('DataTableView — currentRow', () => {
     const marked = wrapper.findAll('tbody tr[aria-current="true"]')
     expect(marked).toHaveLength(1)
     expect(marked[0].text()).toContain(ROWS[1].name)
+  })
+})
+
+describe('DataTableView — group aggregates', () => {
+  // One group of 5, split over pages of 3 items (header + 2 rows, then 3 rows)
+  const SPLIT: Row[] = [1, 2, 3, 4, 5].map((id) => ({ id, name: 'A', score: 10 }))
+  const AGG_COLS: ColumnDef<Row>[] = [
+    { key: 'name', label: 'Name', groupable: true },
+    { key: 'score', label: 'Score', type: 'number', aggregate: 'sum' },
+  ]
+  function mountSplit(cols = AGG_COLS, slots: Record<string, (scope: never) => unknown> = {}) {
+    let table!: Table
+    const Comp = defineComponent({
+      setup() {
+        table = useTableState(SPLIT, cols, {
+          defaultGroupsCollapsed: false,
+          initialViewState: { groupBy: ['name'], pageSize: 3 },
+        })
+        return () =>
+          h(
+            DataTableView,
+            {
+              table,
+              data: SPLIT,
+              columns: cols,
+              selectable: true,
+            } as Record<string, unknown>,
+            slots,
+          )
+      },
+    })
+    const wrapper = mount(Comp)
+    const aggText = () => wrapper.find('.dt-agg-row [data-col-key="score"]').text()
+    const countText = () => wrapper.find('.dt-group-count').text()
+    return { table, wrapper, aggText, countText }
+  }
+
+  it("shows a split group's whole total and row count on every page", async () => {
+    const { table, aggText, countText } = mountSplit()
+    expect([aggText(), countText()]).toEqual(['50', '5 rows'])
+    table.pagination.setPage(2)
+    await nextTick()
+    expect([aggText(), countText()]).toEqual(['50', '5 rows'])
+  })
+
+  it("selects a split group's rows on every page from its checkbox", async () => {
+    const { table, wrapper } = mountSplit()
+    await wrapper.find('input[aria-label^="Select group"]').trigger('change')
+    expect(table.selection.rows.value).toEqual(SPLIT)
+  })
+
+  it('formats an aggregate with aggregateFormat instead of the cell format', () => {
+    const { aggText } = mountSplit([
+      AGG_COLS[0],
+      {
+        ...AGG_COLS[1],
+        format: () => 'cell',
+        aggregateFormat: (v, rows) => `${String(v)} over ${rows.length}`,
+      },
+    ])
+    expect(aggText()).toBe('50 over 5')
+  })
+
+  it('renders an aggregate through the #aggregate-{key} slot, given the whole group', () => {
+    const { wrapper } = mountSplit(AGG_COLS, {
+      'aggregate-score': ({ value, rows }: { value: unknown; rows: Row[] }) =>
+        h('b', `${String(value)} / ${rows.length}`),
+    })
+    expect(wrapper.find('.dt-agg-row [data-col-key="score"] b').text()).toBe('50 / 5')
+  })
+
+  it('prefers aggregateFormat to the #aggregate-{key} slot', () => {
+    const slot = vi.fn(() => h('b', 'slot'))
+    const { aggText } = mountSplit(
+      [AGG_COLS[0], { ...AGG_COLS[1], aggregateFormat: (v) => `=${String(v)}` }],
+      { 'aggregate-score': slot },
+    )
+    expect(aggText()).toBe('=50')
+    expect(slot).not.toHaveBeenCalled()
+  })
+
+  it("doesn't render an empty aggregate through the #aggregate-{key} slot", () => {
+    const slot = vi.fn(() => h('b', 'slot'))
+    const { aggText } = mountSplit([AGG_COLS[0], { ...AGG_COLS[1], aggregate: () => null }], {
+      'aggregate-score': slot,
+    })
+    expect(aggText()).toBe('')
+    expect(slot).not.toHaveBeenCalled()
   })
 })

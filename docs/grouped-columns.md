@@ -64,7 +64,11 @@ A merged `⊞ Department ↑ ×` pill (arrow toggles direction, one ×) was cons
 
 ## Aggregation in group headers
 
-`ColumnDefBase.aggregate` accepts `'sum' | 'count' | 'avg' | 'min' | 'max'` or a custom `(rows: TRow[]) => unknown` function. When any active column defines an aggregate, a secondary `dt-agg-row` row is rendered below each group header with per-column values. `computeAggregate(col, rows)` in core handles all built-in types; `col.format` is used for display when available, passed `sampleRow` (see [pagination.md](pagination.md)) rather than `rows[0]` since `rows` can legitimately be empty for a header rendered right at a page boundary. The aggregate row is always visible regardless of collapse state — for a collapsed group `rows` is the full group (backfilled by `paginateVisibleGroups`), for an expanded/split group it's whatever chunk of the group is visible on this page (see [pagination.md](pagination.md) for why these differ).
+`ColumnDefBase.aggregate` accepts `'sum' | 'count' | 'avg' | 'min' | 'max'` or a custom `(rows: TRow[]) => unknown` function. When any active column defines an aggregate, a secondary `dt-agg-row` row is rendered below each group header with per-column values. `computeAggregate(col, rows)` in core handles all built-in types. The aggregate row is always visible regardless of collapse state, and always covers the whole group, even one split across pages (see [pagination.md](pagination.md)).
+
+- **Display**, in every adapter: `col.aggregateFormat(value, rows)` when set, else the custom renderer (React/Solid/vanilla `col.render(value, rows[0])`, Vue's `#aggregate-{key}` slot with `{ value, rows }`), else `col.format(value, rows[0])`, else `String(value)`; empty for a `null`/`undefined` value, without calling any of them. Core's `formatAggregate` covers the string steps.
+- **`aggregateFormat`** exists because `format`/`render` take a row: given the group's first row, a cell renderer that reads other fields (a currency, a per-row threshold) decorates the total as if it were that row's own value.
+- **Vue** has its own `#aggregate-{key}` slot rather than reusing `#cell-{key}`, as it does `#group-{key}` for group values: a cell slot doesn't silently start drawing totals, and the scope carries the whole group.
 
 ---
 

@@ -13,7 +13,7 @@ All stateless logic lives here — but `@vates/data-table-core` is **not a suppo
 
 The internal `asRecord(row: object): Record<string, unknown>` helper exists because the generic constraint is `TRow extends object` (not `Record<string, unknown>`) — TypeScript interfaces lack index signatures so the wider constraint is needed, and `asRecord` lets internal logic access arbitrary keys.
 
-**Sub-path build wiring**: `packages/core/vite.config.ts` builds `index`/`locales`/`theme`/`internal` as parallel `es`+`cjs` entries (core ships no UMD build). React/vue/solid/vanilla each add their own `/theme` re-export the same way — but since those four packages' main entry also ships a `umd` build (so each still works as a plain `<script>` global) and Rollup disallows multiple entry points when the output formats include `umd`, each of their `/theme` sub-paths is built by a **separate** pass with the shared `packages/vite.theme.config.mts` (`es`+`cjs` only), invoked as a second step in that package's own `build` script (`vite build && vite build --config ../vite.theme.config.mts`) rather than as a second `lib.entry` in the main config.
+**Sub-path build wiring**: `packages/core/vite.config.ts` builds `index`/`locales`/`theme`/`internal` as parallel `es`+`cjs` entries. React/vue/solid/vanilla build `index` and `theme` entries the same way, with `@vates/data-table-core/theme` external so `/theme` stays a re-export; the entry is named `index` so the bundled types land at `dist/index.d.ts`, and `fileName` keeps the main JS at `dist/data-table-<pkg>.{js,cjs}`. No adapter ships a UMD/global build: core has none, and React 19 and solid-js ship no browser globals either.
 
 ## React package (`packages/react`)
 

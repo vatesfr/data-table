@@ -130,6 +130,8 @@ const COLUMNS: ColumnDef<Employee>[] = [
     width: 80,
     category: 'Performance',
     compare: compareMissingLast(),
+    // a group's average score, drawn by the #aggregate-score slot
+    aggregate: 'avg',
   },
   // computed column (value) + compare (issue #15): bucket a continuous score into an ordered
   // enum and sort it by rank, not alphabetically — see TIER_ORDER above, wrapped in
@@ -564,6 +566,11 @@ function fmtSalary(n: number | null) {
       <template #group-tier="{ value }">
         <Badge v-if="value" :value="String(value)" :color-map="TIER_COLORS" />
         <span v-else style="font-size: 12px; color: var(--color-text-tertiary)">—</span>
+      </template>
+
+      <!-- Custom aggregate cells -->
+      <template #aggregate-score="{ value }">
+        <ScoreBar :value="Math.round(Number(value))" />
       </template>
     </DataTableView>
 

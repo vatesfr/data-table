@@ -14,10 +14,20 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - **`expandCollapse` label**: names the column of group expand/collapse buttons for screen readers (visually hidden); set it with the other labels.
 - **Showcase**: [six apps](https://vatesfr.github.io/data-table/showcase/) built with the library (ops console, French ledger, log viewer, store catalog, sports stats, user admin), each with its own data, interactions and style, and its source.
 - **Style one toolbar clear button**: the Group, Sort and Filter × buttons carry `dt-btn-clear--groups`, `dt-btn-clear--sorts` and `dt-btn-clear--filters`, so CSS can target one without matching its translated label.
+- **Format a group total on its own**: a column's `aggregateFormat(value, rows)` formats its group header aggregate instead of the cell's `render`/`format`, which get the group's first row as their row and so could decorate the total as that row's value.
+- **Vue: render a group total with a slot**: `#aggregate-{key}`, with scope `{ value, rows }` (the whole group).
+
+### Changed
+
+- ⚠️ **BREAKING (Solid, React, Vue):** in `table.groupedData`, a group's `rows` is now the whole group on every page, and the new `pageRows` holds the part rendered on this page (`[]` when collapsed); `sampleRow` is removed. Iterate `pageRows` to render a page's rows, and read `rows[0]` instead of `sampleRow`.
+- ⚠️ **BREAKING (React):** a column's `render` now also draws its group totals, as in Solid and vanilla. Set `aggregateFormat` to keep a plain-text total.
+- **A group's checkbox and Space select the whole group**, also when it's split across pages.
+- **Solid, vanilla: an empty group total shows nothing**: `render` is no longer called with a `null`/`undefined` aggregate, as in React and Vue.
 
 ### Removed
 
 - ⚠️ **BREAKING:** **`rowKey` is gone; `getRowId` keys the rows**: the row id that matches selection, focus and `currentRow` is now also each row's DOM key, so the same identity is no longer declared twice. Migrate `rowKey="id"` (vanilla `rowKey: 'id'`) to `getRowId: (row) => row.id` on the table state or `DataTable`, and drop vanilla's `setRowKey`. Without `getRowId`, rows are keyed by position, including in Vue, which used to key by an `id` property by default.
+- **UMD builds**: no adapter ships a UMD file any more. They needed a `DataTableCore` browser global that no package provides, so they never worked from a `<script>` tag. `require()` now loads a plain CommonJS build and keeps working.
 
 ### Fixed
 
@@ -28,6 +38,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - **Clear all returns to the initial view**: with an `initialViewState` sort (or filter, group, search), Clear all now restores it instead of emptying it, no longer shows on first load, and leaves no `?view=e30` in the URL. Removing an initial sort by hand now survives a reload.
 - **Focus and current row survive a data refresh with `getRowId`**: after a refetch the focused row keeps keyboard focus (in Solid and vanilla it dropped on every update) and the tab stop, and `currentRow` still marks a row passed from before the refresh.
 - **Shift-click range selection survives a data refresh with `getRowId`**: after a refetch, shift-clicking a row selected only that row; it now selects the range from the last plain click.
+- **A group split across pages shows its whole total and row count**: its aggregates and "n rows" no longer cover only the current page's rows, so expanding a group doesn't change its numbers.
 - **Date range filters keep rows dated on a bound in every time zone**: a min or max date now covers that whole local day, so "Released ≤ today" no longer drops today's rows west of UTC (nor min east of UTC). The range inputs and slider show the right day east of UTC, a `YYYY-MM-DD` value sits on its own day in the date filter tree, and a month group reads its own month west of UTC. A custom `parseDate` should return local time to match. (#46)
 
 ## [0.21.0] - 2026-10-31

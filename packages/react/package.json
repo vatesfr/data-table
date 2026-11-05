@@ -26,13 +26,13 @@
     "node": ">=18"
   },
   "type": "module",
-  "main": "./dist/data-table-react.umd.cjs",
+  "main": "./dist/data-table-react.cjs",
   "module": "./dist/data-table-react.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "import": "./dist/data-table-react.js",
-      "require": "./dist/data-table-react.umd.cjs",
+      "require": "./dist/data-table-react.cjs",
       "types": "./dist/index.d.ts"
     },
     "./theme": {
@@ -47,7 +47,7 @@
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "vite build && vite build --config ../vite.theme.config.mts",
+    "build": "vite build",
     "test": "vitest run",
     "test:watch": "vitest",
     "type-check": "tsc --noEmit",

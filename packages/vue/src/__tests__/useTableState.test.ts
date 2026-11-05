@@ -593,25 +593,15 @@ describe('useTableState — pagination with grouping', () => {
     const { toggle: toggleGroup } = table.group
     const { setPage } = table.pagination
     toggleGroup('dept')
+    const eng = DEPT_ROWS.slice(0, 2)
+    const hr = DEPT_ROWS.slice(2)
     expect(groupedData.value).toEqual([
-      {
-        key: 'Eng',
-        keyParts: ['Eng'],
-        rows: [DEPT_ROWS[0]],
-        continued: false,
-        sampleRow: DEPT_ROWS[0],
-      },
+      { key: 'Eng', keyParts: ['Eng'], rows: eng, continued: false, pageRows: [DEPT_ROWS[0]] },
     ])
     setPage(2)
     expect(groupedData.value).toEqual([
-      {
-        key: 'Eng',
-        keyParts: ['Eng'],
-        rows: [DEPT_ROWS[1]],
-        continued: true,
-        sampleRow: DEPT_ROWS[0],
-      },
-      { key: 'HR', keyParts: ['HR'], rows: [], continued: false, sampleRow: DEPT_ROWS[2] },
+      { key: 'Eng', keyParts: ['Eng'], rows: eng, continued: true, pageRows: [DEPT_ROWS[1]] },
+      { key: 'HR', keyParts: ['HR'], rows: hr, continued: false, pageRows: [] },
     ])
   })
 
